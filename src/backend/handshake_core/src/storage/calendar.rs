@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -136,6 +136,74 @@ pub struct CalendarSourceSyncState {
     pub consecutive_failures: Option<i64>,
     pub last_remote_watermark: Option<String>,
     pub last_local_applied_rev: Option<i64>,
+}
+
+impl CalendarSourceSyncState {
+    pub fn backoff_active_until(&self, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+        self.backoff_until.filter(|deadline| *deadline > now)
+    }
+
+    pub fn begin_attempt(&self, direction: &CalendarSyncDirection, now: DateTime<Utc>) -> Self {
+        let mut next = self.clone();
+        next.state = Some(direction.active_stage());
+        next.backoff_until = None;
+        match direction {
+            CalendarSyncDirection::Pull => {
+                next.last_pull_at = Some(now);
+            }
+            CalendarSyncDirection::Push => {
+                next.last_push_at = Some(now);
+            }
+            CalendarSyncDirection::Mirror => {
+                next.last_pull_at = Some(now);
+                next.last_push_at = Some(now);
+            }
+        }
+        next
+    }
+
+    pub fn mark_success(&self, now: DateTime<Utc>) -> Self {
+        let mut next = self.clone();
+        next.state = Some(CalendarSyncStateStage::Idle);
+        next.last_synced_at = Some(now);
+        next.last_ok_at = Some(now);
+        if next.sync_token.is_none() {
+            next.last_full_sync_at = Some(now);
+        }
+        next.last_error_at = None;
+        next.last_error_code = None;
+        next.last_error = None;
+        next.backoff_until = None;
+        next.consecutive_failures = Some(0);
+        next
+    }
+
+    pub fn mark_failure(
+        &self,
+        now: DateTime<Utc>,
+        error_code: impl Into<String>,
+        error_message: impl Into<String>,
+    ) -> Self {
+        let mut next = self.clone();
+        let failures = self
+            .consecutive_failures
+            .unwrap_or(0)
+            .saturating_add(1)
+            .max(1);
+        next.state = Some(CalendarSyncStateStage::ErrorBackoff);
+        next.last_error_at = Some(now);
+        next.last_error_code = Some(error_code.into());
+        next.last_error = Some(error_message.into());
+        next.backoff_until = Some(now + Self::backoff_delay(failures));
+        next.consecutive_failures = Some(failures);
+        next
+    }
+
+    fn backoff_delay(failures: i64) -> Duration {
+        let bounded_failures = failures.clamp(1, 5) - 1;
+        let multiplier = 1_i64 << bounded_failures;
+        Duration::minutes(5 * multiplier)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -362,6 +430,14 @@ impl CalendarSyncDirection {
             CalendarSyncDirection::Pull => "pull",
             CalendarSyncDirection::Push => "push",
             CalendarSyncDirection::Mirror => "mirror",
+        }
+    }
+
+    pub fn active_stage(&self) -> CalendarSyncStateStage {
+        match self {
+            CalendarSyncDirection::Pull => CalendarSyncStateStage::Pulling,
+            CalendarSyncDirection::Push => CalendarSyncStateStage::Pushing,
+            CalendarSyncDirection::Mirror => CalendarSyncStateStage::Applying,
         }
     }
 }

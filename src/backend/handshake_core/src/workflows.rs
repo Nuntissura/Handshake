@@ -48,13 +48,12 @@ use crate::{
     models::{AiJob, JobKind, WorkflowRun},
     runtime_governance::RuntimeGovernancePaths,
     storage::{
-        validate_job_contract, AiJobListFilter, CalendarEventWindowQuery,
-        CalendarSyncDirection, CalendarSyncRequest, CalendarSyncResult,
-        CalendarSyncResultStatus, CalendarSyncTimeWindow,
-        CALENDAR_SYNC_RESULT_SCHEMA_VERSION, JobState, JobStatusUpdate, ModelSession,
-        ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
-        SessionMessageRole, StorageCapabilityStore, StorageError, StructuredCollabWorkPacketRow,
-        StructuredCollaborationStore,
+        validate_job_contract, AiJobListFilter, CalendarEventWindowQuery, CalendarSourceUpsert,
+        CalendarSyncDirection, CalendarSyncRequest, CalendarSyncResult, CalendarSyncResultStatus,
+        CalendarSyncTimeWindow, JobState, JobStatusUpdate, ModelSession, ModelSessionState,
+        NewModelSession, NewNodeExecution, NewSessionMessage, SessionMessageRole,
+        StorageCapabilityStore, StorageError, StructuredCollabWorkPacketRow,
+        StructuredCollaborationStore, CALENDAR_SYNC_RESULT_SCHEMA_VERSION,
     },
     terminal::{
         config::TerminalConfig,
@@ -11835,19 +11834,26 @@ impl CalendarSyncEngineAdapter {
 
         let workspace_id = Self::require_param_str(params, "workspace_id")?.to_string();
         let source_id = Self::require_param_str(params, "source_id")?.to_string();
-        let direction = CalendarSyncDirection::from_str(Self::require_param_str(params, "direction")?)
-            .map_err(|err| MexAdapterError::Engine(err.to_string()))?;
+        let direction =
+            CalendarSyncDirection::from_str(Self::require_param_str(params, "direction")?)
+                .map_err(|err| MexAdapterError::Engine(err.to_string()))?;
 
         let time_window = params
             .get("time_window")
             .and_then(Value::as_object)
             .ok_or_else(|| MexAdapterError::Engine("missing params.time_window".to_string()))?;
-        let start_utc = DateTime::parse_from_rfc3339(Self::require_param_str(time_window, "start_utc")?)
-            .map_err(|err| MexAdapterError::Engine(format!("invalid params.time_window.start_utc: {err}")))?
-            .with_timezone(&Utc);
-        let end_utc = DateTime::parse_from_rfc3339(Self::require_param_str(time_window, "end_utc")?)
-            .map_err(|err| MexAdapterError::Engine(format!("invalid params.time_window.end_utc: {err}")))?
-            .with_timezone(&Utc);
+        let start_utc =
+            DateTime::parse_from_rfc3339(Self::require_param_str(time_window, "start_utc")?)
+                .map_err(|err| {
+                    MexAdapterError::Engine(format!("invalid params.time_window.start_utc: {err}"))
+                })?
+                .with_timezone(&Utc);
+        let end_utc =
+            DateTime::parse_from_rfc3339(Self::require_param_str(time_window, "end_utc")?)
+                .map_err(|err| {
+                    MexAdapterError::Engine(format!("invalid params.time_window.end_utc: {err}"))
+                })?
+                .with_timezone(&Utc);
         if end_utc < start_utc {
             return Err(MexAdapterError::Engine(
                 "params.time_window.end_utc must be >= start_utc".to_string(),
@@ -11861,64 +11867,99 @@ impl CalendarSyncEngineAdapter {
             time_window: CalendarSyncTimeWindow { start_utc, end_utc },
         })
     }
-}
 
-#[async_trait]
-impl EngineAdapter for CalendarSyncEngineAdapter {
-    async fn invoke(&self, op: &PlannedOperation) -> Result<EngineResult, MexAdapterError> {
-        if op.engine_id != "engine.calendar_sync" {
-            return Err(MexAdapterError::Engine(format!(
-                "unsupported engine_id for adapter: {}",
-                op.engine_id
-            )));
-        }
-        if op.operation != "calendar.sync" {
-            return Err(MexAdapterError::Engine(format!(
-                "unsupported operation for calendar_sync adapter: {}",
-                op.operation
-            )));
-        }
-
-        let request = Self::parse_request(op)?;
-        let source = self
-            .storage
-            .get_calendar_source(&request.workspace_id, &request.source_id)
-            .await
-            .map_err(|err| MexAdapterError::Engine(err.to_string()))?
+    fn write_context(
+        op: &PlannedOperation,
+    ) -> Result<crate::storage::WriteContext, MexAdapterError> {
+        let params = op
+            .params
+            .as_object()
+            .ok_or_else(|| MexAdapterError::Engine("params must be an object".to_string()))?;
+        let workflow_context = params
+            .get("workflow_context")
+            .and_then(Value::as_object)
             .ok_or_else(|| {
-                MexAdapterError::Engine(format!(
-                    "calendar source {} not found in workspace {}",
-                    request.source_id, request.workspace_id
-                ))
+                MexAdapterError::Engine("missing params.workflow_context".to_string())
             })?;
-        let time_window = request.time_window.clone();
-        let updated_events = self
-            .storage
-            .query_calendar_events(CalendarEventWindowQuery {
-                workspace_id: request.workspace_id.clone(),
-                window_start_utc: time_window.start_utc.clone(),
-                window_end_utc: time_window.end_utc.clone(),
-                source_ids: vec![request.source_id.clone()],
-            })
-            .await
-            .map_err(|err| MexAdapterError::Engine(err.to_string()))?;
+        let job_id = Uuid::parse_str(Self::require_param_str(workflow_context, "job_id")?)
+            .map_err(|err| {
+                MexAdapterError::Engine(format!("invalid workflow_context.job_id: {err}"))
+            })?;
+        let workflow_run_id = Uuid::parse_str(Self::require_param_str(
+            workflow_context,
+            "workflow_run_id",
+        )?)
+        .map_err(|err| {
+            MexAdapterError::Engine(format!("invalid workflow_context.workflow_run_id: {err}"))
+        })?;
 
-        let result_payload = CalendarSyncResult {
+        Ok(crate::storage::WriteContext::ai(
+            Some("calendar_sync_adapter".to_string()),
+            Some(job_id),
+            Some(workflow_run_id),
+        ))
+    }
+
+    async fn persist_source_state(
+        &self,
+        ctx: &crate::storage::WriteContext,
+        source: &crate::storage::CalendarSource,
+        sync_state: crate::storage::CalendarSourceSyncState,
+    ) -> Result<crate::storage::CalendarSource, MexAdapterError> {
+        self.storage
+            .upsert_calendar_source(
+                ctx,
+                CalendarSourceUpsert {
+                    id: source.id.clone(),
+                    workspace_id: source.workspace_id.clone(),
+                    display_name: source.display_name.clone(),
+                    provider_type: source.provider_type.clone(),
+                    write_policy: source.write_policy.clone(),
+                    default_tzid: source.default_tzid.clone(),
+                    auto_export: source.auto_export,
+                    credentials_ref: source.credentials_ref.clone(),
+                    provider_calendar_id: source.provider_calendar_id.clone(),
+                    capability_profile_id: source.capability_profile_id.clone(),
+                    config: source.config.clone(),
+                    sync_state,
+                },
+            )
+            .await
+            .map_err(|err| MexAdapterError::Engine(err.to_string()))
+    }
+
+    fn build_result_payload(
+        request: &CalendarSyncRequest,
+        source: &crate::storage::CalendarSource,
+        updated_events: Vec<crate::storage::CalendarEvent>,
+        status: CalendarSyncResultStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+    ) -> CalendarSyncResult {
+        CalendarSyncResult {
             schema_version: CALENDAR_SYNC_RESULT_SCHEMA_VERSION.to_string(),
             workspace_id: request.workspace_id.clone(),
             source_id: request.source_id.clone(),
             provider_type: source.provider_type.clone(),
             write_policy: source.write_policy.clone(),
             direction: request.direction.clone(),
-            time_window,
+            time_window: request.time_window.clone(),
             source_sync_state: source.sync_state.clone(),
             updated_event_count: updated_events.len(),
             updated_events,
-            status: CalendarSyncResultStatus::Succeeded,
-            error_code: None,
-            error_message: None,
-        };
+            status,
+            error_code,
+            error_message,
+        }
+    }
 
+    fn finalize_result(
+        &self,
+        op: &PlannedOperation,
+        request: &CalendarSyncRequest,
+        result_payload: CalendarSyncResult,
+        started_at: DateTime<Utc>,
+    ) -> Result<EngineResult, MexAdapterError> {
         let artifact_dir_rel = Self::artifact_dir_rel(op);
         let artifact_dir_abs = self.artifact_root.join(&artifact_dir_rel);
         fs::create_dir_all(&artifact_dir_abs).map_err(|err| {
@@ -11937,6 +11978,25 @@ impl EngineAdapter for CalendarSyncEngineAdapter {
         })?;
 
         let output_handle = Self::artifact_handle_for_rel(&result_rel);
+        let status = match result_payload.status {
+            CalendarSyncResultStatus::Succeeded => EngineStatus::Succeeded,
+            CalendarSyncResultStatus::Failed => EngineStatus::Failed,
+        };
+        let mut errors = Vec::new();
+        if status == EngineStatus::Failed {
+            errors.push(EngineError {
+                code: result_payload
+                    .error_code
+                    .clone()
+                    .unwrap_or_else(|| "ENGINE_CALENDAR_SYNC_FAILED".to_string()),
+                message: result_payload
+                    .error_message
+                    .clone()
+                    .unwrap_or_else(|| "calendar sync failed".to_string()),
+                details_ref: Some(output_handle.clone()),
+            });
+        }
+
         let provenance = ProvenanceRecord {
             engine_id: op.engine_id.clone(),
             engine_version: Some(env!("CARGO_PKG_VERSION").to_string()),
@@ -11953,9 +12013,142 @@ impl EngineAdapter for CalendarSyncEngineAdapter {
             })),
         };
 
-        Ok(EngineResult::success(op.op_id, vec![output_handle.clone()], provenance)
-            .with_evidence(vec![output_handle])
-            .with_logs(None))
+        Ok(EngineResult {
+            op_id: op.op_id,
+            status,
+            started_at,
+            ended_at: Utc::now(),
+            outputs: vec![output_handle.clone()],
+            evidence: vec![output_handle.clone()],
+            provenance,
+            errors,
+            logs_ref: None,
+        })
+    }
+}
+
+#[async_trait]
+impl EngineAdapter for CalendarSyncEngineAdapter {
+    async fn invoke(&self, op: &PlannedOperation) -> Result<EngineResult, MexAdapterError> {
+        let started_at = Utc::now();
+        if op.engine_id != "engine.calendar_sync" {
+            return Err(MexAdapterError::Engine(format!(
+                "unsupported engine_id for adapter: {}",
+                op.engine_id
+            )));
+        }
+        if op.operation != "calendar.sync" {
+            return Err(MexAdapterError::Engine(format!(
+                "unsupported operation for calendar_sync adapter: {}",
+                op.operation
+            )));
+        }
+
+        let request = Self::parse_request(op)?;
+        let write_ctx = Self::write_context(op)?;
+        let source = self
+            .storage
+            .get_calendar_source(&request.workspace_id, &request.source_id)
+            .await
+            .map_err(|err| MexAdapterError::Engine(err.to_string()))?
+            .ok_or_else(|| {
+                MexAdapterError::Engine(format!(
+                    "calendar source {} not found in workspace {}",
+                    request.source_id, request.workspace_id
+                ))
+            })?;
+        let now = Utc::now();
+        if let Some(backoff_until) = source.sync_state.backoff_active_until(now) {
+            let error_code = "CALENDAR_SYNC_BACKOFF_ACTIVE".to_string();
+            let error_message = format!(
+                "calendar source {} is in backoff until {}",
+                request.source_id,
+                backoff_until.to_rfc3339()
+            );
+            return self.finalize_result(
+                op,
+                &request,
+                Self::build_result_payload(
+                    &request,
+                    &source,
+                    Vec::new(),
+                    CalendarSyncResultStatus::Failed,
+                    Some(error_code),
+                    Some(error_message),
+                ),
+                started_at,
+            );
+        }
+
+        let source = self
+            .persist_source_state(
+                &write_ctx,
+                &source,
+                source.sync_state.begin_attempt(&request.direction, now),
+            )
+            .await?;
+
+        let updated_events = match self
+            .storage
+            .query_calendar_events(CalendarEventWindowQuery {
+                workspace_id: request.workspace_id.clone(),
+                window_start_utc: request.time_window.start_utc.clone(),
+                window_end_utc: request.time_window.end_utc.clone(),
+                source_ids: vec![request.source_id.clone()],
+            })
+            .await
+        {
+            Ok(events) => events,
+            Err(err) => {
+                let error_code = "CALENDAR_SYNC_STORAGE_QUERY_FAILED".to_string();
+                let error_message = err.to_string();
+                let failed_source = self
+                    .persist_source_state(
+                        &write_ctx,
+                        &source,
+                        source.sync_state.mark_failure(
+                            Utc::now(),
+                            error_code.clone(),
+                            error_message.clone(),
+                        ),
+                    )
+                    .await?;
+                return self.finalize_result(
+                    op,
+                    &request,
+                    Self::build_result_payload(
+                        &request,
+                        &failed_source,
+                        Vec::new(),
+                        CalendarSyncResultStatus::Failed,
+                        Some(error_code),
+                        Some(error_message),
+                    ),
+                    started_at,
+                );
+            }
+        };
+        let completed_source = self
+            .persist_source_state(
+                &write_ctx,
+                &source,
+                source.sync_state.mark_success(Utc::now()),
+            )
+            .await?;
+
+        self.finalize_result(
+            op,
+            &request,
+            Self::build_result_payload(
+                &request,
+                &completed_source,
+                updated_events,
+                CalendarSyncResultStatus::Succeeded,
+                None,
+                None,
+            ),
+            started_at,
+        )
     }
 }
 
@@ -12419,7 +12612,11 @@ async fn run_calendar_sync_job(
         .capability_registry
         .required_capabilities_for_job_request(job.job_kind.as_str(), &job.protocol_id)?;
 
-    let mut params = if inputs.is_object() { inputs } else { json!({}) };
+    let mut params = if inputs.is_object() {
+        inputs
+    } else {
+        json!({})
+    };
     if let Some(params_obj) = params.as_object_mut() {
         params_obj.insert("workspace_id".to_string(), json!(workspace_id));
         params_obj.insert("source_id".to_string(), json!(source_id));
@@ -12485,6 +12682,8 @@ async fn run_calendar_sync_job(
         "engine_id": result.provenance.engine_id.clone(),
         "operation": "calendar.sync",
         "status": engine_status,
+        "error_code": result.errors.first().map(|error| error.code.clone()),
+        "error_message": result.errors.first().map(|error| error.message.clone()),
         "output_types": ["calendar_sync_result"],
         "outputs": result
             .outputs
@@ -12508,7 +12707,7 @@ async fn run_calendar_sync_job(
         state: final_state,
         status_reason: engine_status.to_string(),
         output: Some(payload),
-        error_message: None,
+        error_message: result.errors.first().map(|error| error.message.clone()),
     })
 }
 
@@ -25238,10 +25437,10 @@ mod tests {
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
         sqlite::SqliteDatabase, tests::postgres_backend_from_env, AccessMode,
-        CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
-        CalendarEventVisibility, CalendarSourceProviderType, CalendarSourceSyncState,
-        CalendarSourceUpsert, CalendarSourceWritePolicy, Database, JobKind, JobMetrics,
-        JobState, ModelSession, ModelSessionState, NewWorkspace, SafetyMode, WriteContext,
+        CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility,
+        CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
+        CalendarSourceWritePolicy, CalendarSyncStateStage, Database, JobKind, JobMetrics, JobState,
+        ModelSession, ModelSessionState, NewWorkspace, SafetyMode, WriteContext,
     };
     use serde_json::json;
     use std::sync::{Arc, Mutex};
@@ -26183,13 +26382,36 @@ mod tests {
             .expect("calendar_sync workflow should expose the result artifact");
         let repo_root = repo_root_from_manifest_dir()?;
         let result_json = fs::read(repo_root.join(output_ref))?;
-        let sync_result: crate::storage::CalendarSyncResult =
-            serde_json::from_slice(&result_json)?;
+        let sync_result: crate::storage::CalendarSyncResult = serde_json::from_slice(&result_json)?;
         assert_eq!(sync_result.workspace_id, workspace.id);
         assert_eq!(sync_result.source_id, source.id);
         assert_eq!(sync_result.updated_event_count, 1);
         assert_eq!(sync_result.updated_events.len(), 1);
         assert_eq!(sync_result.updated_events[0].id, seeded_event.id);
+        assert_eq!(
+            sync_result.source_sync_state.state,
+            Some(CalendarSyncStateStage::Idle)
+        );
+        assert!(sync_result.source_sync_state.last_synced_at.is_some());
+        assert!(sync_result.source_sync_state.last_ok_at.is_some());
+        assert!(sync_result.source_sync_state.last_pull_at.is_some());
+        assert_eq!(sync_result.source_sync_state.consecutive_failures, Some(0));
+        assert!(sync_result.source_sync_state.backoff_until.is_none());
+
+        let stored_source = state
+            .storage
+            .get_calendar_source(&workspace.id, &source.id)
+            .await?
+            .expect("calendar source should still exist after workflow completion");
+        assert_eq!(
+            stored_source.sync_state.state,
+            Some(CalendarSyncStateStage::Idle)
+        );
+        assert!(stored_source.sync_state.last_synced_at.is_some());
+        assert!(stored_source.sync_state.last_ok_at.is_some());
+        assert!(stored_source.sync_state.last_pull_at.is_some());
+        assert_eq!(stored_source.sync_state.consecutive_failures, Some(0));
+        assert!(stored_source.sync_state.backoff_until.is_none());
 
         let events = state
             .flight_recorder
@@ -26202,9 +26424,164 @@ mod tests {
             .iter()
             .find(|event| event.event_type == FlightRecorderEventType::ToolCall)
             .expect("calendar_sync route should emit a tool_call event");
-        assert_eq!(tool_call.workflow_id.as_deref(), Some(workflow_run_id_str.as_str()));
+        assert_eq!(
+            tool_call.workflow_id.as_deref(),
+            Some(workflow_run_id_str.as_str())
+        );
         assert_eq!(tool_call.trace_id, trace_id);
-        assert_eq!(tool_call.payload.get("status").and_then(Value::as_str), Some("success"));
+        assert_eq!(
+            tool_call.payload.get("status").and_then(Value::as_str),
+            Some("success")
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn calendar_sync_workflow_surfaces_active_backoff_without_mutating_source_state(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let ctx = WriteContext::human(Some("calendar-workflow".into()));
+        let workspace = state
+            .storage
+            .create_workspace(
+                &ctx,
+                NewWorkspace {
+                    name: format!("calendar-ws-{}", Uuid::new_v4()),
+                },
+            )
+            .await?;
+        let backoff_until = Utc::now() + chrono::Duration::minutes(15);
+        let source = state
+            .storage
+            .upsert_calendar_source(
+                &ctx,
+                CalendarSourceUpsert {
+                    id: "source-backoff".to_string(),
+                    workspace_id: workspace.id.clone(),
+                    display_name: "Google / Backoff Test".to_string(),
+                    provider_type: CalendarSourceProviderType::Google,
+                    write_policy: CalendarSourceWritePolicy::ReadOnlyImport,
+                    default_tzid: "Europe/Brussels".to_string(),
+                    auto_export: false,
+                    credentials_ref: Some("cred:test".to_string()),
+                    provider_calendar_id: Some("primary".to_string()),
+                    capability_profile_id: Some("CalendarSync".to_string()),
+                    config: json!({ "calendar_id": "primary" }),
+                    sync_state: CalendarSourceSyncState {
+                        state: Some(CalendarSyncStateStage::ErrorBackoff),
+                        sync_token: Some("token-1".to_string()),
+                        last_synced_at: None,
+                        last_full_sync_at: None,
+                        last_ok_at: None,
+                        last_pull_at: None,
+                        last_push_at: None,
+                        last_error_at: Some(Utc::now()),
+                        last_error_code: Some("PREVIOUS_FAILURE".to_string()),
+                        last_error: Some("previous failure".to_string()),
+                        backoff_until: Some(backoff_until),
+                        consecutive_failures: Some(2),
+                        last_remote_watermark: Some("wm-1".to_string()),
+                        last_local_applied_rev: Some(3),
+                    },
+                },
+            )
+            .await?;
+        let window_start = Utc::now() + chrono::Duration::hours(1);
+        let window_end = window_start + chrono::Duration::hours(2);
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::WorkflowRun,
+                protocol_id: "calendar_sync".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "CalendarSync".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({
+                    "workspace_id": workspace.id.clone(),
+                    "source_id": source.id.clone(),
+                    "direction": "pull",
+                    "time_window": {
+                        "start_utc": window_start.to_rfc3339(),
+                        "end_utc": window_end.to_rfc3339(),
+                    }
+                })),
+            })
+            .await?;
+        let job_id = job.job_id;
+
+        start_workflow_for_job(&state, job).await?;
+
+        let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+        assert!(matches!(updated_job.state, JobState::CompletedWithIssues));
+        let outputs = updated_job
+            .job_outputs
+            .clone()
+            .expect("calendar_sync backoff failure should still persist outputs");
+        assert_eq!(
+            outputs.get("status").and_then(Value::as_str),
+            Some("failed")
+        );
+        assert_eq!(
+            outputs.get("error_code").and_then(Value::as_str),
+            Some("CALENDAR_SYNC_BACKOFF_ACTIVE")
+        );
+        assert!(outputs
+            .get("error_message")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .contains("is in backoff until"));
+
+        let output_ref = outputs
+            .get("outputs")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_str)
+            .expect("calendar_sync backoff failure should expose the result artifact");
+        let repo_root = repo_root_from_manifest_dir()?;
+        let result_json = fs::read(repo_root.join(output_ref))?;
+        let sync_result: crate::storage::CalendarSyncResult = serde_json::from_slice(&result_json)?;
+        assert_eq!(
+            sync_result.status,
+            crate::storage::CalendarSyncResultStatus::Failed
+        );
+        assert_eq!(
+            sync_result.error_code.as_deref(),
+            Some("CALENDAR_SYNC_BACKOFF_ACTIVE")
+        );
+        assert_eq!(
+            sync_result.source_sync_state.state,
+            Some(CalendarSyncStateStage::ErrorBackoff)
+        );
+        assert_eq!(
+            sync_result.source_sync_state.backoff_until,
+            Some(backoff_until)
+        );
+        assert_eq!(sync_result.source_sync_state.consecutive_failures, Some(2));
+        assert_eq!(sync_result.updated_event_count, 0);
+        assert!(sync_result.updated_events.is_empty());
+
+        let stored_source = state
+            .storage
+            .get_calendar_source(&workspace.id, &source.id)
+            .await?
+            .expect("calendar source should still exist after backoff failure");
+        assert_eq!(
+            stored_source.sync_state.state,
+            Some(CalendarSyncStateStage::ErrorBackoff)
+        );
+        assert_eq!(stored_source.sync_state.backoff_until, Some(backoff_until));
+        assert_eq!(stored_source.sync_state.consecutive_failures, Some(2));
+        assert_eq!(
+            stored_source.sync_state.last_error_code.as_deref(),
+            Some("PREVIOUS_FAILURE")
+        );
 
         Ok(())
     }
