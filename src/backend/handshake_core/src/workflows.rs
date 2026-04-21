@@ -48,7 +48,10 @@ use crate::{
     models::{AiJob, JobKind, WorkflowRun},
     runtime_governance::RuntimeGovernancePaths,
     storage::{
-        validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSession,
+        validate_job_contract, AiJobListFilter, CalendarEventWindowQuery,
+        CalendarSyncDirection, CalendarSyncRequest, CalendarSyncResult,
+        CalendarSyncResultStatus, CalendarSyncTimeWindow,
+        CALENDAR_SYNC_RESULT_SCHEMA_VERSION, JobState, JobStatusUpdate, ModelSession,
         ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
         SessionMessageRole, StorageCapabilityStore, StorageError, StructuredCollabWorkPacketRow,
         StructuredCollaborationStore,
@@ -82,6 +85,7 @@ use std::{
     path::Path,
     path::PathBuf,
     pin::Pin,
+    str::FromStr,
     sync::{
         atomic::{AtomicBool, AtomicI64, AtomicU8, Ordering},
         Arc, Mutex,
@@ -11783,6 +11787,178 @@ struct ValidationEvidenceArtifact {
     pub evidence: Vec<ArtifactHandle>,
 }
 
+struct CalendarSyncEngineAdapter {
+    artifact_root: PathBuf,
+    storage: Arc<dyn crate::storage::Database>,
+}
+
+impl CalendarSyncEngineAdapter {
+    fn new(artifact_root: PathBuf, storage: Arc<dyn crate::storage::Database>) -> Self {
+        Self {
+            artifact_root,
+            storage,
+        }
+    }
+
+    fn rel_path_string(rel_path: &Path) -> String {
+        rel_path.to_string_lossy().replace('\\', "/")
+    }
+
+    fn artifact_handle_for_rel(rel_path: &Path) -> ArtifactHandle {
+        ArtifactHandle::new(Uuid::new_v4(), Self::rel_path_string(rel_path))
+    }
+
+    fn artifact_dir_rel(op: &PlannedOperation) -> PathBuf {
+        PathBuf::from("data")
+            .join("calendar_sync")
+            .join("ops")
+            .join(op.op_id.to_string())
+    }
+
+    fn require_param_str<'a>(
+        params: &'a serde_json::Map<String, Value>,
+        key: &str,
+    ) -> Result<&'a str, MexAdapterError> {
+        params
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| MexAdapterError::Engine(format!("missing params.{key}")))
+    }
+
+    fn parse_request(op: &PlannedOperation) -> Result<CalendarSyncRequest, MexAdapterError> {
+        let params = op
+            .params
+            .as_object()
+            .ok_or_else(|| MexAdapterError::Engine("params must be an object".to_string()))?;
+
+        let workspace_id = Self::require_param_str(params, "workspace_id")?.to_string();
+        let source_id = Self::require_param_str(params, "source_id")?.to_string();
+        let direction = CalendarSyncDirection::from_str(Self::require_param_str(params, "direction")?)
+            .map_err(|err| MexAdapterError::Engine(err.to_string()))?;
+
+        let time_window = params
+            .get("time_window")
+            .and_then(Value::as_object)
+            .ok_or_else(|| MexAdapterError::Engine("missing params.time_window".to_string()))?;
+        let start_utc = DateTime::parse_from_rfc3339(Self::require_param_str(time_window, "start_utc")?)
+            .map_err(|err| MexAdapterError::Engine(format!("invalid params.time_window.start_utc: {err}")))?
+            .with_timezone(&Utc);
+        let end_utc = DateTime::parse_from_rfc3339(Self::require_param_str(time_window, "end_utc")?)
+            .map_err(|err| MexAdapterError::Engine(format!("invalid params.time_window.end_utc: {err}")))?
+            .with_timezone(&Utc);
+        if end_utc < start_utc {
+            return Err(MexAdapterError::Engine(
+                "params.time_window.end_utc must be >= start_utc".to_string(),
+            ));
+        }
+
+        Ok(CalendarSyncRequest {
+            workspace_id,
+            source_id,
+            direction,
+            time_window: CalendarSyncTimeWindow { start_utc, end_utc },
+        })
+    }
+}
+
+#[async_trait]
+impl EngineAdapter for CalendarSyncEngineAdapter {
+    async fn invoke(&self, op: &PlannedOperation) -> Result<EngineResult, MexAdapterError> {
+        if op.engine_id != "engine.calendar_sync" {
+            return Err(MexAdapterError::Engine(format!(
+                "unsupported engine_id for adapter: {}",
+                op.engine_id
+            )));
+        }
+        if op.operation != "calendar.sync" {
+            return Err(MexAdapterError::Engine(format!(
+                "unsupported operation for calendar_sync adapter: {}",
+                op.operation
+            )));
+        }
+
+        let request = Self::parse_request(op)?;
+        let source = self
+            .storage
+            .get_calendar_source(&request.workspace_id, &request.source_id)
+            .await
+            .map_err(|err| MexAdapterError::Engine(err.to_string()))?
+            .ok_or_else(|| {
+                MexAdapterError::Engine(format!(
+                    "calendar source {} not found in workspace {}",
+                    request.source_id, request.workspace_id
+                ))
+            })?;
+        let time_window = request.time_window.clone();
+        let updated_events = self
+            .storage
+            .query_calendar_events(CalendarEventWindowQuery {
+                workspace_id: request.workspace_id.clone(),
+                window_start_utc: time_window.start_utc.clone(),
+                window_end_utc: time_window.end_utc.clone(),
+                source_ids: vec![request.source_id.clone()],
+            })
+            .await
+            .map_err(|err| MexAdapterError::Engine(err.to_string()))?;
+
+        let result_payload = CalendarSyncResult {
+            schema_version: CALENDAR_SYNC_RESULT_SCHEMA_VERSION.to_string(),
+            workspace_id: request.workspace_id.clone(),
+            source_id: request.source_id.clone(),
+            provider_type: source.provider_type.clone(),
+            write_policy: source.write_policy.clone(),
+            direction: request.direction.clone(),
+            time_window,
+            source_sync_state: source.sync_state.clone(),
+            updated_event_count: updated_events.len(),
+            updated_events,
+            status: CalendarSyncResultStatus::Succeeded,
+            error_code: None,
+            error_message: None,
+        };
+
+        let artifact_dir_rel = Self::artifact_dir_rel(op);
+        let artifact_dir_abs = self.artifact_root.join(&artifact_dir_rel);
+        fs::create_dir_all(&artifact_dir_abs).map_err(|err| {
+            MexAdapterError::Engine(format!(
+                "failed to create {}: {err}",
+                artifact_dir_abs.display()
+            ))
+        })?;
+
+        let result_rel = artifact_dir_rel.join("calendar_sync_result.json");
+        let result_abs = self.artifact_root.join(&result_rel);
+        let result_bytes = serde_json::to_vec_pretty(&result_payload)
+            .map_err(|err| MexAdapterError::Engine(err.to_string()))?;
+        fs::write(&result_abs, result_bytes).map_err(|err| {
+            MexAdapterError::Engine(format!("failed to write {}: {err}", result_abs.display()))
+        })?;
+
+        let output_handle = Self::artifact_handle_for_rel(&result_rel);
+        let provenance = ProvenanceRecord {
+            engine_id: op.engine_id.clone(),
+            engine_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+            implementation: Some("calendar_sync_adapter".to_string()),
+            determinism: op.determinism,
+            config_hash: None,
+            inputs: op.inputs.clone(),
+            outputs: vec![output_handle.clone()],
+            capabilities_granted: op.capabilities_requested.clone(),
+            environment: Some(json!({
+                "workspace_id": request.workspace_id,
+                "source_id": request.source_id,
+                "direction": request.direction.as_str(),
+            })),
+        };
+
+        Ok(EngineResult::success(op.op_id, vec![output_handle.clone()], provenance)
+            .with_evidence(vec![output_handle])
+            .with_logs(None))
+    }
+}
+
 struct MediaDownloaderEngineAdapter {
     artifact_root: PathBuf,
 }
@@ -12164,6 +12340,13 @@ fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, W
         )),
     )
     .with_adapter(
+        "engine.calendar_sync",
+        Arc::new(CalendarSyncEngineAdapter::new(
+            repo_root.to_path_buf(),
+            state.storage.clone(),
+        )),
+    )
+    .with_adapter(
         MD_TOOL_ENGINE_ID,
         Arc::new(MediaDownloaderEngineAdapter::new(repo_root.to_path_buf())),
     ))
@@ -12200,6 +12383,34 @@ async fn run_calendar_sync_job(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| WorkflowError::Terminal("source_id is required".to_string()))?;
+    let workspace_id = inputs
+        .get("workspace_id")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| WorkflowError::Terminal("workspace_id is required".to_string()))?;
+    let direction = inputs
+        .get("direction")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| WorkflowError::Terminal("direction is required".to_string()))?;
+    let time_window = inputs
+        .get("time_window")
+        .and_then(Value::as_object)
+        .ok_or_else(|| WorkflowError::Terminal("time_window is required".to_string()))?;
+    let window_start = time_window
+        .get("start_utc")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| WorkflowError::Terminal("time_window.start_utc is required".to_string()))?;
+    let window_end = time_window
+        .get("end_utc")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| WorkflowError::Terminal("time_window.end_utc is required".to_string()))?;
 
     let repo_root =
         repo_root_from_manifest_dir().map_err(|err| WorkflowError::Terminal(err.to_string()))?;
@@ -12210,7 +12421,16 @@ async fn run_calendar_sync_job(
 
     let mut params = if inputs.is_object() { inputs } else { json!({}) };
     if let Some(params_obj) = params.as_object_mut() {
+        params_obj.insert("workspace_id".to_string(), json!(workspace_id));
         params_obj.insert("source_id".to_string(), json!(source_id));
+        params_obj.insert("direction".to_string(), json!(direction));
+        params_obj.insert(
+            "time_window".to_string(),
+            json!({
+                "start_utc": window_start,
+                "end_utc": window_end,
+            }),
+        );
         params_obj.insert(
             "workflow_context".to_string(),
             workflow_mex_context(job, workflow_run_id, trace_id),
@@ -12254,10 +12474,18 @@ async fn run_calendar_sync_job(
         EngineStatus::Denied => "denied",
     };
     let payload = json!({
+        "workspace_id": workspace_id,
+        "source_id": source_id,
+        "direction": direction,
+        "time_window": {
+            "start_utc": window_start,
+            "end_utc": window_end,
+        },
         "protocol_id": job.protocol_id.clone(),
         "engine_id": result.provenance.engine_id.clone(),
         "operation": "calendar.sync",
         "status": engine_status,
+        "output_types": ["calendar_sync_result"],
         "outputs": result
             .outputs
             .iter()
@@ -25009,8 +25237,11 @@ mod tests {
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::runtime_governance::{RUNTIME_GOVERNANCE_DEFAULT_ROOT, RUNTIME_GOVERNANCE_ROOT_ENV};
     use crate::storage::{
-        sqlite::SqliteDatabase, tests::postgres_backend_from_env, AccessMode, Database, JobKind,
-        JobMetrics, JobState, SafetyMode, ModelSession, ModelSessionState,
+        sqlite::SqliteDatabase, tests::postgres_backend_from_env, AccessMode,
+        CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
+        CalendarEventVisibility, CalendarSourceProviderType, CalendarSourceSyncState,
+        CalendarSourceUpsert, CalendarSourceWritePolicy, Database, JobKind, JobMetrics,
+        JobState, ModelSession, ModelSessionState, NewWorkspace, SafetyMode, WriteContext,
     };
     use serde_json::json;
     use std::sync::{Arc, Mutex};
@@ -25822,6 +26053,75 @@ mod tests {
     async fn calendar_sync_workflow_routes_through_mex_runtime_with_linked_tool_event(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
+        let ctx = WriteContext::human(Some("calendar-workflow".into()));
+        let workspace = state
+            .storage
+            .create_workspace(
+                &ctx,
+                NewWorkspace {
+                    name: format!("calendar-ws-{}", Uuid::new_v4()),
+                },
+            )
+            .await?;
+        let source = state
+            .storage
+            .upsert_calendar_source(
+                &ctx,
+                CalendarSourceUpsert {
+                    id: "source-1".to_string(),
+                    workspace_id: workspace.id.clone(),
+                    display_name: "Google / Workflow Test".to_string(),
+                    provider_type: CalendarSourceProviderType::Google,
+                    write_policy: CalendarSourceWritePolicy::ReadOnlyImport,
+                    default_tzid: "Europe/Brussels".to_string(),
+                    auto_export: false,
+                    credentials_ref: Some("cred:test".to_string()),
+                    provider_calendar_id: Some("primary".to_string()),
+                    capability_profile_id: Some("CalendarSync".to_string()),
+                    config: json!({ "calendar_id": "primary" }),
+                    sync_state: CalendarSourceSyncState::default(),
+                },
+            )
+            .await?;
+        let window_start = Utc::now() + chrono::Duration::hours(1);
+        let window_end = window_start + chrono::Duration::hours(2);
+        let seeded_event = state
+            .storage
+            .upsert_calendar_event(
+                &ctx,
+                CalendarEventUpsert {
+                    id: Uuid::new_v4().to_string(),
+                    workspace_id: workspace.id.clone(),
+                    source_id: source.id.clone(),
+                    external_id: Some("provider-event-1".to_string()),
+                    external_etag: Some("etag-1".to_string()),
+                    title: "Provider event".to_string(),
+                    description: Some("seeded for workflow engine contract".to_string()),
+                    location: Some("Room A".to_string()),
+                    start_ts_utc: window_start.clone(),
+                    end_ts_utc: window_start + chrono::Duration::minutes(30),
+                    start_local: Some("2026-03-07T09:00:00".to_string()),
+                    end_local: Some("2026-03-07T09:30:00".to_string()),
+                    tzid: "Europe/Brussels".to_string(),
+                    all_day: false,
+                    was_floating: false,
+                    status: CalendarEventStatus::Confirmed,
+                    visibility: CalendarEventVisibility::Private,
+                    export_mode: CalendarEventExportMode::BusyOnly,
+                    rrule: None,
+                    rdate: Vec::new(),
+                    exdate: Vec::new(),
+                    is_recurring: false,
+                    series_id: None,
+                    instance_key: None,
+                    is_override: false,
+                    source_last_seen_at: Some(Utc::now()),
+                    attendees: json!([]),
+                    links: json!([]),
+                    provider_payload: Some(json!({ "raw": "payload-1" })),
+                },
+            )
+            .await?;
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
@@ -25836,30 +26136,60 @@ mod tests {
                 planned_operations: Vec::new(),
                 status_reason: "queued".to_string(),
                 metrics: JobMetrics::zero(),
-                job_inputs: Some(json!({ "source_id": "source-1" })),
+                job_inputs: Some(json!({
+                    "workspace_id": workspace.id.clone(),
+                    "source_id": source.id.clone(),
+                    "direction": "pull",
+                    "time_window": {
+                        "start_utc": window_start.to_rfc3339(),
+                        "end_utc": window_end.to_rfc3339(),
+                    }
+                })),
             })
             .await?;
         let job_id = job.job_id;
         let trace_id = job.trace_id;
 
-        let result = start_workflow_for_job(&state, job).await;
-        let err = result.expect_err("missing calendar adapter should still route through MEX");
-        let err_text = err.to_string();
-        assert!(
-            err_text.contains("MEX execute failed"),
-            "unexpected error surface: {err_text}"
-        );
-        assert!(
-            err_text.contains("engine.calendar_sync"),
-            "unexpected error surface: {err_text}"
-        );
+        let workflow_run = start_workflow_for_job(&state, job).await?;
 
         let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
-        assert!(matches!(updated_job.state, JobState::Failed));
+        assert!(matches!(updated_job.state, JobState::Completed));
         let workflow_run_id = updated_job
             .workflow_run_id
             .expect("calendar_sync workflow should allocate a workflow_run_id");
+        assert_eq!(workflow_run.id, workflow_run_id);
         let workflow_run_id_str = workflow_run_id.to_string();
+        let outputs = updated_job
+            .job_outputs
+            .clone()
+            .expect("calendar_sync workflow should persist job outputs");
+        assert_eq!(
+            outputs.get("workspace_id").and_then(Value::as_str),
+            Some(workspace.id.as_str())
+        );
+        assert_eq!(
+            outputs.get("source_id").and_then(Value::as_str),
+            Some(source.id.as_str())
+        );
+        assert_eq!(
+            outputs.get("direction").and_then(Value::as_str),
+            Some("pull")
+        );
+        let output_ref = outputs
+            .get("outputs")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_str)
+            .expect("calendar_sync workflow should expose the result artifact");
+        let repo_root = repo_root_from_manifest_dir()?;
+        let result_json = fs::read(repo_root.join(output_ref))?;
+        let sync_result: crate::storage::CalendarSyncResult =
+            serde_json::from_slice(&result_json)?;
+        assert_eq!(sync_result.workspace_id, workspace.id);
+        assert_eq!(sync_result.source_id, source.id);
+        assert_eq!(sync_result.updated_event_count, 1);
+        assert_eq!(sync_result.updated_events.len(), 1);
+        assert_eq!(sync_result.updated_events[0].id, seeded_event.id);
 
         let events = state
             .flight_recorder
@@ -25874,14 +26204,7 @@ mod tests {
             .expect("calendar_sync route should emit a tool_call event");
         assert_eq!(tool_call.workflow_id.as_deref(), Some(workflow_run_id_str.as_str()));
         assert_eq!(tool_call.trace_id, trace_id);
-        assert_eq!(
-            tool_call
-                .payload
-                .get("error")
-                .and_then(|value| value.get("code"))
-                .and_then(|value| value.as_str()),
-            Some("MEX_ADAPTER_MISSING")
-        );
+        assert_eq!(tool_call.payload.get("status").and_then(Value::as_str), Some("success"));
 
         Ok(())
     }

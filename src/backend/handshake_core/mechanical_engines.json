@@ -72,6 +72,33 @@
       }
     ]
   },
+  "engine.calendar_sync": {
+    "engine_id": "engine.calendar_sync",
+    "determinism_ceiling": "d2",
+    "required_caps": ["calendar.sync.read", "calendar.sync.write"],
+    "required_gates": [
+      "G-SCHEMA",
+      "G-CAP",
+      "G-INTEGRITY",
+      "G-BUDGET",
+      "G-PROVENANCE",
+      "G-DET"
+    ],
+    "default_budget": {
+      "cpu_time_ms": 120000,
+      "wall_time_ms": 300000,
+      "memory_bytes": 268435456,
+      "output_bytes": 20971520
+    },
+    "ops": [
+      {
+        "name": "calendar.sync",
+        "schema_ref": "poe-1.0",
+        "capabilities": ["calendar.sync.read", "calendar.sync.write"],
+        "output_types": ["calendar_sync_result"]
+      }
+    ]
+  },
   "engine.spatial": {
     "engine_id": "engine.spatial",
     "determinism_ceiling": "d2",

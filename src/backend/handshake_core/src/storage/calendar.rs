@@ -347,3 +347,76 @@ pub struct CalendarEventWindowQuery {
     pub window_end_utc: DateTime<Utc>,
     pub source_ids: Vec<String>,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarSyncDirection {
+    Pull,
+    Push,
+    Mirror,
+}
+
+impl CalendarSyncDirection {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CalendarSyncDirection::Pull => "pull",
+            CalendarSyncDirection::Push => "push",
+            CalendarSyncDirection::Mirror => "mirror",
+        }
+    }
+}
+
+impl FromStr for CalendarSyncDirection {
+    type Err = crate::storage::StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "pull" => Ok(CalendarSyncDirection::Pull),
+            "push" => Ok(CalendarSyncDirection::Push),
+            "mirror" => Ok(CalendarSyncDirection::Mirror),
+            _ => Err(crate::storage::StorageError::Validation(
+                "invalid calendar sync direction",
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CalendarSyncTimeWindow {
+    pub start_utc: DateTime<Utc>,
+    pub end_utc: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CalendarSyncRequest {
+    pub workspace_id: String,
+    pub source_id: String,
+    pub direction: CalendarSyncDirection,
+    pub time_window: CalendarSyncTimeWindow,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarSyncResultStatus {
+    Succeeded,
+    Failed,
+}
+
+pub const CALENDAR_SYNC_RESULT_SCHEMA_VERSION: &str = "calendar_sync_result@1";
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CalendarSyncResult {
+    pub schema_version: String,
+    pub workspace_id: String,
+    pub source_id: String,
+    pub provider_type: CalendarSourceProviderType,
+    pub write_policy: CalendarSourceWritePolicy,
+    pub direction: CalendarSyncDirection,
+    pub time_window: CalendarSyncTimeWindow,
+    pub source_sync_state: CalendarSourceSyncState,
+    pub updated_events: Vec<CalendarEvent>,
+    pub updated_event_count: usize,
+    pub status: CalendarSyncResultStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}
