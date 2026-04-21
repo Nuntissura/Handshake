@@ -338,6 +338,7 @@ function runNote(rootDir, options) {
 
 function runSync(rootDir, options) {
   const nowMs = Date.now();
+  const now = new Date(nowMs);
   const resolvedPacket = resolveWorkPacketPath(options.wpId);
   if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPath)) {
     fail(`Packet not found for ${options.wpId}`);

@@ -7,11 +7,13 @@ import { fileURLToPath } from "node:url";
 import { deriveWpScopeContract } from "../scripts/lib/scope-surface-lib.mjs";
 import {
   applyWorkflowInvalidityRuntimeProjection,
+  appendWpReceipt,
   buildGovernedPhaseCheckInvocation,
   deriveReviewNotificationTargets,
   summarizeCommittedCoderHandoffDirtyState,
   validateWpReceiptAppendPreconditions,
 } from "../scripts/wp/wp-receipt-append.mjs";
+import { ensureWpCommunications } from "../scripts/wp/ensure-wp-communications.mjs";
 import {
   recordReviewExchange,
   requiresSplitCommittedCoderHandoffValidation,
@@ -44,23 +46,31 @@ function writeReviewExchangePacket(packetDir, wpId, commDir) {
   );
 }
 
-function writeIntentCheckpointPacket(packetDir, wpId, commDir) {
+function writeIntentCheckpointPacket(packetDir, wpId, commDir, status = "In Progress") {
   fs.mkdirSync(packetDir, { recursive: true });
   fs.writeFileSync(
     path.join(packetDir, "packet.md"),
     [
       `# Task Packet: ${wpId}`,
       "",
-      "**Status:** In Progress",
+      `- **Status:** ${status}`,
       "",
       "## METADATA",
       `- WP_ID: ${wpId}`,
+      `- BASE_WP_ID: ${wpId.replace(/-v\d+$/, "")}`,
+      `- WP_COMMUNICATION_DIR: ${commDir.replace(/\\/g, "/")}`,
       `- WP_RECEIPTS_FILE: ${path.join(commDir, "RECEIPTS.jsonl").replace(/\\/g, "/")}`,
       `- WP_RUNTIME_STATUS_FILE: ${path.join(commDir, "RUNTIME_STATUS.json").replace(/\\/g, "/")}`,
       `- WP_THREAD_FILE: ${path.join(commDir, "THREAD.md").replace(/\\/g, "/")}`,
+      "- EXECUTION_OWNER: CODER_A",
+      "- WORKFLOW_AUTHORITY: ORCHESTRATOR",
+      "- TECHNICAL_ADVISOR: WP_VALIDATOR",
+      "- TECHNICAL_AUTHORITY: INTEGRATION_VALIDATOR",
+      "- MERGE_AUTHORITY: INTEGRATION_VALIDATOR",
       "- LOCAL_BRANCH: feat/test-intent-checkpoint",
       `- LOCAL_WORKTREE_DIR: ${path.join(commDir, "worktree").replace(/\\/g, "/")}`,
       "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+      "- AGENTIC_MODE: NO",
       "- PACKET_FORMAT_VERSION: 2026-03-29",
       "- COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1",
       "- COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING",
@@ -70,6 +80,11 @@ function writeIntentCheckpointPacket(packetDir, wpId, commDir) {
       "- SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1",
       "- IN_SCOPE_PATHS:",
       "  - src/demo.rs",
+      "",
+      "## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)",
+      "Verdict: PENDING",
+      "Blockers: NONE",
+      "Next: N/A",
       "",
       "## CLAUSE_CLOSURE_MATRIX",
       "- CLAUSE | CODER_STATUS=PROVED | VALIDATOR_STATUS=PENDING",
@@ -835,6 +850,191 @@ test("validator response preflight accepts intent checkpoint clearance after cod
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
     fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("validator response clearance persists runtime authority before task-board sync", () => {
+  const wpId = "WP-TEST-INTENT-CHECKPOINT-STATUS-SYNC";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir, "Ready for Dev");
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+  const receiptsPath = path.resolve(repoRoot, commPaths.receiptsFile);
+  const runtimePath = path.resolve(repoRoot, commPaths.runtimeStatusFile);
+  fs.writeFileSync(
+    receiptsPath,
+    [
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:00:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "VALIDATOR_KICKOFF",
+        summary: "Kickoff",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        requires_ack: true,
+        ack_for: null,
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:01:00Z",
+        wp_id: wpId,
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        actor_authority_kind: "PRIMARY_CODER",
+        validator_role_kind: null,
+        receipt_kind: "CODER_INTENT",
+        summary: "Implementation order drafted.",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        requires_ack: false,
+        ack_for: "kickoff-1",
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+    ].join("\n"),
+    "utf8",
+  );
+  const runtime = JSON.parse(fs.readFileSync(runtimePath, "utf8"));
+  runtime.wp_validator_of_record = "wpv-1";
+  runtime.integration_validator_of_record = "intval-1";
+  runtime.current_packet_status = "Ready for Dev";
+  runtime.current_task_board_status = "READY_FOR_DEV";
+  runtime.current_milestone = "SKELETON";
+  runtime.runtime_status = "working";
+  runtime.current_phase = "BOOTSTRAP";
+  runtime.next_expected_actor = "WP_VALIDATOR";
+  runtime.next_expected_session = "wpv-1";
+  runtime.waiting_on = "WP_VALIDATOR_INTENT_CHECKPOINT";
+  runtime.waiting_on_session = "wpv-1";
+  runtime.validator_trigger = "BLOCKED_NEEDS_VALIDATOR";
+  runtime.validator_trigger_reason = "Coder intent recorded; WP validator must clear bootstrap intent review.";
+  runtime.ready_for_validation = true;
+  runtime.ready_for_validation_reason = "Coder intent recorded; WP validator must clear bootstrap intent review.";
+  runtime.attention_required = false;
+  runtime.active_role_sessions = [
+    {
+      role: "CODER",
+      session_id: "coder-1",
+      authority_kind: "PRIMARY_CODER",
+      validator_role_kind: null,
+      worktree_dir: "../wtc-test",
+      state: "working",
+      last_heartbeat_at: "2026-04-01T10:01:00Z",
+    },
+    {
+      role: "WP_VALIDATOR",
+      session_id: "wpv-1",
+      authority_kind: "WP_VALIDATOR",
+      validator_role_kind: "WP_VALIDATOR",
+      worktree_dir: "../wtc-test",
+      state: "waiting",
+      last_heartbeat_at: "2026-04-01T10:01:00Z",
+    },
+  ];
+  runtime.open_review_items = [];
+  runtime.last_event = "receipt_coder_intent";
+  runtime.last_event_at = "2026-04-01T10:01:00Z";
+  runtime.route_anchor_state = "COMM_WAITING_FOR_INTENT_CHECKPOINT";
+  runtime.route_anchor_kind = "VALIDATOR_RESPONSE";
+  runtime.route_anchor_correlation_id = "kickoff-1";
+  runtime.route_anchor_target_role = "WP_VALIDATOR";
+  runtime.route_anchor_target_session = "wpv-1";
+  runtime.execution_state.authority = {
+    ...runtime.execution_state.authority,
+    packet_status: "Ready for Dev",
+    task_board_status: "READY_FOR_DEV",
+    milestone: "SKELETON",
+    phase: "BOOTSTRAP",
+    runtime_status: "working",
+    next_expected_actor: "WP_VALIDATOR",
+    next_expected_session: "wpv-1",
+    waiting_on: "WP_VALIDATOR_INTENT_CHECKPOINT",
+    waiting_on_session: "wpv-1",
+    validator_trigger: "BLOCKED_NEEDS_VALIDATOR",
+    validator_trigger_reason: "Coder intent recorded; WP validator must clear bootstrap intent review.",
+    attention_required: false,
+    ready_for_validation: true,
+    ready_for_validation_reason: "Coder intent recorded; WP validator must clear bootstrap intent review.",
+    wp_validator_of_record: "wpv-1",
+    integration_validator_of_record: "intval-1",
+    route_anchor: {
+      state: "COMM_WAITING_FOR_INTENT_CHECKPOINT",
+      kind: "VALIDATOR_RESPONSE",
+      correlation_id: "kickoff-1",
+      target_role: "WP_VALIDATOR",
+      target_session: "wpv-1",
+    },
+    review_anchor: {
+      receipt_kind: null,
+      correlation_id: null,
+      actor_session: null,
+      target_session: null,
+      round: null,
+      committed_handoff_base_sha: null,
+      committed_handoff_head_sha: null,
+      committed_handoff_range_source: null,
+    },
+  };
+  fs.writeFileSync(runtimePath, `${JSON.stringify(runtime, null, 2)}\n`, "utf8");
+
+  try {
+    assert.doesNotThrow(() => appendWpReceipt({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-1",
+      receiptKind: "VALIDATOR_RESPONSE",
+      summary: "Bootstrap checkpoint cleared.",
+      targetRole: "CODER",
+      targetSession: "coder-1",
+      correlationId: "kickoff-1",
+      ackFor: "kickoff-1",
+      specAnchor: "MT-001",
+      packetRowRef: "MT-001",
+    }, {
+      autoRelay: false,
+    }));
+
+    const packetText = fs.readFileSync(path.join(packetDir, "packet.md"), "utf8");
+    const runtime = JSON.parse(fs.readFileSync(runtimePath, "utf8"));
+    const taskBoardText = fs.readFileSync(taskBoardPath, "utf8");
+
+    assert.match(packetText, /\*\*Status:\*\*\s*In Progress/);
+    assert.equal(runtime.current_packet_status, "In Progress");
+    assert.equal(runtime.current_task_board_status, "IN_PROGRESS");
+    assert.equal(runtime.execution_state.authority.packet_status, "In Progress");
+    assert.equal(runtime.execution_state.authority.task_board_status, "IN_PROGRESS");
+    assert.equal(runtime.waiting_on, "CODER_HANDOFF");
+    assert.match(taskBoardText, new RegExp(`\\*\\*\\[${wpId}\\]\\*\\* - \\[IN_PROGRESS\\]`));
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
   }
 });
 

@@ -213,6 +213,100 @@ test("materializeRuntimeAuthorityView prefers canonical execution_state authorit
   assert.equal(runtime.execution_state.authority.next_expected_actor, "CODER");
 });
 
+test("materializeRuntimeAuthorityView lets canonical authority clear stale validator route metadata", () => {
+  const runtime = materializeRuntimeAuthorityView({
+    next_expected_actor: "CODER",
+    next_expected_session: "coder:1",
+    waiting_on: "CODER_HANDOFF",
+    waiting_on_session: "wpv:stale",
+    validator_trigger: "BLOCKED_NEEDS_VALIDATOR",
+    validator_trigger_reason: "stale validator checkpoint",
+    ready_for_validation: true,
+    ready_for_validation_reason: "stale validator checkpoint",
+    execution_state: {
+      schema_version: EXECUTION_STATE_SCHEMA_VERSION,
+      authority: {
+        next_expected_actor: "CODER",
+        next_expected_session: "coder:1",
+        waiting_on: "CODER_HANDOFF",
+        waiting_on_session: null,
+        validator_trigger: "NONE",
+        validator_trigger_reason: null,
+        ready_for_validation: false,
+        ready_for_validation_reason: null,
+        route_anchor: {
+          state: "COMM_WAITING_FOR_HANDOFF",
+          kind: "CODER_HANDOFF",
+          correlation_id: "handoff-3",
+          target_role: "CODER",
+          target_session: "coder:1",
+        },
+        review_anchor: {},
+      },
+      checkpoint_lineage: {
+        schema_version: EXECUTION_STATE_LINEAGE_SCHEMA_VERSION,
+        latest_checkpoint_id: null,
+        latest_checkpoint_at_utc: null,
+        latest_checkpoint_kind: null,
+        latest_restore_point_id: null,
+        latest_checkpoint_fingerprint: null,
+        checkpoint_count: 0,
+        checkpoints: [],
+      },
+    },
+  });
+
+  assert.equal(runtime.waiting_on_session, null);
+  assert.equal(runtime.validator_trigger, "NONE");
+  assert.equal(runtime.validator_trigger_reason, null);
+  assert.equal(runtime.ready_for_validation, false);
+  assert.equal(runtime.ready_for_validation_reason, null);
+});
+
+test("syncRuntimeExecutionState preserves prior authority when sparse updates omit unrelated route fields", () => {
+  const initial = syncRuntimeExecutionState(
+    {
+      current_packet_status: "In Progress",
+      current_task_board_status: "IN_PROGRESS",
+      current_phase: "IMPLEMENTATION",
+      runtime_status: "working",
+      next_expected_actor: "CODER",
+      next_expected_session: "coder:1",
+      waiting_on: "CODER_HANDOFF",
+      waiting_on_session: "coder:1",
+      validator_trigger: "NONE",
+      validator_trigger_reason: null,
+      ready_for_validation: false,
+      ready_for_validation_reason: null,
+    },
+    {
+      eventName: "initial_projection",
+      eventAt: "2026-04-21T02:20:00Z",
+      checkpointKind: "IMPLEMENTATION",
+    },
+  );
+
+  const updated = syncRuntimeExecutionState(
+    {
+      execution_state: initial.execution_state,
+      current_packet_status: "In Progress",
+      current_task_board_status: "IN_PROGRESS",
+      current_phase: "VALIDATION",
+      runtime_status: "working",
+    },
+    {
+      eventName: "sparse_update",
+      eventAt: "2026-04-21T02:25:00Z",
+      checkpointKind: "REVIEW_SYNC",
+    },
+  );
+
+  assert.equal(updated.next_expected_actor, "CODER");
+  assert.equal(updated.next_expected_session, "coder:1");
+  assert.equal(updated.waiting_on, "CODER_HANDOFF");
+  assert.equal(updated.waiting_on_session, "coder:1");
+});
+
 test("readRuntimeExecutionAuthority falls back to flat runtime fields when canonical block is absent", () => {
   const authority = readRuntimeExecutionAuthority({
     current_packet_status: "Done",

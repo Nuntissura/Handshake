@@ -14,13 +14,13 @@ Requirements:
 
 ---
 
-# Task Packet: WP-1-Calendar-Sync-Engine-v1
+# Task Packet: WP-1-Calendar-Sync-Engine-v2
 
 ## METADATA
-- TASK_ID: WP-1-Calendar-Sync-Engine-v1
-- WP_ID: WP-1-Calendar-Sync-Engine-v1
+- TASK_ID: WP-1-Calendar-Sync-Engine-v2
+- WP_ID: WP-1-Calendar-Sync-Engine-v2
 - BASE_WP_ID: WP-1-Calendar-Sync-Engine
-- DATE: 2026-04-21T01:21:03.345Z
+- DATE: 2026-04-21T09:01:48.288Z
 - MERGE_BASE_SHA: facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic `just phase-check HANDOFF ... CODER --range` evidence)
 - REQUESTOR: Operator
 - AGENT_ID: ActivationManager
@@ -85,30 +85,30 @@ Requirements:
 - ROLE_SESSION_REASONING_CONFIG_KEY: model_reasoning_effort
 - ROLE_SESSION_REASONING_CONFIG_VALUE: xhigh
 - CODER_STARTUP_COMMAND: just coder-startup
-- CODER_RESUME_COMMAND: just coder-next WP-1-Calendar-Sync-Engine-v1
+- CODER_RESUME_COMMAND: just coder-next WP-1-Calendar-Sync-Engine-v2
 <!-- The WP Validator uses a dedicated local review branch/worktree rooted from the coder branch. The Integration Validator stays on handshake_main/main. Both mirror the single shared WP backup branch under REMOTE_BACKUP_* below. Do not create separate validator-only remote WP backup branches. -->
 - WP_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH
 <!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - WP_VALIDATOR_MODEL: gpt-5.4
 - WP_VALIDATOR_REASONING_STRENGTH: EXTRA_HIGH
-- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Calendar-Sync-Engine-v1
-- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-sync-engine-v1
-- WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Calendar-Sync-Engine-v1
-- WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Calendar-Sync-Engine-v1
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Calendar-Sync-Engine-v2
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-sync-engine-v2
+- WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Calendar-Sync-Engine-v2
+- WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Calendar-Sync-Engine-v2
 - WP_VALIDATOR_STARTUP_COMMAND: just validator-startup WP_VALIDATOR
-- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP_VALIDATOR WP-1-Calendar-Sync-Engine-v1
+- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP_VALIDATOR WP-1-Calendar-Sync-Engine-v2
 - INTEGRATION_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH
 <!-- Required for PACKET_FORMAT_VERSION >= 2026-04-06. -->
 - INTEGRATION_VALIDATOR_MODEL: gpt-5.4
 - INTEGRATION_VALIDATOR_REASONING_STRENGTH: EXTRA_HIGH
 - INTEGRATION_VALIDATOR_LOCAL_BRANCH: main
 - INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
-- INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Calendar-Sync-Engine-v1
-- INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Calendar-Sync-Engine-v1
+- INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Calendar-Sync-Engine-v2
+- INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Calendar-Sync-Engine-v2
 - INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup INTEGRATION_VALIDATOR
-- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next INTEGRATION_VALIDATOR WP-1-Calendar-Sync-Engine-v1
-- EXTERNAL_VALIDATOR_BRIEF_COMMAND: just external-validator-brief WP-1-Calendar-Sync-Engine-v1
-- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup VALIDATOR -> just external-validator-brief WP-1-Calendar-Sync-Engine-v1
+- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next INTEGRATION_VALIDATOR WP-1-Calendar-Sync-Engine-v2
+- EXTERNAL_VALIDATOR_BRIEF_COMMAND: just external-validator-brief WP-1-Calendar-Sync-Engine-v2
+- EXTERNAL_VALIDATOR_STARTUP_SEQUENCE: just validator-startup VALIDATOR -> just external-validator-brief WP-1-Calendar-Sync-Engine-v2
 - EXTERNAL_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | CODE_VERDICT | GOVERNANCE_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT
 - EXTERNAL_VALIDATOR_DISPOSITIONS: NONE | OUTDATED_ONLY | ABANDONED
 - EXTERNAL_VALIDATOR_LEGAL_VERDICTS: PASS | FAIL | PENDING
@@ -125,7 +125,7 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** In Progress
+- **Status:** Ready for Dev
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
 - MAIN_CONTAINMENT_STATUS: NOT_STARTED
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
@@ -163,10 +163,10 @@ Requirements:
 <!-- Allowed: OK | NEEDS_STUBS | UNKNOWN -->
 - STUB_WP_IDS: WP-1-Calendar-Lens-v3, WP-1-Calendar-Policy-Integration-v1, WP-1-Calendar-Law-Compliance-Tests-v1, WP-1-Calendar-Correlation-Export-v1, WP-1-Calendar-Mailbox-Correlation-v1
 <!-- Allowed: comma-separated WP-... IDs | NONE. Must match refinement metadata STUB_WP_IDS. -->
-- LOCAL_BRANCH: feat/WP-1-Calendar-Sync-Engine-v1
-- LOCAL_WORKTREE_DIR: ../wtc-sync-engine-v1
-- REMOTE_BACKUP_BRANCH: feat/WP-1-Calendar-Sync-Engine-v1
-- REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Calendar-Sync-Engine-v1
+- LOCAL_BRANCH: feat/WP-1-Calendar-Sync-Engine-v2
+- LOCAL_WORKTREE_DIR: ../wtc-sync-engine-v2
+- REMOTE_BACKUP_BRANCH: feat/WP-1-Calendar-Sync-Engine-v2
+- REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Calendar-Sync-Engine-v2
 - REMOTE_BACKUP_LIFECYCLE: TEMPORARY
 <!-- WP backup branches may be deleted after Operator-approved cleanup; later dead links are non-blocking. -->
 - BACKUP_PUSH_STATUS: REQUIRED_BEFORE_DESTRUCTIVE_OPS
@@ -178,10 +178,10 @@ Requirements:
 - MAX_CODER_REVISION_CYCLES: 3
 - MAX_VALIDATOR_REVIEW_CYCLES: 3
 - MAX_RELAY_ESCALATION_CYCLES: 2
-- WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v1
-- WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v1/THREAD.md
-- WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v1/RUNTIME_STATUS.json
-- WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v1/RECEIPTS.jsonl
+- WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2
+- WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/THREAD.md
+- WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RUNTIME_STATUS.json
+- WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RECEIPTS.jsonl
 - WP_VALIDATOR_OF_RECORD: <unassigned>
 - INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
 - SECONDARY_VALIDATOR_SESSIONS: NONE
@@ -191,21 +191,23 @@ Requirements:
 <!-- Required for WORKFLOW_LANE=ORCHESTRATOR_MANAGED packets with PACKET_FORMAT_VERSION >= 2026-03-21. -->
 - COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING
 <!-- Required for WORKFLOW_LANE=ORCHESTRATOR_MANAGED packets with PACKET_FORMAT_VERSION >= 2026-03-21. -->
-- USER_SIGNATURE: ilja210420260315
+- USER_SIGNATURE: ilja210420261037
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
 Blockers: NONE
-Next: ORCHESTRATOR advances verdict progression and integration closeout from the authoritative completed direct-review lane.
+Next: N/A
+
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: surface mutation discipline plus write gate | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/mechanical_engines.json; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | EXAMPLES: a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Cross-Tool Interaction Map no-shadow-pipeline rule | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/mex/runtime.rs; ../handshake_main/src/backend/handshake_core/tests/mex_tests.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests | EXAMPLES: a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: `calendar_sync` engine contract and output | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/mechanical_engines.json; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests | EXAMPLES: a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: `CalendarSourceSyncState` as single source of truth for recovery | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs; ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs; ../handshake_main/src/backend/handshake_core/src/storage/postgres.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | EXAMPLES: a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: MCP/provider adapter guidance plus read-only mode | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/mechanical_engines.json; ../handshake_main/src/backend/handshake_core/tests/mex_tests.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | EXAMPLES: a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: surface mutation discipline plus write gate | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/mechanical_engines.json; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | EXAMPLES: a `workflow_run` that requests the intended calendar sync capabilities and reaches the calendar-sync path instead of Analyst/doc.summarize fallback, a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: workflow capability profile and required-capabilities contract | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/capabilities.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/mex/gates.rs; ../handshake_main/src/backend/handshake_core/tests/mex_tests.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | EXAMPLES: a `workflow_run` that requests the intended calendar sync capabilities and reaches the calendar-sync path instead of Analyst/doc.summarize fallback, a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Cross-Tool Interaction Map no-shadow-pipeline rule | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/mex/runtime.rs; ../handshake_main/src/backend/handshake_core/tests/mex_tests.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests | EXAMPLES: a `workflow_run` that requests the intended calendar sync capabilities and reaches the calendar-sync path instead of Analyst/doc.summarize fallback, a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: `calendar_sync` engine contract and output | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/mechanical_engines.json; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests | EXAMPLES: a `workflow_run` that requests the intended calendar sync capabilities and reaches the calendar-sync path instead of Analyst/doc.summarize fallback, a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: `CalendarSourceSyncState` as single source of truth for recovery | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs; ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs; ../handshake_main/src/backend/handshake_core/src/storage/postgres.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | EXAMPLES: a `workflow_run` that requests the intended calendar sync capabilities and reaches the calendar-sync path instead of Analyst/doc.summarize fallback, a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: MCP/provider adapter guidance plus read-only mode | CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/mechanical_engines.json; ../handshake_main/src/backend/handshake_core/tests/mex_tests.rs | TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | EXAMPLES: a `workflow_run` that requests the intended calendar sync capabilities and reaches the calendar-sync path instead of Analyst/doc.summarize fallback, a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes, a repeated identical sync run that keeps stable identity and produces no duplicate events, a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -214,10 +216,12 @@ Next: ORCHESTRATOR advances verdict progression and integration closeout from th
 ## SHARED_SURFACE_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - SHARED_SURFACE_RISK: YES
 - HOT_FILES:
+  - ../handshake_main/src/backend/handshake_core/src/capabilities.rs
   - ../handshake_main/src/backend/handshake_core/mechanical_engines.json
   - ../handshake_main/src/backend/handshake_core/src/workflows.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/registry.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/runtime.rs
+  - ../handshake_main/src/backend/handshake_core/src/mex/gates.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/mod.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs
@@ -235,8 +239,9 @@ Next: ORCHESTRATOR advances verdict progression and integration closeout from th
   - cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests
   - cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests
   - cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml
-  - targeted validator review of engine registration, runtime adapter installation, gated sync execution, and sync-state durability
+  - targeted validator review of capability-contract wiring, engine registration, runtime adapter installation, gated sync execution, and sync-state durability
 - CANONICAL_CONTRACT_EXAMPLES:
+  - a `workflow_run` that requests the intended calendar sync capabilities and reaches the calendar-sync path instead of Analyst/doc.summarize fallback
   - a read-only calendar source sync that updates event rows plus `CalendarSourceSyncState` without attempting remote writes
   - a repeated identical sync run that keeps stable identity and produces no duplicate events
   - a mutation attempt without the required capability or against a read-only source that fails closed while still leaving inspectable runtime evidence
@@ -248,20 +253,23 @@ Next: ORCHESTRATOR advances verdict progression and integration closeout from th
   - PILLARS_TOUCHED: SQL to PostgreSQL shift readiness
   - PILLARS_TOUCHED: LLM-friendly data
   - PILLAR_DECOMPOSITION: PILLAR: SQL to PostgreSQL shift readiness | CAPABILITY_SLICE: portable sync behavior across both supported backends | SUBFEATURES: storage reuse, sync-state persistence, repeat-run consistency, backend parity | PRIMITIVES_FEATURES: PRIM-CalendarSourceSyncState, PRIM-CalendarEventUpsert | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: The engine must reuse the portable storage substrate instead of introducing backend-specific sync behavior.
-  - PILLAR_DECOMPOSITION: PILLAR: LLM-friendly data | CAPABILITY_SLICE: canonical synced calendar substrate for downstream routing and projection | SUBFEATURES: durable source sync posture, stable event identity, queryable event windows | PRIMITIVES_FEATURES: PRIM-CalendarSourceSyncState, PRIM-CalendarEventWindowQuery | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: NEW_STUB | STUB: WP-1-Calendar-Policy-Integration-v1 | NOTES: The engine packet should produce the canonical data shape that downstream routing and projection packets consume.
+  - PILLAR_DECOMPOSITION: PILLAR: LLM-friendly data | CAPABILITY_SLICE: canonical synced calendar substrate for downstream routing and projection | SUBFEATURES: durable source sync posture, stable event identity, queryable event windows | PRIMITIVES_FEATURES: PRIM-CalendarSourceSyncState, PRIM-CalendarEventWindowQuery | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: This packet should produce the canonical data shape that downstream routing and projection packets consume.
+  - PILLAR_DECOMPOSITION: PILLAR: LLM-friendly data | CAPABILITY_SLICE: policy and routing consumers read sync-backed posture through a dedicated integration packet | SUBFEATURES: policy-profile selection, scope-hint routing, downstream projections | PRIMITIVES_FEATURES: PRIM-CalendarSourceSyncState, PRIM-CalendarEventWindowQuery | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: NEW_STUB | STUB: WP-1-Calendar-Policy-Integration-v1 | NOTES: This packet produces the routing inputs without also owning the routing layer.
   - EXECUTION_RUNTIME_ALIGNMENT: Capability: calendar source sync execution | JobModel: AI_JOB | Workflow: calendar_sync | ToolSurface: COMMAND_CENTER | ModelExposure: BOTH | CommandCenter: VISIBLE | FlightRecorder: calendar_sync_result | Locus: VISIBLE | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: IN_THIS_WP | Stub: NONE | Notes: The packet must make the sync run as a governed workflow job rather than a helper thread.
   - EXECUTION_RUNTIME_ALIGNMENT: Capability: calendar mutation apply discipline | JobModel: AI_JOB | Workflow: calendar_sync | ToolSurface: COMMAND_CENTER | ModelExposure: BOTH | CommandCenter: VISIBLE | FlightRecorder: calendar_mutation | Locus: VISIBLE | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: IN_THIS_WP | Stub: NONE | Notes: Successful patch application must remain trace-linked and workflow-governed.
-  - EXECUTION_RUNTIME_ALIGNMENT: Capability: calendar scope-hint and policy projection | JobModel: AI_JOB | Workflow: calendar_policy_projection | ToolSurface: COMMAND_CENTER | ModelExposure: BOTH | CommandCenter: PLANNED | FlightRecorder: ContextSnapshot routing fields | Locus: PLANNED | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: NEW_STUB | Stub: WP-1-Calendar-Policy-Integration-v1 | Notes: This packet prepares the sync truth those routing flows need, but does not implement them.
+  - EXECUTION_RUNTIME_ALIGNMENT: Capability: calendar capability contract evaluation | JobModel: AI_JOB | Workflow: calendar_sync | ToolSurface: COMMAND_CENTER | ModelExposure: BOTH | CommandCenter: VISIBLE | FlightRecorder: capability allow/deny evidence | Locus: VISIBLE | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: IN_THIS_WP | Stub: NONE | Notes: The `calendar_sync` path cannot truthfully retain Analyst/doc.summarize capability routing.
 ## DATA_CONTRACT_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - DATA_CONTRACT_ACTIVE: YES
 - SQL_POSTURE: SQLITE_NOW_POSTGRES_READY
 - LLM_READABILITY_POSTURE: REQUIRED
 - LOOM_INTERTWINED_POSTURE: REQUIRED_WHEN_APPLICABLE
 - PRIMARY_DATA_SURFACES:
+  - ../handshake_main/src/backend/handshake_core/src/capabilities.rs
   - ../handshake_main/src/backend/handshake_core/mechanical_engines.json
   - ../handshake_main/src/backend/handshake_core/src/workflows.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/registry.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/runtime.rs
+  - ../handshake_main/src/backend/handshake_core/src/mex/gates.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/mod.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs
@@ -341,7 +349,7 @@ Next: ORCHESTRATOR advances verdict progression and integration closeout from th
 - NOTE: Set `SUB_AGENT_DELEGATION: ALLOWED` only with explicit Operator approval; when ALLOWED, replace `OPERATOR_APPROVAL_EVIDENCE` with the exact approval line from chat.
 
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
-- REFINEMENT_FILE: .GOV/refinements/WP-1-Calendar-Sync-Engine-v1.md
+- REFINEMENT_FILE: .GOV/refinements/WP-1-Calendar-Sync-Engine-v2.md
 - Rule: Task packet creation is blocked until refinement is complete and signed.
 
 ## SPEC_CONTEXT_WINDOWS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
@@ -446,9 +454,41 @@ Some sources may be used in read-only mode.
   `CalendarSource` has a flag `write_back=false`.
   `calendar_sync_google` for that source only pulls; it never calls insert/update/delete.
   ```
+
+#### ANCHOR 9
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.181.md \u00a710.4 Calendar backend force-multiplier capability contract
+- CONTEXT_START_LINE: 55877
+- CONTEXT_END_LINE: 55877
+- CONTEXT_TOKEN: capability_profile_id
+- EXCERPT_ASCII_ESCAPED:
+  ```text
+[ADD v02.155] In Phase 1, Calendar is also a backend force multiplier: `CalendarSourceSyncState`, `CalendarSource.write_policy`, `CalendarEvent.export_mode`, `capability_profile_id`, and `CalendarScopeHint` are canonical backend contracts for sync recovery, consent posture, AI-job mutation discipline, and scope-hint routing.
+  ```
+
+#### ANCHOR 10
+- SPEC_ANCHOR: Handshake_Master_Spec_v02.181.md \u00a72.6.6.5.2 AI Job capability profiles
+- CONTEXT_START_LINE: 9763
+- CONTEXT_END_LINE: 9777
+- CONTEXT_TOKEN: capability_profile_id
+- EXCERPT_ASCII_ESCAPED:
+  ```text
+Jobs are evaluated under capability profiles:
+
+  | Field | Role |
+  |-------|------|
+  | `capability_profile_id` | Determines what the job can read/write in the workspace |
+  | `access_mode` | Read-only, preview-only, or scoped-apply |
+  | `layer_scope` | Which layers (raw/derived/display) are writable |
+
+  Enforcement Points:
+  1. Before `queued`: Basic capability check
+  2. At `awaiting_validation`: Full capability and policy check
+  3. On commit: Final verification that only allowed entities were modified
+  ```
 ## CLAUSE_PROOF_PLAN (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - CLAUSE_ROWS:
   - CLAUSE: surface mutation discipline plus write gate | WHY_IN_SCOPE: the packet must make `calendar_sync` the real workflow-only mutation path instead of a paper contract | EXPECTED_CODE_SURFACES: ../handshake_main/src/backend/handshake_core/mechanical_engines.json; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/storage/mod.rs | EXPECTED_TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | RISK_IF_MISSED: direct helper or UI-side writes can still bypass governed execution
+  - CLAUSE: workflow capability profile and required-capabilities contract | WHY_IN_SCOPE: the v2 packet must repair the calendar sync path so `workflow_run` and capability gating use the intended calendar capability contract | EXPECTED_CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/capabilities.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/mex/gates.rs; ../handshake_main/src/backend/handshake_core/tests/mex_tests.rs | EXPECTED_TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | RISK_IF_MISSED: `calendar_sync` remains blocked by the wrong capability contract or by `HSK-4001 UnknownCapability`
   - CLAUSE: Cross-Tool Interaction Map no-shadow-pipeline rule | WHY_IN_SCOPE: provider sync must run through Workflow Engine + MEX runtime, not hidden background helpers | EXPECTED_CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/mex/runtime.rs; ../handshake_main/src/backend/handshake_core/tests/mex_tests.rs | EXPECTED_TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests | RISK_IF_MISSED: provider access happens outside the contract the spec requires
   - CLAUSE: `calendar_sync` engine contract and output | WHY_IN_SCOPE: the packet exists to realize the engine input/behavior/output contract already named in the spec | EXPECTED_CODE_SURFACES: ../handshake_main/src/backend/handshake_core/mechanical_engines.json; ../handshake_main/src/backend/handshake_core/src/workflows.rs; ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs | EXPECTED_TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests | RISK_IF_MISSED: the engine may exist nominally but still fail to honor spec-defined behavior
   - CLAUSE: `CalendarSourceSyncState` as single source of truth for recovery | WHY_IN_SCOPE: retries, backoff, and recovery are core parts of a sync engine, not optional extras | EXPECTED_CODE_SURFACES: ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs; ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs; ../handshake_main/src/backend/handshake_core/src/storage/postgres.rs; ../handshake_main/src/backend/handshake_core/src/workflows.rs | EXPECTED_TESTS: cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests; cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml | RISK_IF_MISSED: the engine becomes non-recoverable or duplicates data under retry
@@ -457,20 +497,24 @@ Some sources may be used in read-only mode.
 - CONTRACT_ROWS:
   - CONTRACT: `calendar_sync` engine registry contract | PRODUCER: mechanical_engines.json | CONSUMER: mex/registry.rs, workflows.rs, tests/mex_tests.rs | SERIALIZER_TRANSPORT: JSON engine registry | VALIDATOR_READER: mex_tests.rs | TRIPWIRE_TESTS: mex registry/runtime tests | DRIFT_RISK: engine is declared but not executable, or executable but not declared consistently
   - CONTRACT: calendar sync job input / protocol contract | PRODUCER: workflows.rs job/profile parser and engine runner | CONSUMER: calendar-sync adapter implementation, storage layer, validators | SERIALIZER_TRANSPORT: workflow payload plus PlannedOperation inputs | VALIDATOR_READER: workflow/job tests plus validator inspection | TRIPWIRE_TESTS: targeted calendar-sync execution tests plus full cargo test | DRIFT_RISK: job payload shape and adapter expectations silently diverge
+  - CONTRACT: calendar sync capability contract | PRODUCER: capabilities.rs plus workflow capability-profile binding | CONSUMER: workflows.rs, mex/gates.rs, tests/mex_tests.rs | SERIALIZER_TRANSPORT: capability profile ids and requested capability strings | VALIDATOR_READER: mex_tests.rs plus validator inspection | TRIPWIRE_TESTS: mex capability-path tests plus full cargo test | DRIFT_RISK: requested calendar capabilities remain undefined, misnamed, or bound to the wrong workflow profile
   - CONTRACT: `CalendarSourceSyncState` durable recovery contract | PRODUCER: storage/calendar.rs plus engine runner | CONSUMER: sqlite.rs, postgres.rs, later recovery/retry flows | SERIALIZER_TRANSPORT: sqlx row mapping and JSON-ish sync-state payloads | VALIDATOR_READER: calendar_storage_tests.rs | TRIPWIRE_TESTS: calendar storage tests plus sync retry/idempotency tests | DRIFT_RISK: sync token/backoff/watermark state is lost or inconsistently updated
   - CONTRACT: calendar event upsert/idempotency contract | PRODUCER: engine runner and adapter | CONSUMER: storage backends and later Lens/policy consumers | SERIALIZER_TRANSPORT: storage upsert calls keyed by source/external identity | VALIDATOR_READER: calendar_storage_tests.rs | TRIPWIRE_TESTS: calendar storage tests plus repeat-sync tests | DRIFT_RISK: repeated sync runs duplicate events or destabilize identity
 ## CODER_HANDOFF_BRIEF (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - IMPLEMENTATION_ORDER:
   - Audit the existing storage/runtime seams first so the packet reuses completed work instead of recreating it.
-  - Add `calendar_sync` to the mechanical engine registry and wire its adapter into `build_mex_runtime(...)` before writing provider-specific logic.
-  - Implement the smallest truthful sync path that satisfies the signed packet scope, reusing existing calendar storage upserts and sync-state contracts.
-  - Extend registry/runtime/storage tests to prove engine registration, governed execution, idempotent sync behavior, and fail-closed capability posture.
+  - Repair the calendar sync capability contract before or alongside runtime adapter wiring so the path can execute under the intended `workflow_run` profile.
+  - Add `calendar_sync` to the mechanical engine registry and wire its adapter into `build_mex_runtime(...)`.
+  - Reuse existing calendar storage upserts and sync-state contracts for the smallest truthful sync path.
+  - Extend `mex_tests` and storage/runtime tests to prove engine registration, governed execution, capability routing, idempotent sync behavior, and fail-closed posture.
   - Re-run the proof commands from the product worktree until they pass cleanly.
 - HOT_FILES:
+  - ../handshake_main/src/backend/handshake_core/src/capabilities.rs
   - ../handshake_main/src/backend/handshake_core/mechanical_engines.json
   - ../handshake_main/src/backend/handshake_core/src/workflows.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/registry.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/runtime.rs
+  - ../handshake_main/src/backend/handshake_core/src/mex/gates.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/mod.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs
@@ -484,20 +528,24 @@ Some sources may be used in read-only mode.
 - CARRY_FORWARD_WARNINGS:
   - Do not reimplement calendar storage or invent shadow tables; the completed storage packet is the substrate.
   - Do not add ad hoc background sync threads or direct provider clients outside workflow/MEX runtime.
-  - Do not widen v1 into Lens, ACE policy integration, multi-provider breadth, or rich write-back UX.
+  - Do not silently reuse Analyst/doc.summarize or any unrelated `workflow_run` capability contract for the calendar sync path.
+  - Do not widen the packet into Lens, ACE policy integration, multi-provider breadth, or rich write-back UX.
   - Do not mint new PRIM IDs or new top-level Flight Recorder schemas to paper over runtime gaps.
 ## VALIDATOR_HANDOFF_BRIEF (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - CLAUSES_TO_INSPECT:
   - engine registration and runtime adapter installation
   - workflow dispatch and governed execution path
+  - workflow capability profile binding and requested-capability routing
   - capability posture plus read-only/write-policy fail-closed behavior
   - sync-state durability and repeat-run idempotency
   - trace/result evidence linkage
 - FILES_TO_READ:
+  - ../handshake_main/src/backend/handshake_core/src/capabilities.rs
   - ../handshake_main/src/backend/handshake_core/mechanical_engines.json
   - ../handshake_main/src/backend/handshake_core/src/workflows.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/registry.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/runtime.rs
+  - ../handshake_main/src/backend/handshake_core/src/mex/gates.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/mod.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs
@@ -511,10 +559,11 @@ Some sources may be used in read-only mode.
 - POST_MERGE_SPOTCHECKS:
   - verify `calendar_sync` still exists in `mechanical_engines.json` on `main`
   - verify workflow runtime still installs the calendar adapter on `main`
+  - verify `workflow_run` no longer routes the calendar sync path through Analyst/doc.summarize capability posture
   - verify there is still no direct provider-write path that bypasses capability gates
 ## NOT_PROVEN_AT_REFINEMENT_TIME (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - NOT_PROVEN_ITEMS:
-  - This refinement does not prove whether the smallest truthful MVP should be local ICS import only or one external provider in read-only mode; both are spec-compatible and must be resolved against code reality during implementation.
+  - This refinement does not prove whether the smallest truthful MVP should be local ICS import only or one external provider in read-only mode; both remain spec-compatible and must be resolved during implementation.
   - This refinement does not freeze the exact protocol_id/schema naming for the calendar-sync job contract; coder and validators must align those names to current workflow conventions.
   - This refinement does not prove bidirectional write-back, conflict resolution, CalendarScopeHint policy projection, Lens UX, or downstream correlation behavior.
 ## RESEARCH_SIGNAL (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
@@ -594,45 +643,45 @@ Some sources may be used in read-only mode.
 - FORCE_MULTIPLIER_VERDICT: NEEDS_STUBS
 - FORCE_MULTIPLIER_RESOLUTIONS:
   - existing calendar storage plus governed sync-engine registration removes the shadow-pipeline gap -> IN_THIS_WP (stub: NONE)
+  - workflow capability routing plus calendar capability identifiers removes the `HSK-4001 UnknownCapability` hard-stop -> IN_THIS_WP (stub: NONE)
   - provider-safe result evidence keeps sync inspectable in existing workflow consoles -> IN_THIS_WP (stub: NONE)
   - portable storage reuse keeps SQLite and Postgres sync behavior aligned -> IN_THIS_WP (stub: NONE)
-  - idempotent synced rows become the canonical calendar substrate for model-safe downstream consumers -> IN_THIS_WP (stub: NONE)
-  - read-only/write-policy enforcement keeps remote provider access fail-closed -> IN_THIS_WP (stub: NONE)
+  - idempotent synced rows become the canonical calendar substrate for downstream consumers -> IN_THIS_WP (stub: NONE)
+  - read-only and write-policy enforcement keeps remote provider access fail-closed -> IN_THIS_WP (stub: NONE)
   - Lens projections consume the same synced storage truth rather than bespoke provider fetches -> NEW_STUB (stub: WP-1-Calendar-Lens-v3)
-  - policy and routing consumers read sync-backed calendar posture through a dedicated integration packet -> NEW_STUB (stub: WP-1-Calendar-Policy-Integration-v1)
+  - policy and routing consumers read sync-backed posture through a dedicated integration packet -> NEW_STUB (stub: WP-1-Calendar-Policy-Integration-v1)
   - law-compliance validation can finally exercise a real governed sync path -> NEW_STUB (stub: WP-1-Calendar-Law-Compliance-Tests-v1)
 - STUB_WP_IDS: WP-1-Calendar-Lens-v3, WP-1-Calendar-Policy-Integration-v1, WP-1-Calendar-Law-Compliance-Tests-v1, WP-1-Calendar-Correlation-Export-v1, WP-1-Calendar-Mailbox-Correlation-v1
 ## PILLAR_DECOMPOSITION (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - PILLAR_DECOMPOSITION_VERDICT: NEEDS_STUBS
 - DECOMPOSITION_ROWS:
-  - PILLAR: Calendar | CAPABILITY_SLICE: governed sync-engine registration and storage-backed execution | SUBFEATURES: engine registry row, runtime adapter install, workflow dispatch contract, idempotent source/event upserts | PRIMITIVES_FEATURES: PRIM-CalendarSyncInput, PRIM-CalendarMutation, PRIM-CalendarSourceSyncState, PRIM-CalendarEventUpsert | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: This is the direct activation target and the missing bridge between current spec law and current product code.
-  - PILLAR: Calendar | CAPABILITY_SLICE: user-facing Lens projection and filters | SUBFEATURES: agenda/timeline rendering, diagnostics display, user controls | PRIMITIVES_FEATURES: PRIM-CalendarEventWindowQuery | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: NEW_STUB | STUB: WP-1-Calendar-Lens-v3 | NOTES: Lens remains the downstream UI consumer packet that will reuse the synced storage truth.
+  - PILLAR: Calendar | CAPABILITY_SLICE: governed sync-engine registration and execution | SUBFEATURES: engine registry row, runtime adapter install, workflow dispatch contract, idempotent source/event upserts | PRIMITIVES_FEATURES: PRIM-CalendarSyncInput, PRIM-CalendarMutation, PRIM-CalendarSourceSyncState, PRIM-CalendarEventUpsert | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: This remains the direct activation target.
+  - PILLAR: Execution / Job Runtime | CAPABILITY_SLICE: calendar capability profile and workflow capability routing | SUBFEATURES: `calendar.sync.read`, `calendar.sync.write`, workflow-run capability mapping, `CapabilityGate` acceptance, fail-closed denials | PRIMITIVES_FEATURES: PRIM-CalendarSource, PRIM-CalendarSourceWritePolicy, PRIM-CalendarMutation | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: This is the material v2 scope delta proven by the dossier.
   - PILLAR: Flight Recorder | CAPABILITY_SLICE: auditable sync and mutation evidence | SUBFEATURES: result artifact, trace linkage, provider-safe diagnostics, retry visibility | PRIMITIVES_FEATURES: PRIM-CalendarSyncInput, PRIM-CalendarMutation, PRIM-CalendarSourceSyncState | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: The engine must be inspectable through existing runtime evidence surfaces rather than helper-local logs.
-  - PILLAR: Command Center | CAPABILITY_SLICE: inspectable workflow/job execution for calendar sync | SUBFEATURES: job visibility, workflow-run status, operator-visible failure posture | PRIMITIVES_FEATURES: PRIM-CalendarSyncInput, PRIM-CalendarMutation | MECHANICAL: engine.dba | ROI: MEDIUM | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: Existing runtime inspection surfaces should expose the sync job without requiring a new packet-owned UI.
-  - PILLAR: Execution / Job Runtime | CAPABILITY_SLICE: capability-gated external calendar access | SUBFEATURES: consent posture, read-only source enforcement, fail-closed write-back behavior | PRIMITIVES_FEATURES: PRIM-CalendarMutation, PRIM-CalendarSourceWritePolicy, PRIM-CalendarEventExportMode | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: Even if v1 chooses an import-only MVP, it must still enforce write posture correctly.
+  - PILLAR: Command Center | CAPABILITY_SLICE: inspectable workflow and capability outcomes for calendar sync | SUBFEATURES: job visibility, workflow-run status, operator-visible denial posture, failure summaries | PRIMITIVES_FEATURES: PRIM-CalendarSyncInput, PRIM-CalendarMutation | MECHANICAL: engine.dba | ROI: MEDIUM | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: Existing runtime inspection surfaces should expose the sync job without a packet-owned UI.
   - PILLAR: SQL to PostgreSQL shift readiness | CAPABILITY_SLICE: portable sync behavior across both supported backends | SUBFEATURES: storage reuse, sync-state persistence, repeat-run consistency, backend parity | PRIMITIVES_FEATURES: PRIM-CalendarSourceSyncState, PRIM-CalendarEventUpsert | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: The engine must reuse the portable storage substrate instead of introducing backend-specific sync behavior.
-  - PILLAR: LLM-friendly data | CAPABILITY_SLICE: canonical synced calendar substrate for downstream routing and projection | SUBFEATURES: durable source sync posture, stable event identity, queryable event windows | PRIMITIVES_FEATURES: PRIM-CalendarSourceSyncState, PRIM-CalendarEventWindowQuery | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: NEW_STUB | STUB: WP-1-Calendar-Policy-Integration-v1 | NOTES: The engine packet should produce the canonical data shape that downstream routing and projection packets consume.
+  - PILLAR: LLM-friendly data | CAPABILITY_SLICE: canonical synced calendar substrate for downstream routing and projection | SUBFEATURES: durable source sync posture, stable event identity, queryable event windows | PRIMITIVES_FEATURES: PRIM-CalendarSourceSyncState, PRIM-CalendarEventWindowQuery | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: IN_THIS_WP | STUB: NONE | NOTES: This packet should produce the canonical data shape that downstream routing and projection packets consume.
+  - PILLAR: Calendar | CAPABILITY_SLICE: user-facing Lens projection and filters | SUBFEATURES: agenda/timeline rendering, diagnostics display, user controls | PRIMITIVES_FEATURES: PRIM-CalendarEventWindowQuery | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: NEW_STUB | STUB: WP-1-Calendar-Lens-v3 | NOTES: Lens remains a downstream UI consumer packet.
+  - PILLAR: LLM-friendly data | CAPABILITY_SLICE: policy and routing consumers read sync-backed posture through a dedicated integration packet | SUBFEATURES: policy-profile selection, scope-hint routing, downstream projections | PRIMITIVES_FEATURES: PRIM-CalendarSourceSyncState, PRIM-CalendarEventWindowQuery | MECHANICAL: engine.dba | ROI: HIGH | RESOLUTION: NEW_STUB | STUB: WP-1-Calendar-Policy-Integration-v1 | NOTES: This packet produces the routing inputs without also owning the routing layer.
 ## EXECUTION_RUNTIME_ALIGNMENT (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
-- EXECUTION_RUNTIME_ALIGNMENT_VERDICT: NEEDS_STUBS
+- EXECUTION_RUNTIME_ALIGNMENT_VERDICT: OK
 - ALIGNMENT_ROWS:
   - Capability: calendar source sync execution | JobModel: AI_JOB | Workflow: calendar_sync | ToolSurface: COMMAND_CENTER | ModelExposure: BOTH | CommandCenter: VISIBLE | FlightRecorder: calendar_sync_result | Locus: VISIBLE | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: IN_THIS_WP | Stub: NONE | Notes: The packet must make the sync run as a governed workflow job rather than a helper thread.
   - Capability: calendar mutation apply discipline | JobModel: AI_JOB | Workflow: calendar_sync | ToolSurface: COMMAND_CENTER | ModelExposure: BOTH | CommandCenter: VISIBLE | FlightRecorder: calendar_mutation | Locus: VISIBLE | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: IN_THIS_WP | Stub: NONE | Notes: Successful patch application must remain trace-linked and workflow-governed.
-  - Capability: calendar scope-hint and policy projection | JobModel: AI_JOB | Workflow: calendar_policy_projection | ToolSurface: COMMAND_CENTER | ModelExposure: BOTH | CommandCenter: PLANNED | FlightRecorder: ContextSnapshot routing fields | Locus: PLANNED | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: NEW_STUB | Stub: WP-1-Calendar-Policy-Integration-v1 | Notes: This packet prepares the sync truth those routing flows need, but does not implement them.
+  - Capability: calendar capability contract evaluation | JobModel: AI_JOB | Workflow: calendar_sync | ToolSurface: COMMAND_CENTER | ModelExposure: BOTH | CommandCenter: VISIBLE | FlightRecorder: capability allow/deny evidence | Locus: VISIBLE | StoragePosture: SQLITE_NOW_POSTGRES_READY | Resolution: IN_THIS_WP | Stub: NONE | Notes: The `calendar_sync` path cannot truthfully retain Analyst/doc.summarize capability routing.
 ## EXISTING_CAPABILITY_ALIGNMENT (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - EXISTING_CAPABILITY_ALIGNMENT_VERDICT: NEEDS_SCOPE_EXPANSION
 - MATCHED_ARTIFACT_RESOLUTIONS:
-  - WP-1-Calendar-Sync-Engine-v1 -> EXPAND_IN_THIS_WP
   - WP-1-Calendar-Lens-v3 -> KEEP_SEPARATE
   - WP-1-Calendar-Policy-Integration-v1 -> KEEP_SEPARATE
   - WP-1-Calendar-Law-Compliance-Tests-v1 -> KEEP_SEPARATE
-  - WP-1-Calendar-Correlation-Export-v1 -> KEEP_SEPARATE
-  - WP-1-Calendar-Mailbox-Correlation-v1 -> KEEP_SEPARATE
+  - WP-1-Calendar-Sync-Engine-v1 -> EXPAND_IN_THIS_WP
   - WP-1-Calendar-Storage-v2 -> KEEP_SEPARATE
   - WP-1-Workflow-Engine-v4 -> KEEP_SEPARATE
 - CODE_REALITY_SUMMARY:
-  - ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs -> IMPLEMENTED (WP-1-Calendar-Storage-v2)
-  - ../handshake_main/src/backend/handshake_core/mechanical_engines.json -> NOT_PRESENT (WP-1-Calendar-Sync-Engine-v1)
-  - ../handshake_main/src/backend/handshake_core/src/workflows.rs -> PARTIAL (WP-1-Calendar-Sync-Engine-v1)
+  - ../handshake_main/src/backend/handshake_core/src/capabilities.rs -> NOT_PRESENT (WP-1-Calendar-Sync-Engine-v1)
+  - ../handshake_main/src/backend/handshake_core/src/capabilities.rs -> PARTIAL (WP-1-Calendar-Sync-Engine-v1)
+  - ../handshake_main/src/backend/handshake_core/src/mex/gates.rs -> PARTIAL (WP-1-Calendar-Sync-Engine-v1)
   - ../handshake_main/src/backend/handshake_core/tests/mex_tests.rs -> PARTIAL (WP-1-Calendar-Sync-Engine-v1)
 ## GUI_IMPLEMENTATION_ADVICE (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
 - GUI_ADVICE_REQUIRED: NO
@@ -646,13 +695,15 @@ Some sources may be used in read-only mode.
 - GUI_ENGINEERING_TRICKS_TO_CARRY:
   - NONE
 ## SCOPE
-- What: Register and implement `calendar_sync` as a governed workflow-driven mechanical engine that reads CalendarSource providers, writes idempotent CalendarEvent updates into the existing storage substrate, and emits observable results through the current MEX/Workflow runtime.
-- Why: The spec already defines `calendar_sync` as the only legal path for external calendar mutation and provider sync, but the product currently stops at storage plus generic runtime foundations. Without this bridge, calendar sync remains a paper contract and the downstream law-compliance packet stays blocked.
+- What: Register and implement `calendar_sync` as a governed workflow-driven mechanical engine and repair the calendar-specific capability contract surfaces that currently block `workflow_run` execution and `mex_tests` proof coverage.
+- Why: The spec already defines `calendar_sync` as the only legal path for external calendar mutation and provider sync, and it already defines explicit capability profiles for Calendar and AI jobs. The v1 dossier proved the current product is blocked at both layers: missing engine/runtime wiring and missing calendar capability routing.
 - IN_SCOPE_PATHS:
+  - ../handshake_main/src/backend/handshake_core/src/capabilities.rs
   - ../handshake_main/src/backend/handshake_core/mechanical_engines.json
   - ../handshake_main/src/backend/handshake_core/src/workflows.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/registry.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/runtime.rs
+  - ../handshake_main/src/backend/handshake_core/src/mex/gates.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/mod.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs
@@ -666,7 +717,7 @@ Some sources may be used in read-only mode.
   - CalendarScopeHint / ACE policy-routing implementation
   - Calendar correlation export and mailbox correlation product logic
   - Repo-governance tooling or protocol changes unrelated to this packet
-- TOUCHED_FILE_BUDGET: 10
+- TOUCHED_FILE_BUDGET: 12
 <!-- Max unique in-scope files allowed in the evaluated diff. Raise intentionally before coding if the packet truly needs broader edit spread. -->
 - BROAD_TOOL_ALLOWLIST: NONE
 <!-- Allowed: NONE | FORMATTER | CODEGEN | SEARCH_REPLACE | MIGRATION_REWRITE -->
@@ -687,8 +738,9 @@ cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.to
 ### DONE_MEANS
 - `calendar_sync` exists in `mechanical_engines.json` and is loadable by `MexRegistry`.
 - The workflow runtime installs a `calendar_sync` adapter and dispatches the chosen protocol/job contract through governed workflow execution instead of ad hoc helpers.
-- A truthful MVP sync path reuses existing calendar storage upserts and updates `CalendarSourceSyncState` without duplicating events across repeat runs.
-- Capability posture, read-only/write-policy behavior, and sync/mutation evidence are fail-closed and trace-linked through existing runtime diagnostics and Flight Recorder surfaces.
+- `capabilities.rs` exposes the calendar sync capability contract needed for this path, and `workflow_run` no longer inherits the Analyst / `doc.summarize` capability contract for the calendar sync flow.
+- `CapabilityGate` continues to fail closed for invalid requests but no longer blocks the signed calendar sync path as `HSK-4001 UnknownCapability`.
+- `mex_tests` contains `calendar_sync` registry/runtime/capability coverage, and the existing storage tests still prove idempotent sync-state behavior.
 - WP Validator and Integration Validator pass, and the validated code is integrated into `main`.
 
 - PRIMITIVES_EXPOSED:
@@ -714,10 +766,10 @@ cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.to
 git revert <commit-sha>
 ```
 ## AUTHORITY
-- SPEC_BASELINE: Handshake_Master_Spec_vXX.XX.md (recorded_at: 2026-04-21T01:21:03.345Z)
+- SPEC_BASELINE: Handshake_Master_Spec_vXX.XX.md (recorded_at: 2026-04-21T09:01:48.288Z)
 - SPEC_TARGET: .GOV/spec/SPEC_CURRENT.md (closure/revalidation target; resolved at validation time)
 - SPEC_ADD_MARKER_TARGET: [ADD v02.181]
-- SPEC_ANCHOR_PRIMARY: Handshake_Master_Spec_v02.181.md \u00a72.6.6 surface mutation discipline + \u00a710.4.1 calendar_sync engine contract + \u00a76.0.1 Cross-Tool Interaction Map
+- SPEC_ANCHOR_PRIMARY: Handshake_Master_Spec_v02.181.md \u00a72.6.6 capability profiles + \u00a710.4 Calendar capability contracts + \u00a76.0.1 workflow capability checks
 - Codex: .GOV/codex/Handshake_Codex_v1.4.md
 - Task Board: .GOV/roles_shared/records/TASK_BOARD.md
 - WP Traceability: .GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md
@@ -729,10 +781,12 @@ git revert <commit-sha>
 
 ## BOOTSTRAP
 - FILES_TO_OPEN:
+  - ../handshake_main/src/backend/handshake_core/src/capabilities.rs
   - ../handshake_main/src/backend/handshake_core/mechanical_engines.json
   - ../handshake_main/src/backend/handshake_core/src/workflows.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/registry.rs
   - ../handshake_main/src/backend/handshake_core/src/mex/runtime.rs
+  - ../handshake_main/src/backend/handshake_core/src/mex/gates.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/calendar.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/mod.rs
   - ../handshake_main/src/backend/handshake_core/src/storage/sqlite.rs
@@ -741,26 +795,28 @@ git revert <commit-sha>
   - ../handshake_main/src/backend/handshake_core/tests/calendar_storage_tests.rs
 - SEARCH_TERMS:
   - calendar_sync
-  - with_adapter
-  - mechanical_engines.json
-  - CalendarSourceSyncState
-  - upsert_calendar_source
-  - upsert_calendar_event
-  - calendar_mutation
+  - calendar.sync.read
+  - calendar.sync.write
+  - workflow_run
+  - doc.summarize
+  - UnknownCapability
+  - HSK-4001
   - capability_profile_id
+  - CalendarSourceSyncState
+  - calendar_mutation
 - RUN_COMMANDS:
   ```bash
-rg -n "calendar_sync|with_adapter|CalendarSourceSyncState|upsert_calendar_source|upsert_calendar_event|calendar_mutation|capability_profile_id" ../handshake_main/src/backend/handshake_core/src ../handshake_main/src/backend/handshake_core/tests ../handshake_main/src/backend/handshake_core/mechanical_engines.json
+rg -n "calendar_sync|calendar.sync.read|calendar.sync.write|workflow_run|doc.summarize|UnknownCapability|HSK-4001|capability_profile_id" ../handshake_main/src/backend/handshake_core/src ../handshake_main/src/backend/handshake_core/tests ../handshake_main/src/backend/handshake_core/mechanical_engines.json
   cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests
   cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml calendar_storage_tests
   cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml
   ```
 - RISK_MAP:
   - "calendar_sync is added as a one-off helper instead of a MEX/workflow contract" -> "capability gates, provenance, and replay guarantees drift immediately"
-  - "engine writes ignore existing sync-state and storage upsert contracts" -> "retries/backoff/recovery become lossy and duplicate events appear"
+  - "workflow_run keeps the wrong capability contract" -> "calendar sync remains blocked or runs under unrelated authority semantics"
+  - "calendar capabilities stay undefined while runtime code lands" -> "the path still fails as `HSK-4001 UnknownCapability` and the packet reports false progress"
+  - "tests cover registry happy-path only and skip capability/routing execution" -> "the packet looks landed while real governed execution still fails"
   - "read-only or import-only sources can still push remote mutations" -> "consent and capability law is violated"
-  - "tests cover registry happy-path only and skip dispatch/runtime execution" -> "the packet looks registered while real workflow execution still fails"
-  - "sync result evidence omits job/workflow linkage" -> "law-compliance and operator inspection cannot prove what happened"
 ## SKELETON
 - Proposed interfaces/types/contracts:
 - Open questions:
@@ -793,97 +849,51 @@ rg -n "calendar_sync|with_adapter|CalendarSourceSyncState|upsert_calendar_source
 - (Mechanical manifest for audit. Fill real values to enable `just phase-check HANDOFF <WP_ID> CODER`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `src/backend/handshake_core/mechanical_engines.json`
-- **Start**: 75
-- **End**: 101
-- **Line Delta**: 27
-- **Pre-SHA1**: `402e5bc2d02678a24c70c06b11de4ed51c34f7b0`
-- **Post-SHA1**: `8124e02862d31969b1437989d19dfac22195d94d`
+- **Target File**: `N/A (fill after implementation)`
+- **Start**: N/A
+- **End**: N/A
+- **Line Delta**: N/A
+- **Pre-SHA1**: `N/A`
+- **Post-SHA1**: `N/A`
 - **Gates Passed**:
-  - [x] anchors_present
-  - [x] window_matches_plan
-  - [x] rails_untouched_outside_window
-  - [x] filename_canonical_and_openable
-  - [x] pre_sha1_captured
-  - [x] post_sha1_captured
-  - [x] line_delta_equals_expected
-  - [x] all_links_resolvable
-  - [x] manifest_written_and_path_returned
-  - [x] current_file_matches_preimage
-- **Lint Results**: not run; crate compile blocked before test execution by `src/backend/handshake_core/src/flight_recorder/mod.rs`
-- **Artifacts**: cargo test manifest-path `src/backend/handshake_core/Cargo.toml` `mex_tests` -> exit 1; cargo test manifest-path `src/backend/handshake_core/Cargo.toml` -> exit 1
-- **Timestamp**: 2026-04-21T03:54:25.465Z
-- **Operator**: CODER_A via ORCHESTRATOR
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
-- **Notes**: Added `engine.calendar_sync` manifest row only in the assigned worktree; no writes escaped the approved three-file local scope.
-- **Target File**: `src/backend/handshake_core/src/storage/mod.rs`
-- **Start**: 1064
-- **End**: 1122
-- **Line Delta**: 7
-- **Pre-SHA1**: `4f7b203c467d40add2e07b013d571020e7a91b44`
-- **Post-SHA1**: `355793327e6b5aae2d2c562a03077760ab71a344`
-- **Gates Passed**:
-  - [x] anchors_present
-  - [x] window_matches_plan
-  - [x] rails_untouched_outside_window
-  - [x] filename_canonical_and_openable
-  - [x] pre_sha1_captured
-  - [x] post_sha1_captured
-  - [x] line_delta_equals_expected
-  - [x] all_links_resolvable
-  - [x] manifest_written_and_path_returned
-  - [x] current_file_matches_preimage
-- **Lint Results**: not run; crate compile blocked before test execution by `src/backend/handshake_core/src/flight_recorder/mod.rs`
-- **Artifacts**: cargo test manifest-path `src/backend/handshake_core/Cargo.toml` `mex_tests` -> exit 1; cargo test manifest-path `src/backend/handshake_core/Cargo.toml` -> exit 1
-- **Timestamp**: 2026-04-21T03:54:25.465Z
-- **Operator**: CODER_A via ORCHESTRATOR
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
-- **Notes**: Added the protocol contract guard for `hsk.calendar_sync.v0` and kept the validation error text exact.
-- **Target File**: `src/backend/handshake_core/src/workflows.rs`
-- **Start**: 51
-- **End**: 20545
-- **Line Delta**: 229
-- **Pre-SHA1**: `292b63d2c0da2ccd5dfd1505461575223096d6d5`
-- **Post-SHA1**: `7a14b6a7baac5e0048b2cba4c5b7d31a594db437`
-- **Gates Passed**:
-  - [x] anchors_present
-  - [x] window_matches_plan
-  - [x] rails_untouched_outside_window
-  - [x] filename_canonical_and_openable
-  - [x] pre_sha1_captured
-  - [x] post_sha1_captured
-  - [x] line_delta_equals_expected
-  - [x] all_links_resolvable
-  - [x] manifest_written_and_path_returned
-  - [x] current_file_matches_preimage
-- **Lint Results**: not run; crate compile blocked before test execution by `src/backend/handshake_core/src/flight_recorder/mod.rs`
-- **Artifacts**: cargo test manifest-path `src/backend/handshake_core/Cargo.toml` `mex_tests` -> exit 1; cargo test manifest-path `src/backend/handshake_core/Cargo.toml` -> exit 1
-- **Timestamp**: 2026-04-21T03:54:25.465Z
-- **Operator**: CODER_A via ORCHESTRATOR
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
-- **Notes**: Added workflow dispatch, `CalendarSyncEngineAdapter`, MEX runtime installation, and `run_calendar_sync_job(...)` failure-persistence plumbing without widening into storage backend or test files.
+  - [ ] anchors_present
+  - [ ] window_matches_plan
+  - [ ] rails_untouched_outside_window
+  - [ ] filename_canonical_and_openable
+  - [ ] pre_sha1_captured
+  - [ ] post_sha1_captured
+  - [ ] line_delta_equals_expected
+  - [ ] all_links_resolvable
+  - [ ] manifest_written_and_path_returned
+  - [ ] current_file_matches_preimage
+- **Lint Results**:
+- **Artifacts**:
+- **Timestamp**:
+- **Operator**:
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Notes**:
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS: Existing three-file diff is ready for validator review, but proof is blocked by an out-of-scope compile error in `src/backend/handshake_core/src/flight_recorder/mod.rs`.
-- What changed in this update: Kept the existing three-file product diff untouched in `src/backend/handshake_core/mechanical_engines.json`, `src/backend/handshake_core/src/storage/mod.rs`, and `src/backend/handshake_core/src/workflows.rs`. Canonical `../handshake_main/...` packet surfaces were normalized to local repo-root paths in `wtc-sync-engine-v1` for actual file operations. No writes were made outside those three allowed local files.
-- Requirements / clauses self-audited: registered `engine.calendar_sync`; enforced `hsk.calendar_sync.v0` -> `job_kind workflow_run`; added workflow dispatch, `CalendarSyncEngineAdapter`, guarded `WriteContext::ai(...)` write-boundary enforcement, and `run_calendar_sync_job(...)` planned-operation/job-output plumbing.
-- Checks actually run: `just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v1 CODER --range 61d785a9d503618918a9805929bb3683f81cace8..5eb819e329fe83ea2ea3aa57a55a68ce86d3d2ae` passed; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests` failed; `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` failed. Both cargo proofs were stopped by an out-of-scope compile error in `src/backend/handshake_core/src/flight_recorder/mod.rs` reporting an unclosed delimiter.
-- Known gaps / weak spots: least-proven requirement is the runtime execution path through `run_calendar_sync_job(...)` and `CalendarSyncEngineAdapter`, because the crate did not compile far enough to run `mex_tests` or the full suite. No claim is made for `storage/calendar.rs`, `storage/sqlite.rs`, `storage/postgres.rs`, or `calendar_storage_tests`.
-- Heuristic risks / maintainability concerns: `src/backend/handshake_core/src/workflows.rs` is the highest-risk boundary because dispatch, MEX adapter installation, write-guard enforcement, and failure-status persistence all converge there. The external compile blocker can still mask local type or behavior issues until `flight_recorder/mod.rs` is repaired.
-- Validator focus request: validate only the three-file diff and the scope discipline; confirm the proof blocker is external to this resend; if the compile blocker is cleared later, rerun the two requested cargo proofs before granting stronger closure.
-- Rubric contract understanding proof: this resend was constrained to the validator-cleared MT scope and the explicit recovery rule set. I treated `../handshake_main/...` packet targets as logical markers only, normalized them to local repo-root paths in the assigned worktree, and kept all writes inside the three authorized local files.
-- Rubric scope discipline proof: no product-code writes were made in `../handshake_main/**`, `src/backend/handshake_core/src/mex/runtime.rs`, `src/backend/handshake_core/tests/mex_tests.rs`, `src/backend/handshake_core/src/storage/calendar.rs`, `src/backend/handshake_core/src/storage/sqlite.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, or `src/backend/handshake_core/tests/calendar_storage_tests.rs`.
-- Rubric baseline comparison: before this diff there was no local `engine.calendar_sync` manifest entry, no storage contract guard for `hsk.calendar_sync.v0`, and no workflow dispatch/adapter path for calendar sync. After this diff those three surfaces exist, but behavioral proof is still blocked by the unrelated `flight_recorder/mod.rs` compile failure.
-- Rubric end-to-end proof: intended flow is `JobKind::WorkflowRun` -> `run_calendar_sync_job(...)` -> `build_mex_runtime(...)` -> `CalendarSyncEngineAdapter` -> `validate_write_with_guard(...)` -> persisted failure payload with engine/protocol/status/error codes. This flow was not executed in tests because the crate failed to compile first.
-- Rubric architecture fit self-review: the patch stays inside existing MEX registry/runtime seams and existing `Database`/`WriteContext` abstractions. It does not widen into backend-specific storage implementation or test surfaces in this resend.
-- Rubric heuristic quality self-review: the adapter fails closed with an explicit checkpoint-boundary error and the job output persists machine-readable `engine_id`, `protocol_id`, `status`, `error_codes`, and `errors`. The main weakness is lack of compile-backed confirmation due the external blocker.
-- Rubric anti-gaming / counterfactual check: I am not claiming end-to-end sync success, storage persistence completion, backend parity, or `calendar_storage_tests` coverage. If `flight_recorder/mod.rs` is repaired and these requested proofs still fail, this handoff should be treated as incomplete.
+- Current WP_STATUS:
+- What changed in this update:
+- Requirements / clauses self-audited:
+- Checks actually run:
+- Known gaps / weak spots:
+- Heuristic risks / maintainability concerns:
+- Validator focus request:
+- Rubric contract understanding proof:
+- Rubric scope discipline proof:
+- Rubric baseline comparison:
+- Rubric end-to-end proof:
+- Rubric architecture fit self-review:
+- Rubric heuristic quality self-review:
+- Rubric anti-gaming / counterfactual check:
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01 and CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2, also include: -->
-- Rubric anti-vibe / substance self-check: the only concrete proof gathered here is negative proof: both requested cargo commands failed before execution due an out-of-scope compile error. This handoff claims only the three-file diff, the exact compile blocker, and strict scope discipline.
-- Signed-scope debt ledger: proof remains blocked by `src/backend/handshake_core/src/flight_recorder/mod.rs` unclosed-delimiter compile failure. No writes were made outside `src/backend/handshake_core/mechanical_engines.json`, `src/backend/handshake_core/src/storage/mod.rs`, and `src/backend/handshake_core/src/workflows.rs`.
-- Data contract self-check: the resend keeps the touched surfaces machine-readable and localized to existing manifest/job/workflow structures. No schema migrations, backend-specific semantics, or additional storage-write surfaces were introduced here.
-- Next step / handoff hint: publish `wp-coder-handoff` using the bounded committed range `just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v1 CODER --range 61d785a9d503618918a9805929bb3683f81cace8..5eb819e329fe83ea2ea3aa57a55a68ce86d3d2ae`, then hand the three-file diff plus the external compile blocker to `wp_validator:wp-1-calendar-sync-engine-v1` for governed review.
+- Rubric anti-vibe / substance self-check:
+- Signed-scope debt ledger:
+- Data contract self-check:
+- Next step / handoff hint:
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -927,30 +937,16 @@ rg -n "calendar_sync|with_adapter|CalendarSourceSyncState|upsert_calendar_source
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
 - Format (repeat as needed):
-  - REQUIREMENT: "surface mutation discipline plus write gate"
-  - EVIDENCE: `src/backend/handshake_core/mechanical_engines.json:75`, `src/backend/handshake_core/src/storage/mod.rs:1064`, `src/backend/handshake_core/src/storage/mod.rs:1117`, `src/backend/handshake_core/src/workflows.rs:11786`, `src/backend/handshake_core/src/workflows.rs:20414`
-  - REQUIREMENT: "Cross-Tool Interaction Map no-shadow-pipeline rule"
-  - EVIDENCE: `src/backend/handshake_core/src/workflows.rs:8593`, `src/backend/handshake_core/src/workflows.rs:12250`, `src/backend/handshake_core/src/workflows.rs:20414`
-  - REQUIREMENT: "`calendar_sync` engine contract and output"
-  - EVIDENCE: `src/backend/handshake_core/mechanical_engines.json:75`, `src/backend/handshake_core/src/workflows.rs:19125`, `src/backend/handshake_core/src/workflows.rs:20414`
+  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
+  - EVIDENCE: `N/A (fill during implementation)`
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
 - Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v1 CODER --range 61d785a9d503618918a9805929bb3683f81cace8..5eb819e329fe83ea2ea3aa57a55a68ce86d3d2ae`
-  - EXIT_CODE: `0`
-  - LOG_PATH: `../gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-handoff/WP-1-Calendar-Sync-Engine-v1/2026-04-21T03-59-56-670Z.log`
-  - LOG_SHA256: `N/A`
-  - PROOF_LINES: `? GATE PASS: Workflow sequence verified.`; `PASS: Deterministic manifest validated`; `PASS: Validation manifest matches the selected diff`
-  - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests`
-  - EXIT_CODE: `1`
-  - LOG_PATH: `N/A`
-  - LOG_SHA256: `N/A`
-  - PROOF_LINES: `error: this file contains an unclosed delimiter`; `src/backend/handshake_core/src/flight_recorder/mod.rs:6180:3`; `error: could not compile handshake_core (lib test) due to 1 previous error`
-  - COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`
-  - EXIT_CODE: `1`
-  - LOG_PATH: `N/A`
-  - LOG_SHA256: `N/A`
-  - PROOF_LINES: `error: this file contains an unclosed delimiter`; `src/backend/handshake_core/src/flight_recorder/mod.rs:6180:3`; `error: could not compile handshake_core (lib) due to 1 previous error`
+  - COMMAND: `<paste>`
+  - EXIT_CODE: `<int>`
+  - LOG_PATH: `.handshake/logs/WP-1-Calendar-Sync-Engine-v2/<name>.log` (recommended; not committed)
+  - LOG_SHA256: `<hash>`
+  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
