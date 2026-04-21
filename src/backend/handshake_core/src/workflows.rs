@@ -25227,6 +25227,8 @@ mod tests {
         assert_eq!(display_orders, vec![0, 1]);
 
         Ok(())
+    }
+
     async fn create_test_model_session(
         state: &AppState,
         session_state: ModelSessionState,
@@ -25633,6 +25635,66 @@ mod tests {
         let stdout = outputs.get("stdout").and_then(|v| v.as_str()).unwrap_or("");
         assert!(stdout.trim().contains("hello"));
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn calendar_sync_workflow_capability_contract_allows_calendar_sync_profile(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::WorkflowRun,
+                protocol_id: "calendar_sync".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "CalendarSync".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({ "source_id": "source-1" })),
+            })
+            .await?;
+
+        enforce_capabilities(&state, &job, Uuid::new_v4()).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn calendar_sync_workflow_capability_contract_rejects_analyst_profile(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::WorkflowRun,
+                protocol_id: "calendar_sync".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "Analyst".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({ "source_id": "source-1" })),
+            })
+            .await?;
+
+        let err = enforce_capabilities(&state, &job, Uuid::new_v4())
+            .await
+            .expect_err("Analyst must not satisfy the calendar_sync capability contract");
+        match err {
+            WorkflowError::Capability(RegistryError::AccessDenied(capability)) => {
+                assert_eq!(capability, "calendar.sync.read");
+            }
+            other => panic!("expected denied calendar_sync capability, got {other:?}"),
+        }
         Ok(())
     }
 

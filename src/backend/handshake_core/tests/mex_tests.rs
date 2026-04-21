@@ -17,7 +17,7 @@ use handshake_core::mex::envelope::{
 use handshake_core::mex::gates::{
     BudgetGate, CapabilityGate, DetGate, GatePipeline, IntegrityGate, ProvenanceGate, SchemaGate,
 };
-use handshake_core::mex::registry::MexRegistry;
+use handshake_core::mex::registry::{EngineSpec, MexRegistry, OperationSpec};
 use handshake_core::mex::runtime::{EngineAdapter, MexRuntime, MexRuntimeError};
 use handshake_core::mex::supply_chain::ToolRunner;
 use handshake_core::mex::{SupplyChainAllowlists, SupplyChainEngineAdapter, TerminalServiceRunner};
@@ -620,6 +620,31 @@ fn mex_gates() -> GatePipeline {
     ])
 }
 
+fn calendar_sync_registry() -> MexRegistry {
+    let mut engines = std::collections::HashMap::new();
+    engines.insert(
+        "engine.calendar_sync".to_string(),
+        EngineSpec {
+            engine_id: "engine.calendar_sync".to_string(),
+            determinism_ceiling: DeterminismLevel::D2,
+            required_caps: Vec::new(),
+            required_gates: Vec::new(),
+            default_budget: BudgetSpec::default(),
+            ops: vec![OperationSpec {
+                name: "calendar.sync".to_string(),
+                schema_ref: None,
+                params_schema: None,
+                capabilities: vec![
+                    "calendar.sync.read".to_string(),
+                    "calendar.sync.write".to_string(),
+                ],
+                output_types: vec!["calendar_sync_result".to_string()],
+            }],
+        },
+    );
+    MexRegistry::from_map(engines)
+}
+
 fn build_runtime_with_supply_chain_adapter(
     registry: MexRegistry,
     recorder: Arc<DuckDbFlightRecorder>,
@@ -823,6 +848,111 @@ async fn supply_chain_license_release_mode_unknown_records_diagnostic() {
                 && e.payload.get("diagnostic_id").is_some()
         }),
         "expected FR-EVT-003 diagnostic event"
+    );
+}
+
+#[tokio::test]
+async fn calendar_sync_runtime_executes_with_calendar_contract() {
+    let registry = calendar_sync_registry();
+    let recorder = recorder();
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
+    let runtime = MexRuntime::new(registry, flight_recorder, diagnostics, mex_gates())
+        .with_adapter("engine.calendar_sync", Arc::new(PassThroughAdapter));
+
+    let op = PlannedOperation {
+        schema_version: POE_SCHEMA_VERSION.to_string(),
+        op_id: Uuid::new_v4(),
+        engine_id: "engine.calendar_sync".to_string(),
+        engine_version_req: None,
+        operation: "calendar.sync".to_string(),
+        inputs: vec![ArtifactHandle::new(
+            Uuid::new_v4(),
+            "/calendar/source".to_string(),
+        )],
+        params: serde_json::json!({ "source_id": "source-1" }),
+        capabilities_requested: vec![
+            "calendar.sync.read".to_string(),
+            "calendar.sync.write".to_string(),
+        ],
+        capability_profile_id: Some("CalendarSync".to_string()),
+        human_consent_obtained: false,
+        budget: BudgetSpec {
+            cpu_time_ms: Some(1000),
+            wall_time_ms: Some(2000),
+            memory_bytes: Some(64 * 1024 * 1024),
+            output_bytes: Some(2 * 1024 * 1024),
+        },
+        determinism: DeterminismLevel::D2,
+        evidence_policy: Some(EvidencePolicy {
+            required: true,
+            notes: None,
+        }),
+        output_spec: OutputSpec {
+            expected_types: vec!["calendar_sync_result".to_string()],
+            max_bytes: Some(2 * 1024 * 1024),
+        },
+    };
+
+    let result = runtime.execute(op).await.expect("runtime should succeed");
+    assert_eq!(
+        result.status,
+        handshake_core::mex::envelope::EngineStatus::Succeeded
+    );
+}
+
+#[tokio::test]
+async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability() {
+    let registry = calendar_sync_registry();
+    let recorder = recorder();
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
+    let runtime = MexRuntime::new(registry, flight_recorder, diagnostics, mex_gates())
+        .with_adapter("engine.calendar_sync", Arc::new(PassThroughAdapter));
+
+    let op = PlannedOperation {
+        schema_version: POE_SCHEMA_VERSION.to_string(),
+        op_id: Uuid::new_v4(),
+        engine_id: "engine.calendar_sync".to_string(),
+        engine_version_req: None,
+        operation: "calendar.sync".to_string(),
+        inputs: vec![ArtifactHandle::new(
+            Uuid::new_v4(),
+            "/calendar/source".to_string(),
+        )],
+        params: serde_json::json!({ "source_id": "source-1" }),
+        capabilities_requested: vec!["calendar.sync.read".to_string()],
+        capability_profile_id: Some("Analyst".to_string()),
+        human_consent_obtained: false,
+        budget: BudgetSpec {
+            cpu_time_ms: Some(1000),
+            wall_time_ms: Some(2000),
+            memory_bytes: Some(64 * 1024 * 1024),
+            output_bytes: Some(2 * 1024 * 1024),
+        },
+        determinism: DeterminismLevel::D2,
+        evidence_policy: Some(EvidencePolicy {
+            required: true,
+            notes: None,
+        }),
+        output_spec: OutputSpec {
+            expected_types: vec!["calendar_sync_result".to_string()],
+            max_bytes: Some(2 * 1024 * 1024),
+        },
+    };
+
+    let err = runtime
+        .execute(op)
+        .await
+        .expect_err("Analyst must not satisfy the calendar sync runtime contract");
+    let denial = match err {
+        MexRuntimeError::Gate(denial) => denial,
+        other => panic!("expected gate denial, got {other:?}"),
+    };
+    assert_eq!(denial.code, None);
+    assert_eq!(
+        denial.reason,
+        "Capability not granted by capability_profile_id"
     );
 }
 

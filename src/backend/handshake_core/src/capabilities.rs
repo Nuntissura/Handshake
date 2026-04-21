@@ -7,6 +7,10 @@ pub const GOVERNANCE_PACK_EXPORT_PROTOCOL_ID: &str = "hsk.governance_pack.export
 const MD_BATCH_PROTOCOL_ID_V0: &str = "hsk.media_downloader.batch.v0";
 const MD_CONTROL_PROTOCOL_ID_V0: &str = "hsk.media_downloader.control.v0";
 const MD_COOKIE_IMPORT_PROTOCOL_ID_V0: &str = "hsk.media_downloader.cookie_import.v0";
+const CALENDAR_SYNC_PROTOCOL_ID: &str = "calendar_sync";
+const CALENDAR_SYNC_PROFILE_ID: &str = "CalendarSync";
+const CALENDAR_SYNC_READ_CAPABILITY: &str = "calendar.sync.read";
+const CALENDAR_SYNC_WRITE_CAPABILITY: &str = "calendar.sync.write";
 
 /// Canonical capability identifiers from Master Spec §11.1 (Capabilities & Consent Model).
 const CANONICAL_CAPABILITY_IDS: &[&str] = &[
@@ -100,6 +104,8 @@ impl CapabilityRegistry {
         valid_full_ids.insert("locus.gate".to_string());
         valid_full_ids.insert("locus.delete".to_string());
         valid_full_ids.insert("locus.sync".to_string());
+        valid_full_ids.insert(CALENDAR_SYNC_READ_CAPABILITY.to_string());
+        valid_full_ids.insert(CALENDAR_SYNC_WRITE_CAPABILITY.to_string());
         for id in CANONICAL_CAPABILITY_IDS {
             valid_full_ids.insert((*id).to_string());
         }
@@ -122,6 +128,17 @@ impl CapabilityRegistry {
                     "diagnostics.read".to_string(),
                     "jobs.read".to_string(),
                     "export.include_payloads".to_string(),
+                ],
+            },
+        );
+
+        profiles.insert(
+            CALENDAR_SYNC_PROFILE_ID.to_string(),
+            CapabilityProfile {
+                id: CALENDAR_SYNC_PROFILE_ID.to_string(),
+                allowed: vec![
+                    CALENDAR_SYNC_READ_CAPABILITY.to_string(),
+                    CALENDAR_SYNC_WRITE_CAPABILITY.to_string(),
                 ],
             },
         );
@@ -360,6 +377,9 @@ impl CapabilityRegistry {
         if job_kind == "workflow_run" && protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
             return self.profile_by_id("Operator");
         }
+        if job_kind == "workflow_run" && protocol_id == CALENDAR_SYNC_PROTOCOL_ID {
+            return self.profile_by_id(CALENDAR_SYNC_PROFILE_ID);
+        }
 
         self.profile_for_job(job_kind)
     }
@@ -387,6 +407,12 @@ impl CapabilityRegistry {
                 "fs.read".to_string(),
                 "fs.write".to_string(),
                 "export.governance_pack".to_string(),
+            ]);
+        }
+        if job_kind == "workflow_run" && protocol_id == CALENDAR_SYNC_PROTOCOL_ID {
+            return Ok(vec![
+                CALENDAR_SYNC_READ_CAPABILITY.to_string(),
+                CALENDAR_SYNC_WRITE_CAPABILITY.to_string(),
             ]);
         }
 
@@ -476,6 +502,8 @@ mod tests {
         assert!(registry.is_valid("locus.gate"));
         assert!(registry.is_valid("locus.delete"));
         assert!(registry.is_valid("locus.sync"));
+        assert!(registry.is_valid(CALENDAR_SYNC_READ_CAPABILITY));
+        assert!(registry.is_valid(CALENDAR_SYNC_WRITE_CAPABILITY));
 
         assert!(!registry.is_valid("magic.wand")); // Invalid axis
         assert!(!registry.is_valid("unknown_id")); // Invalid ID
@@ -643,6 +671,43 @@ mod tests {
             Err(err) => unreachable!("expected default workflow_run requirements: {err}"),
         };
         assert_eq!(default_required, vec!["doc.summarize".to_string()]);
+    }
+
+    #[test]
+    fn test_calendar_sync_protocol_overrides() {
+        let registry = CapabilityRegistry::new();
+
+        let profile = registry
+            .profile_for_job_request("workflow_run", CALENDAR_SYNC_PROTOCOL_ID)
+            .expect("expected calendar_sync protocol profile override");
+        assert_eq!(profile.id, CALENDAR_SYNC_PROFILE_ID);
+        assert_eq!(
+            profile.allowed,
+            vec![
+                CALENDAR_SYNC_READ_CAPABILITY.to_string(),
+                CALENDAR_SYNC_WRITE_CAPABILITY.to_string(),
+            ]
+        );
+
+        let required = registry
+            .required_capabilities_for_job_request("workflow_run", CALENDAR_SYNC_PROTOCOL_ID)
+            .expect("expected calendar_sync protocol requirements override");
+        assert_eq!(
+            required,
+            vec![
+                CALENDAR_SYNC_READ_CAPABILITY.to_string(),
+                CALENDAR_SYNC_WRITE_CAPABILITY.to_string(),
+            ]
+        );
+
+        assert!(matches!(
+            registry.profile_can(CALENDAR_SYNC_PROFILE_ID, CALENDAR_SYNC_READ_CAPABILITY),
+            Ok(true)
+        ));
+        assert!(matches!(
+            registry.profile_can("Analyst", CALENDAR_SYNC_READ_CAPABILITY),
+            Ok(false)
+        ));
     }
 
     #[test]

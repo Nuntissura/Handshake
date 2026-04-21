@@ -567,6 +567,7 @@ mod tests {
     use crate::mex::envelope::{
         BudgetSpec, DeterminismLevel, EvidencePolicy, OutputSpec, POE_SCHEMA_VERSION,
     };
+    use crate::mex::registry::{EngineSpec, OperationSpec};
     use crate::workspace_safety::{SessionWorktreeAllocation, SessionWorktreeRegistry};
     use std::collections::HashMap;
     use uuid::Uuid;
@@ -630,6 +631,31 @@ mod tests {
             "/worktrees/session-b",
         ));
         registry
+    }
+
+    fn calendar_sync_registry() -> MexRegistry {
+        let mut engines = HashMap::new();
+        engines.insert(
+            "engine.calendar_sync".to_string(),
+            EngineSpec {
+                engine_id: "engine.calendar_sync".to_string(),
+                determinism_ceiling: DeterminismLevel::D2,
+                required_caps: Vec::new(),
+                required_gates: Vec::new(),
+                default_budget: BudgetSpec::default(),
+                ops: vec![OperationSpec {
+                    name: "calendar.sync".to_string(),
+                    schema_ref: None,
+                    params_schema: None,
+                    capabilities: vec![
+                        "calendar.sync.read".to_string(),
+                        "calendar.sync.write".to_string(),
+                    ],
+                    output_types: vec!["calendar_sync_result".to_string()],
+                }],
+            },
+        );
+        MexRegistry::from_map(engines)
     }
 
     #[test]
@@ -721,5 +747,47 @@ mod tests {
         // IsolationGate denies; CrossSessionGate passes (empty registry = no other sessions)
         assert_eq!(denials.len(), 1);
         assert_eq!(denials[0].gate, "G-ISOLATION");
+    }
+
+    #[test]
+    fn capability_gate_accepts_calendar_sync_capabilities_for_calendar_sync_profile() {
+        let registry = calendar_sync_registry();
+        let gate = CapabilityGate::new(CapabilityRegistry::new());
+        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
+        let mut op = dummy_op();
+        op.engine_id = "engine.calendar_sync".to_string();
+        op.operation = "calendar.sync".to_string();
+        op.capabilities_requested = vec![
+            "calendar.sync.read".to_string(),
+            "calendar.sync.write".to_string(),
+        ];
+        op.capability_profile_id = Some("CalendarSync".to_string());
+
+        let denials = pipeline.evaluate(&op, &registry);
+        assert!(
+            denials.is_empty(),
+            "calendar_sync profile should pass known calendar capabilities"
+        );
+    }
+
+    #[test]
+    fn capability_gate_fails_closed_for_wrong_calendar_sync_profile_without_hsk_4001() {
+        let registry = calendar_sync_registry();
+        let gate = CapabilityGate::new(CapabilityRegistry::new());
+        let pipeline = GatePipeline::new(vec![Box::new(gate)]);
+        let mut op = dummy_op();
+        op.engine_id = "engine.calendar_sync".to_string();
+        op.operation = "calendar.sync".to_string();
+        op.capabilities_requested = vec!["calendar.sync.read".to_string()];
+        op.capability_profile_id = Some("Analyst".to_string());
+
+        let denials = pipeline.evaluate(&op, &registry);
+        assert_eq!(denials.len(), 1);
+        assert_eq!(denials[0].gate, "G-CAP");
+        assert_eq!(denials[0].code, None);
+        assert_eq!(
+            denials[0].reason,
+            "Capability not granted by capability_profile_id"
+        );
     }
 }
