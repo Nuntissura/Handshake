@@ -604,6 +604,46 @@ fn registry_includes_supply_chain_engines() {
     }
 }
 
+#[test]
+fn calendar_sync_registry_guidance_declares_governed_provider_path_and_read_only_fail_closed() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("mechanical_engines.json");
+    let raw = std::fs::read_to_string(&path).expect("mechanical_engines.json should be readable");
+    let doc: serde_json::Value =
+        serde_json::from_str(&raw).expect("mechanical_engines.json should parse as JSON");
+    let guidance = &doc["engine.calendar_sync"]["guidance"];
+
+    assert_eq!(
+        guidance["provider_access"]["path"].as_str(),
+        Some("workflow:calendar_sync->engine.calendar_sync/calendar.sync")
+    );
+    assert_eq!(
+        guidance["provider_access"]["workflow_only"].as_bool(),
+        Some(true)
+    );
+    assert_eq!(
+        guidance["write_policies"]["read_only_import"]["allowed_directions"]
+            .as_array()
+            .map(|items| items
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .collect::<Vec<_>>()),
+        Some(vec!["pull"])
+    );
+    assert_eq!(
+        guidance["write_policies"]["read_only_import"]["blocked_directions"]
+            .as_array()
+            .map(|items| items
+                .iter()
+                .filter_map(serde_json::Value::as_str)
+                .collect::<Vec<_>>()),
+        Some(vec!["push", "mirror"])
+    );
+    assert_eq!(
+        guidance["write_policies"]["read_only_import"]["failure_mode"].as_str(),
+        Some("fail_closed")
+    );
+}
+
 fn mex_registry_from_disk() -> MexRegistry {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("mechanical_engines.json");
     MexRegistry::load_from_path(&path).expect("mechanical_engines.json should load")

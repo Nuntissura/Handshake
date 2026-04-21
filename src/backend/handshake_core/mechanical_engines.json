@@ -76,6 +76,19 @@
     "engine_id": "engine.calendar_sync",
     "determinism_ceiling": "d2",
     "required_caps": ["calendar.sync.read", "calendar.sync.write"],
+    "guidance": {
+      "provider_access": {
+        "path": "workflow:calendar_sync->engine.calendar_sync/calendar.sync",
+        "workflow_only": true
+      },
+      "write_policies": {
+        "read_only_import": {
+          "allowed_directions": ["pull"],
+          "blocked_directions": ["push", "mirror"],
+          "failure_mode": "fail_closed"
+        }
+      }
+    },
     "required_gates": [
       "G-SCHEMA",
       "G-CAP",
@@ -95,6 +108,10 @@
         "name": "calendar.sync",
         "schema_ref": "poe-1.0",
         "capabilities": ["calendar.sync.read", "calendar.sync.write"],
+        "guidance": {
+          "read_only_mode": "inspect_import_only",
+          "provider_mutation_block": "fail_closed"
+        },
         "output_types": ["calendar_sync_result"]
       }
     ]

@@ -11799,6 +11799,45 @@ impl CalendarSyncEngineAdapter {
         }
     }
 
+    fn source_allows_provider_mutation(
+        write_policy: &crate::storage::CalendarSourceWritePolicy,
+    ) -> bool {
+        !matches!(
+            write_policy,
+            crate::storage::CalendarSourceWritePolicy::ReadOnlyImport
+        )
+    }
+
+    fn direction_requests_provider_mutation(direction: &CalendarSyncDirection) -> bool {
+        matches!(
+            direction,
+            CalendarSyncDirection::Push | CalendarSyncDirection::Mirror
+        )
+    }
+
+    fn policy_blocks_direction(
+        write_policy: &crate::storage::CalendarSourceWritePolicy,
+        direction: &CalendarSyncDirection,
+    ) -> bool {
+        Self::direction_requests_provider_mutation(direction)
+            && !Self::source_allows_provider_mutation(write_policy)
+    }
+
+    fn policy_denial_sync_state(
+        sync_state: &crate::storage::CalendarSourceSyncState,
+        now: DateTime<Utc>,
+        error_code: &str,
+        error_message: &str,
+    ) -> crate::storage::CalendarSourceSyncState {
+        let mut next = sync_state.clone();
+        next.state = Some(crate::storage::CalendarSyncStateStage::Idle);
+        next.last_error_at = Some(now);
+        next.last_error_code = Some(error_code.to_string());
+        next.last_error = Some(error_message.to_string());
+        next.backoff_until = None;
+        next
+    }
+
     fn rel_path_string(rel_path: &Path) -> String {
         rel_path.to_string_lossy().replace('\\', "/")
     }
@@ -12071,6 +12110,41 @@ impl EngineAdapter for CalendarSyncEngineAdapter {
                 Self::build_result_payload(
                     &request,
                     &source,
+                    Vec::new(),
+                    CalendarSyncResultStatus::Failed,
+                    Some(error_code),
+                    Some(error_message),
+                ),
+                started_at,
+            );
+        }
+
+        if Self::policy_blocks_direction(&source.write_policy, &request.direction) {
+            let error_code = "CALENDAR_SYNC_READ_ONLY_WRITE_BLOCKED".to_string();
+            let error_message = format!(
+                "calendar source {} uses write_policy {} and cannot execute {} provider mutations; use pull for inspect/import only",
+                request.source_id,
+                source.write_policy.as_str(),
+                request.direction.as_str(),
+            );
+            let denied_source = self
+                .persist_source_state(
+                    &write_ctx,
+                    &source,
+                    Self::policy_denial_sync_state(
+                        &source.sync_state,
+                        now,
+                        &error_code,
+                        &error_message,
+                    ),
+                )
+                .await?;
+            return self.finalize_result(
+                op,
+                &request,
+                Self::build_result_payload(
+                    &request,
+                    &denied_source,
                     Vec::new(),
                     CalendarSyncResultStatus::Failed,
                     Some(error_code),
@@ -12554,6 +12628,49 @@ fn workflow_mex_context(job: &AiJob, workflow_run_id: Uuid, trace_id: Uuid) -> V
     })
 }
 
+fn load_calendar_sync_result_from_output(
+    repo_root: &Path,
+    result: &crate::mex::envelope::EngineResult,
+) -> Result<crate::storage::CalendarSyncResult, WorkflowError> {
+    let output = result
+        .outputs
+        .first()
+        .ok_or_else(|| WorkflowError::Terminal("calendar_sync engine returned no outputs".to_string()))?;
+    let result_json = fs::read(repo_root.join(&output.path)).map_err(|err| {
+        WorkflowError::Terminal(format!(
+            "failed to read calendar_sync result artifact {}: {err}",
+            output.path
+        ))
+    })?;
+    serde_json::from_slice(&result_json).map_err(|err| {
+        WorkflowError::Terminal(format!(
+            "invalid calendar_sync result artifact {}: {err}",
+            output.path
+        ))
+    })
+}
+
+fn calendar_sync_provider_access_payload(
+    sync_result: &crate::storage::CalendarSyncResult,
+) -> Value {
+    json!({
+        "path": "workflow:calendar_sync->engine.calendar_sync/calendar.sync",
+        "workflow_only": true,
+        "provider_type": sync_result.provider_type.as_str(),
+        "write_policy": sync_result.write_policy.as_str(),
+        "read_only_source": matches!(
+            sync_result.write_policy,
+            crate::storage::CalendarSourceWritePolicy::ReadOnlyImport
+        ),
+        "provider_mutation_requested": CalendarSyncEngineAdapter::direction_requests_provider_mutation(
+            &sync_result.direction
+        ),
+        "provider_mutation_allowed": CalendarSyncEngineAdapter::source_allows_provider_mutation(
+            &sync_result.write_policy
+        ),
+    })
+}
+
 async fn run_calendar_sync_job(
     state: &AppState,
     job: &AiJob,
@@ -12670,6 +12787,7 @@ async fn run_calendar_sync_job(
         EngineStatus::Failed => "failed",
         EngineStatus::Denied => "denied",
     };
+    let sync_result = load_calendar_sync_result_from_output(&repo_root, &result)?;
     let payload = json!({
         "workspace_id": workspace_id,
         "source_id": source_id,
@@ -12682,8 +12800,15 @@ async fn run_calendar_sync_job(
         "engine_id": result.provenance.engine_id.clone(),
         "operation": "calendar.sync",
         "status": engine_status,
-        "error_code": result.errors.first().map(|error| error.code.clone()),
-        "error_message": result.errors.first().map(|error| error.message.clone()),
+        "schema_version": sync_result.schema_version.clone(),
+        "provider_type": sync_result.provider_type.as_str(),
+        "write_policy": sync_result.write_policy.as_str(),
+        "updated_event_count": sync_result.updated_event_count,
+        "source_sync_state": serde_json::to_value(&sync_result.source_sync_state)
+            .unwrap_or(Value::Null),
+        "provider_access": calendar_sync_provider_access_payload(&sync_result),
+        "error_code": sync_result.error_code.clone(),
+        "error_message": sync_result.error_message.clone(),
         "output_types": ["calendar_sync_result"],
         "outputs": result
             .outputs
@@ -12707,7 +12832,7 @@ async fn run_calendar_sync_job(
         state: final_state,
         status_reason: engine_status.to_string(),
         output: Some(payload),
-        error_message: result.errors.first().map(|error| error.message.clone()),
+        error_message: sync_result.error_message.clone(),
     })
 }
 
@@ -26374,6 +26499,64 @@ mod tests {
             outputs.get("direction").and_then(Value::as_str),
             Some("pull")
         );
+        assert_eq!(
+            outputs.get("schema_version").and_then(Value::as_str),
+            Some(crate::storage::CALENDAR_SYNC_RESULT_SCHEMA_VERSION)
+        );
+        assert_eq!(
+            outputs.get("provider_type").and_then(Value::as_str),
+            Some("google")
+        );
+        assert_eq!(
+            outputs.get("write_policy").and_then(Value::as_str),
+            Some("read_only_import")
+        );
+        assert_eq!(
+            outputs.get("updated_event_count").and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            outputs
+                .get("provider_access")
+                .and_then(|value| value.get("path"))
+                .and_then(Value::as_str),
+            Some("workflow:calendar_sync->engine.calendar_sync/calendar.sync")
+        );
+        assert_eq!(
+            outputs
+                .get("provider_access")
+                .and_then(|value| value.get("workflow_only"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            outputs
+                .get("provider_access")
+                .and_then(|value| value.get("read_only_source"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            outputs
+                .get("provider_access")
+                .and_then(|value| value.get("provider_mutation_requested"))
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            outputs
+                .get("provider_access")
+                .and_then(|value| value.get("provider_mutation_allowed"))
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            outputs
+                .get("source_sync_state")
+                .and_then(|value| value.get("state"))
+                .and_then(Value::as_str),
+            Some("IDLE")
+        );
         let output_ref = outputs
             .get("outputs")
             .and_then(Value::as_array)
@@ -26582,6 +26765,171 @@ mod tests {
             stored_source.sync_state.last_error_code.as_deref(),
             Some("PREVIOUS_FAILURE")
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn calendar_sync_workflow_blocks_read_only_provider_mutation_and_persists_error_context(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let ctx = WriteContext::human(Some("calendar-workflow".into()));
+        let workspace = state
+            .storage
+            .create_workspace(
+                &ctx,
+                NewWorkspace {
+                    name: format!("calendar-ws-{}", Uuid::new_v4()),
+                },
+            )
+            .await?;
+        let source = state
+            .storage
+            .upsert_calendar_source(
+                &ctx,
+                CalendarSourceUpsert {
+                    id: "source-read-only".to_string(),
+                    workspace_id: workspace.id.clone(),
+                    display_name: "Google / Read-only Mutation Block".to_string(),
+                    provider_type: CalendarSourceProviderType::Google,
+                    write_policy: CalendarSourceWritePolicy::ReadOnlyImport,
+                    default_tzid: "Europe/Brussels".to_string(),
+                    auto_export: false,
+                    credentials_ref: Some("cred:test".to_string()),
+                    provider_calendar_id: Some("primary".to_string()),
+                    capability_profile_id: Some("CalendarSync".to_string()),
+                    config: json!({ "calendar_id": "primary" }),
+                    sync_state: CalendarSourceSyncState::default(),
+                },
+            )
+            .await?;
+        let window_start = Utc::now() + chrono::Duration::hours(1);
+        let window_end = window_start + chrono::Duration::hours(2);
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::new_v4(),
+                job_kind: JobKind::WorkflowRun,
+                protocol_id: "calendar_sync".to_string(),
+                profile_id: "default".to_string(),
+                capability_profile_id: "CalendarSync".to_string(),
+                access_mode: AccessMode::AnalysisOnly,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_string(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({
+                    "workspace_id": workspace.id.clone(),
+                    "source_id": source.id.clone(),
+                    "direction": "push",
+                    "time_window": {
+                        "start_utc": window_start.to_rfc3339(),
+                        "end_utc": window_end.to_rfc3339(),
+                    }
+                })),
+            })
+            .await?;
+        let job_id = job.job_id;
+
+        start_workflow_for_job(&state, job).await?;
+
+        let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
+        assert!(matches!(updated_job.state, JobState::CompletedWithIssues));
+        let outputs = updated_job
+            .job_outputs
+            .clone()
+            .expect("read-only mutation denial should persist outputs");
+        assert_eq!(
+            outputs.get("status").and_then(Value::as_str),
+            Some("failed")
+        );
+        assert_eq!(
+            outputs.get("error_code").and_then(Value::as_str),
+            Some("CALENDAR_SYNC_READ_ONLY_WRITE_BLOCKED")
+        );
+        assert!(outputs
+            .get("error_message")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .contains("use pull for inspect/import only"));
+        assert_eq!(
+            outputs
+                .get("provider_access")
+                .and_then(|value| value.get("provider_mutation_requested"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            outputs
+                .get("provider_access")
+                .and_then(|value| value.get("provider_mutation_allowed"))
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            outputs
+                .get("source_sync_state")
+                .and_then(|value| value.get("state"))
+                .and_then(Value::as_str),
+            Some("IDLE")
+        );
+        assert_eq!(
+            outputs
+                .get("source_sync_state")
+                .and_then(|value| value.get("last_error_code"))
+                .and_then(Value::as_str),
+            Some("CALENDAR_SYNC_READ_ONLY_WRITE_BLOCKED")
+        );
+        assert!(outputs
+            .get("source_sync_state")
+            .and_then(|value| value.get("backoff_until"))
+            .is_some_and(Value::is_null));
+
+        let output_ref = outputs
+            .get("outputs")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_str)
+            .expect("read-only mutation denial should expose the result artifact");
+        let repo_root = repo_root_from_manifest_dir()?;
+        let result_json = fs::read(repo_root.join(output_ref))?;
+        let sync_result: crate::storage::CalendarSyncResult = serde_json::from_slice(&result_json)?;
+        assert_eq!(
+            sync_result.status,
+            crate::storage::CalendarSyncResultStatus::Failed
+        );
+        assert_eq!(
+            sync_result.error_code.as_deref(),
+            Some("CALENDAR_SYNC_READ_ONLY_WRITE_BLOCKED")
+        );
+        assert_eq!(
+            sync_result.source_sync_state.state,
+            Some(CalendarSyncStateStage::Idle)
+        );
+        assert_eq!(
+            sync_result.source_sync_state.last_error_code.as_deref(),
+            Some("CALENDAR_SYNC_READ_ONLY_WRITE_BLOCKED")
+        );
+        assert!(sync_result.source_sync_state.backoff_until.is_none());
+        assert_eq!(sync_result.updated_event_count, 0);
+        assert!(sync_result.updated_events.is_empty());
+
+        let stored_source = state
+            .storage
+            .get_calendar_source(&workspace.id, &source.id)
+            .await?
+            .expect("calendar source should still exist after read-only denial");
+        assert_eq!(
+            stored_source.sync_state.state,
+            Some(CalendarSyncStateStage::Idle)
+        );
+        assert_eq!(
+            stored_source.sync_state.last_error_code.as_deref(),
+            Some("CALENDAR_SYNC_READ_ONLY_WRITE_BLOCKED")
+        );
+        assert!(stored_source.sync_state.backoff_until.is_none());
+        assert!(stored_source.sync_state.last_push_at.is_none());
 
         Ok(())
     }
