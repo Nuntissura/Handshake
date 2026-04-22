@@ -117,7 +117,8 @@ See also:
   - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
 - Governed system-terminal launches must record ownership in the session registry so closeout can reclaim only the windows created by the governed session batch. If reclaim needs manual repair, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`; defaulting to `CURRENT_BATCH` is the safe path.
-- CLI escalation is allowed only after 2 plugin failures or timeouts for the same role/WP session unless the Operator explicitly waives that policy.
+- Host-load stance: assume the machine is under heavy load. Shell/plugin timeouts are advisory symptoms, not authoritative workflow truth; inspect receipts/runtime/session artifacts before counting a timeout as a real failed attempt.
+- CLI escalation is allowed only after 2 plugin failures or host-load timeouts for the same role/WP session unless the Operator explicitly waives that policy.
 
 ## Drive-Agnostic Governance [CX-109] (HARD)
 
@@ -247,6 +248,8 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
   - explicit non-PASS terminal closure: `FAIL`, `OUTDATED_ONLY`, or `ABANDONED`
   - canonical closeout mode resolution now lives in the shared execution-state library; orchestrator helpers should consume that projection instead of carrying local packet-status-to-closeout tables
   - when terminal closeout sync provenance already exists, orchestrator-side readers such as `phase-check CLOSEOUT` and `closeout-repair` should prefer the shared typed closeout-governance summary (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) instead of re-deriving terminal sync intent from packet/runtime consequences or event prose alone
+  - closeout dependency reporting now separates `product_outcome_blockers` from `governance_debt`; once `verdict_of_record` exists, only the former justify withholding product-outcome publication
+  - for terminal non-PASS closeout, support-surface drift such as route residue, dossier lag, repomem coverage gaps, closeout provenance drift, or active-topology artifact hygiene debt must be repaired as settlement work and MUST NOT trigger a fresh product-judgment loop by themselves
   - when `execution_state.authority` disagrees with packet/task-board closeout publication, treat the packet/task-board artifact as the drift owner and repair through `phase-check CLOSEOUT` rather than by trusting stale packet prose
   - candidate-target proof must still match the signed artifact exactly; contained local-main closure may differ only when conflict resolution stays within the signed file surface and the governed closeout proof still passes
   - contained-main harmonization is a final-lane activity owned by `INTEGRATION_VALIDATOR` (or another explicitly reassigned governed actor), and successful closeout sync must leave machine-readable provenance in validator gate state/receipts
@@ -669,7 +672,7 @@ Legacy flat compatibility:
 - On orchestrator-managed lanes, expect one explicit pre-launch round-trip: Activation Manager returns refinement/spec text for review, the Orchestrator collects operator approval evidence + one-time signature + coder choice, then the Orchestrator steers that bundle back into Activation Manager so packet/worktree/backup/readiness work can continue.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, routine Operator interruption ends after signature/prepare. Do not request routine "proceed", checkpoint, or approval actions after that point.
 - If post-signature Operator action is still required on an orchestrator-managed lane, `just orchestrator-next` must print one machine-visible `BLOCKER_CLASS` rather than a freeform approval ask. The allowed post-signature classes are `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, and `ENVIRONMENT_FAILURE`; the legacy repair-only pre-launch recovery class is `LEGACY_SIGNATURE_TUPLE_REPAIR`.
-- If the Operator explicitly authorizes bounded continuation after a post-signature `POLICY_CONFLICT` such as `TOKEN_BUDGET_EXCEEDED`, record that decision under `## WAIVERS GRANTED` with `COVERS: GOVERNANCE`, explicit `TOKEN_BUDGET_EXCEEDED` or `POLICY_CONFLICT` text in `SCOPE` or `JUSTIFICATION`, and a named `APPROVER`. `just orchestrator-next` may honor that recorded waiver, but the underlying budget overrun remains diagnostic truth and must still be surfaced in audits and reviews.
+- Post-signature token budget overrun and token-ledger drift remain machine-visible in status/audit surfaces, but they are diagnostic-only cost telemetry and must not block orchestrator-managed continuation or product outcome by themselves. If a legacy packet already records a continuation waiver for token cost, treat it as historical context rather than a required gate.
 - Use `.GOV/templates/TASK_PACKET_TEMPLATE.md`.
 - Packets are transcription from the signed refinement plus current workflow metadata, not freehand reinterpretation.
 - For `PACKET_FORMAT_VERSION >= 2026-04-01`, packet creation and resume output must surface the active law bundle, not hide it:

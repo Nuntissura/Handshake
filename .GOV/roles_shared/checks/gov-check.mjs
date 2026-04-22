@@ -67,7 +67,7 @@ try {
         const { execFileSync } = await import("node:child_process");
         const scriptPath = memPath.default.join(memPath.default.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1")), "..", "scripts", "memory", "memory-compact.mjs");
         try {
-          execFileSync(process.execPath, [scriptPath], { stdio: "ignore", timeout: 30000 });
+          execFileSync(process.execPath, [scriptPath], { stdio: "ignore" });
           console.log("memory-maintenance ok (compaction ran)");
         } catch {
           console.log("memory-maintenance ok (compaction attempted, non-fatal)");

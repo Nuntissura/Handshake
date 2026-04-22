@@ -161,12 +161,16 @@ test("buildWpTimelineSummary computes counts and event window", () => {
   assert.equal(summary.control_request_count, 1);
   assert.equal(summary.control_result_count, 1);
   assert.equal(summary.token_input_total, 500);
+  assert.equal(summary.token_gross_input_total, 500);
+  assert.equal(summary.token_cached_input_total, 120);
+  assert.equal(summary.token_fresh_input_total, 380);
+  assert.equal(summary.budget_enforcement_mode, "DIAGNOSTIC_ONLY");
   assert.equal(summary.event_window_duration_ms, 300000);
   assert.equal(summary.microtask_execution_span_count, 0);
   assert.deepEqual(summary.stage_counts, {});
   assert.equal(summary.relay_policy.current_lane, "ORCHESTRATOR_MANAGED");
-  assert.equal(summary.relay_policy.default_lane, "MANUAL_RELAY");
-  assert.equal(summary.relay_policy.recommended_lane, "MANUAL_RELAY");
+  assert.equal(summary.relay_policy.default_lane, "ORCHESTRATOR_MANAGED");
+  assert.equal(summary.relay_policy.recommended_lane, "ORCHESTRATOR_MANAGED");
   assert.equal(summary.downtime_attribution.current_wait.bucket, "CODER_WAIT");
   assert.equal(summary.queue_pressure.level, "LOW");
   assert.equal(summary.cost_estimate, null);
@@ -292,7 +296,7 @@ test("buildWpTimelineSpans derives microtask execution spans from coder intent t
   assert.equal(microtaskSpan.terminal_receipt_kind, "REVIEW_REQUEST");
 });
 
-test("evaluateWpRelayCostPolicy recommends MANUAL_RELAY when relay prompt tax is visible", () => {
+test("evaluateWpRelayCostPolicy keeps the orchestrator-managed default while surfacing relay prompt tax", () => {
   const policy = evaluateWpRelayCostPolicy({
     workflowLane: "ORCHESTRATOR_MANAGED",
     spans: [
@@ -322,12 +326,12 @@ test("evaluateWpRelayCostPolicy recommends MANUAL_RELAY when relay prompt tax is
     },
   });
 
-  assert.equal(policy.default_lane, "MANUAL_RELAY");
-  assert.equal(policy.recommended_lane, "MANUAL_RELAY");
+  assert.equal(policy.default_lane, "ORCHESTRATOR_MANAGED");
+  assert.equal(policy.recommended_lane, "ORCHESTRATOR_MANAGED");
   assert.equal(policy.burden_level, "HIGH");
   assert.equal(policy.relay_command_count, 1);
   assert.equal(policy.relay_turn_count, 5);
-  assert.match(policy.recommendation_reason, /Observed orchestrator-managed relay burden is high/i);
+  assert.match(policy.recommendation_reason, /Current lane already matches the future default/i);
 });
 
 test("buildWorkflowDossierIdleMetrics reports review latency, pass-to-coder delay, and drift markers", () => {
@@ -729,10 +733,20 @@ test("buildWpMetrics produces a structured metrics object from summary and recei
       coder_wait_ms: 60000,
     },
     token_input_total: 1000,
+    token_gross_input_total: 1000,
+    token_cached_input_total: 350,
+    token_fresh_input_total: 650,
     token_output_total: 500,
     token_turn_count: 5,
+    token_command_count: 3,
     ledger_health_status: "MATCH",
+    ledger_health_severity: "PASS",
+    ledger_health_policy_id: "TOKEN_LEDGER_V1",
+    ledger_health_drift_class: "NONE",
     budget_status: "PASS",
+    budget_policy_id: "ORCHESTRATOR_MANAGED_V3_DIAGNOSTIC_COST",
+    budget_enforcement_mode: "DIAGNOSTIC_ONLY",
+    budget_blocker_class: "NONE",
     cost_estimate: 0.42,
     queue_pressure: { score: 2 },
     runtime_status: "completed",
@@ -755,12 +769,33 @@ test("buildWpMetrics produces a structured metrics object from summary and recei
   assert.equal(m.mt_count, 1);
   assert.equal(m.acp_commands, 1);
   assert.equal(m.acp_failures, 0);
+  assert.equal(m.token_gross_input_total, 1000);
+  assert.equal(m.token_cached_input_total, 350);
+  assert.equal(m.token_fresh_input_total, 650);
+  assert.equal(m.token_command_count, 3);
+  assert.equal(m.budget_enforcement_mode, "DIAGNOSTIC_ONLY");
   assert.ok(m.governance_overhead_ratio > 0);
 });
 
 test("buildWpMetricsComparison produces trend rows from two metrics objects", () => {
-  const a = { wall_clock_minutes: 100, fix_cycles: 5, cost_estimate: null };
-  const b = { wall_clock_minutes: 80, fix_cycles: 3, cost_estimate: null };
+  const a = {
+    wall_clock_minutes: 100,
+    fix_cycles: 5,
+    token_gross_input_total: 1000,
+    token_fresh_input_total: 700,
+    token_cached_input_total: 300,
+    token_command_count: 3,
+    cost_estimate: null,
+  };
+  const b = {
+    wall_clock_minutes: 80,
+    fix_cycles: 3,
+    token_gross_input_total: 850,
+    token_fresh_input_total: 500,
+    token_cached_input_total: 350,
+    token_command_count: 2,
+    cost_estimate: null,
+  };
   const comparison = buildWpMetricsComparison(a, b);
   const wallClock = comparison.find((r) => r.metric === "Wall clock (min)");
   assert.equal(wallClock.delta, -20);
@@ -768,4 +803,10 @@ test("buildWpMetricsComparison produces trend rows from two metrics objects", ()
   const fixCycles = comparison.find((r) => r.metric === "Fix cycles");
   assert.equal(fixCycles.delta, -2);
   assert.equal(fixCycles.trend, "DOWN");
+  const freshTokens = comparison.find((r) => r.metric === "Tokens in (fresh)");
+  assert.equal(freshTokens.delta, -200);
+  assert.equal(freshTokens.trend, "DOWN");
+  const cachedTokens = comparison.find((r) => r.metric === "Tokens in (cached)");
+  assert.equal(cachedTokens.delta, 50);
+  assert.equal(cachedTokens.trend, "UP");
 });

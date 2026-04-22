@@ -4,6 +4,10 @@ import {
   inferValidationVerdictFromPublication,
   readExecutionPublicationView,
 } from "./wp-execution-state-lib.mjs";
+import {
+  authorityClassForCloseoutDependency,
+  dependencyBlocksProductOutcome,
+} from "./closeout-blocking-authority-lib.mjs";
 
 function normalizeText(value, fallback = "") {
   const text = String(value || "").trim();
@@ -21,17 +25,38 @@ function countSummary(name, value) {
   return `${name}=${Number(value || 0)}`;
 }
 
+function uniqueStrings(values = []) {
+  return [...new Set(
+    (Array.isArray(values) ? values : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  )];
+}
+
 function dependencyEntry({
   key,
   required,
   status,
   summary,
 } = {}) {
+  const normalizedKey = normalizeText(key);
+  const normalizedStatus = normalizeText(status, "UNKNOWN");
+  const requiredFailure = Boolean(required) && normalizedStatus === "FAIL";
+  const productOutcomeBlocker = dependencyBlocksProductOutcome({
+    key: normalizedKey,
+    required,
+    status: normalizedStatus,
+  });
   return {
-    key,
+    key: normalizedKey,
     required: Boolean(required),
-    status: normalizeText(status, "UNKNOWN"),
+    status: normalizedStatus,
     summary: normalizeText(summary, "No summary available."),
+    authority_class: authorityClassForCloseoutDependency(normalizedKey),
+    blocks_product_outcome: productOutcomeBlocker,
+    blocking_disposition: !requiredFailure
+      ? "NONE"
+      : (productOutcomeBlocker ? "OUTCOME_BLOCKER" : "SETTLEMENT_DEBT"),
   };
 }
 
@@ -104,6 +129,10 @@ export function buildCloseoutDependencyView({
   const candidateErrors = Array.isArray(candidateSignedScope?.errors) ? candidateSignedScope.errors : [];
   const latestEvent = closeoutSyncGovernance?.latestEvent || null;
   const latestGovernedAction = closeoutSyncGovernance?.latestGovernedAction || null;
+  const latestEventSettlementDebtKeys = uniqueStrings(latestEvent?.settlement_debt_keys);
+  const latestEventSettlementDebtSummaries = Array.isArray(latestEvent?.settlement_debt_summaries)
+    ? latestEvent.settlement_debt_summaries.map((value) => normalizeText(value)).filter(Boolean)
+    : [];
   const normalizedRepomemCoverage = normalizeRepomemCoverage(repomemCoverage);
 
   const dependencies = {
@@ -167,6 +196,7 @@ export function buildCloseoutDependencyView({
             `mode=${normalizeText(latestEvent?.mode, "NONE")}`,
             `governed_action=${normalizeText(latestGovernedAction?.rule_id, "NONE")}`,
             `recorded_at=${normalizeText(latestGovernedAction?.updated_at || latestEvent?.timestamp_utc, "<missing>")}`,
+            `settlement_debt=${latestEventSettlementDebtKeys.join(",") || "none"}`,
           ].join(" | ")
         : "No governed closeout sync provenance is recorded yet.",
     }),
@@ -181,6 +211,25 @@ export function buildCloseoutDependencyView({
   const blockingKeys = Object.values(dependencies)
     .filter((dependency) => dependency.required && dependency.status === "FAIL")
     .map((dependency) => dependency.key);
+  const productOutcomeBlockingKeys = Object.values(dependencies)
+    .filter((dependency) => dependency.blocks_product_outcome)
+    .map((dependency) => dependency.key);
+  const dependencyGovernanceDebtSummaries = Object.values(dependencies)
+    .filter((dependency) => dependency.blocking_disposition === "SETTLEMENT_DEBT")
+    .map((dependency) => ({ key: dependency.key, summary: dependency.summary }));
+  const governanceDebtSummaryMap = new Map(
+    dependencyGovernanceDebtSummaries.map((entry) => [entry.key, entry.summary]),
+  );
+  latestEventSettlementDebtKeys.forEach((key, index) => {
+    governanceDebtSummaryMap.set(
+      key,
+      latestEventSettlementDebtSummaries[index] || governanceDebtSummaryMap.get(key) || key,
+    );
+  });
+  const governanceDebtKeys = uniqueStrings([
+    ...dependencyGovernanceDebtSummaries.map((entry) => entry.key),
+    ...latestEventSettlementDebtKeys,
+  ]);
   const verdictSettlement = readVerdictSettlementTruth({
     packetText: packetContent,
     runtimeStatus,
@@ -200,11 +249,15 @@ export function buildCloseoutDependencyView({
     if (blocker === "TERMINAL_PUBLICATION_PENDING") {
       return "Final closeout publication has not been recorded yet.";
     }
+    if (governanceDebtSummaryMap.has(blocker)) {
+      return governanceDebtSummaryMap.get(blocker);
+    }
     return dependencies[String(blocker || "").trim().toLowerCase()]?.summary || blocker;
   });
 
   return {
     ok: blockingKeys.length === 0,
+    outcome_ok: productOutcomeBlockingKeys.length === 0,
     publication: {
       has_canonical_authority: Boolean(publication?.has_canonical_authority),
       packet_status: normalizeText(publication?.packet_status, "<missing>"),
@@ -231,11 +284,16 @@ export function buildCloseoutDependencyView({
     requirements,
     dependencies,
     blocking_keys: blockingKeys,
+    product_outcome_blocking_keys: productOutcomeBlockingKeys,
+    governance_debt_keys: governanceDebtKeys,
+    governance_debt_summaries: governanceDebtKeys.map((key) => governanceDebtSummaryMap.get(key) || key),
     summary: [
       `mode=${normalizeText(closeoutMode, "UNSET")}`,
       `verdict=${normalizeText(validationVerdict, "UNKNOWN")}`,
       `settlement=${normalizeText(verdictSettlement.settlementState, "VERDICT_PENDING")}`,
       `blockers=${settlementBlockers.length > 0 ? settlementBlockers.join(",") : "none"}`,
+      `outcome_blockers=${productOutcomeBlockingKeys.length > 0 ? productOutcomeBlockingKeys.join(",") : "none"}`,
+      `governance_debt=${governanceDebtKeys.length > 0 ? governanceDebtKeys.join(",") : "none"}`,
       `repomem=${dependencies.repomem_coverage.status}`,
     ].join(" | "),
   };

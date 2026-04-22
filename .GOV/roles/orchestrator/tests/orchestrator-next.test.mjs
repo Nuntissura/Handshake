@@ -199,7 +199,7 @@ test("orchestrator-next ignores unrelated governance waivers for token-budget co
   assert.equal(waiver, null);
 });
 
-test("orchestrator-next continuation waiver suppresses token policy hard stops but keeps findings", () => {
+test("orchestrator-next keeps token policy findings diagnostic even when a legacy waiver is present", () => {
   const decision = tokenPolicyContinuationDecision({
     workflowLane: "ORCHESTRATOR_MANAGED",
     boardStatus: "IN_PROGRESS",
@@ -212,11 +212,12 @@ test("orchestrator-next continuation waiver suppresses token policy hard stops b
   assert.equal(decision.blockLedgerHealth, false);
   assert.equal(decision.blockBudget, false);
   assert.match(decision.findings.join(" | "), /CX-TEST-TOKEN-001/);
-  assert.match(decision.findings.join(" | "), /token-ledger policy remains FAIL/i);
-  assert.match(decision.findings.join(" | "), /token-budget policy remains FAIL/i);
+  assert.match(decision.findings.join(" | "), /must not stop orchestrator-managed continuation/i);
+  assert.match(decision.findings.join(" | "), /diagnostic only/i);
+  assert.match(decision.findings.join(" | "), /no longer requires a waiver/i);
 });
 
-test("orchestrator-next blocks token policy conflicts without a continuation waiver", () => {
+test("orchestrator-next does not block token policy conflicts without a continuation waiver", () => {
   const decision = tokenPolicyContinuationDecision({
     workflowLane: "ORCHESTRATOR_MANAGED",
     boardStatus: "IN_PROGRESS",
@@ -226,9 +227,10 @@ test("orchestrator-next blocks token policy conflicts without a continuation wai
   });
 
   assert.equal(decision.continuationActive, false);
-  assert.equal(decision.blockLedgerHealth, true);
-  assert.equal(decision.blockBudget, true);
-  assert.deepEqual(decision.findings, []);
+  assert.equal(decision.blockLedgerHealth, false);
+  assert.equal(decision.blockBudget, false);
+  assert.match(decision.findings.join(" | "), /governance telemetry only/i);
+  assert.match(decision.findings.join(" | "), /recorded mechanically/i);
 });
 
 test("orchestrator-next classifies queue-backed governed wait state for the projected actor", () => {

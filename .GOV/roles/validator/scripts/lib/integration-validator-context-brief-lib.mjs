@@ -209,8 +209,16 @@ export function buildIntegrationValidatorContextBrief({
   if (!topologyEvaluation.ok && topologyEvaluation.issues.length > 0) {
     pushUnique(contextNotes, `Declared topology issue: ${topologyEvaluation.issues[0]}`);
   }
-  if (!closeoutEvaluation.ok && closeoutEvaluation.issues.length > 0) {
+  if (!closeoutEvaluation.productOutcomeOk && closeoutEvaluation.issues.length > 0) {
+    pushUnique(contextNotes, `Closeout outcome blocker: ${closeoutEvaluation.issues[0]}`);
+  } else if (!closeoutEvaluation.ok && closeoutEvaluation.issues.length > 0) {
     pushUnique(contextNotes, `Closeout blocker: ${closeoutEvaluation.issues[0]}`);
+  }
+  if ((closeoutDependencyView.governance_debt_keys || []).length > 0) {
+    pushUnique(
+      contextNotes,
+      `Closeout governance debt: ${closeoutDependencyView.governance_debt_keys.join(", ")}.`,
+    );
   }
 
   return {
@@ -228,6 +236,8 @@ export function buildIntegrationValidatorContextBrief({
     closeout_publication: closeoutDependencyView.publication,
     closeout_settlement: closeoutDependencyView.settlement,
     closeout_dependencies: closeoutDependencyView.dependencies,
+    closeout_product_outcome_blockers: closeoutDependencyView.product_outcome_blocking_keys,
+    closeout_governance_debt: closeoutDependencyView.governance_debt_keys,
     workflow_lane: authority.workflowLane || "<missing>",
     packet_path: packetPathValue,
     packet_read_path: packetReadPath || "<missing>",
@@ -353,6 +363,7 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- CLOSEOUT_PUBLICATION: mode=${brief.closeout_publication.closeout_mode} | verdict=${brief.closeout_publication.verdict_of_record} | containment=${brief.closeout_publication.main_containment_status} | canonical=${brief.closeout_publication.has_canonical_authority ? "YES" : "NO"}`,
     `- CLOSEOUT_SETTLEMENT: state=${brief.closeout_settlement.state} | blockers=${brief.closeout_settlement.blockers.join(",") || "none"} | terminal_publication_recorded=${brief.closeout_settlement.terminal_publication_recorded ? "YES" : "NO"}`,
     `- CLOSEOUT_DEPENDENCIES: topology=${brief.closeout_dependencies.topology.status} | bundle=${brief.closeout_dependencies.closeout_bundle.status} | scope=${brief.closeout_dependencies.scope_compatibility.status} | candidate=${brief.closeout_dependencies.candidate_target.status} | provenance=${brief.closeout_dependencies.sync_provenance.status} | repomem=${brief.closeout_dependencies.repomem_coverage.status}`,
+    `- CLOSEOUT_AUTHORITY_SPLIT: outcome_blockers=${brief.closeout_product_outcome_blockers.join(",") || "none"} | governance_debt=${brief.closeout_governance_debt.join(",") || "none"}`,
     `- REPOMEM_COVERAGE: ${brief.closeout_dependencies.repomem_coverage.summary}`,
     `- AUTHORITIES: technical=${brief.authority.technical_authority} | merge=${brief.authority.merge_authority} | integration_validator=${brief.authority.integration_validator_of_record} | wp_validator=${brief.authority.wp_validator_of_record}`,
     `- CANDIDATE_UNDER_REVIEW: branch=${brief.candidate_under_review.branch} | worktree=${brief.candidate_under_review.worktree_dir} | handoff_range=${brief.candidate_under_review.handoff_range} | handoff_range_source=${brief.candidate_under_review.handoff_range_source} | validator_policy_branch=${brief.candidate_under_review.validator_policy_branch}`,

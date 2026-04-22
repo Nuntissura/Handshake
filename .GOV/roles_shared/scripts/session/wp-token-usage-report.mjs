@@ -92,6 +92,7 @@ if (roleNames.length === 0) {
 console.log("");
 console.log("WP_TOKEN_BUDGET");
 console.log(`- policy_id: ${budget.policy_id}`);
+console.log(`- enforcement_mode: ${budget.enforcement_mode}`);
 console.log(`- status: ${budget.status}`);
 console.log(`- blocker_class: ${budget.blocker_class}`);
 if (budget.invalidity_code) {

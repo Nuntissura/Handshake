@@ -55,13 +55,19 @@ function printTextReport(summary, spans, entries) {
   console.log(`- turn_usage_count: ${summary.turn_usage_count}`);
   console.log(`- token_summary_source: ${summary.token_summary_source}`);
   console.log(`- token_input_total: ${summary.token_input_total}`);
+  console.log(`- token_gross_input_total: ${summary.token_gross_input_total}`);
   console.log(`- token_cached_input_total: ${summary.token_cached_input_total}`);
+  console.log(`- token_fresh_input_total: ${summary.token_fresh_input_total}`);
   console.log(`- token_output_total: ${summary.token_output_total}`);
   console.log(`- token_turn_count: ${summary.token_turn_count}`);
   console.log(`- token_command_count: ${summary.token_command_count}`);
   console.log(`- ledger_health_status: ${summary.ledger_health_status}`);
   console.log(`- ledger_health_severity: ${summary.ledger_health_severity}`);
+  console.log(`- ledger_health_policy_id: ${summary.ledger_health_policy_id}`);
+  console.log(`- ledger_health_drift_class: ${summary.ledger_health_drift_class}`);
   console.log(`- budget_status: ${summary.budget_status}`);
+  console.log(`- budget_policy_id: ${summary.budget_policy_id}`);
+  console.log(`- budget_enforcement_mode: ${summary.budget_enforcement_mode}`);
   console.log(`- budget_summary: ${summary.budget_summary}`);
   console.log(`- relay_current_lane: ${summary.relay_policy?.current_lane || "<none>"}`);
   console.log(`- relay_default_lane: ${summary.relay_policy?.default_lane || "<none>"}`);
@@ -186,10 +192,16 @@ function printTextMetrics(m) {
   console.log("");
   console.log("TOKENS & COST");
   console.log(`  token_input_total: ${m.token_input_total}`);
+  console.log(`  token_gross_input_total: ${m.token_gross_input_total}`);
+  console.log(`  token_cached_input_total: ${m.token_cached_input_total}`);
+  console.log(`  token_fresh_input_total: ${m.token_fresh_input_total}`);
   console.log(`  token_output_total: ${m.token_output_total}`);
   console.log(`  token_turn_count: ${m.token_turn_count}`);
+  console.log(`  token_command_count: ${m.token_command_count}`);
   console.log(`  ledger_health: ${m.ledger_health}`);
+  console.log(`  ledger_health_severity: ${m.ledger_health_severity}`);
   console.log(`  budget_status: ${m.budget_status}`);
+  console.log(`  budget_enforcement_mode: ${m.budget_enforcement_mode}`);
   console.log(`  cost_estimate: ${m.cost_estimate ?? "N/A"}`);
 }
 

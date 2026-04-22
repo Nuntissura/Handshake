@@ -758,12 +758,14 @@ export function evaluateIntegrationValidatorCloseoutState({
 
   return {
     ok: dependencyView.ok,
+    productOutcomeOk: dependencyView.outcome_ok,
     topology,
     closeoutBundle,
     scopeCompatibility,
     candidateSignedScope,
     repomemCoverage: resolvedRepomemCoverage,
     dependencyView,
+    governanceDebtKeys: dependencyView.governance_debt_keys,
     issues: [
       ...topology.issues,
       ...closeoutBundle.issues,
@@ -925,6 +927,8 @@ export function buildIntegrationValidatorCloseoutCheckResult({
       `verdict_of_record=${closeoutDependencyView.publication.verdict_of_record}`,
       `settlement_state=${closeoutDependencyView.settlement.state}`,
       `settlement_blockers=${closeoutDependencyView.settlement.blockers.join(",") || "none"}`,
+      `product_outcome_blockers=${closeoutDependencyView.product_outcome_blocking_keys.join(",") || "none"}`,
+      `governance_debt=${closeoutDependencyView.governance_debt_keys.join(",") || "none"}`,
       ...closeoutDependencyView.blocking_keys.map((key) =>
         `blocking_dependency.${key}=${closeoutDependencyView.dependencies[key]?.summary || "UNKNOWN"}`
       ),
@@ -944,6 +948,8 @@ export function buildIntegrationValidatorCloseoutCheckResult({
       `publication_verdict=${closeoutDependencyView.publication.verdict_of_record}`,
       `settlement_state=${closeoutDependencyView.settlement.state}`,
       `settlement_blockers=${closeoutDependencyView.settlement.blockers.join(",") || "none"}`,
+      `product_outcome_blockers=${closeoutDependencyView.product_outcome_blocking_keys.join(",") || "none"}`,
+      `governance_debt=${closeoutDependencyView.governance_debt_keys.join(",") || "none"}`,
       `publication_main_containment=${closeoutDependencyView.publication.main_containment_status}`,
       `target_head_sha=${evaluation.topology.targetHeadSha || "<unknown>"}`,
       `current_main_head_sha=${evaluation.topology.currentMainHeadSha || "<unknown>"}`,

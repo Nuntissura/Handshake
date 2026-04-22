@@ -461,6 +461,7 @@ if (wpTokenUsage) {
       console.log("");
       console.log("WP_TOKEN_BUDGET");
       console.log(`- policy_id: ${wpTokenBudget.policy_id}`);
+      console.log(`- enforcement_mode: ${wpTokenBudget.enforcement_mode}`);
       console.log(`- status: ${wpTokenBudget.status}`);
       console.log(`- blocker_class: ${wpTokenBudget.blocker_class}`);
       if (wpTokenBudget.invalidity_code) {

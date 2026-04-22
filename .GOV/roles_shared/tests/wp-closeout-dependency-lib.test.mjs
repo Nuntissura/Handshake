@@ -104,6 +104,9 @@ test("closeout dependency view collapses required closeout truth onto explicit d
   assert.equal(view.dependencies.sync_provenance.status, "RECORDED");
   assert.equal(view.dependencies.repomem_coverage.status, "PASS");
   assert.deepEqual(view.blocking_keys, []);
+  assert.equal(view.outcome_ok, true);
+  assert.deepEqual(view.product_outcome_blocking_keys, []);
+  assert.deepEqual(view.governance_debt_keys, []);
 });
 
 test("closeout dependency view skips signed-scope gating for terminal non-pass packets", () => {
@@ -157,6 +160,7 @@ test("closeout dependency view skips signed-scope gating for terminal non-pass p
   assert.equal(view.settlement.state, "SETTLED");
   assert.deepEqual(view.settlement.blockers, []);
   assert.deepEqual(view.blocking_keys, []);
+  assert.equal(view.outcome_ok, true);
 });
 
 test("closeout dependency view keeps verdict-of-record visible while terminal publication is still debt", () => {
@@ -259,4 +263,110 @@ test("closeout dependency view surfaces repomem coverage debt without turning it
   assert.equal(view.dependencies.repomem_coverage.status, "DEBT");
   assert.match(view.dependencies.repomem_coverage.summary, /CODER:NO_SESSION_CLOSE/);
   assert.deepEqual(view.blocking_keys, []);
+});
+
+test("closeout dependency view separates governance support debt from product outcome blockers", () => {
+  const view = buildCloseoutDependencyView({
+    packetContent: packet("In Progress", {
+      verdict: "FAIL",
+      reportTimestamp: "2026-04-20T11:15:00Z",
+      reportSession: "integration-validator-final",
+    }),
+    runtimeStatus: {
+      current_packet_status: "In Progress",
+      current_task_board_status: "IN_PROGRESS",
+      main_containment_status: "NOT_STARTED",
+    },
+    closeoutRequirements: {
+      requireReadyForPass: false,
+      requireRecordedScopeCompatibility: false,
+      terminalNonPass: true,
+    },
+    topology: {
+      ok: false,
+      issues: ["Declared integration worktree could not be reopened."],
+    },
+    closeoutBundle: {
+      ok: true,
+      summary: {
+        request_count: 0,
+        result_count: 0,
+        session_count: 0,
+        active_run_count: 0,
+      },
+    },
+    scopeCompatibility: {
+      errors: [],
+    },
+    candidateSignedScope: {
+      errors: [],
+    },
+  });
+
+  assert.equal(view.ok, false);
+  assert.equal(view.outcome_ok, true);
+  assert.equal(view.dependencies.topology.authority_class, "GOVERNANCE_SUPPORT");
+  assert.equal(view.dependencies.topology.blocking_disposition, "SETTLEMENT_DEBT");
+  assert.deepEqual(view.product_outcome_blocking_keys, []);
+  assert.deepEqual(view.governance_debt_keys, ["topology"]);
+});
+
+test("closeout dependency view carries recorded settlement debt from closeout provenance", () => {
+  const view = buildCloseoutDependencyView({
+    packetContent: packet("Validated (FAIL)"),
+    runtimeStatus: {
+      current_packet_status: "Validated (FAIL)",
+      current_task_board_status: "DONE_FAIL",
+      main_containment_status: "NOT_REQUIRED",
+      execution_state: {
+        schema_version: "wp_execution_state@1",
+        authority: {
+          packet_status: "Validated (FAIL)",
+          task_board_status: "DONE_FAIL",
+          main_containment_status: "NOT_REQUIRED",
+        },
+      },
+    },
+    closeoutRequirements: {
+      requireReadyForPass: false,
+      requireRecordedScopeCompatibility: false,
+      terminalNonPass: true,
+    },
+    topology: {
+      ok: true,
+      resolvedWorktreeAbs: "../handshake_main",
+      targetHeadSha: "abc123",
+      currentMainHeadSha: "def456",
+    },
+    closeoutBundle: {
+      ok: true,
+      summary: {
+        request_count: 0,
+        result_count: 0,
+        session_count: 0,
+        active_run_count: 0,
+      },
+    },
+    scopeCompatibility: {
+      errors: [],
+    },
+    candidateSignedScope: {
+      errors: [],
+    },
+    closeoutSyncGovernance: {
+      latestEvent: {
+        mode: "FAIL",
+        timestamp_utc: "2026-04-20T11:30:00Z",
+        settlement_debt_keys: ["ACTIVE_TOPOLOGY_ARTIFACT_HYGIENE"],
+        settlement_debt_summaries: ["Artifact hygiene drift was demoted to settlement debt during terminal FAIL sync."],
+      },
+      latestGovernedAction: {
+        rule_id: "INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE",
+        updated_at: "2026-04-20T11:30:01Z",
+      },
+    },
+  });
+
+  assert.deepEqual(view.governance_debt_keys, ["ACTIVE_TOPOLOGY_ARTIFACT_HYGIENE"]);
+  assert.match(view.dependencies.sync_provenance.summary, /ACTIVE_TOPOLOGY_ARTIFACT_HYGIENE/);
 });

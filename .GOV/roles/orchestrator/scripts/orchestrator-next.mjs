@@ -271,7 +271,7 @@ export function findActiveTokenBudgetContinuationWaiver(packetText = "") {
 
 function confidenceDetailWithPolicyConflictWaiver(detail = "", waiver = null) {
   if (!waiver) return detail;
-  const note = `token-budget continuation waiver active (${waiver.waiverId})`;
+  const note = `legacy token-budget waiver recorded (${waiver.waiverId}; diagnostic-only cost policy no longer requires continuation waivers)`;
   return detail ? `${detail}; ${note}` : note;
 }
 
@@ -285,31 +285,33 @@ export function tokenPolicyContinuationDecision({
   const orchestratorManaged = String(workflowLane || "").trim().toUpperCase() === "ORCHESTRATOR_MANAGED";
   const boardTerminal = String(boardStatus || "").trim().toUpperCase() === "VALIDATED";
   const continuationActive = orchestratorManaged && !boardTerminal && Boolean(waiver);
-  const blockLedgerHealth = orchestratorManaged
-    && !boardTerminal
-    && String(ledgerHealthSeverity || "").trim().toUpperCase() === "FAIL"
-    && !continuationActive;
-  const blockBudget = orchestratorManaged
-    && !boardTerminal
-    && String(tokenBudgetStatus || "").trim().toUpperCase() === "FAIL"
-    && !continuationActive;
+  const laneRequiresDiagnostics = orchestratorManaged && !boardTerminal;
+  const ledgerFail = laneRequiresDiagnostics
+    && String(ledgerHealthSeverity || "").trim().toUpperCase() === "FAIL";
+  const budgetFail = laneRequiresDiagnostics
+    && String(tokenBudgetStatus || "").trim().toUpperCase() === "FAIL";
   const findings = [];
 
-  if (continuationActive && String(ledgerHealthSeverity || "").trim().toUpperCase() === "FAIL") {
+  if (ledgerFail) {
     findings.push(
-      `Continuation waiver ${waiver.waiverId} active: token-ledger policy remains FAIL and is tolerated for bounded continuation.`,
+      "Token-ledger policy is FAIL, but ledger drift is governance telemetry only and must not stop orchestrator-managed continuation.",
     );
   }
-  if (continuationActive && String(tokenBudgetStatus || "").trim().toUpperCase() === "FAIL") {
+  if (budgetFail) {
     findings.push(
-      `Continuation waiver ${waiver.waiverId} active: token-budget policy remains FAIL and is tolerated for bounded continuation.`,
+      "Token-budget policy is FAIL, but high token spend is diagnostic only and must be recorded mechanically rather than blocking the WP.",
+    );
+  }
+  if ((ledgerFail || budgetFail) && continuationActive) {
+    findings.push(
+      `Legacy continuation waiver ${waiver.waiverId} is recorded, but diagnostic-only cost policy no longer requires a waiver to continue.`,
     );
   }
 
   return {
     continuationActive,
-    blockLedgerHealth,
-    blockBudget,
+    blockLedgerHealth: false,
+    blockBudget: false,
     findings,
   };
 }
@@ -773,38 +775,6 @@ function main() {
     tokenBudgetStatus: tokenBudget?.status,
     waiver: tokenBudgetContinuationWaiver,
   });
-  if (tokenPolicyContinuation.blockLedgerHealth) {
-    printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
-    printOperatorEnvelope("NONE", tokenLedger.ledger_health.blocker_class || "POLICY_CONFLICT");
-    printConfidence(confidence.level, confidenceDetail);
-    printState(tokenLedger.ledger_health.summary);
-    printFindings([
-      `WP token ledger policy: ${tokenLedger.ledger_health.policy_id}`,
-      ...tokenLedger.ledger_health.failures,
-    ]);
-    printNextCommands([
-      `just session-registry-status ${wpId}`,
-      `just wp-token-usage ${wpId}`,
-      `# Repair token-ledger drift before resuming orchestrator-managed work.`,
-    ]);
-    return;
-  }
-  if (tokenPolicyContinuation.blockBudget) {
-    printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
-    printOperatorEnvelope("NONE", tokenBudget.blocker_class || "POLICY_CONFLICT");
-    printConfidence(confidence.level, confidenceDetail);
-    printState(tokenBudget.summary);
-    printFindings([
-      `WP token budget policy: ${tokenBudget.policy_id}`,
-      ...tokenBudget.failures,
-    ]);
-    printNextCommands([
-      `just session-registry-status ${wpId}`,
-      `just wp-token-usage ${wpId}`,
-      `# Compact the lane and remove ambiguity-driven retries before resuming orchestrator-managed work.`,
-    ]);
-    return;
-  }
   const packetRuntimeState = loadProjectionDriftState(wpId, packetPath, packetText);
   const notificationState = packetRuntimeState ? loadNotificationState(wpId) : { byRole: {}, pendingNotifications: [] };
   const { registry } = packetRuntimeState ? loadSessionRegistry(repoRoot) : { registry: { sessions: [] } };

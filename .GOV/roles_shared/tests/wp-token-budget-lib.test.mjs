@@ -42,13 +42,13 @@ test("evaluateWpTokenBudget reports WARN when turn or token spend crosses warnin
 
   assert.equal(budget.status, "WARN");
   assert.equal(budget.blocker_class, "NONE");
-  assert.match(budget.summary, /warning budget/i);
+  assert.match(budget.summary, /warning threshold/i);
   assert.equal(budget.roles.CODER.status, "WARN");
   assert.equal(budget.total.status, "WARN");
   assert.equal(budget.roles.CODER.fresh_input_tokens, 121000000);
 });
 
-test("evaluateWpTokenBudget reports FAIL and a policy blocker when fail thresholds are exceeded", () => {
+test("evaluateWpTokenBudget reports FAIL diagnostically without a policy blocker when fail thresholds are exceeded", () => {
   const budget = evaluateWpTokenBudget(ledgerWith(
     { command_count: 12, turn_count: 33, input_tokens: 394494138 },
     {
@@ -71,9 +71,11 @@ test("evaluateWpTokenBudget reports FAIL and a policy blocker when fail threshol
   ));
 
   assert.equal(budget.status, "FAIL");
-  assert.equal(budget.blocker_class, "POLICY_CONFLICT");
-  assert.equal(budget.invalidity_code, "TOKEN_BUDGET_EXCEEDED");
+  assert.equal(budget.enforcement_mode, "DIAGNOSTIC_ONLY");
+  assert.equal(budget.blocker_class, "NONE");
+  assert.equal(budget.invalidity_code, "");
   assert.match(budget.failures.join("\n"), /TOTAL fresh_input_tokens|CODER fresh_input_tokens/i);
+  assert.match(budget.summary, /record the overrun mechanically/i);
 });
 
 test("evaluateWpTokenBudget keeps cached-heavy replay visible without blocking the lane", () => {

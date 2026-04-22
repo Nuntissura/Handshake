@@ -641,6 +641,8 @@ test("integration-validator closeout state fails when the committed target diff 
   assert.equal(evaluation.ok, false);
   assert.match(evaluation.issues.join("\n"), /candidate target diff does not match the signed patch artifact/i);
   assert.equal(evaluation.dependencyView.dependencies.repomem_coverage.status, "DEBT");
+  assert.equal(evaluation.productOutcomeOk, false);
+  assert.deepEqual(evaluation.dependencyView.product_outcome_blocking_keys, ["candidate_target"]);
 });
 
 test("deriveFinalLaneGovernanceInvalidity classifies kernel-side final-lane misuse as a role-boundary breach", () => {

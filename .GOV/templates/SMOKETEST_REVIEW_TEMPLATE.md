@@ -310,34 +310,60 @@ Assessment:
 
 ## 14. Cost Attribution
 
-Break down time and token cost by lifecycle phase:
+Break down time and token cost in three ordered blocks:
 
-| Phase | Time (min) | Orchestrator Tokens (est) | Notes |
+### 14.1 Time Attribution
+
+| Phase | Time (min) | Token Surface | Notes |
 |---|---|---|---|
-| Refinement | <N> | <N or %> | <format iteration? discovery? research?> |
-| Per-MT Coding (total) | <N> | <N or %> | <how many MT prompts? retries?> |
-| Validation | <N> | <N or %> | <FAIL/fix cycles?> |
-| Fix Cycle | <N> | <N or %> | <items fixed? coder turns?> |
-| Closeout | <N> | <N or %> | <manual formatting? section ordering?> |
-| Polling/Waiting | <N> | <N or %> | <how many poll cycles? fire-and-forget?> |
-| TOTAL | <N> | <N or %> | |
+| Product active | <N> | see token diagnostics | <implementation + test> |
+| Validation | <N> | see token diagnostics | <validator wait / review> |
+| Fix/Repair | <N> | see token diagnostics | <mechanical or product repair> |
+| Routing/Waiting | <N> | see token diagnostics | <route + queue + idle time> |
+| TOTAL | <N> | gross <N> / fresh <N> / cached <N> / out <N> / <turns> turns | <gov overhead ratio / notable host-load effect> |
 
-If exact token counts are unavailable, use percentages of total estimated cost.
+### 14.2 Token Diagnostics
+
+| Metric | Value | Notes |
+|---|---|---|
+| Policy | <policy id> | diagnostic-only cost contract |
+| Enforcement mode | <DIAGNOSTIC_ONLY> | overrun does not block WP completion |
+| Budget status | <PASS/WARN/FAIL> | <summary> |
+| Ledger health | <status/severity> | <summary> |
+| Tokens in (gross) | <N> | includes cached replay |
+| Tokens in (fresh) | <N> | new-context spend proxy |
+| Tokens in (cached) | <N> | replay / compaction signal |
+| Tokens out | <N> | |
+| Turns | <N> | |
+| Token commands | <N> | |
+| Host stance | HEAVY_ASSUMED | timeout observations are telemetry, not workflow truth |
+
+### 14.3 Role Token Breakdown
+
+| Role | Commands | Turns | Gross In | Fresh In | Cached In | Out | Status |
+|---|---|---|---|---|---|---|---|
+| <ROLE> | <N> | <N> | <N> | <N> | <N> | <N> | <status> |
+| TOTAL | <N> | <N> | <N> | <N> | <N> | <N> | <status> |
 
 ## 15. Comparison Table (vs Previous WP)
 
 | Metric | Previous WP | This WP | Trend |
 |---|---|---|---|
-| Total lines changed | <N> | <N> | |
+| Workflow lane | <lane> | <lane> | |
+| Wall clock (min) | <N> | <N> | |
 | Microtask count | <N> | <N> | |
-| Compile errors (first pass) | <N> | <N> | |
-| Validator findings | <N> | <N> | |
 | Fix cycles | <N> | <N> | |
-| Stubs discovered | <N> | <N> | |
-| Governed receipts created | <N> | <N> | |
-| Broker dispatch failures | <N> | <N> | |
-| Stale terminals remaining | <N> | <N> | |
-| Time to close (hours) | <N> | <N> | |
+| Governed receipts | <N> | <N> | |
+| ACP commands | <N> | <N> | |
+| Session restarts | <N> | <N> | |
+| Tokens in (gross) | <N> | <N> | |
+| Tokens in (fresh) | <N> | <N> | |
+| Tokens in (cached) | <N> | <N> | |
+| Tokens out | <N> | <N> | |
+| Turns | <N> | <N> | |
+| Token commands | <N> | <N> | |
+| Budget status | <status> | <status> | |
+| Ledger health | <status> | <status> | |
 
 ## 16. Remaining Product or Spec Debt
 

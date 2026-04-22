@@ -1,6 +1,6 @@
 ﻿# Handshake - Role Startup Prompts (Launcher)
 
-Thin launcher only. Run the role startup command first. If this file conflicts with startup output or protocol, startup and protocol win.
+Thin launcher only. This file lives under `.GOV/operator/docs_local/` and is a staging/operator convenience sheet, not canonical law. Run the role startup command first. If this file conflicts with startup output or protocol, startup and protocol win.
 
 ## Topology (This Machine)
 
@@ -65,8 +65,10 @@ FOCUS: workflow authority, launch roles via ACP, mechanical governance (phase-ch
 LANE_BOUNDARY: this role is `ORCHESTRATOR_MANAGED` only. If the operator deliberately chooses `MANUAL_RELAY`, stop and switch to the `CLASSIC_ORCHESTRATOR` startup prompt instead of continuing under this role.
 MECHANICAL_GOVERNANCE: run all deterministic checks (phase-check, closeout-repair, validator-gate ops) via direct just/node calls, never via ACP SEND_PROMPT. ACP is reserved for coder implementation, WP Validator per-MT review, and Integration Validator spec judgment only.
 CLOSEOUT_PREP: before launching Integration Validator, run `just closeout-repair WP-{ID}` then `just phase-check CLOSEOUT WP-{ID}`. Do NOT launch IntVal with broken mechanical truth. If both fail: one manual remediation attempt, then escalate to Operator.
+CLOSEOUT_AUTHORITY: once an authoritative validator verdict exists, only product-correctness blockers may block product outcome. Route projections, dossier lag, repomem/provenance gaps, and terminal non-PASS active-topology artifact-hygiene drift are settlement debt to repair, not reasons to reopen product judgment by themselves.
+HOST_LOAD_STANCE: assume the host PC is under heavy load at all times. Shell/plugin timeouts are advisory unless receipts, runtime truth, or session ledgers confirm a real failure.
 REMINDER: use `just orchestrator-next` to inspect or resume, `just orchestrator-steer-next` to re-wake governed lanes, and `just orchestrator-prepare-and-packet` only after signature and role-model profiles are recorded.
-WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the live Workflow Dossier under `.GOV/Audits/smoketest/` current during the run. Update `LIVE_EXECUTION_LOG`, `LIVE_IDLE_LEDGER`, `LIVE_GOVERNANCE_CHANGE_LOG`, `LIVE_CONCERNS_LOG`, and `LIVE_FINDINGS_LOG` as work progresses. Telemetry (metrics, idle-ledger) is mechanical; rubric scores are orchestrator judgment at closeout — operator cross-checks both.
+WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the Workflow Dossier under `.GOV/Audits/smoketest/` mechanically current. Prefer structured sync ledgers and sparse governance-change/finding entries; do not spend tokens on mid-run narrative prose. Telemetry (metrics, idle-ledger, token cost) is mechanical and diagnostic-only; rubric scores are orchestrator judgment at closeout — operator cross-checks both.
 WORKTREE: operate from `wt-gov-kernel` on branch `gov_kernel`.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --role ORCHESTRATOR`. These are auto-surfaced before future actions via memory-recall.
 ```
@@ -159,6 +161,7 @@ FLOW: run `just integration-validator-context-brief WP-{ID}` -> read master spec
 V4_RULE: for new medium/high-risk packets, closure is not PASS-ready without explicit `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS`.
 REMINDER: you own final merge authority. Clean ../Handshake_Artifacts/ before push [CX-212E].
 ARTIFACTS: repo-local `target/` is invalid; prefer `just artifact-hygiene-check` and `just artifact-cleanup` over manual cleanup.
+CLOSEOUT_AUTHORITY: use the closeout surfaces that report `product_outcome_blockers` and `governance_debt`. Only correctness blockers may withhold product outcome once your verdict of record exists. After a real non-PASS terminal sync, preserve that verdict and report remaining governance debt instead of rerunning whole-WP judgment unless the debt proves a correctness failure.
 ROOT FILES: if `AGENTS.md` or the root `justfile` must change, edit and commit them on `handshake_main` only.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --scope "<file(s)>" --wp WP-{ID} --role INTEGRATION_VALIDATOR`. These are auto-surfaced to future sessions via memory-recall.
 ```
@@ -511,7 +514,7 @@ just sync-gov-to-main
   - Orchestrator may run it only when explicitly instructed by the Operator
 just gov-flush
   - governed repo-governance publish path; preflights artifact-root drift before any push path and then runs memory hygiene, artifact cleanup, and backup snapshotting
-just closeout-repair WP-{ID} [--dry-run] [--debug]  - mechanical closeout pre-repair (run before IntVal launch)
+just closeout-repair WP-{ID} [--dry-run] [--debug]  - mechanical closeout pre-repair (run before IntVal launch); classifies `product_outcome_blockers` vs `governance_debt`
 just gov-check
 just canonise-gov                          - audit protocol/doc consistency after governance refactors
 just artifact-hygiene-check
@@ -544,6 +547,8 @@ just phase-check CLOSEOUT WP-{ID} --sync-mode <MERGE_PENDING|CONTAINED_IN_MAIN|F
 just integration-validator-context-brief WP-{ID}
 just external-validator-brief WP-{ID}
 ```
+
+Closeout readers now surface `product_outcome_blockers` separately from `governance_debt`. Use that split before deciding whether a lane needs new judgment or only settlement repair.
 
 ### Shortest Practical Set
 
@@ -582,6 +587,9 @@ Post-signature / resume rules:
 **Phase 8: Closeout**
 16. `just wp-timeline WP-{ID}`
 17. `just gov-check`
+
+Terminal non-PASS reminder:
+- If Integration Validator already wrote real `FAIL`, `OUTDATED_ONLY`, or `ABANDONED` truth and closeout surfaces show only `governance_debt`, preserve the verdict of record and repair the named settlement debt. Do not burn a new validation loop just to make support surfaces agree.
 
 Manual relay shortcut:
 
