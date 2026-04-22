@@ -48,6 +48,7 @@ import {
   openGovernanceMemoryDb,
   closeDb,
 } from "../memory/governance-memory-lib.mjs";
+import { evaluateWpRepomemCoverage } from "../memory/repomem-coverage-lib.mjs";
 import { readWpTokenUsageLedger } from "../session/wp-token-usage-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
 
@@ -372,6 +373,16 @@ function runSync(rootDir, options) {
   const { results } = loadSessionControlResults(rootDir);
   const controlRequests = requests.filter((entry) => String(entry.wp_id || "").trim() === options.wpId);
   const controlResults = results.filter((entry) => String(entry.wp_id || "").trim() === options.wpId);
+  const repomemCoverage = evaluateWpRepomemCoverage({
+    repoRoot: rootDir,
+    wpId: options.wpId,
+    packetContent: packetText,
+    receipts,
+    threadEntries,
+    sessions,
+    controlRequests,
+    controlResults,
+  });
   const brokerSummary = readBrokerState(rootDir);
   const latestControlResult = controlResults.at(-1) || {};
   const latestReceipt = receipts.at(-1) || {};
@@ -446,6 +457,9 @@ function runSync(rootDir, options) {
     `verdict_of_record=${verdictSettlement.verdictOfRecord || "UNKNOWN"}`,
     `settlement=${verdictSettlement.settlementState}`,
     `settlement_blockers=${verdictSettlement.settlementBlockers.join(",") || "none"}`,
+    `repomem=${repomemCoverage.state}`,
+    `repomem_roles=${repomemCoverage.active_roles.join(",") || "none"}`,
+    `repomem_debt=${repomemCoverage.debt_keys.join(",") || "none"}`,
     `interrupt_budget=${workerInterruptBudget ? `${workerInterruptBudget.currentCycle}/${workerInterruptBudget.maxCycle}` : "NONE"}`,
     `idle=${formatIdleMinutes(latestMechanicalEvent)}m`,
   ].join(" | ");
@@ -464,13 +478,16 @@ function runSync(rootDir, options) {
   const role = String(options.role || "ORCHESTRATOR").trim().toUpperCase();
   const tag = String(options.tag || "ACP_SYNC").trim().toUpperCase() || "ACP_SYNC";
   const surface = String(options.surface || "MECHANICAL").trim() || "MECHANICAL";
+  const executionPayload = `[${role}] [${tag}] [${surface}] \`${flowGraph}\` | ${syncSummary}`;
+  const idlePayload = `[${role}] [IDLE_LEDGER] [${surface}] \`${options.wpId}\` | ${idleSummary}`;
 
   const dossierPath = appendWorkflowDossierEntry({
     repoRoot: rootDir,
     wpId: options.wpId,
     filePath: options.file,
     section: "EXECUTION",
-    line: `- [${timestamp}] [${role}] [${tag}] [${surface}] \`${flowGraph}\` | ${syncSummary}`,
+    line: `- [${timestamp}] ${executionPayload}`,
+    dedupeSuffix: executionPayload,
   });
   if (!dossierPath) {
     fail(`No open workflow dossier found for ${options.wpId}. Run \`just workflow-dossier-init ${options.wpId}\` first or pass --file.`);
@@ -480,7 +497,8 @@ function runSync(rootDir, options) {
     wpId: options.wpId,
     filePath: options.file,
     section: "IDLE",
-    line: `- [${timestamp}] [${role}] [IDLE_LEDGER] [${surface}] \`${options.wpId}\` | ${idleSummary}`,
+    line: `- [${timestamp}] ${idlePayload}`,
+    dedupeSuffix: idlePayload,
   });
   // RGF-196: piggyback repomem injection on every sync so dossier stays current.
   try {

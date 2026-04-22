@@ -18,6 +18,7 @@ import {
   buildSessionControlRequest,
   buildStartupPrompt,
   defaultSessionOutputFile,
+  isAcceptedSessionControlOutcomeState,
   resolveRoleConfig,
   resolveRoleLaunchSelection,
   assertRoleLaunchProfileSupported,
@@ -803,16 +804,17 @@ const outcomeState = String(
   response.outcome_state
   || classifyResponseOutcome({ settledCommandKind: commandKind, response, refreshedSession }),
 ).trim().toUpperCase() || "FAILED";
+const responseStatus = String(response.status || "").trim().toLowerCase();
 
-if (String(response.status || "").toLowerCase() !== "completed") {
-  if (
-    commandKind === "SEND_PROMPT"
-    && String(response.status || "").toLowerCase() === "queued"
-    && outcomeState === "ACCEPTED_PENDING"
-  ) {
+if (responseStatus !== "completed") {
+  if (["queued", "running"].includes(responseStatus) && isAcceptedSessionControlOutcomeState(outcomeState)) {
     const detail = response.error
       || response.last_agent_message
-      || `Queued ${session.session_key} behind active run ${response.blocking_run_id || "<unknown>"}.`;
+      || (
+        responseStatus === "queued"
+          ? `Queued ${session.session_key} behind active run ${response.blocking_run_id || "<unknown>"}.`
+          : `ACP accepted ${request.command_id} for ${session.session_key}; the governed run is now active.`
+      );
     emitSessionOutcomeLines({
       requestCommandId: request.command_id,
       sessionKey: session.session_key,
@@ -829,7 +831,7 @@ if (String(response.status || "").toLowerCase() !== "completed") {
       commandKind,
       settledRole: role,
       targetWpId: wpId,
-      status: "QUEUED",
+      status: responseStatus.toUpperCase(),
       outcomeState,
       threadId: refreshedSession.session_thread_id || response.thread_id || "",
       outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file || "",

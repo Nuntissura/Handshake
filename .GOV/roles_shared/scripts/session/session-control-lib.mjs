@@ -917,7 +917,7 @@ export function buildStartupPrompt({
       `FOCUS: validate evidence in the assigned WP worktree, not intent. You own final technical verdict and merge-to-main authority.`,
       `GOVERNANCE ROOT (HARD): even though you operate from handshake_main on branch main, live governance authority must resolve through ${GOV_ROOT_ENV_VAR} to wt-gov-kernel/.GOV. Do not use handshake_main/.GOV as the live source of truth for orchestrator-managed work.`,
       `KERNEL GOVERNANCE USAGE (MANDATORY): Do not manually grep, browse, or rebuild authority from handshake_main/.GOV. Use \`just integration-validator-context-brief ${wpId}\`, \`just active-lane-brief INTEGRATION_VALIDATOR ${wpId}\`, and commands that resolve governance through ${GOV_ROOT_ENV_VAR}.`,
-      `FINAL-LANE STARTUP ORDER (HARD): Before any repo search, packet rediscovery, or broad .GOV inspection, complete \`just validator-startup\` -> \`just validator-next ${wpId}\` -> \`just integration-validator-context-brief ${wpId}\`, then treat the emitted \`packet_read_path\` and \`prepare_worktree_dir\` as the authoritative readable pointers.`,
+      `FINAL-LANE STARTUP ORDER (HARD): Before any repo search, packet rediscovery, or broad .GOV inspection, complete \`${roleStartupCommand("INTEGRATION_VALIDATOR")}\` -> \`${roleNextCommand("INTEGRATION_VALIDATOR", wpId)}\` -> \`just integration-validator-context-brief ${wpId}\`, then treat the emitted \`packet_read_path\` and \`prepare_worktree_dir\` as the authoritative readable pointers.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
       `VERDICT COMMUNICATION (MANDATORY): The Integration Validator does NOT communicate directly with the Coder. Judge the complete work product against the master spec independently. On PASS: write verdict in packet, run validator-gate-append/commit, update task board, merge to main, run sync-gov-to-main. On FAIL: write a structured remediation report in the packet with specific fix instructions, then report to the Orchestrator via \`just wp-receipt-append ${wpId} INTEGRATION_VALIDATOR <your-session> STATUS "<FAIL summary with remediation instructions given>"\`. The Orchestrator handles relaunching the coder with remediation context. See .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md for the full FAIL remediation flow.`,
@@ -1273,9 +1273,8 @@ export function classifySessionControlOutcomeState({
   const CANCEL_STATUS = String(cancelStatus || "").trim().toUpperCase();
   const detail = `${String(error || "").trim()} ${String(summary || "").trim()}`.trim();
 
-  if (STATUS === "QUEUED" || STATUS === "RUNNING") {
-    return "ACCEPTED_PENDING";
-  }
+  if (STATUS === "RUNNING") return "ACCEPTED_RUNNING";
+  if (STATUS === "QUEUED") return "ACCEPTED_QUEUED";
   if (STATUS === "COMPLETED") {
     if (COMMAND_KIND === "START_SESSION" && /already has steerable thread|already ready/i.test(detail)) {
       return "ALREADY_READY";
@@ -1306,6 +1305,13 @@ export function classifySessionControlOutcomeState({
     return "REQUIRES_RECOVERY";
   }
   return "FAILED";
+}
+
+export function isAcceptedSessionControlOutcomeState(outcomeState = "") {
+  const normalized = String(outcomeState || "").trim().toUpperCase();
+  return normalized === "ACCEPTED_RUNNING"
+    || normalized === "ACCEPTED_QUEUED"
+    || normalized === "ACCEPTED_PENDING";
 }
 
 export function defaultSessionOutputFile(repoRoot, sessionKey, commandId) {

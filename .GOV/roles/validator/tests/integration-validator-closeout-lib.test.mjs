@@ -17,6 +17,35 @@ import {
   summarizeCloseoutSyncGovernance,
 } from "../scripts/lib/integration-validator-closeout-lib.mjs";
 
+function repomemCoverageFixture({
+  state = "PASS",
+  activeRoles = ["INTEGRATION_VALIDATOR"],
+  debtRoles = [],
+  debtKeys = [],
+} = {}) {
+  return {
+    state,
+    active_roles: activeRoles,
+    debt_roles: debtRoles,
+    debt_keys: debtKeys,
+    role_details: activeRoles.map((role) => ({
+      role,
+      status: debtRoles.includes(role) ? "DEBT" : "PASS",
+      activity_sources: ["session_registry"],
+      qualifying_session_ids: debtRoles.includes(role) ? [] : [`${role}-20260401-120000`],
+      debt_keys: debtKeys
+        .filter((entry) => entry.startsWith(`${role}:`))
+        .map((entry) => entry.split(":")[1]),
+    })),
+    summary: [
+      `state=${state}`,
+      `active_roles=${activeRoles.join(",") || "none"}`,
+      `debt_roles=${debtRoles.join(",") || "none"}`,
+      `debt_keys=${debtKeys.join(",") || "none"}`,
+    ].join(" | "),
+  };
+}
+
 function writeFile(targetPath, content) {
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.writeFileSync(targetPath, content, "utf8");
@@ -423,6 +452,7 @@ test("integration-validator closeout state combines topology and WP-scoped close
     brokerState: { active_runs: [] },
     worktreeExists: () => true,
     fileExists: () => true,
+    repomemCoverage: repomemCoverageFixture(),
     gitRunner: (args) => {
       if (args[0] === "rev-parse") return { code: 0, output: "0123456789abcdef0123456789abcdef01234567" };
       if (args[0] === "merge-base" && args[1] === "--is-ancestor") return { code: 1, output: "" };
@@ -438,6 +468,7 @@ test("integration-validator closeout state combines topology and WP-scoped close
   assert.equal(evaluation.dependencyView.ok, true);
   assert.equal(evaluation.dependencyView.publication.closeout_mode, "MERGE_PENDING");
   assert.equal(evaluation.dependencyView.dependencies.scope_compatibility.status, "PASS");
+  assert.equal(evaluation.dependencyView.dependencies.repomem_coverage.status, "PASS");
 });
 
 test("integration-validator closeout state passes with a self-owned active final-lane broker run", () => {
@@ -482,6 +513,7 @@ test("integration-validator closeout state passes with a self-owned active final
     },
     worktreeExists: () => true,
     fileExists: () => true,
+    repomemCoverage: repomemCoverageFixture(),
     gitRunner: (args) => {
       if (args[0] === "rev-parse") return { code: 0, output: "0123456789abcdef0123456789abcdef01234567" };
       if (args[0] === "merge-base" && args[1] === "--is-ancestor") return { code: 1, output: "" };
@@ -514,6 +546,7 @@ test("integration-validator closeout state fails when signed scope compatibility
     brokerState: { active_runs: [] },
     worktreeExists: () => true,
     fileExists: () => true,
+    repomemCoverage: repomemCoverageFixture(),
     gitRunner: (args) => {
       if (args[0] === "rev-parse") return { code: 0, output: "89abcdef0123456789abcdef0123456789abcdef" };
       if (args[0] === "merge-base") return { code: 0, output: "fedcba9876543210fedcba9876543210fedcba98" };
@@ -544,6 +577,7 @@ test("integration-validator closeout state can refresh stale recorded compatibil
     requireRecordedScopeCompatibility: false,
     worktreeExists: () => true,
     fileExists: () => true,
+    repomemCoverage: repomemCoverageFixture(),
     gitRunner: (args) => {
       if (args[0] === "rev-parse") return { code: 0, output: "89abcdef0123456789abcdef0123456789abcdef" };
       if (args[0] === "merge-base" && args[1] === "--is-ancestor") return { code: 1, output: "" };
@@ -589,6 +623,12 @@ test("integration-validator closeout state fails when the committed target diff 
     brokerState: { active_runs: [] },
     worktreeExists: () => true,
     fileExists: () => true,
+    repomemCoverage: repomemCoverageFixture({
+      state: "DEBT",
+      activeRoles: ["ORCHESTRATOR", "INTEGRATION_VALIDATOR"],
+      debtRoles: ["ORCHESTRATOR"],
+      debtKeys: ["ORCHESTRATOR:NO_WP_DURABLE_CHECKPOINT"],
+    }),
     gitRunner: (args) => {
       if (args[0] === "rev-parse") return { code: 0, output: "0123456789abcdef0123456789abcdef01234567" };
       if (args[0] === "merge-base" && args[1] === "--is-ancestor") return { code: 1, output: "" };
@@ -600,6 +640,7 @@ test("integration-validator closeout state fails when the committed target diff 
 
   assert.equal(evaluation.ok, false);
   assert.match(evaluation.issues.join("\n"), /candidate target diff does not match the signed patch artifact/i);
+  assert.equal(evaluation.dependencyView.dependencies.repomem_coverage.status, "DEBT");
 });
 
 test("deriveFinalLaneGovernanceInvalidity classifies kernel-side final-lane misuse as a role-boundary breach", () => {

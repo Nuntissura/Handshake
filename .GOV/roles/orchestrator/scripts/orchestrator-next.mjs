@@ -339,7 +339,30 @@ export function isTerminalOrchestratorBoardStatus(status = "") {
   return TERMINAL_ORCHESTRATOR_BOARD_STATUSES.has(String(status || "").trim().toUpperCase());
 }
 
-function closeoutSyncCommandForProjection(wpId, projection = {}, runtimeStatus = {}, communicationEvaluation = null) {
+export function publicationTaskBoardHistoryStatus(status = "") {
+  switch (String(status || "").trim().toUpperCase()) {
+    case "DONE_VALIDATED":
+      return "VALIDATED";
+    case "DONE_MERGE_PENDING":
+      return "MERGE_PENDING";
+    case "DONE_FAIL":
+      return "FAIL";
+    case "DONE_OUTDATED_ONLY":
+      return "OUTDATED_ONLY";
+    case "DONE_ABANDONED":
+      return "ABANDONED";
+    default:
+      return String(status || "").trim().toUpperCase();
+  }
+}
+
+export function closeoutSyncCommandForProjection(
+  wpId,
+  projection = {},
+  runtimeStatus = {},
+  communicationEvaluation = null,
+  currentBoardStatus = "",
+) {
   const publication = readExecutionPublicationView({
     runtimeStatus,
     packetStatus: projection.current_packet_status,
@@ -356,6 +379,11 @@ function closeoutSyncCommandForProjection(wpId, projection = {}, runtimeStatus =
         ? " --merged-main-sha <MERGED_MAIN_SHA>"
         : "";
       return `just phase-check CLOSEOUT ${wpId} --sync-mode ${closeoutMode.mode}${mergedMainShaSegment} --context "<why this closeout truth is being recorded, >=40 chars>"`;
+    }
+    const currentBoardToken = publicationTaskBoardHistoryStatus(currentBoardStatus);
+    const targetBoardToken = publicationTaskBoardHistoryStatus(closeoutMode.task_board_status);
+    if (currentBoardToken && targetBoardToken && currentBoardToken === targetBoardToken) {
+      return "";
     }
     return `just task-board-set ${wpId} ${closeoutMode.task_board_status}`;
   }
@@ -866,6 +894,7 @@ function main() {
         packetRuntimeState.drift.projection,
         packetRuntimeState.runtimeStatus,
         packetRuntimeState.communicationEvaluation,
+        boardStatus,
       ),
       `just orchestrator-next ${wpId}`,
     ]);
@@ -972,6 +1001,7 @@ function main() {
           packetRuntimeState?.drift?.projection || {},
           packetRuntimeState?.runtimeStatus || {},
           packetRuntimeState?.communicationEvaluation,
+          boardStatus,
         )
         : null,
       `just session-registry-status ${wpId}`,

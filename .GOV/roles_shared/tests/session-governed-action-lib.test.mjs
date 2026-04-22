@@ -71,15 +71,23 @@ test("integration-validator closeout sync uses a registry-backed external-execut
   assert.deepEqual(validateGovernedActionResultShape(action), []);
 });
 
-test("governed action classifiers expose pending, retry, and settled external execution semantics", () => {
+test("governed action classifiers expose accepted queued/running, retry, and settled external execution semantics", () => {
   assert.equal(classifyGovernedActionResultState({
     actionKind: "EXTERNAL_EXECUTE",
     status: "RUNNING",
-  }), "ACCEPTED_PENDING");
+  }), "ACCEPTED_RUNNING");
+  assert.equal(classifyGovernedActionResultState({
+    actionKind: "EXTERNAL_EXECUTE",
+    status: "QUEUED",
+  }), "ACCEPTED_QUEUED");
   assert.equal(classifyGovernedActionResumeDisposition({
     actionKind: "RETRY",
     resultState: "SETTLED",
   }), "RETRY_ALLOWED");
+  assert.equal(classifyGovernedActionResumeDisposition({
+    actionKind: "EXTERNAL_EXECUTE",
+    resultState: "ACCEPTED_RUNNING",
+  }), "PENDING");
   assert.equal(classifyGovernedActionResumeDisposition({
     actionKind: "EXTERNAL_EXECUTE",
     resultState: "SETTLED",

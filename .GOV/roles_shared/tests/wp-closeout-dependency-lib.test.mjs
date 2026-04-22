@@ -86,6 +86,13 @@ test("closeout dependency view collapses required closeout truth onto explicit d
         updated_at: "2026-04-20T10:05:01Z",
       },
     },
+    repomemCoverage: {
+      state: "PASS",
+      active_roles: ["ORCHESTRATOR", "INTEGRATION_VALIDATOR"],
+      debt_roles: [],
+      debt_keys: [],
+      summary: "state=PASS | active_roles=ORCHESTRATOR,INTEGRATION_VALIDATOR | debt_roles=none | debt_keys=none",
+    },
   });
 
   assert.equal(view.ok, true);
@@ -95,6 +102,7 @@ test("closeout dependency view collapses required closeout truth onto explicit d
   assert.equal(view.dependencies.scope_compatibility.status, "PASS");
   assert.equal(view.dependencies.candidate_target.status, "PASS");
   assert.equal(view.dependencies.sync_provenance.status, "RECORDED");
+  assert.equal(view.dependencies.repomem_coverage.status, "PASS");
   assert.deepEqual(view.blocking_keys, []);
 });
 
@@ -197,4 +205,58 @@ test("closeout dependency view keeps verdict-of-record visible while terminal pu
   assert.equal(view.publication.verdict_actor_session, "integration-validator-final");
   assert.equal(view.settlement.state, "SETTLEMENT_DEBT");
   assert.deepEqual(view.settlement.blockers, ["TERMINAL_PUBLICATION_PENDING"]);
+});
+
+test("closeout dependency view surfaces repomem coverage debt without turning it into a blocking dependency", () => {
+  const view = buildCloseoutDependencyView({
+    packetContent: packet("Done"),
+    runtimeStatus: {
+      current_packet_status: "Done",
+      current_task_board_status: "DONE_MERGE_PENDING",
+      main_containment_status: "MERGE_PENDING",
+    },
+    closeoutRequirements: {
+      requireReadyForPass: true,
+      requireRecordedScopeCompatibility: true,
+      terminalNonPass: false,
+    },
+    topology: {
+      ok: true,
+      resolvedWorktreeAbs: "../handshake_main",
+      targetHeadSha: "abc123",
+      currentMainHeadSha: "def456",
+    },
+    closeoutBundle: {
+      ok: true,
+      summary: {
+        request_count: 1,
+        result_count: 1,
+        session_count: 1,
+        active_run_count: 0,
+      },
+    },
+    scopeCompatibility: {
+      parsed: {
+        currentMainCompatibilityStatus: "COMPATIBLE",
+        currentMainCompatibilityBaselineSha: "0123456789abcdef0123456789abcdef01234567",
+        currentMainCompatibilityVerifiedAtUtc: "2026-04-20T10:00:00Z",
+      },
+      errors: [],
+    },
+    candidateSignedScope: {
+      errors: [],
+    },
+    repomemCoverage: {
+      state: "DEBT",
+      active_roles: ["CODER"],
+      debt_roles: ["CODER"],
+      debt_keys: ["CODER:NO_SESSION_CLOSE"],
+      summary: "state=DEBT | active_roles=CODER | debt_roles=CODER | debt_keys=CODER:NO_SESSION_CLOSE",
+    },
+  });
+
+  assert.equal(view.ok, true);
+  assert.equal(view.dependencies.repomem_coverage.status, "DEBT");
+  assert.match(view.dependencies.repomem_coverage.summary, /CODER:NO_SESSION_CLOSE/);
+  assert.deepEqual(view.blocking_keys, []);
 });

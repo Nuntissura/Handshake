@@ -35,6 +35,46 @@ function dependencyEntry({
   };
 }
 
+function normalizeRepomemCoverage(repomemCoverage = null) {
+  const state = normalizeText(repomemCoverage?.state, "UNASSESSED");
+  const activeRoles = Array.isArray(repomemCoverage?.active_roles) ? repomemCoverage.active_roles : [];
+  const debtRoles = Array.isArray(repomemCoverage?.debt_roles) ? repomemCoverage.debt_roles : [];
+  const debtKeys = Array.isArray(repomemCoverage?.debt_keys) ? repomemCoverage.debt_keys : [];
+  if (repomemCoverage?.summary) {
+    return {
+      state,
+      dependencyStatus: state === "NO_ACTIVE_ROLES" ? "NO_ACTIVITY" : state,
+      summary: repomemCoverage.summary,
+    };
+  }
+  if (state === "NO_ACTIVE_ROLES") {
+    return {
+      state,
+      dependencyStatus: "NO_ACTIVITY",
+      summary: "No materially active roles were detected for this WP.",
+    };
+  }
+  if (state === "PASS") {
+    return {
+      state,
+      dependencyStatus: "PASS",
+      summary: `state=PASS | active_roles=${activeRoles.join(",") || "none"} | debt_keys=none`,
+    };
+  }
+  if (state === "DEBT") {
+    return {
+      state,
+      dependencyStatus: "DEBT",
+      summary: `state=DEBT | active_roles=${activeRoles.join(",") || "none"} | debt_roles=${debtRoles.join(",") || "none"} | debt_keys=${debtKeys.join(",") || "none"}`,
+    };
+  }
+  return {
+    state,
+    dependencyStatus: "UNASSESSED",
+    summary: "Repomem coverage was not assessed for this closeout view.",
+  };
+}
+
 export function buildCloseoutDependencyView({
   packetContent = "",
   runtimeStatus = {},
@@ -45,6 +85,7 @@ export function buildCloseoutDependencyView({
   scopeCompatibility = {},
   candidateSignedScope = {},
   closeoutSyncGovernance = {},
+  repomemCoverage = null,
 } = {}) {
   const packetStatusArtifact = parsePacketStatus(packetContent);
   const publication = readExecutionPublicationView({
@@ -63,6 +104,7 @@ export function buildCloseoutDependencyView({
   const candidateErrors = Array.isArray(candidateSignedScope?.errors) ? candidateSignedScope.errors : [];
   const latestEvent = closeoutSyncGovernance?.latestEvent || null;
   const latestGovernedAction = closeoutSyncGovernance?.latestGovernedAction || null;
+  const normalizedRepomemCoverage = normalizeRepomemCoverage(repomemCoverage);
 
   const dependencies = {
     topology: dependencyEntry({
@@ -128,6 +170,12 @@ export function buildCloseoutDependencyView({
           ].join(" | ")
         : "No governed closeout sync provenance is recorded yet.",
     }),
+    repomem_coverage: dependencyEntry({
+      key: "repomem_coverage",
+      required: false,
+      status: normalizedRepomemCoverage.dependencyStatus,
+      summary: normalizedRepomemCoverage.summary,
+    }),
   };
 
   const blockingKeys = Object.values(dependencies)
@@ -188,6 +236,7 @@ export function buildCloseoutDependencyView({
       `verdict=${normalizeText(validationVerdict, "UNKNOWN")}`,
       `settlement=${normalizeText(verdictSettlement.settlementState, "VERDICT_PENDING")}`,
       `blockers=${settlementBlockers.length > 0 ? settlementBlockers.join(",") : "none"}`,
+      `repomem=${dependencies.repomem_coverage.status}`,
     ].join(" | "),
   };
 }

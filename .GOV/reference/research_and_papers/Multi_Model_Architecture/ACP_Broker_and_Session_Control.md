@@ -125,9 +125,11 @@ The current runtime model is more explicit than the old narrative orchestration 
 - outcome states:
   - `NONE`
   - `SETTLED`
+  - `ACCEPTED_RUNNING`
+  - `ACCEPTED_QUEUED`
   - `ALREADY_READY`
   - `BUSY_ACTIVE_RUN`
-  - `ACCEPTED_PENDING`
+  - `ACCEPTED_PENDING` (legacy pre-split accepted state)
   - `REQUIRES_START`
   - `REQUIRES_RECOVERY`
   - `FAILED`

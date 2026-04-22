@@ -236,6 +236,19 @@ function hasCloseoutSyncFlags(args = []) {
   return (args || []).some((value) => CLOSEOUT_SYNC_FLAG_SET.has(String(value || "").trim()));
 }
 
+function consumeFlagValueParts(tokens = [], startIndex = 0) {
+  const valueParts = [];
+  let index = startIndex;
+  while (index + 1 < tokens.length && !String(tokens[index + 1] || "").trim().startsWith("--")) {
+    index += 1;
+    valueParts.push(String(tokens[index] || ""));
+  }
+  return {
+    value: valueParts.join(" ").trim(),
+    nextIndex: index,
+  };
+}
+
 export function parseCloseoutSyncOptions(args = []) {
   const tokens = Array.isArray(args) ? args.map((value) => String(value || "")).filter((value) => value !== "") : [];
   let rawMode = "";
@@ -250,14 +263,14 @@ export function parseCloseoutSyncOptions(args = []) {
       continue;
     }
     if (token === "--sync-mode" || token === "--context" || token === "--merged-main-sha") {
-      const nextValue = String(tokens[index + 1] || "");
-      if (!nextValue || String(nextValue).trim().startsWith("--")) {
+      const consumed = consumeFlagValueParts(tokens, index);
+      if (!consumed.value) {
         throw new Error(`${token} requires a value`);
       }
-      if (token === "--sync-mode") rawMode = nextValue;
-      if (token === "--context") context = nextValue;
-      if (token === "--merged-main-sha") mergedMainSha = nextValue;
-      index += 1;
+      if (token === "--sync-mode") rawMode = consumed.value;
+      if (token === "--context") context = consumed.value;
+      if (token === "--merged-main-sha") mergedMainSha = consumed.value;
+      index = consumed.nextIndex;
       continue;
     }
   }

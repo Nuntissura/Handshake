@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   closeoutModeFromPacketStatus,
+  closeoutSyncCommandForProjection,
   findActiveTokenBudgetContinuationWaiver,
   isTerminalOrchestratorBoardStatus,
   latestOrchestratorAcpHealthAlert,
@@ -20,6 +21,78 @@ test("orchestrator-next maps packet closeout states to the correct task-board cl
   assert.equal(closeoutModeFromPacketStatus("Validated (OUTDATED_ONLY)"), "DONE_OUTDATED_ONLY");
   assert.equal(closeoutModeFromPacketStatus("Validated (ABANDONED)"), "DONE_ABANDONED");
   assert.equal(closeoutModeFromPacketStatus("In Progress"), "");
+});
+
+test("orchestrator-next suppresses duplicate task-board closeout publication when board history is already current", () => {
+  const command = closeoutSyncCommandForProjection(
+    "WP-TEST",
+    {
+      current_packet_status: "Validated (PASS)",
+      current_task_board_status: "DONE_VALIDATED",
+    },
+    {
+      current_packet_status: "Validated (PASS)",
+      current_task_board_status: "DONE_VALIDATED",
+      runtime_status: "completed",
+      current_phase: "STATUS_SYNC",
+      main_containment_status: "CONTAINED_IN_MAIN",
+    },
+    null,
+    "VALIDATED",
+  );
+
+  assert.equal(command, "");
+});
+
+test("orchestrator-next still requests task-board publication when closeout truth is ready but board history lags", () => {
+  const command = closeoutSyncCommandForProjection(
+    "WP-TEST",
+    {
+      current_packet_status: "Validated (PASS)",
+      current_task_board_status: "DONE_VALIDATED",
+    },
+    {
+      current_packet_status: "Validated (PASS)",
+      current_task_board_status: "DONE_VALIDATED",
+      runtime_status: "completed",
+      current_phase: "STATUS_SYNC",
+      main_containment_status: "CONTAINED_IN_MAIN",
+    },
+    null,
+    "IN_PROGRESS",
+  );
+
+  assert.equal(command, "just task-board-set WP-TEST DONE_VALIDATED");
+});
+
+test("orchestrator-next prefers canonical closeout repair over duplicate board publication when packet truth drifts", () => {
+  const command = closeoutSyncCommandForProjection(
+    "WP-TEST",
+    {
+      current_packet_status: "Done",
+      current_task_board_status: "DONE_MERGE_PENDING",
+    },
+    {
+      current_packet_status: "Done",
+      current_task_board_status: "DONE_MERGE_PENDING",
+      main_containment_status: "MERGE_PENDING",
+      execution_state: {
+        authority: {
+          packet_status: "Validated (PASS)",
+          task_board_status: "DONE_VALIDATED",
+          runtime_status: "completed",
+          phase: "STATUS_SYNC",
+          main_containment_status: "CONTAINED_IN_MAIN",
+          route_anchor: {},
+          review_anchor: {},
+        },
+      },
+    },
+    null,
+    "VALIDATED",
+  );
+
+  assert.match(command, /^just phase-check CLOSEOUT WP-TEST --sync-mode CONTAINED_IN_MAIN /);
 });
 
 test("orchestrator-next treats abandoned task-board state as terminal orchestrator history", () => {

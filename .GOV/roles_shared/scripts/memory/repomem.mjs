@@ -40,6 +40,7 @@ import {
   checkSessionGate,
   VALID_CHECKPOINT_TYPES,
 } from "./governance-memory-lib.mjs";
+import { validateRepomemOpenContract } from "./repomem-open-contract-lib.mjs";
 
 // ---------------------------------------------------------------------------
 // Argument parsing — consumes all remaining text after a --flag as its value
@@ -140,8 +141,23 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "open");
-    const role = flags.role || "ORCHESTRATOR";
-    const wpId = flags.wp || "";
+    const roleFlagProvided = Object.prototype.hasOwnProperty.call(flags, "role");
+    let role = "ORCHESTRATOR";
+    let wpId = "";
+    try {
+      const validated = validateRepomemOpenContract({
+        providedRole: flags.role || "",
+        roleFlagProvided,
+        wpId: flags.wp || "",
+        environmentRole: process.env.HANDSHAKE_VALIDATOR_ROLE || "",
+      });
+      role = validated.role;
+      wpId = validated.wpId;
+    } catch (error) {
+      console.error(`REPOMEM_OPEN_INVALID: ${error?.message || String(error || "")}`);
+      console.error('Usage: repomem open "<what this session is about>" [--role ROLE] [--wp WP-ID]');
+      process.exit(1);
+    }
 
     // Close any stale session first
     const existingSession = getCurrentSession();

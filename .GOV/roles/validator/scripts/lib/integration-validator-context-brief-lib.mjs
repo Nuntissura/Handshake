@@ -93,6 +93,7 @@ export function buildIntegrationValidatorContextBrief({
   fileExists = fs.existsSync,
   declaredTopologyEvaluation = null,
   gateStatePath = "",
+  repomemCoverage = null,
 } = {}) {
   if (!String(wpId || "").trim()) {
     throw new Error("WP_ID is required for integration-validator context brief generation.");
@@ -160,6 +161,7 @@ export function buildIntegrationValidatorContextBrief({
     fileExists,
     requireReadyForPass: closeoutRequirements.requireReadyForPass,
     requireRecordedScopeCompatibility: closeoutRequirements.requireRecordedScopeCompatibility,
+    repomemCoverage,
   });
   const durableCommittedProof = committedEvidenceForCloseout(committedEvidence);
   const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
@@ -179,6 +181,7 @@ export function buildIntegrationValidatorContextBrief({
       latestEvent: latestCloseoutEvent,
       latestGovernedAction: latestCloseoutGovernedAction,
     },
+    repomemCoverage: closeoutEvaluation.repomemCoverage,
   });
 
   const contextStatus = !governanceState.allowValidationResume
@@ -349,7 +352,8 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- CLOSEOUT_REQUIREMENTS: require_ready_for_pass=${brief.closeout_requirements.require_ready_for_pass ? "YES" : "NO"} | require_recorded_scope_compatibility=${brief.closeout_requirements.require_recorded_scope_compatibility ? "YES" : "NO"} | terminal_non_pass_packet=${brief.closeout_requirements.terminal_non_pass_packet ? "YES" : "NO"}`,
     `- CLOSEOUT_PUBLICATION: mode=${brief.closeout_publication.closeout_mode} | verdict=${brief.closeout_publication.verdict_of_record} | containment=${brief.closeout_publication.main_containment_status} | canonical=${brief.closeout_publication.has_canonical_authority ? "YES" : "NO"}`,
     `- CLOSEOUT_SETTLEMENT: state=${brief.closeout_settlement.state} | blockers=${brief.closeout_settlement.blockers.join(",") || "none"} | terminal_publication_recorded=${brief.closeout_settlement.terminal_publication_recorded ? "YES" : "NO"}`,
-    `- CLOSEOUT_DEPENDENCIES: topology=${brief.closeout_dependencies.topology.status} | bundle=${brief.closeout_dependencies.closeout_bundle.status} | scope=${brief.closeout_dependencies.scope_compatibility.status} | candidate=${brief.closeout_dependencies.candidate_target.status} | provenance=${brief.closeout_dependencies.sync_provenance.status}`,
+    `- CLOSEOUT_DEPENDENCIES: topology=${brief.closeout_dependencies.topology.status} | bundle=${brief.closeout_dependencies.closeout_bundle.status} | scope=${brief.closeout_dependencies.scope_compatibility.status} | candidate=${brief.closeout_dependencies.candidate_target.status} | provenance=${brief.closeout_dependencies.sync_provenance.status} | repomem=${brief.closeout_dependencies.repomem_coverage.status}`,
+    `- REPOMEM_COVERAGE: ${brief.closeout_dependencies.repomem_coverage.summary}`,
     `- AUTHORITIES: technical=${brief.authority.technical_authority} | merge=${brief.authority.merge_authority} | integration_validator=${brief.authority.integration_validator_of_record} | wp_validator=${brief.authority.wp_validator_of_record}`,
     `- CANDIDATE_UNDER_REVIEW: branch=${brief.candidate_under_review.branch} | worktree=${brief.candidate_under_review.worktree_dir} | handoff_range=${brief.candidate_under_review.handoff_range} | handoff_range_source=${brief.candidate_under_review.handoff_range_source} | validator_policy_branch=${brief.candidate_under_review.validator_policy_branch}`,
     `- ACTOR_CONTEXT: role=${brief.actor_context.role} | source=${brief.actor_context.source} | session=${brief.actor_context.session_id} | thread=${brief.actor_context.thread_id} | branch=${brief.actor_context.branch}`,

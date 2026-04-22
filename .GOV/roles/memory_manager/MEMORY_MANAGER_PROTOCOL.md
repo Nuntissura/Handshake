@@ -132,7 +132,7 @@ Your job is to ensure the data that flows through this formula is clean, relevan
 16. **Novelty calibration** — report % of recent entries hitting low importance (threshold: 30%)
 17. **Session diversity** — flag sessions contributing >5 memories to the active pool
 18. **Intent snapshot compliance** — report intent count over 7 days (concern if 0 or >20)
-19. **Conversation checkpoint compliance** — report all 10 checkpoint type counts (OPEN/CLOSE/INSIGHT/DECISION/ERROR/ABANDON/CONCERN/ESCALATION/PRE_TASK/RESEARCH_CLOSE) for 7 days; flag unclosed sessions, zero insights, or zero decisions (roles should be recording choices)
+19. **Conversation checkpoint compliance** — report all 10 checkpoint type counts (OPEN/CLOSE/INSIGHT/DECISION/ERROR/ABANDON/CONCERN/ESCALATION/PRE_TASK/RESEARCH_CLOSE) for 7 days; flag unclosed sessions, zero insights, or zero decisions (roles should be recording choices), and surface recent per-WP repomem coverage debt when materially active roles lack OPEN/CLOSE/WP-durable proof
 20. **RGF candidate drafting** — cross-WP procedural patterns (3+ WPs) + high-access memories (10+ accesses) → draft governance improvement candidates
 
 ### Phase 4: Report
@@ -219,6 +219,10 @@ Write `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`:
 - Session diversity: <sessions with >5 memories in active pool>
 - Intent snapshot compliance: <count in last 7d> (<assessment>)
 - Conversation checkpoints (7d): OPEN=<N> CLOSE=<N> INSIGHT=<N> PRE_TASK=<N> RESEARCH_CLOSE=<N>
+- WP repomem coverage debt (7d): <N> recent WPs in debt
+
+## WP Repomem Coverage Debt
+- <WP-{ID}>: active_roles=<roles> | debt_keys=<ROLE:DEBT_KEY,...>
 
 ## RGF Candidates (for orchestrator review)
 - CANDIDATE: <title> — <evidence summary>

@@ -17,8 +17,19 @@ import {
   ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   ROLE_SESSION_PRIMARY_MODEL,
   resolveRoleModelProfileSelection,
+  roleNextCommand,
   roleModelProfile,
+  roleStartupCommand,
 } from "../scripts/session/session-policy.mjs";
+
+test("session policy binds validator startup and resume commands to explicit roles", () => {
+  assert.equal(roleStartupCommand("WP_VALIDATOR"), "just validator-startup WP_VALIDATOR");
+  assert.equal(roleStartupCommand("INTEGRATION_VALIDATOR"), "just validator-startup INTEGRATION_VALIDATOR");
+  assert.equal(roleStartupCommand("VALIDATOR"), "just validator-startup VALIDATOR");
+  assert.equal(roleNextCommand("WP_VALIDATOR", "WP-TEST-WPVAL-v1"), "just validator-next WP_VALIDATOR WP-TEST-WPVAL-v1");
+  assert.equal(roleNextCommand("INTEGRATION_VALIDATOR", "WP-TEST-VALIDATOR-v1"), "just validator-next INTEGRATION_VALIDATOR WP-TEST-VALIDATOR-v1");
+  assert.equal(roleNextCommand("VALIDATOR", ""), "just validator-next VALIDATOR");
+});
 
 test("coder startup prompt carries orchestrator-managed relapse guard and lane-aware flow", () => {
   const wpId = "WP-TEST-CODER-v1";
@@ -70,6 +81,8 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /Do not use handshake_main\/.GOV as the live source of truth/i);
   assert.match(prompt, /Do not manually grep, browse, or rebuild authority from handshake_main\/.GOV/i);
   assert.match(prompt, /FINAL-LANE STARTUP ORDER \(HARD\): Before any repo search, packet rediscovery, or broad \.GOV inspection/i);
+  assert.match(prompt, /1\. just validator-startup INTEGRATION_VALIDATOR/i);
+  assert.match(prompt, /2\. just validator-next INTEGRATION_VALIDATOR WP-TEST-VALIDATOR-v1/i);
   assert.match(prompt, /packet_read_path/i);
   assert.match(prompt, /ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature\/prepare/i);
   assert.match(prompt, /3\. just integration-validator-context-brief WP-TEST-VALIDATOR-v1/i);
@@ -94,6 +107,8 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
   assert.match(prompt, /judge bootstrap\/skeleton\/micro-task direction early/i);
   assert.match(prompt, /EARLY STEERING \(MANDATORY\): You own the governed bootstrap\/skeleton checkpoint/i);
   assert.match(prompt, /WORKTREE SYNC \(MANDATORY\): You share the coder `feat\/WP-TEST-WPVAL-v1` branch and `wtc-\*` worktree surface/i);
+  assert.match(prompt, /1\. just validator-startup WP_VALIDATOR/i);
+  assert.match(prompt, /2\. just validator-next WP_VALIDATOR WP-TEST-WPVAL-v1/i);
   assert.match(prompt, /just phase-check STARTUP WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
   assert.match(prompt, /\.GOV\/roles\/wp_validator\/WP_VALIDATOR_PROTOCOL\.md/i);
@@ -249,7 +264,15 @@ test("buildStartupInjectionLines returns no section when both sources are empty"
   assert.deepEqual(lines, []);
 });
 
-test("session-control outcome classifier distinguishes ready, busy, recovery, and missing-start cases", () => {
+test("session-control outcome classifier distinguishes accepted running, accepted queued, ready, busy, recovery, and missing-start cases", () => {
+  assert.equal(classifySessionControlOutcomeState({
+    status: "RUNNING",
+    commandKind: "SEND_PROMPT",
+  }), "ACCEPTED_RUNNING");
+  assert.equal(classifySessionControlOutcomeState({
+    status: "QUEUED",
+    commandKind: "SEND_PROMPT",
+  }), "ACCEPTED_QUEUED");
   assert.equal(classifySessionControlOutcomeState({
     status: "COMPLETED",
     commandKind: "START_SESSION",
@@ -303,7 +326,7 @@ test("steering prompt stays compact and codex-explicit", () => {
   assert.match(prompt, /just active-lane-brief INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
   assert.match(prompt, /Run in order:/i);
   assert.match(prompt, /just integration-validator-context-brief WP-TEST-STEER-v1/i);
-  assert.match(prompt, /just validator-next WP-TEST-STEER-v1/i);
+  assert.match(prompt, /just validator-next INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
   assert.match(prompt, /just check-notifications WP-TEST-STEER-v1 INTEGRATION_VALIDATOR <your-session>/i);
   assert.match(prompt, /Do not manually inspect handshake_main\/.GOV as authoritative context/i);
   assert.match(prompt, /FIRST READ RULE: before any repo-wide search or packet rediscovery/i);

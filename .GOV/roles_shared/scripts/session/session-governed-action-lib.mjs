@@ -14,6 +14,8 @@ export const GOVERNED_ACTION_KINDS = Object.freeze([
 ]);
 export const GOVERNED_ACTION_RESULT_STATES = Object.freeze([
   "REQUESTED",
+  "ACCEPTED_RUNNING",
+  "ACCEPTED_QUEUED",
   "ACCEPTED_PENDING",
   "SETTLED",
   "REJECTED",
@@ -266,7 +268,8 @@ export function classifyGovernedActionResultState({
 } = {}) {
   const normalizedActionKind = cleanString(actionKind).toUpperCase();
   const normalizedStatus = cleanString(status).toUpperCase();
-  if (normalizedStatus === "QUEUED" || normalizedStatus === "RUNNING") return "ACCEPTED_PENDING";
+  if (normalizedStatus === "RUNNING") return "ACCEPTED_RUNNING";
+  if (normalizedStatus === "QUEUED") return "ACCEPTED_QUEUED";
   if (normalizedStatus === "FAILED") return "FAILED";
   if (normalizedStatus !== "COMPLETED") return "FAILED";
   if (normalizedActionKind === "DENY") return "REJECTED";
@@ -281,7 +284,14 @@ export function classifyGovernedActionResumeDisposition({
 } = {}) {
   const normalizedActionKind = cleanString(actionKind).toUpperCase();
   const normalizedResultState = cleanString(resultState).toUpperCase();
-  if (normalizedResultState === "REQUESTED" || normalizedResultState === "ACCEPTED_PENDING") return "PENDING";
+  if (
+    normalizedResultState === "REQUESTED"
+    || normalizedResultState === "ACCEPTED_RUNNING"
+    || normalizedResultState === "ACCEPTED_QUEUED"
+    || normalizedResultState === "ACCEPTED_PENDING"
+  ) {
+    return "PENDING";
+  }
   if (normalizedResultState === "FAILED") return "REPAIR_REQUIRED";
   if (normalizedActionKind === "APPROVE") return "RESUME_ALLOWED";
   if (normalizedActionKind === "DENY") return "STOP";
@@ -496,8 +506,8 @@ export function summarizeGovernedAction(action = {}) {
 
 function legacyActionStateFromStatus(status = "") {
   const normalizedStatus = cleanString(status).toUpperCase();
-  if (normalizedStatus === "QUEUED") return "REQUESTED";
-  if (normalizedStatus === "RUNNING") return "ACCEPTED_PENDING";
+  if (normalizedStatus === "QUEUED") return "ACCEPTED_QUEUED";
+  if (normalizedStatus === "RUNNING") return "ACCEPTED_RUNNING";
   if (normalizedStatus === "COMPLETED") return "SETTLED";
   if (normalizedStatus === "FAILED") return "FAILED";
   return "NONE";

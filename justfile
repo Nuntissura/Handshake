@@ -309,7 +309,7 @@ validator-startup role:
 	@just memory-recall VALIDATOR_RESUME --role {{role}}
 	@echo ''
 	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
-	@echo 'Run: just repomem open "<what this session is about>" --role {{role}} [--wp WP-ID]'
+	@if ("{{role}}".Trim().ToUpper() -in @("WP_VALIDATOR", "INTEGRATION_VALIDATOR")) { Write-Host 'Run: just repomem open "<what this session is about>" --role {{role}} --wp WP-ID'; Write-Host 'Governed validator lanes reject repomem open unless both --role and --wp are supplied.' } else { Write-Host 'Run: just repomem open "<what this session is about>" --role {{role}} [--wp WP-ID]' }
 	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next {{role}} [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
 
@@ -389,7 +389,7 @@ spec-debt-sync wp-id:
 validator-next role wp-id="" *FLAGS:
 	@if ("{{role}}".Trim().ToUpper() -notin @("WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR")) { Write-Error 'Usage: just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-ID] [--debug]'; exit 1 }
 	@just memory-recall VALIDATOR_RESUME --role {{role}} --wp {{wp-id}}
-	@$env:HANDSHAKE_VALIDATOR_ROLE="{{role}}"; node "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" --role {{role}} {{wp-id}} {{FLAGS}}
+	@$env:HANDSHAKE_VALIDATOR_ROLE="{{role}}"; node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" --role {{role}} {{wp-id}} --raw-flags "{{FLAGS}}"
 
 task-board-set wp-id status context reason="":
 	@just repomem-gate
@@ -397,7 +397,7 @@ task-board-set wp-id status context reason="":
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
 
 integration-validator-context-brief wp-id *args:
-	@node "{{GOV_ROOT}}/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs" {{wp-id}} {{args}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs" {{wp-id}} --raw-flags "{{args}}"
 
 external-validator-brief wp-id *args:
 	@node "{{GOV_ROOT}}/roles/validator/checks/external-validator-brief.mjs" {{wp-id}} {{args}}
@@ -692,7 +692,7 @@ wp-communication-health-check wp-id stage="STATUS" role="" session="":
 	@node "{{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs" {{wp-id}} {{stage}} {{role}} "{{session}}"
 
 phase-check phase wp-id role="" session="" *args:
-	@node "{{GOV_ROOT}}/roles_shared/checks/phase-check.mjs" {{phase}} {{wp-id}} {{role}} "{{session}}" {{args}}
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/checks/phase-check.mjs" {{phase}} {{wp-id}} {{role}} "{{session}}" --raw-flags "{{args}}"
 
 check-notifications wp-id role="" session="":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-check-notifications.mjs" {{wp-id}} {{role}} "{{session}}"

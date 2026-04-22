@@ -12,7 +12,62 @@ function usage() {
 export function splitRawFlags(rawFlags) {
   const text = String(rawFlags || "").trim();
   if (!text) return [];
-  return text.split(/\s+/).filter(Boolean);
+  const tokens = [];
+  let current = "";
+  let quote = "";
+  let tokenStarted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const nextChar = text[index + 1] || "";
+
+    if (quote) {
+      if (char === quote) {
+        quote = "";
+        continue;
+      }
+      if (quote === '"' && char === "\\" && (nextChar === '"' || nextChar === "\\")) {
+        current += nextChar;
+        index += 1;
+        continue;
+      }
+      current += char;
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      if (tokenStarted) {
+        tokens.push(current);
+        current = "";
+        tokenStarted = false;
+      }
+      continue;
+    }
+
+    if ((char === '"' || char === "'") && (current === "" || current.endsWith("="))) {
+      quote = char;
+      tokenStarted = true;
+      continue;
+    }
+
+    if (char === "\\" && (nextChar === '"' || nextChar === "'" || nextChar === "\\" || /\s/.test(nextChar))) {
+      current += nextChar;
+      tokenStarted = true;
+      index += 1;
+      continue;
+    }
+
+    current += char;
+    tokenStarted = true;
+  }
+
+  if (quote) {
+    throw new Error(`Unterminated ${quote} quote in --raw-flags payload.`);
+  }
+  if (tokenStarted) {
+    tokens.push(current);
+  }
+  return tokens;
 }
 
 export function buildForwardedArgv(argv = []) {

@@ -92,6 +92,40 @@ test("closeout sync options require explicit context and contained-main sha only
   );
 });
 
+test("closeout sync options rebuild multi-token context values after Windows wrapper splitting", () => {
+  assert.deepEqual(
+    parseCloseoutSyncOptions([
+      "--sync-mode",
+      "FAIL",
+      "--context",
+      "Final",
+      "lane",
+      "FAIL",
+      "current",
+      "main",
+      "candidate",
+      "does",
+      "not",
+      "compile",
+      "and",
+      "handoff",
+      "proof",
+      "is",
+      "not",
+      "reproducible",
+    ]),
+    {
+      modeSpec: {
+        mode: "FAIL",
+        requireMergedMainCommit: false,
+      },
+      context: "Final lane FAIL current main candidate does not compile and handoff proof is not reproducible",
+      mergedMainSha: "",
+      debug: false,
+    },
+  );
+});
+
 test("phase-check closeout uses injected active repo root when present", () => {
   const original = process.env.HANDSHAKE_ACTIVE_REPO_ROOT;
   try {

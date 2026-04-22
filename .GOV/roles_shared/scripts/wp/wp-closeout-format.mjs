@@ -13,12 +13,13 @@
  */
 
 import fs from "node:fs";
-import { repoPathAbs, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import { REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
 import { parseJsonFile, validateRuntimeStatus } from "../lib/wp-communications-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
 import { readExecutionPublicationView } from "../lib/wp-execution-state-lib.mjs";
 import { buildCloseoutDependencyView } from "../lib/wp-closeout-dependency-lib.mjs";
 import { writeJsonFile } from "../session/session-registry-lib.mjs";
+import { evaluateWpRepomemCoverage } from "../memory/repomem-coverage-lib.mjs";
 
 const wpId = String(process.argv[2] || "").trim();
 const mergedMainCommit = String(process.argv[3] || "").trim();
@@ -51,6 +52,11 @@ const runtimePublication = readExecutionPublicationView({
   runtimeStatus: runtimeStatus || {},
   packetStatus: packetStatusBefore,
 });
+const repomemCoverage = evaluateWpRepomemCoverage({
+  repoRoot: REPO_ROOT,
+  wpId,
+  packetContent: content,
+});
 const closeoutDependencyView = buildCloseoutDependencyView({
   packetContent: content,
   runtimeStatus: runtimeStatus || {},
@@ -63,6 +69,7 @@ const closeoutDependencyView = buildCloseoutDependencyView({
   closeoutBundle: { ok: true, summary: {} },
   scopeCompatibility: { errors: [] },
   candidateSignedScope: { errors: [] },
+  repomemCoverage,
 });
 
 if (

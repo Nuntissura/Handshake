@@ -4,6 +4,35 @@ import path from "node:path";
 import test from "node:test";
 import { buildIntegrationValidatorContextBrief } from "../scripts/lib/integration-validator-context-brief-lib.mjs";
 
+function repomemCoverageFixture({
+  state = "PASS",
+  activeRoles = ["INTEGRATION_VALIDATOR"],
+  debtRoles = [],
+  debtKeys = [],
+} = {}) {
+  return {
+    state,
+    active_roles: activeRoles,
+    debt_roles: debtRoles,
+    debt_keys: debtKeys,
+    role_details: activeRoles.map((role) => ({
+      role,
+      status: debtRoles.includes(role) ? "DEBT" : "PASS",
+      activity_sources: ["session_registry"],
+      qualifying_session_ids: debtRoles.includes(role) ? [] : [`${role}-20260401-120000`],
+      debt_keys: debtKeys
+        .filter((entry) => entry.startsWith(`${role}:`))
+        .map((entry) => entry.split(":")[1]),
+    })),
+    summary: [
+      `state=${state}`,
+      `active_roles=${activeRoles.join(",") || "none"}`,
+      `debt_roles=${debtRoles.join(",") || "none"}`,
+      `debt_keys=${debtKeys.join(",") || "none"}`,
+    ].join(" | "),
+  };
+}
+
 function actorSession(integrationWorktreeDir) {
   return {
     wp_id: "WP-TEST-VALIDATOR-v1",
@@ -188,6 +217,7 @@ test("integration-validator context brief surfaces canonical final-lane authorit
         issues: [],
       },
       gateStatePath: "../gov_runtime/roles_shared/validator_gates/WP-TEST-VALIDATOR-v1.json",
+      repomemCoverage: repomemCoverageFixture(),
     });
 
     assert.equal(brief.context_status, "OK");
@@ -215,6 +245,7 @@ test("integration-validator context brief surfaces canonical final-lane authorit
     assert.equal(brief.candidate_under_review.branch, "feat/WP-TEST-VALIDATOR-v1");
     assert.equal(brief.candidate_under_review.validator_policy_branch, "feat/WP-TEST-VALIDATOR-v1");
     assert.equal(brief.closeout_dependencies.sync_provenance.status, "RECORDED");
+    assert.equal(brief.closeout_dependencies.repomem_coverage.status, "PASS");
     assert.match(brief.anti_rediscovery_rule, /Do not rebuild final-lane/i);
   } finally {
     fs.rmSync(artifactDir, { recursive: true, force: true });
@@ -241,6 +272,10 @@ test("integration-validator context brief falls back to remediation commands for
       ok: true,
       issues: [],
     },
+    repomemCoverage: repomemCoverageFixture({
+      state: "NO_ACTIVE_ROLES",
+      activeRoles: [],
+    }),
   });
 
   assert.equal(brief.context_status, "GOVERNANCE_BLOCKED");
@@ -287,14 +322,21 @@ test("integration-validator context brief prefers canonical execution-state clos
       ok: true,
       issues: [],
     },
+    repomemCoverage: repomemCoverageFixture({
+      state: "DEBT",
+      activeRoles: ["ORCHESTRATOR"],
+      debtRoles: ["ORCHESTRATOR"],
+      debtKeys: ["ORCHESTRATOR:NO_WP_DURABLE_CHECKPOINT"],
+    }),
   });
 
   assert.equal(brief.packet_status, "Validated (FAIL)");
   assert.equal(brief.current_wp_status, "DONE_FAIL");
-  assert.equal(brief.task_board_status, "DONE_FAIL");
-  assert.equal(brief.closeout_requirements.terminal_non_pass_packet, true);
-  assert.equal(brief.closeout_requirements.require_ready_for_pass, false);
-});
+    assert.equal(brief.task_board_status, "DONE_FAIL");
+    assert.equal(brief.closeout_requirements.terminal_non_pass_packet, true);
+    assert.equal(brief.closeout_requirements.require_ready_for_pass, false);
+    assert.equal(brief.closeout_dependencies.repomem_coverage.status, "DEBT");
+  });
 
 test("integration-validator context brief separates candidate-under-review truth from validator branch policy", () => {
   const repoRoot = path.resolve(".");
@@ -358,6 +400,7 @@ test("integration-validator context brief separates candidate-under-review truth
         ok: true,
         issues: [],
       },
+      repomemCoverage: repomemCoverageFixture(),
     });
 
     assert.equal(brief.candidate_under_review.branch, "feat/WP-TEST-VALIDATOR-v1-mainproof");

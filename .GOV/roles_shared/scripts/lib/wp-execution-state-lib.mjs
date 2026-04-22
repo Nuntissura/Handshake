@@ -490,6 +490,18 @@ function projectCheckpointSnapshot(authority = {}) {
   };
 }
 
+function checkpointSnapshotFingerprint(snapshot = {}) {
+  return JSON.stringify(snapshot || {});
+}
+
+export function executionAuthorityCheckpointFingerprint(authority = {}) {
+  return checkpointSnapshotFingerprint(projectCheckpointSnapshot(authority));
+}
+
+export function runtimeExecutionCheckpointFingerprint(runtimeStatus = {}) {
+  return executionAuthorityCheckpointFingerprint(readRuntimeExecutionAuthority(runtimeStatus));
+}
+
 function applyCheckpointSnapshotToAuthority(checkpoint = {}) {
   return {
     packet_status: normalizeNullableString(checkpoint.packet_status),
@@ -741,7 +753,7 @@ export function syncRuntimeExecutionState(runtimeStatus = {}, {
   const previousLineage = isPlainObject(previousExecutionState.checkpoint_lineage) ? previousExecutionState.checkpoint_lineage : {};
   const previousCheckpoints = cloneCheckpointList(previousLineage.checkpoints);
   const checkpointSnapshot = projectCheckpointSnapshot(authority);
-  const fingerprint = JSON.stringify(checkpointSnapshot);
+  const fingerprint = checkpointSnapshotFingerprint(checkpointSnapshot);
   const latestFingerprint = normalizeNullableString(previousLineage.latest_checkpoint_fingerprint);
   const shouldAppendCheckpoint = forceCheckpoint || previousCheckpoints.length === 0 || fingerprint !== latestFingerprint;
 

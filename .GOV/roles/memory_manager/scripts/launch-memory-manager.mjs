@@ -28,8 +28,18 @@ import {
 import {
   GOVERNANCE_RUNTIME_ROOT_ABS,
   GOV_ROOT_ABS,
+  REPO_ROOT,
   repoPathAbs,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  loadSessionControlRequests,
+  loadSessionControlResults,
+  loadSessionRegistry,
+} from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import {
+  collectRecentRepomemCoverageWpIds,
+  evaluateWpRepomemCoverage,
+} from "../../../roles_shared/scripts/memory/repomem-coverage-lib.mjs";
 import {
   MECHANICAL_ACTIVITY_THRESHOLD,
   MECHANICAL_DECAY_OPTIONS,
@@ -93,6 +103,10 @@ try {
   const calibration = [];
   const candidates = [];
   const recommendations = [];
+  const sessionRegistry = loadSessionRegistry(REPO_ROOT).registry || { sessions: [] };
+  const sessionControlRequests = loadSessionControlRequests(REPO_ROOT).requests || [];
+  const sessionControlResults = loadSessionControlResults(REPO_ROOT).results || [];
+  const wpRepomemCoverageDebtLines = [];
 
   // =========================================================================
   // Phase 1: Health Assessment
@@ -490,7 +504,35 @@ try {
     }
   } catch {}
 
-  // 3e. RGF candidates from cross-WP patterns
+  // 3e. Per-WP repomem coverage debt for recent governed activity
+  try {
+    const recentWpIds = collectRecentRepomemCoverageWpIds({
+      sessions: sessionRegistry.sessions || [],
+      controlRequests: sessionControlRequests,
+      controlResults: sessionControlResults,
+      sinceDate: sevenDaysAgo,
+    });
+    for (const wpId of recentWpIds) {
+      const coverage = evaluateWpRepomemCoverage({
+        repoRoot: REPO_ROOT,
+        wpId,
+        sessions: sessionRegistry.sessions || [],
+        controlRequests: sessionControlRequests,
+        controlResults: sessionControlResults,
+        db,
+      });
+      if (coverage.state !== "DEBT") continue;
+      wpRepomemCoverageDebtLines.push(
+        `- ${wpId}: active_roles=${coverage.active_roles.join(",") || "none"} | debt_keys=${coverage.debt_keys.join(",") || "none"}`,
+      );
+    }
+    calibration.push(`- WP repomem coverage debt (7d): ${wpRepomemCoverageDebtLines.length} recent WPs in debt`);
+    if (wpRepomemCoverageDebtLines.length > 0) {
+      recommendations.push("Recent governed WPs still have repomem coverage debt — materially active roles are not leaving durable open/close/WP checkpoint proof consistently.");
+    }
+  } catch {}
+
+  // 3f. RGF candidates from cross-WP patterns
   try {
     const crossWpPatterns = db.prepare(
       `SELECT topic, COUNT(DISTINCT wp_id) as wp_count, SUM(access_count) as total_access
@@ -555,6 +597,10 @@ try {
   }
 
   reportLines.push("## Calibration Notes", ...calibration, "");
+
+  if (wpRepomemCoverageDebtLines.length > 0) {
+    reportLines.push("## WP Repomem Coverage Debt", ...wpRepomemCoverageDebtLines, "");
+  }
 
   if (candidates.length > 0) {
     reportLines.push("## RGF Candidates (for orchestrator review)", ...candidates, "");

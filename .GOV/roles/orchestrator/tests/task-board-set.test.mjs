@@ -224,3 +224,130 @@ test("task-board-set follows canonical execution authority and only refreshes ru
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+test("task-board-set leaves board and runtime files untouched when the requested publication is already current", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-task-board-set-noop-"));
+  const govRoot = path.join(tempRoot, ".GOV");
+  const govRuntimeRoot = path.join(tempRoot, "gov_runtime");
+  const wpId = "WP-TEST-TASK-BOARD-NOOP-v1";
+  const packetPath = path.join(govRoot, "task_packets", wpId, "packet.md");
+  const commDir = path.join(govRuntimeRoot, "roles_shared", "WP_COMMUNICATIONS", wpId);
+  const runtimeStatusPath = path.join(commDir, "RUNTIME_STATUS.json");
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const threadPath = path.join(commDir, "THREAD.md");
+  const taskBoardPath = path.join(govRoot, "roles_shared", "records", "TASK_BOARD.md");
+
+  try {
+    writeText(
+      taskBoardPath,
+      [
+        "# Board",
+        "",
+        "## Ready for Dev",
+        "",
+        "## In Progress",
+        "",
+        "## Done",
+        `- **[${wpId}]** - [VALIDATED]`,
+        "",
+      ].join("\n"),
+    );
+    writeText(
+      packetPath,
+      [
+        `- WP_RUNTIME_STATUS_FILE: ${normalizePath(runtimeStatusPath)}`,
+        `- WP_RECEIPTS_FILE: ${normalizePath(receiptsPath)}`,
+        `- WP_THREAD_FILE: ${normalizePath(threadPath)}`,
+        `- WP_COMMUNICATION_DIR: ${normalizePath(commDir)}`,
+        "- PACKET_FORMAT_VERSION: 2026-03-29",
+        "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+        "- COMMUNICATION_CONTRACT: DIRECT_REVIEW_REQUIRED",
+        "- COMMUNICATION_HEALTH_GATE: WP_COMMUNICATION_HEALTH_V1",
+        "- **Status:** In Progress",
+      ].join("\n"),
+    );
+    writeText(
+      runtimeStatusPath,
+      `${JSON.stringify(buildRuntimeStatus({
+        wpId,
+        packetPath,
+        commDir,
+        runtimeStatusPath,
+        receiptsPath,
+        threadPath,
+        currentPacketStatus: "Validated (PASS)",
+        currentTaskBoardStatus: "DONE_VALIDATED",
+        runtimeStatus: "completed",
+        currentPhase: "STATUS_SYNC",
+        nextExpectedActor: "NONE",
+        waitingOn: "CLOSED",
+        executionState: {
+          schema_version: "wp_execution_state@1",
+          authority: {
+            packet_status: "Validated (PASS)",
+            task_board_status: "DONE_VALIDATED",
+            runtime_status: "completed",
+            phase: "STATUS_SYNC",
+            milestone: "CONTAINMENT",
+            next_expected_actor: "NONE",
+            next_expected_session: null,
+            waiting_on: "CLOSED",
+            waiting_on_session: null,
+            main_containment_status: "CONTAINED_IN_MAIN",
+            merged_main_commit: "abc123def456",
+            route_anchor: {},
+            review_anchor: {},
+          },
+          checkpoint_lineage: {
+            schema_version: "wp_execution_checkpoint_lineage@1",
+            latest_checkpoint_id: "cp-0001-task_board_sync-20990101t100000z",
+            latest_checkpoint_at_utc: "2099-01-01T10:00:00Z",
+            latest_checkpoint_kind: "PACKET_SYNC",
+            latest_restore_point_id: "cp-0001-task_board_sync-20990101t100000z",
+            latest_checkpoint_fingerprint: "{\"packet_status\":\"Validated (PASS)\",\"task_board_status\":\"DONE_VALIDATED\",\"milestone\":\"CONTAINMENT\",\"phase\":\"STATUS_SYNC\",\"runtime_status\":\"completed\",\"next_expected_actor\":\"NONE\",\"next_expected_session\":null,\"waiting_on\":\"CLOSED\",\"waiting_on_session\":null,\"route_anchor_state\":null,\"route_anchor_kind\":null,\"route_anchor_correlation_id\":null,\"route_anchor_target_role\":null,\"route_anchor_target_session\":null,\"review_anchor_kind\":null,\"review_anchor_correlation_id\":null,\"committed_handoff_base_sha\":null,\"committed_handoff_head_sha\":null}",
+            checkpoint_count: 1,
+            checkpoints: [],
+          },
+        },
+      }), null, 2)}\n`,
+    );
+    writeText(receiptsPath, "\n");
+    writeText(threadPath, "# thread\n");
+
+    const firstResult = spawnSync(process.execPath, [taskBoardSetScript, wpId, "DONE_VALIDATED"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        HANDSHAKE_GOV_ROOT: govRoot,
+        HANDSHAKE_GOV_RUNTIME_ROOT: govRuntimeRoot,
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(firstResult.status, 0, firstResult.stderr || firstResult.stdout);
+
+    const frozenTime = new Date("2001-02-03T04:05:06.000Z");
+    fs.utimesSync(taskBoardPath, frozenTime, frozenTime);
+    fs.utimesSync(runtimeStatusPath, frozenTime, frozenTime);
+    const beforeBoardMtime = fs.statSync(taskBoardPath).mtimeMs;
+    const beforeRuntimeMtime = fs.statSync(runtimeStatusPath).mtimeMs;
+
+    const result = spawnSync(process.execPath, [taskBoardSetScript, wpId, "DONE_VALIDATED"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        HANDSHAKE_GOV_ROOT: govRoot,
+        HANDSHAKE_GOV_RUNTIME_ROOT: govRuntimeRoot,
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(fs.statSync(taskBoardPath).mtimeMs, beforeBoardMtime);
+    assert.equal(fs.statSync(runtimeStatusPath).mtimeMs, beforeRuntimeMtime);
+    assert.match(result.stdout, /task_board_change: no-op/);
+    assert.match(result.stdout, /runtime_change: no-op/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});

@@ -53,6 +53,21 @@ function writeText(p, text) {
   }
 }
 
+function writeTextIfChanged(p, text) {
+  const currentText = fs.existsSync(p) ? readText(p) : null;
+  if (currentText === text) return false;
+  writeText(p, text);
+  return true;
+}
+
+function writeJsonFileIfChanged(p, value) {
+  const nextText = `${JSON.stringify(value, null, 2)}\n`;
+  const currentText = fs.existsSync(p) ? readText(p) : null;
+  if (currentText === nextText) return false;
+  writeJsonFile(p, value);
+  return true;
+}
+
 function detectEol(text) {
   return text.includes("\r\n") ? "\r\n" : "\n";
 }
@@ -163,8 +178,10 @@ function syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext = null
     if (runtimeErrors.length > 0) {
       fail(`Runtime authority materialization failed for ${wpId}`, runtimeErrors);
     }
-    writeJsonFile(runtimeStatusAbsPath, materializedRuntime);
-    return runtimeStatusFile;
+    return {
+      filePath: runtimeStatusFile,
+      wrote: writeJsonFileIfChanged(runtimeStatusAbsPath, materializedRuntime),
+    };
   }
 
   const reconciled = reconcileWpCommunicationTruth({
@@ -181,8 +198,10 @@ function syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext = null
   if (runtimeErrors.length > 0) {
     fail(`Runtime projection sync failed for ${wpId}`, runtimeErrors);
   }
-  writeJsonFile(runtimeStatusAbsPath, syncedRuntimeStatus);
-  return runtimeStatusAbsPath;
+  return {
+    filePath: runtimeStatusAbsPath,
+    wrote: writeJsonFileIfChanged(runtimeStatusAbsPath, syncedRuntimeStatus),
+  };
 }
 
 function main() {
@@ -270,6 +289,12 @@ function main() {
   // Insert near end of section (keeps existing ordering stable).
   let insertIdx = section.endIdx;
 
+  // Keep the entry anchored to the actual section body instead of drifting downward
+  // through trailing blank lines on repeated idempotent writes.
+  while (insertIdx > (section.startIdx + 1) && String(lines[insertIdx - 1] || "").trim() === "") {
+    insertIdx -= 1;
+  }
+
   // Special-case: if the section contains a standalone horizontal rule at the top, keep it at the bottom
   // (treat it as a separator to the next section), and insert before it.
   {
@@ -292,16 +317,19 @@ function main() {
 
   // Ensure file ends with a newline.
   const out = lines.join(eol);
-  writeText(taskBoardAbsPath, out.endsWith(eol) ? out : out + eol);
-  const runtimeStatusFile = syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext, {
+  const nextTaskBoardText = out.endsWith(eol) ? out : out + eol;
+  const boardChanged = writeTextIfChanged(taskBoardAbsPath, nextTaskBoardText);
+  const runtimeSync = syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext, {
     syncFromPacket: !runtimePublication.has_canonical_authority,
   });
 
   console.log("task-board-set ok");
   console.log(`- wp_id: ${wpId}`);
   console.log(`- status: ${status}`);
+  console.log(`- task_board_change: ${boardChanged ? "updated" : "no-op"}`);
   if (runtimePublication.has_canonical_authority) console.log("- runtime_authority: canonical");
-  if (runtimeStatusFile) console.log(`- runtime_synced: ${runtimeStatusFile}`);
+  if (runtimeSync?.filePath) console.log(`- runtime_synced: ${runtimeSync.filePath}`);
+  if (runtimeSync) console.log(`- runtime_change: ${runtimeSync.wrote ? "updated" : "no-op"}`);
 }
 
 main();

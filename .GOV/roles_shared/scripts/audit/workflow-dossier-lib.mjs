@@ -109,6 +109,7 @@ export function appendWorkflowDossierEntry({
   filePath = "",
   section = "",
   line = "",
+  dedupeSuffix = "",
 } = {}) {
   const canonicalSection = normalizeWorkflowDossierSection(section);
   const dossierPath = resolveWorkflowDossierPath(repoRoot, { wpId, filePath });
@@ -129,6 +130,18 @@ export function appendWorkflowDossierEntry({
   if (insertIndex === -1) insertIndex = lines.length;
   while (insertIndex > (headingIndex + 1) && String(lines[insertIndex - 1] || "").trim() === "") {
     insertIndex -= 1;
+  }
+  const normalizedDedupeSuffix = String(dedupeSuffix || "").trim();
+  if (normalizedDedupeSuffix) {
+    let previousEntryIndex = insertIndex - 1;
+    while (previousEntryIndex > headingIndex && String(lines[previousEntryIndex] || "").trim() === "") {
+      previousEntryIndex -= 1;
+    }
+    const previousEntry = previousEntryIndex > headingIndex ? String(lines[previousEntryIndex] || "").trimEnd() : "";
+    const nextEntry = String(line || "").trimEnd();
+    if (previousEntry.endsWith(normalizedDedupeSuffix) && nextEntry.endsWith(normalizedDedupeSuffix)) {
+      return dossierPath;
+    }
   }
   lines.splice(insertIndex, 0, line);
   fs.writeFileSync(dossierPath, `${lines.join("\n").replace(/\n*$/, "\n")}`, "utf8");

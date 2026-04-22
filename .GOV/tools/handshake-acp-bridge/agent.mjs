@@ -670,6 +670,7 @@ async function launchGovernedRequestRun({
     terminationReason: "",
     cancellationRequested: false,
     settled: false,
+    transportResponseSent: false,
   };
   activeRuns.set(requestRecord.command_id, runState);
   persistBrokerState(brokerPort());
@@ -681,6 +682,17 @@ async function launchGovernedRequestRun({
       command_id: requestRecord.command_id,
       timestamp: runState.startedAt,
     });
+    respond(socket, rpcId, requestWirePayload(requestRecord, {
+      status: "RUNNING",
+      outcomeState: "ACCEPTED_RUNNING",
+      threadId: requestRecord.command_kind === "SEND_PROMPT" ? threadId : "",
+      outputJsonlFile: outputFile,
+      lastAgentMessage: "",
+      error: "",
+      durationMs: 0,
+      brokerRunId: requestRecord.command_id,
+    }));
+    runState.transportResponseSent = true;
   }
 
   const settle = (execution) => {
@@ -719,7 +731,7 @@ async function launchGovernedRequestRun({
       return result;
     });
 
-    if (socket && rpcId !== null) {
+    if (socket && rpcId !== null && !runState.transportResponseSent) {
       respond(socket, rpcId, requestWirePayload(requestRecord, {
         status: result.status,
         outcomeState: result.outcome_state || classifySessionControlOutcomeState({
@@ -876,7 +888,7 @@ function queueGovernedRequestOnBusy(socket, rpcId, requestRecord, blockingRun) {
   });
   respond(socket, rpcId, requestWirePayload(requestRecord, {
     status: "QUEUED",
-    outcomeState: "ACCEPTED_PENDING",
+    outcomeState: "ACCEPTED_QUEUED",
     threadId: requestRecord.session_thread_id || "",
     outputJsonlFile: outputFile,
     lastAgentMessage: "",

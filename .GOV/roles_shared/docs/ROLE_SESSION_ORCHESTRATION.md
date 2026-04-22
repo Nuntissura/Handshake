@@ -37,7 +37,7 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - Helper agents/subagents may assist the Orchestrator on governance/spec/runtime/orchestrator tasks, but they are not Coder or Validator lanes.
 - Do not use helper agents/subagents to perform Coder or Validator duties, and do not let them write product code, unless the Operator explicitly approved that path and the work packet records `SUB_AGENT_DELEGATION: ALLOWED` plus the exact `OPERATOR_APPROVAL_EVIDENCE`.
 - `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session, settle through the same append-only request/result ledgers, and attempt deterministic reclaim of any governed system-terminal window owned by that exact session.
-- governed `START_SESSION` / `SEND_PROMPT` results now carry an explicit `outcome_state` alongside terminal `status` so wrappers can distinguish steady-state conditions such as `ALREADY_READY`, `BUSY_ACTIVE_RUN`, or `REQUIRES_RECOVERY` from generic failures.
+- governed `START_SESSION` / `SEND_PROMPT` results now carry an explicit `outcome_state` alongside terminal `status` so wrappers can distinguish accepted transport states such as `ACCEPTED_RUNNING` / `ACCEPTED_QUEUED`, steady-state conditions such as `ALREADY_READY`, and rejection/recovery states such as `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY` from generic failures.
 - The registry `session_thread_id` is the steering identity for that role/WP session.
 
 ## Fallback Law

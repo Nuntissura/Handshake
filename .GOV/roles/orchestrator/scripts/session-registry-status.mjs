@@ -29,6 +29,7 @@ import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { SESSION_CONTROL_BROKER_STATE_FILE } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import { evaluateWpRepomemCoverage } from "../../../roles_shared/scripts/memory/repomem-coverage-lib.mjs";
 
 const repoRoot = REPO_ROOT;
 const wpIdFilter = String(process.argv[2] || "").trim();
@@ -147,6 +148,15 @@ const relayDiagnostics = wpIdFilter ? loadRelayStatusForWp(wpIdFilter) : null;
 const relayStatus = relayDiagnostics?.relayStatus || null;
 const relayPolicy = relayDiagnostics?.relayPolicy || null;
 const closeoutStatus = wpIdFilter ? loadCloseoutStatusForWp(wpIdFilter) : null;
+const repomemCoverage = wpIdFilter
+  ? evaluateWpRepomemCoverage({
+      repoRoot,
+      wpId: wpIdFilter,
+      sessions: registry.sessions,
+      controlRequests,
+      controlResults,
+    })
+  : null;
 
 console.log("ROLE_SESSION_REGISTRY");
 console.log(`- updated_at: ${registry.updated_at}`);
@@ -172,7 +182,9 @@ if (batchSummary.launch_batch_switch_reason) {
 if (sessions.length === 0) {
   console.log("- matching_sessions: 0");
   if (!wpTokenUsage || wpTokenUsage.summary.command_count === 0) {
-    process.exit(0);
+    if (!(relayStatus || closeoutStatus || repomemCoverage)) {
+      process.exit(0);
+    }
   }
 }
 
@@ -225,11 +237,13 @@ for (const session of sessions) {
   }
   console.log(`  effective_command_kind: ${session.effective_governed_action?.command_kind || session.last_command_kind}`);
   console.log(`  effective_command_status: ${session.effective_governed_action?.status || session.last_command_status}`);
+  console.log(`  effective_command_outcome_state: ${session.effective_governed_action?.outcome_state || "<none>"}`);
   console.log(`  last_command_output_file: ${session.last_command_output_file || "<none>"}`);
   console.log(`  pending_control_queue_count: ${session.pending_control_queue_count || 0}`);
   if (session.next_queued_control_request) {
     console.log(`  next_queued_control_request_id: ${session.next_queued_control_request.command_id || "<none>"}`);
     console.log(`  next_queued_control_request_kind: ${session.next_queued_control_request.command_kind || "<none>"}`);
+    console.log(`  next_queued_control_request_outcome_state: ${session.next_queued_control_request.outcome_state || "<none>"}`);
     console.log(`  next_queued_control_request_reason: ${session.next_queued_control_request.queue_reason_code || "<none>"}`);
   }
   if (session.effective_governed_action) {
@@ -237,6 +251,7 @@ for (const session of sessions) {
     console.log(`  effective_governed_action_rule_id: ${session.effective_governed_action.rule_id || "<none>"}`);
     console.log(`  effective_governed_action_kind: ${session.effective_governed_action.action_kind || "<none>"}`);
     console.log(`  effective_governed_action_state: ${session.effective_governed_action.action_state || "<none>"}`);
+    console.log(`  effective_governed_action_outcome_state: ${session.effective_governed_action.outcome_state || "<none>"}`);
     console.log(`  effective_governed_action_resume_disposition: ${session.effective_governed_action.resume_disposition || "<none>"}`);
     console.log(`  effective_governed_action_source: ${session.effective_governed_action.source || "<none>"}`);
   }
@@ -346,6 +361,24 @@ if (closeoutStatus) {
   console.log(`- settlement_state: ${closeoutStatus.settlementState}`);
   console.log(`- settlement_blockers: ${closeoutStatus.settlementBlockers.join(",") || "<none>"}`);
   console.log(`- terminal_publication_recorded: ${closeoutStatus.terminalPublicationRecorded ? "YES" : "NO"}`);
+}
+
+if (repomemCoverage) {
+  console.log("");
+  console.log("WP_REPOMEM_COVERAGE");
+  console.log(`- wp_id: ${wpIdFilter}`);
+  console.log(`- state: ${repomemCoverage.state}`);
+  console.log(`- active_roles: ${repomemCoverage.active_roles.join(",") || "<none>"}`);
+  console.log(`- debt_roles: ${repomemCoverage.debt_roles.join(",") || "<none>"}`);
+  console.log(`- debt_keys: ${repomemCoverage.debt_keys.join(",") || "<none>"}`);
+  console.log(`- summary: ${repomemCoverage.summary}`);
+  for (const detail of repomemCoverage.role_details || []) {
+    console.log(`- role: ${detail.role}`);
+    console.log(`  status: ${detail.status}`);
+    console.log(`  activity_sources: ${detail.activity_sources.join(",") || "<none>"}`);
+    console.log(`  qualifying_session_ids: ${detail.qualifying_session_ids.join(",") || "<none>"}`);
+    console.log(`  debt_keys: ${detail.debt_keys.join(",") || "<none>"}`);
+  }
 }
 
 if (wpTokenUsage) {
