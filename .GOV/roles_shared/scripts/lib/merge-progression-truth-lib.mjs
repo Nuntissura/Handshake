@@ -6,7 +6,12 @@ import {
   packetRequiresMergeContainmentTruth,
 } from "../session/session-policy.mjs";
 import { REPO_ROOT } from "./runtime-paths.mjs";
-import { materializeRuntimeAuthorityView } from "./wp-execution-state-lib.mjs";
+import {
+  inferExecutionCloseoutMode,
+  inferValidationVerdictFromPublication,
+  materializeRuntimeAuthorityView,
+  readExecutionPublicationView,
+} from "./wp-execution-state-lib.mjs";
 
 const SHA_RE = /^[0-9a-f]{7,40}$/i;
 const RFC3339_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
@@ -84,17 +89,221 @@ function normalizeNoneLike(value) {
   return raw;
 }
 
-function parseValidationVerdict(packetText) {
+function normalizeValidationVerdict(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+const VALIDATION_VERDICT_RE = /^(?:\s*#{1,6}\s+|\s*-\s*|\s*)Verdict\s*:\s*(.+)\s*$/im;
+const VALIDATION_REPORT_BOUNDARY_RE = /^\s*###\s+\S/;
+const VALIDATION_REPORT_TIMESTAMP_ROLE_HEADING_RE =
+  /^\s*###\s+(\d{4}-\d{2}-\d{2}(?:T[^|\s]+)?)\s+\|\s+([A-Z_]+)\b(?:.*?\|\s+session=(.+))?\s*$/i;
+const VALIDATION_REPORT_ROLE_BRACKET_HEADING_RE =
+  /^\s*###\s+([A-Z_]+)\s+\[(\d{4}-\d{2}-\d{2}(?:T[^\]]+)?)\]\s*$/i;
+const VALIDATION_REPORT_DATE_LINE_RE =
+  /^\s*(?:-\s*)?(?:DATE|RECORDED_AT_UTC|REPORTED_AT_UTC)\s*:\s*(.+?)\s*$/im;
+const VALIDATION_REPORT_ROLE_LINE_RE =
+  /^\s*(?:-\s*)?(?:VALIDATOR_ROLE|ACTOR_ROLE|ROLE)\s*:\s*([A-Z_]+)\b.*$/im;
+const VALIDATION_REPORT_SESSION_LINE_RE =
+  /^\s*(?:-\s*)?(?:ACTOR_SESSION|VALIDATOR_SESSION|SESSION)\s*:\s*(.+?)\s*$/im;
+const VALIDATION_REPORT_VALIDATOR_BULLET_RE =
+  /^\s*-\s*Validator\s*:\s*([A-Z_]+)(?:\s*\((.*?)\))?\s*$/im;
+const VALIDATION_REPORT_INLINE_SESSION_RE = /\bsession\s+([A-Za-z0-9:_-]+)/i;
+
+function parseValidationReportMetadata(entry) {
+  const heading = String(entry?.heading || "");
+  const body = String((entry?.bodyLines || []).join("\n") || "");
+  const timestampRoleHeadingMatch = heading.match(VALIDATION_REPORT_TIMESTAMP_ROLE_HEADING_RE);
+  const roleBracketHeadingMatch = heading.match(VALIDATION_REPORT_ROLE_BRACKET_HEADING_RE);
+  const validatorBulletMatch = body.match(VALIDATION_REPORT_VALIDATOR_BULLET_RE);
+  const inlineSessionMatch = String(validatorBulletMatch?.[2] || "").match(VALIDATION_REPORT_INLINE_SESSION_RE);
+  const headingTimestamp = timestampRoleHeadingMatch?.[1] || roleBracketHeadingMatch?.[2] || "";
+  const headingRoleToken = timestampRoleHeadingMatch?.[2] || roleBracketHeadingMatch?.[1] || "";
+  const normalizedHeadingRole = String(headingRoleToken).replace(/_REPORT(?:_[A-Z_]+)?$/i, "");
+
+  return {
+    timestampUtc: String(
+      headingTimestamp
+      || body.match(VALIDATION_REPORT_DATE_LINE_RE)?.[1]
+      || "",
+    ).trim(),
+    actorRole: normalizeValidationVerdict(
+      body.match(VALIDATION_REPORT_ROLE_LINE_RE)?.[1]
+      || validatorBulletMatch?.[1]
+      || normalizedHeadingRole
+      || "",
+    ),
+    actorSession: String(
+      timestampRoleHeadingMatch?.[3]
+      || body.match(VALIDATION_REPORT_SESSION_LINE_RE)?.[1]
+      || inlineSessionMatch?.[1]
+      || "",
+    ).trim(),
+  };
+}
+
+function validationReportHasMeaningfulContent(entry) {
+  if (String(entry?.heading || "").trim()) return true;
+  const body = String((entry?.bodyLines || []).join("\n") || "");
+  return VALIDATION_VERDICT_RE.test(body)
+    || VALIDATION_REPORT_DATE_LINE_RE.test(body)
+    || VALIDATION_REPORT_ROLE_LINE_RE.test(body)
+    || VALIDATION_REPORT_SESSION_LINE_RE.test(body)
+    || VALIDATION_REPORT_VALIDATOR_BULLET_RE.test(body);
+}
+
+function extractValidationReportEntries(packetText) {
   const section = extractSectionAfterHeading(packetText, "VALIDATION_REPORTS");
-  const re = /^(?:\s*#{1,6}\s+|\s*-\s*|\s*)Verdict\s*:\s*(.+)\s*$/gim;
-  const matches = [...String(section || "").matchAll(re)];
+  const lines = String(section || "").split(/\r?\n/);
+  const entries = [];
+  let current = null;
+
+  for (const line of lines) {
+    if (VALIDATION_REPORT_BOUNDARY_RE.test(line)) {
+      if (current) entries.push(current);
+      current = {
+        heading: line,
+        bodyLines: [],
+      };
+      continue;
+    }
+
+    if (!current) {
+      current = {
+        heading: "",
+        timestampUtc: "",
+        actorRole: "",
+        actorSession: "",
+        bodyLines: [],
+      };
+    }
+
+    current.bodyLines.push(line);
+  }
+
+  if (current) entries.push(current);
+  return entries.filter((entry) => validationReportHasMeaningfulContent(entry));
+}
+
+function validationVerdictFromEntry(entry) {
+  const matches = [...String((entry?.bodyLines || []).join("\n") || "").matchAll(new RegExp(VALIDATION_VERDICT_RE.source, "gim"))];
   if (matches.length === 0) return "";
-  // Reports are append-only: earlier FAIL reports coexist with later PASS.
-  // Return the highest-authority verdict (PASS > others) since the packet
-  // status was set by the merge authority based on the authoritative report.
-  const verdicts = matches.map((m) => String(m[1] || "").trim().toUpperCase());
-  if (verdicts.includes("PASS")) return "PASS";
-  return verdicts[verdicts.length - 1];
+  return normalizeValidationVerdict(matches.at(-1)?.[1] || "");
+}
+
+function preferredPublishedVerdict(status = "") {
+  const normalizedStatus = String(status || "").trim().toUpperCase();
+  if (normalizedStatus === "VALIDATED (PASS)" || normalizedStatus === "DONE") return "PASS";
+  if (normalizedStatus === "VALIDATED (FAIL)") return "FAIL";
+  if (normalizedStatus === "VALIDATED (OUTDATED_ONLY)") return "OUTDATED_ONLY";
+  if (normalizedStatus === "VALIDATED (ABANDONED)") return "ABANDONED";
+  return "";
+}
+
+function normalizeSettlementBlockerKey(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return raw.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function parseValidationVerdict(packetText) {
+  return parseValidationVerdictRecord(packetText).verdict;
+}
+
+export function parseValidationVerdictRecord(packetText) {
+  const entries = extractValidationReportEntries(packetText);
+  const preferredVerdict = preferredPublishedVerdict(parseStatus(packetText));
+
+  const buildRecord = (entry, index) => {
+    const metadata = parseValidationReportMetadata(entry);
+    return {
+    verdict: validationVerdictFromEntry(entry),
+    timestampUtc: metadata.timestampUtc,
+    actorRole: metadata.actorRole,
+    actorSession: metadata.actorSession,
+    evidencePointer: `VALIDATION_REPORTS[${index + 1}]`,
+    reportIndex: index + 1,
+    };
+  };
+
+  if (preferredVerdict) {
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const verdict = validationVerdictFromEntry(entries[index]);
+      if (verdict !== preferredVerdict) continue;
+      return buildRecord(entries[index], index);
+    }
+  }
+
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const verdict = validationVerdictFromEntry(entries[index]);
+    if (!verdict) continue;
+    return buildRecord(entries[index], index);
+  }
+
+  return {
+    verdict: "",
+    timestampUtc: "",
+    actorRole: "",
+    actorSession: "",
+    evidencePointer: "",
+    reportIndex: null,
+  };
+}
+
+export function readVerdictSettlementTruth({
+  packetText = "",
+  runtimeStatus = {},
+  taskBoardStatus = "",
+  blockingKeys = [],
+} = {}) {
+  const packetStatus = parseStatus(packetText);
+  const publication = readExecutionPublicationView({
+    runtimeStatus,
+    packetStatus,
+    taskBoardStatus,
+  });
+  const verdictRecord = parseValidationVerdictRecord(packetText);
+  const verdictOfRecord = inferValidationVerdictFromPublication({
+    packetStatus: publication.packet_status || packetStatus,
+    taskBoardStatus: publication.task_board_status || taskBoardStatus,
+    fallbackVerdict: verdictRecord.verdict,
+  });
+  const publicationCloseoutMode = inferExecutionCloseoutMode({
+    packetStatus: publication.packet_status || packetStatus,
+    taskBoardStatus: publication.task_board_status || taskBoardStatus,
+    mainContainmentStatus: publication.runtime?.main_containment_status || "",
+    fallbackVerdict: "",
+  });
+  const settlementRecorded = Boolean(publicationCloseoutMode?.mode);
+  const normalizedBlockingKeys = [...new Set(
+    (Array.isArray(blockingKeys) ? blockingKeys : [])
+      .map((value) => normalizeSettlementBlockerKey(value))
+      .filter(Boolean),
+  )];
+  const settlementBlockers = !verdictOfRecord || settlementRecorded
+    ? []
+    : (
+        normalizedBlockingKeys.length > 0
+          ? normalizedBlockingKeys
+          : ["TERMINAL_PUBLICATION_PENDING"]
+      );
+
+  return {
+    verdictOfRecord,
+    verdictRecordedAtUtc: verdictRecord.timestampUtc || "",
+    verdictActorRole: verdictRecord.actorRole || "",
+    verdictActorSession: verdictRecord.actorSession || "",
+    verdictEvidencePointer: verdictRecord.evidencePointer || "",
+    closeoutMode: publicationCloseoutMode?.mode || "",
+    publicationPacketStatus: publication.packet_status || "",
+    publicationTaskBoardStatus: publication.task_board_status || "",
+    settlementState: !verdictOfRecord
+      ? "VERDICT_PENDING"
+      : settlementRecorded
+        ? "SETTLED"
+        : "SETTLEMENT_DEBT",
+    settlementBlockers,
+    terminalPublicationRecorded: settlementRecorded,
+  };
 }
 
 function resolveIntegrationValidatorWorktreeAbs(packetText, repoRoot) {
@@ -196,10 +405,12 @@ function defaultMergePendingWorktreeVerifier({ localBranch, coderWorktreeAbs }) 
 }
 
 export function parseMergeProgressionTruth(packetText) {
+  const validationVerdictRecord = parseValidationVerdictRecord(packetText);
   return {
     packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
     status: parseStatus(packetText),
-    validationVerdict: parseValidationVerdict(packetText),
+    validationVerdict: validationVerdictRecord.verdict,
+    validationVerdictRecord,
     mainContainmentStatus: String(parseSingleField(packetText, "MAIN_CONTAINMENT_STATUS") || "").trim().toUpperCase(),
     mergedMainCommit: normalizeNoneLike(parseSingleField(packetText, "MERGED_MAIN_COMMIT")),
     mainContainmentVerifiedAtUtc: normalizeNoneLike(parseSingleField(packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC")),

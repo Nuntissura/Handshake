@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
-import { evaluateWpDeclaredTopology } from "../scripts/lib/wp-declared-topology-lib.mjs";
+import {
+  activeDeclaredTopologyRepoRoots,
+  evaluateWpDeclaredTopology,
+} from "../scripts/lib/wp-declared-topology-lib.mjs";
 
 const repoRoot = path.resolve("D:/Projects/LLM projects/Handshake/Handshake Worktrees/handshake_main");
 const wpId = "WP-1-Structured-Collaboration-Schema-Registry-v4";
@@ -142,4 +145,22 @@ test("declared WP topology accepts a packet-declared coder worktree confirmed by
   assert.equal(evaluation.ok, true);
   assert.equal(evaluation.directProbeUsed, true);
   assert.deepEqual(evaluation.issues, []);
+});
+
+test("activeDeclaredTopologyRepoRoots scopes artifact hygiene to declared worktrees plus the live governance kernel", () => {
+  const evaluation = evaluateWpDeclaredTopology({
+    repoRoot,
+    wpId,
+    packetContent,
+  });
+  const roots = activeDeclaredTopologyRepoRoots({
+    repoRoot,
+    topology: evaluation.topology,
+    governanceRootAbs: path.resolve(repoRoot, "../wt-gov-kernel/.GOV"),
+  });
+
+  assert.ok(roots.includes(path.resolve(repoRoot)));
+  assert.ok(roots.includes(path.resolve(repoRoot, "../wtc-schema-registry-v4")));
+  assert.ok(roots.includes(path.resolve(repoRoot, "../wt-gov-kernel")));
+  assert.equal(roots.includes(path.resolve(repoRoot, "../handshake_main")), true);
 });

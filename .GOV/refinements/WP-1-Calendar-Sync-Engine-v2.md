@@ -273,8 +273,9 @@ Requirements (HARD):
   - Artifact: WP-1-Calendar-Policy-Integration-v1 | BoardStatus: STUB | Intent: DISTINCT | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: N/A | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: ACE/routing and capability-policy projection remain a separate packet.
   - Artifact: WP-1-Calendar-Law-Compliance-Tests-v1 | BoardStatus: STUB | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: N/A | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: validator-heavy law-compliance coverage remains blocked by this packet.
 - MATCHED_ACTIVE_PACKETS:
-  - Artifact: WP-1-Calendar-Sync-Engine-v1 | BoardStatus: IN_PROGRESS | Intent: SAME | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: PARTIAL | Resolution: EXPAND_IN_THIS_WP | Stub: NONE | Notes: v1 targeted the runtime bridge but underspecified the capability-contract work now proven necessary.
+  - NONE
 - MATCHED_COMPLETED_PACKETS:
+  - Artifact: WP-1-Calendar-Sync-Engine-v1 | BoardStatus: SUPERSEDED | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: PARTIAL | Resolution: EXPAND_IN_THIS_WP | Stub: NONE | Notes: v1 targeted the runtime bridge but underspecified the capability-contract work now proven necessary.
   - Artifact: WP-1-Calendar-Storage-v2 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: IMPLEMENTED | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: provides the durable source/event substrate and sync-state row models that this packet must consume.
   - Artifact: WP-1-Workflow-Engine-v4 | BoardStatus: VALIDATED | Intent: PARTIAL | PrimitiveIndex: COVERED | Matrix: COVERED | UI: NONE | CodeReality: IMPLEMENTED | Resolution: KEEP_SEPARATE | Stub: NONE | Notes: workflow persistence and job execution exist, but the calendar-specific execution and capability branch is still absent under signed scope.
 - CODE_REALITY_EVIDENCE:

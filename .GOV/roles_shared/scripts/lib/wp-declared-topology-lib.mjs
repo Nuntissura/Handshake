@@ -35,6 +35,20 @@ function basenameHint(absPath) {
   return path.basename(String(absPath || "")).replace(/\\/g, "/").toLowerCase();
 }
 
+function uniqueResolvedPaths(values = []) {
+  const unique = new Map();
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (!normalized) continue;
+    const resolved = path.resolve(normalized);
+    const comparable = comparablePath(resolved);
+    if (!unique.has(comparable)) {
+      unique.set(comparable, resolved);
+    }
+  }
+  return Array.from(unique.values());
+}
+
 function runGit(repoRoot, args) {
   return execFileSync("git", args, {
     cwd: repoRoot,
@@ -129,7 +143,9 @@ function declaredTopology(repoRoot, wpId, packetContent) {
   const coderWorktreeAbs = path.resolve(repoRoot, coderWorktreeDir);
   const wpValidatorWorktreeAbs = path.resolve(repoRoot, wpValidatorWorktreeDir);
   const integrationWorktreeAbs = path.resolve(repoRoot, integrationWorktreeDir);
-  const allowedSpecificPaths = Array.from(new Set([coderWorktreeAbs, wpValidatorWorktreeAbs].map(comparablePath)));
+  const allowedSpecificPaths = Array.from(new Set(
+    [coderWorktreeAbs, wpValidatorWorktreeAbs, integrationWorktreeAbs].map(comparablePath),
+  ));
   const allowedBasenames = Array.from(new Set([coderWorktreeAbs, wpValidatorWorktreeAbs].map(basenameHint)));
 
   return {
@@ -241,4 +257,21 @@ export function evaluateWpDeclaredTopology({
     expectedWpValidatorBranchHead,
     issues,
   };
+}
+
+export function activeDeclaredTopologyRepoRoots({
+  repoRoot,
+  topology = null,
+  governanceRootAbs = "",
+} = {}) {
+  const governanceRepoRootAbs = String(governanceRootAbs || "").trim()
+    ? path.resolve(governanceRootAbs, "..")
+    : "";
+  return uniqueResolvedPaths([
+    repoRoot,
+    topology?.coderWorktreeAbs,
+    topology?.wpValidatorWorktreeAbs,
+    topology?.integrationWorktreeAbs,
+    governanceRepoRootAbs,
+  ]).sort((left, right) => comparablePath(left).localeCompare(comparablePath(right)));
 }

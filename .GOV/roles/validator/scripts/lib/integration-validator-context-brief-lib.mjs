@@ -7,7 +7,9 @@ import {
   loadPacket,
   packetExists,
   packetPath,
+  parseClaimField,
   parseCurrentWpStatus,
+  resolveCommittedCoderHandoffRange,
   taskBoardStatus,
 } from "../../../../roles_shared/scripts/lib/role-resume-utils.mjs";
 import { evaluateWpDeclaredTopology } from "../../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
@@ -163,6 +165,7 @@ export function buildIntegrationValidatorContextBrief({
   const livePrepareHealth = livePrepareWorktreeHealthEvidence(committedEvidence);
   const latestCloseoutEvent = latestCloseoutSyncEvent(gateState, wpId);
   const latestCloseoutGovernedAction = latestCloseoutSyncGovernedAction(gateState, wpId);
+  const candidateRange = resolveCommittedCoderHandoffRange(packetContent, wpId);
   const closeoutDependencyView = buildCloseoutDependencyView({
     packetContent,
     runtimeStatus,
@@ -220,6 +223,7 @@ export function buildIntegrationValidatorContextBrief({
     },
     closeout_dependency_summary: closeoutDependencyView.summary,
     closeout_publication: closeoutDependencyView.publication,
+    closeout_settlement: closeoutDependencyView.settlement,
     closeout_dependencies: closeoutDependencyView.dependencies,
     workflow_lane: authority.workflowLane || "<missing>",
     packet_path: packetPathValue,
@@ -246,6 +250,16 @@ export function buildIntegrationValidatorContextBrief({
       merge_authority: authority.mergeAuthority || "<missing>",
       integration_validator_of_record: authority.integrationValidatorOfRecord || "<unassigned>",
       wp_validator_of_record: authority.wpValidatorOfRecord || "<unassigned>",
+    },
+    candidate_under_review: {
+      branch: normalizeStatus(parseClaimField(packetContent, "LOCAL_BRANCH"), "<missing>"),
+      worktree_dir: normalizeStatus(parseClaimField(packetContent, "LOCAL_WORKTREE_DIR"), "<missing>"),
+      validator_policy_branch: normalizeStatus(parseClaimField(packetContent, "WP_VALIDATOR_LOCAL_BRANCH"), "<missing>"),
+      validator_policy_worktree_dir: normalizeStatus(parseClaimField(packetContent, "WP_VALIDATOR_LOCAL_WORKTREE_DIR"), "<missing>"),
+      handoff_range: candidateRange
+        ? `${candidateRange.baseRev}..${candidateRange.headRev}`
+        : "<missing>",
+      handoff_range_source: candidateRange?.source || "<missing>",
     },
     actor_context: {
       role: actorContext.actorRole || "UNKNOWN",
@@ -333,9 +347,11 @@ export function formatIntegrationValidatorContextBrief(brief) {
     `- CLOSEOUT_DEPENDENCY_SUMMARY: ${brief.closeout_dependency_summary}`,
     `- WORKFLOW_LANE: ${brief.workflow_lane} | PACKET_STATUS: ${brief.packet_status} | CURRENT_WP_STATUS: ${brief.current_wp_status} | TASK_BOARD_STATUS: ${brief.task_board_status}`,
     `- CLOSEOUT_REQUIREMENTS: require_ready_for_pass=${brief.closeout_requirements.require_ready_for_pass ? "YES" : "NO"} | require_recorded_scope_compatibility=${brief.closeout_requirements.require_recorded_scope_compatibility ? "YES" : "NO"} | terminal_non_pass_packet=${brief.closeout_requirements.terminal_non_pass_packet ? "YES" : "NO"}`,
-    `- CLOSEOUT_PUBLICATION: mode=${brief.closeout_publication.closeout_mode} | verdict=${brief.closeout_publication.validation_verdict} | containment=${brief.closeout_publication.main_containment_status} | canonical=${brief.closeout_publication.has_canonical_authority ? "YES" : "NO"}`,
+    `- CLOSEOUT_PUBLICATION: mode=${brief.closeout_publication.closeout_mode} | verdict=${brief.closeout_publication.verdict_of_record} | containment=${brief.closeout_publication.main_containment_status} | canonical=${brief.closeout_publication.has_canonical_authority ? "YES" : "NO"}`,
+    `- CLOSEOUT_SETTLEMENT: state=${brief.closeout_settlement.state} | blockers=${brief.closeout_settlement.blockers.join(",") || "none"} | terminal_publication_recorded=${brief.closeout_settlement.terminal_publication_recorded ? "YES" : "NO"}`,
     `- CLOSEOUT_DEPENDENCIES: topology=${brief.closeout_dependencies.topology.status} | bundle=${brief.closeout_dependencies.closeout_bundle.status} | scope=${brief.closeout_dependencies.scope_compatibility.status} | candidate=${brief.closeout_dependencies.candidate_target.status} | provenance=${brief.closeout_dependencies.sync_provenance.status}`,
     `- AUTHORITIES: technical=${brief.authority.technical_authority} | merge=${brief.authority.merge_authority} | integration_validator=${brief.authority.integration_validator_of_record} | wp_validator=${brief.authority.wp_validator_of_record}`,
+    `- CANDIDATE_UNDER_REVIEW: branch=${brief.candidate_under_review.branch} | worktree=${brief.candidate_under_review.worktree_dir} | handoff_range=${brief.candidate_under_review.handoff_range} | handoff_range_source=${brief.candidate_under_review.handoff_range_source} | validator_policy_branch=${brief.candidate_under_review.validator_policy_branch}`,
     `- ACTOR_CONTEXT: role=${brief.actor_context.role} | source=${brief.actor_context.source} | session=${brief.actor_context.session_id} | thread=${brief.actor_context.thread_id} | branch=${brief.actor_context.branch}`,
     `- GOVERNANCE_ROOT: live=${brief.governance_root.live_root} | main_backup=${brief.governance_root.local_main_backup_root} | mode=${brief.governance_root.mode}`,
     `- COMMITTED_HANDOFF: status=${brief.committed_handoff.status} | live_prepare=${brief.committed_handoff.live_prepare_worktree_status} | mode=${brief.committed_handoff.committed_validation_mode} | target=${brief.committed_handoff.committed_validation_target}`,

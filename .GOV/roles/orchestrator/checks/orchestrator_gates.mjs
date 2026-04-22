@@ -7,6 +7,7 @@ import {
     validateRefinementFile,
 } from '../../../roles_shared/checks/refinement-check.mjs';
 import {
+    evaluateSupersedingPrepareRollover,
     preparePacketTruthState,
     preparedWorktreeSyncState,
 } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
@@ -653,10 +654,22 @@ if (action === 'prepare') {
     if (packetTruth.packetPresent && lastPrepare) {
         const currentSyncState = preparedWorktreeSyncState(wpId, lastPrepare, REPO_ROOT);
         if (!currentSyncState.ok) {
-            v2Fail('Current PREPARE / worktree truth is already stale; repair STATUS_SYNC before appending another PREPARE.', [
-                ...currentSyncState.issues,
-                `Run: just orchestrator-next ${wpId}`,
-            ]);
+            const rolloverState = evaluateSupersedingPrepareRollover(
+                packetTruth.packetContent || '',
+                lastPrepare,
+                candidatePrepare,
+                REPO_ROOT,
+            );
+            if (!rolloverState.allowRollover) {
+                v2Fail('Current PREPARE / worktree truth is already stale; repair STATUS_SYNC before appending another PREPARE.', [
+                    ...currentSyncState.issues,
+                    `Run: just orchestrator-next ${wpId}`,
+                ]);
+            }
+            console.warn(
+                `[GATE WARNING] Superseding PREPARE rollover accepted for ${wpId}; `
+                + `candidate packet truth already matches the new branch/worktree while the previous PREPARE is stale.`,
+            );
         }
     }
 

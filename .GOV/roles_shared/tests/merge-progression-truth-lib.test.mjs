@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateMergeProgressionTruth } from "../scripts/lib/merge-progression-truth-lib.mjs";
+import {
+  parseValidationVerdictRecord,
+  readVerdictSettlementTruth,
+  validateMergeProgressionTruth,
+} from "../scripts/lib/merge-progression-truth-lib.mjs";
 
 function buildPacket({
   packetFormatVersion = "2026-03-25",
@@ -192,4 +196,234 @@ test("merge progression truth accepts canonical execution_state authority when f
     mainContainmentVerifier: () => ({ ok: true, reason: "contained in main" }),
   });
   assert.deepEqual(result.errors, []);
+});
+
+test("parseValidationVerdictRecord prefers the latest validation report entry and preserves verdict provenance", () => {
+  const packetText = [
+    "# Task Packet: WP-TEST-MERGE-TRUTH-v1",
+    "",
+    "## METADATA",
+    "- **Status:** In Progress",
+    "- MAIN_CONTAINMENT_STATUS: NOT_STARTED",
+    "- MERGED_MAIN_COMMIT: NONE",
+    "- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A",
+    "- PACKET_FORMAT_VERSION: 2026-03-25",
+    "",
+    "## VALIDATION_REPORTS",
+    "### 2026-03-25T10:00:00Z | INTEGRATION_VALIDATOR | session=integration-validator-old",
+    "- Verdict: PASS",
+    "",
+    "### 2026-03-25T12:30:00Z | INTEGRATION_VALIDATOR | session=integration-validator-new",
+    "- Verdict: FAIL",
+    "",
+  ].join("\n");
+
+  const verdict = parseValidationVerdictRecord(packetText);
+
+  assert.deepEqual(verdict, {
+    verdict: "FAIL",
+    timestampUtc: "2026-03-25T12:30:00Z",
+    actorRole: "INTEGRATION_VALIDATOR",
+    actorSession: "integration-validator-new",
+    evidencePointer: "VALIDATION_REPORTS[2]",
+    reportIndex: 2,
+  });
+});
+
+test("readVerdictSettlementTruth preserves verdict-of-record before terminal closeout publication exists", () => {
+  const packetText = [
+    "# Task Packet: WP-TEST-MERGE-TRUTH-v1",
+    "",
+    "## METADATA",
+    "- **Status:** In Progress",
+    "- MAIN_CONTAINMENT_STATUS: NOT_STARTED",
+    "- MERGED_MAIN_COMMIT: NONE",
+    "- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A",
+    "- PACKET_FORMAT_VERSION: 2026-03-25",
+    "",
+    "## VALIDATION_REPORTS",
+    "### 2026-03-25T12:30:00Z | INTEGRATION_VALIDATOR | session=integration-validator-new",
+    "- Verdict: FAIL",
+    "",
+  ].join("\n");
+
+  const verdictSettlement = readVerdictSettlementTruth({
+    packetText,
+    runtimeStatus: {
+      current_packet_status: "In Progress",
+      current_task_board_status: "IN_PROGRESS",
+      main_containment_status: "NOT_STARTED",
+    },
+  });
+
+  assert.equal(verdictSettlement.verdictOfRecord, "FAIL");
+  assert.equal(verdictSettlement.closeoutMode, "");
+  assert.equal(verdictSettlement.settlementState, "SETTLEMENT_DEBT");
+  assert.deepEqual(verdictSettlement.settlementBlockers, ["TERMINAL_PUBLICATION_PENDING"]);
+});
+
+test("parseValidationVerdictRecord prefers the report matching settled packet publication truth", () => {
+  const packetText = [
+    "# Task Packet: WP-TEST-MERGE-TRUTH-v1",
+    "",
+    "## METADATA",
+    "- **Status:** Validated (PASS)",
+    "- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN",
+    "- MERGED_MAIN_COMMIT: abc1234",
+    "- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-03-25T12:00:00Z",
+    "- PACKET_FORMAT_VERSION: 2026-03-25",
+    "",
+    "## VALIDATION_REPORTS",
+    "### 2026-03-25T10:00:00Z | INTEGRATION_VALIDATOR | session=integration-validator-pass",
+    "- Verdict: PASS",
+    "",
+    "### 2026-03-25T12:30:00Z | INTEGRATION_VALIDATOR | session=integration-validator-followup",
+    "- Verdict: FAIL",
+    "",
+  ].join("\n");
+
+  const verdict = parseValidationVerdictRecord(packetText);
+
+  assert.equal(verdict.verdict, "PASS");
+  assert.equal(verdict.actorSession, "integration-validator-pass");
+  assert.equal(verdict.evidencePointer, "VALIDATION_REPORTS[1]");
+});
+
+test("parseValidationVerdictRecord recognizes legacy report headings and body metadata on settled PASS packets", () => {
+  const packetText = [
+    "# Task Packet: WP-TEST-MERGE-TRUTH-v1",
+    "",
+    "## METADATA",
+    "- **Status:** Validated (PASS)",
+    "- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN",
+    "- MERGED_MAIN_COMMIT: abc1234",
+    "- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-03-25T12:00:00Z",
+    "- PACKET_FORMAT_VERSION: 2026-03-25",
+    "",
+    "## VALIDATION_REPORTS",
+    "- (Validator appends official audits and verdicts here. Append-only.)",
+    "",
+    "### Integration Validator Report (Post-Fix)",
+    "DATE: 2026-04-06T08:00:00Z",
+    "VALIDATOR_ROLE: INTEGRATION_VALIDATOR",
+    "VALIDATOR_MODEL: claude-opus-4-6",
+    "Verdict: PASS",
+    "",
+    "### 2026-04-06T07:01:00Z | WP_VALIDATOR FAIL REPORT",
+    "VALIDATOR_ROLE: WP_VALIDATOR",
+    "ACTOR_SESSION: wp_validator:wp-1-merge-truth-v1",
+    "Verdict: FAIL",
+    "",
+  ].join("\n");
+
+  const verdict = parseValidationVerdictRecord(packetText);
+
+  assert.deepEqual(verdict, {
+    verdict: "PASS",
+    timestampUtc: "2026-04-06T08:00:00Z",
+    actorRole: "INTEGRATION_VALIDATOR",
+    actorSession: "",
+    evidencePointer: "VALIDATION_REPORTS[1]",
+    reportIndex: 1,
+  });
+});
+
+test("parseValidationVerdictRecord extracts role and session from legacy WP validator bullet metadata", () => {
+  const packetText = [
+    "# Task Packet: WP-TEST-MERGE-TRUTH-v1",
+    "",
+    "## METADATA",
+    "- **Status:** In Progress",
+    "- MAIN_CONTAINMENT_STATUS: NOT_STARTED",
+    "- MERGED_MAIN_COMMIT: NONE",
+    "- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A",
+    "- PACKET_FORMAT_VERSION: 2026-03-25",
+    "",
+    "## VALIDATION_REPORTS",
+    "### WP Validator Report: WP-TEST-MERGE-TRUTH-v1 (2026-04-06)",
+    "- Validator: WP_VALIDATOR (claude-opus-4-6, session wp_validator:wp-test-merge-truth-v1)",
+    "- Commit: abc1234 (validate/WP-TEST-MERGE-TRUTH-v1)",
+    "- Verdict: FAIL",
+    "",
+  ].join("\n");
+
+  const verdict = parseValidationVerdictRecord(packetText);
+
+  assert.deepEqual(verdict, {
+    verdict: "FAIL",
+    timestampUtc: "",
+    actorRole: "WP_VALIDATOR",
+    actorSession: "wp_validator:wp-test-merge-truth-v1",
+    evidencePointer: "VALIDATION_REPORTS[1]",
+    reportIndex: 1,
+  });
+});
+
+test("parseValidationVerdictRecord treats level-4 verdict headings as report body, not new report boundaries", () => {
+  const packetText = [
+    "# Task Packet: WP-TEST-MERGE-TRUTH-v1",
+    "",
+    "## METADATA",
+    "- **Status:** Validated (PASS)",
+    "- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN",
+    "- MERGED_MAIN_COMMIT: abc1234",
+    "- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-03-25T12:00:00Z",
+    "- PACKET_FORMAT_VERSION: 2026-03-25",
+    "",
+    "## VALIDATION_REPORTS",
+    "### INTEGRATION_VALIDATOR_REPORT [2026-04-15T15:43:00Z]",
+    "- ROLE: INTEGRATION_VALIDATOR",
+    "- SESSION: integration_validator:wp-test-merge-truth-v1",
+    "#### Verdict: PASS",
+    "#### CLAUSES_REVIEWED:",
+    "- clause one",
+    "",
+    "### WP_VALIDATOR_REPORT [2026-04-15T14:00:00Z]",
+    "- ROLE: WP_VALIDATOR",
+    "- SESSION: wp_validator:wp-test-merge-truth-v1",
+    "#### Verdict: FAIL",
+    "",
+  ].join("\n");
+
+  const verdict = parseValidationVerdictRecord(packetText);
+
+  assert.deepEqual(verdict, {
+    verdict: "PASS",
+    timestampUtc: "2026-04-15T15:43:00Z",
+    actorRole: "INTEGRATION_VALIDATOR",
+    actorSession: "integration_validator:wp-test-merge-truth-v1",
+    evidencePointer: "VALIDATION_REPORTS[1]",
+    reportIndex: 1,
+  });
+});
+
+test("parseValidationVerdictRecord normalizes closeout-style report headings to the underlying validator role", () => {
+  const packetText = [
+    "# Task Packet: WP-TEST-MERGE-TRUTH-v1",
+    "",
+    "## METADATA",
+    "- **Status:** Validated (PASS)",
+    "- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN",
+    "- MERGED_MAIN_COMMIT: abc1234",
+    "- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-03-25T12:00:00Z",
+    "- PACKET_FORMAT_VERSION: 2026-03-25",
+    "",
+    "## VALIDATION_REPORTS",
+    "### INTEGRATION_VALIDATOR_REPORT_CLOSEOUT [2026-04-15T16:55:00Z]",
+    "- ROLE: INTEGRATION_VALIDATOR",
+    "- SESSION: integration_validator:wp-test-merge-truth-v1",
+    "#### Verdict: PASS",
+    "",
+  ].join("\n");
+
+  const verdict = parseValidationVerdictRecord(packetText);
+
+  assert.deepEqual(verdict, {
+    verdict: "PASS",
+    timestampUtc: "2026-04-15T16:55:00Z",
+    actorRole: "INTEGRATION_VALIDATOR",
+    actorSession: "integration_validator:wp-test-merge-truth-v1",
+    evidencePointer: "VALIDATION_REPORTS[1]",
+    reportIndex: 1,
+  });
 });

@@ -19,6 +19,7 @@ import {
   buildWpTimelineSummary,
   parseThreadEntriesText,
 } from "../session/wp-timeline-lib.mjs";
+import { readVerdictSettlementTruth } from "../lib/merge-progression-truth-lib.mjs";
 import {
   NOTIFICATION_CURSOR_FILE_NAME,
   NOTIFICATIONS_FILE_NAME,
@@ -349,9 +350,10 @@ function runSync(rootDir, options) {
   const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");
   const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
   const commDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
-  const runtimeProjection = runtimePath && fs.existsSync(path.resolve(rootDir, runtimePath))
-    ? readExecutionProjectionView(parseJsonFile(path.resolve(rootDir, runtimePath)))
-    : readExecutionProjectionView({});
+  const rawRuntimeStatus = runtimePath && fs.existsSync(path.resolve(rootDir, runtimePath))
+    ? parseJsonFile(path.resolve(rootDir, runtimePath))
+    : {};
+  const runtimeProjection = readExecutionProjectionView(rawRuntimeStatus);
   const runtime = runtimeProjection.runtime;
   const receipts = receiptsPath && fs.existsSync(path.resolve(rootDir, receiptsPath))
     ? parseJsonlFile(path.resolve(rootDir, receiptsPath))
@@ -426,6 +428,10 @@ function runSync(rootDir, options) {
   const latestReceiptSummary = latestReceipt.receipt_kind
     ? `${latestReceipt.receipt_kind}@${latestReceipt.timestamp_utc || "NONE"}`
     : "NONE";
+  const verdictSettlement = readVerdictSettlementTruth({
+    packetText,
+    runtimeStatus: rawRuntimeStatus,
+  });
   const flowGraph = `BROKER(${brokerSummary.activeRuns.length} active) -> ${options.wpId} [${runtimeStatus} / waiting_on=${waitingOn}]`;
   const syncSummary = [
     `sessions=${sessions.length}`,
@@ -437,6 +443,9 @@ function runSync(rootDir, options) {
     `run_step=${sessionActivitySummary || "NONE"}`,
     `push_alert=${formatPushAlertInline(selectLatestPushAlert(notifications, { targetRole: "ORCHESTRATOR" }))}`,
     `lane=${relayLaneVerdict ? `${relayLaneVerdict.verdict}/${relayLaneVerdict.reasonCode}` : "NONE"}`,
+    `verdict_of_record=${verdictSettlement.verdictOfRecord || "UNKNOWN"}`,
+    `settlement=${verdictSettlement.settlementState}`,
+    `settlement_blockers=${verdictSettlement.settlementBlockers.join(",") || "none"}`,
     `interrupt_budget=${workerInterruptBudget ? `${workerInterruptBudget.currentCycle}/${workerInterruptBudget.maxCycle}` : "NONE"}`,
     `idle=${formatIdleMinutes(latestMechanicalEvent)}m`,
   ].join(" | ");

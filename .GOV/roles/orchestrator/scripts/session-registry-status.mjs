@@ -20,6 +20,7 @@ import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import { readVerdictSettlementTruth } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import {
   normalizeRelayEscalationPolicy,
   relayEscalationPolicyBudgetLabel,
@@ -125,9 +126,27 @@ function loadRelayStatusForWp(wpId) {
   };
 }
 
+function loadCloseoutStatusForWp(wpId) {
+  const packetPath = resolveWorkPacketPath(wpId)?.packetPath || "";
+  const packetAbsPath = repoPathAbs(packetPath);
+  if (!packetPath || !fs.existsSync(packetAbsPath)) return null;
+
+  const packetText = fs.readFileSync(packetAbsPath, "utf8");
+  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const runtimeStatus = runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
+    ? parseJsonFile(runtimeStatusFile)
+    : {};
+
+  return readVerdictSettlementTruth({
+    packetText,
+    runtimeStatus,
+  });
+}
+
 const relayDiagnostics = wpIdFilter ? loadRelayStatusForWp(wpIdFilter) : null;
 const relayStatus = relayDiagnostics?.relayStatus || null;
 const relayPolicy = relayDiagnostics?.relayPolicy || null;
+const closeoutStatus = wpIdFilter ? loadCloseoutStatusForWp(wpIdFilter) : null;
 
 console.log("ROLE_SESSION_REGISTRY");
 console.log(`- updated_at: ${registry.updated_at}`);
@@ -311,6 +330,23 @@ if (relayStatus) {
       }
     }
   }
+
+if (closeoutStatus) {
+  console.log("");
+  console.log("WP_CLOSEOUT_STATUS");
+  console.log(`- wp_id: ${wpIdFilter}`);
+  console.log(`- packet_status: ${closeoutStatus.publicationPacketStatus || "<none>"}`);
+  console.log(`- task_board_status: ${closeoutStatus.publicationTaskBoardStatus || "<none>"}`);
+  console.log(`- verdict_of_record: ${closeoutStatus.verdictOfRecord || "UNKNOWN"}`);
+  console.log(`- verdict_recorded_at_utc: ${closeoutStatus.verdictRecordedAtUtc || "<none>"}`);
+  console.log(`- verdict_actor_role: ${closeoutStatus.verdictActorRole || "<none>"}`);
+  console.log(`- verdict_actor_session: ${closeoutStatus.verdictActorSession || "<none>"}`);
+  console.log(`- verdict_evidence_pointer: ${closeoutStatus.verdictEvidencePointer || "<none>"}`);
+  console.log(`- closeout_mode: ${closeoutStatus.closeoutMode || "<none>"}`);
+  console.log(`- settlement_state: ${closeoutStatus.settlementState}`);
+  console.log(`- settlement_blockers: ${closeoutStatus.settlementBlockers.join(",") || "<none>"}`);
+  console.log(`- terminal_publication_recorded: ${closeoutStatus.terminalPublicationRecorded ? "YES" : "NO"}`);
+}
 
 if (wpTokenUsage) {
   console.log("");

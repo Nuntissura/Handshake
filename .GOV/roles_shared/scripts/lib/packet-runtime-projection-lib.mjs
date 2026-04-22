@@ -90,6 +90,11 @@ function deriveRuntimeCloseoutState(projection = {}, currentRuntime = {}) {
     nextRuntime.current_files_touched = [];
     nextRuntime.active_role_sessions = [];
     nextRuntime.open_review_items = [];
+    nextRuntime.route_anchor_state = null;
+    nextRuntime.route_anchor_kind = null;
+    nextRuntime.route_anchor_correlation_id = null;
+    nextRuntime.route_anchor_target_role = null;
+    nextRuntime.route_anchor_target_session = null;
     return nextRuntime;
   }
 

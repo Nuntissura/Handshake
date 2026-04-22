@@ -55,6 +55,10 @@ import {
   evaluateArtifactHygiene,
   writeArtifactRetentionManifest,
 } from "../../../roles_shared/scripts/lib/artifact-hygiene-lib.mjs";
+import {
+  activeDeclaredTopologyRepoRoots,
+  evaluateWpDeclaredTopology,
+} from "../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
 import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 registerFailCaptureHook("integration-validator-closeout-sync.mjs", { role: "INTEGRATION_VALIDATOR" });
@@ -433,12 +437,28 @@ if (!evaluation.ok) {
 }
 
 ensureArtifactRootStructure(repoRoot);
-const artifactEvaluationBeforeCleanup = evaluateArtifactHygiene({ repoRoot });
+const declaredTopology = evaluateWpDeclaredTopology({
+  repoRoot,
+  wpId,
+  packetContent: originalPacketText,
+});
+const activeArtifactRepoRoots = activeDeclaredTopologyRepoRoots({
+  repoRoot,
+  topology: declaredTopology.topology,
+  governanceRootAbs: evaluation.topology.liveGovernanceRootAbs || GOV_ROOT_ABS,
+});
+const artifactEvaluationBeforeCleanup = evaluateArtifactHygiene({
+  repoRoot,
+  repoRoots: activeArtifactRepoRoots,
+});
 const artifactCleanup = cleanupArtifactResidue(artifactEvaluationBeforeCleanup);
 if (artifactCleanup.errors.length > 0) {
   fail("Closeout sync could not clean artifact residue", artifactCleanup.errors);
 }
-const artifactEvaluation = evaluateArtifactHygiene({ repoRoot });
+const artifactEvaluation = evaluateArtifactHygiene({
+  repoRoot,
+  repoRoots: activeArtifactRepoRoots,
+});
 if (artifactEvaluation.blockingIssues.length > 0) {
   fail("Closeout sync requires clean artifact hygiene before terminal truth can be promoted", artifactEvaluation.blockingIssues);
 }

@@ -96,7 +96,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 
 
 
-- **[WP-1-Calendar-Sync-Engine-v2]** - [READY_FOR_DEV]
 
 ## Stub Backlog (Not Activated)
 
@@ -1012,7 +1011,93 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 
-- **[WP-1-Calendar-Sync-Engine-v1]** - [IN_PROGRESS]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Done
 - **[WP-1-Spec-Router-SpecPromptCompiler-v1]** - [VALIDATED]
@@ -1153,6 +1238,8 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 - **[WP-1-Distillation-v2]** - [VALIDATED]
 
+- **[WP-1-Calendar-Sync-Engine-v2]** - [FAIL]
+
 ## Blocked
 ---
 
@@ -1267,3 +1354,5 @@ Entry format for this section:
 - **[WP-1-Loom-Storage-Portability-v1]** - [SUPERSEDED]
 - **[WP-1-Loom-Storage-Portability-v2]** - [SUPERSEDED]
 - **[WP-1-Loom-Storage-Portability-v3]** - [SUPERSEDED]
+
+- **[WP-1-Calendar-Sync-Engine-v1]** - [SUPERSEDED]

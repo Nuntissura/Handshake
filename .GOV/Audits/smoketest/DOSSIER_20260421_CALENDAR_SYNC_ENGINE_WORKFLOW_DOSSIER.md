@@ -6,24 +6,24 @@
 - AUDIT_ID: AUDIT-20260421-CALENDAR-SYNC-ENGINE-SMOKETEST-REVIEW
 - SMOKETEST_REVIEW_ID: SMOKETEST-REVIEW-20260421-CALENDAR-SYNC-ENGINE
 - DOCUMENT_KIND: LIVE_WORKFLOW_DOSSIER
-- LIVE_REVIEW_STATUS: OPEN
+- LIVE_REVIEW_STATUS: CLOSED
 - REPO_TIMEZONE: Europe/Brussels
-- REVIEW_KIND: <SET_AT_CLOSEOUT>
+- REVIEW_KIND: ORCHESTRATOR_MANAGED_CLOSEOUT
 - DATE_LOCAL: 2026-04-21
 - DATE_UTC: 2026-04-21
 - OPENED_AT_LOCAL: 2026-04-21 03:21:13 Europe/Brussels
 - OPENED_AT_UTC: 2026-04-21T01:21:13.025Z
-- LAST_UPDATED_LOCAL: 2026-04-21 03:21:13 Europe/Brussels
-- LAST_UPDATED_UTC: 2026-04-21T01:21:13.025Z
-- SESSION_INTENTION: Continue autonomous orchestrator-managed activation for WP-1-Calendar-Sync-Engine-v1 after explicit refinement approval, signature token, and execution-owner selection so signature and packet gates ca
+- LAST_UPDATED_LOCAL: 2026-04-21 22:26:47 Europe/Brussels
+- LAST_UPDATED_UTC: 2026-04-21T20:27:02.0309715Z
+- SESSION_INTENTION: Autonomous orchestrator-managed recovery for Calendar Sync Engine from v1 supersession through v2 startup repair, governed coding, validation, and integration to main.
 - AUTHOR: Codex acting as ORCHESTRATOR
-- HISTORICAL_BASELINE_PACKET: NONE
-- ACTIVE_RECOVERY_PACKET: WP-1-Calendar-Sync-Engine-v1
-- LINEAGE_STATUS: NONE
+- HISTORICAL_BASELINE_PACKET: WP-1-Calendar-Sync-Engine-v1
+- ACTIVE_RECOVERY_PACKET: WP-1-Calendar-Sync-Engine-v2
+- LINEAGE_STATUS: V1_SUPERSEDED_V2_ACTIVE
 - RELATED_PREVIOUS_REVIEWS:
   - NONE
 - SCOPE:
-  - live workflow dossier opened at WP activation for `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v1/packet.md`
+  - live workflow dossier opened at v1 activation and now tracks the governed recovery packet `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md`
   - workflow lane `ORCHESTRATOR_MANAGED` with execution owner `CODER_A`
   - ACP/session-control/runtime surfaces under `../gov_runtime`
 - RESULT:
@@ -35,6 +35,11 @@
 - KEY_COMMITS_REVIEWED:
   - NONE yet
 - EVIDENCE_SOURCES:
+  - `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md`
+  - `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/refinement.md`
+  - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RUNTIME_STATUS.json`
+  - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RECEIPTS.jsonl`
+  - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/THREAD.md`
   - `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v1/packet.md`
   - `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v1/refinement.md`
   - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v1/RUNTIME_STATUS.json`
@@ -55,7 +60,7 @@
 ## 1. Executive Summary
 
 - LIVE REVIEW OPENED at activation. This document is the run-time workflow dossier for the WP and should be updated as the run progresses.
-- Current packet/runtime status is Ready for Dev / submitted with next actor WP_VALIDATOR.
+- Current active packet/runtime status is Ready for Dev / submitted with next actor CODER waiting on CODER_INTENT after the startup communication mesh and refinement-alignment gates were repaired on v2.
 
 ## 2. Lineage and What This Run Needed To Prove
 
@@ -281,27 +286,27 @@ Assessment:
 
 ## 14. Cost Attribution
 
-| Phase | Time (min) | Orchestrator Tokens (est) | Notes |
+| Phase | Time (min) | Tokens | Notes |
 |---|---|---|---|
-| Refinement | <N> | <N or %> | |
-| Per-MT Coding (total) | <N> | <N or %> | |
-| Validation | <N> | <N or %> | |
-| Fix Cycle | <N> | <N or %> | |
-| Closeout | <N> | <N or %> | |
-| Polling/Waiting | <N> | <N or %> | |
-| TOTAL | <N> | <N or %> | |
+| Product active | 4.9 | — | implementation + test |
+| Validation | 26.6 | — | validator wait |
+| Fix/Repair | 0.1 | — | governance repair overhead |
+| Routing/Waiting | 200.3 | — | route + coder wait |
+| TOTAL | 398.3 | 457.7M in / 2.1M out / 35 turns | gov overhead ratio: 638% |
 
 ## 15. Comparison Table (vs Previous WP)
 
-| Metric | Previous WP | This WP | Trend |
-|---|---|---|---|
-| Total lines changed | <N> | <N> | |
-| Microtask count | <N> | <N> | |
-| Compile errors (first pass) | <N> | <N> | |
-| Validator findings | <N> | <N> | |
-| Fix cycles | <N> | <N> | |
-| Stubs discovered | <N> | <N> | |
-| Governed receipts created | <N> | <N> | |
+| Metric | This WP | Notes |
+|---|---|---|
+| Wall clock (min) | 398.3 | |
+| Microtask count | 6 | |
+| Fix cycles | 0 | |
+| Governed receipts | 24 | |
+| ACP commands | 51 | failures: 5 |
+| Session restarts | 3 | |
+| Tokens in | 457.7M | |
+| Tokens out | 2.1M | |
+| Turns | 35 | |
 
 ## Workflow Dossier Closeout Rubric
 
@@ -1840,25 +1845,4034 @@ Next required command(s):
 - [2026-04-21 10:35:34 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=NONE | why=integration-validator-closeout-check failed.
 - [2026-04-21 10:35:36 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=418.8min | active=22.6min | repair=0.1min | validator_wait=23.2min | route_wait=186min | gov_overhead=4.068 | receipts=10 | dup_receipts=0 | stale_routes=0 | acp_cmds=29 | acp_fail=2 | restarts=2 | mt=2 | fix_cycles=0 | zero_exec=0 | tokens_in=86703994 | tokens_out=421851 | turns=23
 - [2026-04-21 10:36:42 Europe/Brussels] [ORCHESTRATOR] [V1_CLOSEOUT_BLOCK] [phase_check_closeout] 2026-04-21 10:35 Europe/Brussels: closeout-repair plus one manual remediation pass failed for v1. closeout blockers remain: durable committed target proof FAIL, no governed Integration Validator lane, no terminal verdict. v1 cannot be truthfully synced to DONE or SUPERSEDED yet.
+- [2026-04-21 11:05:28 Europe/Brussels] [ORCHESTRATOR] [NOTE] [V2_PACKET_CREATED] Packet, MT set, worktree, and backup snapshot created through orchestrator-prepare-and-packet; lane advanced to DELEGATION with truthful packet/runtime state.
+- [2026-04-21 11:06:30 Europe/Brussels] [ORCHESTRATOR] [NOTE] [V2_ACTIVATION_READY] Activation readiness written with READY_FOR_ORCHESTRATOR_REVIEW and zero outstanding issues; downstream coder lane may now be launched.
+- [2026-04-21 11:14:29 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019dad6b-bbc1-7ed2-a156-4ab47d3349a3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/ACTIVATION_MANAGER_WP-1-Calendar-Sync-Engine-v1/8c7af988-653a-4e70-8683-870c8f39718c.jsonl | wp=WP-1-Calendar-Sync-Engine-v1 | detail=Governed session closed and steerable thread 019dad6b-bbc1-7ed2-a156-4ab47d3349a3 was cleared.
+- [2026-04-21 11:15:11 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019dada9-1915-7900-9a5d-3d1c77029551 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v1/adfd1cc4-aab6-407a-9b34-971e7e762274.jsonl | wp=WP-1-Calendar-Sync-Engine-v1 | detail=Governed session closed and steerable thread 019dada9-1915-7900-9a5d-3d1c77029551 was cleared.
+- [2026-04-21 11:15:47 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019dae12-364d-70d1-96db-8f4e3f9d267c | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v1/306beb40-f7a5-4ef4-8b43-43e737d81714.jsonl | wp=WP-1-Calendar-Sync-Engine-v1 | detail=Governed session closed and steerable thread 019dae12-364d-70d1-96db-8f4e3f9d267c was cleared.
+- [2026-04-21 11:27:02 Europe/Brussels] [ORCHESTRATOR] [STARTUP_REPAIR] [WP_RECEIPTS] Heartbeated the live CODER and WP_VALIDATOR v2 sessions and appended the MT-001-bound `VALIDATOR_KICKOFF`; runtime advanced from `WP_VALIDATOR / VALIDATOR_KICKOFF` to `CODER / CODER_INTENT`.
+- [2026-04-21 11:31:36 Europe/Brussels] [ORCHESTRATOR] [STARTUP_GATE_CLEAR] [PHASE_CHECK_STARTUP] The v2 coder STARTUP gate passed after refinement-alignment repair; the governed lane may now acknowledge kickoff, emit `CODER_INTENT`, and begin bounded implementation.
+- [2026-04-21 11:34:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=102340
+- [2026-04-21 11:34:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 11:34:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:34:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:35:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:35:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:35:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:35:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:35:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:35:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:35:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=2a50f02a..2d9cf5 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:35:28 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/2a50f02a-0c53-428f-bf5c-45b6092d9cf5.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=BLOCKER_CLASS: ENVIRONMENT_FAILURE
+
+Exact command used:
+```powershell
+just wp-coder-intent WP-1-Calendar-Sync-Engine-v2 coder:wp-1-calendar-sync-engine-v2 wp_validator:wp-1-calendar-sync-engine-v2 "MT-001 intent: limit write-gate discipline to src/backend/handshake_core/mechanical_engines.json, src/backend/handshake_core/src/workflows.rs, and src/backend/handshake_core/src/storage/mod.rs only; preserve governed routing and write-gate boundaries; no capability-contract edits yet." "surface mutation discipline plus write gate" MT-001 MT-001 '{"scope_ref":"MT-001","file_targets":["src/backend/handshake_core/mechanical_engines.json","src/backend/handshake_core/src/workflows.rs","src/backend/handshake_core/src/storage/mod.rs"],"proof_commands":["cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests","cargo test --manifest-path src/backend/handshake_core/Cargo.toml"],"risk_focus":"Write-gate discipline only: keep calendar-sync writes confined to the declared entry surfaces and avoid capability-contract edits in MT-001.","expected_receipt_kind":"VALIDATOR_RESPONSE","phase_gate":"BOOTSTRAP"}'
+```
+
+Evidence:
+- `just check-notifications WP-1-Calendar-Sync-Engine-v2 CODER coder:wp-1-calendar-sync-engine-v2` returned one kickoff:
+  - `VALIDATOR_KICKOFF` from `WP_VALIDATOR:wp_validator:wp-1-calendar-sync-engine-v2`
+  - correlation: `surface mutation discipline plus write gate`
+  - `spec_anchor: MT-001`
+- `just ack-notifications ...` succeeded and advanced the cursor.
+- `just coder-next WP-1-Calendar-Sync-Engine-v2` confirmed:
+  - `Runtime next actor: CODER:coder:wp-1-calendar-sync-engine-v2`
+  - `Runtime waiting_on: CODER_INTENT`
+  - `Active microtask: MT-001 (IN_REVIEW) - surface mutation discipline plus write gate`
+
+Helper failure:
+```text
+[wp-review-exchange.mjs] Uncaught: Receipt validation failed: ack_for must match correlation_id for CODER_INTENT
+error: Recipe `wp-coder-intent` failed on line 480 with exit code 1
+```
+
+Why this is a helper/runtime defect:
+- The local helper signature in `justfile:479-480` is:
+  - `wp-coder-intent wp-id actor_session validator_session summary correlation_id spec_anchor="" packet_row_ref="" microtask_json=""`
+- That helper exposes no `ack_for` argument, but the underlying validator now rejects `CODER_INTENT` unless `ack_for == correlation_id`.
+
+I stopped at the helper failure as instructed.
+- [2026-04-21 11:37:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:37:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=196456
+- [2026-04-21 11:37:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 11:37:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:37:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:37:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:37:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:37:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:37:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:37:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:37:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=fc05d5c8..127e45 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:37:33 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/fc05d5c8-6230-4957-b71b-b47c61127e45.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=BLOCKER_CLASS: ENVIRONMENT_FAILURE
+
+Exact validation error:
+```text
+[wp-review-exchange.mjs] MICROTASK_JSON must be valid JSON: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+error: Recipe `wp-review-exchange` failed on line 465 with exit code 1
+```
+
+Command used:
+```powershell
+just wp-review-exchange CODER_INTENT WP-1-Calendar-Sync-Engine-v2 CODER coder:wp-1-calendar-sync-engine-v2 WP_VALIDATOR wp_validator:wp-1-calendar-sync-engine-v2 "MT-001 intent: limit write-gate discipline to src/backend/handshake_core/mechanical_engines.json, src/backend/handshake_core/src/workflows.rs, and src/backend/handshake_core/src/storage/mod.rs only; preserve governed routing and write-gate boundaries; no capability-contract edits yet." "surface mutation discipline plus write gate" MT-001 MT-001 "surface mutation discipline plus write gate" '{"scope_ref":"MT-001","file_targets":["src/backend/handshake_core/mechanical_engines.json","src/backend/handshake_core/src/workflows.rs","src/backend/handshake_core/src/storage/mod.rs"],"proof_commands":["cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests","cargo test --manifest-path src/backend/handshake_core/Cargo.toml"],"risk_focus":"Write-gate discipline only: keep calendar-sync writes confined to the declared entry surfaces and avoid capability-contract edits in MT-001.","expected_receipt_kind":"VALIDATOR_RESPONSE","phase_gate":"BOOTSTRAP"}'
+```
+
+The receipt did not land, so there is no new receipt evidence or runtime transition to report. The failure is at the helper/runtime argument parsing layer, before the governed `CODER_INTENT` can be recorded.
+- [2026-04-21 11:38:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:38:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=43084
+- [2026-04-21 11:38:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 11:38:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:38:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:38:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:38:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:38:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:38:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:38:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:38:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=4c394feb..944f02 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:38:42 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/4c394feb-18c5-4d5b-b170-f3675a944f02.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Exact command:
+```powershell
+$microtask = [ordered]@{
+  scope_ref = 'MT-001'
+  file_targets = @(
+    'src/backend/handshake_core/mechanical_engines.json',
+    'src/backend/handshake_core/src/workflows.rs',
+    'src/backend/handshake_core/src/storage/mod.rs'
+  )
+  proof_commands = @(
+    'cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests',
+    'cargo test --manifest-path src/backend/handshake_core/Cargo.toml'
+  )
+  risk_focus = 'Write-gate discipline only: keep calendar-sync writes confined to the declared entry surfaces and avoid capability-contract edits in MT-001.'
+  expected_receipt_kind = 'VALIDATOR_RESPONSE'
+  phase_gate = 'BOOTSTRAP'
+}
+$json = $microtask | ConvertTo-Json -Compress -Depth 5
+& just 'wp-review-exchange' 'CODER_INTENT' 'WP-1-Calendar-Sync-Engine-v2' 'CODER' 'coder:wp-1-calendar-sync-engine-v2' 'WP_VALIDATOR' 'wp_validator:wp-1-calendar-sync-engine-v2' 'MT-001 intent: limit write-gate discipline to src/backend/handshake_core/mechanical_engines.json, src/backend/handshake_core/src/workflows.rs, and src/backend/handshake_core/src/storage/mod.rs only; preserve governed routing and write-gate boundaries; no capability-contract edits yet.' 'surface mutation discipline plus write gate' 'MT-001' 'MT-001' 'surface mutation discipline plus write gate' $json
+```
+
+Validation error:
+```text
+[wp-review-exchange.mjs] MICROTASK_JSON must be valid JSON: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+error: Recipe `wp-review-exchange` failed on line 465 with exit code 1
+```
+- [2026-04-21 11:39:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:39:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=213328
+- [2026-04-21 11:39:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 11:39:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:39:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:39:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:39:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:39:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:39:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:39:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:39:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=1a719604..5cdb35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:39:51 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/1a719604-57a5-41c9-95a7-a403a95cdb35.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Exact command:
+```powershell
+$microtask = [ordered]@{
+  scope_ref = 'MT-001'
+  file_targets = @(
+    'src/backend/handshake_core/mechanical_engines.json',
+    'src/backend/handshake_core/src/workflows.rs',
+    'src/backend/handshake_core/src/storage/mod.rs'
+  )
+  proof_commands = @(
+    'cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests',
+    'cargo test --manifest-path src/backend/handshake_core/Cargo.toml'
+  )
+  risk_focus = 'Write-gate discipline only: keep calendar-sync writes confined to the declared entry surfaces and avoid capability-contract edits in MT-001.'
+  expected_receipt_kind = 'VALIDATOR_RESPONSE'
+  phase_gate = 'BOOTSTRAP'
+}
+$json = $microtask | ConvertTo-Json -Compress -Depth 5
+& node '..\wt-gov-kernel\.GOV\roles_shared\scripts\wp\wp-review-exchange.mjs' 'CODER_INTENT' 'WP-1-Calendar-Sync-Engine-v2' 'CODER' 'coder:wp-1-calendar-sync-engine-v2' 'WP_VALIDATOR' 'wp_validator:wp-1-calendar-sync-engine-v2' 'MT-001 intent: limit write-gate discipline to src/backend/handshake_core/mechanical_engines.json, src/backend/handshake_core/src/workflows.rs, and src/backend/handshake_core/src/storage/mod.rs only; preserve governed routing and write-gate boundaries; no capability-contract edits yet.' 'surface mutation discipline plus write gate' 'MT-001' 'MT-001' 'surface mutation discipline plus write gate' $json
+```
+
+Error:
+```text
+[wp-review-exchange.mjs] MICROTASK_JSON must be valid JSON: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+```
+- [2026-04-21 11:44:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/run.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/process.spawned | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=43588
+- [2026-04-21 11:44:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf56..772ba2
+- [2026-04-21 11:44:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:44:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:45:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:46:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:46:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:46:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:46:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:47:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:47:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:47:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:47:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=27acb363..bfd126 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:47:27 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/27acb363-d8bd-4acb-8faa-cc064dbfd126.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Current route truth from `just validator-next WP-1-Calendar-Sync-Engine-v2` was `Runtime waiting_on: WP_VALIDATOR_INTENT_CHECKPOINT`, with the recorded `CODER_INTENT` on correlation `surface mutation discipline plus write gate` requiring validator review before implementation.
+
+The intent is acceptable for this checkpoint. It stays inside the signed `MT-001` file targets in [packet.md](D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wtc-sync-engine-v2/.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md:205) and [packet.md](D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wtc-sync-engine-v2/.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md:490): `mechanical_engines.json`, `workflows.rs`, and `storage/mod.rs` only, and it explicitly preserves write-gate discipline with no capability-contract edits.
+
+I recorded the outcome with:
+```powershell
+just wp-validator-response WP-1-Calendar-Sync-Engine-v2 WP_VALIDATOR wp_validator:wp-1-calendar-sync-engine-v2 coder:wp-1-calendar-sync-engine-v2 "MT-001 bootstrap intent accepted: writes remain confined to mechanical_engines.json, workflows.rs, and storage/mod.rs; write-gate discipline stays explicit; no capability-contract edits are proposed at this checkpoint." "surface mutation discipline plus write gate" MT-001 MT-001 "surface mutation discipline plus write gate"
+```
+
+Recorded receipt: `VALIDATOR_RESPONSE` appended for correlation `surface mutation discipline plus write gate`.
+- [2026-04-21 11:48:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:48:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=99552
+- [2026-04-21 11:48:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 11:48:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:48:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:48:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:48:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:48:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:48:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:48:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:48:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:49:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:50:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:52:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:52:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:52:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:52:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:53:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:54:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:55:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:56:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:57:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:57:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:57:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:57:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:57:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:57:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:58:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:59:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:59:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:59:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:59:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:59:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:59:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 11:59:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:02:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:03:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:04:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:05:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/run.queued | cmd=d54ca8d6..c89317 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:05:03 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/QUEUED | status=QUEUED | outcome=ACCEPTED_PENDING | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/d54ca8d6-3c20-417b-924d-3a9a57c89317.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Queued CODER:WP-1-Calendar-Sync-Engine-v2 behind active run 73b2a033-58fc-4a1a-b339-35a2950866f2.
+- [2026-04-21 12:05:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:05:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:05:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:05:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:05:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:05:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:06:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:07:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:08:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:09:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:10:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:11:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:12:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:13:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:13:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:13:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:13:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:13:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:13:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:13:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:13:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:13:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:14:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:14:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:14:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:14:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:14:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:15:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:15:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:16:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:16:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:16:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:16:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:16:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/run.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:16:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/process.spawned | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=144912
+- [2026-04-21 12:17:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf56..772ba2
+- [2026-04-21 12:17:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:13 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/73b2a033-58fc-4a1a-b339-35a2950866f2.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-002 is implemented and scoped to the four allowed product files.
+
+`src/backend/handshake_core/src/capabilities.rs` now registers `calendar.sync.read` and `calendar.sync.write`, adds a dedicated `CalendarSync` profile, and overrides `workflow_run` + `calendar_sync` to use that profile and required-capability contract. `src/backend/handshake_core/src/workflows.rs` now has workflow-boundary tests that prove `CalendarSync` is allowed and `Analyst` is denied for `calendar_sync`; I also repaired a pre-existing missing `}` in that local test module so the allowed surface parses. `src/backend/handshake_core/src/mex/gates.rs` and `src/backend/handshake_core/tests/mex_tests.rs` now carry gate/runtime tripwires proving registered calendar-sync capabilities fail closed by profile rather than as `HSK-4001 UnknownCapability`.
+
+I updated `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/MT-002.md` and the packet self-audit/evidence sections honestly. The two packet proof commands both fail with the same out-of-scope blocker: `src/backend/handshake_core/src/flight_recorder/mod.rs:6180` has an unclosed delimiter, so Cargo exits `101` before it can prove MT-002. Logs are in `.handshake/logs/WP-1-Calendar-Sync-Engine-v2/mt-002-mex_tests.log` and `.handshake/logs/WP-1-Calendar-Sync-Engine-v2/mt-002-full-cargo-test.log`.
+
+The governed overlap review receipt landed successfully with correlation id `review:WP-1-Calendar-Sync-Engine-v2:mt-002:workflow-capability-contract`. Live route truth now shows `MT-003` as the active declared microtask and `MT-002` as `IN_REVIEW`.
+- [2026-04-21 12:17:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:17:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:18:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:19:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:19:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:19:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:19:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:19:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:20:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:20:16 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(1 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=CODER_HANDOFF]` | sessions=3 | control=23/22 | receipts=8 | pending=0 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=REVIEW_RESPONSE@2026-04-21T10:19:20.133Z | run_step=ACTIVATION_MANAGER{run=READY(active=0|queued=0|wait=STEERABLE);step=STALE(item.completed:command_execution@1h27m|idle=5252s)},CODER{run=READY(active=0|queued=0|wait=STEERABLE);step=ACTIVE(item.completed:command_execution@1m|idle=70s)},WP_VALIDATOR{run=RUNNING(active=1|queued=0|wait=ACTIVE_RUN);step=ACTIVE(item.completed:command_execution@0s|idle=0s)} | push_alert=alert=none | lane=ROUTE_STALE_NO_ACTIVE_RUN/ROUTE_STALE_WAITING_ON_CODER_HANDOFF | interrupt_budget=0/1 | idle=1m
+- [2026-04-21 10:37:09 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-011633] Restart the Activation Manager for WP-1-Calendar-Sync-Engine-v2 with an anchor-only finish prompt so it writes the succe :: Restart the Activation Manager for WP-1-Calendar-Sync-Engine-v2 with an anchor-only finish prompt so it writes the successor refinement and runs the checker without rediscovering the repo or attemptin
+- [2026-04-21 10:54:59 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-011633] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 10:54:59 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-085459] Autonomous orchestrator-managed workflow for WP-1-Calendar-Sync-Engine-v2 through integration to main
+- [2026-04-21 11:22:03 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-085459] [ctx] WP Validator is now launched on the governed thread, but runtime still waits on VALIDATOR_KICKOFF; re-wake the :: WP Validator is now launched on the governed thread, but runtime still waits on VALIDATOR_KICKOFF; re-wake the projected next actor so the kickoff receipt lands and coder bootstrap can proceed lawfull
+- [2026-04-21 11:25:13 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-085459] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 11:25:13 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-092513] Continue autonomous orchestrator-managed workflow for WP-1-Calendar-Sync-Engine-v2 through integration to main
+- [2026-04-21 11:45:56 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-092513] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 11:45:56 Europe/Brussels] [WP_VALIDATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [WP_VALIDATOR-20260421-094556] WP_VALIDATOR checkpoint review for MT-001 bootstrap intent only: confirm the coder stays inside the three signed file ta :: WP_VALIDATOR checkpoint review for MT-001 bootstrap intent only: confirm the coder stays inside the three signed file targets, preserves write-gate discipline, and avoids capability-contract edits bef
+- [2026-04-21 11:56:03 Europe/Brussels] [WP_VALIDATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [WP_VALIDATOR-20260421-094556] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 11:56:03 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-095603] Continue autonomous orchestrator-managed workflow for WP-1-Calendar-Sync-Engine-v2 after validator checkpoint; monitor c :: Continue autonomous orchestrator-managed workflow for WP-1-Calendar-Sync-Engine-v2 after validator checkpoint; monitor coder MT-002 and continue toward whole-WP closeout
+- [2026-04-21 12:04:56 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-095603] [ctx] Live MT-002 progress exists in the signed calendar-sync files, but the lane stalled after proof hit the out-of :: Live MT-002 progress exists in the signed calendar-sync files, but the lane stalled after proof hit the out-of-scope src/flight_recorder/mod.rs unclosed-delimiter break. Continue inside MT-002 only, r
+- [2026-04-21 12:20:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:20:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:20:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=19b220c5..e8c4e2 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:20:28 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/19b220c5-3198-4611-a6fc-b7551ee8c4e2.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Reviewed only the MT-002 surfaces and issued a bounded overlap `PASS`, not a whole-WP verdict.
+
+The contract work is in place: `src/backend/handshake_core/src/capabilities.rs` now maps `calendar_sync` to `CalendarSync` with `calendar.sync.read` / `calendar.sync.write`, `src/backend/handshake_core/src/workflows.rs` enforces protocol-aware required capabilities through `profile_can`, and the added tripwires in `src/backend/handshake_core/src/mex/gates.rs` plus `src/backend/handshake_core/tests/mex_tests.rs` prove the deny path is profile-based with `code=None` rather than `HSK-4001`. I also reproduced the claimed proof blocker with `cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests`; it stops on an unclosed delimiter in `src/backend/handshake_core/src/flight_recorder/mod.rs`, and `git diff --name-only main -- src/backend/handshake_core/src/flight_recorder/mod.rs` is empty, so that blocker is pre-existing and outside the MT-002 declared surfaces.
+
+Recorded on the live lane with:
+```powershell
+just wp-review-response WP-1-Calendar-Sync-Engine-v2 WP_VALIDATOR wp_validator:wp-1-calendar-sync-engine-v2 CODER coder:wp-1-calendar-sync-engine-v2 "MT-002 PASS: overlap clearance only. api/jobs.rs already resolves workflow_run requests through profile_for_job_request, capabilities.rs now maps calendar_sync to CalendarSync plus required calendar.sync.read/calendar.sync.write, workflows.rs enforces protocol-aware required capabilities through profile_can, and the new gate/runtime tripwires prove wrong-profile denials stay profile-based with code=None instead of HSK-4001. cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests is still blocked by an unclosed delimiter in untouched src/backend/handshake_core/src/flight_recorder/mod.rs, so that proof blocker is pre-existing and outside MT-002 scope." "review:WP-1-Calendar-Sync-Engine-v2:mt-002:workflow-capability-contract" "Handshake_Master_Spec_v02.181.md §2.6.6 capability profiles + §10.4 Calendar capability contracts + §6.0.1 workflow capability checks" MT-002 "review:WP-1-Calendar-Sync-Engine-v2:mt-002:workflow-capability-contract"
+```
+- [2026-04-21 12:21:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:21:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=93348
+- [2026-04-21 12:21:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 12:21:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:21:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:21:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:21:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:21:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:21:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:21:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:21:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:21:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:22:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:22:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:22:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=0d3e8a4b..bd2374 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:22:08 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/0d3e8a4b-082e-409c-b22f-5d9d2cbd2374.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Lifecycle/Gate State**
+`just coder-next WP-1-Calendar-Sync-Engine-v2` showed `STAGE: BOOTSTRAP`, `Bootstrap claim commit: missing`, `Active microtask: MT-003 (DECLARED)`, and `Previous microtask: MT-002 (CLEARED)`. `just check-notifications WP-1-Calendar-Sync-Engine-v2 CODER coder:wp-1-calendar-sync-engine-v2` returned no pending notifications, so no ack was issued. The single governed next action was executed with `node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs WP-1-Calendar-Sync-Engine-v2`, which created commit `7a74d5a1` with `docs: bootstrap claim [WP-1-Calendar-Sync-Engine-v2]`.
+
+**Blockers**
+None in this step.
+
+**Next Required Command(s)**
+`just backup-push feat/WP-1-Calendar-Sync-Engine-v2 feat/WP-1-Calendar-Sync-Engine-v2`
+
+After that, refresh the lane projection before taking MT-003.
+- [2026-04-21 12:23:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=203956
+- [2026-04-21 12:23:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 12:23:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:23:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:24:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:25:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:26:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:27:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:28:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:28:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:28:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:28:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:28:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:30 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(1 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=CODER_HANDOFF]` | sessions=3 | control=25/24 | receipts=8 | pending=0 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=REVIEW_RESPONSE@2026-04-21T10:19:20.133Z | run_step=ACTIVATION_MANAGER{run=READY(active=0|queued=0|wait=STEERABLE);step=STALE(item.completed:command_execution@1h37m|idle=5824s)},CODER{run=RUNNING(active=1|queued=0|wait=ACTIVE_RUN);step=ACTIVE(item.completed:command_execution@4s|idle=4s)},WP_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=IDLE(item.completed:command_execution@9m|idle=538s)} | push_alert=alert=none | lane=QUIET_BUT_PROGRESSING/ROUTE_STALE_WAITING_ON_CODER_HANDOFF | interrupt_budget=0/1 | idle=6m
+- [2026-04-21 12:20:57 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-095603] [ctx] MT-002 overlap review is now cleared by WP_VALIDATOR on correlation review:WP-1-Calendar-Sync-Engine-v2:mt-002 :: MT-002 overlap review is now cleared by WP_VALIDATOR on correlation review:WP-1-Calendar-Sync-Engine-v2:mt-002:workflow-capability-contract; wake CODER to consume the recorded REVIEW_RESPONSE, acknowl
+- [2026-04-21 12:29:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:29:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:31:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:31:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:31:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:31:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:31:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:31:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:31:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:31:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:32:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:32:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:32:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:32:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:33:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:34:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:34:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:34:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:34:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:34:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:34:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:34:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:34:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:34:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:35:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:36:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:37:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:38:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=2a913a76..34f310 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:05 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/2a913a76-59f1-481b-acc0-a5cb6634f310.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-003 is committed on `feat/WP-1-Calendar-Sync-Engine-v2` as `2c3e569e` with `feat: MT-003 calendar sync workflow routes through MEX runtime`.
+
+The MT-003 proof command was run as declared:
+`cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests`
+It is still blocked by the pre-existing unclosed-delimiter error in [mod.rs](/abs/path/placeholder) `src/backend/handshake_core/src/flight_recorder/mod.rs:6180`, which is outside the MT-003 surfaces, so I did not widen scope.
+
+The post-commit auto-relay did not advance the lane, so I sent the bounded overlap review request manually:
+`just wp-review-request WP-1-Calendar-Sync-Engine-v2 CODER CODER:WP-1-Calendar-Sync-Engine-v2 WP_VALIDATOR WP_VALIDATOR:WP-1-Calendar-Sync-Engine-v2 "MT-003 complete: route calendar_sync workflow_run through MEX runtime and preserve workflow-linked tool events; cargo test remains blocked by pre-existing src/backend/handshake_core/src/flight_recorder/mod.rs delimiter error outside MT-003 scope"`
+Receipt evidence:
+`correlation_id: review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8hpz4z:661500`
+
+Stopped here, awaiting `WP_VALIDATOR`.
+- [2026-04-21 12:39:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/run.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/process.spawned | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=96872
+- [2026-04-21 12:39:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf56..772ba2
+- [2026-04-21 12:39:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:39:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:40:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:41:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:41:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:42:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:42:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:42:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:42:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=5b8b0ab7..56c974 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:42:24 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/5b8b0ab7-8430-4697-8bdc-e5484656c974.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-003 review is complete and recorded as a bounded overlap `PASS` on `review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8hpz4z:661500`, with no whole-WP verdict or closeout advancement.
+
+Concrete evidence:
+- `git show --stat --name-only 2c3e569e` confirms the commit is confined to the allowed MT-003 surfaces: `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/mex/runtime.rs`, and `src/backend/handshake_core/tests/mex_tests.rs`.
+- In `workflows.rs`, `protocol_id == "calendar_sync"` routes into `run_calendar_sync_job`, which builds a `PlannedOperation` for `engine.calendar_sync` / `calendar.sync` and executes it through `mex_runtime.execute`, with `workflow_context` carrying `job_id`, `workflow_run_id`, and `trace_id`.
+- In `mex/runtime.rs`, the runtime now propagates that workflow context into tool events and records `MEX_ADAPTER_MISSING` on the adapter-missing path, so the workflow fails with inspectable evidence instead of a silent shadow path.
+- The new tests in `workflows.rs` and `tests/mex_tests.rs` explicitly cover workflow-linked tool events and adapter-missing evidence.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests` is still blocked by the pre-existing unclosed-delimiter/parser break in untouched `src/backend/handshake_core/src/flight_recorder/mod.rs`, so that blocker remained out of MT-003 scope.
+
+Recorded with:
+```powershell
+just wp-review-response WP-1-Calendar-Sync-Engine-v2 WP_VALIDATOR WP_VALIDATOR:WP-1-Calendar-Sync-Engine-v2 CODER CODER:WP-1-Calendar-Sync-Engine-v2 "MT-003 PASS: overlap clearance only on commit 2c3e569e. git show confirms the commit is confined to src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/mex/runtime.rs, and src/backend/handshake_core/tests/mex_tests.rs. workflows.rs now routes protocol_id calendar_sync into run_calendar_sync_job and executes engine.calendar_sync/calendar.sync through mex_runtime with workflow_context carrying job_id, workflow_run_id, and trace_id; mex/runtime.rs now threads that context into tool.call/tool.result and records MEX_ADAPTER_MISSING when no adapter is installed, so the route fails with evidence instead of a silent shadow path. The new workflow and mex tests cover linked tool events and adapter-missing evidence. cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests still stops on the pre-existing unclosed-delimiter break in untouched src/backend/handshake_core/src/flight_recorder/mod.rs, so that proof blocker remains out of MT-003 scope." "review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8hpz4z:661500" "Cross-Tool Interaction Map no-shadow-pipeline rule" MT-003 "review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8hpz4z:661500"
+```
+- [2026-04-21 12:42:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:42:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=161992
+- [2026-04-21 12:43:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 12:43:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:43:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:44:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:45:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:46:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:46:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:46:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:46:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:46:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:47:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:47:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:47:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:47:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:47:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:47:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:47:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:48:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:49:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:49:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:49:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:49:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:49:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:49:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:50:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:50:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:50:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:50:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:50:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:50:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:50:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:50:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:50:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:51:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:52:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.updated | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:53:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:54:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:54:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:54:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:54:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:54:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:54:40 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/718a359c-8605-40be-b351-7ff40a532ef4.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-004 is committed as `e65b27aa` with `feat: MT-004 calendar_sync engine contract and output`.
+
+The diff is confined to the declared MT-004 surfaces:
+- `src/backend/handshake_core/mechanical_engines.json`
+- `src/backend/handshake_core/src/workflows.rs`
+- `src/backend/handshake_core/src/storage/calendar.rs`
+
+Both MT-004 proof commands were run:
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests`
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml calendar_storage_tests`
+
+Both are still blocked by the pre-existing unclosed-delimiter error in `src/backend/handshake_core/src/flight_recorder/mod.rs:6180`, outside MT-004 scope.
+
+The bounded validator review request is open:
+- `correlation_id: review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8ia39t:24fb07`
+
+Stopped here, awaiting `WP_VALIDATOR`.
+- [2026-04-21 12:55:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/run.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/process.spawned | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=205620
+- [2026-04-21 12:55:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf56..772ba2
+- [2026-04-21 12:55:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:55:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:56:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:56:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:57:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:57:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:57:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:57:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=c7ddbd47..f79610 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:57:15 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/c7ddbd47-43c7-4c02-99aa-d0a6f5f79610.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-004 review is complete and recorded as a bounded overlap `PASS` on `review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8ia39t:24fb07`, with no whole-WP verdict.
+
+Concrete scoped evidence:
+- `git show --stat --name-only e65b27aa` confirms the commit is confined to the allowed MT-004 surfaces: `mechanical_engines.json`, `src/workflows.rs`, and `src/storage/calendar.rs`.
+- `mechanical_engines.json` now declares `engine.calendar_sync` with operation `calendar.sync` and output type `calendar_sync_result`, matching the workflow-side `PlannedOperation` and `OutputSpec`.
+- `workflows.rs` installs `CalendarSyncEngineAdapter`, requires `workspace_id`, `source_id`, `direction`, and `time_window` in `run_calendar_sync_job`, and makes those fields plus `output_types=["calendar_sync_result"]` explicit in the workflow output.
+- The adapter remains read/output-only: it parses the request, calls `get_calendar_source` and `query_calendar_events`, and emits `CalendarSyncResult`. It does not introduce sync-state persistence writes or provider-guidance branching, so it stays inside MT-004 rather than widening into MT-005 or MT-006.
+- Both proof commands still fail on the same pre-existing unclosed-delimiter/parser break in untouched `src/backend/handshake_core/src/flight_recorder/mod.rs:6180`, so that blocker stayed out of MT-004 scope.
+
+Recorded with:
+```powershell
+just wp-review-response WP-1-Calendar-Sync-Engine-v2 WP_VALIDATOR WP_VALIDATOR:WP-1-Calendar-Sync-Engine-v2 CODER CODER:WP-1-Calendar-Sync-Engine-v2 "MT-004 PASS: overlap clearance only on commit e65b27aa. git show confirms the commit is confined to src/backend/handshake_core/mechanical_engines.json, src/backend/handshake_core/src/workflows.rs, and src/backend/handshake_core/src/storage/calendar.rs. mechanical_engines.json declares engine.calendar_sync consistently with operation calendar.sync and output type calendar_sync_result; workflows.rs installs CalendarSyncEngineAdapter in build_mex_runtime, requires workspace_id/source_id/direction/time_window in run_calendar_sync_job, and makes those fields plus output_types=[calendar_sync_result] explicit in the workflow output. The adapter parses that request, reads get_calendar_source and query_calendar_events, and emits CalendarSyncResult from storage/calendar.rs; it does not add sync-state persistence writes or provider-guidance branching, so it stays inside MT-004 instead of widening into MT-005 or MT-006. Both proof commands still fail on the same pre-existing unclosed-delimiter/parser break in untouched src/backend/handshake_core/src/flight_recorder/mod.rs:6180, which remains out of MT-004 scope." "review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8ia39t:24fb07" "calendar_sync engine contract and output" MT-004 "review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8ia39t:24fb07"
+```
+- [2026-04-21 12:58:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | pid=195308
+- [2026-04-21 12:58:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 12:58:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:58:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:59:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:59:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:59:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:59:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 12:59:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:00:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:01:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:02:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:04:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:04:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:04:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:04:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:04:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:04:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:04:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:05:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:06:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:07:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:08:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:09:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:10:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:11:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:12:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:12:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:12:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:12:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:12:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:12:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:12:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:13:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:13:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:13:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:13:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:13:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:13:39 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/bd0aa381-a8fa-4d25-be17-c999f5d1ec6e.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-005 is committed as `dbaf8b73` with changes limited to [storage/calendar.rs](/D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wtc-sync-engine-v2/src/backend/handshake_core/src/storage/calendar.rs) and [workflows.rs](/D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wtc-sync-engine-v2/src/backend/handshake_core/src/workflows.rs). The manual governed `REVIEW_REQUEST` is appended under correlation `review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8iyfy9:36d18b`.
+
+Proof status is unchanged from the known out-of-scope blocker: both `cargo test --manifest-path src/backend/handshake_core/Cargo.toml calendar_storage_tests` and `cargo test --manifest-path src/backend/handshake_core/Cargo.toml` fail on the pre-existing unclosed-delimiter parser break at [flight_recorder/mod.rs](/D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wtc-sync-engine-v2/src/backend/handshake_core/src/flight_recorder/mod.rs:6180). Stopped here and waiting for the validator response.
+- [2026-04-21 13:13:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/run.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:13:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/process.spawned | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=136264
+- [2026-04-21 13:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf56..772ba2
+- [2026-04-21 13:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:14:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:16:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:17:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:18:45 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/56467e2e-b5fa-44d4-9205-beb32f2b1164.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**State**
+`MT-005` bounded overlap review is recorded as `PASS`. The governed `REVIEW_RESPONSE` landed at [RECEIPTS.jsonl](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RECEIPTS.jsonl:14>) and [THREAD.md](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/THREAD.md:112>). `just validator-next WP-1-Calendar-Sync-Engine-v2` now reports `STAGE: STATUS_SYNC`, `NEXT: STOP`, `runtime next actor: CODER:CODER:WP-1-Calendar-Sync-Engine-v2`, and `runtime waiting_on: CODER_HANDOFF`.
+
+**Blockers**
+No validator-lane blocker remains. The proof commands are still blocked by the pre-existing parser break at [src/backend/handshake_core/src/flight_recorder/mod.rs](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-sync-engine-v2/src/backend/handshake_core/src/flight_recorder/mod.rs:6180>), which stayed out of MT-005 scope. The `just wp-review-response ...` shell invocation timed out locally, but the receipt was appended successfully and the route advanced to `CODER_HANDOFF`.
+
+**Next**
+Recorded with:
+```powershell
+just wp-review-response WP-1-Calendar-Sync-Engine-v2 WP_VALIDATOR WP_VALIDATOR:WP-1-Calendar-Sync-Engine-v2 CODER CODER:WP-1-Calendar-Sync-Engine-v2 'MT-005 PASS: ...' 'review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8iyfy9:36d18b' 'CalendarSourceSyncState durable recovery truth' MT-005 'review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8iyfy9:36d18b'
+```
+
+Next required commands:
+- `# STOP: Wait for the routed next actor to advance the governed lane.`
+- If resumed later: `just check-notifications WP-1-Calendar-Sync-Engine-v2 WP_VALIDATOR`
+- If session state needs confirmation: `just session-registry-status WP-1-Calendar-Sync-Engine-v2`
+- [2026-04-21 13:19:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:19:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=46884
+- [2026-04-21 13:19:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 13:19:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:19:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:19:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:19:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:19:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:19:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:20:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:20:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:20:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=7411a872..7244f3 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:20:06 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/7411a872-0945-496c-9a82-0697af7244f3.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Lifecycle**
+- `WP-1-Calendar-Sync-Engine-v2` is at `POST_WORK -> HANDOFF`.
+- Latest governed receipt is `REVIEW_RESPONSE` PASS for MT-005 on commit `dbaf8b73`.
+- Active microtask is now `MT-006` (`MCP/provider adapter guidance plus read-only mode`).
+- Runtime still projects `next_actor=CODER:CODER:WP-1-Calendar-Sync-Engine-v2` and `waiting_on=CODER_HANDOFF`.
+- `just check-notifications` returned no pending notifications, so no `ack-notifications` call was required.
+
+**Blockers**
+- The known out-of-scope parser break remains at [flight_recorder/mod.rs](/D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wtc-sync-engine-v2/src/backend/handshake_core/src/flight_recorder/mod.rs:6180).
+- The worktree is still dirty from out-of-scope pre-existing paths outside MT-005 surfaces.
+
+**Next Required Commands**
+- `just cargo-clean`
+- `just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v2 CODER --range facce56f879d4ee990f62566b12a8b26d8bc61d7..HEAD`
+- [2026-04-21 13:44:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:44:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=125592
+- [2026-04-21 13:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 13:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:45:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:46:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:46:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=51eeb1a2..3b2146 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:46:01 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/51eeb1a2-5cab-4e79-96f0-50c04d3b2146.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Lifecycle**
+- `WP-1-Calendar-Sync-Engine-v2` still projects `POST_WORK -> HANDOFF`.
+- `just check-notifications` returned no pending notifications, so no `ack-notifications` call was needed.
+- The single next governed action was run: `just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v2 CODER --range 5336e8f23b7a6e2f35b450124dccb65a17644d7f..dbaf8b733b3452cdbfdbf1e210d8d6a9dfd9d323`.
+
+**Blockers**
+- `phase-check HANDOFF` failed on `post-work-check`.
+- Gate status details:
+  - `gate-check`: PASS
+  - `role-mailbox-export-check`: PASS
+  - `wp-communication-health-check`: PASS
+  - `post-work-check`: FAIL
+- Artifact log: [phase-check handoff log](/D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-handoff/WP-1-Calendar-Sync-Engine-v2/2026-04-21T11-45-45-254Z.log)
+- Runtime remains inconsistent: active MT is `MT-006`, but projection is still `waiting_on=CODER_HANDOFF`.
+
+**Next Required Commands**
+- `just cargo-clean`
+- `just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v2 CODER --range 5336e8f23b7a6e2f35b450124dccb65a17644d7f..dbaf8b733b3452cdbfdbf1e210d8d6a9dfd9d323`
+- [2026-04-21 13:49:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:49:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=208568
+- [2026-04-21 13:50:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 13:50:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:50:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:51:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:51:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:51:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:51:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:51:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:51:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:51:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:51:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:51:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:52:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:53:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:54:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:55:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:55:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:55:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:55:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:55:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:55:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:55:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:56:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:56:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:57:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:58:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 13:59:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:00:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:01:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:01:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:01:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:01:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:02:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:02:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:02:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:02:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:03:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:04:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:05:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:06:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:07:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:07:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:07:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:07:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:07:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:08:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:08:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/run.queued | cmd=f15ed3c2..9c8c14 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:08:10 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/QUEUED | status=QUEUED | outcome=ACCEPTED_PENDING | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/f15ed3c2-f02f-42fb-95df-2d27419c8c14.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Queued CODER:WP-1-Calendar-Sync-Engine-v2 behind active run 2d8d835e-161b-4f49-905b-052a67eb0144.
+- [2026-04-21 14:08:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:08:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:08:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:08:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:08:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:08:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:08:54 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/2d8d835e-161b-4f49-905b-052a67eb0144.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Command**
+```powershell
+$micro = @{
+  scope_ref = 'MT-006'
+  file_targets = @(
+    'src/backend/handshake_core/src/workflows.rs',
+    'src/backend/handshake_core/mechanical_engines.json',
+    'src/backend/handshake_core/tests/mex_tests.rs'
+  )
+  proof_commands = @(
+    'cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests',
+    'cargo test --manifest-path src/backend/handshake_core/Cargo.toml',
+    'python -c "import json; json.load(open(r''src/backend/handshake_core/mechanical_engines.json'', ''r'', encoding=''utf-8'')); print(''mechanical_engines.json OK'')"',
+    'git diff --cached --check -- src/backend/handshake_core/src/workflows.rs src/backend/handshake_core/mechanical_engines.json src/backend/handshake_core/tests/mex_tests.rs'
+  )
+  risk_focus = 'read-only mutation denial persistence and workflow-output alignment under the pre-existing flight_recorder parser blocker'
+  expected_receipt_kind = 'REVIEW_RESPONSE'
+  review_mode = 'OVERLAP'
+  phase_gate = 'MICROTASK'
+} | ConvertTo-Json -Compress
+$summary = 'MT-006 complete: MCP/provider adapter guidance plus read-only mode; files=src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/mechanical_engines.json, src/backend/handshake_core/tests/mex_tests.rs; proof=cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests blocked by pre-existing src/backend/handshake_core/src/flight_recorder/mod.rs:6180 parser error, bounded checks clean; risk=read-only mutation denial must persist error context without backoff poisoning while keeping workflow output aligned with the engine artifact'
+node .GOV/roles_shared/scripts/wp/wp-review-exchange.mjs REVIEW_REQUEST WP-1-Calendar-Sync-Engine-v2 CODER CODER:WP-1-Calendar-Sync-Engine-v2 WP_VALIDATOR WP_VALIDATOR:WP-1-Calendar-Sync-Engine-v2 $summary review:WP-1-Calendar-Sync-Engine-v2:review_request:mt-006:579ef5b4 MT-006 MT-006 '' $micro
+```
+
+**Error**
+```text
+[wp-review-exchange.mjs] MICROTASK_JSON must be valid JSON: Unexpected token 'e', "test" is not valid JSON
+```
+- [2026-04-21 14:13:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/run.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:13:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/process.spawned | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2 | pid=203792
+- [2026-04-21 14:13:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf56..772ba2
+- [2026-04-21 14:13:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:13:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:13:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:13:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:13:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:13:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:13:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:13:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:13:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:14:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:15:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:16:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:17:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/control.cancel_requested | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:17:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:17:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=2deaa563..28099d | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:17:16 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/FAILED | status=FAILED | outcome=FAILED | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/2deaa563-8d23-4749-b3d1-3c442228099d.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Canceled by Handshake ACP request.
+- [2026-04-21 14:17:16 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` CANCEL_SESSION/cancellation_requested | status=cancellation_requested | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/e49d0bd2-f070-43d7-b49c-4fe4ce654dea.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Cancel requested for governed run 2deaa563-8d23-4749-b3d1-3c442228099d.
+- [2026-04-21 14:18:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/run.started | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:18:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/process.spawned | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=133496
+- [2026-04-21 14:18:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf56..772ba2
+- [2026-04-21 14:18:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:18:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:18:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:18:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:18:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:18:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:18:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:18:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:19:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:19:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:19:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:19:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=60926f37..842549 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:19:32 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/60926f37-21b5-4a5d-96f8-bbbd90842549.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=`REVIEW_RESPONSE` posted successfully for `review:WP-1-Calendar-Sync-Engine-v2:review_request:mt-006:579ef5b4` via `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs` with `ACK_FOR` set to the same correlation id and an explicit empty `MICROTASK_JSON` final argument.
+
+Artifacts updated:
+- [THREAD.md](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/THREAD.md>)
+- [RECEIPTS.jsonl](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RECEIPTS.jsonl>)
+- [RUNTIME_STATUS.json](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RUNTIME_STATUS.json>)
+- [2026-04-21 14:20:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=202640
+- [2026-04-21 14:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf4b..d82af3
+- [2026-04-21 14:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:20:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:21:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:22:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:22:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:22:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:22:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:22:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:22:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:22:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:23:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:24:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:25:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:26:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:27:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:27:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:27:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=0218b3b6..a62218 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:27:13 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/0218b3b6-64b6-4cc2-be6e-fea058a62218.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Command:
+```powershell
+$micro = @{ scope_ref = 'MT-006'; file_targets = @('../handshake_main/src/backend/handshake_core/src/workflows.rs'); proof_commands = @('cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests'); risk_focus = 'provider-access guidance, read-only fail-closed behavior, and workflow output/provider_access parity on true EngineStatus::Denied results without a calendar_sync_result artifact; known out-of-scope blocker: src/backend/handshake_core/src/flight_recorder/mod.rs:6180'; expected_receipt_kind = 'REVIEW_RESPONSE'; review_mode = 'OVERLAP'; phase_gate = 'MICROTASK' } | ConvertTo-Json -Compress; $summary = 'MT-006 repair complete: files=../handshake_main/src/backend/handshake_core/src/workflows.rs; commit=a0a355c3; proof=cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests blocked by known out-of-scope src/backend/handshake_core/src/flight_recorder/mod.rs:6180 parser error; risk focus=provider-access guidance, read-only fail-closed behavior, and workflow output/provider_access parity on true EngineStatus::Denied results without a calendar_sync_result artifact'; $args = @('.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs','REVIEW_REQUEST','WP-1-Calendar-Sync-Engine-v2','CODER','CODER:WP-1-Calendar-Sync-Engine-v2','WP_VALIDATOR','WP_VALIDATOR:WP-1-Calendar-Sync-Engine-v2',$summary,'review:WP-1-Calendar-Sync-Engine-v2:review_request:mt-006:a0a355c3','MT-006','MT-006','',$micro); & node @args
+```
+
+Error:
+```text
+[wp-review-exchange.mjs] Uncaught: Governed REVIEW_REQUEST rejected: overlap review must bind to the current active microtask MT-001, not MT-006.
+```
+- [2026-04-21 14:34:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/run.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:34:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/process.spawned | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=140116
+- [2026-04-21 14:35:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019daf56..772ba2
+- [2026-04-21 14:35:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:35:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:36:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:36:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:37:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:37:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:37:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:37:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=27b4696f..8e0260 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 14:37:17 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/27b4696f-2e40-4a72-8e74-2ad9998e0260.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=`REVIEW_RESPONSE` posted successfully for `review:WP-1-Calendar-Sync-Engine-v2:review_request:mt-006:a0a355c3` with verdict `PASS`.
+
+Updated surfaces:
+- [THREAD.md](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/THREAD.md>)
+- [RECEIPTS.jsonl](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RECEIPTS.jsonl>)
+- [RUNTIME_STATUS.json](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RUNTIME_STATUS.json>)
+
+Runtime note from the helper: `MT fix cycle limit reached (3 STEER responses for MT-006). Escalating to orchestrator.`
+- [2026-04-21 14:38:18 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=NONE | why=wp-communication-health-check failed.
+- [2026-04-21 14:38:20 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=301.9min | active=4.9min | repair=0.1min | validator_wait=25.3min | route_wait=174.8min | gov_overhead=5.618 | receipts=19 | dup_receipts=1 | stale_routes=0 | acp_cmds=39 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=452900078 | tokens_out=2085357 | turns=30
+- [2026-04-21 14:39:02 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=NONE | why=wp-communication-health-check failed.
+- [2026-04-21 14:39:05 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=301.9min | active=4.9min | repair=0.1min | validator_wait=25.3min | route_wait=174.8min | gov_overhead=5.487 | receipts=19 | dup_receipts=1 | stale_routes=0 | acp_cmds=39 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=452900078 | tokens_out=2085357 | turns=30
+- [2026-04-21 15:10:37 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=NONE | why=integration-validator-closeout-check failed.
+- [2026-04-21 15:10:37 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=NONE | why=integration-validator-closeout-check failed.
+- [2026-04-21 15:10:39 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=333.1min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=176.9min | gov_overhead=5.631 | receipts=21 | dup_receipts=1 | stale_routes=0 | acp_cmds=39 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=452900078 | tokens_out=2085357 | turns=30
+- [2026-04-21 15:10:39 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=333.1min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=176.9min | gov_overhead=5.631 | receipts=21 | dup_receipts=1 | stale_routes=0 | acp_cmds=39 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=452900078 | tokens_out=2085357 | turns=30
+- [2026-04-21 15:19:50 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=NONE | why=integration-validator-closeout-check failed.
+- [2026-04-21 15:19:53 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=333.1min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=186.2min | gov_overhead=5.925 | receipts=21 | dup_receipts=1 | stale_routes=0 | acp_cmds=39 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=452900078 | tokens_out=2085357 | turns=30
+- [2026-04-21 15:20:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` START_SESSION/run.started | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:20:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` START_SESSION/process.spawned | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=95396
+- [2026-04-21 15:20:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/thread.started | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db033..9cdd1c
+- [2026-04-21 15:20:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.started | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:20:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:20:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/stderr | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.completed | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=a9c2a736..243081 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:22:41 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db033-35df-7681-b4f8-1cbe5f9cdd1c | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/a9c2a736-5304-4308-83f5-92b0a6243081.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Lifecycle State**
+`validator-next` resolved the lane at `STATUS_SYNC` with `VERDICT: PENDING`. The governed context brief is loaded successfully for `WP-1-Calendar-Sync-Engine-v2`, but final-lane closeout is `NOT_READY`.
+
+**Gate State / Blockers**
+`validator-startup` did not pass preflight. The blocking items reported were:
+- Concurrent-worktree topology violation for `WP-1-Calendar-Sync-Engine-v2`: an undeclared WP-adjacent worktree was detected at `../wtc-sync-engine-v2-handoff-clean`, and 2 WP-specific worktrees were found where max allowed is 1.
+- Governance-only worktree surface violation: non-governance edit `tmp-wp1-mex-tests-roundtrip.patch`.
+- Closeout readiness remains blocked in the context brief: `scope=FAIL`, `CURRENT_MAIN_COMPATIBILITY_STATUS=NOT_RUN`, `CLOSEOUT_PROVENANCE=MISSING`, and `COMMITTED_HANDOFF live_prepare=FAIL`.
+
+**Next Required Commands**
+- `just check-notifications WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR`
+- `just ack-notifications WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR integration_validator:wp-1-calendar-sync-engine-v2`
+- `just phase-check CLOSEOUT WP-1-Calendar-Sync-Engine-v2`
+
+Stopped here per startup-turn instructions.
+- [2026-04-21 15:26:55 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=NONE | why=integration-validator-closeout-check failed.
+- [2026-04-21 15:26:58 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=347.3min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=179.1min | gov_overhead=5.699 | receipts=21 | dup_receipts=1 | stale_routes=0 | acp_cmds=40 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=453151269 | tokens_out=2086627 | turns=31
+- [2026-04-21 15:34:17 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019daf2f-b90f-70a1-86ae-38191990cc8b | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/ACTIVATION_MANAGER_WP-1-Calendar-Sync-Engine-v2/e92ee796-ec45-47e7-aaa9-09e402236d3e.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Governed session closed and steerable thread 019daf2f-b90f-70a1-86ae-38191990cc8b was cleared.
+- [2026-04-21 15:34:51 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/0e5a17ae-d93d-429a-b7ba-74767056e8cc.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Governed session closed and steerable thread 019daf4b-64c6-7003-aa7a-44f42bd82af3 was cleared.
+- [2026-04-21 15:35:24 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/02c4076d-3e72-42e6-bca7-4e3dfc40d3fa.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Governed session closed and steerable thread 019daf56-d75c-73f2-858f-ba24ed772ba2 was cleared.
+- [2026-04-21 15:35:58 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019db033-35df-7681-b4f8-1cbe5f9cdd1c | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/6ff0919f-e70f-4932-a5ba-7373df1b3a20.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Governed session closed and steerable thread 019db033-35df-7681-b4f8-1cbe5f9cdd1c was cleared.
+- [2026-04-21 15:36:35 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=NONE | why=CLOSEOUT phase checks passed.
+- [2026-04-21 15:36:39 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=360.6min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=175.5min | gov_overhead=5.585 | receipts=21 | dup_receipts=1 | stale_routes=0 | acp_cmds=44 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=453151269 | tokens_out=2086627 | turns=31
+- [2026-04-21 15:37:02 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=NONE | why=CLOSEOUT phase checks passed.
+- [2026-04-21 15:37:06 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=360.6min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=175.9min | gov_overhead=5.599 | receipts=21 | dup_receipts=1 | stale_routes=0 | acp_cmds=44 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=453151269 | tokens_out=2086627 | turns=31
+- [2026-04-21 15:37:06 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=NONE | why=CLOSEOUT phase checks passed.
+- [2026-04-21 15:37:08 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=360.6min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=176min | gov_overhead=5.601 | receipts=21 | dup_receipts=1 | stale_routes=0 | acp_cmds=44 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=453151269 | tokens_out=2086627 | turns=31
+- [2026-04-21 15:37:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` START_SESSION/run.started | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:37:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` START_SESSION/process.spawned | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=31436
+- [2026-04-21 15:37:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/thread.started | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db042..909321
+- [2026-04-21 15:37:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.started | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:38:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:38:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.completed | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=cce9358f..daea37 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:39:46 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db042-dfe0-7382-adc6-d53c94909321 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/cce9358f-67b9-491a-8e05-42125adaea37.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Lifecycle / Gate State**
+
+- `just validator-startup`: completed successfully in `../handshake_main` on local branch `main`; hard gate context matched the assignment. Backup status was healthy locally and on NAS.
+- `just validator-next WP-1-Calendar-Sync-Engine-v2`: `VERDICT: PENDING`.
+- Lifecycle state: `STAGE=STATUS_SYNC`, `NEXT=STOP`, `OPERATOR_ACTION=NONE`.
+- Routed next actor: `ORCHESTRATOR`; runtime is waiting on `VERDICT_PROGRESSION`.
+- `just integration-validator-context-brief WP-1-Calendar-Sync-Engine-v2`: `CONTEXT_STATUS=OK`, `CLOSEOUT_READINESS=READY`.
+- Closeout dependency summary: `blockers=none`.
+- Authority/context bundle resolved correctly through live governance root `wt-gov-kernel/.GOV`.
+- Canonical readable pointers emitted: `packet_read_path=D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md`, `prepare_worktree=../wtc-sync-engine-v2`.
+
+**Blockers**
+
+- No startup blocker was emitted by the bootstrap commands.
+- Notable unresolved state surfaced by the context brief: `CLOSEOUT_PROVENANCE=MISSING`, `CLOSEOUT_PUBLICATION mode=UNSET`, `verdict=UNKNOWN`.
+- Additional context signal: `COMMITTED_HANDOFF status=PASS`, `live_prepare=FAIL`, `mode=COMMITTED_RANGE`.
+
+**Next Required Command(s)**
+
+- From `validator-next`:
+  - `just check-notifications WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR`
+  - `just session-registry-status WP-1-Calendar-Sync-Engine-v2`
+- From `integration-validator-context-brief`:
+  - `just check-notifications WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR`
+  - `just ack-notifications WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR integration_validator:wp-1-calendar-sync-engine-v2`
+  - `just phase-check CLOSEOUT WP-1-Calendar-Sync-Engine-v2`
+
+Waiting for the later `SEND_PROMPT` from the Orchestrator.
+- [2026-04-21 15:41:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` SEND_PROMPT/run.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:41:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` SEND_PROMPT/process.spawned | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=207396
+- [2026-04-21 15:41:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db042..909321
+- [2026-04-21 15:41:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:41:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:41:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:41:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:41:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:41:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:41:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:41:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:42:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:43:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:44:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:45:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:47:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:47:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:47:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:47:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:47:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:47:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:47:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:49:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:50:20 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=NONE | why=CLOSEOUT phase checks passed.
+- [2026-04-21 15:50:21 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=365.8min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=184min | gov_overhead=5.855 | receipts=22 | dup_receipts=1 | stale_routes=0 | acp_cmds=45 | acp_fail=4 | restarts=2 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=453402317 | tokens_out=2088170 | turns=32
+- [2026-04-21 15:50:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:50:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:50:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:50:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:51:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:51:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:51:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:51:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:51:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:51:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:51:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:51:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:55:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:55:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:56:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:57:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:58:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:58:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:58:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:58:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:58:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:59:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:59:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:59:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:59:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:59:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 15:59:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:00:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:00:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.updated | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:00:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:00:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:00:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:00:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=427073b6..f1f572 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:00:31 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db042-dfe0-7382-adc6-d53c94909321 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/427073b6-7266-4c55-bbc9-8740fcf1f572.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Verdict: `FAIL`. Contained main sha: `NONE`. Merge, `sync-gov-to-main`, and push to `origin/main` were not lawful and were not attempted.
+
+The live packet is updated with a structured Integration Validator fail report at [packet.md](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md>). I also appended the required Orchestrator receipt with the remediation summary.
+
+Exact blockers:
+- The packet `TEST_PLAN` is still blocked on the committed candidate. A targeted cargo run against the signed surface failed in out-of-scope `src/backend/handshake_core/src/flight_recorder/mod.rs:6180` with an unclosed delimiter, so the required cargo-backed proof is not currently available.
+- `just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v2 CODER --range 5336e8f23b7a6e2f35b450124dccb65a17644d7f..a0a355c359656eedea3098692fc89f3546a59719` failed because the packet manifest no longer reproduces for `src/backend/handshake_core/src/workflows.rs` (`Manifest[6]` `post_sha1` mismatch).
+
+Independent review outcome:
+- I did not find an in-scope semantic defect in the signed seven-file implementation. Capability routing, workflow-to-MEX execution, denied-path payload handling, and `CalendarSourceSyncState` persistence all read coherently against the packet/spec.
+- The fail is a proof-law failure, not a rounded-up code failure: `PROOF_COMPLETENESS=NOT_PROVEN`, `INTEGRATION_READINESS=NOT_READY`.
+
+Residual risk:
+- Until the out-of-scope compile blocker is cleared or isolated on a clean proof surface, and the deterministic handoff artifact is rebuilt so the signed range reproduces cleanly, a final PASS and containment into `main` remain unproven.
+- [2026-04-21 16:03:14 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] Integration Validator recorded formal FAIL in the packet: code review passed for the signed seven-file surface, but final-lane proof law failed because TEST_PLAN remains blocked and the deterministic HANDOFF manifest no longer reproduces on workflows.rs.
+- [2026-04-21 16:03:15 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019db042-dfe0-7382-adc6-d53c94909321 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/03da1821-bd72-4a84-affa-8700bcaea5c0.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Governed session closed and steerable thread 019db042-dfe0-7382-adc6-d53c94909321 was cleared.
+- [2026-04-21 16:04:36 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(0 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=VERDICT_PROGRESSION]` | sessions=4 | control=47/47 | receipts=23 | pending=2 | latest_control=CLOSE_SESSION/COMPLETED | latest_receipt=STATUS@2026-04-21T14:00:01.864Z | run_step=ACTIVATION_MANAGER{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@30m|idle=1816s)},CODER{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@29m|idle=1782s)},WP_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@29m|idle=1749s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=IDLE(control.close.requested@1m|idle=78s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=4m
+- [2026-04-21 13:13:48 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-095603] [ctx] MT-005 review request mo8iyfy9:36d18b is present, coder is past handoff, and WP_VALIDATOR is route-stale with :: MT-005 review request mo8iyfy9:36d18b is present, coder is past handoff, and WP_VALIDATOR is route-stale with no active run; wake the validator for bounded overlap review only.
+- [2026-04-21 13:19:14 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-095603] [ctx] MT-005 overlap review passed on correlation review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8iyfy9:36d18b :: MT-005 overlap review passed on correlation review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8iyfy9:36d18b, no validator blocker remains, and route truth is stale on CODER_HANDOFF; wake the coder 
+- [2026-04-21 13:44:37 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-095603] [ctx] The bounded handoff gate now passes on the clean committed range 5336e8f23b7a6e2f35b450124dccb65a17644d7f..dba :: The bounded handoff gate now passes on the clean committed range 5336e8f23b7a6e2f35b450124dccb65a17644d7f..dbaf8b733b3452cdbfdbf1e210d8d6a9dfd9d323 after packet truth repair; resume from POST_WORK/HAN
+- [2026-04-21 14:45:21 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-095603] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 14:45:21 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-124521] Closeout remediation and final-lane integration prep for WP-1-Calendar-Sync-Engine-v2 after MT-006 repair pass
+- [2026-04-21 15:12:54 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-124521] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 15:12:54 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-131254] Autonomous orchestrator-managed completion of WP-1-Calendar-Sync-Engine-v2 through closeout and main integration after a :: Autonomous orchestrator-managed completion of WP-1-Calendar-Sync-Engine-v2 through closeout and main integration after approved refinement
+- [2026-04-21 15:20:23 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_DECISION] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-131254] Manual closeout remediation cleared candidate-target blockers for WP-1-Calendar-Sync-Engine-v2 by syncing the signed pat :: Manual closeout remediation cleared candidate-target blockers for WP-1-Calendar-Sync-Engine-v2 by syncing the signed patch bundle into handshake_main and importing the committed head. Remaining closeo
+- [2026-04-21 16:05:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> ACTIVATION_MANAGER` START_SESSION/run.started | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:05:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> ACTIVATION_MANAGER` START_SESSION/process.spawned | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2 | pid=82536
+- [2026-04-21 16:05:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/thread.started | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db05b..f197fe
+- [2026-04-21 16:05:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/turn.started | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:05:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:05:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:05:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/stderr | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:05:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:06:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:06:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:06:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:06:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/turn.completed | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:06:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=bb1b7f26..af71ed | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:06:32 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db05b-f2e5-7990-9648-10471bf197fe | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/ACTIVATION_MANAGER_WP-1-Calendar-Sync-Engine-v2/bb1b7f26-ed0b-4b22-a676-ec258aaf71ed.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**State**
+- `just activation-manager startup` failed with `Recipe 'activation-manager' failed on line 609 with exit code 1` and did not surface a more specific message.
+- Lifecycle/gate state from `just activation-manager next WP-1-Calendar-Sync-Engine-v2`:
+- `WP_ID`: `WP-1-Calendar-Sync-Engine-v2`
+- `PACKET_STATUS`: `In Progress`
+- `CURRENT_WP_STATUS`: `IN_PROGRESS`
+- `WORKFLOW_LANE`: `ORCHESTRATOR_MANAGED`
+- `CURRENT_VERDICT`: `REPAIR_REQUIRED`
+- `TASK_BOARD_STATUS`: `<not found>`
+- `CLEARLY_COVERS_VERDICT`: `PASS`
+- `ENRICHMENT_NEEDED`: `NO`
+- `REFINEMENT_PATH`: [.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/refinement.md](<D:\Projects\LLM projects\Handshake\Handshake Worktrees\wt-gov-kernel\.GOV\task_packets\WP-1-Calendar-Sync-Engine-v2\refinement.md>)
+- `PRIMARY_RUNTIME_ARTIFACT`: [WP-1-Calendar-Sync-Engine-v2.md](<D:\Projects\LLM projects\Handshake\Handshake Worktrees\gov_runtime\roles\activation_manager\runtime\activation_readiness\WP-1-Calendar-Sync-Engine-v2.md>)
+
+**Blockers**
+- `build-order-check` failed: `.GOV/roles_shared/records/BUILD_ORDER.md` is out of date.
+- Required unblock command: `just build-order-sync`
+
+**Next Required Commands**
+- `just build-order-sync`
+- `just generate-refinement-rubric`
+- `just activation-manager readiness WP-1-Calendar-Sync-Engine-v2 --write`
+- Review runtime artifact: [WP-1-Calendar-Sync-Engine-v2.md](<D:\Projects\LLM projects\Handshake\Handshake Worktrees\gov_runtime\roles\activation_manager\runtime\activation_readiness\WP-1-Calendar-Sync-Engine-v2.md>)
+- [2026-04-21 16:07:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> ACTIVATION_MANAGER` SEND_PROMPT/run.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:07:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> ACTIVATION_MANAGER` SEND_PROMPT/process.spawned | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2 | pid=26784
+- [2026-04-21 16:07:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db05b..f197fe
+- [2026-04-21 16:07:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:08:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:09:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:09:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:09:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:09:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:09:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/control.cancel_requested | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:09:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=375d5d74..1263ba | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:09:07 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` SEND_PROMPT/FAILED | status=FAILED | outcome=FAILED | thread=019db05b-f2e5-7990-9648-10471bf197fe | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/ACTIVATION_MANAGER_WP-1-Calendar-Sync-Engine-v2/375d5d74-e3e7-410f-afd4-0c46ea1263ba.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Canceled by Handshake ACP request.
+- [2026-04-21 16:09:06 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ACTIVATION_MANAGER -> ACP -> ORCHESTRATOR` CANCEL_SESSION/cancellation_requested | status=cancellation_requested | thread=019db05b-f2e5-7990-9648-10471bf197fe | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/ACTIVATION_MANAGER_WP-1-Calendar-Sync-Engine-v2/aab1d594-4b5c-401c-b8c7-8520a7637e33.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Cancel requested for governed run 375d5d74-e3e7-410f-afd4-0c46ea1263ba.
+- [2026-04-21 16:09:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` START_SESSION/run.started | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:09:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` START_SESSION/process.spawned | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=160416
+- [2026-04-21 16:10:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/thread.started | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db060..e1bc31
+- [2026-04-21 16:10:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/turn.started | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:10:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:10:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:11:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:11:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:11:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:11:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:11:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:11:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/turn.completed | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:11:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=2f12acde..b9b6f1 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:11:57 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db060-74e6-75c3-a0db-d0aabee1bc31 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/2f12acde-445e-48c7-99d4-87c045b9b6f1.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Lifecycle/gate state: `WP-1-Calendar-Sync-Engine-v2` is at `STAGE: HANDOFF`, `NEXT: STOP`, `OPERATOR_ACTION: NONE`. Workflow lane is `ORCHESTRATOR_MANAGED`. Runtime says `next actor: ORCHESTRATOR` and `waiting_on: VERDICT_PROGRESSION`. Latest validator assessment is accepted on committed head `a0a355c359656eedea3098692fc89f3546a59719`, with MT-002 through MT-006 overlap-review receipts cleared.
+
+Blockers: computed policy is `BLOCKED` with applicability `NOT_CLOSED_STATUS`. Coder implementation must not resume because the packet is in validator/handoff-owned state pending terminal handoff and closeout progression.
+
+Next required command:
+`just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v2 CODER --range 5336e8f23b7a6e2f35b450124dccb65a17644d7f..a0a355c359656eedea3098692fc89f3546a59719`
+
+No follow-on tests, edits, validation, or merge actions were run.
+- [2026-04-21 16:13:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:13:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=103468
+- [2026-04-21 16:13:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db060..e1bc31
+- [2026-04-21 16:13:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:14:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:15:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:16:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:16:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:16:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:16:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:16:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:16:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:16:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:17:56 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] Direct coder remediation advanced past the shared .GOV junction checkout blocker by creating feat/WP-1-Calendar-Sync-Engine-v2-mainproof at origin/main and rebinding HEAD there without checkout. Old candidate a0a355c3 remains preserved on origin/feat/WP-1-Calendar-Sync-Engine-v2 as audit evidence.
+- [2026-04-21 16:18:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:18:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:18:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:18:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:18:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:18:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:20:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:20:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:21:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:21:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:21:39 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] Current hold point is real proof, not control flow: coder has a main-parent remediation surface with the signed seven-file diff bounded and is running the packet TEST_PLAN (cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests) against an external CARGO_TARGET_DIR.
+- [2026-04-21 16:22:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:22:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:22:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:22:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:22:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:22:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:22:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:24:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:24:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:24:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:26:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:27:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:28:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:29:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:29:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:29:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=a0d75256..768e79 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 16:29:14 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db060-74e6-75c3-a0db-d0aabee1bc31 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/a0d75256-51ac-467e-9969-39d2d0768e79.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Handshake (Product)**
+
+`feat/WP-1-Calendar-Sync-Engine-v2` was preserved at `a0a355c359656eedea3098692fc89f3546a59719` and pushed to `origin/feat/WP-1-Calendar-Sync-Engine-v2` before any branch surgery. I preserved the blocking local edits in `stash@{0}` with `SAFETY: before clean-main remediation for WP-1-Calendar-Sync-Engine-v2`.
+
+I fetched `origin/main`; it currently resolves to `e1243008365566d4cde3c707f1b6078b5837fdcd` in this repo, so the new clean proof candidate is based on that commit, not the older `2ecd453c3eff9d4a93e962eb80dfb7a7f1458e4e` from the earlier failure note. I created `feat/WP-1-Calendar-Sync-Engine-v2-mainproof`, transplanted only the signed seven-file surface from `a0a355c3`, and committed `31d4c2212507a38da1442d3dc8ccdef0bfac689c` with range `e1243008365566d4cde3c707f1b6078b5837fdcd..31d4c2212507a38da1442d3dc8ccdef0bfac689c`. That commit only changes the seven allowed product files, and it is pushed to `origin/feat/WP-1-Calendar-Sync-Engine-v2-mainproof`. Non-`.GOV` status is clean after the commit.
+
+I reran the packet `TEST_PLAN` with external `CARGO_TARGET_DIR`. All three commands failed before packet-owned code compiled, inside `libduckdb-sys` under MSVC. The concrete failures are missing generated DuckDB headers such as `core_functions/aggregate/algebraic_functions.hpp` and `duckdb/execution/operator/aggregate/physical_ungrouped_aggregate.hpp`. I did not observe an in-scope seven-file compile or test failure before that external dependency build abort. `WEAK_SPOTS`: least-proven requirement is fresh executable packet proof because the DuckDB dependency build is failing externally on Windows; riskiest boundary is [`src/backend/handshake_core/src/workflows.rs`](D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/wtc-sync-engine-v2/src/backend/handshake_core/src/workflows.rs) against the newer `origin/main` baseline.
+
+**Repo Governance**
+
+I did not edit `.GOV` or packet artifacts. I attempted the required direct `just wp-coder-handoff ...`, but the helper rejected it because packet PREPARE truth still expects branch `feat/WP-1-Calendar-Sync-Engine-v2` while the superseding clean-main candidate is on `feat/WP-1-Calendar-Sync-Engine-v2-mainproof`. I then posted a packet-scoped coordination note with `BLOCKER_CLASS=OPERATOR_ARTIFACT_REQUIRED` to `@wpval`, including the superseding range, proof results, and the failed direct-handoff reason so Orchestrator can mechanically refresh packet truth and re-open the validator lane.
+- [2026-04-21 18:06:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` START_SESSION/run.started | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:06:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` START_SESSION/process.spawned | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=203916
+- [2026-04-21 18:06:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/thread.started | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db0ca..b00712
+- [2026-04-21 18:06:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.started | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:06:30 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:06:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:07:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/stderr | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:07:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:07:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:07:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:07:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:07:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:07:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.completed | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:07:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=4a2b42c2..f66c81 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:07:34 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db0ca-e731-76c2-a87c-d9b087b00712 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/4a2b42c2-0922-40a5-a08c-9eed36f66c81.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Handshake (Product): NONE
+
+Repo Governance: `validator-startup` failed its preflight, and `validator-next` resolved the lane to `VERDICT: PENDING`, `STAGE: STATUS_SYNC`, `NEXT: STOP`, `OPERATOR_ACTION: NONE`.
+
+Blocker: `BLOCKER_CLASS: POLICY_CONFLICT`
+The live worktree is on `feat/WP-1-Calendar-Sync-Engine-v2-mainproof`, but the packet policy requires `WP_VALIDATOR_LOCAL_BRANCH=feat/WP-1-Calendar-Sync-Engine-v2`. `validator-next` also reports `Resolved validator lane: UNKNOWN (UNRESOLVED)`, `Runtime next actor: ORCHESTRATOR`, and `Runtime waiting_on: VERDICT_PROGRESSION`.
+
+Next required command(s):
+- `cat .GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md`
+- `just validator-gate-status WP-1-Calendar-Sync-Engine-v2`
+- [2026-04-21 18:08:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:08:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=105088
+- [2026-04-21 18:08:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db060..e1bc31
+- [2026-04-21 18:08:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=07b83032..95da35 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:09:51 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db060-74e6-75c3-a0db-d0aabee1bc31 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/07b83032-d5b8-4eed-b605-5baedb95da35.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Handshake (Product)**
+
+`NONE`. I did not change product code and I did not reissue `wp-coder-handoff`, because the terminal handoff gate failed first.
+
+**Repo Governance**
+
+`BLOCKER_CLASS=OPERATOR_ARTIFACT_REQUIRED`
+
+Failing command:
+```powershell
+just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v2 CODER --range e1243008365566d4cde3c707f1b6078b5837fdcd..31d4c2212507a38da1442d3dc8ccdef0bfac689c
+```
+
+Top-level result:
+- `gate-check: PASS`
+- `wp-communication-health-check: PASS`
+- `post-work-check: FAIL`
+- `RESULT: FAIL`
+- `WHY: post-work-check failed`
+
+Exact failing output from the generated gate log at [2026-04-21T16-09-29-809Z.log](D:/Projects/LLM%20projects/Handshake/Handshake%20Worktrees/gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-handoff/WP-1-Calendar-Sync-Engine-v2/2026-04-21T16-09-29-809Z.log):
+- `Manifest[6]: Diff touches lines outside declared window [51, 27160] (C701-G04)` repeated across the `workflows.rs` manifest evaluation
+- `Manifest[6]: line_delta (1522) does not match git diff delta (-977) (C701-G05)`
+- `Manifest[6]: Could not load e1243008365566d4cde3c707f1b6078b5837fdcd version (new file or not tracked at e1243008365566d4cde3c707f1b6078b5837fdcd): src\backend\handshake_core\src\workflows.rs`
+
+No further handoff command was run after that failure.
+- [2026-04-21 18:12:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:12:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2 | pid=213444
+- [2026-04-21 18:12:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db060..e1bc31
+- [2026-04-21 18:12:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:13:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:14:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:14:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:14:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:14:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:14:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:14:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:14:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:14:54 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(1 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=VERDICT_PROGRESSION]` | sessions=4 | control=55/54 | receipts=25 | pending=2 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=THREAD_MESSAGE@2026-04-21T14:28:37.491Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@2h5m|idle=7546s)},CODER{run=RUNNING(active=1|queued=0|wait=ACTIVE_RUN);step=ACTIVE(item.completed:command_execution@47s|idle=47s)},WP_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=IDLE(item.completed:command_execution@7m|idle=439s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@2h11m|idle=7898s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=2m
+- [2026-04-21 16:17:38 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-131254] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 16:17:39 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-141739] Orchestrator startup completed for the gov_kernel worktree, protocol context was loaded from authority files, and this s :: Orchestrator startup completed for the gov_kernel worktree, protocol context was loaded from authority files, and this session is reserved for governed standby until the operator provides an explicit 
+- [2026-04-21 18:03:21 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-141739] [ctx] Record superseding PREPARE truth for WP-1-Calendar-Sync-Engine-v2 after clean-main remediation so validator ha :: Record superseding PREPARE truth for WP-1-Calendar-Sync-Engine-v2 after clean-main remediation so validator handoff targets feat/WP-1-Calendar-Sync-Engine-v2-mainproof instead of the stale original br
+- [2026-04-21 18:05:09 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-141739] [ctx] Append a corrected PREPARE gate-log entry for WP-1-Calendar-Sync-Engine-v2 because record-prepare is hard-bloc :: Append a corrected PREPARE gate-log entry for WP-1-Calendar-Sync-Engine-v2 because record-prepare is hard-blocked by stale last-prepare truth even after packet repair; preserve the old entry and make 
+- [2026-04-21 18:08:44 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-141739] [ctx] Steer CODER to reissue the final whole-WP handoff on the superseding clean-main candidate now that packet and :: Steer CODER to reissue the final whole-WP handoff on the superseding clean-main candidate now that packet and PREPARE truth target feat/WP-1-Calendar-Sync-Engine-v2-mainproof and validator-next no lon
+- [2026-04-21 18:12:24 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-141739] [ctx] Steer CODER to remediate the superseding clean-main candidate because phase-check HANDOFF on e1243008..31d4c22 :: Steer CODER to remediate the superseding clean-main candidate because phase-check HANDOFF on e1243008..31d4c221 fails with workflows.rs manifest/window drift that reflects a too-broad current-main tra
+- [2026-04-21 18:15:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:15:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:15:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:15:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:16:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:17:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:18 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(1 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=VERDICT_PROGRESSION]` | sessions=4 | control=55/54 | receipts=25 | pending=2 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=THREAD_MESSAGE@2026-04-21T14:28:37.491Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@2h9m|idle=7750s)},CODER{run=RUNNING(active=1|queued=0|wait=ACTIVE_RUN);step=ACTIVE(item.completed:command_execution@25s|idle=10s)},WP_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=STALE(item.completed:command_execution@10m|idle=643s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@2h15m|idle=8101s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=6m
+- [2026-04-21 18:18:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:18:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:07 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:19:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:44 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:20:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:21:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:21:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:21:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:21:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:21:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:21:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:21:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:21:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=1a5c5dd0..0aa7cc | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:21:41 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db060-74e6-75c3-a0db-d0aabee1bc31 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/1a5c5dd0-6f2e-42b3-9714-5d975f0aa7cc.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Handshake (Product)**
+
+`workflows.rs` was surgically rebuilt and committed on `feat/WP-1-Calendar-Sync-Engine-v2-mainproof` at `a503c097b3897759c85f29cf82e21eb36c706950`, but the terminal handoff gate still fails. I stopped there and did not emit `CODER_HANDOFF`.
+
+Failing command:
+```powershell
+just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v2 CODER --range e1243008365566d4cde3c707f1b6078b5837fdcd..a503c097b3897759c85f29cf82e21eb36c706950
+```
+
+Relevant output:
+```text
+PHASE_CHECK_STATUS [CX-PHASE-CHECK-001]
+- RESULT: FAIL
+- WHY: post-work-check failed.
+```
+
+Exact post-work errors from the gate log:
+```text
+1. Manifest[6]: post_sha1 mismatch for src\backend\handshake_core\src\workflows.rs (C701-G05)
+2. Manifest[6]: expected post_sha1 (LF) = cd0053518bc2c7ef11db099999a695ba4d15d29c
+3. Manifest[6]: Diff touches lines outside declared window [51, 27160] (C701-G04)
+4. Manifest[6]: line_delta (1522) does not match git diff delta (2033) (C701-G05)
+```
+
+**Repo Governance**
+
+No `.GOV` files were changed. The detailed gate artifact is here: [2026-04-21T16-21-05-490Z.log](</D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-handoff/WP-1-Calendar-Sync-Engine-v2/2026-04-21T16-21-05-490Z.log>).
+- [2026-04-21 18:23:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:23:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=39088
+- [2026-04-21 18:23:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db060..e1bc31
+- [2026-04-21 18:23:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:24:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:25:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:26:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:26:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:26:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:26:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:26:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:26:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:36 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(1 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=VERDICT_PROGRESSION]` | sessions=4 | control=56/55 | receipts=25 | pending=2 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=THREAD_MESSAGE@2026-04-21T14:28:37.491Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@2h18m|idle=8306s)},CODER{run=RUNNING(active=1|queued=0|wait=ACTIVE_RUN);step=ACTIVE(item.completed:command_execution@8s|idle=8s)},WP_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=STALE(item.completed:command_execution@20m|idle=1199s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@2h24m|idle=8658s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=4m
+- [2026-04-21 18:27:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:27:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:28:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:29:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:29:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:29:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:29:38 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(1 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=VERDICT_PROGRESSION]` | sessions=4 | control=56/55 | receipts=25 | pending=2 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=THREAD_MESSAGE@2026-04-21T14:28:37.491Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@2h20m|idle=8428s)},CODER{run=RUNNING(active=1|queued=0|wait=ACTIVE_RUN);step=ACTIVE(item.completed:file_change@0s|idle=0s)},WP_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=STALE(item.completed:command_execution@22m|idle=1321s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@2h26m|idle=8780s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=6m
+- [2026-04-21 18:29:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:29:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:29:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:29:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:30:59 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(1 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=VERDICT_PROGRESSION]` | sessions=4 | control=56/55 | receipts=25 | pending=2 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=THREAD_MESSAGE@2026-04-21T14:28:37.491Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@2h21m|idle=8509s)},CODER{run=RUNNING(active=1|queued=0|wait=ACTIVE_RUN);step=ACTIVE(item.completed:command_execution@0s|idle=0s)},WP_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=STALE(item.completed:command_execution@23m|idle=1402s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@2h27m|idle=8861s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=7m
+- [2026-04-21 18:30:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=a96069a0..522873 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:31:27 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db060-74e6-75c3-a0db-d0aabee1bc31 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/a96069a0-e0df-4305-86a1-b3da22522873.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=HEAD `dba8b4099c1afda1992fd79451baacc9fa79c47a`
+
+Remaining gate errors:
+```text
+1. Manifest[6]: post_sha1 mismatch for src\backend\handshake_core\src\workflows.rs (C701-G05)
+2. Manifest[6]: expected post_sha1 (LF) = 9553334d3782ee247b3a5ebde07de16e414ec691
+3. Manifest[6]: Diff touches lines outside declared window [51, 27160] (C701-G04)
+4. Manifest[6]: line_delta (1522) does not match git diff delta (1520) (C701-G05)
+```
+- [2026-04-21 18:32:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/run.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:32:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/process.spawned | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2 | pid=199596
+- [2026-04-21 18:32:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db060..e1bc31
+- [2026-04-21 18:32:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:16 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] A bounded coder remediation steer was sent against head dba8b4099c1afda1992fd79451baacc9fa79c47a with exact Manifest[6] errors and instructions to keep the repair within workflows.rs, recover the missing two-line delta, restore lawful placement under the 27160 upper window, rerun HANDOFF, and return only a fresh green handoff or exact remaining errors.
+- [2026-04-21 18:33:18 Europe/Brussels] [ORCHESTRATOR] [ACP_SYNC] [MECHANICAL] `BROKER(1 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=VERDICT_PROGRESSION]` | sessions=4 | control=57/56 | receipts=25 | pending=2 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=THREAD_MESSAGE@2026-04-21T14:28:37.491Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@2h24m|idle=8647s)},CODER{run=RUNNING(active=1|queued=0|wait=ACTIVE_RUN);step=ACTIVE(item.completed:command_execution@2s|idle=0s)},WP_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=STALE(item.completed:command_execution@25m|idle=1540s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@2h29m|idle=8999s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=1m
+- [2026-04-21 18:33:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:33:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:34:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=eb5cce9e..07c487 | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 18:35:32 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db060-74e6-75c3-a0db-d0aabee1bc31 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/eb5cce9e-38be-4266-b3ce-354ef107c487.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=HEAD `dba8b4099c1afda1992fd79451baacc9fa79c47a`
+
+Remaining Manifest[6] errors:
+```text
+1. Manifest[6]: post_sha1 mismatch for src\backend\handshake_core\src\workflows.rs (C701-G05)
+2. Manifest[6]: expected post_sha1 (LF) = 9553334d3782ee247b3a5ebde07de16e414ec691
+3. Manifest[6]: Diff touches lines outside declared window [51, 27160] (C701-G04)
+4. Manifest[6]: line_delta (1522) does not match git diff delta (1520) (C701-G05)
+```
+- [2026-04-21 18:49:13 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=NONE | why=integration-validator-closeout-check failed.
+- [2026-04-21 18:49:15 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=540.1min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=245.7min | gov_overhead=7.82 | receipts=25 | dup_receipts=1 | stale_routes=0 | acp_cmds=57 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=492329501 | tokens_out=2413974 | turns=41
+- [2026-04-21 19:06:19 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019db060-74e6-75c3-a0db-d0aabee1bc31 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/f2f0739a-011d-4b8f-abe2-f9d77f848cb6.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Governed session closed and steerable thread 019db060-74e6-75c3-a0db-d0aabee1bc31 was cleared.
+- [2026-04-21 19:07:03 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019db0ca-e731-76c2-a87c-d9b087b00712 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/a7e09529-4f81-4871-b604-126cb3722938.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Governed session closed and steerable thread 019db0ca-e731-76c2-a87c-d9b087b00712 was cleared.
+- [2026-04-21 19:07:37 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=NONE | why=CLOSEOUT phase checks passed.
+- [2026-04-21 19:07:41 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=571.7min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=232.6min | gov_overhead=7.403 | receipts=25 | dup_receipts=1 | stale_routes=0 | acp_cmds=59 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=492329501 | tokens_out=2413974 | turns=41
+- [2026-04-21 19:11:57 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=NONE | why=CLOSEOUT phase checks passed.
+- [2026-04-21 19:12:22 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=571.7min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=236.9min | gov_overhead=7.541 | receipts=25 | dup_receipts=1 | stale_routes=0 | acp_cmds=59 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=492329501 | tokens_out=2413974 | turns=41
+- [2026-04-21 19:14:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` START_SESSION/run.started | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:14:18 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` START_SESSION/process.spawned | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2 | pid=21844
+- [2026-04-21 19:14:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/thread.started | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db109..2a9110
+- [2026-04-21 19:14:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.started | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:14:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:14:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:16:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/stderr | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:16:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:16:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:16:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:16:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:16:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:16:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:17:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:17:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.completed | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:17:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=0c9b2203..27afbd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:17:04 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db109-371b-7400-82a2-c95e562a9110 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/0c9b2203-a3c9-4a3e-8370-7035e727afbd.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Lifecycle / Gate State**
+- `just validator-startup`: `FAILED` at `gov-check` during `session-policy-check`.
+- `just validator-next WP-1-Calendar-Sync-Engine-v2`: `VERDICT=PENDING`; lifecycle is `STATUS_SYNC`; `NEXT=STOP`; runtime next actor is `ORCHESTRATOR`; waiting on `VERDICT_PROGRESSION`.
+- `just integration-validator-context-brief WP-1-Calendar-Sync-Engine-v2`: `CONTEXT_STATUS=OK`; `CLOSEOUT_READINESS=READY`; committed handoff is `PASS`; `MAIN_COMPATIBILITY=COMPATIBLE`; closeout dependencies still show `provenance=MISSING`, `mode=UNSET`, `verdict=UNKNOWN`.
+
+**Blockers**
+- `POLICY_CONFLICT`: `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md` declares `WP_VALIDATOR_LOCAL_BRANCH=feat/WP-1-Calendar-Sync-Engine-v2-mainproof`, but policy check expects `feat/WP-1-Calendar-Sync-Engine-v2`.
+- Closeout provenance is not yet recorded: `CLOSEOUT_PROVENANCE: MISSING`.
+
+**Next Required Command(s)**
+- `just check-notifications WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR`
+- `just ack-notifications WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR integration_validator:wp-1-calendar-sync-engine-v2`
+- `just session-registry-status WP-1-Calendar-Sync-Engine-v2`
+- `just phase-check CLOSEOUT WP-1-Calendar-Sync-Engine-v2`
+- `STOP` and wait for Orchestrator instruction.
+- [2026-04-21 19:17:59 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` SEND_PROMPT/run.started | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:18:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` SEND_PROMPT/process.spawned | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2 | pid=139780
+- [2026-04-21 19:18:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db109..2a9110
+- [2026-04-21 19:18:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:18:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:18:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:19:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:19:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:20:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=aadc1295..6d0a4c | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db109-371b-7400-82a2-c95e562a9110 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/aadc1295-0876-46e6-8fc6-f3d0096d0a4c.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=`just validator-startup INTEGRATION_VALIDATOR` did not complete. `gov-check` failed on a packet session-policy violation: `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md` sets `WP_VALIDATOR_LOCAL_BRANCH=feat/WP-1-Calendar-Sync-Engine-v2-mainproof`, but the policy gate expects `feat/WP-1-Calendar-Sync-Engine-v2`.
+
+`BLOCKER_CLASS: POLICY_CONFLICT`
+
+Your relaunch instruction is also truncated after `just repomem open Final-lane`, so I do not have the full required resume sequence. Send the remaining exact command text, and I’ll continue from there once you want me to proceed past this blocked startup state.
+- [2026-04-21 19:34:12 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=NONE | why=CLOSEOUT phase checks passed.
+- [2026-04-21 19:34:16 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=598.7min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=234.6min | gov_overhead=7.465 | receipts=25 | dup_receipts=1 | stale_routes=0 | acp_cmds=62 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=492571504 | tokens_out=2419697 | turns=43
+- [2026-04-21 19:34:05 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019db109-371b-7400-82a2-c95e562a9110 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/11904144-1613-41d1-b9c5-d6a8a0e6b3cf.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Governed session closed and steerable thread 019db109-371b-7400-82a2-c95e562a9110 was cleared.
+- [2026-04-21 19:34:37 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=NONE | why=CLOSEOUT phase checks passed.
+- [2026-04-21 19:34:40 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=598.7min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=235min | gov_overhead=7.479 | receipts=25 | dup_receipts=1 | stale_routes=0 | acp_cmds=62 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=492571504 | tokens_out=2419697 | turns=43
+- [2026-04-21 19:35:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` START_SESSION/run.started | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:35:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` START_SESSION/process.spawned | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2 | pid=125660
+- [2026-04-21 19:35:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/thread.started | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db11c..40cea9
+- [2026-04-21 19:35:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.started | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:35:19 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:35:20 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:32 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:34 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.started | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/item.completed | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/turn.completed | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/process.closed | cmd=6d5e4d29..dbf7bd | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:36:49 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` START_SESSION/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db11c-40ba-7411-887f-a7195540cea9 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/6d5e4d29-1f28-477f-b37b-782eb8dbf7bd.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Handshake (Product): NONE
+
+Repo Governance:
+- Lifecycle state: `WP-1-Calendar-Sync-Engine-v2` is at `STATUS_SYNC` with `NEXT: STOP`. Runtime next actor is `ORCHESTRATOR`, waiting on `VERDICT_PROGRESSION`. Current lane resolved to `INTEGRATION_VALIDATOR` on `main`.
+- Gate state: context bundle is `OK`; closeout readiness is `READY`; main compatibility is `COMPATIBLE`; committed handoff is `PASS` in `COMMITTED_RANGE` mode. Closeout dependency checks are `topology=PASS`, `bundle=PASS`, `scope=PASS`, `candidate=PASS`.
+- Blockers: no hard blocker was emitted, but final closeout is not fully publishable yet because `CLOSEOUT_PROVENANCE` is `MISSING`, `CLOSEOUT_PUBLICATION mode` is `UNSET`, `verdict` is `UNKNOWN`, and `live_prepare` is `FAIL`.
+- Next required commands: current governed state says `STOP` and wait for the routed next actor. When this lane is resumed, the emitted required commands are `just check-notifications WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR`, `just ack-notifications WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR integration_validator:wp-1-calendar-sync-engine-v2`, and `just phase-check CLOSEOUT WP-1-Calendar-Sync-Engine-v2`.
+- [2026-04-21 19:37:04 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` SEND_PROMPT/run.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` SEND_PROMPT/process.spawned | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2 | pid=202092
+- [2026-04-21 19:37:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/thread.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2 | thread=019db11c..40cea9
+- [2026-04-21 19:37:10 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:21 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:31 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:39 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:37:58 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:11 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:23 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:26 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:37 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:38:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:22 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:39:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:12 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=NONE | why=CLOSEOUT phase checks passed.
+- [2026-04-21 19:40:15 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=601.7min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=237.6min | gov_overhead=7.561 | receipts=25 | dup_receipts=1 | stale_routes=0 | acp_cmds=63 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=492665335 | tokens_out=2421053 | turns=44
+- [2026-04-21 19:40:15 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:49 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:55 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:40:56 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:27 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:41:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:24 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:25 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:36 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:53 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:45:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:46:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:46:01 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:46:08 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:46:12 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:46:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:46:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:47:05 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:47:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:47:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:47:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:47:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:47:09 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:47:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:47:14 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:47:17 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:35 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:38 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:40 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:47 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:48 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:48:51 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:00 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:23 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=FAIL | why=closeout-truth-sync failed.
+- [2026-04-21 19:49:27 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_SYNC] [PHASE_CHECK_CLOSEOUT] `BROKER(1 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=VERDICT_PROGRESSION]` | sessions=4 | control=64/63 | receipts=25 | pending=2 | latest_control=START_SESSION/COMPLETED | latest_receipt=THREAD_MESSAGE@2026-04-21T14:28:37.491Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@3h40m|idle=13218s)},CODER{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@43m|idle=2584s)},WP_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@42m|idle=2541s)},INTEGRATION_VALIDATOR{run=RUNNING(active=1|queued=0|wait=ACTIVE_RUN);step=ACTIVE(item.started:command_execution@22s|idle=22s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=12m
+- [2026-04-21 18:39:18 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-141739] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 18:39:18 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-163918] Repair stale packet manifest truth for WP-1-Calendar-Sync-Engine-v2 and complete orchestrator-managed workflow
+- [2026-04-21 19:13:11 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-163918] [ctx] Packet truth synced to feat/WP-1-Calendar-Sync-Engine-v2-mainproof, workflows manifest rebuilt for e1243008365 :: Packet truth synced to feat/WP-1-Calendar-Sync-Engine-v2-mainproof, workflows manifest rebuilt for e1243008365566d4cde3c707f1b6078b5837fdcd..dba8b4099c1afda1992fd79451baacc9fa79c47a, current-main base
+- [2026-04-21 19:37:31 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-163918] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 19:37:31 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-173731] Final-lane judgment for WP-1-Calendar-Sync-Engine-v2: entering independent integration validation against packet scope, :: Final-lane judgment for WP-1-Calendar-Sync-Engine-v2: entering independent integration validation against packet scope, master spec clauses, committed diff, gates, notifications, and merge readiness.
+- [2026-04-21 19:48:36 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_CLOSE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-173731] (auto-closed by new session open) :: Previous session was not explicitly closed. Auto-closed when new session started.
+- [2026-04-21 19:48:36 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_OPEN] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-174836] Autonomous orchestrator-managed closeout for WP-1-Calendar-Sync-Engine-v2: final-lane monitoring, validator steering if :: Autonomous orchestrator-managed closeout for WP-1-Calendar-Sync-Engine-v2: final-lane monitoring, validator steering if needed, governed failure capture, and main integration only if lawfully passed.
+- [2026-04-21 19:49:18 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-174836] [ctx] Final-lane-FAIL-current-main-candidate-does-not-compile-and-handoff-proof-is-not-reproducible :: Final-lane-FAIL-current-main-candidate-does-not-compile-and-handoff-proof-is-not-reproducible
+- [2026-04-21 19:49:29 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=601.7min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=246.8min | gov_overhead=7.855 | receipts=25 | dup_receipts=1 | stale_routes=0 | acp_cmds=63 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=492665335 | tokens_out=2421053 | turns=44
+- [2026-04-21 19:49:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:29 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:49:57 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.started | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.completed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=3f979f54..7299be | wp=WP-1-Calendar-Sync-Engine-v2
+- [2026-04-21 19:50:46 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db11c-40ba-7411-887f-a7195540cea9 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/3f979f54-efe9-4c2b-9a78-288e767299be.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=**Handshake (Product)**
+- Final-lane verdict is `FAIL`. The current seven-file candidate does not compile: `cargo test --manifest-path ..\wtc-sync-engine-v2\src\backend\handshake_core\Cargo.toml mex_tests` fails in [workflows.rs](<D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-sync-engine-v2/src/backend/handshake_core/src/workflows.rs:6257>) because `SessionCheckpoint` is still constructed after its import was dropped, and again in [workflows.rs](<D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-sync-engine-v2/src/backend/handshake_core/src/workflows.rs:13748>) because `run_calendar_sync_job` moves `inputs` after borrowing from it.
+- I recorded the full structured remediation report in [packet.md](<D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md:1334>). No merge to `main` was attempted.
+
+**Repo Governance**
+- The deterministic HANDOFF proof is not reproducible from the integration-validator lane: [2026-04-21T17-39-36-101Z.log](<D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-handoff/WP-1-Calendar-Sync-Engine-v2/2026-04-21T17-39-36-101Z.log:27>) shows stale manifest post-SHA mismatches and `bad object dba8b409...`.
+- I appended the required Orchestrator receipt to [RECEIPTS.jsonl](<D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2/RECEIPTS.jsonl>). Canonical FAIL closeout sync is still blocked by `.cargo/config.toml` cargo target-dir hygiene, documented in [2026-04-21T17-49-29-889Z.log](<D:/Projects/LLM projects/Handshake/Handshake Worktrees/gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-closeout/WP-1-Calendar-Sync-Engine-v2/2026-04-21T17-49-29-889Z.log:102>).
+- [2026-04-21 19:50:59 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=FAIL | why=closeout-truth-sync failed.
+- [2026-04-21 19:51:03 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_SYNC] [PHASE_CHECK_CLOSEOUT] `BROKER(0 active) -> WP-1-Calendar-Sync-Engine-v2 [working / waiting_on=VERDICT_PROGRESSION]` | sessions=4 | control=64/64 | receipts=26 | pending=2 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=STATUS@2026-04-21T17:49:57.273Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@3h42m|idle=13314s)},CODER{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@44m|idle=2680s)},WP_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@43m|idle=2637s)},INTEGRATION_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=ACTIVE(item.completed:command_execution@47s|idle=14s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=0m
+- [2026-04-21 19:50:55 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-174836] [ctx] Final-lane-FAIL-current-main-candidate-does-not-compile-and-handoff-proof-is-not-reproducible :: Final-lane-FAIL-current-main-candidate-does-not-compile-and-handoff-proof-is-not-reproducible
+- [2026-04-21 19:51:05 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=615.4min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=248.4min | gov_overhead=7.906 | receipts=26 | dup_receipts=1 | stale_routes=1 | acp_cmds=64 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=498242069 | tokens_out=2453182 | turns=45
+- [2026-04-21 19:52:11 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=FAIL | why=closeout-truth-sync failed.
+- [2026-04-21 19:52:15 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_SYNC] [PHASE_CHECK_CLOSEOUT] `BROKER(0 active) -> WP-1-Calendar-Sync-Engine-v2 [completed / waiting_on=CLOSED]` | sessions=4 | control=64/64 | receipts=26 | pending=0 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=STATUS@2026-04-21T17:49:57.273Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@3h43m|idle=13385s)},CODER{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@45m|idle=2752s)},WP_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@45m|idle=2709s)},INTEGRATION_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=ACTIVE(item.completed:command_execution@1m|idle=85s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=0m
+- [2026-04-21 19:52:07 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-174836] [ctx] Final-lane-FAIL-current-main-candidate-does-not-compile-and-handoff-proof-is-not-reproducible :: Final-lane-FAIL-current-main-candidate-does-not-compile-and-handoff-proof-is-not-reproducible
+- [2026-04-21 19:52:17 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=615.4min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=248.1min | gov_overhead=7.897 | receipts=26 | dup_receipts=1 | stale_routes=1 | acp_cmds=64 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=498242069 | tokens_out=2453182 | turns=45
+- [2026-04-21 19:53:37 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=FAIL | why=wp-communication-health-check failed.
+- [2026-04-21 19:53:40 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_SYNC] [PHASE_CHECK_CLOSEOUT] `BROKER(0 active) -> WP-1-Calendar-Sync-Engine-v2 [completed / waiting_on=CLOSED]` | sessions=4 | control=64/64 | receipts=26 | pending=0 | latest_control=SEND_PROMPT/COMPLETED | latest_receipt=STATUS@2026-04-21T17:49:57.273Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@3h44m|idle=13471s)},CODER{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@47m|idle=2838s)},WP_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@46m|idle=2794s)},INTEGRATION_VALIDATOR{run=READY(active=0|queued=0|wait=STEERABLE);step=IDLE(item.completed:command_execution@3m|idle=171s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=1m
+- [2026-04-21 19:53:43 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=615.4min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=248.1min | gov_overhead=7.897 | receipts=26 | dup_receipts=1 | stale_routes=1 | acp_cmds=64 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=498242069 | tokens_out=2453182 | turns=45
+- [2026-04-21 19:54:11 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` CLOSE_SESSION/COMPLETED | status=COMPLETED | thread=019db11c-40ba-7411-887f-a7195540cea9 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/4e2d30e9-0b3b-4271-8bf3-ee09e40573f7.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Governed session closed and steerable thread 019db11c-40ba-7411-887f-a7195540cea9 was cleared.
+- [2026-04-21 19:55:06 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=FAIL | why=wp-communication-health-check failed.
+- [2026-04-21 19:55:11 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_SYNC] [PHASE_CHECK_CLOSEOUT] `BROKER(0 active) -> WP-1-Calendar-Sync-Engine-v2 [completed / waiting_on=CLOSED]` | sessions=4 | control=65/65 | receipts=26 | pending=0 | latest_control=CLOSE_SESSION/COMPLETED | latest_receipt=STATUS@2026-04-21T17:49:57.273Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@3h46m|idle=13562s)},CODER{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@48m|idle=2929s)},WP_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@48m|idle=2886s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=IDLE(control.close.requested@58s|idle=58s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=3m
+- [2026-04-21 19:55:16 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=618.8min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=248.1min | gov_overhead=7.897 | receipts=26 | dup_receipts=1 | stale_routes=1 | acp_cmds=65 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=498242069 | tokens_out=2453182 | turns=45
+- [2026-04-21 19:55:34 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=FAIL | sync_mode=FAIL | why=wp-communication-health-check failed.
+- [2026-04-21 19:55:39 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_SYNC] [PHASE_CHECK_CLOSEOUT] `BROKER(0 active) -> WP-1-Calendar-Sync-Engine-v2 [completed / waiting_on=CLOSED]` | sessions=4 | control=65/65 | receipts=26 | pending=0 | latest_control=CLOSE_SESSION/COMPLETED | latest_receipt=STATUS@2026-04-21T17:49:57.273Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@3h46m|idle=13590s)},CODER{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@49m|idle=2957s)},WP_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@48m|idle=2914s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=IDLE(control.close.requested@1m|idle=86s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=3m
+- [2026-04-21 19:55:41 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=618.8min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=248.1min | gov_overhead=7.897 | receipts=26 | dup_receipts=1 | stale_routes=1 | acp_cmds=65 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=498242069 | tokens_out=2453182 | turns=45
+- [2026-04-21 19:58:36 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_GATE] [phase-check CLOSEOUT] phase-check CLOSEOUT result=PASS | sync_mode=FAIL | why=CLOSEOUT phase checks passed.
+- [2026-04-21 19:58:41 Europe/Brussels] [INTEGRATION_VALIDATOR] [CLOSEOUT_SYNC] [PHASE_CHECK_CLOSEOUT] `BROKER(0 active) -> WP-1-Calendar-Sync-Engine-v2 [completed / waiting_on=CLOSED]` | sessions=4 | control=65/65 | receipts=27 | pending=0 | latest_control=CLOSE_SESSION/COMPLETED | latest_receipt=STATUS@2026-04-21T17:58:23.276Z | run_step=ACTIVATION_MANAGER{run=FAILED(active=0|queued=0|wait=FAILED);step=STALE(item.completed:command_execution@3h49m|idle=13771s)},CODER{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@52m|idle=3138s)},WP_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=STALE(control.close.requested@51m|idle=3095s)},INTEGRATION_VALIDATOR{run=TERMINAL(active=0|queued=0|wait=CLOSED);step=IDLE(control.close.requested@4m|idle=266s)} | push_alert=alert=none | lane=NOT_APPLICABLE/NOT_APPLICABLE | interrupt_budget=0/1 | idle=0m
+- [2026-04-21 19:58:19 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-174836] [ctx] Final-lane-FAIL-current-main-candidate-does-not-compile-and-handoff-proof-is-not-reproducible :: Final-lane-FAIL-current-main-candidate-does-not-compile-and-handoff-proof-is-not-reproducible
+- [2026-04-21 19:58:44 Europe/Brussels] [INTEGRATION_VALIDATOR] [METRICS] [wp-metrics] wall_clock=623min | active=4.9min | repair=0.1min | validator_wait=26.6min | route_wait=248.1min | gov_overhead=7.897 | receipts=27 | dup_receipts=1 | stale_routes=1 | acp_cmds=65 | acp_fail=5 | restarts=4 | mt=6 | fix_cycles=0 | zero_exec=0 | tokens_in=498242069 | tokens_out=2453182 | turns=45
 
 ## LIVE_IDLE_LEDGER
 
 - [2026-04-21 09:19:28 Europe/Brussels] [INTEGRATION_VALIDATOR] [IDLE_LEDGER] [PHASE_CHECK_CLOSEOUT] `WP-1-Calendar-Sync-Engine-v1` | review_rtt(last=19m|max=19m|open=1) | pass_to_coder(last=2h41m|max=2h41m|waiting=0) | idle(current=1s|max_gap=2h41m|gaps>=15m:4) | wall_clock(active=23m|validator=19m|route=1h50m|dependency=1s|human=0s|repair=3s) | current_wait(DEPENDENCY_WAIT@1s|reason=OPEN_REVIEW_ITEM_SPEC_GAP) | queue(level=MEDIUM|score=2|pending=0|open_reviews=1|open_control=1) | drift(dup_receipts=0|open_reviews=1|open_control=1)
 - [2026-04-21 09:22:17 Europe/Brussels] [INTEGRATION_VALIDATOR] [IDLE_LEDGER] [PHASE_CHECK_CLOSEOUT] `WP-1-Calendar-Sync-Engine-v1` | review_rtt(last=4m|max=19m|open=0) | pass_to_coder(last=2h41m|max=2h41m|waiting=1) | idle(current=51s|max_gap=2h41m|gaps>=15m:4) | wall_clock(active=23m|validator=23m|route=1h53m|dependency=0s|human=0s|repair=3s) | current_wait(ROUTE_WAIT@51s|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=2|pending=2|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
 - [2026-04-21 09:44:04 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] [2026-04-21T09:49:00+02:00] [ORCHESTRATOR] Activation Manager steer for WP-1-Calendar-Sync-Engine-v2 entered low-signal idle after broad repo scans: no refinement file, no handoff summary, and no new session output after the final command read. One bounded ACP recovery pass will be attempted with a tighter prompt.
+- [2026-04-21 11:27:02 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [HOST_LOAD] `just wp-validator-kickoff` took about 50.6s to settle on the loaded host; route repair was confirmed by direct runtime/receipt inspection before any further ACP steer.
+- [2026-04-21 11:31:36 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [STARTUP_GOVERNANCE] After communication mesh repair, v2 still lost about 4 minutes to refinement-alignment drift: two narrow refinement-only edits were required before `pre-work-check` would accept the lawful v1 supersession posture.
+- [2026-04-21 11:59:51 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [REFINEMENT_SYNC_REPAIR] `just record-refinement WP-1-Calendar-Sync-Engine-v2` hard-failed once on the stale packet-local copied refinement before sync; one bounded repair to `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/refinement.md` plus a rerun cleared the false REFINEMENT-stage drift in about 3 minutes without reopening signature flow.
+- [2026-04-21 12:20:16 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=4m|max=14m|open=0) | pass_to_coder(last=N/A|max=N/A|waiting=1) | idle(current=33s|max_gap=45m|gaps>=15m:2) | wall_clock(active=5m|validator=4m|route=1h17m|dependency=0s|human=0s|repair=3s) | current_wait(CODER_WAIT@33s|reason=CODER_HANDOFF) | queue(level=MEDIUM|score=1|pending=0|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-21 12:29:30 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=4m|max=14m|open=0) | pass_to_coder(last=2m|max=2m|waiting=0) | idle(current=6m|max_gap=45m|gaps>=15m:2) | wall_clock(active=5m|validator=4m|route=1h21m|dependency=0s|human=0s|repair=3s) | current_wait(CODER_WAIT@6m|reason=CODER_HANDOFF) | queue(level=MEDIUM|score=1|pending=0|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-21 16:04:07 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] About 0.5 minutes were lost when close-integration-validator-session timed out at the shell boundary under host load. Recovery rule stayed the same: inspect session-control outputs and registry state before sending another close or cancel.
+- [2026-04-21 16:04:36 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=1m|max_gap=45m|gaps>=15m:6) | wall_clock(active=5m|validator=27m|route=3h15m|dependency=0s|human=0s|repair=5s) | current_wait(ROUTE_WAIT@1m|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=2|pending=2|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
+- [2026-04-21 18:14:47 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] Heavy host load continues to create shell-boundary ambiguity on governed launch/send commands: launch-wp-validator-session and session-send CODER both timed out even though the broker accepted the requests. Extra registry/output inspection was required to avoid duplicate ACP actions, which remains a material governance timesink on this run.
+- [2026-04-21 18:14:54 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=2m|max_gap=1h37m|gaps>=15m:7) | wall_clock(active=5m|validator=27m|route=3h34m|dependency=0s|human=0s|repair=6s) | current_wait(ROUTE_WAIT@2m|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=3|pending=2|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-21 18:18:07 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] [2026-04-21 18:17:23 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [GOVERNANCE_ROUTE_DRIFT] Another monitor cycle confirmed the governance-refactor timesink: just orchestrator-next still projected stale route truth while session-registry-status, wp-token-usage, and the hot coder output showed an active product repair. Roughly 3-4 more minutes were spent on ledger refresh and route verification instead of product progression because the higher-level route surface is currently advisory only on this host.
+- [2026-04-21 18:18:18 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=6m|max_gap=1h37m|gaps>=15m:7) | wall_clock(active=5m|validator=27m|route=3h38m|dependency=0s|human=0s|repair=6s) | current_wait(ROUTE_WAIT@6m|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=3|pending=2|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-21 18:27:34 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] Heavy host load continues to inflate wall-clock without changing governed topology; active coder lane remained the only lawful path while WP_VALIDATOR stayed idle pending a fresh green CODER_HANDOFF.
+- [2026-04-21 18:27:36 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=4m|max_gap=1h37m|gaps>=15m:7) | wall_clock(active=5m|validator=27m|route=3h45m|dependency=0s|human=0s|repair=6s) | current_wait(ROUTE_WAIT@4m|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=3|pending=2|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-21 18:29:38 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=6m|max_gap=1h37m|gaps>=15m:7) | wall_clock(active=5m|validator=27m|route=3h47m|dependency=0s|human=0s|repair=6s) | current_wait(ROUTE_WAIT@6m|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=3|pending=2|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-21 18:30:50 Europe/Brussels] [ORCHESTRATOR] [NOTE] [MANUAL] Two deterministic probe failures were confirmed during the active coder repair: legacy PowerShell could not emit utf8NoBOM temp artifacts, and the original signed patch would not apply onto current-main base e1243008, forcing a slower anchor-map repair instead of direct replay.
+- [2026-04-21 18:30:59 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=7m|max_gap=1h37m|gaps>=15m:7) | wall_clock(active=5m|validator=27m|route=3h48m|dependency=0s|human=0s|repair=6s) | current_wait(ROUTE_WAIT@7m|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=3|pending=2|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-21 18:33:18 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [MECHANICAL] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=49s|max_gap=1h37m|gaps>=15m:7) | wall_clock(active=5m|validator=27m|route=3h50m|dependency=0s|human=0s|repair=6s) | current_wait(ROUTE_WAIT@49s|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=3|pending=2|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-21 19:49:27 Europe/Brussels] [INTEGRATION_VALIDATOR] [IDLE_LEDGER] [PHASE_CHECK_CLOSEOUT] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=12m|max_gap=1h37m|gaps>=15m:8) | wall_clock(active=5m|validator=27m|route=4h7m|dependency=0s|human=0s|repair=6s) | current_wait(ROUTE_WAIT@12m|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=3|pending=2|open_reviews=0|open_control=1) | drift(dup_receipts=0|open_reviews=0|open_control=1)
+- [2026-04-21 19:51:03 Europe/Brussels] [INTEGRATION_VALIDATOR] [IDLE_LEDGER] [PHASE_CHECK_CLOSEOUT] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=15s|max_gap=1h37m|gaps>=15m:8) | wall_clock(active=5m|validator=27m|route=4h8m|dependency=0s|human=0s|repair=6s) | current_wait(ROUTE_WAIT@15s|reason=VERDICT_PROGRESSION) | queue(level=HIGH|score=2|pending=2|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
+- [2026-04-21 19:52:15 Europe/Brussels] [INTEGRATION_VALIDATOR] [IDLE_LEDGER] [PHASE_CHECK_CLOSEOUT] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=1m|max_gap=1h37m|gaps>=15m:8) | wall_clock(active=5m|validator=27m|route=4h8m|dependency=0s|human=0s|repair=6s) | current_wait(UNCLASSIFIED@1m|reason=CLOSED) | queue(level=LOW|score=0|pending=0|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
+- [2026-04-21 19:53:40 Europe/Brussels] [INTEGRATION_VALIDATOR] [IDLE_LEDGER] [PHASE_CHECK_CLOSEOUT] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=3m|max_gap=1h37m|gaps>=15m:8) | wall_clock(active=5m|validator=27m|route=4h8m|dependency=0s|human=0s|repair=6s) | current_wait(UNCLASSIFIED@3m|reason=CLOSED) | queue(level=LOW|score=0|pending=0|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
+- [2026-04-21 19:55:11 Europe/Brussels] [INTEGRATION_VALIDATOR] [IDLE_LEDGER] [PHASE_CHECK_CLOSEOUT] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=58s|max_gap=1h37m|gaps>=15m:8) | wall_clock(active=5m|validator=27m|route=4h8m|dependency=0s|human=0s|repair=6s) | current_wait(UNCLASSIFIED@58s|reason=CLOSED) | queue(level=LOW|score=0|pending=0|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
+- [2026-04-21 19:55:39 Europe/Brussels] [INTEGRATION_VALIDATOR] [IDLE_LEDGER] [PHASE_CHECK_CLOSEOUT] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=1m|max_gap=1h37m|gaps>=15m:8) | wall_clock(active=5m|validator=27m|route=4h8m|dependency=0s|human=0s|repair=6s) | current_wait(UNCLASSIFIED@1m|reason=CLOSED) | queue(level=LOW|score=0|pending=0|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
+- [2026-04-21 19:58:41 Europe/Brussels] [INTEGRATION_VALIDATOR] [IDLE_LEDGER] [PHASE_CHECK_CLOSEOUT] `WP-1-Calendar-Sync-Engine-v2` | review_rtt(last=1m|max=14m|open=0) | pass_to_coder(last=26m|max=31m|waiting=0) | idle(current=15s|max_gap=1h37m|gaps>=15m:8) | wall_clock(active=5m|validator=27m|route=4h8m|dependency=0s|human=0s|repair=6s) | current_wait(UNCLASSIFIED@15s|reason=CLOSED) | queue(level=LOW|score=0|pending=0|open_reviews=0|open_control=0) | drift(dup_receipts=0|open_reviews=0|open_control=0)
 
 ## LIVE_FINDINGS_LOG
 
 - [2026-04-21 09:27:15 Europe/Brussels] [ORCHESTRATOR] [AUTHORITY_BLOCKER] Autonomous continuation is blocked by authority, not by missing relay work: MT-002 plus cannot be completed inside signed scope because calendar_sync capabilities are absent from capabilities.rs / mex gates, and final-lane closeout still requires a governed INTEGRATION_VALIDATOR session plus a terminal verdict path that the Orchestrator cannot fabricate.
 - [2026-04-21 09:51:27 Europe/Brussels] [ORCHESTRATOR] [GENERAL] [2026-04-21T09:56:00+02:00] [ORCHESTRATOR] [TOKEN_BURN] WP-1-Calendar-Sync-Engine-v2 Activation Manager recovery consumed 5 governed commands / 2 turns / 330687 input tokens / 227072 cached input tokens / 2656 output tokens without producing the successor refinement file before cancellation.
+- [2026-04-21 11:28:04 Europe/Brussels] [ORCHESTRATOR] [STARTUP_RECOVERY] The v2 validator STARTUP gate passed immediately after direct heartbeat plus kickoff repair; the remaining startup blocker was refinement alignment, not ACP session launch or missing peer sessions.
+- [2026-04-21 11:29:25 Europe/Brussels] [ORCHESTRATOR] [REFINEMENT_GATE_DIAGNOSIS] The lawful refinement repair for v2 was not another Task Board mutation: `WP-1-Calendar-Sync-Engine-v1` had to move from `MATCHED_ACTIVE_PACKETS` to `MATCHED_COMPLETED_PACKETS` and downgrade from `Intent: SAME` to `Intent: PARTIAL` so the checker would accept a superseded packet without invented implemented-code evidence.
+- [2026-04-21 11:59:51 Europe/Brussels] [ORCHESTRATOR] [REFINEMENT_GATE_DIAGNOSIS] `record-refinement` validates the packet-local copied refinement at `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/refinement.md`, not only the canonical `.GOV/refinements/WP-1-Calendar-Sync-Engine-v2.md`; stale copied rows can therefore trap the lifecycle in false REFINEMENT even when the signed source file is already lawful.
+- [2026-04-21 11:59:51 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just session-registry-status WP-1-Calendar-Sync-Engine-v2` reports minor ledger drift during the live coder run: 21 raw commands vs 20 tracked, with the missing tracked command id `73b2a033-58fc-4a1a-b339-35a2950866f2`; current spend is 14,338,962 input / 12,826,112 cached input / 103,030 output tokens.
+- [2026-04-21 14:08:00 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_INSIGHT] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260421-095603] Direct MT-006 coder execution committed 579ef5b4 after recovering the mex_tests LF/CRLF staging issue, but no MT-006 REV :: Direct MT-006 coder execution committed 579ef5b4 after recovering the mex_tests LF/CRLF staging issue, but no MT-006 REVIEW_REQUEST was appended to WP communications. The lane is stale on CODER_HANDOF
+- [2026-04-21 16:22:52 Europe/Brussels] [ORCHESTRATOR] [GENERAL] Main-contained TEST_PLAN no longer fails in out-of-scope src/backend/handshake_core/src/flight_recorder/mod.rs. The current proof blocker is earlier and external: libduckdb-sys fails under MSVC during cargo test mex_tests on the remediated mainproof surface, before packet-owned code executes.
+- [2026-04-21 16:25:02 Europe/Brussels] [ORCHESTRATOR] [GENERAL] External proof failure detail: on the clean mainproof surface, libduckdb-sys under MSVC fails with fatal error C1083: cannot open include file 'core_functions/aggregate/algebraic_functions.hpp' from generated duckdb/extension/core_functions/function_list.cpp. This occurs before packet-owned code executes.
+- [2026-04-21 18:14:47 Europe/Brussels] [ORCHESTRATOR] [GENERAL] Current whole-WP blocker after STATUS_SYNC repair: just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v2 CODER --range e1243008365566d4cde3c707f1b6078b5837fdcd..31d4c2212507a38da1442d3dc8ccdef0bfac689c fails in post-work-check because Manifest[6] for src/backend/handshake_core/src/workflows.rs no longer matches the current-main diff. Actual workflows diff spans lines 28..27873 with numstat 2217/3194 (delta -977), indicating the clean-main transplant is still too broad and likely reverts unrelated main changes inside workflows.rs. External libduckdb-sys/MSVC header-generation failure remains the separate executable-proof blocker.
+- [2026-04-21 18:18:06 Europe/Brussels] [ORCHESTRATOR] [GENERAL] [2026-04-21 18:17:23 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] just wp-token-usage now reports 55 commands / 38 turns / 464,600,910 gross input / 447,139,328 cached input / 17,461,582 fresh input / 2,181,804 output tokens. Ledger health remains DRIFT with one missing tracked command (the active coder repair 1a5c5dd0-6f2e-42b3-9714-5d975f0aa7cc). Budget status stays FAIL, but bounded continuation remains lawful under waiver CX-573F-20260421-CALENDAR-SYNC-TOKEN-BUDGET-CONTINUATION.
+- [2026-04-21 18:27:34 Europe/Brussels] [ORCHESTRATOR] [GENERAL] Coder isolated residual handoff failure to a duplicated post-calendar test chunk in src/backend/handshake_core/src/workflows.rs after confirming no live mojibake remained; active repair is deleting the duplicate while preserving calendar-sync coverage and restoring main test ordering.
+- [2026-04-21 18:29:37 Europe/Brussels] [ORCHESTRATOR] [GENERAL] Active coder diagnostics showed residual surface drift now consists of test-placement errors plus duplicated mod tests header lines (triple CapabilityRegistry import and duplicated setup_state signature) introduced by the earlier scripted transplant; no new feature-scope expansion was found.
+- [2026-04-21 18:33:15 Europe/Brussels] [ORCHESTRATOR] [GENERAL] Coder settled head dba8b4099c1afda1992fd79451baacc9fa79c47a after deleting 513 accidental lines from workflows.rs; HANDOFF still fails only on Manifest[6] with expected LF hash 9553334d3782ee247b3a5ebde07de16e414ec691, window overflow beyond line 27160, and line_delta 1522 vs git diff delta 1520.
 
 ## LIVE_GOVERNANCE_CHANGE_LOG
 
 - [2026-04-21 09:27:16 Europe/Brussels] [ORCHESTRATOR] [RGF_REPAIR] MECHANICAL :: workflow-dossier closeout sync no longer crashes: runSync now defines the session-telemetry now value, and phase-check CLOSEOUT progressed past workflow-dossier-closeout into the real final-lane blockers.
 - [2026-04-21 09:43:04 Europe/Brussels] [ORCHESTRATOR] [PATCH] MANUAL :: [2026-04-21T09:44:00+02:00] [ORCHESTRATOR] Chosen autonomous successor path: the locked v1 packet is materially underscoped after SPEC_CONFIRMATION on the capability-contract gap, so recovery is a superseding packet/refinement path rather than in-place widening.
+- [2026-04-21 11:27:02 Europe/Brussels] [ORCHESTRATOR] [RUNTIME_REPAIR] `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Calendar-Sync-Engine-v2` :: Recorded live CODER/WP_VALIDATOR heartbeats and the MT-001 kickoff so startup projection now resolves to `CODER / CODER_INTENT` with both active sessions present.
+- [2026-04-21 11:31:36 Europe/Brussels] [ORCHESTRATOR] [REFINEMENT_REPAIR] `.GOV/refinements/WP-1-Calendar-Sync-Engine-v2.md` :: Reclassified the superseded v1 predecessor as historical partial overlap (`MATCHED_COMPLETED_PACKETS`, `Intent: PARTIAL`) so technical refinement truth matches Task Board supersession law and startup gates pass.
+- [2026-04-21 11:59:51 Europe/Brussels] [ORCHESTRATOR] [REFINEMENT_REPAIR] `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/refinement.md` :: Repaired the stale copied refinement to match the signed source: `MATCHED_ACTIVE_PACKETS` now records `NONE`, and `WP-1-Calendar-Sync-Engine-v1` moved to `MATCHED_COMPLETED_PACKETS` as `BoardStatus: SUPERSEDED` with `Intent: PARTIAL`.
+- [2026-04-21 11:59:51 Europe/Brussels] [ORCHESTRATOR] [STATUS_SYNC] RECORDS :: `just record-refinement WP-1-Calendar-Sync-Engine-v2` passed after the packet-local refinement repair, and `just orchestrator-next WP-1-Calendar-Sync-Engine-v2` advanced back to `DELEGATION` with the governed lane truth waiting on the live coder handoff.
+- [2026-04-21 18:14:47 Europe/Brussels] [ORCHESTRATOR] [PATCH] MANUAL :: STATUS_SYNC repair completed on 2026-04-21: packet LOCAL_BRANCH/backup truth moved to feat/WP-1-Calendar-Sync-Engine-v2-mainproof, a corrective PREPARE entry was appended to ORCHESTRATOR_GATES.json, and validator session policy was satisfied by restoring WP_VALIDATOR_LOCAL_BRANCH to the canonical feat/WP-1-Calendar-Sync-Engine-v2 name while keeping the live candidate on mainproof.
+- [2026-04-21 19:23:24 Europe/Brussels] [ORCHESTRATOR] [PATCH] MANUAL :: Final-lane packet truth is now actually aligned with the policy claim above: `WP_VALIDATOR_LOCAL_BRANCH` was repaired back to `feat/WP-1-Calendar-Sync-Engine-v2`, while `LOCAL_BRANCH` and shared remote backup truth remain on the superseding proof branch `feat/WP-1-Calendar-Sync-Engine-v2-mainproof`.
 
 ## LIVE_CONCERNS_LOG
 
 - [2026-04-21 09:43:04 Europe/Brussels] [ORCHESTRATOR] [CONCERN] [2026-04-21T09:44:00+02:00] [ORCHESTRATOR] Unique-signature law blocks autonomous activation of a new product packet revision. The operator waiver authorizes path selection and governance work, but not fabrication or reuse of USER_SIGNATURE for WP-1-Calendar-Sync-Engine-v2.
 - [2026-04-21 09:51:27 Europe/Brussels] [ORCHESTRATOR] [CONCERN] [2026-04-21T09:56:00+02:00] [ORCHESTRATOR] [TIMESINK] Heavy-host ACP instability caused repeated steer wrapper timeouts and two Activation Manager refinement passes that confirmed the v1 scope defect but did not finish writing WP-1-Calendar-Sync-Engine-v2.md before cancellation.
 - [2026-04-21 10:36:43 Europe/Brussels] [ORCHESTRATOR] [V1_CLOSEOUT_ESCALATION] 2026-04-21 10:35 Europe/Brussels: protocol stop reached on v1 closeout. closeout-repair and phase-check CLOSEOUT still fail after the single allowed manual remediation attempt, so launching Integration Validator for v1 would violate the closeout-prep rule.
+- [2026-04-21 11:27:02 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Windows `just wp-validator-kickoff` argument handling appears brittle on this host: the landed receipt projected the right route and microtask contract, but optional correlation/spec-anchor fields must be audited after each kickoff until the wrapper is fixed.
+- [2026-04-21 11:59:51 Europe/Brussels] [ORCHESTRATOR] [CONCERN] MT-002 is genuinely active and in-scope, but the current proof path is blocked by a syntax break in `src/backend/handshake_core/src/workflows.rs`: `rustfmt --edition 2021` reports an unclosed delimiter near the new `calendar_sync` capability tests, and the coder is still debugging that parser failure before it can complete formatter or cargo proof runs.
+- [2026-04-21 11:59:51 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The live session registry remains stale relative to the hot coder output stream on this loaded host: registry `updated_at` is still `2026-04-21T09:48:36.305Z` while the coder output file and product diff continue changing. For live truth during this run, rely on the output file timestamp plus worktree diff before deciding the lane is stalled.
+- [2026-04-21 16:03:14 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Session-control truth is fresher than orchestrator-next/session-registry projections on this lane. The authoritative fail state now lives in the packet and validator receipt; route helpers remain stale and must not be trusted for verdict progression until repaired by live session output or explicit session closeout.
+- [2026-04-21 16:04:33 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Token burn remains materially over the governed fail budget even after ledger repair: 33 turns, about 457.6M gross input tokens, about 440.5M cached input tokens, and CODER alone consumed 17 turns. Continuation stays bounded only because waiver CX-573F-20260421-CALENDAR-SYNC-TOKEN-BUDGET-CONTINUATION is already recorded in the packet.
+- [2026-04-21 16:17:56 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Control correction: after final-lane Integration Validator FAIL, routing back through Activation Manager was a workflow error caused by stale runtime truth plus topology confusion. Lane corrected to direct CODER remediation; no further AM loop is authorized for this fail path.
+- [2026-04-21 18:18:07 Europe/Brussels] [ORCHESTRATOR] [CONCERN] [2026-04-21 18:17:23 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The live blocker is now purely the superseding workflows.rs transplant against current main: until the active coder run emits a fresh handoff that passes just phase-check HANDOFF on the repaired range, no validator wake is lawful. Session/output truth must continue to override stale route prose for this WP.
+- [2026-04-21 18:29:37 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The repair remains in one high-churn file with heavy host load and CRLF/LF warnings in the working copy, so line-window proofs can fail on placement/duplication even when calendar-sync content matches the signed candidate.
+- [2026-04-21 19:23:24 Europe/Brussels] [ORCHESTRATOR] [CONCERN] [TIMESINK] Final-lane startup spent another full validator turn and roughly 153k input tokens only to rediscover packet drift: the dossier claimed the canonical validator branch had already been restored, but the packet field still pointed at `feat/WP-1-Calendar-Sync-Engine-v2-mainproof`, so Integration Validator stopped inside `gov-check` before any closeout judgment.
+
+## LIVE_EXECUTION_LOG
+
+- [2026-04-21 12:05:03 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/QUEUED | status=QUEUED | outcome=ACCEPTED_PENDING | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/d54ca8d6-3c20-417b-924d-3a9a57c89317.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Queued CODER wake behind active run 73b2a033-58fc-4a1a-b339-35a2950866f2.
+- [2026-04-21 12:05:28 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/agent_message | cmd=73b2a033..0866f2 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Coder reported it is reverting incidental formatting churn and narrowing `workflows.rs` back to the intended MT-002 delta.
+- [2026-04-21 12:45:27 Europe/Brussels] [ORCHESTRATOR] [REVIEW_SYNC] `WP_VALIDATOR -> WP_COMMUNICATIONS` REVIEW_RESPONSE | wp=WP-1-Calendar-Sync-Engine-v2 | mt=MT-003 | correlation=review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8hpz4z:661500 | verdict=PASS | detail=Bounded overlap clearance only on commit `2c3e569e`; the validator confirmed the diff stayed inside `workflows.rs`, `mex/runtime.rs`, and `tests/mex_tests.rs`, with workflow-linked tool events and `MEX_ADAPTER_MISSING` evidence present, while the `flight_recorder/mod.rs` parser failure remains out of scope.
+- [2026-04-21 12:45:27 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/ACCEPTED_PENDING | status=RUNNING | outcome=IN_FLIGHT | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/718a359c-8605-40be-b351-7ff40a532ef4.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-004 steer landed after MT-003 clearance; coder is now reading the MT-004 row and the three allowed engine-contract surfaces.
+- [2026-04-21 12:49:50 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/item.completed | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-004 implementation advanced from design into all three signed surfaces: `src/backend/handshake_core/src/storage/calendar.rs`, `src/backend/handshake_core/src/workflows.rs`, and `src/backend/handshake_core/mechanical_engines.json`. The coder also reported replacing the prior adapter-missing workflow test with a real `calendar_sync` engine-contract exercise backed by stored calendar source/event fixtures.
+- [2026-04-21 12:52:03 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/agent_message | cmd=718a359c..532ef4 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-004 remains in active edit/proof preparation. The coder identified two local compile-shape defects in the new adapter path before running Cargo: an unused `started_at` local and a moved `time_window` value reused in the result payload. The run is fixing those directly before proof instead of burning a failing compile cycle first.
+- [2026-04-21 12:57:27 Europe/Brussels] [ORCHESTRATOR] [REVIEW_SYNC] `WP_VALIDATOR -> WP_COMMUNICATIONS` REVIEW_RESPONSE | wp=WP-1-Calendar-Sync-Engine-v2 | mt=MT-004 | correlation=review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8ia39t:24fb07 | verdict=PASS | detail=Bounded overlap clearance only on commit `e65b27aa`; the validator confirmed the commit stayed inside `mechanical_engines.json`, `src/workflows.rs`, and `src/storage/calendar.rs`, with the adapter/registry/output contract aligned and no widening into MT-005 or MT-006.
+- [2026-04-21 13:02:58 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/ACCEPTED_PENDING | status=RUNNING | outcome=IN_FLIGHT | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/bd0aa381-a8fa-4d25-be17-c999f5d1ec6e.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=MT-005 steer landed after the MT-004 overlap pass; the coder is now constrained to `src/backend/handshake_core/src/storage/calendar.rs`, `src/backend/handshake_core/src/storage/sqlite.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, and `src/backend/handshake_core/src/workflows.rs` to make `CalendarSourceSyncState` the durable recovery source of truth.
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The first MT-005 `apply_patch` attempt failed verification in `src/backend/handshake_core/src/storage/calendar.rs` because the expected `CalendarSourceSyncState` context was stale; the coder immediately reverted to exact-block rereads instead of forcing the patch.
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/agent_message | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | detail=After the patch miss, the coder re-read the precise `storage/calendar.rs` and `workflows.rs` blocks, confirmed the richer live sync-state shape already present in storage, and tightened the MT-005 plan to bounded edits plus explicit success/backoff workflow tests.
+- [2026-04-21 13:07:45 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/file_change | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Real MT-005 edits landed in the intended surfaces: `src/backend/handshake_core/src/storage/calendar.rs` first, then repeated bounded updates to `src/backend/handshake_core/src/workflows.rs`.
+- [2026-04-21 13:08:41 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/command_failed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | detail=`cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml -- src/backend/handshake_core/src/storage/calendar.rs src/backend/handshake_core/src/workflows.rs` failed on the known out-of-scope parser break in `src/backend/handshake_core/src/flight_recorder/mod.rs:6180`.
+- [2026-04-21 13:08:52 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/command_completed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The coder switched to `rustfmt --edition 2021` on the two touched files only, keeping MT-005 formatting bounded after the crate-wide formatter failed on the unrelated parser surface.
+- [2026-04-21 13:09:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/proof_failed | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Both scoped proof commands, `cargo test --manifest-path src/backend/handshake_core/Cargo.toml calendar_storage_tests` and then full `cargo test --manifest-path src/backend/handshake_core/Cargo.toml`, failed exactly on the same untouched `flight_recorder/mod.rs:6180` unclosed-delimiter error.
+- [2026-04-21 13:09:16 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/post_edit_audit | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The coder’s bounded post-edit audit found that the worktree was dirty outside MT-005: `src/backend/handshake_core/src/locus/types.rs` plus multiple `tests/*.rs` files are now modified alongside the intended `storage/calendar.rs` and `workflows.rs`.
+- [2026-04-21 13:09:43 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/stderr | cmd=bd0aa381..d1ec6e | wp=WP-1-Calendar-Sync-Engine-v2 | detail=A first cleanup `apply_patch` against `workflows.rs` failed verification because the local text had already shifted after formatting and edits; the coder is still in post-edit narrowing, not handoff.
+- [2026-04-21 13:12:35 Europe/Brussels] [ORCHESTRATOR] [REVIEW_SYNC] `CODER -> WP_COMMUNICATIONS` REVIEW_REQUEST | wp=WP-1-Calendar-Sync-Engine-v2 | mt=MT-005 | correlation=review:WP-1-Calendar-Sync-Engine-v2:review_request:mo8iyfy9:36d18b | detail=MT-005 handoff is live on commit `dbaf8b73`, with the delta confined to `src/backend/handshake_core/src/storage/calendar.rs` and `src/backend/handshake_core/src/workflows.rs`; the claimed proof blocker remains the untouched `flight_recorder/mod.rs:6180` parser break.
+- [2026-04-21 13:13:53 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ORCHESTRATOR -> ACP -> WP_VALIDATOR` SEND_PROMPT/ACCEPTED_PENDING | status=RUNNING | outcome=IN_FLIGHT | thread=019daf56-d75c-73f2-858f-ba24ed772ba2 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/WP_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/56467e2e-b5fa-44d4-9205-beb32f2b1164.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The route-manager wake for MT-005 presented as a shell timeout locally, but ACP accepted it and started the governed validator run.
+- [2026-04-21 13:14:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/notification_ack | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=WP validator acknowledged the single pending MT-005 REVIEW_REQUEST targeted to the governed uppercase session and advanced into bounded overlap review.
+- [2026-04-21 13:16:42 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `WP_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/evidence_read | cmd=56467e2e..2b1164 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The validator is now reading commit `dbaf8b73`, the MT-005 contract, and the workflow/storage transition blocks around `persist_source_state`, active-backoff short-circuiting, and failure-path recovery sequencing.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [HANDOFF_REPAIR] `ORCHESTRATOR -> PACKET` direct repair | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Rebuilt the live packet handoff truth from the stale MT-002-only merge-base narrative to the cumulative MT-002..MT-005 committed range `5336e8f23b7a6e2f35b450124dccb65a17644d7f..dbaf8b733b3452cdbfdbf1e210d8d6a9dfd9d323`, preserving `WP-1-Calendar-Sync-Engine-v1` in its already-boarded `SUPERSEDED` state.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [HANDOFF_PROOF] `ORCHESTRATOR -> phase-check` direct mechanical gate | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The bounded `just phase-check HANDOFF WP-1-Calendar-Sync-Engine-v2 CODER --range 5336e8f2..dbaf8b73` probe failed in the live product worktree only because ambient branch-local dirt still exists in `src/backend/handshake_core/src/locus/types.rs` and multiple unrelated `tests/*.rs` files.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [HANDOFF_PROOF] `ORCHESTRATOR -> phase-check` detached clean checkout | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Created `..\\wtc-sync-engine-v2-handoff-clean`, replaced its stale local `.GOV` directory with a junction to `wt-gov-kernel\\.GOV`, and reran the bounded handoff command to a clean PASS artifact at `../gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-handoff/WP-1-Calendar-Sync-Engine-v2/2026-04-21T11-38-16-012Z.log`.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ORCHESTRATOR -> ACP -> CODER` SEND_PROMPT/ACCEPTED_PENDING | status=RUNNING | outcome=IN_FLIGHT | thread=019daf4b-64c6-7003-aa7a-44f42bd82af3 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-1-Calendar-Sync-Engine-v2/2d8d835e-161b-4f49-905b-052a67eb0144.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Direct `just steer-coder-session ...` workaround landed after the relay stayed pinned to stale `WAITING_ON_CODER_HANDOFF`; the steer explicitly bypassed `coder-next`, reopened `MT-006.md`, and resumed bounded forward execution on the three signed MT-006 surfaces only.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/agent_message | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The coder acknowledged the route correction, confirmed pre-existing uncommitted edits in `tests/mex_tests.rs`, corrected one failed `ace.rs` path probe to `src/backend/handshake_core/src/ace/mod.rs`, and then advanced into bounded `workflows.rs` editing for the MT-006 read-only mutation guard plus regression coverage.
+- [2026-04-21 14:02:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/proof_failed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The targeted MT-006 proof command `cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests` failed exactly on the known out-of-scope parser break in `src/backend/handshake_core/src/flight_recorder/mod.rs:6180`; no MT-006-specific compile blocker appeared before that parse stop.
+- [2026-04-21 14:02:33 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/scope_repair | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=After a scoped `rustfmt` pass widened `src/backend/handshake_core/src/workflows.rs`, the coder explicitly restored that file to `HEAD` and replayed only the MT-006 hunks; the live diff then contracted back to the three signed MT-006 surfaces with current stats `mechanical_engines.json +17`, `workflows.rs +131/-1`, and `mex_tests.rs +55/-5`.
+- [2026-04-21 15:37:06 Europe/Brussels] [ORCHESTRATOR] [CLOSEOUT_PREP] `ORCHESTRATOR -> phase-check` direct mechanical gate | wp=WP-1-Calendar-Sync-Engine-v2 | detail=`just closeout-repair WP-1-Calendar-Sync-Engine-v2` reported no repair needed and `just phase-check CLOSEOUT WP-1-Calendar-Sync-Engine-v2` passed with artifact `../gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-closeout/WP-1-Calendar-Sync-Engine-v2/2026-04-21T13-37-06-483Z.log`; a `CLOSEOUT_READY` receipt was appended immediately afterward.
+- [2026-04-21 15:41:23 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `ORCHESTRATOR -> ACP -> INTEGRATION_VALIDATOR` SEND_PROMPT/ACCEPTED_PENDING | status=RUNNING | outcome=IN_FLIGHT | thread=019db042-dfe0-7382-adc6-d53c94909321 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/427073b6-7266-4c55-bbc9-8740fcf1f572.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Final-lane authority review was launched after a fresh `validator-startup` and `integration-validator-context-brief` bundle showed `CLOSEOUT_READINESS=READY` and `MAIN_COMPATIBILITY=COMPATIBLE`.
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/command_failed | cmd=427073b6..4909321 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The validator's two targeted independent probes, `calendar_sync_workflow_blocks_read_only_provider_mutation_and_persists_error_context` and `calendar_sync_runtime_denies_wrong_profile_without_unknown_capability`, both exited `124` after ~124s under heavy host load. The governed session stayed `COMMAND_RUNNING`, so the timeout is currently environment evidence, not a settled product verdict.
+- [2026-04-21 19:20:24 Europe/Brussels] [ORCHESTRATOR] [ACP_SESSION_CONTROL] `INTEGRATION_VALIDATOR -> ACP -> ORCHESTRATOR` SEND_PROMPT/COMPLETED | status=COMPLETED | outcome=SETTLED | thread=019db109-371b-7400-82a2-c95e562a9110 | output=../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/INTEGRATION_VALIDATOR_WP-1-Calendar-Sync-Engine-v2/aadc1295-0876-46e6-8fc6-f3d0096d0a4c.jsonl | wp=WP-1-Calendar-Sync-Engine-v2 | detail=Final-lane startup stopped in `gov-check` before any review work because packet truth still had `WP_VALIDATOR_LOCAL_BRANCH=feat/WP-1-Calendar-Sync-Engine-v2-mainproof`; policy expected the canonical validator branch `feat/WP-1-Calendar-Sync-Engine-v2`.
+- [2026-04-21 19:23:24 Europe/Brussels] [ORCHESTRATOR] [STATUS_SYNC] PACKET_REPAIR :: Repaired `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md` so `WP_VALIDATOR_LOCAL_BRANCH` again matches canonical session policy; the superseding proof candidate remains declared in `LOCAL_BRANCH` and `REMOTE_BACKUP_BRANCH` on `feat/WP-1-Calendar-Sync-Engine-v2-mainproof`.
+
+## LIVE_IDLE_LEDGER
+
+- [2026-04-21 12:05:21 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [STALL_DIAGNOSIS] About 1 minute was lost distinguishing a true stall from live self-recovery after the cargo proof failure: the queued bounded steer was accepted, but the active run resumed output and scope-cleanup work, so no `session-cancel` or restart was lawful.
+- [2026-04-21 12:30:28 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [WATCHDOG_DEFER] `just wp-relay-watchdog WP-1-Calendar-Sync-Engine-v2 --observe-only` twice returned `WAIT_ACTIVE_RUN` with `lane_verdict=QUIET_BUT_PROGRESSING`; the relay still projects stale `CODER_HANDOFF`, but host-load checks show fresh output every 3-24s, so the correct action remained monitor-only rather than another steer.
+- [2026-04-21 12:36:07 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [ROUTE_PROJECTION_LAG] `just orchestrator-next` still projected a stale-lane re-wake while `wp-relay-watchdog --observe-only` and the hot coder output file both showed an active `SEND_PROMPT` with fresh progress. This governance-refactor mismatch is currently the main autonomous timesink on the lane: the implementation is moving, but route truth lags receipt truth under host load.
+- [2026-04-21 12:45:27 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [STEER_TIMEOUT_FALSE_NEGATIVE] Roughly 4-5 minutes were lost because both `just steer-wp-validator-session ...` and `just steer-coder-session ...` timed out at the shell boundary even though the ACP requests were accepted and began running. The correct recovery pattern was registry/output verification, not duplicate resend.
+- [2026-04-21 12:49:50 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [WATCHDOG_DEFER] A fresh 35-second monitor window still returned `WAIT_ACTIVE_RUN` with `lane_verdict=QUIET_BUT_PROGRESSING` and `stall_scan=CLEAR` while the output stream showed recent file changes and command reads. No re-wake, cancel, or restart was lawful; monitoring remained the only compliant action.
+- [2026-04-21 12:52:03 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [PROOF_PREP] Roughly 2 more minutes stayed inside lawful active-run wait because the coder chose to scrub two obvious compile-shape defects in the MT-004 adapter/test path before spending another proof attempt on the loaded host. This is product work, not relay stall, so the lane remained in monitor-only mode.
+- [2026-04-21 12:57:27 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [VALIDATOR_RTT] MT-004 review turnaround stayed bounded once the receipt existed: direct `steer-wp-validator-session` produced the overlap verdict without needing a second wake or a stale-route repair cycle.
+- [2026-04-21 13:02:58 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [STEER_TIMEOUT_FALSE_NEGATIVE] The MT-005 `just steer-coder-session ...` call again presented as a shell timeout on the loaded host, but ACP had already accepted the wake as command `bd0aa381-a8fa-4d25-be17-c999f5d1ec6e`; about 2 minutes were spent verifying registry and output truth before concluding that no resend was lawful.
+- [2026-04-21 13:02:58 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [WATCHDOG_DEFER] `just wp-relay-watchdog WP-1-Calendar-Sync-Engine-v2 --observe-only` still returns `WAIT_ACTIVE_RUN` with `lane_verdict=QUIET_BUT_PROGRESSING` and `stall_scan=CLEAR` during MT-005. This remains route-wait, not worker stall, so the correct governed action is monitor-only until a receipt or a real stall pattern appears.
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [PATCH_CONTEXT_MISS] About 1 minute of MT-005 time was lost to a clean `apply_patch` verification failure against `storage/calendar.rs`. The correct recovery was the coder’s own exact-block reread and tighter hunk, not an orchestrator-side interrupt, resend, or cancellation.
+- [2026-04-21 13:07:45 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [NON_EDIT_STALL_CLEARED] The earlier MT-005 non-edit stall concern cleared without intervention: after one extra monitor interval the coder produced bounded file changes in `storage/calendar.rs` and `workflows.rs`, so the lane remained compliant with the no-interrupt policy.
+- [2026-04-21 13:09:06 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [PROOF_BLOCKER_RECONFIRMED] About 1 minute was spent re-proving the already-known blocker because MT-005 needed its own exact evidence. Both scoped proof commands died on the same untouched `flight_recorder/mod.rs:6180` parser break, so the result is confirmation, not a new blocker.
+- [2026-04-21 13:09:43 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [SCOPE_CLEANUP_REPAIR] MT-005 incurred extra cleanup time after the post-edit audit exposed over-broad dirty files and the first narrowing patch missed `workflows.rs` context. This is now the main timesink on the lane, and no review handoff is acceptable until the diff contracts back to lawful surfaces.
+- [2026-04-21 13:13:58 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [STEER_TIMEOUT_FALSE_NEGATIVE] Roughly 2 minutes were lost because `just orchestrator-steer-next WP-1-Calendar-Sync-Engine-v2 ...` timed out locally under host load even though ACP accepted the wake and started validator command `56467e2e-b5fa-44d4-9205-beb32f2b1164`. The correct recovery was registry/output confirmation, not a duplicate resend.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [PACKET_TRUTH_REPAIR] Roughly 20 minutes were spent rebuilding the whole-WP handoff packet from authoritative commit-range evidence because the stale creation-time merge base pulled unrelated branch history into the signed surface. This was governance repair work, not new product implementation.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [CLEAN_CHECKOUT_PROBE] Roughly 8 more minutes were spent proving that the repaired handoff truth was valid on a detached clean checkout after the live product worktree false-failed on ambient dirt. On this host, deterministic handoff proof currently requires separating commit-range truth from local worktree noise.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [ROUTE_DEADLOCK] Roughly 10 more minutes were lost after the clean handoff PASS because the communication-state library still mapped drained review state to `COMM_WAITING_FOR_HANDOFF`, which then projected `waitingOn=CODER_HANDOFF`. A normal `orchestrator-steer-next` wake burned the coder into re-running live handoff logic instead of starting MT-006, so the lawful recovery became one direct coder-session steer.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [STEER_TIMEOUT_FALSE_NEGATIVE] The direct MT-006 `just steer-coder-session ...` call again presented as a local timeout under host load even though ACP accepted it as command `2d8d835e-161b-4f49-905b-052a67eb0144`; recovery required registry/output verification rather than a duplicate resend.
+- [2026-04-21 14:02:33 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [PROOF_BLOCKER_RECONFIRMED] MT-006 spent another short proof cycle to re-establish the same out-of-scope parser blocker at `src/backend/handshake_core/src/flight_recorder/mod.rs:6180`. This is confirmation evidence for the new microtask, not a new product defect.
+- [2026-04-21 14:02:33 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [FORMATTER_SCOPE_REPAIR] Several minutes of MT-006 time were lost to file-wide `rustfmt` churn on `workflows.rs`. Because that file had no pre-existing local edits, the safe recovery was a clean `git restore --source=HEAD -- src/backend/handshake_core/src/workflows.rs` followed by bounded hunk replay instead of auditing unrelated formatter noise.
+- [2026-04-21 15:41:23 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [SEND_PROMPT_FALSE_TIMEOUT] Final-lane launch inherited the same shell-boundary ambiguity as earlier ACP wakes: the direct `session-control-command.mjs SEND_PROMPT` path presented as a local timeout on this host, but registry and output truth showed the Integration Validator command `427073b6-7266-4c55-bbc9-8740fcf1f572` was accepted and running. Roughly 2-3 minutes were spent proving that no resend was lawful.
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [VALIDATOR_PROBE_TIMEOUT] About 4 more minutes of closeout time were consumed by validator-owned targeted cargo probes that hit the host timeout ceiling instead of returning a clean pass/fail signal. Because the governed session remained active after both `124` exits, the correct action stayed monitor-only rather than interrupting or relaunching final review.
+
+## LIVE_FINDINGS_LOG
+
+- [2026-04-21 12:05:21 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just wp-token-usage WP-1-Calendar-Sync-Engine-v2` now reports material ledger drift: 22 raw commands vs 20 tracked, missing command ids `73b2a033-58fc-4a1a-b339-35a2950866f2` and `d54ca8d6-3c20-417b-924d-3a9a57c89317`, with spend at 14,338,962 input / 12,826,112 cached input / 1,512,850 fresh input / 103,030 output tokens.
+- [2026-04-21 12:05:28 Europe/Brussels] [ORCHESTRATOR] [SCOPE_DISCIPLINE] The active coder run remained alive after the queued steer and began explicitly reverting incidental churn: `src/backend/handshake_core/src/locus/types.rs` is outside signed MT-002 scope, and the coder reported it is narrowing `workflows.rs` back to the intended calendar-sync delta instead of widening into repo-format noise.
+- [2026-04-21 12:30:28 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just wp-token-usage WP-1-Calendar-Sync-Engine-v2` still reports only minor ledger drift, but the live active run is now the missing tracked command `2a913a76-59f1-481b-acc0-a5cb6634f310`; current spend is 25 commands / 17 turns / 69,921,478 gross input / 66,457,728 cached input / 3,463,750 fresh input / 331,763 output tokens, with budget status still `PASS`.
+- [2026-04-21 12:36:07 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just wp-metrics WP-1-Calendar-Sync-Engine-v2` shows the governance cost profile has become route-wait dominant: 167.6 wall-clock minutes, 4.9 product-active minutes, 81.2 route-wait minutes, 13 coder-wait minutes, governance overhead ratio `3.722`, `24` ACP commands, `3` ACP failures, `2` restarts, and still `0` proof runs landed.
+- [2026-04-21 12:36:07 Europe/Brussels] [ORCHESTRATOR] [MT-003_LIVE_DIFF] The active coder diff is now visible in the three intended MT-003 surfaces only: `src/backend/handshake_core/src/mex/runtime.rs`, `src/backend/handshake_core/src/workflows.rs`, and `src/backend/handshake_core/tests/mex_tests.rs`, with concrete linkage work for `workflow_context`, `calendar_sync` workflow dispatch, and `MEX_ADAPTER_MISSING` evidence assertions.
+- [2026-04-21 12:45:27 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just wp-token-usage WP-1-Calendar-Sync-Engine-v2` now reports 27 commands / 19 turns / 98,981,976 gross input / 94,464,512 cached input / 4,517,464 fresh input / 471,095 output tokens, with budget status still `PASS`. Minor ledger drift remains, and the current missing tracked command is the live MT-004 coder steer `718a359c-8605-40be-b351-7ff40a532ef4`.
+- [2026-04-21 12:49:50 Europe/Brussels] [ORCHESTRATOR] [MT-004_LIVE_DIFF] The active coder diff is now present in the exact MT-004 contract surfaces only: `src/backend/handshake_core/mechanical_engines.json`, `src/backend/handshake_core/src/storage/calendar.rs`, and `src/backend/handshake_core/src/workflows.rs`. The hot output stream indicates the delta has moved past adapter installation into a concrete `calendar_sync` request/result contract plus workflow test migration from adapter-missing behavior to real engine-contract coverage.
+- [2026-04-21 12:52:03 Europe/Brussels] [ORCHESTRATOR] [MT-004_COMPILE_SHAPE] The active coder run has already surfaced two real MT-004 implementation defects before proof: an unused `started_at` local inside the new `CalendarSyncEngineAdapter` path and a move of the request `time_window` before it is reused in `CalendarSyncResult`. The coder is correcting those in-scope defects before running the packet proof commands, which reduces wasted compile cycles on the loaded host.
+- [2026-04-21 12:57:27 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just wp-token-usage WP-1-Calendar-Sync-Engine-v2` now reports ledger health `MATCH` but budget status `WARN`: 27 commands / 20 turns / 132,262,545 gross input / 126,715,520 cached input / 5,547,025 fresh input / 616,573 output tokens. The warning is driven by CODER turn_count `11` exceeding the warn budget `10`, so further ambiguity-driven retries should be minimized.
+- [2026-04-21 12:57:27 Europe/Brussels] [ORCHESTRATOR] [MT-004_PROOF_BLOCKER] Both MT-004 proof commands failed exactly as predicted on the same untouched parser break in `src/backend/handshake_core/src/flight_recorder/mod.rs:6180`; no new in-scope compile blocker survived once the adapter/test shape issues were repaired.
+- [2026-04-21 13:02:58 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just session-registry-status WP-1-Calendar-Sync-Engine-v2` now reports minor ledger drift again because the live MT-005 coder wake `bd0aa381-a8fa-4d25-be17-c999f5d1ec6e` is not yet represented in the tracked ledger. Current spend is 29 commands / 21 turns / 136,455,405 gross input / 130,589,696 cached input / 5,865,709 fresh input / 641,966 output tokens, and budget status remains `WARN` from CODER turn_count `11`.
+- [2026-04-21 13:02:58 Europe/Brussels] [ORCHESTRATOR] [MT-005_LIVE_STATE] The hot coder output shows MT-005 is still in bounded analysis rather than proof: the run has narrowed the intended delta to workflow-side sync-state transitions and durable recovery behavior while confirming that the storage rows already carry the relevant `CalendarSourceSyncState` fields across both SQLite and Postgres.
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [MT-005_CONTEXT_DRIFT] The live file shape for `CalendarSourceSyncState` is richer than the earlier assumption: `storage/calendar.rs` already defines `CalendarSyncStateStage`, `last_full_sync_at`, `last_pull_at`, and `last_push_at`. The failed first patch did not mutate code, but it proved MT-005 must extend the existing sync-state model rather than trying to introduce a simplified helper layer.
+- [2026-04-21 13:08:52 Europe/Brussels] [ORCHESTRATOR] [MT-005_LIVE_DIFF] MT-005 now has real in-scope product changes: `storage/calendar.rs` gained bounded sync-state transition helpers and `workflows.rs` gained workflow-owned state persistence, explicit backoff failure handling, and new success/backoff tests for `calendar_sync`.
+- [2026-04-21 13:09:06 Europe/Brussels] [ORCHESTRATOR] [MT-005_PROOF_BLOCKER] The MT-005 proof run reproduces the same untouched parser blocker as MT-003 and MT-004: both packet proof commands fail on `src/backend/handshake_core/src/flight_recorder/mod.rs:6180`, and no new MT-005-specific compile failure appears before that parse stop.
+- [2026-04-21 13:09:16 Europe/Brussels] [ORCHESTRATOR] [MT-005_SCOPE_BREACH] The current worktree diff is not yet handoff-safe. Alongside the intended `storage/calendar.rs` and `workflows.rs`, the post-edit audit shows dirty changes in `src/backend/handshake_core/src/locus/types.rs` and multiple unrelated `tests/*.rs` files, which would violate MT-005 scope if committed as-is.
+- [2026-04-21 13:13:58 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just session-registry-status WP-1-Calendar-Sync-Engine-v2` now reports 30 commands / 22 turns / 178,767,929 gross input / 171,700,352 cached input / 7,067,577 fresh input / 830,356 output tokens. Budget status remains `WARN`, CODER turn_count is now `12`, and the live validator wake `56467e2e-b5fa-44d4-9205-beb32f2b1164` is missing from the tracked ledger.
+- [2026-04-21 13:16:42 Europe/Brussels] [ORCHESTRATOR] [MT-005_VALIDATOR_PROBE] The bounded validator review has confirmed that commit `dbaf8b73` is restricted to `storage/calendar.rs` and `workflows.rs`, and it is now probing whether `persist_source_state` preserves the correct `CalendarSourceSyncState` through active-backoff rejection, storage-query failure, and success completion.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [HANDOFF_GATE_REPAIRED] The authoritative whole-WP handoff gate now passes for the cumulative MT-002..MT-005 range `5336e8f2..dbaf8b73` when run on a clean checkout. The earlier live-tree failure was environmental: ambient dirt outside the committed range, not a defect in the repaired packet truth.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just wp-token-usage WP-1-Calendar-Sync-Engine-v2` now reports 31 commands / 24 turns / 227,368,221 gross input / 218,693,120 cached input / 8,675,101 fresh input / 1,054,771 output tokens, with ledger health `MATCH` and budget status still `WARN` because CODER turn_count is `13` and gross input remains above the telemetry threshold.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [ROUTE_LIBRARY_DEADLOCK] `wp-communication-health-lib.mjs` is the current stale-route source for this lane, not just an out-of-date relay mirror: once overlap review is drained and no coder handoff receipt exists yet, `evaluateWpCommunicationHealth` returns `COMM_WAITING_FOR_HANDOFF`, and `deriveWpCommunicationAutoRoute` maps that state back to `waitingOn=CODER_HANDOFF`. That is why `orchestrator-steer-next` re-woke handoff behavior instead of advancing MT-006.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just session-registry-status WP-1-Calendar-Sync-Engine-v2` now reports 33 commands / 25 turns / 270,671,834 gross input / 260,594,816 cached input / 10,077,018 fresh input / 1,246,458 output tokens, with budget status `WARN` and minor ledger drift because the live MT-006 coder command `2d8d835e-161b-4f49-905b-052a67eb0144` is not yet represented in the tracked ledger.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [MT-006_LIVE_STATE] The direct MT-006 steer has cleared the non-edit wait pattern: the hot coder output now shows bounded reads across the allowed surfaces, explicit caution around the pre-existing `tests/mex_tests.rs` dirt, a corrected module-path probe, and an in-progress edit in `src/backend/handshake_core/src/workflows.rs` for the adapter policy gate and read-only mutation regression.
+- [2026-04-21 14:02:33 Europe/Brussels] [ORCHESTRATOR] [MT-006_PROOF_BLOCKER] The first MT-006 proof run hit the same untouched parser stop as MT-003 through MT-005: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests` fails on `src/backend/handshake_core/src/flight_recorder/mod.rs:6180`, so the packet still lacks runtime execution proof but not because of a new MT-006 compile error.
+- [2026-04-21 14:02:33 Europe/Brussels] [ORCHESTRATOR] [MT-006_SCOPE_REPAIR] The live MT-006 diff is now materially narrower after the workflow-file restore. Current bounded delta is confined to `src/backend/handshake_core/mechanical_engines.json`, `src/backend/handshake_core/src/workflows.rs`, and `src/backend/handshake_core/tests/mex_tests.rs`, with the `workflows.rs` replay focused on read-only mutation denial, provider-access output metadata, and workflow assertions for the denied path.
+- [2026-04-21 14:18:33 Europe/Brussels] [ORCHESTRATOR] [MT-006_VALIDATOR_FAIL] The governed `WP_VALIDATOR` review on correlation `review:WP-1-Calendar-Sync-Engine-v2:review_request:mt-006:579ef5b4` is now a scoped `FAIL`: `run_calendar_sync_job` in `src/backend/handshake_core/src/workflows.rs` unconditionally reloads the `calendar_sync_result` artifact before handling `EngineStatus::Denied`, so a legitimate deny path can collapse into a terminal workflow error before any `provider_access` payload is emitted.
+- [2026-04-21 14:18:33 Europe/Brussels] [ORCHESTRATOR] [GOVERNANCE_DEFECT] The root `justfile` wrapper for `wp-review-response` is mechanically out of sync with `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`: the helper expects both `ACK_FOR` and `MICROTASK_JSON`, while the root recipe exposes only `ACK_FOR`. On this lane that mismatch caused the first MT-006 validator receipt write to misparse the correlation id as a recipe name and required a repair-only resend through the direct node helper.
+- [2026-04-21 14:22:56 Europe/Brussels] [ORCHESTRATOR] [MT-006_REPAIR_LIVE_STATE] The fresh coder repair run is active on command `0218b3b6-64b6-4cc2-be6e-fea058a62218`. Hot output shows the coder has isolated the defect correctly: the adapter read-only block already returns `EngineStatus::Failed` with a real artifact, while the remaining MT-006 seam is the true workflow-side `EngineStatus::Denied` path in `run_calendar_sync_job`.
+- [2026-04-21 15:33:27 Europe/Brussels] [ORCHESTRATOR] [MAIN_COMPATIBILITY] Packet truth is now synchronized to current `main`: `CURRENT_MAIN_COMPATIBILITY_STATUS=COMPATIBLE`, baseline `2ecd453c3eff9d4a93e962eb80dfb7a7f1458e4e`, and no widening was required because merge rehearsal drift was confined to two already-signed files, `src/backend/handshake_core/src/storage/calendar.rs` and `src/backend/handshake_core/src/workflows.rs`.
+- [2026-04-21 15:37:06 Europe/Brussels] [ORCHESTRATOR] [CLOSEOUT_GATE] The deterministic closeout-prep path is green on the committed whole-WP candidate head `a0a355c359656eedea3098692fc89f3546a59719`: `just closeout-repair` required no manual remediation and `just phase-check CLOSEOUT` passed with `integration-validator-closeout-check: PASS`.
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [TOKEN_BURN] `just session-registry-status WP-1-Calendar-Sync-Engine-v2` now reports 46 commands / 32 turns / 453,402,317 gross input / 436,565,760 cached input / 2,088,170 output tokens, with budget status `FAIL` (`TOKEN_BUDGET_EXCEEDED`) and minor ledger drift because the active Integration Validator command `427073b6-7266-4c55-bbc9-8740fcf1f572` is not yet represented in the tracked ledger.
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [VALIDATOR_ENVIRONMENT] Final-lane independent probes are now demonstrably host-load-sensitive: two validator-owned exact cargo tests exited `124` after ~124 seconds while the governed session remained alive, so the runtime environment is currently reducing certainty without yet disproving the calendar-sync contract.
+
+## LIVE_GOVERNANCE_CHANGE_LOG
+
+- [2026-04-21 12:05:03 Europe/Brussels] [ORCHESTRATOR] [STEER_QUEUE] ACP :: A bounded `just orchestrator-steer-next WP-1-Calendar-Sync-Engine-v2 ...` wake was accepted for CODER but queued behind the still-running command `73b2a033-58fc-4a1a-b339-35a2950866f2`; the steer tightened scope to the four signed MT-002 files, required explicit proof logging, and prohibited widening into the unrelated `flight_recorder` break.
+- [2026-04-21 12:05:28 Europe/Brussels] [ORCHESTRATOR] [NO_CANCEL_DECISION] SESSION_CONTROL :: Because the hot coder output resumed and showed scope-cleanup work after the queued steer, recovery remained in monitor mode and did not escalate to `just session-cancel CODER WP-1-Calendar-Sync-Engine-v2`.
+- [2026-04-21 12:45:27 Europe/Brussels] [ORCHESTRATOR] [VALIDATOR_WAKE] ACP :: The MT-003 review wake for `WP_VALIDATOR` timed out at the shell but was accepted in ACP as command `5b8b0ab7-8430-4697-8bdc-e5484656c974`, which then produced the bounded `REVIEW_RESPONSE` PASS on the exact MT-003 correlation.
+- [2026-04-21 12:45:27 Europe/Brussels] [ORCHESTRATOR] [CODER_WAKE] ACP :: The MT-004 coder wake likewise timed out at the shell but was accepted in ACP as command `718a359c-8605-40be-b351-7ff40a532ef4`; registry truth now shows `COMMAND_RUNNING` and the output stream confirms the coder is reading the MT-004 packet row plus the three allowed surfaces.
+- [2026-04-21 12:57:27 Europe/Brussels] [ORCHESTRATOR] [VALIDATOR_WAKE] ACP :: Direct `steer-wp-validator-session` on the MT-004 correlation landed as command `c7ddbd47-43c7-4c02-99aa-d0a6f5f79610` and produced the bounded `REVIEW_RESPONSE` PASS without needing relay-manager repair.
+- [2026-04-21 13:02:58 Europe/Brussels] [ORCHESTRATOR] [CODER_WAKE] ACP :: The MT-005 coder wake timed out at the shell boundary but was accepted in ACP as command `bd0aa381-a8fa-4d25-be17-c999f5d1ec6e`; registry truth shows `COMMAND_RUNNING`, and the output stream confirms the coder is reading only the four MT-005-allowed surfaces.
+- [2026-04-21 13:13:58 Europe/Brussels] [ORCHESTRATOR] [VALIDATOR_WAKE] ACP :: `just orchestrator-steer-next WP-1-Calendar-Sync-Engine-v2 ...` timed out locally but still landed as validator command `56467e2e-b5fa-44d4-9205-beb32f2b1164`; route-manager escalation is cleared by a live MT-005 review run.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [PACKET_REPAIR] SESSION_CONTROL :: Repaired `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md` so the signed handoff now references the authoritative MT-002..MT-005 committed surface, not the stale creation-time merge base that was pulling unrelated history into governance checks.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [MECHANICAL_HANDOFF_PROBE] SESSION_CONTROL :: Used direct `just phase-check` on both the live product worktree and a detached clean checkout, with the clean checkout carrying a `wt-gov-kernel\\.GOV` junction, to separate environmental worktree dirt from actual packet-range truth before the next ACP wake.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [CODER_WAKE] ACP :: Bypassed the stale relay-manager route with a direct `just steer-coder-session WP-1-Calendar-Sync-Engine-v2 ...` instruction, which ACP accepted as live coder command `2d8d835e-161b-4f49-905b-052a67eb0144` even though the shell wrapper timed out locally.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [PROCEDURAL_MEMORY] RECORDS :: Captured procedural memory `#4365` after the MT-006 run proved that `src/backend/handshake_core/src/ace.rs` is not a valid path in this tree; future bounded probes should target `src/backend/handshake_core/src/ace/mod.rs` or specific submodules instead of assuming a flat `ace.rs`.
+- [2026-04-21 14:02:33 Europe/Brussels] [ORCHESTRATOR] [PROCEDURAL_MEMORY] RECORDS :: Captured procedural memories `#4366` through `#4368` for three repeatable MT-006 execution hazards: Windows `rg` wildcard-path args can fail with `os error 123`, empty ACP `web_search` items can appear as non-actionable session noise, and whole-file `rustfmt` on `workflows.rs` can introduce broad unrelated churn that should be repaired by restoring the file and replaying only bounded hunks.
+- [2026-04-21 14:02:33 Europe/Brussels] [ORCHESTRATOR] [SCOPE_REPAIR] SESSION_CONTROL :: The coder has now used a clean self-owned rollback path on `src/backend/handshake_core/src/workflows.rs` because the earlier formatter pass widened the file outside MT-006 intent. This is a lawful repair because the file had no pre-existing local edits before the run.
+- [2026-04-21 14:08:10 Europe/Brussels] [ORCHESTRATOR] [CODER_WAKE] ACP :: After commit `579ef5b4` landed without any MT-006 `REVIEW_REQUEST`, a direct handoff-only `just steer-coder-session WP-1-Calendar-Sync-Engine-v2 ...` was accepted as command `f15ed3c2-f02f-42fb-95df-2d27419c8c14` and safely queued behind the still-running MT-006 coder command instead of being resent.
+- [2026-04-21 14:08:54 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/process.closed | cmd=2d8d835e..eb0144 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The original MT-006 coder run completed after commit `579ef5b4`, but the last action in that run was a failed `wp-review-exchange` attempt caused by malformed `MICROTASK_JSON` quoting, so handoff truth remained missing even though the bounded product commit already existed.
+- [2026-04-21 14:09:06 Europe/Brussels] [ORCHESTRATOR] [ACP_UPDATE] `CODER -> ACP -> ORCHESTRATOR` SEND_PROMPT/turn.started | cmd=f15ed3c2..9c8c14 | wp=WP-1-Calendar-Sync-Engine-v2 | detail=The queued handoff-only steer began execution and immediately re-validated the MT-006 packet file plus live WP communications before touching any governance-owned handoff surface.
+- [2026-04-21 14:09:10 Europe/Brussels] [ORCHESTRATOR] [PACKET_REPAIR] SESSION_CONTROL :: Recorded a governed continuation waiver in `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md` under `## WAIVERS GRANTED` for `TOKEN_BUDGET_EXCEEDED / POLICY_CONFLICT`, using the operator's explicit autonomous-finish instruction as the approval evidence so the budget overrun is lawful but still audit-visible.
+- [2026-04-21 14:17:16 Europe/Brussels] [ORCHESTRATOR] [VALIDATOR_CANCEL] ACP :: Canceled failed validator run `2deaa563-8d23-4749-b3d1-3c442228099d` after the MT-006 verdict was already stable in the output log and the remaining work had degraded into receipt-post churn caused by the wrapper/helper contract mismatch.
+- [2026-04-21 14:19:31 Europe/Brussels] [ORCHESTRATOR] [VALIDATOR_REPAIR] ACP :: A repair-only validator resend landed as command `60926f37-21b5-4a5d-96f8-bbbd90842549` and posted the governed MT-006 `REVIEW_RESPONSE` through `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs` with `ACK_FOR=review:WP-1-Calendar-Sync-Engine-v2:review_request:mt-006:579ef5b4` and an explicit empty `MICROTASK_JSON` trailing slot.
+- [2026-04-21 14:20:24 Europe/Brussels] [ORCHESTRATOR] [CODER_WAKE] ACP :: The MT-006 repair wake timed out at the shell boundary but ACP accepted it as active coder command `0218b3b6-64b6-4cc2-be6e-fea058a62218`; recovery remained monitor-only after registry/output confirmation.
+- [2026-04-21 15:33:27 Europe/Brussels] [ORCHESTRATOR] [PACKET_REPAIR] SESSION_CONTROL :: Updated both packet copies, `wt-gov-kernel/.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md` and `../handshake_main/.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md`, so `CURRENT_MAIN_COMPATIBILITY_*` truth matches the latest merge rehearsal against `main` baseline `2ecd453c3eff9d4a93e962eb80dfb7a7f1458e4e`.
+- [2026-04-21 15:37:06 Europe/Brussels] [ORCHESTRATOR] [CLOSEOUT_READY] SESSION_CONTROL :: Appended a `CLOSEOUT_READY: mechanical prep complete` receipt, then reran the canonical `closeout-repair` and `phase-check CLOSEOUT` path to establish lawful final-lane launch truth before waking Integration Validator.
+- [2026-04-21 15:41:23 Europe/Brussels] [ORCHESTRATOR] [INTEGRATION_VALIDATOR_WAKE] ACP :: Launched a fresh Integration Validator session on thread `019db042-dfe0-7382-adc6-d53c94909321`, confirmed `validator-startup` plus `integration-validator-context-brief`, and delivered the final authority prompt through the direct `session-control-command.mjs SEND_PROMPT` path because the higher-level steer wrapper is quote-fragile on this Windows host.
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [PROCEDURAL_MEMORY] RECORDS :: Captured procedural memory `#4456` after the active final-lane probes showed that exact cargo tests can time out under heavy host load during Integration Validator review; future closeout handling should inspect governed output and session state before treating exit `124` as a product failure or triggering a resend.
+
+## LIVE_CONCERNS_LOG
+
+- [2026-04-21 12:05:21 Europe/Brussels] [ORCHESTRATOR] [CONCERN] WP token-ledger drift has escalated from WARN to `POLICY_CONFLICT`: `wp-token-usage` now reports 22 raw commands vs 20 tracked. Any future stronger recovery action on this lane should be preceded by fresh `session-registry-status` plus `wp-token-usage` inspection so a host-load false stall does not compound drift.
+- [2026-04-21 12:05:28 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The coder reports scope-cleanup is underway, but validator risk remains until the actual diff drops `src/backend/handshake_core/src/locus/types.rs` and the broad `workflows.rs` formatting churn. If those survive into handoff, `SCOPE_VALIDITY` should fail even if the calendar capability tests themselves are correct.
+- [2026-04-21 12:36:07 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Governance projection is currently less trustworthy than the hot output stream on this loaded machine: `orchestrator-next` still recommends a stale-lane re-wake, while the watchdog, active-run inventory, and output timestamps all show a live coder turn. Until the refactor stabilizes, monitor/steer decisions on this lane should be based on `wp-relay-watchdog --observe-only` plus recent `SESSION_CONTROL_OUTPUTS`, not `orchestrator-next` alone.
+- [2026-04-21 12:45:27 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Route projection remains behind execution truth even after MT-003 clearance: session-registry truth shows `WP_VALIDATOR` completed and `CODER` running MT-004, but relay prose still frames the lane as stale `CODER_HANDOFF`. Until the refactor is repaired, whole-WP progression decisions must continue to key off receipts plus registry state, not relay-summary prose.
+- [2026-04-21 13:02:58 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Token burn is now above the governed warning budget while MT-005 is still in analysis. Any further recovery choice stronger than monitor-only must first prove a real stall, because duplicate wakes would spend against a lane that is already active and over the CODER turn warning threshold.
+- [2026-04-21 13:06:02 Europe/Brussels] [ORCHESTRATOR] [CONCERN] MT-005 has not yet produced a dirty diff even though the coder is still making progress. If the lane stays in reread/replan without a bounded edit for another monitor interval, this should be treated as a potential non-edit stall even if watchdog freshness remains nominal.
+- [2026-04-21 13:09:43 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The immediate MT-005 risk is no longer lack of progress but scope hygiene: the coder knows the diff widened beyond the lawful surfaces, yet the extra dirty files are still present and the first cleanup patch failed. No validator wake is lawful until that out-of-scope churn is either reverted or proven to be non-substantive and removed from the commit range.
+- [2026-04-21 13:13:58 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Governance telemetry drift is again operationally relevant on this loaded host: the validator wake is missing from the tracked ledger, so token diagnostics remain approximate until raw and tracked command counts reconcile.
+- [2026-04-21 13:16:42 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Ambient worktree dirt still exists outside commit `dbaf8b73` even though the MT-005 commit itself is bounded. If later whole-WP hygiene checks key off worktree status instead of commit-range truth, this lane can still false-fail without careful scope interpretation.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The route remains mechanically stale on `WAITING_ON_CODER_HANDOFF` even after the repaired clean-checkout PASS, and the session registry `updated_at` is still frozen at `2026-04-21T11:20:05.941Z`. The next lawful move is one bounded `just orchestrator-steer-next ...` wake, not another packet rewrite or duplicate validator launch.
+- [2026-04-21 13:42:37 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The detached proof checkout `..\\wtc-sync-engine-v2-handoff-clean` is currently retained because it contains the only clean handoff artifact path for this host state. Remove it only after the coder lane is re-awake and the next packet state no longer depends on that clean proof surface.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The live product worktree still carries pre-existing unrelated dirt, and `tests/mex_tests.rs` is both in MT-006 scope and already modified before the current patch. Any later validator or handoff judgment must continue to key off commit-range / bounded diff truth, not raw worktree status alone.
+- [2026-04-21 13:56:46 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The stale relay recommendation is now proven unsafe for this lane. While command `2d8d835e-161b-4f49-905b-052a67eb0144` is active, another `orchestrator-steer-next` would risk spending a redundant turn against an already-running MT-006 execution on a lane that is already over the token warning budget.
+- [2026-04-21 14:02:33 Europe/Brussels] [ORCHESTRATOR] [CONCERN] MT-006 is not handoff-ready yet even though proof evidence is collected: the coder is still replaying `workflows.rs` hunks after the formatter rollback, and no `REVIEW_REQUEST` receipt exists yet. Launching `WP_VALIDATOR` before that receipt would be premature and would risk reviewing stale diff shape.
+- [2026-04-21 14:08:10 Europe/Brussels] [ORCHESTRATOR] [CONCERN] WP token usage crossed the governed fail budget (`turn_count=26`, `CODER turn_count=15`, `POLICY_CONFLICT`, `TOKEN_BUDGET_EXCEEDED`) exactly while the MT-006 handoff was still missing. The waiver now makes bounded continuation lawful, but no further non-essential ACP wakes are acceptable until MT-006 handoff truth is restored.
+- [2026-04-21 14:08:54 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The MT-006 blocker has narrowed from product logic to governance serialization: the coder's direct `wp-review-exchange` attempt failed because quote-heavy inline `MICROTASK_JSON` did not survive the PowerShell path. Until the queued repair steer lands a receipt, validator work must stay idle.
+- [2026-04-21 14:18:33 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The relay surface is stale again immediately after the validator `FAIL`: `WP_RELAY_ESCALATION` escalated back to `WAITING_ON_CODER_HANDOFF` even though `CODER` command `0218b3b6-64b6-4cc2-be6e-fea058a62218` is actively running the MT-006 repair. Until the route library is fixed, repair progress must continue to be judged from session registry truth plus live output, not relay prose.
+- [2026-04-21 14:22:56 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The bounded continuation waiver remains necessary because the lane is still in `TOKEN_BUDGET_EXCEEDED / POLICY_CONFLICT` while essential MT-006 repair work is in flight. No extra validator or orchestrator wake beyond the current coder repair and its follow-on review is lawful on this run.
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The final-lane session registry remains materially stale relative to the active Integration Validator output: registry `updated_at` is still frozen at `2026-04-21T13:41:23.653Z` even though the output file has advanced through independent probes and two timeout events. Until the governance refactor is repaired, final closeout decisions must continue to key off the live output file, not registry freshness.
+- [2026-04-21 15:49:13 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The lane is still operating under an explicit token-budget waiver while `WP_TOKEN_BUDGET` remains `FAIL` and the active Integration Validator command is missing from the tracked ledger. No extra ACP wake, cancellation, or resend is lawful unless the current final-lane run actually settles into a real stall or produces a verdict artifact.
+
+## LIVE_EXECUTION_LOG
+
+- [2026-04-21 19:54:11 Europe/Brussels] [ORCHESTRATOR] [SESSION_SETTLEMENT] `node .GOV/roles/orchestrator/scripts/session-control-command.mjs CLOSE_SESSION INTEGRATION_VALIDATOR WP-1-Calendar-Sync-Engine-v2` closed the lingering final-lane thread `019db11c-40ba-7411-887f-a7195540cea9` after runtime truth had already reached terminal `Validated (FAIL)`.
+- [2026-04-21 19:58:44 Europe/Brussels] [ORCHESTRATOR] [CLOSEOUT_PASS] `just phase-check CLOSEOUT WP-1-Calendar-Sync-Engine-v2 INTEGRATION_VALIDATOR integration_validator:wp-1-calendar-sync-engine-v2 --sync-mode FAIL --context Final-lane-FAIL-current-main-candidate-does-not-compile-and-handoff-proof-is-not-reproducible` passed and wrote the authoritative closeout artifact `../gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-closeout/WP-1-Calendar-Sync-Engine-v2/2026-04-21T17-58-44-798Z.log`.
+
+## LIVE_IDLE_LEDGER
+
+- [2026-04-21 19:49:29 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [CLOSEOUT_REPAIR_CHAIN] Final-lane closeout consumed additional repair time after the validator verdict because the sync path hit four separate mechanical blockers in sequence: PowerShell context quoting loss, stale `.cargo/config.toml` target-dir hygiene in unrelated sibling checkouts, invalid scalar formatting in `VALIDATION_REPORTS`, and a stale terminal `route_anchor_*` projection that kept `wp-communication-health-check` red after packet/runtime truth was already synced.
+- [2026-04-21 19:58:44 Europe/Brussels] [ORCHESTRATOR] [IDLE_LEDGER] [TOKEN_BURN] Terminal registry truth for `WP-1-Calendar-Sync-Engine-v2` ended at `command_count=65`, `turn_count=45`, `input_tokens=498242069`, and `output_tokens=2453182`; the dominant cost center was governance/runtime recovery rather than fresh product implementation.
+
+## LIVE_FINDINGS_LOG
+
+- [2026-04-21 19:49:57 Europe/Brussels] [INTEGRATION_VALIDATOR] [FINAL_VERDICT] The authoritative current-main-compatible candidate failed final lane for two product reasons: it does not compile in signed scope (`src/backend/handshake_core/src/workflows.rs:6257` missing `SessionCheckpoint` import and `src/backend/handshake_core/src/workflows.rs:13748` move-after-borrow), and deterministic HANDOFF proof for `e1243008365566d4cde3c707f1b6078b5837fdcd..dba8b4099c1afda1992fd79451baacc9fa79c47a` is not reproducible from `../handshake_main`.
+- [2026-04-21 19:58:44 Europe/Brussels] [ORCHESTRATOR] [GOVERNANCE_BUG] Terminal packet-to-runtime sync for `Validated (...)` closeouts did not clear persisted `route_anchor_*`, so `wp-communication-health-check` falsely kept projecting a live `VALIDATOR_REVIEW` boundary after packet status, task-board status, sessions, and open-review items were already terminal.
+
+## LIVE_GOVERNANCE_CHANGE_LOG
+
+- [2026-04-21 19:51:05 Europe/Brussels] [ORCHESTRATOR] [ARTIFACT_HYGIENE_REPAIR] Updated `.cargo/config.toml` target-dir truth in `../wtc-sync-engine-v2`, `../wtc-sync-engine-v1`, and `../aux-proof-detached-1` from `../Handshake Artifacts/handshake-cargo-target` to the governed canonical `../Handshake_Artifacts/handshake-cargo-target` so closeout-sync artifact hygiene no longer fails on sibling-checkout drift.
+- [2026-04-21 19:56:xx Europe/Brussels] [ORCHESTRATOR] [KERNEL_PATCH] `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs` now explicitly clears `route_anchor_state`, `route_anchor_kind`, `route_anchor_correlation_id`, `route_anchor_target_role`, and `route_anchor_target_session` when packet status enters terminal `Validated (...)`, preventing false final-review anchors from surviving closeout sync.
+- [2026-04-21 19:57:xx Europe/Brussels] [ORCHESTRATOR] [PACKET_FORMAT_REPAIR] Normalized the latest `## VALIDATION_REPORTS` block in `.GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.md` so governed scalar fields are emitted as parseable `Label: value` lines rather than Markdown list items; this cleared the closed-packet completeness regression that had blocked terminal sync.
+
+## LIVE_CONCERNS_LOG
+
+- [2026-04-21 19:58:44 Europe/Brussels] [ORCHESTRATOR] [CONCERN] Non-pass closeout still depends on all discovered sibling checkouts having canonical artifact hygiene, so an unrelated stale worktree can currently block a lawful terminal sync for the active WP. That should be narrowed to the active topology or surfaced earlier by startup/closeout preflight.
+- [2026-04-21 19:58:44 Europe/Brussels] [ORCHESTRATOR] [CONCERN] The WP is now lawfully closed as `Validated (FAIL)`, but the aggregate token burn remained extreme even after the final closeout repair. Unless route projection, packet completeness formatting, and artifact-hygiene scoping are hardened mechanically, future orchestrator-managed runs will keep paying governance tax disproportionate to product work.
+
+## Workflow Dossier Closeout Rubric
+
+### Workflow Smoothness
+
+- TREND: REGRESSED
+- CURRENT_STATE: HIGH
+- NUMERIC_SCORE: 3
+- Evidence: Final closeout required packet truth repair, stale-checkout artifact-hygiene repair, validation-report formatting repair, an integration-validator session settlement, and a kernel patch before `phase-check CLOSEOUT` could pass at `2026-04-21T17-58-44.798Z`.
+- What improved: Once each blocker was made concrete, direct `just`/`node` remediation did converge and the governed non-pass closeout finished without reopening Activation Manager.
+- What still hurts: Silent shell timeouts, quote-fragile wrappers, stale runtime route anchors, and global sibling-worktree hygiene checks made closeout repair-heavy instead of atomic.
+- Next structural fix: Make terminal non-pass closeout idempotent and self-contained by clearing route anchors during packet sync, recording closeout provenance in one pass, and scoping artifact hygiene to the active declared topology.
+
+### Master Spec Gap Reduction
+
+- TREND: FLAT
+- CURRENT_STATE: HIGH
+- NUMERIC_SCORE: 4
+- Evidence: The run produced concrete negative proof and a truthful final-lane FAIL, but the product target did not reach merge containment because the signed candidate still fails to compile and the HANDOFF proof chain is not reproducible from `../handshake_main`.
+- What improved: The validator surfaced concrete, file-anchored reasons for failure instead of vague PASS/FAIL language; the packet now holds a structured remediation report for the current-main-compatible candidate.
+- What still hurts: `calendar_sync` still lacks provider MCP wrappers/push-side writes in signed scope, compile truth regressed inside `workflows.rs`, and deterministic handoff truth drifted.
+- Next structural fix: Rebuild the candidate from the authoritative seven-file surface, restore compile truth first, regenerate deterministic HANDOFF artifacts, and only then re-open final lane.
+
+### Token Cost Pressure
+
+- TREND: REGRESSED
+- CURRENT_STATE: HIGH
+- NUMERIC_SCORE: 1
+- Evidence: Terminal registry truth ended at `498242069` input tokens, `2453182` output tokens, `45` turns, and `65` commands, with `WP_TOKEN_BUDGET` previously failing and the run consuming multiple governance-only repair loops after product review had already concluded.
+- What improved: The final repair sequence was bounded once the actual blockers were isolated.
+- What still hurts: Repeated status rediscovery, output-tail inspection, host-load false timeouts, and post-verdict mechanical repair consumed a disproportionate share of spend.
+- Next structural fix: Fail earlier on packet/runtime closeout drift, persist exact closeout provenance automatically, and eliminate route-projection rereads once `integration-validator-context-brief` has declared terminal non-pass readiness.
+
+### Communication Maturity
+
+- TREND: FLAT
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 6
+- Evidence: The WP did use governed receipts, runtime status, notifications, and validator-owned direct review surfaces, but the orchestrator still had to manually steer stuck lanes, repair malformed validator output, and settle a lingering integration-validator session.
+- What improved: The final outcome remained on governed receipt/runtime surfaces and did not regress into Activation Manager relay loops.
+- What still hurts: Wrong command-family usage (`repomem open` without `--role/--wp`, broken PowerShell quoting on `phase-check CLOSEOUT --context`) and stale route projection kept the orchestrator in the middle of the loop.
+- Next structural fix: Harden validator command templates and session wrappers so final-lane roles emit parseable packet reports and canonical closeout commands without orchestration-side repair.
+
+### Terminal and Session Hygiene
+
+- TREND: IMPROVED
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 7
+- Evidence: All governed role sessions are now terminally closed for the WP, `close-terminal-sessions` passed during final closeout, and the lingering integration-validator thread was explicitly cleared before the final closeout pass.
+- What improved: The workflow ended with no active governed runs and no stale READY sessions.
+- What still hurts: The host still presents accepted ACP work as local shell timeouts, which delays lawful settlement decisions and can leave threads appearing active longer than they really are.
+- Next structural fix: Surface broker acceptance and session closure more directly in terminal-facing wrappers so operators do not need registry/output confirmation after every timeout-shaped command.
+
+## Silent Failures, Command Surface Misuse, and Ambiguity Scan
+
+- Silent failures and false greens: ACP `SEND_PROMPT` and steer operations repeatedly appeared to fail at the shell boundary while registry/output truth showed them accepted and running; terminal non-pass closeout also looked green in packet/runtime truth before the stale `route_anchor_*` fields were cleared.
+- Wrong tool or command-family usage: The integration-validator lane opened `repomem` without `--role INTEGRATION_VALIDATOR --wp ...`, and its first two `phase-check CLOSEOUT --sync-mode FAIL --context ...` attempts failed because PowerShell split the context argument.
+- Task/path/worktree ambiguity: Packet/local-branch truth diverged between the canonical branch and the `mainproof` lineage, and artifact hygiene initially scanned stale sibling checkouts whose `.cargo/config.toml` values were outside the active WP surface.
+- Read amplification and governance-document churn: Repeated `session-registry-status`, output-tail inspection, command-surface rereads, and closeout context-brief checks were necessary because runtime route projection and closeout provenance did not settle atomically.
+- Drift lens: The final narrative and runtime truth re-converged only after direct mechanical repair. Before that, runtime said terminal `Validated (FAIL)` while route anchors still projected a live validator-review boundary, which is a measurable cognitive-drift defect in the governance surface rather than an operator interpretation error.
+
+## 18. What Should Change Before The Next Run
+
+- Scope artifact-hygiene checks to the active declared topology or move sibling-checkout hygiene enforcement into a separate preflight so unrelated stale worktrees cannot block terminal closeout.
+- Make `syncRuntimeProjectionFromPacket` clear terminal route anchors by default for every `Validated (...)` status.
+- Ensure validator report templates emit scalar fields in packet-complete format the first time.
+- Treat broker-accepted shell timeouts as a first-class wrapper state instead of making the orchestrator prove acceptance through registry/output for every loaded-host command.
+
+## 19. Suggested Remediations
+
+### Governance / Runtime
+
+- Harden `phase-check CLOSEOUT` to preserve `--context` as one argument on Windows wrappers.
+- Add a deterministic check that rejects `repomem open` in governed validator lanes unless `--role` and `--wp` are supplied.
+- Keep the new terminal route-anchor clearing behavior in `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs` and add regression coverage around terminal non-pass closeout.
+
+### Product / Validation Quality
+
+- Repair the signed-surface `workflows.rs` compile regressions first, then regenerate the authoritative current-main-compatible candidate and rerun `mex_tests`, `calendar_storage_tests`, and full `cargo test`.
+- Rebuild deterministic HANDOFF truth for `e1243008365566d4cde3c707f1b6078b5837fdcd..dba8b4099c1afda1992fd79451baacc9fa79c47a` from `../handshake_main` before any new final-lane pass.
+
+### Documentation / Review Practice
+
+- Record the final closeout failure chain directly in future dossiers as soon as the first non-pass validator verdict is authoritative, not only after closeout repair completes.
+- Keep token-burn checkpoints closer to major route transitions so terminal reviews do not hide when governance repair has become the primary spend driver.
+
+## 20. Exhaustive Workflow Review Addendum
+
+### 20.1 Review Basis
+
+- This addendum is a second-pass review written after closeout, using the dossier, the final CLOSEOUT artifact, `just session-registry-status WP-1-Calendar-Sync-Engine-v2`, `RECEIPTS.jsonl`, `THREAD.md`, direct conversation-log queries against `../gov_runtime/roles_shared/GOVERNANCE_MEMORY.db`, and the forced `MEMORY_HYGIENE_REPORT.md`.
+- The purpose of this addendum is not to restate the final FAIL. It is to explain why the workflow took so long, why token burn became extreme, which roles added real value, which roles or surfaces under-recorded their work, and which ACP mechanics created avoidable orchestration churn.
+- The key distinction is between product progress and governance churn. The receipt trail shows real product progress through MT-002 to MT-006. The memory and ACP trail shows a much larger amount of mechanical steering, state projection repair, and closeout settlement work around that product progress.
+
+### 20.2 Revised Rubric Assessment After Full Evidence Sweep
+
+#### Workflow Smoothness
+
+- Revised score: 2/10 (stricter than the closeout score of 3/10).
+- Reason: the final product verdict was reached, but the path there was mechanically rough enough that "regressed" alone understates it.
+- Evidence:
+  - Per-WP memory extraction shows `62` `task-board-set.mjs` episodic writes, `26` `orchestrator-steer-next.mjs` episodic writes, `8` launch events, and `4` closeout sync events for this single WP.
+  - The same WP generated only `26` receipts total, which means the workflow spent almost as much memory-bearing energy on steering and status projection as on governed inter-role communication itself.
+  - Live idle-ledger evidence shows repeated route-projection lag, shell timeout false negatives, route deadlock after clean handoff proof, and a final closeout repair chain involving four separate mechanical blockers.
+- Performed-work reading:
+  - The team did finish the microtask sequence and did produce a truthful final verdict.
+  - The control plane repeatedly required the orchestrator to rediscover state from side channels because route truth, shell truth, and receipt truth diverged under load.
+- Judgment:
+  - The workflow was recoverable, not smooth.
+  - The run behaved like a stress test of governance resilience rather than a normal autonomous WP execution.
+
+#### Master Spec Gap Reduction
+
+- Revised score: 4/10 (same as closeout score).
+- Reason: this run did reduce ambiguity and proved important negative truths, but it did not land the WP into main and did not close the master-spec gap.
+- Evidence:
+  - MT-002 through MT-006 did advance the intended backend capability-routing, workflow, adapter, and sync-state surfaces.
+  - WP Validator overlap review was substantive and file-anchored rather than shallow.
+  - Final Integration Validator evidence still found compile regressions in `workflows.rs` and non-reproducible HANDOFF truth from `../handshake_main`.
+- Performed-work reading:
+  - Coder work was not fake progress; there was real implementation and one real validator-driven repair cycle on MT-006.
+  - The run improved proof of what the WP needs, but not the final product state.
+- Judgment:
+  - The WP is more knowable after this run, but not more shipped.
+
+#### Token Cost Pressure
+
+- Revised score: 1/10 (same as closeout score, and this is the clearest failing dimension).
+- Reason: both the operator-observed orchestrator burn and the registry-observed WP aggregate burn are outside a healthy envelope for the amount of finished product work.
+- Evidence:
+  - Terminal WP registry truth ended at `65` commands, `45` turns, `498242069` input tokens, and `2453182` output tokens.
+  - The operator separately observed roughly `246M` orchestrator input tokens in-session, which is directionally consistent with the registry showing governance cost dominating product cost.
+  - The dossier's live metrics already showed the run becoming route-wait dominant well before closeout, with governance overhead ratio materially above healthy range.
+  - The per-WP memory artifact mix is dominated by orchestration mechanics: `62` board-set entries and `26` steering entries versus `15` coder/WP-validator receipt-derived episodic memories and `3` Integration Validator statuses.
+- Judgment:
+  - The token profile is not explainable by product complexity alone.
+  - Most excess burn came from orchestration recovery, route revalidation, shell-timeout ambiguity, and final-closeout repair.
+
+#### Communication Maturity
+
+- Revised score: 5/10 (down from the closeout score of 6/10).
+- Reason: the receipt contract itself was usable, but durable role-to-role memory discipline was weak and too much of the workflow relied on orchestrator interpretation.
+- Evidence:
+  - Receipt trail quality was decent: `CODER` emitted `1` intent, `6` review requests, `1` handoff, and `1` blocker thread message; `WP_VALIDATOR` emitted `1` kickoff, `1` bootstrap response, `7` review responses, and `1` whole-WP review; `INTEGRATION_VALIDATOR` emitted `3` status receipts.
+  - WP-scoped conversation-log discipline was poor: the WP-tagged `repomem` conversation log contains `25` orchestrator checkpoints and only `1` WP Validator checkpoint, with zero WP-tagged `CODER` or `INTEGRATION_VALIDATOR` checkpoints for v2.
+  - Day-wide conversation-log search for `CODER` and `INTEGRATION_VALIDATOR` on `2026-04-21` returned no conversation-log entries at all, which means those roles relied on receipts but did not leave durable conversational reasoning records for this WP.
+  - `ACTIVATION_MANAGER` left conversation memory only for v1 and was auto-closed; there is no clean v2 activation conversation trail.
+- Judgment:
+  - The receipt layer worked better than the conversation-memory layer.
+  - The workflow remained understandable only because the orchestrator and the dossier reconstructed it afterward.
+
+#### Terminal and Session Hygiene
+
+- Revised score: 6/10 (down from the closeout score of 7/10).
+- Reason: end-state hygiene was good, path hygiene was not.
+- Evidence:
+  - Final state is clean: all governed sessions for this WP are closed, `close-terminal-sessions` passed, and no stale READY sessions remained.
+  - Path to that state was not clean: the lingering Integration Validator session had to be explicitly closed after runtime truth was already terminal, and multiple orchestrator sessions were auto-closed by newer session opens instead of explicitly closed.
+  - Conversation-log evidence for this WP shows `7` orchestrator `SESSION_OPEN` entries and no explicit orchestrator `SESSION_CLOSE` entries keyed to the WP; those closures happened indirectly through later session opens.
+- Judgment:
+  - Cleanup eventually happened, but session retirement was not disciplined enough to call this "strong hygiene."
+
+### 20.3 Role-by-Role Review Of Performed Work
+
+#### ORCHESTRATOR
+
+- Performed well:
+  - Kept the run governed instead of collapsing into manual relay or uncontrolled shell improvisation.
+  - Correctly continued using direct mechanical commands for deterministic governance checks instead of delegating those checks back through ACP.
+  - Preserved product continuity after route drift by steering on receipt truth and output truth, not on stale relay prose alone.
+  - Repaired the final closeout path instead of looping back into Activation Manager.
+- Performed poorly:
+  - Opened too many new repomem sessions without explicit close, which created a trail of auto-closed sessions and diluted session-level accountability.
+  - Re-ran too many board/status and steering operations relative to the semantic progress on the WP.
+  - Took on too much state reconstruction work that the control plane should have made explicit.
+- Net assessment:
+  - Strong recovery behavior, weak cost control.
+  - The orchestrator was the system's error-correcting layer, but also the main site of token burn because the surrounding mechanics were not trustworthy enough.
+
+#### ACTIVATION_MANAGER
+
+- Performed well:
+  - Produced the successor packet/refinement path that let v2 exist at all.
+- Performed poorly:
+  - Its v2 trail is mechanically weak from a conversation-memory perspective.
+  - Session registry ends with `ACTIVATION_MANAGER:WP-1-Calendar-Sync-Engine-v2` in `FAILED`, and the conversation-log trail on `2026-04-21` is still anchored to v1 rather than a clean v2 activation narrative.
+  - The workflow spent time compensating for stale or missing PREPARE truth later, which means activation truth did not stay stable enough for downstream final-lane use.
+- Net assessment:
+  - Activation got the workflow moving but did not leave a durable, self-explanatory control-plane handoff.
+
+#### CODER
+
+- Performed well:
+  - Produced real bounded implementation across the intended backend surfaces.
+  - Sent a coherent progression of `REVIEW_REQUEST` receipts.
+  - Responded to WP Validator's MT-006 deny-path finding with a bounded repair that the validator then passed.
+  - Surfaced a real late blocker when PREPARE truth no longer matched the superseding `mainproof` candidate.
+- Performed poorly:
+  - Left no durable conversation-log checkpoints for the WP itself, so implementation reasoning and tradeoffs are largely reconstructable only from receipts and orchestrator observation.
+  - Needed orchestration help around handoff truth and packet/prepare drift rather than being able to finish closeout-ready proof on its own.
+- Net assessment:
+  - Productively useful, but under-instrumented from a memory-discipline standpoint.
+  - The coder did meaningful backend work; the system did a poor job of preserving coder reasoning as durable governance memory.
+
+#### WP_VALIDATOR
+
+- Performed well:
+  - This was the strongest role after the orchestrator from a product-signal perspective.
+  - Overlap reviews were detailed, attack-surface aware, and scoped to the actual changed files.
+  - The MT-006 FAIL was correct, actionable, and high-value. It found a real deny-path artifact-load bug before whole-WP closeout.
+  - The repair pass on MT-006 was judged with good counterfactual and negative-path reasoning.
+- Performed poorly:
+  - Conversation-log discipline was minimal: only one explicit WP-scoped `SESSION_OPEN` was recorded.
+  - No durable validator-side `INSIGHT`, `DECISION`, `CONCERN`, or `SESSION_CLOSE` checkpoints were left in repomem for this WP, despite substantive review work.
+- Net assessment:
+  - Best product-review quality of any non-orchestrator role.
+  - Poor durable self-documentation relative to the quality of the review itself.
+
+#### INTEGRATION_VALIDATOR
+
+- Performed well:
+  - Produced the two authoritative FAIL receipts that actually closed the WP on truthful product grounds.
+  - Final verdict content was concrete and technically meaningful.
+- Performed poorly:
+  - Conversation-log evidence for this role on `2026-04-21` is absent.
+  - The role misused command surfaces during closeout, including opening `repomem` without the required role/wp binding and losing `--context` under PowerShell on early CLOSEOUT attempts.
+  - Final-lane closeout still depended on orchestrator-side repair of packet formatting, sibling artifact hygiene, and route-anchor truth.
+- Net assessment:
+  - Good final product judgment, weak mechanical execution discipline.
+  - The validator found the right fail, but did not independently complete a clean final-lane settlement.
+
+### 20.4 ACP And Mechanical Output Review
+
+#### What ACP / session control did well
+
+- It kept role isolation intact. The run still had distinct coder, WP validator, and Integration Validator sessions.
+- It preserved authoritative receipt history. Without `RECEIPTS.jsonl`, this run would have been almost impossible to reconstruct.
+- It preserved enough session-control output to prove that several shell-visible failures were actually accepted ACP work.
+- It allowed lawful final settlement once the orchestrator moved to direct mechanical repair.
+
+#### What ACP / session control did badly
+
+- Acceptance was not surfaced clearly enough at the terminal boundary. Repeated shell timeouts looked like failed sends when they were actually accepted active runs.
+- Route truth lagged receipt truth. This is visible in repeated stale `CODER_HANDOFF` or stale validator-review boundaries even while the real next actor had already changed.
+- The system over-produced board/status churn. For this WP there were `62` board-change memory entries and `26` steering entries, which is a sign that state publication is too chatty and too central to orchestration.
+- Terminal non-pass closeout was not atomic. Packet truth, runtime truth, route anchors, validation report formatting, and artifact hygiene had to be reconciled in separate passes.
+- Terminal token history is not easy enough to read directly from first-class operator surfaces, which encourages extra registry and output probing.
+
+#### Bottom-line judgment on ACP output
+
+- ACP did not collapse, but it demanded supervision disproportionate to the size of the product delta.
+- The direct review receipt model is the part that held up best.
+- The route projection, shell wrapper semantics, and closeout settlement semantics are the parts that drove the worst cost.
+
+### 20.5 Repomem Discipline Review
+
+- Conversation-memory discipline for this WP was materially below protocol expectations.
+- Evidence:
+  - WP-tagged conversation-log checkpoints for v2:
+    - ORCHESTRATOR: `25`
+    - WP_VALIDATOR: `1`
+    - CODER: `0`
+    - INTEGRATION_VALIDATOR: `0`
+    - ACTIVATION_MANAGER: `0` for v2
+  - Day-wide searches on `2026-04-21` found no `CODER` or `INTEGRATION_VALIDATOR` conversation-log checkpoints at all.
+  - The Memory Hygiene report shows session diversity for `WP_VALIDATOR:WP-1-Calendar-Sync-Engine-v2=7` and `CODER:WP-1-Calendar-Sync-Engine-v2=7`, but those are extracted episodic memories from receipts and session control, not deliberate repomem conversation checkpoints.
+- Interpretation:
+  - The workflow produced enough machine evidence to reconstruct events.
+  - It did not produce enough deliberate role-authored memory to preserve reasoning, decisions, or lessons at the source.
+- Why this matters:
+  - Weak repomem discipline pushes cost onto the orchestrator, because the orchestrator must re-derive rationale from receipts, packet edits, and runtime artifacts.
+  - It also weakens future `memory-recall`, because the richest role judgments were never written as conversation checkpoints.
+
+### 20.6 Why This Run Took So Long And Burned So Much
+
+- The main driver was not one giant product bug. It was repeated cost stacking across five layers:
+  - Layer 1: shell-boundary false negatives on accepted ACP work.
+  - Layer 2: stale route projection after receipts had already changed next-actor truth.
+  - Layer 3: repeated task-board and runtime publication writes during steady-state execution.
+  - Layer 4: packet truth drift between original branch truth and superseding `mainproof` truth.
+  - Layer 5: final closeout repair after the verdict already existed.
+- The run therefore paid three different taxes:
+  - Product tax: actual MT work plus one real repair cycle on MT-006.
+  - Control-plane tax: steering, monitoring, status rediscovery, and route correction.
+  - Settlement tax: final FAIL publication, artifact hygiene repair, report-format repair, and terminal route-anchor repair.
+- The settlement tax is the least acceptable of the three. Once the Integration Validator had produced a sound FAIL, the remaining work should have been close to atomic. Instead, closeout still consumed a distinct repair phase.
+
+### 20.7 Final Synthesis
+
+- The product workflow itself is not irredeemable. The coder and WP validator did meaningful work, and the Integration Validator ultimately found a real final-lane FAIL.
+- The governance runtime is the dominant cause of excessive duration and token cost on this run.
+- The strongest positive signal is that the system still converged to truthful closure under stress.
+- The strongest negative signal is that truthful closure required the orchestrator to act as a live repair layer for route truth, packet truth, closeout truth, and memory truth at the same time.
+- If this exact workflow were rerun without the governance fixes already made during closeout, it would likely burn a similar amount again.
+- The next success criterion should therefore not be only "make the WP pass." It should also be "make a pass or fail close in one bounded final-lane cycle without route repair, packet-format repair, or sibling-worktree hygiene repair."

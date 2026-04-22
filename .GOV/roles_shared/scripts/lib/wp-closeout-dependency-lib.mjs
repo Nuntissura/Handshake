@@ -1,6 +1,6 @@
 import { parsePacketStatus } from "./wp-authority-projection-lib.mjs";
+import { readVerdictSettlementTruth } from "./merge-progression-truth-lib.mjs";
 import {
-  inferExecutionCloseoutMode,
   inferValidationVerdictFromPublication,
   readExecutionPublicationView,
 } from "./wp-execution-state-lib.mjs";
@@ -51,16 +51,6 @@ export function buildCloseoutDependencyView({
     runtimeStatus,
     packetStatus: packetStatusArtifact,
     taskBoardStatus,
-  });
-  const validationVerdict = inferValidationVerdictFromPublication({
-    packetStatus: publication.packet_status || packetStatusArtifact,
-    taskBoardStatus: publication.task_board_status || taskBoardStatus,
-  });
-  const closeoutMode = inferExecutionCloseoutMode({
-    packetStatus: publication.packet_status || packetStatusArtifact,
-    taskBoardStatus: publication.task_board_status || taskBoardStatus,
-    mainContainmentStatus: publication.runtime?.main_containment_status || "",
-    fallbackVerdict: validationVerdict,
   });
   const requirements = {
     requireReadyForPass: Boolean(closeoutRequirements?.requireReadyForPass),
@@ -143,6 +133,27 @@ export function buildCloseoutDependencyView({
   const blockingKeys = Object.values(dependencies)
     .filter((dependency) => dependency.required && dependency.status === "FAIL")
     .map((dependency) => dependency.key);
+  const verdictSettlement = readVerdictSettlementTruth({
+    packetText: packetContent,
+    runtimeStatus,
+    taskBoardStatus,
+    blockingKeys,
+  });
+  const validationVerdict = verdictSettlement.verdictOfRecord
+    || inferValidationVerdictFromPublication({
+      packetStatus: publication.packet_status || packetStatusArtifact,
+      taskBoardStatus: publication.task_board_status || taskBoardStatus,
+    });
+  const closeoutMode = verdictSettlement.closeoutMode;
+  const settlementBlockers = verdictSettlement.terminalPublicationRecorded
+    ? []
+    : verdictSettlement.settlementBlockers;
+  const settlementBlockerSummaries = settlementBlockers.map((blocker) => {
+    if (blocker === "TERMINAL_PUBLICATION_PENDING") {
+      return "Final closeout publication has not been recorded yet.";
+    }
+    return dependencies[String(blocker || "").trim().toLowerCase()]?.summary || blocker;
+  });
 
   return {
     ok: blockingKeys.length === 0,
@@ -151,19 +162,32 @@ export function buildCloseoutDependencyView({
       packet_status: normalizeText(publication?.packet_status, "<missing>"),
       task_board_status: normalizeText(publication?.task_board_status, "<missing>"),
       validation_verdict: normalizeText(validationVerdict, "UNKNOWN"),
+      verdict_of_record: normalizeText(verdictSettlement.verdictOfRecord, "UNKNOWN"),
+      verdict_recorded_at_utc: normalizeText(verdictSettlement.verdictRecordedAtUtc, "UNKNOWN"),
+      verdict_actor_role: normalizeText(verdictSettlement.verdictActorRole, "UNKNOWN"),
+      verdict_actor_session: normalizeText(verdictSettlement.verdictActorSession, "UNKNOWN"),
+      verdict_evidence_pointer: normalizeText(verdictSettlement.verdictEvidencePointer, "UNKNOWN"),
       main_containment_status: normalizeText(publication?.runtime?.main_containment_status, "UNKNOWN"),
       merged_main_commit: normalizeText(publication?.runtime?.merged_main_commit, "<missing>"),
-      closeout_mode: normalizeText(closeoutMode?.mode, "UNSET"),
+      closeout_mode: normalizeText(closeoutMode, "UNSET"),
       packet_projection_drift: Boolean(publication?.packet_projection_drift),
       task_board_projection_drift: Boolean(publication?.task_board_projection_drift),
+    },
+    settlement: {
+      state: normalizeText(verdictSettlement.settlementState, "VERDICT_PENDING"),
+      blockers: settlementBlockers,
+      blocker_summaries: settlementBlockerSummaries,
+      blocker_count: settlementBlockers.length,
+      terminal_publication_recorded: Boolean(verdictSettlement.terminalPublicationRecorded),
     },
     requirements,
     dependencies,
     blocking_keys: blockingKeys,
     summary: [
-      `mode=${normalizeText(closeoutMode?.mode, "UNSET")}`,
+      `mode=${normalizeText(closeoutMode, "UNSET")}`,
       `verdict=${normalizeText(validationVerdict, "UNKNOWN")}`,
-      `blockers=${blockingKeys.length > 0 ? blockingKeys.join(",") : "none"}`,
+      `settlement=${normalizeText(verdictSettlement.settlementState, "VERDICT_PENDING")}`,
+      `blockers=${settlementBlockers.length > 0 ? settlementBlockers.join(",") : "none"}`,
     ].join(" | "),
   };
 }

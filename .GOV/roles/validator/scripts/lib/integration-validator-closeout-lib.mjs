@@ -909,6 +909,9 @@ export function buildIntegrationValidatorCloseoutCheckResult({
   if (!evaluation.ok) {
     return integrationValidatorCloseoutFailure("Integration-validator topology or closeout bundle is not ready", [
       `dependency_summary=${closeoutDependencyView.summary}`,
+      `verdict_of_record=${closeoutDependencyView.publication.verdict_of_record}`,
+      `settlement_state=${closeoutDependencyView.settlement.state}`,
+      `settlement_blockers=${closeoutDependencyView.settlement.blockers.join(",") || "none"}`,
       ...closeoutDependencyView.blocking_keys.map((key) =>
         `blocking_dependency.${key}=${closeoutDependencyView.dependencies[key]?.summary || "UNKNOWN"}`
       ),
@@ -925,7 +928,9 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     details: [
       `dependency_summary=${closeoutDependencyView.summary}`,
       `publication_mode=${closeoutDependencyView.publication.closeout_mode}`,
-      `publication_verdict=${closeoutDependencyView.publication.validation_verdict}`,
+      `publication_verdict=${closeoutDependencyView.publication.verdict_of_record}`,
+      `settlement_state=${closeoutDependencyView.settlement.state}`,
+      `settlement_blockers=${closeoutDependencyView.settlement.blockers.join(",") || "none"}`,
       `publication_main_containment=${closeoutDependencyView.publication.main_containment_status}`,
       `target_head_sha=${evaluation.topology.targetHeadSha || "<unknown>"}`,
       `current_main_head_sha=${evaluation.topology.currentMainHeadSha || "<unknown>"}`,
