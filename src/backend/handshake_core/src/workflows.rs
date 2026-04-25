@@ -4903,6 +4903,7 @@ async fn emit_runtime_structured_work_packet_artifacts(
         locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
         &detail_value,
     );
+    validate_governed_action_fields(&detail_value, &mut validation);
     let invalid_detail_authority_refs =
         runtime_paths.invalid_runtime_authority_refs(&tracked_wp.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
@@ -4921,6 +4922,7 @@ async fn emit_runtime_structured_work_packet_artifacts(
         locus::StructuredCollaborationRecordFamily::WorkPacketSummary,
         &summary_value,
     );
+    validate_governed_action_fields(&summary_value, &mut summary_validation);
     let summary_authority_refs =
         structured_collaboration_string_vec(summary_value.get("authority_refs"));
     let invalid_summary_authority_refs =
@@ -4974,6 +4976,7 @@ async fn emit_runtime_structured_micro_task_artifacts(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
     );
+    validate_governed_action_fields(&detail_value, &mut validation);
     let invalid_detail_authority_refs =
         runtime_paths.invalid_runtime_authority_refs(&tracked_mt.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
@@ -5972,15 +5975,8 @@ fn structured_work_packet_status(status: locus::WorkPacketStatus) -> &'static st
 }
 
 fn structured_work_packet_next_action(status: locus::WorkPacketStatus) -> &'static str {
-    match status {
-        locus::WorkPacketStatus::Unknown => "refine_work_packet",
-        locus::WorkPacketStatus::Ready => "start_work_packet",
-        locus::WorkPacketStatus::InProgress => "continue_work_packet",
-        locus::WorkPacketStatus::Blocked => "resolve_blocker",
-        locus::WorkPacketStatus::Gated => "await_gate_review",
-        locus::WorkPacketStatus::Done => "archive_work_packet",
-        locus::WorkPacketStatus::Cancelled => "close_work_packet",
-    }
+    let (family, _) = work_packet_workflow_state(status);
+    preferred_governed_next_action_for_family(family).unwrap_or("archive")
 }
 
 async fn submit_locus_start_mt(
@@ -13321,8 +13317,9 @@ fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, W
 }
 
 fn normalize_in_scope_paths_for_validation(in_scope_paths: &[String]) -> Vec<String> {
-    let mut normalized = Vec::new();
+    let mut normalized = vec![".".to_string()];
     let mut seen = HashSet::new();
+    seen.insert(".".to_string());
 
     for path in in_scope_paths {
         let normalized_path = path.trim().replace('\\', "/");
@@ -13918,6 +13915,7 @@ fn apply_runtime_structured_micro_task_registry(
             locus::StructuredCollaborationRecordFamily::MicroTaskSummary,
             summary_value,
         );
+        validate_governed_action_fields(summary_value, &mut summary_validation);
         let summary_authority_refs =
             structured_collaboration_string_vec(summary_value.get("authority_refs"));
         let invalid_summary_authority_refs =
@@ -13972,14 +13970,8 @@ fn structured_micro_task_status(status: locus::MicroTaskStatus) -> &'static str 
 }
 
 fn structured_micro_task_next_action(status: locus::MicroTaskStatus) -> &'static str {
-    match status {
-        locus::MicroTaskStatus::Pending => "start_micro_task",
-        locus::MicroTaskStatus::InProgress => "continue_micro_task",
-        locus::MicroTaskStatus::Completed => "archive_micro_task",
-        locus::MicroTaskStatus::Failed => "retry_micro_task",
-        locus::MicroTaskStatus::Blocked => "resolve_micro_task_blocker",
-        locus::MicroTaskStatus::Skipped => "review_skipped_micro_task",
-    }
+    let (family, _) = micro_task_workflow_state(status);
+    preferred_governed_next_action_for_family(family).unwrap_or("archive")
 }
 
 fn locus_iteration_outcome(outcome: IterationOutcome) -> locus::MicroTaskIterationOutcome {
