@@ -1404,6 +1404,7 @@ export async function runCodexThreadCommand({
         cwd: absWorktreeDir,
         env: childEnvironment,
         shell: false,
+        windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
       })
       : spawn(cliToolPath, args, {
@@ -1544,6 +1545,7 @@ export async function runClaudeCodeCommand({
       cwd: absWorktreeDir,
       env: childEnvironment,
       shell: false,
+      windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -1689,6 +1691,7 @@ export async function runOllamaCommand({
         cwd: absWorktreeDir,
         env: childEnvironment,
         shell: false,
+        windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
       })
       : spawn(cliToolPath, args, {

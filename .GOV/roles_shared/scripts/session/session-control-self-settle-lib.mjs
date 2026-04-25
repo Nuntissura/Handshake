@@ -42,6 +42,17 @@ function normalizeStatus(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+function defaultIsProcessAlive(pid) {
+  const numeric = Number(pid || 0);
+  if (!Number.isInteger(numeric) || numeric <= 0) return false;
+  try {
+    process.kill(numeric, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function classifyRecoverableBrokerActiveRun({
   run = null,
   resultById = new Map(),
@@ -188,6 +199,7 @@ export function inferRecoverableSessionControlResult({
 export function settleRecoverableSessionControlResults(repoRoot, {
   commandIds = [],
   brokerState = null,
+  isChildProcessAlive = defaultIsProcessAlive,
 } = {}) {
   const { requests } = loadSessionControlRequests(repoRoot);
   const { results } = loadSessionControlResults(repoRoot);
@@ -195,13 +207,23 @@ export function settleRecoverableSessionControlResults(repoRoot, {
   const resultById = new Map(results.map((result) => [String(result?.command_id || "").trim(), result]));
   const sessionByKey = new Map((registry.sessions || []).map((session) => [String(session?.session_key || "").trim(), session]));
   const prunedSettledActiveRuns = pruneSettledBrokerRuns(repoRoot, resultById);
-  const activeRunIds = new Set(
-    Array.isArray(brokerState?.active_runs)
-      ? brokerState.active_runs
-        .map((run) => String(run?.command_id || "").trim())
-        .filter((commandId) => commandId && !resultById.has(commandId))
-      : [],
-  );
+  const activeRunIds = new Set();
+  const recoverableActiveRunReasons = new Map();
+  for (const run of Array.isArray(brokerState?.active_runs) ? brokerState.active_runs : []) {
+    const commandId = String(run?.command_id || "").trim();
+    if (!commandId || resultById.has(commandId)) continue;
+    const childPid = Number(run?.child_pid || run?.childPid || 0);
+    const classification = classifyRecoverableBrokerActiveRun({
+      run,
+      resultById,
+      isChildProcessAlive: childPid > 0 ? isChildProcessAlive(childPid) : true,
+    });
+    if (classification.recoverable) {
+      recoverableActiveRunReasons.set(commandId, classification.reason);
+    } else {
+      activeRunIds.add(commandId);
+    }
+  }
   const onlyCommandIds = new Set((commandIds || []).map((value) => String(value || "").trim()).filter(Boolean));
   const settled = [];
 
@@ -220,6 +242,12 @@ export function settleRecoverableSessionControlResults(repoRoot, {
       session,
       resultById,
     });
+    const activeRunRepairReason = recoverableActiveRunReasons.get(commandId);
+    if (activeRunRepairReason && normalizeStatus(inferred.status) === "FAILED") {
+      inferred.summary = `Recovered orphaned governed request ${commandId} after broker active run became recoverable (${activeRunRepairReason}).`;
+      inferred.error = `Broker active run became recoverable: ${activeRunRepairReason}.`;
+      inferred.repairReason = activeRunRepairReason;
+    }
     const normalizedOutputPath = normalizePath(inferred.outputJsonlFile);
     appendSelfSettleEvent(repoRoot, normalizedOutputPath, {
       command_id: commandId,

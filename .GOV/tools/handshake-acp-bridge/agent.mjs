@@ -42,6 +42,7 @@ import {
   SESSION_CONTROL_BROKER_BUILD_ID,
   SESSION_CONTROL_BROKER_STATE_FILE,
   SESSION_CONTROL_HOST_PRIMARY,
+  SESSION_CONTROL_OUTPUT_DIR,
   SESSION_CONTROL_PROTOCOL_PRIMARY,
   SESSION_CONTROL_REQUESTS_FILE,
   SESSION_CONTROL_RESULTS_FILE,
@@ -57,6 +58,7 @@ const repoRoot = process.cwd();
 const brokerStatePath = path.resolve(repoRoot, SESSION_CONTROL_BROKER_STATE_FILE);
 const resultsPath = path.resolve(repoRoot, SESSION_CONTROL_RESULTS_FILE);
 const orchestratorSteerNextScriptPath = path.resolve(repoRoot, ".GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs");
+const brokerDiagnosticFile = path.resolve(repoRoot, SESSION_CONTROL_OUTPUT_DIR, "BROKER", `broker-${process.pid}.jsonl`);
 const serverHost = "127.0.0.1";
 const activeRuns = new Map();
 const drainingSessions = new Set();
@@ -65,6 +67,19 @@ const brokerAuthToken = ensureBrokerAuthToken(repoRoot);
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function appendBrokerDiagnostic(event = {}) {
+  try {
+    fs.mkdirSync(path.dirname(brokerDiagnosticFile), { recursive: true });
+    fs.appendFileSync(
+      brokerDiagnosticFile,
+      `${JSON.stringify({ timestamp: nowIso(), pid: process.pid, ...event })}\n`,
+      "utf8",
+    );
+  } catch {
+    // Diagnostics must never make broker failure worse.
+  }
 }
 
 function readJson(filePath, fallbackValue) {
@@ -112,6 +127,7 @@ function currentStateSkeleton(port = 0) {
     host: serverHost,
     port,
     broker_pid: process.pid,
+    broker_diagnostic_file: brokerDiagnosticFile.replace(/\\/g, "/"),
     started_at: nowIso(),
     updated_at: nowIso(),
     active_runs: [],
@@ -146,6 +162,7 @@ function persistBrokerState(port) {
     host: serverHost,
     port,
     broker_pid: process.pid,
+    broker_diagnostic_file: brokerDiagnosticFile.replace(/\\/g, "/"),
     updated_at: nowIso(),
     active_runs: projectActiveRuns(),
   };
@@ -1417,6 +1434,14 @@ function handleSocket(socket) {
   socket.on("close", () => {
     socketContexts.delete(socket);
   });
+  socket.on("error", (error) => {
+    appendBrokerDiagnostic({
+      type: "socket.error",
+      message: error?.message || String(error),
+      code: error?.code || "",
+    });
+    socketContexts.delete(socket);
+  });
 }
 
 function shutdown() {
@@ -1430,6 +1455,7 @@ function shutdown() {
 ensureSessionStateFiles(repoRoot);
 reconcileOrphanedRuns();
 reconcileRecoverableRequests();
+appendBrokerDiagnostic({ type: "broker.starting" });
 
 const prior = loadBrokerState();
 if (prior.broker_pid && prior.broker_pid !== process.pid && isProcessAlive(prior.broker_pid)) {
@@ -1440,12 +1466,35 @@ if (prior.broker_pid && prior.broker_pid !== process.pid && isProcessAlive(prior
 const server = net.createServer(handleSocket);
 server.listen(0, serverHost, () => {
   persistBrokerState(server.address().port);
+  appendBrokerDiagnostic({ type: "broker.ready", port: server.address().port });
   const { registry } = loadSessionRegistry(repoRoot);
   for (const session of registry.sessions || []) {
     if (Array.isArray(session.pending_control_queue) && session.pending_control_queue.length > 0) {
       void drainQueuedRequestsForSession(session.session_key);
     }
   }
+});
+
+process.on("uncaughtException", (error) => {
+  appendBrokerDiagnostic({
+    type: "broker.uncaught_exception",
+    message: error?.message || String(error),
+    stack: error?.stack || "",
+  });
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  appendBrokerDiagnostic({
+    type: "broker.unhandled_rejection",
+    message: reason?.message || String(reason),
+    stack: reason?.stack || "",
+  });
+  process.exit(1);
+});
+
+process.on("exit", (code) => {
+  appendBrokerDiagnostic({ type: "broker.exit", code });
 });
 
 process.on("SIGINT", shutdown);

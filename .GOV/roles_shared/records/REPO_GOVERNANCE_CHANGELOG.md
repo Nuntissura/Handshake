@@ -3130,9 +3130,12 @@
   - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
   - `.GOV/roles_shared/scripts/session/terminal-ownership-lib.mjs`
   - `.GOV/roles_shared/scripts/session/session-governance-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-self-settle-lib.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
   - `.GOV/roles/memory_manager/scripts/launch-memory-manager-session.mjs`
   - `.GOV/roles_shared/tests/terminal-ownership-lib.test.mjs`
   - `.GOV/roles/orchestrator/tests/session-launch-governance.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-self-settle-lib.test.mjs`
   - `.GOV/codex/Handshake_Codex_v1.4.md`
   - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
   - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
@@ -3144,4 +3147,4 @@
   - `justfile`
 - FOLLOW_ON_ITEMS:
   - none
-- OUTCOME: `AUTO` stays on the headless ACP path, `SYSTEM_TERMINAL` repair launches are hidden owned processes, `VSCODE_PLUGIN` governed launches fail closed instead of queueing the VS Code bridge, Memory Manager defaults to the same headless launch path, and historical terminal task-board tokens now block governed role starts before runtime artifacts are created.
+- OUTCOME: `AUTO` stays on the headless ACP path, `SYSTEM_TERMINAL` repair launches are hidden owned processes, `VSCODE_PLUGIN` governed launches fail closed instead of queueing the VS Code bridge, Memory Manager defaults to the same headless launch path, historical terminal task-board tokens now block governed role starts before runtime artifacts are created, dead-child active runs self-settle, and ACP broker client socket resets are logged instead of crashing the broker.
