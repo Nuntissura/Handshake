@@ -307,6 +307,8 @@ if (action === "START_SESSION") {
     env: sessionControlEnv,
     windowsHide: true,
   });
+  console.log("[ORCHESTRATOR_STEER_NEXT] state=start_session_requested; wait for the governed startup turn to register and settle before sending a follow-up prompt");
+  process.exit(0);
 }
 
 execFileSync(process.execPath, [commandScript, "SEND_PROMPT", nextActor, wpId, prompt, requestedModel], {

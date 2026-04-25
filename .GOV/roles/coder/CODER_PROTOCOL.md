@@ -364,7 +364,7 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
 
 - If the assigned packet defines `WP_COMMUNICATION_DIR`, `WP_THREAD_FILE`, `WP_RUNTIME_STATUS_FILE`, and `WP_RECEIPTS_FILE`, use those files as the secondary collaboration surface for that WP.
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not use a coder-local worktree as a competing inbox.
-- Prefer the governed headless ACP lane for ordinary coder sessions. Use `SYSTEM_TERMINAL`, `CURRENT`, or `VSCODE_PLUGIN` only when the Orchestrator intentionally chooses a repair/compatibility surface.
+- Prefer the governed headless ACP lane for ordinary coder sessions. `CURRENT` and `VSCODE_PLUGIN` are disabled for governed role launches; `SYSTEM_TERMINAL` is a hidden-process repair surface only.
 - Do not rely on ambient editor defaults for model choice or reasoning strength. For packet families with `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`, the packet-declared `CODER_MODEL_PROFILE` is authoritative for claim truth. Repo defaults are `OPENAI_GPT_5_5_XHIGH` primary and `OPENAI_GPT_5_4_XHIGH` fallback, which map to `gpt-5.5` primary, `gpt-5.4` fallback, and `model_reasoning_effort=xhigh`; `OPENAI_GPT_5_2_XHIGH` remains a supported legacy fallback. `CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH` and `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` may be declared in packets and are governed ACP runtime profiles.
 - Fresh repo-governed coder session start is `ORCHESTRATOR_ONLY`. Do not self-start a new repo-governed coder session.
 - Primary launch path is headless/direct ACP launch over the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
@@ -372,7 +372,7 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - The Coder does not own the steering lane. The Orchestrator owns `START_SESSION`, `SEND_PROMPT`, and `CANCEL_SESSION`; coder-side requests for pause, repair, or cancel must go through `THREAD.md`, `RECEIPTS.jsonl`, or an explicit operator/orchestrator instruction.
 - The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
-- If the Orchestrator explicitly opens a repair surface such as `SYSTEM_TERMINAL` or `CURRENT`, continue there; do not open your own untracked session.
+- If the Orchestrator explicitly opens a hidden `SYSTEM_TERMINAL` repair surface, continue there; do not open your own untracked session.
 - Use `THREAD.md` for append-only questions, clarifications, blocker notes, and soft coordination.
 - Use `RUNTIME_STATUS.json` for liveness updates only:
   - `runtime_status`
@@ -434,8 +434,8 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
   - `just ack-notifications WP-{ID} CODER <session>` (acknowledge pending notifications after reading)
   - `just operator-viewport` (canonical operator viewport for ACP-aware session/control/thread/receipt/artifact visibility; `just operator-monitor` remains a compatibility alias)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):
-  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - `AUTO` is the ordinary headless/direct ACP launch path; `CURRENT` / `SYSTEM_TERMINAL` are explicit repair surfaces and `VSCODE_PLUGIN` is compatibility-only
+  - `just launch-coder-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+  - `AUTO` is the ordinary headless/direct ACP launch path; `SYSTEM_TERMINAL` is a hidden-process repair surface; `CURRENT` and `VSCODE_PLUGIN` are disabled
   - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just steer-coder-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
   - `just cancel-coder-session WP-{ID}`

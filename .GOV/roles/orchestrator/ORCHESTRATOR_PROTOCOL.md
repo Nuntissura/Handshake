@@ -498,12 +498,12 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just coder-worktree-add WP-{ID}`
 - `just wp-validator-worktree-add WP-{ID}` (now reuses the coder worktree per [CX-503G]; no separate wtv-* worktree created)
 - `just integration-validator-worktree-add WP-{ID}`
-- `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+- `just launch-coder-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+- `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+- `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
 - `AUTO` is the ordinary headless/direct ACP launch path
-- `CURRENT` is an explicit current-shell repair surface
+- `CURRENT` is disabled for governed role launches because it can capture Operator keyboard input
 - `SYSTEM_TERMINAL` is an explicit hidden-process repair surface and must not open or focus a visible window
 - `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy
 - `just manual-relay-next WP-{ID} [--debug]` (`CLASSIC_ORCHESTRATOR` / `MANUAL_RELAY` only)

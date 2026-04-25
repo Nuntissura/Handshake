@@ -160,10 +160,10 @@ WP worktrees (Orchestrator action, not Coder):
   - `just worktree-add WP-{ID}`
 - Validator worktrees [CX-212D/CX-503G]: WP Validator uses the same packet-declared shared WP worktree as the coder (`wtc-*` on `feat/WP-*`); Integration Validator uses `handshake_main` on `main`.
 - Launch the repo-governed CLI sessions:
-  - `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+  - `just launch-coder-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
   - `AUTO` is the ordinary headless/direct ACP launch path.
   - `CURRENT` is an explicit current-shell repair surface.
   - `SYSTEM_TERMINAL` is an explicit hidden-process repair surface and must not open or focus a visible window.

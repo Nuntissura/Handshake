@@ -98,7 +98,7 @@ Product-scanning / product-boundary enforcement:
 - Primary launch path is headless/direct ACP launch over the external repo-governance runtime root (default repo-relative: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - The VS Code bridge launch queue remains a legacy readable surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`); new governed role launches must not queue `VSCODE_PLUGIN`.
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
-- `CURRENT` is a current-shell repair surface. `SYSTEM_TERMINAL` is a hidden-process repair surface, not a visible terminal.
+- `CURRENT` is disabled for governed role launches. `SYSTEM_TERMINAL` is a hidden-process repair surface, not a visible terminal.
 - Recommended VS Code tabs:
   - `ORCH`
   - `CODER <WP_ID>`
@@ -154,13 +154,13 @@ Primary commands:
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`
 - `just integration-validator-worktree-add WP-...`
-- `just launch-activation-manager-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-activation-manager-session WP-... [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
 - for `ORCHESTRATOR_MANAGED`, launch Activation Manager first and wait for truthful `ACTIVATION_READINESS` before governed coder/validator launch
-- `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-coder-session WP-... [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+- `just launch-wp-validator-session WP-... [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+- `just launch-integration-validator-session WP-... [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
 - `AUTO` is the ordinary headless/direct ACP launch path
-- `CURRENT` is an explicit current-shell repair surface
+- `CURRENT` is disabled for governed role launches because it can capture Operator keyboard input
 - `SYSTEM_TERMINAL` is an explicit hidden-process repair surface and must not open or focus a visible window
 - `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy
 - `just activation-manager next WP-...`

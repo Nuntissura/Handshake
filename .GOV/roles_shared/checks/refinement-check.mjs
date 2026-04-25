@@ -5,6 +5,7 @@ import { GOV_ROOT_REPO_REL, repoPathAbs, resolveRefinementPath, resolveWorkPacke
 
 const SPEC_CURRENT_PATH = path.join(GOV_ROOT_REPO_REL, 'spec', 'SPEC_CURRENT.md');
 const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'TASK_BOARD.md');
+const TRACEABILITY_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'WP_TRACEABILITY_REGISTRY.md');
 
 export function resolveSpecCurrent() {
   if (!fs.existsSync(repoPathAbs(SPEC_CURRENT_PATH))) {
@@ -33,9 +34,14 @@ export function isAsciiOnly(s) {
 }
 
 function getSingleField(content, label) {
-  const re = new RegExp(`^\\s*-\\s*${label}\\s*:\\s*(.+)\\s*$`, 'mi');
+  const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(?:\\*\\*)?\\s*(.+)\\s*$`, 'mi');
   const m = content.match(re);
   return m ? m[1].trim() : '';
+}
+
+function extractWpId(value) {
+  const match = String(value || '').match(/\bWP-[A-Za-z0-9][A-Za-z0-9-]*-v\d+\b/);
+  return match ? match[0] : '';
 }
 
 function hasHeading(content, heading) {
@@ -373,6 +379,53 @@ function readTaskBoardStatusMap() {
     match = pattern.exec(content);
   }
   return { ok: true, statuses };
+}
+
+function activePacketIdForBase(baseWpId) {
+  if (!baseWpId || !fs.existsSync(TRACEABILITY_PATH)) return '';
+  const content = fs.readFileSync(TRACEABILITY_PATH, 'utf8');
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('|') || trimmed.includes('Base WP ID') || trimmed.includes('---')) continue;
+    const cells = trimmed.split('|').map((cell) => cell.trim());
+    if (cells.length < 4 || cells[1] !== baseWpId) continue;
+    return extractWpId(cells[2]);
+  }
+  return '';
+}
+
+function readWorkPacketField(wpId, label) {
+  const resolved = resolveWorkPacketPath(wpId);
+  const packetPath = resolved?.packetPath || path.join(GOV_ROOT_REPO_REL, 'task_packets', `${wpId}.md`);
+  if (!fs.existsSync(packetPath)) return '';
+  return getSingleField(fs.readFileSync(packetPath, 'utf8'), label);
+}
+
+export function allowsCompletedPacketHistoricalFailSupersededDrift({
+  groupLabel,
+  rowBoardStatus,
+  actualTaskBoardStatus,
+  rowResolution,
+  rowArtifact,
+  currentWpId,
+  packetStatus,
+  activePacketId,
+} = {}) {
+  const normalizedPacketStatus = String(packetStatus || '')
+    .replace(/^\*+\s*/, '')
+    .replace(/\s*\*+$/, '')
+    .trim();
+  return (
+    groupLabel === 'MATCHED_COMPLETED_PACKETS'
+    && rowBoardStatus === 'FAIL'
+    && actualTaskBoardStatus === 'SUPERSEDED'
+    && rowResolution === 'EXPAND_IN_THIS_WP'
+    && rowArtifact
+    && currentWpId
+    && rowArtifact !== currentWpId
+    && activePacketId === currentWpId
+    && /^Validated\s*\(FAIL\)$/i.test(normalizedPacketStatus)
+  );
 }
 
 function extractMechanicalEngines(specContent) {
@@ -2036,17 +2089,29 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
             const actualStatus = taskBoardStatuses.get(row.artifact);
             if (!actualStatus) {
               errors.push(`${group.label} references ${row.artifact} but it is missing from ${TASK_BOARD_PATH.replace(/\\/g, '/')}`);
-            } else if (
-              !(
+            } else if (actualStatus !== row.boardStatus) {
+              const packetStatus = readWorkPacketField(row.artifact, 'Status');
+              const baseWpId = readWorkPacketField(row.artifact, 'BASE_WP_ID');
+              const historicalFailSupersededDrift = allowsCompletedPacketHistoricalFailSupersededDrift({
+                groupLabel: group.label,
+                rowBoardStatus: row.boardStatus,
+                actualTaskBoardStatus: actualStatus,
+                rowResolution: row.resolution,
+                rowArtifact: row.artifact,
+                currentWpId: parsed.wpId,
+                packetStatus,
+                activePacketId: activePacketIdForBase(baseWpId),
+              });
+              const selfStubActiveDrift = (
                 group.label === 'MATCHED_STUBS'
                 && row.artifact === parsed.wpId
                 && row.intent === 'SAME'
                 && ['READY_FOR_DEV', 'IN_PROGRESS', 'BLOCKED'].includes(actualStatus)
                 && row.boardStatus === 'STUB'
-              )
-              && actualStatus !== row.boardStatus
-            ) {
-              errors.push(`${group.label} ${row.artifact} BoardStatus drifted from TASK_BOARD: expected ${actualStatus}, got ${row.boardStatus}`);
+              );
+              if (!selfStubActiveDrift && !historicalFailSupersededDrift) {
+                errors.push(`${group.label} ${row.artifact} BoardStatus drifted from TASK_BOARD: expected ${actualStatus}, got ${row.boardStatus}`);
+              }
             }
           }
           if (group.expectsStubFile) {

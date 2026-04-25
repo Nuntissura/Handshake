@@ -26,6 +26,7 @@ import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/s
 registerFailCaptureHook("task-board-set.mjs", { role: "ORCHESTRATOR" });
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
+const TRACEABILITY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 
 function fail(message, details = []) {
   failWithMemory("task-board-set.mjs", message, { role: "ORCHESTRATOR", details });
@@ -43,6 +44,34 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
+}
+
+function extractWpId(value) {
+  const match = String(value || "").match(/\bWP-[A-Za-z0-9][A-Za-z0-9-]*-v\d+\b/);
+  return match ? match[0] : "";
+}
+
+function activePacketIdForBase(baseWpId) {
+  if (!baseWpId) return "";
+  const registryAbsPath = repoPathAbs(TRACEABILITY_PATH);
+  if (!fs.existsSync(registryAbsPath)) return "";
+  const registryText = readText(registryAbsPath);
+  for (const line of registryText.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("|") || trimmed.includes("Base WP ID") || trimmed.includes("---")) continue;
+    const cells = trimmed.split("|").map((cell) => cell.trim());
+    if (cells.length < 4) continue;
+    if (cells[1] !== baseWpId) continue;
+    return extractWpId(cells[2]);
+  }
+  return "";
+}
+
+function isSupersededSiblingProjection({ wpId, status, packetText }) {
+  if (status !== "SUPERSEDED") return false;
+  const baseWpId = parseSingleField(packetText, "BASE_WP_ID");
+  const activePacketId = activePacketIdForBase(baseWpId);
+  return Boolean(baseWpId && activePacketId && activePacketId !== wpId);
 }
 
 function writeText(p, text) {
@@ -241,12 +270,13 @@ function main() {
   const runtimeContext = loadDeclaredRuntimeContext(packetText);
   const expectedPacketStatus = expectedPacketStatusForTaskBoardStatus(status);
   const actualPacketStatus = parsePacketStatus(packetText);
+  const supersededSiblingProjection = isSupersededSiblingProjection({ wpId, status, packetText });
   const runtimePublication = readExecutionPublicationView({
     runtimeStatus: runtimeContext?.runtimeStatus || {},
     packetStatus: actualPacketStatus,
   });
   if (runtimePublication.has_canonical_authority && runtimePublication.task_board_status) {
-    if (status !== runtimePublication.task_board_status) {
+    if (status !== runtimePublication.task_board_status && !supersededSiblingProjection) {
       fail("TASK_BOARD status transition conflicts with canonical execution authority", [
         `wp_id=${wpId}`,
         `task_board_status=${status}`,
@@ -255,7 +285,7 @@ function main() {
         `packet_artifact_status=${actualPacketStatus || "<missing>"}`,
       ]);
     }
-  } else if (expectedPacketStatus && actualPacketStatus !== expectedPacketStatus) {
+  } else if (expectedPacketStatus && actualPacketStatus !== expectedPacketStatus && !supersededSiblingProjection) {
     fail("TASK_BOARD status transition conflicts with packet truth", [
       `wp_id=${wpId}`,
       `task_board_status=${status}`,
@@ -327,6 +357,7 @@ function main() {
   console.log(`- wp_id: ${wpId}`);
   console.log(`- status: ${status}`);
   console.log(`- task_board_change: ${boardChanged ? "updated" : "no-op"}`);
+  if (supersededSiblingProjection) console.log("- superseded_history_projection: allowed");
   if (runtimePublication.has_canonical_authority) console.log("- runtime_authority: canonical");
   if (runtimeSync?.filePath) console.log(`- runtime_synced: ${runtimeSync.filePath}`);
   if (runtimeSync) console.log(`- runtime_change: ${runtimeSync.wrote ? "updated" : "no-op"}`);

@@ -246,6 +246,38 @@ export function resolveRoleConfig(roleName, workPacketId) {
   return null;
 }
 
+function sessionCompatScript(role, scriptName) {
+  return role === "INTEGRATION_VALIDATOR"
+    ? `"$env:${GOV_ROOT_ENV_VAR}/roles_shared/scripts/session/${scriptName}"`
+    : `.GOV/roles_shared/scripts/session/${scriptName}`;
+}
+
+function validatorCompatCommand(role, wpId, command) {
+  const scriptPath = sessionCompatScript(role, "role-command-compat.mjs");
+  const args = command === "validator-next" ? `${role} ${wpId}` : role;
+  return `node ${scriptPath} ${command} ${args}`;
+}
+
+function repomemCompatCommand(role, subcommand, content = "", flags = "") {
+  const scriptPath = sessionCompatScript(role, "repomem-compat.mjs");
+  const quotedContent = content ? ` "${content.replace(/"/g, '\\"')}"` : "";
+  return `node ${scriptPath} ${subcommand}${quotedContent}${flags ? ` ${flags}` : ""}`;
+}
+
+function executableStartupCommand(role, wpId, roleConfig) {
+  if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR" || role === "VALIDATOR") {
+    return validatorCompatCommand(role, wpId, "validator-startup");
+  }
+  return roleConfig.startupCommand;
+}
+
+function executableNextCommand(role, wpId, roleConfig) {
+  if (role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR" || role === "VALIDATOR") {
+    return validatorCompatCommand(role, wpId, "validator-next");
+  }
+  return roleConfig.nextCommand;
+}
+
 export function selectModel(modelSelector) {
   return String(modelSelector || "").trim().toUpperCase() === "FALLBACK"
     ? ROLE_SESSION_FALLBACK_MODEL
@@ -771,9 +803,19 @@ export function buildStartupInjectionLines({
 function roleRepomemOpenCommand(role, wpId) {
   const normalizedRole = String(role || "").trim().toUpperCase();
   if (normalizedRole === "MEMORY_MANAGER") {
-    return `just repomem open "Start governed Memory Manager hygiene session for ${wpId}; inspect memory quality, emit backed proposals, and close with decisions." --role MEMORY_MANAGER`;
+    return repomemCompatCommand(
+      normalizedRole,
+      "open",
+      `Start governed Memory Manager hygiene session for ${wpId}; inspect memory quality, emit backed proposals, and close with decisions.`,
+      "--role MEMORY_MANAGER",
+    );
   }
-  return `just repomem open "Start governed ${normalizedRole} session for ${wpId}; capture durable decisions, failures, concerns, and findings for closeout import." --role ${normalizedRole} --wp ${wpId}`;
+  return repomemCompatCommand(
+    normalizedRole,
+    "open",
+    `Start governed ${normalizedRole} session for ${wpId}; capture durable decisions, failures, concerns, and findings for closeout import.`,
+    `--role ${normalizedRole} --wp ${wpId}`,
+  );
 }
 
 export function buildStartupPrompt({
@@ -961,8 +1003,8 @@ export function buildStartupPrompt({
   });
 
   const startupCommands = [
-    roleConfig.startupCommand,
-    roleConfig.nextCommand,
+    executableStartupCommand(role, wpId, roleConfig),
+    executableNextCommand(role, wpId, roleConfig),
     ...(role === "INTEGRATION_VALIDATOR" ? [`just integration-validator-context-brief ${wpId}`] : []),
   ];
 
@@ -1020,6 +1062,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     throw new Error(`Unknown role for steering prompt: ${role}`);
   }
   const repomemOpenCommand = roleRepomemOpenCommand(role, wpId);
+  const executableNext = executableNextCommand(role, wpId, resolvedRoleConfig);
   if (role === "MEMORY_MANAGER") {
     return [
       `RESUME GOVERNED ${role} lane for ${wpId}.`,
@@ -1027,7 +1070,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       `Use gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md + .GOV/roles/memory_manager/proposals/ + synthetic WP communication files under WP_COMMUNICATIONS/${wpId} as the live truth surface. There is no official packet for this lane.`,
       `REPOMEM EXCEPTION: this synthetic hygiene lane is not a normal WP coverage target; if mutation is needed and no Memory Manager session is open, run ${repomemOpenCommand}.`,
       `Run in order:`,
-      `1. ${resolvedRoleConfig.nextCommand}`,
+      `1. ${executableNext}`,
       `2. Inspect any existing backup proposal files before drafting new MEMORY_* receipts so you do not duplicate findings.`,
       `3. Emit only the single next truthful MEMORY_PROPOSAL / MEMORY_FLAG / MEMORY_RGF_CANDIDATE receipt(s) backed by real written evidence.`,
       `4. If this steer completes the review, run \`just repomem close "<session summary>" --decisions "<key decisions>"\` and then stop. The governed control lane will emit \`SESSION_COMPLETION\` when the turn settles; do not invent your own session-retirement mechanism.`,
@@ -1043,11 +1086,11 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     : role === "INTEGRATION_VALIDATOR"
       ? [
         `just integration-validator-context-brief ${wpId}`,
-        resolvedRoleConfig.nextCommand,
+        executableNext,
         `just check-notifications ${wpId} ${role} <your-session>`,
       ]
       : [
-        resolvedRoleConfig.nextCommand,
+        executableNext,
         `just check-notifications ${wpId} ${role} <your-session>`,
       ];
   return [

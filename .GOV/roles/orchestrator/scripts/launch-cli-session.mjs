@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { registerFailCaptureHook } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import {
   CLI_ESCALATION_HOST_DEFAULT,
@@ -62,7 +62,7 @@ function fail(message) {
 }
 
 if (!wpId || !wpId.startsWith("WP-")) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/launch-cli-session.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [AUTO|PRINT|CURRENT|${CLI_ESCALATION_HOST_DEFAULT}|${CLI_ESCALATION_HOST_LEGACY_ALIAS}|VSCODE_PLUGIN|VSCODE] [PRIMARY|FALLBACK]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/launch-cli-session.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [AUTO|PRINT|${CLI_ESCALATION_HOST_DEFAULT}|${CLI_ESCALATION_HOST_LEGACY_ALIAS}|VSCODE_PLUGIN|VSCODE] [PRIMARY|FALLBACK]`);
 }
 if (!["PRIMARY", "FALLBACK"].includes(requestedModel)) {
   fail(`Invalid model selector: ${requestedModel} (expected PRIMARY or FALLBACK)`);
@@ -214,23 +214,19 @@ function writeLaunchScript() {
   return psPath;
 }
 
-const launchScriptPath = writeLaunchScript();
-const launchCommand = `& ${psQuote(launchScriptPath)}`;
+let launchScriptPath = "";
+let launchCommand = "";
 
-function launchCurrent() {
-  const child = spawn(cliTool, cliArgs, {
-    cwd: absWorktreeDir,
-    env: {
-      ...process.env,
-      ...launchEnvironmentOverrides,
-    },
-    stdio: "inherit",
-    shell: false,
-  });
-  child.on("exit", (code) => process.exit(code ?? 0));
+function ensureLaunchScript() {
+  if (!launchScriptPath) {
+    launchScriptPath = writeLaunchScript();
+    launchCommand = `& ${psQuote(launchScriptPath)}`;
+  }
+  return launchScriptPath;
 }
 
 function launchSystemTerminal() {
+  ensureLaunchScript();
   const launch = launchOwnedSystemTerminal({
     worktreeAbs: absWorktreeDir,
     launchScriptPath,
@@ -250,7 +246,8 @@ function launchSystemTerminal() {
   console.log(`[LAUNCH_CLI_SESSION] terminal_pid=${launch.processId}`);
 }
 
-function printOnly(reason, resolvedHost) {
+function printOnly(reason, resolvedHost, { includeLaunchScript = true } = {}) {
+  if (includeLaunchScript) ensureLaunchScript();
   console.log(`[LAUNCH_CLI_SESSION] host_preference=${SESSION_HOST_PREFERENCE}`);
   console.log(`[LAUNCH_CLI_SESSION] host_fallback=${SESSION_HOST_FALLBACK}`);
   console.log(`[LAUNCH_CLI_SESSION] host_resolved=${resolvedHost}`);
@@ -259,13 +256,17 @@ function printOnly(reason, resolvedHost) {
   console.log(`[LAUNCH_CLI_SESSION] branch=${roleConfig.branch}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_profile_id=${selectedProfileId}`);
-  console.log(`[LAUNCH_CLI_SESSION] launch_script=${launchScriptPath}`);
+  if (includeLaunchScript) {
+    console.log(`[LAUNCH_CLI_SESSION] launch_script=${launchScriptPath}`);
+  }
   if (Object.keys(launchEnvironmentOverrides).length > 0) {
     console.log(`[LAUNCH_CLI_SESSION] env_overrides=${JSON.stringify(launchEnvironmentOverrides)}`);
   }
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
-  console.log(`[LAUNCH_CLI_SESSION] command=${launchCommand}`);
+  if (includeLaunchScript) {
+    console.log(`[LAUNCH_CLI_SESSION] command=${launchCommand}`);
+  }
 }
 
 function printLaunchResolution(reason, resolvedHost) {
@@ -456,6 +457,17 @@ if (requestedHost === "VSCODE_PLUGIN" || requestedHost === "VSCODE") {
   printOnly(
     "VSCODE_PLUGIN launch is disabled by the headless-only role-session policy; use AUTO for ACP direct launch or PRINT for debug output",
     "PRINT",
+    { includeLaunchScript: false },
+  );
+  printSessionSummary();
+  process.exit(1);
+}
+
+if (requestedHost === "CURRENT") {
+  printOnly(
+    "CURRENT launch is disabled by the headless-only role-session policy because it can capture operator keyboard input; use AUTO for ACP direct launch or PRINT for debug output",
+    "PRINT",
+    { includeLaunchScript: false },
   );
   printSessionSummary();
   process.exit(1);
@@ -468,12 +480,6 @@ if ((requestedHost === "CURRENT" || isSystemTerminalMode(requestedHost)) && !cli
   );
   printSessionSummary();
   process.exit(1);
-}
-
-if (requestedHost === "CURRENT") {
-  maybeRecordCliEscalation("CURRENT");
-  launchCurrent();
-  process.exit(0);
 }
 
 if (isSystemTerminalMode(requestedHost)) {
@@ -490,7 +496,7 @@ if (isSystemTerminalMode(requestedHost)) {
 }
 
 printOnly(
-  `Unsupported host mode; use AUTO, CURRENT, ${CLI_ESCALATION_HOST_DEFAULT}, or PRINT (${CLI_ESCALATION_HOST_LEGACY_ALIAS} remains a legacy alias; VSCODE_PLUGIN is disabled by headless-only policy)`,
+  `Unsupported host mode; use AUTO, ${CLI_ESCALATION_HOST_DEFAULT}, or PRINT (${CLI_ESCALATION_HOST_LEGACY_ALIAS} remains a legacy alias; CURRENT and VSCODE_PLUGIN are disabled by headless-only policy)`,
   "PRINT",
 );
 printSessionSummary();

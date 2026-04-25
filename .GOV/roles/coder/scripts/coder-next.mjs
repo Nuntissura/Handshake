@@ -240,10 +240,11 @@ const reviewRouteCommands = (() => {
     String(coderCommunicationState?.communicationEvaluation?.correlations?.kickoff || "").trim()
     || "<correlation_id>";
   const waitingOn = String(coderResumeState.waitingOn || "").trim().toUpperCase();
+  const activeLaneBriefCommand = `node .GOV/roles_shared/scripts/session/role-command-compat.mjs active-lane-brief CODER ${wpId}`;
 
   if (waitingOn === "CODER_INTENT") {
     return [
-      `just active-lane-brief CODER ${wpId}`,
+      activeLaneBriefCommand,
       `just check-notifications ${wpId} CODER`,
       activeMicrotask?.mt_id || suggestedMicrotask?.mt_id
         ? `# Publish intent against ${activeMicrotask?.mt_id || suggestedMicrotask?.mt_id} with matching microtask_json.scope_ref and bounded file_targets.`
@@ -263,7 +264,7 @@ const reviewRouteCommands = (() => {
     return [
       `just check-notifications ${wpId} CODER`,
       `just session-registry-status ${wpId}`,
-      `just active-lane-brief CODER ${wpId}`,
+      activeLaneBriefCommand,
     ];
   }
   return [];
@@ -384,6 +385,7 @@ if (implementationFilled && hygieneFilled && (validationFilled || !dirtyTree)) {
 }
 
 if (implementationFilled) {
+  const activeLaneBriefCommand = `node .GOV/roles_shared/scripts/session/role-command-compat.mjs active-lane-brief CODER ${wpId}`;
   printLifecycle({ wpId, stage: "HYGIENE", next: "POST_WORK" });
   printOperatorAction("NONE");
   printConfidence(confidence, confidenceDetail);
@@ -400,7 +402,7 @@ if (implementationFilled) {
   printNextCommands([
     startupCommand,
     microtaskPlan.declared_count > 0
-      ? `just active-lane-brief CODER ${wpId}`
+      ? activeLaneBriefCommand
       : null,
     "just product-scan",
     postWorkCommand,
@@ -423,10 +425,11 @@ printFindings([
   dirtyTreeFinding,
   ...dirtyNoiseFindings,
 ]);
+const activeLaneBriefCommand = `node .GOV/roles_shared/scripts/session/role-command-compat.mjs active-lane-brief CODER ${wpId}`;
 printNextCommands([
   startupCommand,
   microtaskPlan.declared_count > 0
-    ? `just active-lane-brief CODER ${wpId}`
+    ? activeLaneBriefCommand
     : null,
   activeMicrotask?.mt_id || suggestedMicrotask?.mt_id
     ? `# Continue implementation within ${(activeMicrotask?.mt_id || suggestedMicrotask?.mt_id)} and keep coder writes inside its bounded CODE_SURFACES.`

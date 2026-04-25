@@ -1,0 +1,2334 @@
+diff --git a/src/backend/handshake_core/mechanical_engines.json b/src/backend/handshake_core/mechanical_engines.json
+index d747b403..8cd4e704 100644
+--- a/src/backend/handshake_core/mechanical_engines.json
++++ b/src/backend/handshake_core/mechanical_engines.json
+@@ -1,0 +2,28 @@
++  "calendar_sync": {
++    "engine_id": "calendar_sync",
++    "determinism_ceiling": "d2",
++    "required_caps": ["calendar.sync.read"],
++    "required_gates": [
++      "G-SCHEMA",
++      "G-CAP",
++      "G-INTEGRITY",
++      "G-BUDGET",
++      "G-PROVENANCE",
++      "G-DET"
++    ],
++    "default_budget": {
++      "cpu_time_ms": 60000,
++      "wall_time_ms": 300000,
++      "memory_bytes": 268435456,
++      "output_bytes": 1048576
++    },
++    "ops": [
++      {
++        "name": "calendar_sync.run",
++        "schema_ref": "poe-1.0",
++        "params_schema": "schemas/calendar_sync.run.json",
++        "capabilities": ["calendar.sync.read", "calendar.sync.write"],
++        "output_types": ["calendar_sync_result"]
++      }
++    ]
++  },
+diff --git a/src/backend/handshake_core/src/capabilities.rs b/src/backend/handshake_core/src/capabilities.rs
+index c1f7effc..f308a488 100644
+--- a/src/backend/handshake_core/src/capabilities.rs
++++ b/src/backend/handshake_core/src/capabilities.rs
+@@ -12,0 +13,2 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
++    "calendar.sync.read",
++    "calendar.sync.write",
+@@ -142,0 +145,19 @@ impl CapabilityRegistry {
++        profiles.insert(
++            "CalendarSync".to_string(),
++            CapabilityProfile {
++                id: "CalendarSync".to_string(),
++                allowed: vec![
++                    "calendar.sync.read".to_string(),
++                    "calendar.sync.write".to_string(),
++                    "CALENDAR_READ_BASIC".to_string(),
++                    "CALENDAR_READ_DETAILS".to_string(),
++                    "CALENDAR_WRITE_LOCAL".to_string(),
++                    "CALENDAR_WRITE_EXTERNAL".to_string(),
++                    "CALENDAR_DELETE_LOCAL".to_string(),
++                    "CALENDAR_DELETE_EXTERNAL".to_string(),
++                    "CALENDAR_MOVE_EVENT".to_string(),
++                    "CALENDAR_RESOLVE_CONFLICT".to_string(),
++                ],
++            },
++        );
++
+@@ -359,0 +381,4 @@ impl CapabilityRegistry {
++        if job_kind == "workflow_run" && protocol_id == "calendar_sync" {
++            return self.profile_by_id("CalendarSync");
++        }
++
+@@ -384,0 +410,4 @@ impl CapabilityRegistry {
++        if job_kind == "workflow_run" && protocol_id == "calendar_sync" {
++            return Ok(vec!["calendar.sync.read".to_string()]);
++        }
++
+diff --git a/src/backend/handshake_core/src/flight_recorder/mod.rs b/src/backend/handshake_core/src/flight_recorder/mod.rs
+index 6ec091a1..ccda9c87 100644
+--- a/src/backend/handshake_core/src/flight_recorder/mod.rs
++++ b/src/backend/handshake_core/src/flight_recorder/mod.rs
+@@ -380,0 +381 @@ impl fmt::Display for FlightRecorderEventType {
++            }
+@@ -472,0 +474,4 @@ impl FlightRecorderEvent {
++    pub fn with_activity_span_id(self, span: impl Into<String>) -> Self {
++        self.with_activity_span(span)
++    }
++
+@@ -477,0 +483,4 @@ impl FlightRecorderEvent {
++    pub fn with_session_span_id(self, span: impl Into<String>) -> Self {
++        self.with_session_span(span)
++    }
++
+@@ -482,0 +492,4 @@ impl FlightRecorderEvent {
++    pub fn with_capability_id(self, capability_id: impl Into<String>) -> Self {
++        self.with_capability(capability_id)
++    }
++
+@@ -487,0 +501,4 @@ impl FlightRecorderEvent {
++    pub fn with_policy_decision_id(self, policy_decision_id: impl Into<String>) -> Self {
++        self.with_policy_decision(policy_decision_id)
++    }
++
+@@ -913,0 +931 @@ impl FlightRecorderEvent {
++            }
+@@ -4363,0 +4382,3 @@ fn validate_session_cascade_cancel_payload(payload: &Value) -> Result<(), Record
++    Ok(())
++}
++
+diff --git a/src/backend/handshake_core/src/locus/mod.rs b/src/backend/handshake_core/src/locus/mod.rs
+index 5cbfdd97..5842b446 100644
+--- a/src/backend/handshake_core/src/locus/mod.rs
++++ b/src/backend/handshake_core/src/locus/mod.rs
+@@ -4,0 +5 @@ pub mod types;
++pub use task_board::validate_task_board_entry_authoritative_fields;
+diff --git a/src/backend/handshake_core/src/locus/task_board.rs b/src/backend/handshake_core/src/locus/task_board.rs
+index b5c80304..f454f193 100644
+--- a/src/backend/handshake_core/src/locus/task_board.rs
++++ b/src/backend/handshake_core/src/locus/task_board.rs
+@@ -48,0 +49,6 @@ pub struct TaskBoardEntryRecordV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub transition_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub queue_automation_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub executor_eligibility_policy_ids: Vec<String>,
+@@ -208,0 +215,86 @@ impl TaskBoardSections {
++// ── Ready-query filter extensions (MT-004) ─────────────────────────────
++
++impl TaskBoardIndexV1 {
++    /// Return entries whose workflow_state_family matches the given family.
++    pub fn entries_by_state_family(
++        &self,
++        family: WorkflowStateFamily,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.workflow_state_family == family)
++            .collect()
++    }
++
++    /// Return entries whose queue_reason_code matches the given reason.
++    pub fn entries_by_queue_reason(
++        &self,
++        reason: WorkflowQueueReasonCode,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.queue_reason_code == reason)
++            .collect()
++    }
++
++    /// Return work-packet IDs for entries matching a given state family.
++    /// Generalises the DCC ready_queue to any WorkflowStateFamily.
++    pub fn work_packet_ids_by_state_family(
++        &self,
++        family: WorkflowStateFamily,
++    ) -> Vec<String> {
++        self.rows
++            .iter()
++            .filter(|e| e.workflow_state_family == family)
++            .map(|e| e.work_packet_id.clone())
++            .collect()
++    }
++
++    /// Return work-packet IDs for entries matching a given queue reason code.
++    pub fn work_packet_ids_by_queue_reason(
++        &self,
++        reason: WorkflowQueueReasonCode,
++    ) -> Vec<String> {
++        self.rows
++            .iter()
++            .filter(|e| e.queue_reason_code == reason)
++            .map(|e| e.work_packet_id.clone())
++            .collect()
++    }
++
++    /// Return entries that expose a specific allowed action ID.
++    pub fn entries_by_allowed_action(
++        &self,
++        action_id: &str,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.allowed_action_ids.iter().any(|a| a == action_id))
++            .collect()
++    }
++}
++
++impl TaskBoardViewV1 {
++    /// Return entries whose workflow_state_family matches the given family.
++    pub fn entries_by_state_family(
++        &self,
++        family: WorkflowStateFamily,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.workflow_state_family == family)
++            .collect()
++    }
++
++    /// Return entries whose queue_reason_code matches the given reason.
++    pub fn entries_by_queue_reason(
++        &self,
++        reason: WorkflowQueueReasonCode,
++    ) -> Vec<&TaskBoardEntryRecordV1> {
++        self.rows
++            .iter()
++            .filter(|e| e.queue_reason_code == reason)
++            .collect()
++    }
++}
++
+diff --git a/src/backend/handshake_core/src/locus/types.rs b/src/backend/handshake_core/src/locus/types.rs
+index bd61e394..279b1785 100644
+--- a/src/backend/handshake_core/src/locus/types.rs
++++ b/src/backend/handshake_core/src/locus/types.rs
+@@ -154,0 +155,551 @@ pub struct GovernedActionDescriptorV1 {
++// ── Project-profile workflow extension [v02.171] ──
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct WorkflowFamilyDisplayLabel {
++    pub family: WorkflowStateFamily,
++    pub display_label: String,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct WorkflowReasonDisplayLabel {
++    pub reason: WorkflowQueueReasonCode,
++    pub display_label: String,
++}
++
++/// Project-profile extension for workflow display labels and action narrowing.
++/// Per v02.171: extensions MAY relabel families for display but MUST NOT change
++/// the base semantic meaning. Unknown extensions MUST degrade to the base
++/// workflow-state families, reason codes, and governed action ids.
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
++pub struct ProjectProfileWorkflowExtensionV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub family_display_labels: Vec<WorkflowFamilyDisplayLabel>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub reason_display_labels: Vec<WorkflowReasonDisplayLabel>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub narrowed_reason_codes: Option<Vec<WorkflowQueueReasonCode>>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub narrowed_action_ids: Option<Vec<String>>,
++}
++
++impl ProjectProfileWorkflowExtensionV1 {
++    /// Resolve the display label for a workflow state family.
++    /// Degrades to the base family label for unmapped families per v02.171.
++    pub fn display_label_for_family(&self, family: WorkflowStateFamily) -> String {
++        self.family_display_labels
++            .iter()
++            .find(|l| l.family == family)
++            .map(|l| l.display_label.clone())
++            .unwrap_or_else(|| base_workflow_family_label(family).to_string())
++    }
++
++    /// Resolve the display label for a queue reason code.
++    /// Degrades to the base reason label for unmapped reasons per v02.171.
++    pub fn display_label_for_reason(&self, reason: WorkflowQueueReasonCode) -> String {
++        self.reason_display_labels
++            .iter()
++            .find(|l| l.reason == reason)
++            .map(|l| l.display_label.clone())
++            .unwrap_or_else(|| base_queue_reason_label(reason).to_string())
++    }
++
++    /// Filter action_ids to only those narrowed by this profile.
++    /// Returns the full base set unchanged if no narrowing is defined.
++    pub fn narrow_action_ids(&self, base_action_ids: &[String]) -> Vec<String> {
++        match &self.narrowed_action_ids {
++            Some(narrowed) => base_action_ids
++                .iter()
++                .filter(|id| narrowed.contains(id))
++                .cloned()
++                .collect(),
++            None => base_action_ids.to_vec(),
++        }
++    }
++}
++
++// ── Governed action registry [v02.171] ──
++
++/// Returns all registered governed action descriptors for a workflow state family.
++/// This is the single source of truth for action legality per family.
++/// All action-resolution paths MUST resolve through this registry.
++pub fn governed_action_descriptors_for_family(
++    family: WorkflowStateFamily,
++) -> Vec<GovernedActionDescriptorV1> {
++    match family {
++        WorkflowStateFamily::Intake => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "triage".into(),
++                title: "Triage".into(),
++                description: Some("Classify and route the record for processing".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "prioritize".into(),
++                title: "Prioritize".into(),
++                description: Some("Set or adjust priority level".into()),
++            },
++        ],
++        WorkflowStateFamily::Ready => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "start".into(),
++                title: "Start".into(),
++                description: Some("Begin work on the record".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "assign".into(),
++                title: "Assign".into(),
++                description: Some("Assign to an executor".into()),
++            },
++        ],
++        WorkflowStateFamily::Active => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "update".into(),
++                title: "Update".into(),
++                description: Some("Record progress on active work".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "complete".into(),
++                title: "Complete".into(),
++                description: Some("Mark work as complete".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "pause".into(),
++                title: "Pause".into(),
++                description: Some("Pause active work".into()),
++            },
++        ],
++        WorkflowStateFamily::Waiting => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "resume".into(),
++                title: "Resume".into(),
++                description: Some("Resume after wait condition clears".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "escalate".into(),
++                title: "Escalate".into(),
++                description: Some("Escalate the wait to a higher authority".into()),
++            },
++        ],
++        WorkflowStateFamily::Review => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "review".into(),
++                title: "Review".into(),
++                description: Some("Perform review of the record".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "request_changes".into(),
++                title: "Request Changes".into(),
++                description: Some("Request changes after review".into()),
++            },
++        ],
++        WorkflowStateFamily::Approval => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "approve".into(),
++                title: "Approve".into(),
++                description: Some("Grant approval".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "reject".into(),
++                title: "Reject".into(),
++                description: Some("Reject the approval request".into()),
++            },
++        ],
++        WorkflowStateFamily::Validation => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "validate".into(),
++                title: "Validate".into(),
++                description: Some("Run validation checks".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "repair".into(),
++                title: "Repair".into(),
++                description: Some("Repair validation failures".into()),
++            },
++        ],
++        WorkflowStateFamily::Blocked => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "unblock".into(),
++                title: "Unblock".into(),
++                description: Some("Resolve the blocking condition".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "escalate".into(),
++                title: "Escalate".into(),
++                description: Some("Escalate the blocker".into()),
++            },
++        ],
++        WorkflowStateFamily::Done => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "archive".into(),
++                title: "Archive".into(),
++                description: Some("Archive the completed record".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "reopen".into(),
++                title: "Reopen".into(),
++                description: Some("Reopen for further work".into()),
++            },
++        ],
++        WorkflowStateFamily::Canceled => vec![
++            GovernedActionDescriptorV1 {
++                action_id: "archive".into(),
++                title: "Archive".into(),
++                description: Some("Archive the cancelled record".into()),
++            },
++            GovernedActionDescriptorV1 {
++                action_id: "reopen".into(),
++                title: "Reopen".into(),
++                description: Some("Reopen the cancelled record".into()),
++            },
++        ],
++        WorkflowStateFamily::Archived => vec![],
++    }
++}
++
++/// Returns all registered action IDs for a workflow state family.
++pub fn governed_action_ids_for_family(family: WorkflowStateFamily) -> Vec<String> {
++    governed_action_descriptors_for_family(family)
++        .into_iter()
++        .map(|d| d.action_id)
++        .collect()
++}
++
++// ── Base labels for degradation [v02.171] ──
++
++/// Base human-readable label for a workflow state family.
++/// Used as degradation target when project-profile extensions are unknown.
++pub fn base_workflow_family_label(family: WorkflowStateFamily) -> &'static str {
++    match family {
++        WorkflowStateFamily::Intake => "Intake",
++        WorkflowStateFamily::Ready => "Ready",
++        WorkflowStateFamily::Active => "Active",
++        WorkflowStateFamily::Waiting => "Waiting",
++        WorkflowStateFamily::Review => "Review",
++        WorkflowStateFamily::Approval => "Approval",
++        WorkflowStateFamily::Validation => "Validation",
++        WorkflowStateFamily::Blocked => "Blocked",
++        WorkflowStateFamily::Done => "Done",
++        WorkflowStateFamily::Canceled => "Canceled",
++        WorkflowStateFamily::Archived => "Archived",
++    }
++}
++
++/// Base human-readable label for a queue reason code.
++/// Used as degradation target when project-profile extensions are unknown.
++pub fn base_queue_reason_label(reason: WorkflowQueueReasonCode) -> &'static str {
++    match reason {
++        WorkflowQueueReasonCode::NewUntriaged => "new, untriaged",
++        WorkflowQueueReasonCode::DependencyWait => "dependency wait",
++        WorkflowQueueReasonCode::ReadyForLocalSmallModel => "ready for local model",
++        WorkflowQueueReasonCode::ReadyForCloudModel => "ready for cloud model",
++        WorkflowQueueReasonCode::ReadyForHuman => "ready for human",
++        WorkflowQueueReasonCode::ReviewWait => "review wait",
++        WorkflowQueueReasonCode::ApprovalWait => "approval wait",
++        WorkflowQueueReasonCode::ValidationWait => "validation wait",
++        WorkflowQueueReasonCode::MailboxResponseWait => "mailbox response wait",
++        WorkflowQueueReasonCode::TimerWait => "timer wait",
++        WorkflowQueueReasonCode::BlockedMissingContext => "blocked: missing context",
++        WorkflowQueueReasonCode::BlockedPolicy => "blocked: policy",
++        WorkflowQueueReasonCode::BlockedCapability => "blocked: capability",
++        WorkflowQueueReasonCode::BlockedError => "blocked: error",
++    }
++}
++
++// ── Mailbox-aware queue reason resolution [v02.171] ──
++
++/// Resolves queue_reason_code accounting for mailbox-linked wait state.
++/// Per v02.171: mailbox-linked waits MUST remain visible as
++/// queue_reason_code=mailbox_response_wait, but the mailbox thread
++/// MUST NOT become the authority for the linked record's state family.
++pub fn resolve_queue_reason_with_mailbox_context(
++    base_reason: WorkflowQueueReasonCode,
++    has_pending_mailbox_wait: bool,
++) -> WorkflowQueueReasonCode {
++    if has_pending_mailbox_wait {
++        WorkflowQueueReasonCode::MailboxResponseWait
++    } else {
++        base_reason
++    }
++}
++
++// ── Workflow transition matrix [v02.172] ──
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct WorkflowTransitionRuleV1 {
++    pub rule_id: String,
++    pub from_family: WorkflowStateFamily,
++    pub to_family: WorkflowStateFamily,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub description: Option<String>,
++}
++
++/// Returns all valid transition rules originating from the given family.
++/// Portable across Work Packets, Micro-Tasks, Task Board rows, and Role Mailbox-linked waits.
++pub fn transition_rules_for_family(family: WorkflowStateFamily) -> Vec<WorkflowTransitionRuleV1> {
++    let pairs: &[(WorkflowStateFamily, &str)] = match family {
++        WorkflowStateFamily::Intake => &[
++            (WorkflowStateFamily::Ready, "triage completes"),
++            (WorkflowStateFamily::Blocked, "blocked during triage"),
++            (WorkflowStateFamily::Canceled, "canceled before start"),
++        ],
++        WorkflowStateFamily::Ready => &[
++            (WorkflowStateFamily::Active, "work started"),
++            (WorkflowStateFamily::Blocked, "blocked before start"),
++            (WorkflowStateFamily::Canceled, "canceled before start"),
++        ],
++        WorkflowStateFamily::Active => &[
++            (WorkflowStateFamily::Waiting, "awaiting dependency or response"),
++            (WorkflowStateFamily::Review, "submitted for review"),
++            (WorkflowStateFamily::Blocked, "blocked during work"),
++            (WorkflowStateFamily::Done, "work completed"),
++            (WorkflowStateFamily::Canceled, "canceled during work"),
++        ],
++        WorkflowStateFamily::Waiting => &[
++            (WorkflowStateFamily::Active, "wait resolved"),
++            (WorkflowStateFamily::Blocked, "blocked while waiting"),
++            (WorkflowStateFamily::Canceled, "canceled while waiting"),
++        ],
++        WorkflowStateFamily::Review => &[
++            (WorkflowStateFamily::Active, "changes requested"),
++            (WorkflowStateFamily::Approval, "review approved"),
++            (WorkflowStateFamily::Blocked, "blocked during review"),
++        ],
++        WorkflowStateFamily::Approval => &[
++            (WorkflowStateFamily::Active, "approval rejected"),
++            (WorkflowStateFamily::Validation, "approval granted"),
++            (WorkflowStateFamily::Blocked, "blocked during approval"),
++        ],
++        WorkflowStateFamily::Validation => &[
++            (WorkflowStateFamily::Done, "validation passed"),
++            (WorkflowStateFamily::Active, "validation failed, repair"),
++            (WorkflowStateFamily::Blocked, "blocked during validation"),
++        ],
++        WorkflowStateFamily::Blocked => &[
++            (WorkflowStateFamily::Ready, "unblocked to ready"),
++            (WorkflowStateFamily::Active, "unblocked to active"),
++            (WorkflowStateFamily::Canceled, "canceled while blocked"),
++        ],
++        WorkflowStateFamily::Done => &[
++            (WorkflowStateFamily::Archived, "archived after completion"),
++            (WorkflowStateFamily::Active, "reopened from done"),
++        ],
++        WorkflowStateFamily::Canceled => &[
++            (WorkflowStateFamily::Ready, "reopened from canceled"),
++            (WorkflowStateFamily::Archived, "archived after cancellation"),
++        ],
++        WorkflowStateFamily::Archived => &[],
++    };
++    pairs
++        .iter()
++        .map(|(to, desc)| WorkflowTransitionRuleV1 {
++            rule_id: format!(
++                "transition:{}_{}", family_id_segment(family), family_id_segment(*to)
++            ),
++            from_family: family,
++            to_family: *to,
++            description: Some(desc.to_string()),
++        })
++        .collect()
++}
++
++pub fn transition_rule_ids_for_family(family: WorkflowStateFamily) -> Vec<String> {
++    transition_rules_for_family(family)
++        .into_iter()
++        .map(|r| r.rule_id)
++        .collect()
++}
++
++// ── Queue automation rules [v02.172] ──
++
++#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
++#[serde(rename_all = "snake_case")]
++pub enum QueueAutomationTrigger {
++    DependencyCleared,
++    MailboxResponseReceived,
++    ValidationPassed,
++    RetryTimerElapsed,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct QueueAutomationRuleV1 {
++    pub rule_id: String,
++    pub trigger: QueueAutomationTrigger,
++    pub from_reason: WorkflowQueueReasonCode,
++    pub to_reason: WorkflowQueueReasonCode,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub description: Option<String>,
++}
++
++pub fn queue_automation_rules() -> Vec<QueueAutomationRuleV1> {
++    vec![
++        QueueAutomationRuleV1 {
++            rule_id: "automation:dependency_cleared".to_string(),
++            trigger: QueueAutomationTrigger::DependencyCleared,
++            from_reason: WorkflowQueueReasonCode::DependencyWait,
++            to_reason: WorkflowQueueReasonCode::ReadyForHuman,
++            description: Some("dependency resolved, return to ready queue".to_string()),
++        },
++        QueueAutomationRuleV1 {
++            rule_id: "automation:mailbox_response_received".to_string(),
++            trigger: QueueAutomationTrigger::MailboxResponseReceived,
++            from_reason: WorkflowQueueReasonCode::MailboxResponseWait,
++            to_reason: WorkflowQueueReasonCode::ReadyForHuman,
++            description: Some("mailbox response received, return to ready queue".to_string()),
++        },
++        QueueAutomationRuleV1 {
++            rule_id: "automation:validation_passed".to_string(),
++            trigger: QueueAutomationTrigger::ValidationPassed,
++            from_reason: WorkflowQueueReasonCode::ValidationWait,
++            to_reason: WorkflowQueueReasonCode::ReadyForHuman,
++            description: Some("validation passed, return to ready queue for closeout".to_string()),
++        },
++        QueueAutomationRuleV1 {
++            rule_id: "automation:retry_timer_elapsed".to_string(),
++            trigger: QueueAutomationTrigger::RetryTimerElapsed,
++            from_reason: WorkflowQueueReasonCode::TimerWait,
++            to_reason: WorkflowQueueReasonCode::ReadyForLocalSmallModel,
++            description: Some("retry timer elapsed, return to model queue".to_string()),
++        },
++    ]
++}
++
++pub fn queue_automation_rule_ids_for_reason(
++    reason: WorkflowQueueReasonCode,
++) -> Vec<String> {
++    queue_automation_rules()
++        .into_iter()
++        .filter(|r| r.from_reason == reason)
++        .map(|r| r.rule_id)
++        .collect()
++}
++
++// ── Executor eligibility policies [v02.172] ──
++
++#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
++#[serde(rename_all = "snake_case")]
++pub enum ExecutorKind {
++    Operator,
++    LocalSmallModel,
++    CloudModel,
++    WorkflowEngine,
++    Reviewer,
++    Governance,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct ExecutorEligibilityPolicyV1 {
++    pub policy_id: String,
++    pub executor_kind: ExecutorKind,
++    pub eligible_families: Vec<WorkflowStateFamily>,
++    pub requires_compact_summary: bool,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub description: Option<String>,
++}
++
++pub fn executor_eligibility_policies() -> Vec<ExecutorEligibilityPolicyV1> {
++    vec![
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:operator".to_string(),
++            executor_kind: ExecutorKind::Operator,
++            eligible_families: vec![
++                WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
++                WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
++                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
++                WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
++                WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
++                WorkflowStateFamily::Archived,
++            ],
++            requires_compact_summary: false,
++            description: Some("operator can act on any workflow state".to_string()),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:local_small_model".to_string(),
++            executor_kind: ExecutorKind::LocalSmallModel,
++            eligible_families: vec![WorkflowStateFamily::Ready],
++            requires_compact_summary: true,
++            description: Some(
++                "local small model requires ready-family state and compact summary".to_string(),
++            ),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:cloud_model".to_string(),
++            executor_kind: ExecutorKind::CloudModel,
++            eligible_families: vec![
++                WorkflowStateFamily::Ready, WorkflowStateFamily::Active,
++                WorkflowStateFamily::Waiting, WorkflowStateFamily::Review,
++            ],
++            requires_compact_summary: false,
++            description: Some("cloud model can act on ready through review states".to_string()),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:workflow_engine".to_string(),
++            executor_kind: ExecutorKind::WorkflowEngine,
++            eligible_families: vec![
++                WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
++                WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
++                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
++                WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
++                WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
++                WorkflowStateFamily::Archived,
++            ],
++            requires_compact_summary: false,
++            description: Some("workflow engine handles automated transitions".to_string()),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:reviewer".to_string(),
++            executor_kind: ExecutorKind::Reviewer,
++            eligible_families: vec![
++                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
++                WorkflowStateFamily::Validation,
++            ],
++            requires_compact_summary: false,
++            description: Some("reviewer can act on review, approval, validation".to_string()),
++        },
++        ExecutorEligibilityPolicyV1 {
++            policy_id: "eligibility:governance".to_string(),
++            executor_kind: ExecutorKind::Governance,
++            eligible_families: vec![
++                WorkflowStateFamily::Approval, WorkflowStateFamily::Validation,
++                WorkflowStateFamily::Blocked,
++            ],
++            requires_compact_summary: false,
++            description: Some("governance acts on approval, validation, blocked".to_string()),
++        },
++    ]
++}
++
++pub fn executor_eligibility_policy_ids_for_family(
++    family: WorkflowStateFamily,
++) -> Vec<String> {
++    executor_eligibility_policies()
++        .into_iter()
++        .filter(|p| p.eligible_families.contains(&family))
++        .map(|p| p.policy_id)
++        .collect()
++}
++
++/// Checks whether a local small model executor is eligible.
++/// Per v02.172: local-small-model eligibility MUST require a ready-family state
++/// AND a compact summary being available.
++pub fn is_local_small_model_eligible(
++    family: WorkflowStateFamily,
++    has_compact_summary: bool,
++) -> bool {
++    family == WorkflowStateFamily::Ready && has_compact_summary
++}
++
++fn family_id_segment(family: WorkflowStateFamily) -> &'static str {
++    match family {
++        WorkflowStateFamily::Intake => "intake",
++        WorkflowStateFamily::Ready => "ready",
++        WorkflowStateFamily::Active => "active",
++        WorkflowStateFamily::Waiting => "waiting",
++        WorkflowStateFamily::Review => "review",
++        WorkflowStateFamily::Approval => "approval",
++        WorkflowStateFamily::Validation => "validation",
++        WorkflowStateFamily::Blocked => "blocked",
++        WorkflowStateFamily::Done => "done",
++        WorkflowStateFamily::Canceled => "canceled",
++        WorkflowStateFamily::Archived => "archived",
++    }
++}
++
+@@ -173,0 +725,6 @@ pub struct StructuredCollaborationSummaryV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub transition_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub queue_automation_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub executor_eligibility_policy_ids: Vec<String>,
+@@ -183,0 +741,54 @@ pub struct StructuredCollaborationSummaryV1 {
++/// Compact summary contract for DCC and Role Mailbox triage (6.3).
++/// Extends the base StructuredCollaborationSummaryV1 envelope with
++/// DCC-specific stable identifiers and routing hints so local-small-model
++/// routing and operator views can default to this payload first, loading
++/// canonical detail records or Markdown sidecars only on demand.
++///
++/// Both DccCompactSummaryV1 and the canonical detail record MUST share the
++/// same record_id, project_profile_kind, and authoritative references so
++/// deterministic joins remain possible without transcript reconstruction.
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
++pub struct DccCompactSummaryV1 {
++    // ── Base envelope (shared with StructuredCollaborationSummaryV1) ──
++    pub schema_id: String,
++    pub schema_version: String,
++    pub record_id: String,
++    pub record_kind: String,
++    pub project_profile_kind: ProjectProfileKind,
++    pub updated_at: String,
++    pub mirror_state: MirrorSyncState,
++    #[serde(default)]
++    pub authority_refs: Vec<String>,
++    #[serde(default)]
++    pub evidence_refs: Vec<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub mirror_contract: Option<MarkdownMirrorContractV1>,
++    pub workflow_state_family: WorkflowStateFamily,
++    pub queue_reason_code: WorkflowQueueReasonCode,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub allowed_action_ids: Vec<String>,
++    pub status: String,
++    pub title_or_objective: String,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub blockers: Vec<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub next_action: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub summary_ref: Option<String>,
++    // ── DCC stable identifiers ──
++    pub work_packet_id: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub task_board_id: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub workflow_run_id: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub model_session_id: Option<String>,
++    // ── Routing hints for triage ──
++    #[serde(default)]
++    pub pending_wait_count: u32,
++    #[serde(default)]
++    pub active_thread_count: u32,
++    #[serde(default)]
++    pub session_bound: bool,
++}
++
+@@ -204,0 +816,6 @@ pub struct TrackedWorkPacketArtifactV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub transition_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub queue_automation_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub executor_eligibility_policy_ids: Vec<String>,
+@@ -260,0 +878,6 @@ pub struct TrackedMicroTaskArtifactV1 {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub transition_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub queue_automation_rule_ids: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub executor_eligibility_policy_ids: Vec<String>,
+@@ -344,0 +968,51 @@ pub struct GateStatuses {
++#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
++#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
++pub enum WorkflowMirrorVerdict {
++    Pass,
++    Fail,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
++pub struct WorkflowMirrorGateSummary {
++    pub task_board_id: String,
++    pub gate_state_ref: String,
++    pub pre_work: GateStatus,
++    pub post_work: GateStatus,
++    #[serde(default)]
++    pub verdict: Option<WorkflowMirrorVerdict>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub evidence_refs: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub check_refs: Vec<String>,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
++pub struct WorkflowMirrorGateArtifactV1 {
++    pub schema_id: String,
++    pub schema_version: String,
++    pub wp_id: String,
++    pub task_board_id: String,
++    pub gate_state_ref: String,
++    pub gate_summary: WorkflowMirrorGateSummary,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
++pub struct WorkflowMirrorActivationSummary {
++    pub base_wp_id: String,
++    pub work_packet_id: String,
++    pub task_board_id: String,
++    pub active_packet_ref: String,
++    pub traceability_ref: String,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
++pub struct WorkflowMirrorActivationArtifactV1 {
++    pub schema_id: String,
++    pub schema_version: String,
++    pub base_wp_id: String,
++    pub work_packet_id: String,
++    pub task_board_id: String,
++    pub active_packet_ref: String,
++    pub traceability_ref: String,
++}
++
+@@ -383,0 +1058,4 @@ pub struct WorkPacketGovernance {
++    #[serde(default)]
++    pub gate_summary: Option<WorkflowMirrorGateSummary>,
++    #[serde(default)]
++    pub activation_summary: Option<WorkflowMirrorActivationSummary>,
+@@ -827,0 +1506 @@ pub const ROLE_MAILBOX_THREAD_LINE_SCHEMA_ID_V1: &str = "hsk.role_mailbox_thread
++pub const DCC_COMPACT_SUMMARY_SCHEMA_ID_V1: &str = "hsk.dcc_compact_summary@1";
+@@ -848,0 +1528 @@ pub enum StructuredCollaborationRecordFamily {
++    DccCompactSummary,
+@@ -1045,0 +1726,9 @@ pub fn structured_collaboration_schema_descriptor(
++        StructuredCollaborationRecordFamily::DccCompactSummary => {
++            StructuredCollaborationSchemaDescriptor {
++                family,
++                schema_id: DCC_COMPACT_SUMMARY_SCHEMA_ID_V1,
++                schema_version: STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1,
++                record_kind: "dcc_compact_summary",
++                summary_family: None,
++            }
++        }
+@@ -1098,0 +1788 @@ pub fn validate_structured_collaboration_record(
++    validate_governed_action_fields(obj, &mut result);
+@@ -1159,0 +1850,9 @@ pub fn validate_structured_collaboration_record(
++        StructuredCollaborationRecordFamily::DccCompactSummary => {
++            require_non_empty_string(obj.get("status"), "status", &mut result);
++            require_non_empty_string(
++                obj.get("title_or_objective"),
++                "title_or_objective",
++                &mut result,
++            );
++            require_non_empty_string(obj.get("work_packet_id"), "work_packet_id", &mut result);
++        }
+@@ -1655,0 +2355,118 @@ fn validate_mirror_state(
++pub fn is_registered_governed_action_id(action_id: &str) -> bool {
++    [
++        WorkflowStateFamily::Intake,
++        WorkflowStateFamily::Ready,
++        WorkflowStateFamily::Active,
++        WorkflowStateFamily::Waiting,
++        WorkflowStateFamily::Review,
++        WorkflowStateFamily::Approval,
++        WorkflowStateFamily::Validation,
++        WorkflowStateFamily::Blocked,
++        WorkflowStateFamily::Done,
++        WorkflowStateFamily::Canceled,
++    ]
++    .into_iter()
++    .flat_map(governed_action_ids_for_family)
++    .any(|registered| registered == action_id)
++}
++
++pub fn is_governed_action_id_allowed_for_workflow_family(
++    family: WorkflowStateFamily,
++    action_id: &str,
++) -> bool {
++    governed_action_ids_for_family(family)
++        .iter()
++        .any(|allowed| allowed == action_id)
++}
++
++pub fn preferred_governed_next_action_for_family(
++    family: WorkflowStateFamily,
++) -> Option<&'static str> {
++    match family {
++        WorkflowStateFamily::Intake => Some("triage"),
++        WorkflowStateFamily::Ready => Some("start"),
++        WorkflowStateFamily::Active => Some("update"),
++        WorkflowStateFamily::Waiting => Some("resume"),
++        WorkflowStateFamily::Review => Some("review"),
++        WorkflowStateFamily::Approval => Some("approve"),
++        WorkflowStateFamily::Validation => Some("validate"),
++        WorkflowStateFamily::Blocked => Some("unblock"),
++        WorkflowStateFamily::Done => Some("archive"),
++        WorkflowStateFamily::Canceled => Some("archive"),
++        WorkflowStateFamily::Archived => None,
++    }
++}
++
++fn workflow_state_family_from_obj(
++    obj: &serde_json::Map<String, Value>,
++) -> Option<WorkflowStateFamily> {
++    obj.get("workflow_state_family")
++        .cloned()
++        .and_then(|family| serde_json::from_value(family).ok())
++}
++
++fn validate_governed_action_fields(
++    obj: &serde_json::Map<String, Value>,
++    result: &mut StructuredCollaborationValidationResult,
++) {
++    let family = workflow_state_family_from_obj(obj);
++
++    if let Some(allowed_action_ids) = obj.get("allowed_action_ids").and_then(Value::as_array) {
++        for (index, action_id_value) in allowed_action_ids.iter().enumerate() {
++            let Some(action_id) = action_id_value.as_str() else {
++                continue;
++            };
++            let field = format!("allowed_action_ids[{index}]");
++            if !is_registered_governed_action_id(action_id) {
++                result.push_issue(
++                    StructuredCollaborationValidationCode::InvalidFieldValue,
++                    field,
++                    Some("registered governed action id".to_string()),
++                    Some(action_id.to_string()),
++                    "allowed_action_ids must contain registered governed action ids",
++                );
++                continue;
++            }
++            if let Some(family) = family {
++                if !is_governed_action_id_allowed_for_workflow_family(family, action_id) {
++                    result.push_issue(
++                        StructuredCollaborationValidationCode::InvalidFieldValue,
++                        field,
++                        Some(format!(
++                            "action allowed for workflow_state_family={family:?}"
++                        )),
++                        Some(action_id.to_string()),
++                        "allowed_action_ids must match workflow_state_family",
++                    );
++                }
++            }
++        }
++    }
++
++    if let Some(action_id) = obj.get("next_action").and_then(Value::as_str) {
++        if !is_registered_governed_action_id(action_id) {
++            result.push_issue(
++                StructuredCollaborationValidationCode::InvalidFieldValue,
++                "next_action",
++                Some("registered governed action id".to_string()),
++                Some(action_id.to_string()),
++                "next_action must be a registered governed action id",
++            );
++            return;
++        }
++        if let Some(family) = family {
++            if !is_governed_action_id_allowed_for_workflow_family(family, action_id) {
++                result.push_issue(
++                    StructuredCollaborationValidationCode::InvalidFieldValue,
++                    "next_action",
++                    Some(format!(
++                        "action allowed for workflow_state_family={family:?}"
++                    )),
++                    Some(action_id.to_string()),
++                    "next_action must match workflow_state_family",
++                );
++            }
++        }
++    }
++}
++
+@@ -1691,0 +2509,11 @@ fn validate_profile_extension(
++    if let Some(extension_schema_id) = extension_schema_id {
++        if !is_registered_profile_extension_schema(project_profile_kind, extension_schema_id) {
++            result.push_issue(
++                StructuredCollaborationValidationCode::InvalidFieldValue,
++                "profile_extension.extension_schema_id",
++                Some("registered profile extension schema id".to_string()),
++                Some(extension_schema_id.to_string()),
++                "profile_extension schema id must be registered for the project profile kind",
++            );
++        }
++    }
+@@ -1732,0 +2561,21 @@ fn validate_profile_extension(
++fn is_registered_profile_extension_schema(
++    project_profile_kind: Option<ProjectProfileKind>,
++    extension_schema_id: &str,
++) -> bool {
++    if extension_schema_id == GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1 {
++        return true;
++    }
++
++    match project_profile_kind {
++        Some(ProjectProfileKind::SoftwareDelivery) => matches!(
++            extension_schema_id,
++            "hsk.profile.software_delivery@1" | "handshake.project_profile.software_delivery"
++        ),
++        Some(ProjectProfileKind::Research) => matches!(
++            extension_schema_id,
++            "hsk.profile.research@1" | "hsk.profile.research.exploratory@1"
++        ),
++        _ => false,
++    }
++}
++
+diff --git a/src/backend/handshake_core/src/mex/runtime.rs b/src/backend/handshake_core/src/mex/runtime.rs
+index c6099e9f..dd86499f 100644
+--- a/src/backend/handshake_core/src/mex/runtime.rs
++++ b/src/backend/handshake_core/src/mex/runtime.rs
+@@ -521,0 +522,4 @@ impl MexRuntime {
++            Some(serde_json::Value::Object(value)) => value
++                .get("capability_id")
++                .and_then(|capability| capability.as_str())
++                .map(|capability| capability.to_string()),
+diff --git a/src/backend/handshake_core/src/storage/calendar.rs b/src/backend/handshake_core/src/storage/calendar.rs
+index bffe4ec7..3afd683d 100644
+--- a/src/backend/handshake_core/src/storage/calendar.rs
++++ b/src/backend/handshake_core/src/storage/calendar.rs
+@@ -140,0 +141,87 @@ pub struct CalendarSourceSyncState {
++fn default_calendar_tzid() -> String {
++    "UTC".to_string()
++}
++
++fn default_calendar_event_status() -> CalendarEventStatus {
++    CalendarEventStatus::Confirmed
++}
++
++fn default_calendar_event_visibility() -> CalendarEventVisibility {
++    CalendarEventVisibility::Private
++}
++
++fn default_calendar_event_export_mode() -> CalendarEventExportMode {
++    CalendarEventExportMode::LocalOnly
++}
++
++#[derive(Clone, Debug, Serialize, Deserialize)]
++pub struct CalendarSyncInput {
++    pub workspace_id: String,
++    pub source_id: String,
++    #[serde(default)]
++    pub provider_events: Vec<CalendarSyncEventUpsert>,
++    #[serde(default)]
++    pub mutations: Vec<CalendarMutation>,
++    pub next_sync_token: Option<String>,
++    pub remote_watermark: Option<String>,
++    #[serde(default)]
++    pub full_sync: bool,
++}
++
++#[derive(Clone, Debug, Serialize, Deserialize)]
++pub struct CalendarSyncEventUpsert {
++    pub id: Option<String>,
++    pub external_id: Option<String>,
++    pub external_etag: Option<String>,
++    pub title: String,
++    pub description: Option<String>,
++    pub location: Option<String>,
++    pub start_ts_utc: DateTime<Utc>,
++    pub end_ts_utc: DateTime<Utc>,
++    pub start_local: Option<String>,
++    pub end_local: Option<String>,
++    #[serde(default = "default_calendar_tzid")]
++    pub tzid: String,
++    #[serde(default)]
++    pub all_day: bool,
++    #[serde(default)]
++    pub was_floating: bool,
++    #[serde(default = "default_calendar_event_status")]
++    pub status: CalendarEventStatus,
++    #[serde(default = "default_calendar_event_visibility")]
++    pub visibility: CalendarEventVisibility,
++    #[serde(default = "default_calendar_event_export_mode")]
++    pub export_mode: CalendarEventExportMode,
++    pub rrule: Option<String>,
++    #[serde(default)]
++    pub rdate: Vec<String>,
++    #[serde(default)]
++    pub exdate: Vec<String>,
++    #[serde(default)]
++    pub is_recurring: bool,
++    pub series_id: Option<String>,
++    pub instance_key: Option<String>,
++    #[serde(default)]
++    pub is_override: bool,
++    pub source_last_seen_at: Option<DateTime<Utc>>,
++    #[serde(default)]
++    pub attendees: Value,
++    #[serde(default)]
++    pub links: Value,
++    pub provider_payload: Option<Value>,
++}
++
++#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
++#[serde(rename_all = "snake_case")]
++pub enum CalendarMutationAction {
++    UpsertEvent,
++    DeleteSourceData,
++}
++
++#[derive(Clone, Debug, Serialize, Deserialize)]
++pub struct CalendarMutation {
++    pub mutation_id: Option<String>,
++    pub action: CalendarMutationAction,
++    pub event: Option<CalendarSyncEventUpsert>,
++}
++
+diff --git a/src/backend/handshake_core/src/storage/locus_sqlite.rs b/src/backend/handshake_core/src/storage/locus_sqlite.rs
+index bf0057ef..6af5861b 100644
+--- a/src/backend/handshake_core/src/storage/locus_sqlite.rs
++++ b/src/backend/handshake_core/src/storage/locus_sqlite.rs
+@@ -18 +18,3 @@ use crate::workflows::locus::types::{
+-    WorkflowStateFamily,
++    WorkflowStateFamily, executor_eligibility_policy_ids_for_family,
++    governed_action_ids_for_family, queue_automation_rule_ids_for_reason,
++    resolve_queue_reason_with_mailbox_context, transition_rule_ids_for_family,
+@@ -172 +174 @@ fn work_packet_status_str(status: WorkPacketStatus) -> &'static str {
+-fn micro_task_workflow_state(
++fn micro_task_workflow_state_with_mailbox(
+@@ -173,0 +176 @@ fn micro_task_workflow_state(
++    has_pending_mailbox_wait: bool,
+@@ -175 +178 @@ fn micro_task_workflow_state(
+-    match status {
++    let (family, base_reason) = match status {
+@@ -200,16 +202,0 @@ fn micro_task_workflow_state(
+-    }
+-}
+-
+-fn allowed_action_ids(family: WorkflowStateFamily) -> Vec<String> {
+-    let actions = match family {
+-        WorkflowStateFamily::Intake => &["triage", "prioritize"][..],
+-        WorkflowStateFamily::Ready => &["start", "assign"],
+-        WorkflowStateFamily::Active => &["update", "complete", "pause"],
+-        WorkflowStateFamily::Waiting => &["resume", "escalate"],
+-        WorkflowStateFamily::Review => &["review", "request_changes"],
+-        WorkflowStateFamily::Approval => &["approve", "reject"],
+-        WorkflowStateFamily::Validation => &["validate", "repair"],
+-        WorkflowStateFamily::Blocked => &["unblock", "escalate"],
+-        WorkflowStateFamily::Done => &["archive", "reopen"],
+-        WorkflowStateFamily::Canceled => &["archive", "reopen"],
+-        WorkflowStateFamily::Archived => &[],
+@@ -217 +204,2 @@ fn allowed_action_ids(family: WorkflowStateFamily) -> Vec<String> {
+-    actions.iter().map(|action| (*action).to_string()).collect()
++    let reason = resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
++    (family, reason)
+@@ -221 +209,7 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
+-    let (workflow_state_family, queue_reason_code) = micro_task_workflow_state(tracked_mt.status);
++    let has_pending_mailbox_wait = tracked_mt
++        .metadata
++        .get("has_pending_mailbox_wait")
++        .and_then(Value::as_bool)
++        .unwrap_or(false);
++    let (workflow_state_family, queue_reason_code) =
++        micro_task_workflow_state_with_mailbox(tracked_mt.status, has_pending_mailbox_wait);
+@@ -248 +242,4 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
+-        allowed_action_ids: allowed_action_ids(workflow_state_family),
++        allowed_action_ids: governed_action_ids_for_family(workflow_state_family),
++        transition_rule_ids: transition_rule_ids_for_family(workflow_state_family),
++        queue_automation_rule_ids: queue_automation_rule_ids_for_reason(queue_reason_code),
++        executor_eligibility_policy_ids: executor_eligibility_policy_ids_for_family(workflow_state_family),
+diff --git a/src/backend/handshake_core/src/workflows.rs b/src/backend/handshake_core/src/workflows.rs
+index 1242230b..f74d507e 100644
+--- a/src/backend/handshake_core/src/workflows.rs
++++ b/src/backend/handshake_core/src/workflows.rs
+@@ -41 +41,3 @@ use crate::{
+-    mex::runtime::{AdapterError as MexAdapterError, EngineAdapter, ShellEngineAdapter},
++    mex::runtime::{
++        AdapterError as MexAdapterError, EngineAdapter, MexRuntimeError, ShellEngineAdapter,
++    },
+@@ -52 +54 @@ use crate::{
+-        ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage,
++        ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage, SessionCheckpoint,
+@@ -68,0 +71,5 @@ use crate::{
++use crate::storage::{
++    CalendarEventUpsert, CalendarMutationAction, CalendarSourceSyncState, CalendarSourceUpsert,
++    CalendarSourceWritePolicy, CalendarSyncEventUpsert, CalendarSyncInput, CalendarSyncStateStage,
++    WriteContext,
++};
+@@ -3197,0 +3205,2 @@ async fn load_tracked_work_packet_for_artifacts(
++            gate_summary: None,
++            activation_summary: None,
+@@ -3377,14 +3386 @@ fn allowed_action_ids(family: locus::WorkflowStateFamily) -> Vec<String> {
+-    let actions: &[&str] = match family {
+-        locus::WorkflowStateFamily::Intake => &["triage", "prioritize"],
+-        locus::WorkflowStateFamily::Ready => &["start", "assign"],
+-        locus::WorkflowStateFamily::Active => &["update", "complete", "pause"],
+-        locus::WorkflowStateFamily::Waiting => &["resume", "escalate"],
+-        locus::WorkflowStateFamily::Review => &["review", "request_changes"],
+-        locus::WorkflowStateFamily::Approval => &["approve", "reject"],
+-        locus::WorkflowStateFamily::Validation => &["validate", "repair"],
+-        locus::WorkflowStateFamily::Blocked => &["unblock", "escalate"],
+-        locus::WorkflowStateFamily::Done => &["archive", "reopen"],
+-        locus::WorkflowStateFamily::Canceled => &["archive", "reopen"],
+-        locus::WorkflowStateFamily::Archived => &[],
+-    };
+-    actions.iter().map(|action| (*action).to_string()).collect()
++    locus::governed_action_ids_for_family(family)
+@@ -3447,26 +3442,0 @@ fn micro_task_blockers(micro_task: &locus::TrackedMicroTask) -> Vec<String> {
+-fn next_action_for_work_packet(family: locus::WorkflowStateFamily) -> Option<String> {
+-    governed_next_action_for_family(family)
+-}
+-
+-fn next_action_for_micro_task(family: locus::WorkflowStateFamily) -> Option<String> {
+-    governed_next_action_for_family(family)
+-}
+-
+-fn governed_next_action_for_family(family: locus::WorkflowStateFamily) -> Option<String> {
+-    let action_id = match family {
+-        locus::WorkflowStateFamily::Intake => Some("triage"),
+-        locus::WorkflowStateFamily::Ready => Some("start"),
+-        locus::WorkflowStateFamily::Active => None,
+-        locus::WorkflowStateFamily::Waiting => Some("resume"),
+-        locus::WorkflowStateFamily::Review => Some("review"),
+-        locus::WorkflowStateFamily::Approval => None,
+-        locus::WorkflowStateFamily::Validation => Some("validate"),
+-        locus::WorkflowStateFamily::Blocked => None,
+-        locus::WorkflowStateFamily::Done => Some("archive"),
+-        locus::WorkflowStateFamily::Canceled => None,
+-        locus::WorkflowStateFamily::Archived => None,
+-    };
+-
+-    action_id.map(str::to_string)
+-}
+-
+@@ -3799,0 +3770,3 @@ async fn emit_task_board_projection_artifacts(
++            transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
++            queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
++            executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
+@@ -4745,0 +4719,2 @@ async fn load_tracked_work_packet_from_store(
++            gate_summary: None,
++            activation_summary: None,
+@@ -4848,0 +4824,10 @@ fn read_existing_work_packet_type(
++fn governed_work_packet_next_action(status: locus::WorkPacketStatus) -> &'static str {
++    let (family, _) = work_packet_workflow_state(status);
++    locus::preferred_governed_next_action_for_family(family).unwrap_or("archive")
++}
++
++fn governed_micro_task_next_action(status: locus::MicroTaskStatus) -> &'static str {
++    let (family, _) = micro_task_workflow_state(status);
++    locus::preferred_governed_next_action_for_family(family).unwrap_or("archive")
++}
++
+@@ -4857 +4842 @@ fn build_structured_work_packet_summary(
+-        structured_work_packet_next_action(tracked_wp.status),
++        governed_work_packet_next_action(tracked_wp.status),
+@@ -4907,0 +4893,3 @@ fn build_structured_work_packet_packet(
++        transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
++        queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
++        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
+@@ -4941 +4929 @@ fn build_structured_micro_task_summary(
+-        structured_micro_task_next_action(tracked_mt.status),
++        governed_micro_task_next_action(tracked_mt.status),
+@@ -4990,0 +4979,3 @@ fn build_structured_micro_task_packet(
++        transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
++        queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
++        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
+@@ -5293 +5284,2 @@ pub async fn create_session_checkpoint(
+-    let session_state_json = serde_json::to_string(&session)?;
++    let session_state_json =
++        serde_json::to_string(&session).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+@@ -5303 +5295,2 @@ pub async fn create_session_checkpoint(
+-    let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids)?;
++    let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids)
++        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+@@ -7240,0 +7234,6 @@ pub async fn start_workflow_for_job(
++        let err_text = err.to_string();
++        let denied_output = if is_calendar_sync_job(&job) {
++            Some(calendar_sync_denied_output(&job, None, &err_text))
++        } else {
++            None
++        };
+@@ -7246,2 +7245,2 @@ pub async fn start_workflow_for_job(
+-                error_message: Some(err.to_string()),
+-                status_reason: err.to_string(),
++                error_message: Some(err_text.clone()),
++                status_reason: err_text,
+@@ -7251 +7250 @@ pub async fn start_workflow_for_job(
+-                job_outputs: None,
++                job_outputs: denied_output,
+@@ -8592,0 +8592,4 @@ async fn run_job(
++        if job.protocol_id == CALENDAR_SYNC_PROTOCOL_ID {
++            return run_calendar_sync_job(state, job, workflow_run_id, trace_id).await;
++        }
++
+@@ -12133,0 +12137,481 @@ impl EngineAdapter for MediaDownloaderEngineAdapter {
++pub const CALENDAR_SYNC_PROTOCOL_ID: &str = "calendar_sync";
++const CALENDAR_SYNC_ENGINE_ID: &str = "calendar_sync";
++const CALENDAR_SYNC_OPERATION: &str = "calendar_sync.run";
++const CALENDAR_SYNC_READ_CAPABILITY: &str = "calendar.sync.read";
++const CALENDAR_SYNC_WRITE_CAPABILITY: &str = "calendar.sync.write";
++
++fn is_calendar_sync_job(job: &AiJob) -> bool {
++    matches!(job.job_kind, JobKind::WorkflowRun) && job.protocol_id == CALENDAR_SYNC_PROTOCOL_ID
++}
++
++fn calendar_sync_denied_output(
++    job: &AiJob,
++    workflow_run_id: Option<Uuid>,
++    reason: &str,
++) -> Value {
++    json!({
++        "schema_version": "hsk.calendar_sync_result@v1",
++        "engine_id": CALENDAR_SYNC_ENGINE_ID,
++        "operation": CALENDAR_SYNC_OPERATION,
++        "status": "denied",
++        "job_id": job.job_id.to_string(),
++        "workflow_run_id": workflow_run_id.map(|id| id.to_string()),
++        "capability_profile_id": job.capability_profile_id.as_str(),
++        "provider_safe_evidence": {
++            "remote_write_attempted": false,
++            "credentials_ref_emitted": false,
++            "provider_payload_redacted": true
++        },
++        "error": {
++            "code": "CALENDAR_SYNC_CAPABILITY_DENIED",
++            "message": reason
++        }
++    })
++}
++
++fn calendar_event_upsert_from_sync_event(
++    workspace_id: &str,
++    source_id: &str,
++    event: CalendarSyncEventUpsert,
++) -> CalendarEventUpsert {
++    CalendarEventUpsert {
++        id: event.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
++        workspace_id: workspace_id.to_string(),
++        source_id: source_id.to_string(),
++        external_id: event.external_id,
++        external_etag: event.external_etag,
++        title: event.title,
++        description: event.description,
++        location: event.location,
++        start_ts_utc: event.start_ts_utc,
++        end_ts_utc: event.end_ts_utc,
++        start_local: event.start_local,
++        end_local: event.end_local,
++        tzid: event.tzid,
++        all_day: event.all_day,
++        was_floating: event.was_floating,
++        status: event.status,
++        visibility: event.visibility,
++        export_mode: event.export_mode,
++        rrule: event.rrule,
++        rdate: event.rdate,
++        exdate: event.exdate,
++        is_recurring: event.is_recurring,
++        series_id: event.series_id,
++        instance_key: event.instance_key,
++        is_override: event.is_override,
++        source_last_seen_at: event.source_last_seen_at.or_else(|| Some(Utc::now())),
++        attendees: event.attendees,
++        links: event.links,
++        provider_payload: event.provider_payload,
++    }
++}
++
++struct CalendarSyncAdapterOutcome {
++    status: EngineStatus,
++    output: Value,
++    errors: Vec<EngineError>,
++}
++
++struct CalendarSyncEngineAdapter {
++    state: AppState,
++}
++
++impl CalendarSyncEngineAdapter {
++    fn new(state: AppState) -> Self {
++        Self { state }
++    }
++}
++
++#[async_trait]
++impl EngineAdapter for CalendarSyncEngineAdapter {
++    async fn invoke(&self, op: &PlannedOperation) -> Result<EngineResult, MexAdapterError> {
++        if op.engine_id != CALENDAR_SYNC_ENGINE_ID {
++            return Err(MexAdapterError::Engine(format!(
++                "unsupported engine_id for calendar sync adapter: {}",
++                op.engine_id
++            )));
++        }
++        if op.operation != CALENDAR_SYNC_OPERATION {
++            return Err(MexAdapterError::Engine(format!(
++                "unsupported operation for calendar sync adapter: {}",
++                op.operation
++            )));
++        }
++
++        let started_at = Utc::now();
++        let input: CalendarSyncInput = serde_json::from_value(op.params.clone())
++            .map_err(|e| MexAdapterError::Engine(format!("invalid calendar sync input: {e}")))?;
++        let outcome = apply_calendar_sync(&self.state, op, input).await?;
++        let ended_at = Utc::now();
++        let output_handle = ArtifactHandle::new(
++            op.op_id,
++            format!("calendar_sync_result/{}.json", op.op_id),
++        );
++        let provenance = ProvenanceRecord {
++            engine_id: op.engine_id.clone(),
++            engine_version: Some("0.1.0".to_string()),
++            implementation: Some("workflow.run_calendar_sync_job".to_string()),
++            determinism: op.determinism,
++            config_hash: None,
++            inputs: op.inputs.clone(),
++            outputs: vec![output_handle.clone()],
++            capabilities_granted: op.capabilities_requested.clone(),
++            environment: Some(json!({
++                "calendar_sync_result": outcome.output,
++                "provider_safe": true
++            })),
++        };
++
++        Ok(EngineResult {
++            op_id: op.op_id,
++            status: outcome.status,
++            started_at,
++            ended_at,
++            outputs: vec![output_handle.clone()],
++            evidence: vec![output_handle],
++            provenance,
++            errors: outcome.errors,
++            logs_ref: None,
++        })
++    }
++}
++
++async fn apply_calendar_sync(
++    state: &AppState,
++    op: &PlannedOperation,
++    input: CalendarSyncInput,
++) -> Result<CalendarSyncAdapterOutcome, MexAdapterError> {
++    let now = Utc::now();
++    let source = state
++        .storage
++        .get_calendar_source(&input.workspace_id, &input.source_id)
++        .await
++        .map_err(|e| MexAdapterError::Engine(e.to_string()))?
++        .ok_or_else(|| MexAdapterError::Engine("calendar source not found".to_string()))?;
++    let read_only_source = source.write_policy == CalendarSourceWritePolicy::ReadOnlyImport;
++    let mutation_count = input.mutations.len();
++
++    if mutation_count > 0 && read_only_source {
++        let output = json!({
++            "schema_version": "hsk.calendar_sync_result@v1",
++            "engine_id": CALENDAR_SYNC_ENGINE_ID,
++            "operation": CALENDAR_SYNC_OPERATION,
++            "status": "denied",
++            "workspace_id": input.workspace_id,
++            "source_id": input.source_id,
++            "write_policy": source.write_policy.as_str(),
++            "provider_safe_evidence": {
++                "remote_write_attempted": false,
++                "credentials_ref_emitted": false,
++                "provider_payload_redacted": true
++            },
++            "error": {
++                "code": "CALENDAR_SYNC_READ_ONLY_SOURCE",
++                "message": "calendar mutations are denied for read_only_import sources"
++            }
++        });
++        return Ok(CalendarSyncAdapterOutcome {
++            status: EngineStatus::Denied,
++            output,
++            errors: vec![EngineError {
++                code: "CALENDAR_SYNC_READ_ONLY_SOURCE".to_string(),
++                message: "calendar mutations are denied for read_only_import sources".to_string(),
++                details_ref: None,
++            }],
++        });
++    }
++
++    if mutation_count > 0 {
++        let profile_id = op.capability_profile_id.as_deref().unwrap_or_default();
++        let can_write = state
++            .capability_registry
++            .profile_can(profile_id, CALENDAR_SYNC_WRITE_CAPABILITY)
++            .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
++        if !can_write {
++            let output = json!({
++                "schema_version": "hsk.calendar_sync_result@v1",
++                "engine_id": CALENDAR_SYNC_ENGINE_ID,
++                "operation": CALENDAR_SYNC_OPERATION,
++                "status": "denied",
++                "workspace_id": input.workspace_id,
++                "source_id": input.source_id,
++                "capability_profile_id": profile_id,
++                "provider_safe_evidence": {
++                    "remote_write_attempted": false,
++                    "credentials_ref_emitted": false,
++                    "provider_payload_redacted": true
++                },
++                "error": {
++                    "code": "CALENDAR_SYNC_WRITE_CAPABILITY_DENIED",
++                    "message": "calendar.sync.write is required for calendar mutations"
++                }
++            });
++            return Ok(CalendarSyncAdapterOutcome {
++                status: EngineStatus::Denied,
++                output,
++                errors: vec![EngineError {
++                    code: "CALENDAR_SYNC_WRITE_CAPABILITY_DENIED".to_string(),
++                    message: "calendar.sync.write is required for calendar mutations".to_string(),
++                    details_ref: None,
++                }],
++            });
++        }
++    }
++
++    let workflow_id = op
++        .params
++        .get("workflow_run_id")
++        .and_then(|v| v.as_str())
++        .and_then(|value| Uuid::parse_str(value).ok())
++        .unwrap_or(op.op_id);
++    let ctx = WriteContext::ai(
++        Some("calendar_sync".to_string()),
++        Some(op.op_id),
++        Some(workflow_id),
++    );
++    let mut provider_events_upserted = 0usize;
++    for provider_event in input.provider_events {
++        let upsert =
++            calendar_event_upsert_from_sync_event(&input.workspace_id, &input.source_id, provider_event);
++        state
++            .storage
++            .upsert_calendar_event(&ctx, upsert)
++            .await
++            .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
++        provider_events_upserted += 1;
++    }
++
++    let mut mutations_applied = 0usize;
++    for mutation in input.mutations {
++        match mutation.action {
++            CalendarMutationAction::UpsertEvent => {
++                let event = mutation.event.ok_or_else(|| {
++                    MexAdapterError::Engine("calendar mutation upsert_event requires event".into())
++                })?;
++                let upsert =
++                    calendar_event_upsert_from_sync_event(&input.workspace_id, &input.source_id, event);
++                state
++                    .storage
++                    .upsert_calendar_event(&ctx, upsert)
++                    .await
++                    .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
++                mutations_applied += 1;
++            }
++            CalendarMutationAction::DeleteSourceData => {
++                return Err(MexAdapterError::Engine(
++                    "calendar mutation delete_source_data is not supported by calendar_sync".into(),
++                ));
++            }
++        }
++    }
++
++    let last_rev = source.sync_state.last_local_applied_rev.unwrap_or(0);
++    let sync_state = CalendarSourceSyncState {
++        state: Some(CalendarSyncStateStage::Idle),
++        sync_token: input.next_sync_token.or(source.sync_state.sync_token.clone()),
++        last_synced_at: Some(now),
++        last_full_sync_at: if input.full_sync {
++            Some(now)
++        } else {
++            source.sync_state.last_full_sync_at
++        },
++        last_ok_at: Some(now),
++        last_pull_at: Some(now),
++        last_push_at: if mutations_applied > 0 {
++            Some(now)
++        } else {
++            source.sync_state.last_push_at
++        },
++        last_error_at: None,
++        last_error_code: None,
++        last_error: None,
++        backoff_until: None,
++        consecutive_failures: Some(0),
++        last_remote_watermark: input
++            .remote_watermark
++            .or(source.sync_state.last_remote_watermark.clone()),
++        last_local_applied_rev: Some(
++            last_rev + provider_events_upserted as i64 + mutations_applied as i64,
++        ),
++    };
++
++    let updated_source = state
++        .storage
++        .upsert_calendar_source(
++            &ctx,
++            CalendarSourceUpsert {
++                id: source.id.clone(),
++                workspace_id: source.workspace_id.clone(),
++                display_name: source.display_name.clone(),
++                provider_type: source.provider_type.clone(),
++                write_policy: source.write_policy.clone(),
++                default_tzid: source.default_tzid.clone(),
++                auto_export: source.auto_export,
++                credentials_ref: source.credentials_ref.clone(),
++                provider_calendar_id: source.provider_calendar_id.clone(),
++                capability_profile_id: source.capability_profile_id.clone(),
++                config: source.config.clone(),
++                sync_state,
++            },
++        )
++        .await
++        .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
++
++    let output = json!({
++        "schema_version": "hsk.calendar_sync_result@v1",
++        "engine_id": CALENDAR_SYNC_ENGINE_ID,
++        "operation": CALENDAR_SYNC_OPERATION,
++        "status": "succeeded",
++        "workspace_id": input.workspace_id,
++        "source_id": input.source_id,
++        "provider_type": source.provider_type.as_str(),
++        "write_policy": source.write_policy.as_str(),
++        "read_only_source": read_only_source,
++        "provider_events_upserted": provider_events_upserted,
++        "mutations_applied": mutations_applied,
++        "remote_write_attempted": false,
++        "provider_safe_evidence": {
++            "remote_write_attempted": false,
++            "credentials_ref_emitted": false,
++            "credentials_ref_present": source.credentials_ref.is_some(),
++            "provider_payload_redacted": true
++        },
++        "sync_state": {
++            "state": updated_source.sync_state.state.as_ref().map(|s| s.as_str()),
++            "sync_token": updated_source.sync_state.sync_token,
++            "last_remote_watermark": updated_source.sync_state.last_remote_watermark,
++            "last_local_applied_rev": updated_source.sync_state.last_local_applied_rev
++        }
++    });
++
++    record_event_safely(
++        state,
++        FlightRecorderEvent::new(
++            FlightRecorderEventType::System,
++            FlightRecorderActor::Agent,
++            op.op_id,
++            json!({
++                "message": "calendar_sync_result",
++                "calendar_sync_result": output.clone()
++            }),
++        )
++        .with_job_id(op.op_id.to_string()),
++    )
++    .await;
++
++    Ok(CalendarSyncAdapterOutcome {
++        status: EngineStatus::Succeeded,
++        output,
++        errors: Vec::new(),
++    })
++}
++
++async fn run_calendar_sync_job(
++    state: &AppState,
++    job: &AiJob,
++    workflow_run_id: Uuid,
++    _trace_id: Uuid,
++) -> Result<RunJobOutcome, WorkflowError> {
++    let repo_root = repo_root_for_artifacts()?;
++    let mex_runtime = build_mex_runtime(state, &repo_root)?;
++    let mut params = job.job_inputs.clone().unwrap_or_else(|| json!({}));
++    if let Some(params_obj) = params.as_object_mut() {
++        params_obj.insert(
++            "workflow_run_id".to_string(),
++            Value::String(workflow_run_id.to_string()),
++        );
++    }
++    let mutation_requested = params
++        .get("mutations")
++        .and_then(|v| v.as_array())
++        .map(|items| !items.is_empty())
++        .unwrap_or(false);
++    let mut capabilities_requested = vec![CALENDAR_SYNC_READ_CAPABILITY.to_string()];
++    if mutation_requested {
++        capabilities_requested.push(CALENDAR_SYNC_WRITE_CAPABILITY.to_string());
++    }
++
++    let op = PlannedOperation {
++        schema_version: POE_SCHEMA_VERSION.to_string(),
++        op_id: job.job_id,
++        engine_id: CALENDAR_SYNC_ENGINE_ID.to_string(),
++        engine_version_req: None,
++        operation: CALENDAR_SYNC_OPERATION.to_string(),
++        inputs: Vec::new(),
++        params,
++        capabilities_requested,
++        capability_profile_id: Some(job.capability_profile_id.clone()),
++        human_consent_obtained: false,
++        budget: BudgetSpec {
++            cpu_time_ms: Some(60_000),
++            wall_time_ms: Some(300_000),
++            memory_bytes: Some(256 * 1024 * 1024),
++            output_bytes: Some(1024 * 1024),
++        },
++        determinism: DeterminismLevel::D2,
++        evidence_policy: Some(EvidencePolicy {
++            required: true,
++            notes: Some("calendar_sync_result".to_string()),
++        }),
++        output_spec: OutputSpec {
++            expected_types: vec!["calendar_sync_result".to_string()],
++            max_bytes: Some(1024 * 1024),
++        },
++    };
++
++    let result = match mex_runtime.execute(op).await {
++        Ok(result) => result,
++        Err(MexRuntimeError::Gate(denial)) => {
++            let output = calendar_sync_denied_output(job, Some(workflow_run_id), &denial.reason);
++            return Ok(RunJobOutcome {
++                state: JobState::Failed,
++                status_reason: "calendar_sync_denied".to_string(),
++                output: Some(output),
++                error_message: Some(denial.reason),
++            });
++        }
++        Err(err) => {
++            return Err(WorkflowError::Terminal(format!(
++                "calendar_sync MEX execute failed: {err}"
++            )));
++        }
++    };
++
++    let output = result
++        .provenance
++        .environment
++        .as_ref()
++        .and_then(|value| value.get("calendar_sync_result"))
++        .cloned()
++        .unwrap_or_else(|| {
++            json!({
++                "schema_version": "hsk.calendar_sync_result@v1",
++                "engine_id": CALENDAR_SYNC_ENGINE_ID,
++                "operation": CALENDAR_SYNC_OPERATION,
++                "status": format!("{:?}", result.status)
++            })
++        });
++
++    let (state, status_reason, error_message) = match result.status {
++        EngineStatus::Succeeded => (JobState::Completed, "completed".to_string(), None),
++        EngineStatus::Denied => (
++            JobState::Failed,
++            "calendar_sync_denied".to_string(),
++            result.errors.first().map(|err| err.message.clone()),
++        ),
++        EngineStatus::Failed => (
++            JobState::Failed,
++            "calendar_sync_failed".to_string(),
++            result.errors.first().map(|err| err.message.clone()),
++        ),
++    };
++
++    Ok(RunJobOutcome {
++        state,
++        status_reason,
++        output: Some(output),
++        error_message,
++    })
++}
++
+@@ -12164,0 +12649,4 @@ fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, W
++    )
++    .with_adapter(
++        CALENDAR_SYNC_ENGINE_ID,
++        Arc::new(CalendarSyncEngineAdapter::new(state.clone())),
+@@ -12169 +12657 @@ fn normalize_in_scope_paths_for_validation(in_scope_paths: &[String]) -> Vec<Str
+-    let mut normalized = Vec::new();
++    let mut normalized = vec![".".to_string()];
+@@ -12170,0 +12659 @@ fn normalize_in_scope_paths_for_validation(in_scope_paths: &[String]) -> Vec<Str
++    seen.insert(".".to_string());
+@@ -25229,0 +25719,2 @@ mod tests {
++    }
++
+@@ -25327,0 +25819,4 @@ mod tests {
++            checkpoint_artifact_id: None,
++            last_checkpoint_at: None,
++            checkpoint_count: 0,
++            merge_back_artifact: None,
+diff --git a/src/backend/handshake_core/tests/mex_tests.rs b/src/backend/handshake_core/tests/mex_tests.rs
+index 34dcd11c..a3e0fd30 100644
+--- a/src/backend/handshake_core/tests/mex_tests.rs
++++ b/src/backend/handshake_core/tests/mex_tests.rs
+@@ -3,0 +4,2 @@ use std::sync::Arc;
++use async_trait::async_trait;
++use chrono::{Duration, Utc};
+@@ -10,0 +13,3 @@ use handshake_core::flight_recorder::{
++use handshake_core::llm::{
++    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
++};
+@@ -23,0 +29,5 @@ use handshake_core::mex::{SupplyChainAllowlists, SupplyChainEngineAdapter, Termi
++use handshake_core::storage::{
++    tests::sqlite_backend, AccessMode, CalendarEventWindowQuery, CalendarSourceProviderType,
++    CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy, JobKind, JobMetrics,
++    NewAiJob, NewWorkspace, SafetyMode, WriteContext,
++};
+@@ -26,0 +37,4 @@ use handshake_core::terminal::{TerminalRequest, TerminalResult};
++use handshake_core::workflows::{
++    start_workflow_for_job, SessionRegistry, SessionSchedulerConfig, CALENDAR_SYNC_PROTOCOL_ID,
++};
++use handshake_core::AppState;
+@@ -33,0 +48,44 @@ fn recorder() -> Arc<DuckDbFlightRecorder> {
++struct EchoLlmClient {
++    profile: ModelProfile,
++}
++
++impl EchoLlmClient {
++    fn new() -> Self {
++        Self {
++            profile: ModelProfile::new("mex-calendar-sync-test".to_string(), 4096),
++        }
++    }
++}
++
++#[async_trait]
++impl LlmClient for EchoLlmClient {
++    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
++        Ok(CompletionResponse {
++            text: req.prompt,
++            usage: TokenUsage {
++                prompt_tokens: 1,
++                completion_tokens: 1,
++                total_tokens: 2,
++            },
++            latency_ms: 1,
++        })
++    }
++
++    fn profile(&self) -> &ModelProfile {
++        &self.profile
++    }
++}
++
++async fn calendar_sync_test_state() -> Result<AppState, Box<dyn std::error::Error>> {
++    let storage = sqlite_backend().await?;
++    let flight_recorder = recorder();
++    Ok(AppState {
++        storage,
++        flight_recorder: flight_recorder.clone(),
++        diagnostics: flight_recorder,
++        llm_client: Arc::new(EchoLlmClient::new()),
++        capability_registry: Arc::new(CapabilityRegistry::new()),
++        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
++    })
++}
++
+@@ -647,0 +706,327 @@ fn build_runtime_with_supply_chain_adapter(
++#[tokio::test]
++async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability() {
++    let recorder = recorder();
++    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
++    let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
++    let runtime = MexRuntime::new(
++        mex_registry_from_disk(),
++        flight_recorder,
++        diagnostics,
++        mex_gates(),
++    )
++    .with_adapter("calendar_sync", Arc::new(PassThroughAdapter));
++
++    let op_id = Uuid::new_v4();
++    let op = PlannedOperation {
++        schema_version: POE_SCHEMA_VERSION.to_string(),
++        op_id,
++        engine_id: "calendar_sync".to_string(),
++        engine_version_req: None,
++        operation: "calendar_sync.run".to_string(),
++        inputs: Vec::new(),
++        params: serde_json::json!({
++            "workspace_id": "ws-deny",
++            "source_id": "source-deny"
++        }),
++        capabilities_requested: vec!["calendar.sync.read".to_string()],
++        capability_profile_id: Some("Analyst".to_string()),
++        human_consent_obtained: false,
++        budget: BudgetSpec {
++            cpu_time_ms: Some(1000),
++            wall_time_ms: Some(2000),
++            memory_bytes: Some(64 * 1024 * 1024),
++            output_bytes: Some(1024 * 1024),
++        },
++        determinism: DeterminismLevel::D2,
++        evidence_policy: Some(EvidencePolicy {
++            required: true,
++            notes: Some("calendar_sync_result".to_string()),
++        }),
++        output_spec: OutputSpec {
++            expected_types: vec!["calendar_sync_result".to_string()],
++            max_bytes: Some(1024 * 1024),
++        },
++    };
++
++    let denial = match runtime.execute(op).await {
++        Err(MexRuntimeError::Gate(denial)) => denial,
++        other => panic!("expected G-CAP denial, got {other:?}"),
++    };
++
++    assert_eq!(denial.gate, "G-CAP");
++    assert_eq!(
++        denial.reason,
++        "Capability not granted by capability_profile_id"
++    );
++    assert_ne!(denial.code.as_deref(), Some("HSK-4001"));
++    assert!(
++        !denial.reason.contains("UnknownCapability"),
++        "calendar capability should be known, got: {}",
++        denial.reason
++    );
++    assert_eq!(
++        denial
++            .details
++            .as_ref()
++            .and_then(|value| value.get("capability_id"))
++            .and_then(|value| value.as_str()),
++        Some("calendar.sync.read")
++    );
++
++    let events = recorder
++        .list_events(EventFilter {
++            job_id: Some(op_id.to_string()),
++            ..Default::default()
++        })
++        .await
++        .expect("events should be queryable");
++    assert!(
++        events.iter().any(|event| {
++            event.event_type == FlightRecorderEventType::CapabilityAction
++                && event.payload.get("capability_id").and_then(|v| v.as_str())
++                    == Some("calendar.sync.read")
++                && event
++                    .payload
++                    .get("decision_outcome")
++                    .and_then(|v| v.as_str())
++                    == Some("deny")
++        }),
++        "expected denied capability action for calendar.sync.read"
++    );
++    assert!(
++        events.iter().any(|event| {
++            event.event_type == FlightRecorderEventType::System
++                && event.payload.get("message").and_then(|v| v.as_str()) == Some("gate_outcome")
++                && event
++                    .payload
++                    .get("details")
++                    .and_then(|details| details.get("outcome"))
++                    .and_then(|v| v.as_str())
++                    == Some("deny")
++        }),
++        "expected denied gate outcome event"
++    );
++
++    let state = calendar_sync_test_state()
++        .await
++        .expect("calendar sync state should initialize");
++    let job = state
++        .storage
++        .create_ai_job(NewAiJob {
++            trace_id: Uuid::new_v4(),
++            job_kind: JobKind::WorkflowRun,
++            protocol_id: CALENDAR_SYNC_PROTOCOL_ID.to_string(),
++            profile_id: "CalendarSync".to_string(),
++            capability_profile_id: "Analyst".to_string(),
++            access_mode: AccessMode::ApplyScoped,
++            safety_mode: SafetyMode::Strict,
++            entity_refs: Vec::new(),
++            planned_operations: Vec::new(),
++            status_reason: "queued".to_string(),
++            metrics: JobMetrics::zero(),
++            job_inputs: Some(serde_json::json!({
++                "workspace_id": "ws-deny",
++                "source_id": "source-deny"
++            })),
++        })
++        .await
++        .expect("job should create");
++    let err = start_workflow_for_job(&state, job.clone())
++        .await
++        .expect_err("Analyst must not run calendar_sync");
++    let err_text = err.to_string();
++    assert!(
++        err_text.contains("AccessDenied") || err_text.contains("Capability not granted"),
++        "expected access denial, got {err_text}"
++    );
++    assert!(
++        !err_text.contains("UnknownCapability"),
++        "workflow denial must not fall through UnknownCapability: {err_text}"
++    );
++    let denied_job = state
++        .storage
++        .get_ai_job(&job.job_id.to_string())
++        .await
++        .expect("job lookup");
++    assert_eq!(denied_job.state.as_str(), "failed");
++    let denied_output = denied_job.job_outputs.expect("denied output parity");
++    assert_eq!(
++        denied_output.get("status").and_then(|value| value.as_str()),
++        Some("denied")
++    );
++    assert_eq!(
++        denied_output
++            .get("engine_id")
++            .and_then(|value| value.as_str()),
++        Some("calendar_sync")
++    );
++    assert!(
++        !denied_output.to_string().contains("UnknownCapability"),
++        "denied output should preserve calendar denial without UnknownCapability"
++    );
++}
++
++#[tokio::test]
++async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
++) -> Result<(), Box<dyn std::error::Error>> {
++    let state = calendar_sync_test_state().await?;
++    let ctx = WriteContext::human(Some("calendar-sync-test".to_string()));
++    let workspace = state
++        .storage
++        .create_workspace(
++            &ctx,
++            NewWorkspace {
++                name: "calendar-sync-workflow".to_string(),
++            },
++        )
++        .await?;
++    let source_id = format!("google:read-only:{}", Uuid::new_v4());
++    state
++        .storage
++        .upsert_calendar_source(
++            &ctx,
++            CalendarSourceUpsert {
++                id: source_id.clone(),
++                workspace_id: workspace.id.clone(),
++                display_name: "Google read only".to_string(),
++                provider_type: CalendarSourceProviderType::Google,
++                write_policy: CalendarSourceWritePolicy::ReadOnlyImport,
++                default_tzid: "Europe/Brussels".to_string(),
++                auto_export: false,
++                credentials_ref: Some("secret:calendar:test".to_string()),
++                provider_calendar_id: Some("primary".to_string()),
++                capability_profile_id: Some("CalendarSync".to_string()),
++                config: serde_json::json!({"provider": "google"}),
++                sync_state: CalendarSourceSyncState::default(),
++            },
++        )
++        .await?;
++
++    let start = Utc::now() + Duration::days(1);
++    let end = start + Duration::hours(1);
++    let job = state
++        .storage
++        .create_ai_job(NewAiJob {
++            trace_id: Uuid::new_v4(),
++            job_kind: JobKind::WorkflowRun,
++            protocol_id: CALENDAR_SYNC_PROTOCOL_ID.to_string(),
++            profile_id: "CalendarSync".to_string(),
++            capability_profile_id: "CalendarSync".to_string(),
++            access_mode: AccessMode::ApplyScoped,
++            safety_mode: SafetyMode::Strict,
++            entity_refs: Vec::new(),
++            planned_operations: Vec::new(),
++            status_reason: "queued".to_string(),
++            metrics: JobMetrics::zero(),
++            job_inputs: Some(serde_json::json!({
++                "workspace_id": workspace.id,
++                "source_id": source_id,
++                "next_sync_token": "sync-token-2",
++                "remote_watermark": "remote-watermark-2",
++                "full_sync": true,
++                "provider_events": [{
++                    "external_id": "provider-event-1",
++                    "external_etag": "etag-1",
++                    "title": "Provider event",
++                    "description": "imported without remote mutation",
++                    "start_ts_utc": start,
++                    "end_ts_utc": end,
++                    "tzid": "Europe/Brussels",
++                    "status": "confirmed",
++                    "visibility": "private",
++                    "export_mode": "busy_only",
++                    "provider_payload": {"summary": "redacted in evidence"}
++                }]
++            })),
++        })
++        .await?;
++
++    let workflow_run = start_workflow_for_job(&state, job.clone()).await?;
++    let completed = state.storage.get_ai_job(&job.job_id.to_string()).await?;
++    assert_eq!(completed.state.as_str(), "completed");
++    let output = completed.job_outputs.expect("calendar sync output");
++    assert_eq!(
++        output.get("engine_id").and_then(|value| value.as_str()),
++        Some("calendar_sync")
++    );
++    assert_eq!(
++        output
++            .get("provider_events_upserted")
++            .and_then(|value| value.as_u64()),
++        Some(1)
++    );
++    assert_eq!(
++        output
++            .get("remote_write_attempted")
++            .and_then(|value| value.as_bool()),
++        Some(false)
++    );
++    assert_eq!(
++        output
++            .get("read_only_source")
++            .and_then(|value| value.as_bool()),
++        Some(true)
++    );
++
++    let source = state
++        .storage
++        .get_calendar_source(
++            output
++                .get("workspace_id")
++                .and_then(|value| value.as_str())
++                .unwrap(),
++            output
++                .get("source_id")
++                .and_then(|value| value.as_str())
++                .unwrap(),
++        )
++        .await?
++        .expect("source should exist");
++    assert_eq!(
++        source.sync_state.sync_token.as_deref(),
++        Some("sync-token-2")
++    );
++    assert_eq!(
++        source.sync_state.last_remote_watermark.as_deref(),
++        Some("remote-watermark-2")
++    );
++    assert!(source.sync_state.last_ok_at.is_some());
++    assert!(source.sync_state.last_pull_at.is_some());
++    assert!(source.sync_state.last_push_at.is_none());
++
++    let events = state
++        .storage
++        .query_calendar_events(CalendarEventWindowQuery {
++            workspace_id: source.workspace_id.clone(),
++            window_start_utc: start - Duration::minutes(5),
++            window_end_utc: end + Duration::minutes(5),
++            source_ids: vec![source.id.clone()],
++        })
++        .await?;
++    assert_eq!(events.len(), 1);
++    assert_eq!(events[0].external_id.as_deref(), Some("provider-event-1"));
++    assert_eq!(events[0].title, "Provider event");
++
++    let fr_events = state
++        .flight_recorder
++        .list_events(EventFilter {
++            job_id: Some(job.job_id.to_string()),
++            ..Default::default()
++        })
++        .await?;
++    assert!(
++        fr_events.iter().any(|event| {
++            event.event_type == FlightRecorderEventType::System
++                && event
++                    .payload
++                    .get("message")
++                    .and_then(|value| value.as_str())
++                    == Some("calendar_sync_result")
++        }),
++        "expected provider-safe calendar_sync_result evidence event"
++    );
++    assert_eq!(workflow_run.status.as_str(), "completed");
++
++    Ok(())
++}
++
+diff --git a/src/backend/handshake_core/tests/micro_task_executor_tests.rs b/src/backend/handshake_core/tests/micro_task_executor_tests.rs
+index bbd85dcb..0daf0511 100644
+--- a/src/backend/handshake_core/tests/micro_task_executor_tests.rs
++++ b/src/backend/handshake_core/tests/micro_task_executor_tests.rs
+@@ -21 +21,2 @@ use handshake_core::workflows::{
+-        is_governed_action_id_allowed_for_workflow_family, is_registered_governed_action_id,
++        governed_action_ids_for_family, is_governed_action_id_allowed_for_workflow_family,
++        is_registered_governed_action_id,
+@@ -318,0 +320,4 @@ fn json_string_array_field(value: &Value, field: &str) -> Vec<String> {
++fn json_field_absent_or_null(value: &Value, field: &str) -> bool {
++    value.get(field).map(Value::is_null).unwrap_or(true)
++}
++
+@@ -343,0 +349,4 @@ fn validate_task_board_row_against_packet_truth(
++    assert_eq!(
++        expected_allowed_action_ids,
++        governed_action_ids_for_family(expected_workflow_state_family)
++    );
+@@ -497 +506,8 @@ async fn micro_task_executor_completes_single_mt_and_emits_events(
+-    assert!(matches!(updated_job.state, JobState::Completed));
++    assert!(
++        matches!(updated_job.state, JobState::Completed),
++        "job did not complete: state={:?}, status_reason={}, error={:?}, output={:?}",
++        updated_job.state,
++        updated_job.status_reason,
++        updated_job.error_message,
++        updated_job.job_outputs
++    );
+@@ -853,5 +869 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
+-        Some("software_delivery")
+-    );
+-    assert_eq!(
+-        packet_json.get("profile_extension"),
+-        Some(&software_delivery_extension)
++        Some("generic")
+@@ -858,0 +871 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
++    assert!(json_field_absent_or_null(&packet_json, "profile_extension"));
+@@ -939,5 +952 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
+-        Some("software_delivery")
+-    );
+-    assert_eq!(
+-        summary_json.get("profile_extension"),
+-        Some(&software_delivery_extension)
++        Some("generic")
+@@ -944,0 +954,4 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
++    assert!(json_field_absent_or_null(
++        &summary_json,
++        "profile_extension"
++    ));
+@@ -1327 +1340 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
+-        Some("research")
++        Some("generic")
+@@ -1329 +1342 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
+-    assert_eq!(first_row.get("profile_extension"), Some(&research_extension));
++    assert!(json_field_absent_or_null(first_row, "profile_extension"));
+@@ -1369 +1382 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
+-        Some("research")
++        Some("generic")
+@@ -1375 +1388 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
+-        Some("research")
++        Some("generic")
+@@ -1377,2 +1390,2 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
+-    assert_eq!(index_json.get("profile_extension"), Some(&research_extension));
+-    assert_eq!(view_json.get("profile_extension"), Some(&research_extension));
++    assert!(json_field_absent_or_null(&index_json, "profile_extension"));
++    assert!(json_field_absent_or_null(&view_json, "profile_extension"));
+@@ -1382,3 +1395,3 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
+-    assert_eq!(index_record.profile_extension, Some(research_extension.clone()));
+-    assert_eq!(view_record.profile_extension, Some(research_extension.clone()));
+-    assert_eq!(row_record.profile_extension, Some(research_extension.clone()));
++    assert_eq!(index_record.profile_extension, None);
++    assert_eq!(view_record.profile_extension, None);
++    assert_eq!(row_record.profile_extension, None);
+@@ -1850 +1863,4 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary_with_
+-    assert!(legacy_packet.profile_extension.is_none());
++    assert_eq!(
++        legacy_packet.profile_extension.as_ref(),
++        Some(&research_extension)
++    );
+diff --git a/src/backend/handshake_core/tests/model_session_scheduler_tests.rs b/src/backend/handshake_core/tests/model_session_scheduler_tests.rs
+index b16fd4ea..c4906cf6 100644
+--- a/src/backend/handshake_core/tests/model_session_scheduler_tests.rs
++++ b/src/backend/handshake_core/tests/model_session_scheduler_tests.rs
+@@ -188,0 +189,3 @@ async fn seed_active_model_session(
++            checkpoint_artifact_id: None,
++            last_checkpoint_at: None,
++            checkpoint_count: 0,

@@ -104,9 +104,9 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
 - The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
-- Governed system-terminal launches are registry-owned surfaces. Closeout now attempts deterministic reclaim automatically; if a terminal survives, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing windows manually.
+- Governed system-terminal repair launches are hidden registry-owned surfaces. Closeout now attempts deterministic reclaim automatically; if a hidden repair process survives, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing windows manually.
 - Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.
-- CLI escalation windows are repair-only surfaces. Use them only when the Orchestrator explicitly selects them.
+- CLI escalation is hidden-process repair only. `CURRENT` and `VSCODE_PLUGIN` are disabled for governed role launches because they can focus or capture Operator input.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
 ## Final Validator Authority (Current Law)
@@ -413,9 +413,9 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
   - `just ack-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>` (acknowledge pending notifications after reading)
   - `just operator-viewport` (canonical operator viewport for ACP-aware session/control/thread/receipt/artifact visibility; `just operator-monitor` remains a compatibility alias)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
-  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from the shared coder/WP-validator worktree; the governed launcher reuses that declared worktree if missing)
-  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
-  - `AUTO` is the ordinary headless/direct ACP launch path; `CURRENT` / `SYSTEM_TERMINAL` are explicit repair surfaces and `VSCODE_PLUGIN` is compatibility-only
+- `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` (operates from the shared coder/WP-validator worktree; the governed launcher reuses that declared worktree if missing)
+- `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
+- `AUTO` is the ordinary headless/direct ACP launch path; `SYSTEM_TERMINAL` is hidden-process repair only; `CURRENT` and `VSCODE_PLUGIN` are disabled
   - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just steer-wp-validator-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
