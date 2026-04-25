@@ -25,14 +25,21 @@ function removeTree(targetPath) {
 }
 
 test("launchOwnedSystemTerminal parses the launched terminal pid from PowerShell output", () => {
+  const calls = [];
   const launch = launchOwnedSystemTerminal({
     worktreeAbs: "D:/tmp/repo",
     launchScriptPath: "D:/tmp/launch.ps1",
     terminalTitle: "CODER WP-TEST",
-    runner: () => "4567\r\n",
+    runner: (...args) => {
+      calls.push(args);
+      return "4567\r\n";
+    },
   });
   assert.equal(launch.processId, 4567);
   assert.equal(launch.hostKind, "SYSTEM_TERMINAL");
+  const commandText = calls[0][1].join(" ");
+  assert.match(commandText, /-WindowStyle Hidden/);
+  assert.doesNotMatch(commandText, /-WindowStyle Normal/);
 });
 
 test("recordOwnedTerminalLaunch writes governed terminal ownership into the session registry", () => {

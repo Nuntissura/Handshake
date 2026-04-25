@@ -9,11 +9,11 @@
  *      stale entry analysis, RGF candidate drafting with real reasoning.
  *
  * Usage:
- *   node launch-memory-manager-session.mjs [--model <model>] [--host <SYSTEM_TERMINAL|CURRENT|PRINT>]
+ *   node launch-memory-manager-session.mjs [--model <model>] [--host <HEADLESS|CURRENT|PRINT>]
  *
  * Defaults:
- *   --model: claude-sonnet-4-6 (cost-effective for maintenance work)
- *   --host:  SYSTEM_TERMINAL
+ *   --model: gpt-5.5
+ *   --host:  HEADLESS
  */
 
 import fs from "node:fs";
@@ -35,8 +35,8 @@ function flagValue(name, fallback) {
   return idx >= 0 && idx + 1 < args.length ? args[idx + 1] : fallback;
 }
 
-const selectedModel = flagValue("model", "claude-sonnet-4-6");
-const hostMode = flagValue("host", "SYSTEM_TERMINAL").toUpperCase();
+const selectedModel = flagValue("model", "gpt-5.5");
+const hostMode = flagValue("host", "HEADLESS").toUpperCase();
 
 const REPORT_PATH = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "MEMORY_HYGIENE_REPORT.md");
 
@@ -70,7 +70,7 @@ try {
 
 const prompt = [
   `ROLE LOCK: You are the MEMORY MANAGER. Do not change roles unless explicitly reassigned.`,
-  `AUTHORITY: .GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md + .GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md + .GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`,
+  `AUTHORITY: .GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md + .GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`,
   `WORKTREE: wt-gov-kernel on branch gov_kernel.`,
   ``,
   `The mechanical pre-pass has already run. The report is at: gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`,
@@ -111,6 +111,7 @@ const isClaudeCode = selectedModel.startsWith("claude-");
 function buildClaudeCodeArgs() {
   return [
     "--model", selectedModel,
+    "--effort", "xhigh",
     "--dangerously-skip-permissions",
     prompt,
   ];
@@ -119,7 +120,7 @@ function buildClaudeCodeArgs() {
 function buildCodexArgs() {
   return [
     "-m", selectedModel,
-    "-c", `model_reasoning_effort="extra_high"`,
+    "-c", `model_reasoning_effort="xhigh"`,
     "-C", REPO_ROOT,
     prompt,
   ];
@@ -149,7 +150,7 @@ if (hostMode === "CURRENT") {
   });
   child.on("exit", (code) => process.exit(code ?? 0));
 } else {
-  // SYSTEM_TERMINAL (default)
+  // HEADLESS (default). Legacy SYSTEM_TERMINAL maps here but stays hidden.
   const psPath = path.join(os.tmpdir(), `handshake-memory-manager-${Date.now()}.ps1`);
   const psArgsLines = cliArgs.map((arg) => `  ${psQuote(arg)}`).join(",\r\n");
   const script = [
@@ -163,11 +164,11 @@ if (hostMode === "CURRENT") {
   ].join("\r\n");
   fs.writeFileSync(psPath, script, "utf8");
 
-  console.log(`[MEMORY_MANAGER_SESSION] Launching ${cliTool} in new terminal...`);
+  console.log(`[MEMORY_MANAGER_SESSION] Launching ${cliTool} headless...`);
   const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", psPath], {
     detached: true,
     stdio: "ignore",
-    windowsHide: false,
+    windowsHide: true,
   });
   child.unref();
   console.log(`[MEMORY_MANAGER_SESSION] model=${selectedModel}`);

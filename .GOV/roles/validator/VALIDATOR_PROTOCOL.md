@@ -97,7 +97,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 - `just sync-gov-to-main` is only valid from committed kernel governance truth. If `wt-gov-kernel/.GOV` has uncommitted changes, commit `gov_kernel` before mirroring to `handshake_main`.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
-- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback, which currently map to `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is a supported runtime profile; `OLLAMA_QWEN_CODER_7B` and `OLLAMA_QWEN_CODER_14B` are local model profiles (coder-only). All profiles dispatch through the ACP broker. Do not rely on ambient editor defaults.
+- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults are `OPENAI_GPT_5_5_XHIGH` primary and `OPENAI_GPT_5_4_XHIGH` fallback, which map to `gpt-5.5` primary, `gpt-5.4` fallback, and `model_reasoning_effort=xhigh`; `OPENAI_GPT_5_2_XHIGH` remains a supported legacy fallback. `CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH` and `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` are supported runtime profiles; `OLLAMA_QWEN_CODER_7B` and `OLLAMA_QWEN_CODER_14B` are local model profiles (coder-only). All profiles dispatch through the ACP broker. Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is headless/direct ACP launch via the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - The VS Code bridge launch queue remains a compatibility surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`).
@@ -188,7 +188,7 @@ Use this governance-maintenance record flow:
   - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
   - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 - audits: use stable `AUDIT_ID` values and add `SMOKETEST_REVIEW_ID` for smoketest or workflow-proof reviews
-- **Workflow Dossier Live Findings:** During WP validation, append notable findings (dead code, cross-surface gaps, spec misalignments) to the active Workflow Dossier `LIVE_FINDINGS_LOG` section if one exists. On orchestrator-managed lanes, this live dossier is seeded at activation time by `just orchestrator-prepare-and-packet`. Format: `- [TIMESTAMP] [WP_VALIDATOR] [CATEGORY] <finding>`
+- **Durable run notes:** During WP validation, capture notable findings (dead code, cross-surface gaps, spec misalignments, verdict reasoning, tooling failures) with `just repomem insight|decision|error|concern ... --wp WP-{ID}`. The Workflow Dossier imports WP-bound memories mechanically at closeout; do not duplicate the same narrative in live dossier sections.
 - Operator-facing scope split rule:
   - In chat, always separate `Handshake (Product)` from `Repo Governance`.
   - If the review target touches product code or the Master Spec, classify it as `Handshake (Product)` even when the requirement is governance-shaped, workflow-shaped, or contract-shaped.
@@ -340,7 +340,7 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
 - **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR>`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions. Examples: validation check false positives, spec anchor drift, smoketest parser limitations.
 - To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
 - **Governance doc consistency:** When validating governance refactor work, run `just canonise-gov` and then inspect every surfaced governance file, updating applicable drift across protocols, command surface, architecture, quickref, and codex before you call the refactor done.
-- Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
+- Canonical memory references: `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` for command syntax and `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` for memory-system operation.
 
 ## WP Communication Folder (when the packet defines it)
 

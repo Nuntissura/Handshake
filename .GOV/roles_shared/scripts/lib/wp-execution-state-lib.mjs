@@ -74,6 +74,10 @@ function normalizeNullableString(value) {
   return raw;
 }
 
+function normalizeUpperString(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
 function normalizeNullableInteger(value) {
   if (value === null || value === undefined || value === "") return null;
   const parsed = Number.parseInt(String(value), 10);
@@ -271,7 +275,49 @@ export function readRuntimeExecutionAuthority(runtimeStatus = {}) {
   const executionStateAuthority = isPlainObject(runtimeStatus?.execution_state?.authority)
     ? runtimeStatus.execution_state.authority
     : {};
-  return mergeExecutionAuthority(runtimeAuthority, executionStateAuthority);
+  return applyTerminalSettlementFence(mergeExecutionAuthority(runtimeAuthority, executionStateAuthority));
+}
+
+export function hasTerminalVerdictOfRecord(authority = {}) {
+  const packetStatus = normalizeUpperString(authority.packet_status);
+  const taskBoardStatus = normalizeUpperString(authority.task_board_status);
+  return /^VALIDATED \((PASS|FAIL|OUTDATED_ONLY|ABANDONED)\)$/.test(packetStatus)
+    || [
+      "VALIDATED",
+      "FAIL",
+      "OUTDATED_ONLY",
+      "ABANDONED",
+      "DONE_VALIDATED",
+      "DONE_FAIL",
+      "DONE_OUTDATED_ONLY",
+      "DONE_ABANDONED",
+    ].includes(taskBoardStatus);
+}
+
+function applyTerminalSettlementFence(authority = {}) {
+  if (!hasTerminalVerdictOfRecord(authority)) return authority;
+  return {
+    ...authority,
+    milestone: "CONTAINMENT",
+    phase: "STATUS_SYNC",
+    runtime_status: "completed",
+    next_expected_actor: "NONE",
+    next_expected_session: null,
+    waiting_on: "CLOSED",
+    waiting_on_session: null,
+    validator_trigger: "NONE",
+    validator_trigger_reason: null,
+    attention_required: false,
+    ready_for_validation: false,
+    ready_for_validation_reason: null,
+    route_anchor: {
+      state: null,
+      kind: null,
+      correlation_id: null,
+      target_role: null,
+      target_session: null,
+    },
+  };
 }
 
 function mergeExecutionAuthority(previousAuthority = {}, nextAuthority = {}) {

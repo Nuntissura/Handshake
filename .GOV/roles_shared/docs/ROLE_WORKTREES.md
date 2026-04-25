@@ -25,9 +25,9 @@ Recommended structure:
 Preferred session host:
 - Prefer the governed headless ACP lane for ordinary repo-governed Coder, WP Validator, and Integration Validator sessions.
 - Keep one dedicated terminal tab for `just operator-viewport` so the Operator can watch active WPs, heartbeats, and packet-scoped communications without relying on launched session windows. `just operator-monitor` remains a compatibility alias.
-- Do not rely on ambient editor defaults for model choice or reasoning strength. New repo-governed launchers explicitly target `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`.
-- Ordinary launch/control state now lives primarily in the external repo-governance ACP/runtime surfaces: `ROLE_SESSION_REGISTRY.json`, `SESSION_CONTROL_REQUESTS.jsonl`, and `SESSION_CONTROL_RESULTS.jsonl`. The legacy `SESSION_LAUNCH_REQUESTS.jsonl` queue remains a compatibility surface for explicit `VSCODE_PLUGIN` repair launches only.
-- CLI escalation windows are repair-only surfaces. Use them only when the Orchestrator explicitly selects them.
+- Do not rely on ambient editor defaults for model choice or reasoning strength. New repo-governed launchers explicitly target `gpt-5.5` primary, `gpt-5.4` fallback, and `model_reasoning_effort=xhigh`.
+- Ordinary launch/control state now lives primarily in the external repo-governance ACP/runtime surfaces: `ROLE_SESSION_REGISTRY.json`, `SESSION_CONTROL_REQUESTS.jsonl`, and `SESSION_CONTROL_RESULTS.jsonl`. The legacy `SESSION_LAUNCH_REQUESTS.jsonl` queue remains readable for old records only; new governed launches must not queue `VSCODE_PLUGIN`.
+- CLI escalation is repair-only. `SYSTEM_TERMINAL` repair launches are hidden owned processes and must not open or focus visible windows.
 
 If you are an AI assistant operating in this repo:
 - You MUST read this file during session start (Pre-Flight) for your assigned role.
@@ -164,6 +164,10 @@ WP worktrees (Orchestrator action, not Coder):
   - `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
   - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+  - `AUTO` is the ordinary headless/direct ACP launch path.
+  - `CURRENT` is an explicit current-shell repair surface.
+  - `SYSTEM_TERMINAL` is an explicit hidden-process repair surface and must not open or focus a visible window.
+  - `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy.
   - for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and wait for truthful `ACTIVATION_READINESS` before coder/WP-validator launch; for `MANUAL_RELAY`, use `just manual-relay-next` / `just manual-relay-dispatch` as the ordinary path instead of direct coder launch
 - View current launch state:
   - `just session-registry-status [WP-{ID}]`

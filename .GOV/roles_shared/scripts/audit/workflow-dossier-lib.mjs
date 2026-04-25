@@ -12,6 +12,32 @@ export const WORKFLOW_DOSSIER_SECTION_HEADINGS = {
   FINDING: "LIVE_FINDINGS_LOG",
 };
 
+export const REPOMEM_CHECKPOINT_TO_SECTION = {
+  SESSION_OPEN: "EXECUTION",
+  SESSION_CLOSE: "EXECUTION",
+  PRE_TASK: "EXECUTION",
+  DECISION: "EXECUTION",
+  ERROR: "EXECUTION",
+  ABANDON: "EXECUTION",
+  INSIGHT: "FINDING",
+  RESEARCH_CLOSE: "FINDING",
+  CONCERN: "CONCERN",
+  ESCALATION: "CONCERN",
+};
+
+export const REPOMEM_CHECKPOINT_TO_TAG = {
+  SESSION_OPEN: "REPOMEM_OPEN",
+  SESSION_CLOSE: "REPOMEM_CLOSE",
+  PRE_TASK: "REPOMEM_PRE",
+  DECISION: "REPOMEM_DECISION",
+  ERROR: "REPOMEM_ERROR",
+  ABANDON: "REPOMEM_ABANDON",
+  INSIGHT: "REPOMEM_INSIGHT",
+  RESEARCH_CLOSE: "REPOMEM_RESEARCH",
+  CONCERN: "REPOMEM_CONCERN",
+  ESCALATION: "REPOMEM_ESCALATION",
+};
+
 const WORKFLOW_DOSSIER_SECTION_ALIASES = {
   EXECUTION: "EXECUTION",
   LIVE_EXECUTION_LOG: "EXECUTION",
@@ -64,6 +90,75 @@ export function formatWorkflowDossierTimestamp(value = new Date(), timeZone = WO
 export function normalizeWorkflowDossierSection(section = "") {
   const key = String(section || "").trim().toUpperCase();
   return WORKFLOW_DOSSIER_SECTION_ALIASES[key] || "";
+}
+
+function normalizeScalar(value = "") {
+  return String(value || "").trim();
+}
+
+function normalizeCheckpointType(value = "") {
+  return normalizeScalar(value).toUpperCase();
+}
+
+function previewText(value = "", maxLength = 200) {
+  return normalizeScalar(value).replace(/\s+/g, " ").slice(0, maxLength);
+}
+
+export function selectRepomemEntriesForWorkflowDossier(entries = [], { wpId = "" } = {}) {
+  const normalizedWpId = normalizeScalar(wpId);
+  if (!normalizedWpId) return [];
+
+  const normalizedEntries = (Array.isArray(entries) ? entries : [])
+    .map((entry, index) => ({
+      entry,
+      index,
+      wpId: normalizeScalar(entry?.wp_id),
+      sessionId: normalizeScalar(entry?.session_id),
+    }));
+  const wpSessionIds = new Set(
+    normalizedEntries
+      .filter((item) => item.wpId === normalizedWpId && item.sessionId)
+      .map((item) => item.sessionId),
+  );
+
+  return normalizedEntries
+    .filter((item) =>
+      item.wpId === normalizedWpId
+      || (item.wpId === "" && item.sessionId && wpSessionIds.has(item.sessionId))
+    )
+    .sort((left, right) => {
+      const leftTime = Date.parse(normalizeScalar(left.entry?.timestamp_utc));
+      const rightTime = Date.parse(normalizeScalar(right.entry?.timestamp_utc));
+      if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+        return leftTime - rightTime;
+      }
+      return left.index - right.index;
+    })
+    .map((item) => item.entry);
+}
+
+export function formatRepomemDossierEntry(entry = {}) {
+  const checkpointType = normalizeCheckpointType(entry?.checkpoint_type);
+  const section = REPOMEM_CHECKPOINT_TO_SECTION[checkpointType] || "";
+  const tag = REPOMEM_CHECKPOINT_TO_TAG[checkpointType] || "";
+  if (!section || !tag) return null;
+
+  const timestamp = formatWorkflowDossierTimestamp(entry?.timestamp_utc);
+  const role = normalizeScalar(entry?.role).toUpperCase() || "ORCHESTRATOR";
+  const topic = previewText(entry?.topic);
+  const contentPreview = previewText(entry?.content);
+  const display = contentPreview && contentPreview !== topic
+    ? `${topic} :: ${contentPreview}`
+    : topic;
+  const sessionId = normalizeScalar(entry?.session_id);
+
+  return {
+    section,
+    tag,
+    timestamp,
+    sessionId,
+    line: `- [${timestamp}] [${role}] [${tag}] [GOVERNANCE_MEMORY] [${sessionId}] ${display}`,
+  };
 }
 
 function workflowDossierDirectory(repoRoot) {

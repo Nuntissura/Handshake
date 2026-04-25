@@ -98,3 +98,23 @@ test("launch-cli-session allows Activation Manager pre-launch work without an ex
     assert.match(output, /next=just activation-manager next WP-TEST-ACTIVATION-MISSING-PACKET-v1/i);
   });
 });
+
+test("launch-cli-session refuses VS Code plugin launches under headless-only policy", () => {
+  withTempRuntime((runtimeRoot) => {
+    const wpId = "WP-TEST-HEADLESS-ONLY-v1";
+    const result = spawnSync(
+      process.execPath,
+      [launchScript, "ACTIVATION_MANAGER", wpId, "VSCODE_PLUGIN", "PRIMARY"],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: { ...process.env, HANDSHAKE_GOV_RUNTIME_ROOT: runtimeRoot },
+      },
+    );
+    const output = `${result.stdout || ""}${result.stderr || ""}`;
+
+    assert.notEqual(result.status, 0);
+    assert.match(output, /VSCODE_PLUGIN launch is disabled by the headless-only role-session policy/i);
+    assert.doesNotMatch(output, /queued plugin launch request/i);
+  });
+});

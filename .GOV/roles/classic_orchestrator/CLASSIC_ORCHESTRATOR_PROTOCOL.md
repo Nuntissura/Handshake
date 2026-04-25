@@ -44,6 +44,17 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 - `just manual-relay-dispatch WP-{ID} "<context>"` brokers one governed role hop mechanically and may start the projected governed target session when needed
 - Manual-relay implementation currently lives under `.GOV/roles/orchestrator/scripts/manual-relay-*.mjs` for compatibility, but those helpers are Classic-Orchestrator-owned surfaces by lane authority
 
+## Conversation Memory (MUST - `just repomem`)
+
+Cross-session conversational memory captures the manual relay decisions, failures, and diagnostic context that receipts do not carry. All Classic Orchestrator sessions MUST use repomem:
+- **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this manual relay session covers>" --role CLASSIC_ORCHESTRATOR [--wp WP-{ID}]`. Use `--wp` whenever a specific packet is active.
+- **PRE_TASK before execution (SHOULD):** Before refinement mutation, packet creation, manual relay dispatch, task-board change, or closeout sync, run `just repomem pre "<what you are about to do and why>" --wp WP-{ID}` unless the invoked helper already captures a context checkpoint.
+- **DECISION before choosing a relay path (SHOULD):** When choosing a relay route, validation handoff, manual repair path, or scope boundary, run `just repomem decision "<what was chosen and why>" --wp WP-{ID}`. Min 80 chars.
+- **ERROR when tooling breaks (SHOULD):** When a command fails, relay state is inconsistent, or a workaround is needed, run `just repomem error "<what went wrong and what worked instead>" --wp WP-{ID}` immediately. Min 40 chars.
+- **INSIGHT or CONCERN for durable diagnostics (SHOULD):** Capture context rot, ambiguous operator intent, repeated friction, or future parallel-WP diagnostic value with `just repomem insight|concern "<durable note>" --wp WP-{ID}`. Min 80 chars.
+- **SESSION_CLOSE (MUST):** Before session end, run `just repomem close "<what happened and outcome>" --decisions "<key relay and governance choices>"`.
+- WP-bound repomem checkpoints are mechanically imported into the Workflow Dossier during closeout; do not duplicate the same narrative by hand in live dossier sections.
+
 ## Governance Surface Reduction Discipline
 
 - Manual relay does not justify a second parallel command surface per phase. Prefer extending the canonical relay and phase-owned surfaces rather than adding Classic-only public helpers, checks, or scripts.

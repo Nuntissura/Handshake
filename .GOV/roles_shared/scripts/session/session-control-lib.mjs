@@ -764,6 +764,14 @@ export function buildStartupInjectionLines({
   ];
 }
 
+function roleRepomemOpenCommand(role, wpId) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  if (normalizedRole === "MEMORY_MANAGER") {
+    return `just repomem open "Start governed Memory Manager hygiene session for ${wpId}; inspect memory quality, emit backed proposals, and close with decisions." --role MEMORY_MANAGER`;
+  }
+  return `just repomem open "Start governed ${normalizedRole} session for ${wpId}; capture durable decisions, failures, concerns, and findings for closeout import." --role ${normalizedRole} --wp ${wpId}`;
+}
+
 export function buildStartupPrompt({
   role,
   wpId,
@@ -778,6 +786,7 @@ export function buildStartupPrompt({
   const modelProfileLine = selectedProfileId && selectedProfile
     ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`
     : `MODEL PROFILE POLICY: ${ROLE_MODEL_PROFILE_POLICY} (legacy/default packet fields may omit explicit per-role profile ids).`;
+  const repomemOpenCommand = roleRepomemOpenCommand(role, wpId);
   const commonLines = [
     `ROLE LOCK: You are the ${role}. Do not change roles unless explicitly reassigned.`,
     `WP_ID: ${wpId}`,
@@ -790,7 +799,7 @@ export function buildStartupPrompt({
         `REPO POLICY: this is a Claude Code governed session. Do not reference Codex model aliases or OpenAI model conventions.`,
       ]
       : [
-        `MODEL POLICY: selected ${selectedModel}; primary ${ROLE_SESSION_PRIMARY_MODEL} with ${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}; fallback ${ROLE_SESSION_FALLBACK_MODEL} with the same reasoning value if primary is unavailable.`,
+        `MODEL POLICY: selected ${selectedModel} with ${selectedProfile?.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY}=${selectedProfile?.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE}. Repo defaults are primary ${ROLE_SESSION_PRIMARY_MODEL} and fallback ${ROLE_SESSION_FALLBACK_MODEL}; packet-declared profiles override those defaults for this lane.`,
         `REPO POLICY: do not switch to Codex model aliases for repo-governed sessions.`,
       ]
     ),
@@ -804,6 +813,9 @@ export function buildStartupPrompt({
     `MINIMAL LIVE READ SET (MANDATORY): After startup and assignment, work from startup output + active packet + active WP thread/notifications + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md when command choice is unclear.`,
     `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${role === "ACTIVATION_MANAGER" ? `just activation-manager next ${wpId}` : `just active-lane-brief ${role} ${wpId}`} instead of rereading ${role === "ACTIVATION_MANAGER" ? "refinement/packet/task-board/runtime" : "packet/runtime/task-board/session"} surfaces separately.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
+    role === "MEMORY_MANAGER"
+      ? `REPOMEM EXCEPTION: Memory Manager is a packetless hygiene lane, not a normal WP repomem coverage target. Use this lane's synthetic receipts and, if mutation is needed, open memory with: ${repomemOpenCommand}.`
+      : `SESSION_OPEN (MANDATORY): Before any governed mutation or role-owned WP action, run ${repomemOpenCommand}. Capture decisions, failures, concerns, discoveries, and escalations with role-bound \`just repomem ... --wp ${wpId}\`; closeout imports those checkpoints mechanically into the Workflow Dossier.`,
     `POST-SIGNATURE RELAPSE GUARD (MANDATORY): For WORKFLOW_LANE=ORCHESTRATOR_MANAGED after signature/prepare, do not ask the Operator for routine approval, proceed, or checkpoint actions. If a real blocker exists, route it back to the Orchestrator and name exactly one BLOCKER_CLASS: ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
   ];
 
@@ -1003,11 +1015,13 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   if (!resolvedRoleConfig) {
     throw new Error(`Unknown role for steering prompt: ${role}`);
   }
+  const repomemOpenCommand = roleRepomemOpenCommand(role, wpId);
   if (role === "MEMORY_MANAGER") {
     return [
       `RESUME GOVERNED ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `Use gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md + .GOV/roles/memory_manager/proposals/ + synthetic WP communication files under WP_COMMUNICATIONS/${wpId} as the live truth surface. There is no official packet for this lane.`,
+      `REPOMEM EXCEPTION: this synthetic hygiene lane is not a normal WP coverage target; if mutation is needed and no Memory Manager session is open, run ${repomemOpenCommand}.`,
       `Run in order:`,
       `1. ${resolvedRoleConfig.nextCommand}`,
       `2. Inspect any existing backup proposal files before drafting new MEMORY_* receipts so you do not duplicate findings.`,
@@ -1035,6 +1049,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   return [
     `RESUME GOVERNED ${role} lane for ${wpId}.`,
     `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+    `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable run notes instead of live dossier narration.`,
     `Use ${role === "ACTIVATION_MANAGER" ? "refinement + packet (if present) + activation readiness artifact + current runtime/session projection" : "packet + active WP thread/notifications + current runtime projection"} as the live truth surface. Do not reread large governance documents if context is already stable.`,
     `If route/context feels fragmented, use ${role === "ACTIVATION_MANAGER" ? `just activation-manager next ${wpId}` : `just active-lane-brief ${role} ${wpId}`} instead of rediscovering ${role === "ACTIVATION_MANAGER" ? "refinement/packet/runtime truth" : "packet/runtime/session truth"} manually.`,
     role === "INTEGRATION_VALIDATOR"
@@ -1322,6 +1337,7 @@ export function defaultSessionOutputFile(repoRoot, sessionKey, commandId) {
 export async function runCodexThreadCommand({
   absWorktreeDir,
   selectedModel,
+  profile = null,
   prompt,
   outputFile,
   threadId = "",
@@ -1338,6 +1354,8 @@ export async function runCodexThreadCommand({
     ...process.env,
     ...(environmentOverrides && typeof environmentOverrides === "object" ? environmentOverrides : {}),
   };
+  const reasoningConfigKey = profile?.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY;
+  const reasoningConfigValue = profile?.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE;
 
   const args = threadId
     ? [
@@ -1350,7 +1368,7 @@ export async function runCodexThreadCommand({
       "-m",
       selectedModel,
       "-c",
-      `${ROLE_SESSION_REASONING_CONFIG_KEY}=\"${ROLE_SESSION_REASONING_CONFIG_VALUE}\"`,
+      `${reasoningConfigKey}=\"${reasoningConfigValue}\"`,
       "-",
     ]
     : [
@@ -1361,7 +1379,7 @@ export async function runCodexThreadCommand({
       "-m",
       selectedModel,
       "-c",
-      `${ROLE_SESSION_REASONING_CONFIG_KEY}=\"${ROLE_SESSION_REASONING_CONFIG_VALUE}\"`,
+      `${reasoningConfigKey}=\"${reasoningConfigValue}\"`,
       "-C",
       absWorktreeDir,
       "-",
@@ -1489,6 +1507,7 @@ export async function runCodexThreadCommand({
 export async function runClaudeCodeCommand({
   absWorktreeDir,
   selectedModel,
+  profile = null,
   prompt,
   outputFile,
   sessionId = "",
@@ -1505,11 +1524,12 @@ export async function runClaudeCodeCommand({
     ...process.env,
     ...(environmentOverrides && typeof environmentOverrides === "object" ? environmentOverrides : {}),
   };
+  const effort = profile?.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE;
 
   const baseArgs = [
     "-p",
     "--model", selectedModel,
-    "--effort", "max",
+    "--effort", effort,
     "--output-format", "stream-json",
     "--verbose",
     "--dangerously-skip-permissions",
@@ -1771,6 +1791,7 @@ export async function runGovernedRoleCommand({
     return runClaudeCodeCommand({
       absWorktreeDir,
       selectedModel,
+      profile,
       prompt,
       outputFile,
       sessionId: threadId,
@@ -1793,6 +1814,7 @@ export async function runGovernedRoleCommand({
   return runCodexThreadCommand({
     absWorktreeDir,
     selectedModel,
+    profile,
     prompt,
     outputFile,
     threadId,

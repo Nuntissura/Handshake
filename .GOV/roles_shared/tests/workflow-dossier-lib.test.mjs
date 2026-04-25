@@ -4,7 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { appendWorkflowDossierEntry } from "../scripts/audit/workflow-dossier-lib.mjs";
+import {
+  appendWorkflowDossierEntry,
+  formatRepomemDossierEntry,
+  selectRepomemEntriesForWorkflowDossier,
+} from "../scripts/audit/workflow-dossier-lib.mjs";
 
 function writeText(filePath, text) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -61,4 +65,76 @@ test("appendWorkflowDossierEntry skips consecutive duplicate sync payloads when 
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
+});
+
+test("selectRepomemEntriesForWorkflowDossier imports WP-bound session context without cross-WP global bleed", () => {
+  const selected = selectRepomemEntriesForWorkflowDossier([
+    {
+      session_id: "CODER-20260422-090000",
+      role: "CODER",
+      checkpoint_type: "SESSION_OPEN",
+      wp_id: "",
+      timestamp_utc: "2026-04-22T09:00:00.000Z",
+      topic: "coder global open",
+      content: "Global open belongs to the same session that later wrote a WP-bound checkpoint.",
+    },
+    {
+      session_id: "CODER-20260422-090000",
+      role: "CODER",
+      checkpoint_type: "DECISION",
+      wp_id: "WP-TEST-DOSSIER-v1",
+      timestamp_utc: "2026-04-22T09:01:00.000Z",
+      topic: "coder WP decision",
+      content: "The coder recorded a concrete decision tied to the target WP.",
+    },
+    {
+      session_id: "CODER-20260422-090000",
+      role: "CODER",
+      checkpoint_type: "SESSION_CLOSE",
+      wp_id: "",
+      timestamp_utc: "2026-04-22T09:02:00.000Z",
+      topic: "coder global close",
+      content: "Global close belongs to the same session that wrote the WP-bound decision.",
+    },
+    {
+      session_id: "CODER-20260422-100000",
+      role: "CODER",
+      checkpoint_type: "SESSION_OPEN",
+      wp_id: "",
+      timestamp_utc: "2026-04-22T10:00:00.000Z",
+      topic: "other coder global open",
+      content: "This global session belongs to another parallel WP and must not be imported.",
+    },
+    {
+      session_id: "CODER-20260422-100000",
+      role: "CODER",
+      checkpoint_type: "DECISION",
+      wp_id: "WP-OTHER-v1",
+      timestamp_utc: "2026-04-22T10:01:00.000Z",
+      topic: "other coder decision",
+      content: "This entry is tied to another WP and must not bleed into the target dossier.",
+    },
+  ], { wpId: "WP-TEST-DOSSIER-v1" });
+
+  assert.deepEqual(
+    selected.map((entry) => entry.topic),
+    ["coder global open", "coder WP decision", "coder global close"],
+  );
+});
+
+test("formatRepomemDossierEntry maps decisions to governance-memory execution lines", () => {
+  const formatted = formatRepomemDossierEntry({
+    session_id: "INTEGRATION_VALIDATOR-20260422-110000",
+    role: "INTEGRATION_VALIDATOR",
+    checkpoint_type: "DECISION",
+    wp_id: "WP-TEST-DOSSIER-v1",
+    timestamp_utc: "2026-04-22T11:00:00.000Z",
+    topic: "final verdict recorded before merge",
+    content: "The validator recorded the whole-WP verdict and the conditions that must hold before main containment.",
+  });
+
+  assert.equal(formatted.section, "EXECUTION");
+  assert.equal(formatted.tag, "REPOMEM_DECISION");
+  assert.match(formatted.line, /\[INTEGRATION_VALIDATOR\] \[REPOMEM_DECISION\] \[GOVERNANCE_MEMORY\]/);
+  assert.match(formatted.line, /final verdict recorded before merge :: The validator recorded/);
 });

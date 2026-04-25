@@ -39,9 +39,11 @@ import {
 } from "../session/session-telemetry-lib.mjs";
 import {
   appendWorkflowDossierEntry,
+  formatRepomemDossierEntry,
   formatWorkflowDossierTimestamp,
   normalizePath,
   normalizeWorkflowDossierSection,
+  selectRepomemEntriesForWorkflowDossier,
   resolveWorkflowDossierPath,
 } from "./workflow-dossier-lib.mjs";
 import {
@@ -588,43 +590,8 @@ function runSync(rootDir, options) {
     line: `- [${timestamp}] ${idlePayload}`,
     dedupeSuffix: idlePayload,
   });
-  // RGF-196: piggyback repomem injection on every sync so dossier stays current.
-  try {
-    runInjectRepomem(rootDir, { wpId: options.wpId, file: options.file });
-  } catch (err) {
-    // Non-fatal: sync should not fail if repomem injection has an issue.
-    console.error(`[workflow-dossier sync] repomem injection warning: ${err.message}`);
-  }
-
   console.log(normalizePath(path.relative(rootDir, dossierPath)) || normalizePath(dossierPath));
 }
-
-// RGF-196: Extract repomem conversation_log entries into the workflow dossier.
-const REPOMEM_CHECKPOINT_TO_SECTION = {
-  SESSION_OPEN: "EXECUTION",
-  SESSION_CLOSE: "EXECUTION",
-  PRE_TASK: "EXECUTION",
-  DECISION: "EXECUTION",
-  ERROR: "EXECUTION",
-  ABANDON: "EXECUTION",
-  INSIGHT: "FINDING",
-  RESEARCH_CLOSE: "FINDING",
-  CONCERN: "CONCERN",
-  ESCALATION: "CONCERN",
-};
-
-const REPOMEM_CHECKPOINT_TO_TAG = {
-  SESSION_OPEN: "REPOMEM_OPEN",
-  SESSION_CLOSE: "REPOMEM_CLOSE",
-  PRE_TASK: "REPOMEM_PRE",
-  DECISION: "REPOMEM_DECISION",
-  ERROR: "REPOMEM_ERROR",
-  ABANDON: "REPOMEM_ABANDON",
-  INSIGHT: "REPOMEM_INSIGHT",
-  RESEARCH_CLOSE: "REPOMEM_RESEARCH",
-  CONCERN: "REPOMEM_CONCERN",
-  ESCALATION: "REPOMEM_ESCALATION",
-};
 
 function runInjectRepomem(rootDir, options) {
   const dossierPath = resolveWorkflowDossierPath(rootDir, { wpId: options.wpId, filePath: options.file });
@@ -644,19 +611,20 @@ function runInjectRepomem(rootDir, options) {
   // Open governance memory DB and query conversation_log.
   const { db } = openGovernanceMemoryDb();
 
-  let entries;
+  let rawEntries;
   try {
     const sql = `SELECT * FROM conversation_log
       WHERE (wp_id = ? OR wp_id = '')
         AND timestamp_utc >= ?
       ORDER BY timestamp_utc ASC`;
-    entries = db.prepare(sql).all(options.wpId, openedAtUtc);
+    rawEntries = db.prepare(sql).all(options.wpId, openedAtUtc);
   } finally {
     closeDb(db);
   }
 
+  const entries = selectRepomemEntriesForWorkflowDossier(rawEntries, { wpId: options.wpId });
   if (!entries || entries.length === 0) {
-    console.log(`[workflow-dossier inject-repomem] No matching repomem entries for ${options.wpId} since ${openedAtUtc}. 0 appended.`);
+    console.log(`[workflow-dossier inject-repomem] No WP-bound repomem entries for ${options.wpId} since ${openedAtUtc}. 0 appended (${rawEntries?.length || 0} raw matched).`);
     return;
   }
 
@@ -665,37 +633,26 @@ function runInjectRepomem(rootDir, options) {
   let appended = 0;
 
   for (const entry of entries) {
-    const section = REPOMEM_CHECKPOINT_TO_SECTION[entry.checkpoint_type];
-    const tag = REPOMEM_CHECKPOINT_TO_TAG[entry.checkpoint_type];
-    if (!section || !tag) continue;
-
-    const timestamp = formatWorkflowDossierTimestamp(entry.timestamp_utc);
-    const role = String(entry.role || "ORCHESTRATOR").trim().toUpperCase();
-    const topic = String(entry.topic || "").trim().slice(0, 200);
-    const contentPreview = String(entry.content || "").trim().slice(0, 200);
-    const display = contentPreview && contentPreview !== topic
-      ? `${topic} :: ${contentPreview}`
-      : topic;
-    const sessionId = String(entry.session_id || "").trim();
+    const formatted = formatRepomemDossierEntry(entry);
+    if (!formatted) continue;
 
     // Idempotence: skip if a line with this session_id and timestamp already exists.
-    const dedupeMarker = `[${tag}] [GOVERNANCE_MEMORY] [${sessionId}]`;
-    if (currentContent.includes(dedupeMarker) && currentContent.includes(timestamp)) {
+    const dedupeMarker = `[${formatted.tag}] [GOVERNANCE_MEMORY] [${formatted.sessionId}]`;
+    if (currentContent.includes(dedupeMarker) && currentContent.includes(formatted.timestamp)) {
       continue;
     }
 
-    const line = `- [${timestamp}] [${role}] [${tag}] [GOVERNANCE_MEMORY] [${sessionId}] ${display}`;
     appendWorkflowDossierEntry({
       repoRoot: rootDir,
       wpId: options.wpId,
       filePath: options.file,
-      section,
-      line,
+      section: formatted.section,
+      line: formatted.line,
     });
     appended++;
   }
 
-  console.log(`[workflow-dossier inject-repomem] ${appended} entries appended to ${normalizePath(path.relative(rootDir, dossierPath))} (${entries.length} matched, ${entries.length - appended} skipped as duplicates).`);
+  console.log(`[workflow-dossier inject-repomem] ${appended} entries appended to ${normalizePath(path.relative(rootDir, dossierPath))} (${entries.length} WP-bound, ${rawEntries?.length || 0} raw matched, ${entries.length - appended} skipped as duplicates).`);
 }
 
 // RGF-187: Autofill Cost Attribution and Comparison Table from live timeline data.

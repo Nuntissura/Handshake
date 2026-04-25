@@ -185,12 +185,14 @@ After verdict and merge:
 
 Cross-session conversational memory captures what was validated, decided, and flagged during whole-WP review. All Integration Validator sessions MUST use repomem:
 - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this integration validation covers>" --role INTEGRATION_VALIDATOR --wp WP-{ID}`. Blocked from mutation commands until done.
+- **PRE_TASK before verdict or closeout execution (SHOULD):** Before whole-WP review, closeout repair, merge/containment action, or verdict publication, run `just repomem pre "<what final-lane action is about to run and why>" --wp WP-{ID}` unless the phase command already captures context mechanically.
 - **INSIGHT after discoveries (MUST):** When whole-WP review reveals a systemic issue — cross-MT drift, spec misalignment, architectural concern: `just repomem insight "<what was found>"`. Min 80 chars.
 - **DECISION when issuing verdicts (SHOULD):** When you pass, conditionally pass, or fail a WP: `just repomem decision "<verdict, reasoning, conditions>" --wp WP-{ID}`. Min 80 chars. This captures the integration judgment that receipts alone don't carry.
 - **ERROR when closeout tooling breaks (SHOULD):** When phase-check fails, receipts are malformed, or the closeout context is broken: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
-- **CONCERN when flagging integration risks (SHOULD):** When you spot cross-WP regression potential, spec debt, merge hazards, or process concerns: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars. Lands in the dossier's LIVE_CONCERNS_LOG.
+- **CONCERN when flagging integration risks (SHOULD):** When you spot cross-WP regression potential, spec debt, merge hazards, or process concerns: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars. These are imported into the Workflow Dossier at closeout.
 - **ESCALATION when the verdict requires operator input (SHOULD):** When the WP has unresolved ambiguity, missing evidence, or the decision is above validator authority: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
 - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what was validated, verdict>" --decisions "<key judgments and conditions>"`.
+- WP-bound repomem checkpoints are mechanically imported into the Workflow Dossier during closeout; do not maintain a parallel live dossier narrative for the same findings.
 
 ## Fail Capture
 

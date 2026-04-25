@@ -280,7 +280,7 @@ orchestrator-startup:
 	@echo 'This is MANDATORY before any orchestrator-next, steer, relay, or packet commands.'
 	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
-	@echo 'WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the live dossier current with `just workflow-dossier-note ...` and `just workflow-dossier-sync WP-{ID}`. Use the rubric only at closeout.'
+	@echo 'WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, use role `just repomem ... --wp WP-{ID}` for decisions, failures, concerns, and discoveries; `phase-check CLOSEOUT` mechanically imports those memories into the dossier. Use `workflow-dossier-sync` only for mechanical telemetry snapshots.'
 	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
 
 classic-orchestrator-startup:
@@ -298,6 +298,7 @@ classic-orchestrator-startup:
 	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, use `just manual-relay-next WP-{ID} [--debug]` for active manual-lane relay truth, or the relevant pre-launch command for active refinement/packet work.'
 	@echo 'LANE_OWNER: CLASSIC_ORCHESTRATOR owns MANUAL_RELAY end-to-end, including the old combined Orchestrator + Activation Manager pre-launch flow.'
+	@echo 'WORKFLOW_DOSSIER: use role `just repomem ... --wp WP-{ID}` during the run; closeout imports WP-bound memories mechanically instead of requiring live dossier narration.'
 	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
 
 validator-startup role:
@@ -309,7 +310,9 @@ validator-startup role:
 	@just memory-recall VALIDATOR_RESUME --role {{role}}
 	@echo ''
 	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
-	@if ("{{role}}".Trim().ToUpper() -in @("WP_VALIDATOR", "INTEGRATION_VALIDATOR")) { Write-Host 'Run: just repomem open "<what this session is about>" --role {{role}} --wp WP-ID'; Write-Host 'Governed validator lanes reject repomem open unless both --role and --wp are supplied.' } else { Write-Host 'Run: just repomem open "<what this session is about>" --role {{role}} [--wp WP-ID]' }
+	@Write-Host 'Run: just repomem open "<what this session is about>" --role {{role}} --wp WP-ID'
+	@echo 'WP-bound validator lanes reject repomem open unless both --role and --wp are supplied.'
+	@echo 'DURABLE_RUN_NOTES: capture verdict reasoning, failures, risks, and discoveries with `just repomem decision|error|concern|insight ... --wp WP-ID`; closeout imports them into the dossier.'
 	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next {{role}} [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
 
@@ -323,7 +326,8 @@ coder-startup:
 	@echo 'RUBRIC_REQUIRED: Read `{{GOV_ROOT}}/roles/coder/docs/CODER_RUBRIC_V2.md` before the first WP-specific BOOTSTRAP or code change, and answer it in `## STATUS_HANDOFF` before validator handoff.'
 	@echo ''
 	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
-	@echo 'Run: just repomem open "<what this session is about>" --role CODER [--wp WP-ID]'
+	@echo 'Run: just repomem open "<what this session is about>" --role CODER --wp WP-ID'
+	@echo 'DURABLE_RUN_NOTES: capture implementation choices, failures, risks, and discoveries with `just repomem decision|error|concern|insight ... --wp WP-ID`; closeout imports them into the dossier.'
 	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just coder-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
@@ -601,12 +605,12 @@ memory-manager-startup:
 role-startup-topology-check *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/checks/role-startup-topology-check.mjs" --raw-flags "{{FLAGS}}"
 
-launch-memory-manager-session host="SYSTEM_TERMINAL" model="PRIMARY":
+launch-memory-manager-session host="AUTO" model="PRIMARY":
 	@just launch-memory-manager --force
 	@node -e "const ts = new Date().toISOString().replace(/[:.]/g,'').slice(0,15)+'Z'; const {spawnSync}=require('child_process'); spawnSync('node', ['{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs','MEMORY_MANAGER','WP-MEMORY-HYGIENE_'+ts,'{{host}}','{{model}}'], {stdio:'inherit'});"
 
 activation-manager action wp-id="" *FLAGS:
-	@if ("{{action}}" -eq "startup") { just --quiet protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"; just --quiet backup-status; just --quiet role-startup-topology-check; just --quiet gov-check }
+	@if ("{{action}}" -eq "startup") { just --quiet protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"; just --quiet backup-status; just --quiet role-startup-topology-check; just --quiet gov-check; just --quiet memory-refresh; just --quiet memory-recall RESUME --role ACTIVATION_MANAGER }
 	@node "{{GOV_ROOT}}/roles/activation_manager/scripts/activation-manager.mjs" {{action}} {{wp-id}} {{FLAGS}}; if ("{{action}}" -eq "readiness" -and $LASTEXITCODE -eq 2) { exit 0 } else { exit $LASTEXITCODE }
 
 session-stall-scan role wp-id:

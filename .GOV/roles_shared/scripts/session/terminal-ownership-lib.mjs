@@ -164,7 +164,7 @@ export function launchOwnedSystemTerminal({
         `$proc = Start-Process -FilePath 'powershell.exe'`,
         `  -WorkingDirectory ${psQuote(worktreeAbs)}`,
         `  -ArgumentList @('-NoLogo','-File',${psQuote(launchScriptPath)})`,
-        "  -WindowStyle Normal",
+        "  -WindowStyle Hidden",
         "  -PassThru;",
         "Write-Output $proc.Id",
       ].join(" "),

@@ -71,6 +71,101 @@ test("repomem coverage reports missing proof when a materially active role has n
   ]);
 });
 
+test("repomem coverage tracks classic orchestrator and activation manager WP activity", () => {
+  const coverage = evaluateWpRepomemCoverage({
+    wpId: "WP-TEST-COVERAGE-v1",
+    receipts: [
+      {
+        wp_id: "WP-TEST-COVERAGE-v1",
+        actor_role: "CLASSIC_ORCHESTRATOR",
+      },
+    ],
+    sessions: [
+      {
+        wp_id: "WP-TEST-COVERAGE-v1",
+        role: "ACTIVATION_MANAGER",
+      },
+    ],
+    conversationEntries: [
+      {
+        session_id: "CLASSIC_ORCHESTRATOR-20260422-083000",
+        role: "CLASSIC_ORCHESTRATOR",
+        checkpoint_type: "SESSION_OPEN",
+        wp_id: "WP-TEST-COVERAGE-v1",
+        topic: "classic orchestrator session open",
+        content: "The manual relay orchestration session opened with a clear WP-bound scope and operator relay context.",
+      },
+      {
+        session_id: "CLASSIC_ORCHESTRATOR-20260422-083000",
+        role: "CLASSIC_ORCHESTRATOR",
+        checkpoint_type: "DECISION",
+        wp_id: "WP-TEST-COVERAGE-v1",
+        topic: "classic orchestrator durable decision",
+        content: "The manual lane recorded a durable relay decision before creating the governed handoff for this WP.",
+      },
+      {
+        session_id: "CLASSIC_ORCHESTRATOR-20260422-083000",
+        role: "CLASSIC_ORCHESTRATOR",
+        checkpoint_type: "SESSION_CLOSE",
+        wp_id: "WP-TEST-COVERAGE-v1",
+        topic: "classic orchestrator session close",
+        content: "The manual relay orchestration session closed after capturing the key route decision and outcome.",
+      },
+      {
+        session_id: "ACTIVATION_MANAGER-20260422-084500",
+        role: "ACTIVATION_MANAGER",
+        checkpoint_type: "SESSION_OPEN",
+        wp_id: "WP-TEST-COVERAGE-v1",
+        topic: "activation manager session open",
+        content: "The activation manager opened the WP-bound setup session with refinement and readiness context.",
+      },
+      {
+        session_id: "ACTIVATION_MANAGER-20260422-084500",
+        role: "ACTIVATION_MANAGER",
+        checkpoint_type: "INSIGHT",
+        wp_id: "WP-TEST-COVERAGE-v1",
+        topic: "activation manager durable insight",
+        content: "The activation manager found a readiness constraint that needed to remain visible to closeout diagnostics.",
+      },
+      {
+        session_id: "ACTIVATION_MANAGER-20260422-084500",
+        role: "ACTIVATION_MANAGER",
+        checkpoint_type: "SESSION_CLOSE",
+        wp_id: "WP-TEST-COVERAGE-v1",
+        topic: "activation manager session close",
+        content: "The activation manager closed after recording readiness decisions and the durable WP-bound insight.",
+      },
+    ],
+  });
+
+  assert.equal(coverage.state, "PASS");
+  assert.deepEqual(coverage.active_roles, ["CLASSIC_ORCHESTRATOR", "ACTIVATION_MANAGER"]);
+  assert.deepEqual(coverage.debt_roles, []);
+});
+
+test("repomem coverage ignores Memory Manager synthetic hygiene activity for normal WP debt", () => {
+  const coverage = evaluateWpRepomemCoverage({
+    wpId: "WP-MEMORY-HYGIENE_20260425T010000Z",
+    sessions: [
+      {
+        wp_id: "WP-MEMORY-HYGIENE_20260425T010000Z",
+        role: "MEMORY_MANAGER",
+      },
+    ],
+    controlRequests: [
+      {
+        wp_id: "WP-MEMORY-HYGIENE_20260425T010000Z",
+        role: "MEMORY_MANAGER",
+      },
+    ],
+    conversationEntries: [],
+  });
+
+  assert.equal(coverage.state, "NO_ACTIVE_ROLES");
+  assert.deepEqual(coverage.active_roles, []);
+  assert.deepEqual(coverage.debt_roles, []);
+});
+
 test("repomem coverage does not treat auto-closed sessions as explicit close proof", () => {
   const coverage = evaluateWpRepomemCoverage({
     wpId: "WP-TEST-COVERAGE-v1",

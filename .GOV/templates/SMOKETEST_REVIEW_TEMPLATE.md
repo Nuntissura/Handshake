@@ -453,9 +453,9 @@ Break down time and token cost in three ordered blocks:
 
 - `<command>` -> <PASS|FAIL|PARTIAL> (<notes>)
 
-## LIVE_EXECUTION_LOG (append-only during WP execution)
+## LIVE_EXECUTION_LOG (mechanical telemetry and closeout imports)
 
-This section is append-only. The Orchestrator records execution milestones, dead-time observations, ACP/runtime events, and notable route changes as they happen.
+This section is append-only. Mechanical sync records execution telemetry; closeout imports WP-bound repomem decisions, errors, pre-task checkpoints, abandoned paths, and session open/close entries.
 
 Format: `- [TIMESTAMP] [ROLE] [TYPE] [SURFACE] <summary>`
 
@@ -463,29 +463,29 @@ Example:
 - [2026-04-06T01:04:11Z] [ORCHESTRATOR] [ACP_RUNTIME] [SESSION_CONTROL_RESULTS.jsonl] START_SESSION failed due to stale broker build; restart attempted
 - [2026-04-06T01:21:02Z] [ORCHESTRATOR] [DOWNTIME] [CODER->WP_VALIDATOR] 11m gap between review request and first validator action
 
-## LIVE_GOVERNANCE_CHANGE_LOG (append-only during WP execution)
+## LIVE_GOVERNANCE_CHANGE_LOG (sparse manual governance notes)
 
-This section is append-only. Record governance-only refactors, template changes, helper patches, law clarifications, or on-the-spot protocol repairs made during the run.
+This section is append-only. Record governance-only refactors, template changes, helper patches, law clarifications, or on-the-spot protocol repairs only when they are not already represented by repomem, receipts, or changelog entries.
 
 Format: `- [TIMESTAMP] [ROLE] [CHANGE_TYPE] <surface> :: <summary>`
 
 Example:
 - [2026-04-06T01:40:00Z] [ORCHESTRATOR] [PATCH] `.GOV/roles_shared/scripts/session/session-control-lib.mjs` :: tightened overlap-forward resume contract
 
-## LIVE_CONCERNS_LOG (append-only during WP execution)
+## LIVE_CONCERNS_LOG (closeout memory import)
 
-This section is append-only. Capture unresolved concerns, skepticism, or operator-observed smells before they are forgotten at closeout.
+This section is append-only. Role concerns are captured with `just repomem concern ... --wp WP-{ID}` during execution and imported mechanically at closeout.
 
-Format: `- [TIMESTAMP] [ROLE] [CONCERN] <summary>`
+Format: `- [TIMESTAMP] [ROLE] [REPOMEM_CONCERN] [GOVERNANCE_MEMORY] [SESSION] <summary>`
 
 Example:
 - [2026-04-06T02:05:00Z] [ORCHESTRATOR] [CONCERN] watchdog intervention count is rising faster than product progress
 
-## LIVE_FINDINGS_LOG (append-only during WP execution)
+## LIVE_FINDINGS_LOG (closeout memory import)
 
-This section is append-only. Roles add findings as they occur during WP work.
+This section is append-only. Role findings and discoveries are captured with `just repomem insight|research-close ... --wp WP-{ID}` during execution and imported mechanically at closeout.
 
-Format: `- [TIMESTAMP] [ROLE] [CATEGORY] <finding>`
+Format: `- [TIMESTAMP] [ROLE] [REPOMEM_INSIGHT] [GOVERNANCE_MEMORY] [SESSION] <finding>`
 
 Example:
 - [2026-04-06T01:10Z] [ORCHESTRATOR] [ACP_RUNTIME] Broker dispatch failed for SEND_PROMPT, retrying

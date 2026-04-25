@@ -13,8 +13,9 @@ import {
   resolveRoleConfig,
 } from "../scripts/session/session-control-lib.mjs";
 import {
+  ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH,
   ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
-  ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+  ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
   ROLE_SESSION_PRIMARY_MODEL,
   resolveRoleModelProfileSelection,
   roleNextCommand,
@@ -34,24 +35,26 @@ test("session policy binds validator startup and resume commands to explicit rol
 test("coder startup prompt carries orchestrator-managed relapse guard and lane-aware flow", () => {
   const wpId = "WP-TEST-CODER-v1";
   const roleConfig = resolveRoleConfig("CODER", wpId);
-  const selectedProfile = roleModelProfile(ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH);
+  const selectedProfile = roleModelProfile(ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH);
   const prompt = buildStartupPrompt({
     role: "CODER",
     wpId,
     roleConfig,
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
-    selectedProfileId: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+    selectedProfileId: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
     selectedProfile,
     startupMemoryLines: [],
     conversationContextLines: [],
   });
 
-  assert.match(prompt, /MODEL PROFILE: OPENAI_GPT_5_4_XHIGH/i);
+  assert.match(prompt, /MODEL PROFILE: OPENAI_GPT_5_5_XHIGH/i);
   assert.match(prompt, /POST-SIGNATURE RELAPSE GUARD \(MANDATORY\):/i);
   assert.match(prompt, /POLICY_CONFLICT, AUTHORITY_OVERRIDE_REQUIRED, OPERATOR_ARTIFACT_REQUIRED, ENVIRONMENT_FAILURE/i);
   assert.match(prompt, /`MANUAL_RELAY` = .*skeleton approval when required/i);
   assert.match(prompt, /`ORCHESTRATOR_MANAGED` = .*no routine Operator approvals after signature/i);
   assert.match(prompt, /just active-lane-brief CODER WP-TEST-CODER-v1/i);
+  assert.match(prompt, /SESSION_OPEN \(MANDATORY\): Before any governed mutation/i);
+  assert.match(prompt, /just repomem open .* --role CODER --wp WP-TEST-CODER-v1/i);
   assert.match(prompt, /just phase-check STARTUP WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, /read-only context except for the assigned packet and declared MT files/i);
@@ -149,8 +152,10 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.match(prompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
   assert.match(prompt, /just activation-manager startup/i);
   assert.match(prompt, /just activation-manager next WP-TEST-ACTMAN-v1/i);
+  assert.match(prompt, /just repomem open .* --role ACTIVATION_MANAGER --wp WP-TEST-ACTMAN-v1/i);
 
   assert.match(steerPrompt, /RESUME GOVERNED ACTIVATION_MANAGER lane/i);
+  assert.match(steerPrompt, /SESSION_OPEN GATE:/i);
   assert.match(steerPrompt, /mandatory temporary pre-launch worker/i);
   assert.match(steerPrompt, /FILE-FIRST HANDOFF RULE \(HARD\):/i);
   assert.match(steerPrompt, /REFINEMENT_HANDOFF_SUMMARY \(HARD\):/i);
@@ -164,20 +169,20 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.doesNotMatch(steerPrompt, /check-notifications/i);
 });
 
-test("activation-manager profile selection honors an explicit declared Claude profile", () => {
+test("activation-manager profile selection honors an explicit declared Claude Opus 4.7 profile", () => {
   const packetLikeText = [
-    "- ACTIVATION_MANAGER_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX",
-    "- ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH",
+    "- ACTIVATION_MANAGER_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH",
+    "- ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH",
   ].join("\n");
 
   const selection = resolveRoleModelProfileSelection("ACTIVATION_MANAGER", packetLikeText, "PRIMARY");
   const fallbackSelection = resolveRoleModelProfileSelection("ACTIVATION_MANAGER", packetLikeText, "FALLBACK");
 
-  assert.equal(selection.primary_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
-  assert.equal(selection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
-  assert.equal(selection.profile?.launch_model, "claude-opus-4-6");
-  assert.equal(selection.profile?.launch_reasoning_config_value, "max");
-  assert.equal(fallbackSelection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
+  assert.equal(selection.primary_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
+  assert.equal(selection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
+  assert.equal(selection.profile?.launch_model, "claude-opus-4-7");
+  assert.equal(selection.profile?.launch_reasoning_config_value, "xhigh");
+  assert.equal(fallbackSelection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
 });
 
 test("memory-manager prompts advertise synthetic receipt emission instead of packet assumptions", () => {
@@ -204,8 +209,10 @@ test("memory-manager prompts advertise synthetic receipt emission instead of pac
   assert.match(startupPrompt, /just repomem close "<session summary>" --decisions/i);
   assert.match(startupPrompt, /SESSION_COMPLETION/i);
   assert.match(startupPrompt, /do not expect an official packet/i);
+  assert.match(startupPrompt, /not a normal WP repomem coverage target/i);
 
   assert.match(steerPrompt, /There is no official packet for this lane/i);
+  assert.match(steerPrompt, /not a normal WP coverage target/i);
   assert.match(steerPrompt, /MEMORY_PROPOSAL \/ MEMORY_FLAG \/ MEMORY_RGF_CANDIDATE/i);
   assert.match(steerPrompt, /SESSION_COMPLETION/i);
   assert.match(steerPrompt, /just repomem close "<session summary>" --decisions/i);

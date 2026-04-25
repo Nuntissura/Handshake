@@ -18,7 +18,10 @@ import {
   parsePacketSingleField,
 } from "./scope-surface-lib.mjs";
 import { deriveWpMicrotaskPlan } from "./wp-microtask-lib.mjs";
-import { materializeRuntimeAuthorityView } from "./wp-execution-state-lib.mjs";
+import {
+  hasTerminalVerdictOfRecord,
+  materializeRuntimeAuthorityView,
+} from "./wp-execution-state-lib.mjs";
 import { validatorReportProfileUsesHeuristicRigor } from "./validator-report-profile-lib.mjs";
 
 export const COMMUNICATION_HEALTH_STAGE_VALUES = ["STARTUP", "STATUS", "KICKOFF", "HANDOFF", "VERDICT"];
@@ -1012,6 +1015,29 @@ export function evaluateWpCommunicationHealth({
     finalReview: integrationFinalPair.openReceipt?.correlation_id || null,
     microtaskRepair: deferredRepairQueued ? (previousMicrotask?.correlation_id || null) : null,
   };
+
+  if (hasTerminalVerdictOfRecord({
+    packet_status: runtimeStatus?.current_packet_status,
+    task_board_status: runtimeStatus?.current_task_board_status,
+  })) {
+    return result({
+      applicable: true,
+      ok: true,
+      state: "COMM_OK",
+      message: "Terminal verdict-of-record fences direct-review routing; residual review state is settlement debt",
+      details: [
+        ...details,
+        `terminal_settlement_fence=VERDICT_OF_RECORD`,
+        `terminal_packet_status=${String(runtimeStatus?.current_packet_status || "").trim() || "<missing>"}`,
+        `terminal_task_board_status=${String(runtimeStatus?.current_task_board_status || "").trim() || "<missing>"}`,
+      ],
+      counts,
+      correlations,
+      latestValidatorAssessment,
+      latestWpValidatorReviewOutcome,
+    });
+  }
+
   if (normalizedStage === "STARTUP") {
     const startupRole = normalizeRole(actorRole);
     const startupSession = normalizeSession(actorSession);

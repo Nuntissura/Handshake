@@ -588,6 +588,24 @@ function runWorkflowDossierCloseoutStep({
     outputLines.push("[WORKFLOW_DOSSIER_CLOSEOUT] sync=SKIP (no terminal closeout sync mode requested)");
   }
 
+  const injectResult = spawnSync(process.execPath, [
+    workflowDossierScript,
+    "inject-repomem",
+    normalizedWpId,
+    "--file",
+    existingDossierPath,
+  ], {
+    cwd: phaseCheckCwd,
+    encoding: "utf8",
+    env: process.env,
+  });
+  const injectResultOk = injectResult.status === 0;
+  outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] repomem_import=${injectResultOk ? "PASS" : "FAIL"}`);
+  const renderedInjectOutput = ensureTrailingNewline(`${injectResult.stdout || ""}${injectResult.stderr || ""}`.trimEnd());
+  for (const line of renderedInjectOutput.trimEnd().split("\n")) {
+    if (line.trim()) outputLines.push(`  ${line}`);
+  }
+
   // Append wp-metrics summary to the dossier at closeout (direct import, no subprocess).
   try {
     const metricsArtifacts = loadWpTimelineArtifacts(REPO_ROOT, normalizedWpId);
@@ -656,7 +674,7 @@ function runWorkflowDossierCloseoutStep({
   }
 
   return {
-    ok: noteResult.status === 0 && syncResultOk,
+    ok: noteResult.status === 0 && syncResultOk && injectResultOk,
     output: `${outputLines.join("\n")}\n`,
   };
 }
@@ -1036,16 +1054,16 @@ export function buildCloseoutNextCommands({
   }
 
   if (!workflowDossierCloseoutOk) {
-    nextCommands.push(`Repair the Workflow Dossier append path: just workflow-dossier-sync ${wpId} --role INTEGRATION_VALIDATOR --tag CLOSEOUT_SYNC --surface PHASE_CHECK_CLOSEOUT`);
-    nextCommands.push(`Then append any missing human note with: just workflow-dossier-note ${wpId} EXECUTION "<summary>" --role INTEGRATION_VALIDATOR --tag CLOSEOUT_GATE --surface "phase-check CLOSEOUT"`);
+    nextCommands.push(`Repair the Workflow Dossier closeout import path: just workflow-dossier-inject-repomem ${wpId}`);
+    nextCommands.push(`If mechanical telemetry is missing, also run: just workflow-dossier-sync ${wpId} --role INTEGRATION_VALIDATOR --tag CLOSEOUT_SYNC --surface PHASE_CHECK_CLOSEOUT`);
   }
 
   const syncMode = String(syncOptions?.modeSpec?.mode || "").trim().toUpperCase();
   if (syncMode === "MERGE_PENDING") {
     nextCommands.push(
       latestCloseoutGovernedAction
-        ? `Mechanical Workflow Dossier closeout sync is recorded via governed action ${governedCloseoutMarker}. Keep the dossier live; add the final review/rubric only after terminal closeout.`
-        : "Mechanical Workflow Dossier closeout sync is recorded. Keep the dossier live; add the final review/rubric only after terminal closeout.",
+        ? `Mechanical Workflow Dossier closeout sync and repomem import are recorded via governed action ${governedCloseoutMarker}. Add the final review/rubric only after terminal closeout.`
+        : "Mechanical Workflow Dossier closeout sync and repomem import are recorded. Add the final review/rubric only after terminal closeout.",
     );
     nextCommands.push(
       `After local main containment is real: just phase-check CLOSEOUT ${wpId} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`,
@@ -1055,8 +1073,8 @@ export function buildCloseoutNextCommands({
   if (syncMode === "CONTAINED_IN_MAIN") {
     nextCommands.push(
       latestCloseoutGovernedAction
-        ? `Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended via governed action ${governedCloseoutMarker}.`
-        : "Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.",
+        ? `Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync and repomem import are already appended via governed action ${governedCloseoutMarker}.`
+        : "Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync and repomem import are already appended.",
     );
     nextCommands.push(`Proceed to final PASS gate flow (for example: just validator-gate-commit ${wpId}).`);
     return nextCommands;
@@ -1064,8 +1082,8 @@ export function buildCloseoutNextCommands({
   if (syncMode) {
     nextCommands.push(
       latestCloseoutGovernedAction
-        ? `Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended via governed action ${governedCloseoutMarker}.`
-        : "Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync is already appended.",
+        ? `Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync and repomem import are already appended via governed action ${governedCloseoutMarker}.`
+        : "Append the final Workflow Dossier post-mortem/review and fill the closeout rubric in the active dossier. The mechanical closeout sync and repomem import are already appended.",
     );
     nextCommands.push("Proceed with the remaining validator gate flow for the recorded terminal verdict.");
     return nextCommands;

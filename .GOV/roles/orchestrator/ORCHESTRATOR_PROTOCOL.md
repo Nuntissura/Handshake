@@ -97,26 +97,28 @@ See also:
 - **The ACP broker is a mechanical session-control relay, not an LLM or model provider.** All governed model sessions (GPT, Claude Code, Codex Spark, future local models) dispatch through the ACP broker. The broker is transport; the model is the engine. Do not confuse the broker with a model alternative. [RGF-89 / SMOKE-FIND-20260405-02]
 - New repo-governed sessions must be launched explicitly:
   - packet-declared role model profiles are authoritative for launch and claim truth
-  - default repo profile: `OPENAI_GPT_5_4_XHIGH`
-  - governed fallback profile: `OPENAI_GPT_5_2_XHIGH`
-  - current default launch mapping remains `gpt-5.4` primary, `gpt-5.2` fallback, `model_reasoning_effort=xhigh`
-  - Claude Code profile: `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` (governed launch supported)
+  - default repo profile: `OPENAI_GPT_5_5_XHIGH`
+  - governed fallback profile: `OPENAI_GPT_5_4_XHIGH`
+  - current default launch mapping is `gpt-5.5` primary, `gpt-5.4` fallback, `model_reasoning_effort=xhigh`
+  - legacy fallback profile: `OPENAI_GPT_5_2_XHIGH`
+  - Claude Code profiles: `CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH`, `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` (governed launch supported)
   - local model profiles: `OLLAMA_QWEN_CODER_7B`, `OLLAMA_QWEN_CODER_14B` (coder-only, zero API cost, auto-escalate to cloud on failure)
 - Repo-governed Activation Manager, Coder, WP Validator, and Integration Validator session start is `ORCHESTRATOR_ONLY`.
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, pre-launch governance authoring MUST run through the governed Activation Manager lane. For `WORKFLOW_LANE=MANUAL_RELAY`, pre-launch belongs to `CLASSIC_ORCHESTRATOR`.
 - Primary launch path is headless/direct ACP launch using the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/`):
-  - `AUTO` launch resolves through the ACP broker and should not open a visible system terminal on the ordinary path
+  - `AUTO` launch resolves through the ACP broker and should not open or focus a visible terminal on the ordinary path
+- Headless-only launch policy: governed role starts and steering MUST NOT focus VS Code terminals, Windows Terminal, or any visible repair window. `VSCODE_PLUGIN` is disabled for governed launches. `SYSTEM_TERMINAL` is a hidden owned process when used as an explicit repair surface, not a visible window.
   - `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
   - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-- The VS Code bridge launch queue remains a compatibility surface only:
+- The VS Code bridge launch queue is legacy/read-only for old records; new governed role launches must not queue it:
   - `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 - For the governed `INTEGRATION_VALIDATOR` lane, the Orchestrator MUST preserve kernel governance authority even though execution occurs from `handshake_main`: launch/control requests must carry `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`, and any lane that resolves live authority from `handshake_main/.GOV` is misconfigured and must be repaired before closeout.
 - `handshake_main/.GOV` is only the synced main-branch mirror. It is not the live authority surface for orchestrator-managed integration validation, even immediately after `just sync-gov-to-main`.
 - Primary steering path is the governed session-control ledgers under that same external repo-governance runtime root:
   - `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl`
   - `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
-- Governed system-terminal launches must record ownership in the session registry so closeout can reclaim only the windows created by the governed session batch. If reclaim needs manual repair, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`; defaulting to `CURRENT_BATCH` is the safe path.
+- Governed system-terminal launches must record ownership in the session registry so closeout can reclaim only the hidden repair processes created by the governed session batch. If reclaim needs manual repair, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`; defaulting to `CURRENT_BATCH` is the safe path.
 - Host-load stance: assume the machine is under heavy load. Shell/plugin timeouts are advisory symptoms, not authoritative workflow truth; inspect receipts/runtime/session artifacts before counting a timeout as a real failed attempt.
 - CLI escalation is allowed only after 2 plugin failures or host-load timeouts for the same role/WP session unless the Operator explicitly waives that policy.
 
@@ -255,7 +257,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
   - contained-main harmonization is a final-lane activity owned by `INTEGRATION_VALIDATOR` (or another explicitly reassigned governed actor), and successful closeout sync must leave machine-readable provenance in validator gate state/receipts
   - if final-lane closeout is attempted from a role-locked orchestrator/kernel surface, from a non-final validator lane, or with `HANDSHAKE_GOV_ROOT` still resolving to `handshake_main/.GOV`, treat that as `WORKFLOW_INVALIDITY` (`ROLE_BOUNDARY_BREACH`, `FINAL_LANE_AUTHORITY_VIOLATION`, or `FINAL_LANE_GOV_ROOT_VIOLATION`) and repair the lane before any packet/task-board/runtime promotion
   This keeps closeout truth synchronized and reduces orchestrator repair work.
-- **Terminal auto-cleanup [CX-503D / RGF-95]:** Terminal windows now close automatically when sessions complete or fail — the ACP broker reclaims owned terminals on result persistence, and launch scripts no longer use `-NoExit`. The broker only reclaims terminals it launched (scoped by session_key); it never touches other apps or processes. `just session-reclaim-terminals WP-{ID}` remains available as a manual fallback for edge cases.
+- **Terminal auto-cleanup [CX-503D / RGF-95]:** Governed hidden repair processes are reclaimed automatically when sessions complete or fail. The ACP broker reclaims only owned processes on result persistence, and launch scripts no longer use `-NoExit`. The broker only reclaims processes it launched (scoped by session_key); it never touches other apps or processes. `just session-reclaim-terminals WP-{ID}` remains available as a manual fallback for edge cases.
 
 ## Branching & Concurrency
 
@@ -412,8 +414,8 @@ Before packet creation on new packet families, record the explicit per-role mode
 
 - `just record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE] [ACTIVATION_MANAGER_MODEL_PROFILE]`
 - This writes `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1` into the packet/stub family and makes the role-profile bundle authoritative for later claim and launch checks.
-- If omitted, the gate records deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for every role, including Activation Manager).
-- Use this gate to declare mixed-provider intent, for example GPT orchestration/validation with Claude Code coding, even when governed Claude launch support is not implemented yet.
+- If omitted, the gate records deliberate defaults (`OPENAI_GPT_5_5_XHIGH` for every role, including Activation Manager).
+- Use this gate to declare mixed-provider intent, for example GPT orchestration/validation with Claude Code coding.
 
 ## Preflight and Resume
 
@@ -440,13 +442,14 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - **Intent snapshots (SHOULD):** Before starting complex multi-step reasoning — refinement analysis, research, cross-WP steering decisions, major governance refactors — record your context and intent with `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role ORCHESTRATOR --reason "<why>" --expected "<outcome>"`. This is judgment-based, not mechanical. No gate enforces it. But it creates the only record of *why* you made a decision, not just *what* the system state was. Use it before: refinement deep-dives, multi-WP steering sessions, governance research, RGF implementation batches, and any task where context loss would be costly.
 - **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory captures what was discussed, decided, and discovered — the context that receipts and mechanical records do not carry. **This is mandatory, not optional.** Mutation commands (`task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, closeout sync through `phase-check CLOSEOUT --sync-mode ...`, `begin-refinement`, `begin-research`, `wp-traceability-set`) require a `context` parameter that is mechanically captured before the command runs. Quality gates enforce minimum content length (>=80 chars for open/close/insight, >=40 chars for pre-task/context). The following rules are **HARD**:
   - Preferred closeout mutation surface: `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."`; the standalone closeout sync recipe is retired from the live `justfile`.
-  - **SESSION_OPEN (MUST):** After startup completes, run `just repomem open "<what this session is about, why, continuing from what>" --role ORCHESTRATOR`. All mutation commands are blocked until this is done.
+  - **SESSION_OPEN (MUST):** After startup completes, run `just repomem open "<what this session is about, why, continuing from what>" --role ORCHESTRATOR [--wp WP-{ID}]`. Use `--wp` whenever the session is bound to an active work packet. All mutation commands are blocked until this is done.
+  - **PRE_TASK before governed execution (SHOULD):** Before a material governed action that changes workflow state, launches a role, changes closeout truth, or mutates governance records, run `just repomem pre "<what you are about to do and why>" --wp WP-{ID}` unless the command already captures a context checkpoint mechanically.
   - **INSIGHT after operator decisions (MUST):** When the Operator provides a decision, correction, preference, or key insight, you MUST run `just repomem insight "<what the operator said/decided and why it matters>"` BEFORE proceeding with any other action. This captures institutional knowledge that would otherwise be lost at session end. Minimum 80 characters.
   - **INSIGHT after discoveries (MUST):** When investigation reveals something non-obvious — a root cause, a design constraint, a pattern — capture it with `just repomem insight` before moving on.
   - **DECISION when choosing between alternatives (SHOULD):** When you make a deliberate choice — which MT order, which role to launch, which approach to take — record it: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. This is the only record of *why* a path was taken, not just *what* happened. Min 80 chars.
   - **ERROR when something goes wrong (SHOULD):** When a tool fails, a command returns unexpected results, a session doesn't launch, or any unexpected state is encountered: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) — write immediately, don't wait.
   - **ABANDON when dropping an approach (SHOULD):** When you abandon a path, workaround, or strategy — whether due to failure, operator redirection, or better alternatives: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
-  - **CONCERN when flagging a risk (SHOULD):** When you identify a risk, a potential regression, a scope issue, or anything that could affect the WP or future work: `just repomem concern "<risk or issue flagged>" --wp WP-{ID}`. These land in the dossier's LIVE_CONCERNS_LOG. Min 80 chars.
+  - **CONCERN when flagging a risk (SHOULD):** When you identify a risk, a potential regression, a scope issue, or anything that could affect the WP or future work: `just repomem concern "<risk or issue flagged>" --wp WP-{ID}`. These are imported into the Workflow Dossier at closeout. Min 80 chars.
   - **ESCALATION when escalating to operator (SHOULD):** When you escalate a decision, blocker, or ambiguity to the operator or another role: `just repomem escalation "<what was escalated and to whom>" --wp WP-{ID}`. Fast capture (min 40 chars).
   - **SESSION_CLOSE (MUST):** Before session ends, run `just repomem close "<what happened this session>" --decisions "<key decisions made>"`. Both content and decisions are required.
   - **repomem log for continuity:** Use `just repomem log --session last` to review prior session context. Use `just repomem log --week` for recent history. Use `just repomem log --search "<topic>"` for subject retrieval.
@@ -454,8 +457,8 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - **Hygiene commands:** `just memory-stats` (health), `just memory-search` (keyword), `just memory-recall <ACTION>` (action-scoped retrieval), `just memory-capture` (mid-session insight), `just memory-intent-snapshot` (pre-task context+intent), `just memory-flag <id> "<reason>"` (suppress bad memory), `just memory-debug-snapshot` (inspect snapshots), `just memory-patterns` (cross-WP synthesis), `just memory-compact --dry-run` (preview), `just memory-refresh --force-compact` (force cycle), `just repomem` (conversation memory).
 - **Backup:** `gov_runtime/` (including the memory DB) is included in backup snapshots via robocopy. `gov-flush` runs memory hygiene before backup to ensure a clean DB is captured.
 - **Memory is supplementary, not authoritative.** Work packets, receipts, and governance ledgers remain the source of truth.
-- **Memory Manager:** `just launch-memory-manager` runs a governed Codex Spark session that analyzes patterns, resolves contradictions, flags stale memories, and drafts RGF candidates. Auto-launched at orchestrator startup (staleness-gated: >24h AND >10 new entries) and before WP merge (via closeout check). Guaranteed self-close via try/finally. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
-- **Canonical reference:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — keep this guide current when changing memory system behavior.
+- **Memory Manager:** `just launch-memory-manager` runs the deterministic pre-pass, and `just launch-memory-manager-session` starts a governed ACP Memory Manager session on the default repo profile unless overridden. It analyzes patterns, resolves contradictions, flags stale memories, and drafts RGF candidates. Auto-launched at orchestrator startup (staleness-gated: >24h AND >10 new entries) and before WP merge (via closeout check). Guaranteed self-close via try/finally. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
+- **Canonical memory references:** `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` for command syntax and `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` for memory-system operation. Keep both current when changing memory behavior.
 - **Governance canonisation:** After major governance refactors (new RGF items, protocol changes, command additions), run `just canonise-gov`, inspect every file in its review brief, and update all applicable drift across protocols, command surface, architecture, quickref, and codex. Do not treat the green summary as sufficient by itself.
 
 ## WP Communication Folder (Packet-Declared)
@@ -500,8 +503,9 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `AUTO` is the ordinary headless/direct ACP launch path
-- `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
-- `VSCODE_PLUGIN` is compatibility-only
+- `CURRENT` is an explicit current-shell repair surface
+- `SYSTEM_TERMINAL` is an explicit hidden-process repair surface and must not open or focus a visible window
+- `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy
 - `just manual-relay-next WP-{ID} [--debug]` (`CLASSIC_ORCHESTRATOR` / `MANUAL_RELAY` only)
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]` (`CLASSIC_ORCHESTRATOR` / `MANUAL_RELAY` only)
 - supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
@@ -687,12 +691,12 @@ Legacy flat compatibility:
 ### 3. Delegation and Monitoring
 
 - Before launching coder sessions, `just orchestrator-prepare-and-packet WP-{ID}` commits the work packet, refinement, and micro tasks on `gov_kernel` and creates a backup snapshot.
-- `just orchestrator-prepare-and-packet WP-{ID}` also seeds the live Workflow Dossier under `.GOV/Audits/smoketest/` with the current ACP/session-control snapshot.
-- During the run, keep the dossier current in the live sections: `LIVE_EXECUTION_LOG`, `LIVE_IDLE_LEDGER`, `LIVE_GOVERNANCE_CHANGE_LOG`, `LIVE_CONCERNS_LOG`, and `LIVE_FINDINGS_LOG`.
-- Preferred live-maintenance surface: use `just workflow-dossier-note WP-{ID} ...` for typed run notes and `just workflow-dossier-sync WP-{ID}` when you want a fresh mechanical ACP/runtime/receipt snapshot plus the latency/drift idle ledger appended into the dossier.
+- `just orchestrator-prepare-and-packet WP-{ID}` seeds the Workflow Dossier under `.GOV/Audits/smoketest/` with the current ACP/session-control snapshot.
+- During the run, do not hand-maintain a live narrative dossier. Capture decisions, failures, concerns, discoveries, abandoned paths, and escalations through role-bound `just repomem ... --wp WP-{ID}` checkpoints.
+- Preferred dossier surface during execution: use `just workflow-dossier-sync WP-{ID}` only for mechanical ACP/runtime/receipt telemetry snapshots when needed for stall diagnosis. Use `just workflow-dossier-note WP-{ID} ...` sparingly for governance changes that are not represented by repomem or receipts.
 - Keep ACP live evidence readable: prefer compact lane-style entries in `LIVE_EXECUTION_LOG`, for example ``ORCHESTRATOR -> ACP -> CODER`` or ``CODER -> ACP -> ORCHESTRATOR``, not wide tables. The point is fast stall and drift diagnosis, not dense tabulation.
 - Keep `LIVE_IDLE_LEDGER` mechanical: append compact latency ledgers, not prose. The point is to surface request-to-response delay, validator-pass-to-coder delay, and real idle gaps before closeout memory drifts.
-- During terminal closeout, `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` now also appends the mechanical closeout trace into the active Workflow Dossier. The remaining human-authored post-mortem/review and rubric should be appended after that phase command succeeds.
+- During terminal closeout, `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` appends the mechanical closeout trace and mechanically imports all WP-bound repomem checkpoints into the active Workflow Dossier. The remaining human-authored post-mortem/review and rubric should be appended after that phase command succeeds.
 - Use the Workflow Dossier rubric only at closeout when appending the Orchestrator post-mortem/review layer. Do not try to score the rubric continuously during execution.
 - **Dossier Telemetry vs Judgment Split:** The dossier contains two kinds of data: (1) **mechanical telemetry** — metrics (wall_clock, active, route_wait, tokens_in, turns), idle-ledger entries, receipt counts, ACP command traces — these are computed automatically by `wp-timeline-lib.mjs` and `workflow-dossier-sync` and are ground truth; (2) **orchestrator judgment** — rubric scores (0-10), silent-failure scan, drift lens, post-mortem — these are the orchestrator's best assessment after heavy autonomous work and may have drifted from reality. The operator cross-checks judgment against telemetry and external evidence. Both are valuable; neither alone is sufficient.
 - Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.

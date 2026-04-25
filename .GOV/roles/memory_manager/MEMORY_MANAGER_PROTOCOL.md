@@ -14,7 +14,7 @@ A Node.js script that runs deterministically, no tokens consumed. It is intentio
 
 ### Intelligent Review Session (`just launch-memory-manager-session`)
 
-A model session (default: `claude-sonnet-4-6`) launched after the mechanical pre-pass. The model reads the hygiene report, queries the DB, and performs work the script cannot:
+A model session (default profile: `OPENAI_GPT_5_5_XHIGH`) launched after the mechanical pre-pass. The model reads the hygiene report, queries the DB, and performs work the script cannot:
 
 - **Quality assessment** — read procedural fix patterns and judge if they are still correct against current code
 - **Contradiction resolution** — read both conflicting entries, understand context, decide which is right
@@ -25,9 +25,9 @@ A model session (default: `claude-sonnet-4-6`) launched after the mechanical pre
 
 The model appends an `## Intelligent Review` section to the report, writes proposals to `.GOV/roles/memory_manager/proposals/`, records `just repomem close ...`, and then stops after the governed turn completes.
 
-**Preferred model:** Claude Code Opus 4.6 thinking max. A lower-cost profile may replace it later when the quality/rate-limit tradeoff is acceptable.
+**Preferred profile:** `OPENAI_GPT_5_5_XHIGH` with `model_reasoning_effort=xhigh`. Claude profiles remain available by explicit override when the quality/rate-limit tradeoff is acceptable.
 
-**ACP integration:** The intelligent session is launched through ACP as a governed role (`MEMORY_MANAGER`) with a synthetic WP-ID (`WP-MEMORY-HYGIENE_<timestamp>`). This gives it:
+**ACP integration:** The intelligent session is launched headless through ACP as a governed role (`MEMORY_MANAGER`) with a synthetic WP-ID (`WP-MEMORY-HYGIENE_<timestamp>`). It must not open or focus a visible terminal on the default path. This gives it:
 - Structured communication via receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`)
 - Orchestrator visibility via `check-notifications`
 - Session registry tracking (launch, steer, close)
@@ -69,7 +69,8 @@ The memory DB has 3 memory types, 1 snapshot type, 1 conversation log, and 6 tab
 **Conversation log (`conversation_log` table):**
 - Cross-session conversational memory — captures what was discussed, decided, and discovered
 - Checkpoint types (10): `SESSION_OPEN`, `PRE_TASK`, `INSIGHT`, `DECISION`, `ERROR`, `ABANDON`, `CONCERN`, `ESCALATION`, `RESEARCH_CLOSE`, `SESSION_CLOSE`
-- Written by all roles via `just repomem` commands; injected into startup prompts as `CONVERSATION CONTEXT`
+- Written by WP-bound roles via `just repomem` commands; injected into startup prompts as `CONVERSATION CONTEXT`
+- Memory Manager is the packetless hygiene exception: it still opens/closes its own repomem session, but normal WP repomem coverage gates exclude it and use `MEMORY_*` receipts plus backup proposal files as its durable evidence.
 - `INSIGHT` entries are the highest-signal source of institutional knowledge — operator decisions, corrections, and discoveries
 - `DECISION`/`ERROR`/`ABANDON`/`CONCERN`/`ESCALATION` provide granular WP diagnostic context — these land in the workflow dossier (EXECUTION or CONCERNS section) via `inject-repomem`
 - Quality-gated: >=80 chars for open/close/insight/decision/abandon/concern, >=40 for pre-task/error/escalation; close requires `--decisions`
@@ -241,4 +242,4 @@ See `.GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md` for scoring criter
 
 ## Canonical Reference
 
-`.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — the operational guide for the memory system this role manages.
+`.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` is the operational guide for the memory system this role manages; `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` is the command syntax reference.

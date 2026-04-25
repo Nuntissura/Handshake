@@ -263,6 +263,48 @@ test("materializeRuntimeAuthorityView lets canonical authority clear stale valid
   assert.equal(runtime.ready_for_validation_reason, null);
 });
 
+test("materializeRuntimeAuthorityView fences terminal verdicts from stale route mirrors", () => {
+  const runtime = materializeRuntimeAuthorityView({
+    current_packet_status: "Validated (FAIL)",
+    current_task_board_status: "DONE_FAIL",
+    current_phase: "VALIDATION",
+    current_milestone: "VERDICT",
+    runtime_status: "working",
+    next_expected_actor: "WP_VALIDATOR",
+    next_expected_session: "wpv:stale",
+    waiting_on: "WP_VALIDATOR_REVIEW",
+    waiting_on_session: "wpv:stale",
+    validator_trigger: "BLOCKED_NEEDS_VALIDATOR",
+    validator_trigger_reason: "stale validator route",
+    ready_for_validation: true,
+    ready_for_validation_reason: "stale validator route",
+    attention_required: true,
+    route_anchor_state: "COMM_BLOCKED_OPEN_ITEMS",
+    route_anchor_kind: "VALIDATOR_REVIEW",
+    route_anchor_correlation_id: "review-stale",
+    route_anchor_target_role: "WP_VALIDATOR",
+    route_anchor_target_session: "wpv:stale",
+  });
+
+  assert.equal(runtime.current_phase, "STATUS_SYNC");
+  assert.equal(runtime.current_milestone, "CONTAINMENT");
+  assert.equal(runtime.runtime_status, "completed");
+  assert.equal(runtime.next_expected_actor, "NONE");
+  assert.equal(runtime.next_expected_session, null);
+  assert.equal(runtime.waiting_on, "CLOSED");
+  assert.equal(runtime.waiting_on_session, null);
+  assert.equal(runtime.validator_trigger, "NONE");
+  assert.equal(runtime.validator_trigger_reason, null);
+  assert.equal(runtime.ready_for_validation, false);
+  assert.equal(runtime.ready_for_validation_reason, null);
+  assert.equal(runtime.attention_required, false);
+  assert.equal(runtime.route_anchor_state, null);
+  assert.equal(runtime.route_anchor_kind, null);
+  assert.equal(runtime.route_anchor_correlation_id, null);
+  assert.equal(runtime.route_anchor_target_role, null);
+  assert.equal(runtime.route_anchor_target_session, null);
+});
+
 test("syncRuntimeExecutionState preserves prior authority when sparse updates omit unrelated route fields", () => {
   const initial = syncRuntimeExecutionState(
     {

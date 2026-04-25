@@ -1,6 +1,6 @@
 # Workflow Dossier Rubric
 
-Use this rubric as the closeout judgment layer inside the Workflow Dossier. Mandatory for every live dossier created from `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`.
+Use this rubric as the closeout judgment layer inside the Workflow Dossier. Mandatory for every dossier created from `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`.
 
 ## Purpose
 

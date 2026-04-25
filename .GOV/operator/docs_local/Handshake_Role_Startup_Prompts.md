@@ -195,7 +195,7 @@ just launch-memory-manager --force
 Intelligent review session (governed ACP session, on demand):
 ```powershell
 just launch-memory-manager-session
-just launch-memory-manager-session "SYSTEM_TERMINAL" "PRIMARY"
+just launch-memory-manager-session "AUTO" "PRIMARY"
 just launch-memory-manager-session "PRINT" "FALLBACK"
 ```
 
@@ -207,7 +207,7 @@ The session launcher runs the mechanical pre-pass first, then launches a governe
 ROLE LOCK: You are the MEMORY MANAGER. Do not change roles unless explicitly reassigned.
 FIRST COMMAND: just memory-manager-startup
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role MEMORY_MANAGER`.
-AUTHORITY: .GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md + .GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md + .GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md
+AUTHORITY: .GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md + .GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md + startup output
 WORKTREE: wt-gov-kernel on branch gov_kernel.
 
 The mechanical pre-pass has already run. The report is at: ../gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md
@@ -304,7 +304,8 @@ From `D:\Projects\LLM projects\NotebookLM_gpt_bridge\product`:
 .GOV/roles/<role>/                  - role-specific protocol + scripts
 .GOV/roles_shared/                  - cross-role shared surfaces
 .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md - full command reference (authoritative)
-.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md  - memory system operational guide (canonical)
+.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md - memory system operational guide (canonical)
+.GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md - memory hygiene review rubric
 .GOV/task_packets/WP-{ID}/          - current physical work packet folder (packet.md + MT-*.md)
 .GOV/refinements/WP-{ID}.md         - current refinement artifact for active WP
 .GOV/task_packets/WP-{ID}.md        - legacy flat work packet (older WPs)
@@ -328,9 +329,11 @@ From `D:\Projects\LLM projects\NotebookLM_gpt_bridge\product`:
 ## Model Profile Catalog
 
 ```text
-OPENAI_GPT_5_4_XHIGH         - default for all roles
-OPENAI_GPT_5_2_XHIGH         - fallback if primary unavailable
+OPENAI_GPT_5_5_XHIGH         - default for all roles
+OPENAI_GPT_5_4_XHIGH         - fallback if primary unavailable
+OPENAI_GPT_5_2_XHIGH         - legacy fallback
 OPENAI_CODEX_SPARK_5_3_XHIGH - cost-split coding
+CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH - Claude Code governed sessions
 CLAUDE_CODE_OPUS_4_6_THINKING_MAX - validation (Claude Code governed sessions)
 ```
 
@@ -355,7 +358,9 @@ just memory-manager-startup
 just activation-manager startup
 just activation-manager next WP-{ID}
 just activation-manager readiness WP-{ID} --write
-just repomem open "<what this session is about>" [--role ROLE] [--wp WP-{ID}]
+just repomem open "<what this session is about>" --role ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR --wp WP-{ID}
+just repomem open "<what this session is about>" --role ORCHESTRATOR|CLASSIC_ORCHESTRATOR [--wp WP-{ID}]
+just repomem open "<what this session is about>" --role MEMORY_MANAGER
 just repomem decision "<what was chosen and why>" [--wp WP-{ID}] [--alternatives "rejected options"]
 just repomem error "<what went wrong>" [--wp WP-{ID}] [--trigger "cmd"] [--files "a,b"]
 just repomem abandon "<what was abandoned and why>" [--wp WP-{ID}] [--files "a,b"]
@@ -392,7 +397,7 @@ just shell-with-memory <ROLE> <command-family> "<command>" [--wp WP-{ID}] [--she
 
 **Action-scoped memory recall:** `memory-recall` is visible injection as well as auto-injection. It now prints `MEMORY_INJECTION_APPLIED` and grouped findings before the governed action continues. Actions in the live surface include `RESUME`, `CODER_RESUME`, `VALIDATOR_RESUME`, `STEERING`, `RELAY`, `REFINEMENT`, `DELEGATION`, `PACKET_CREATE`, and `COMMAND`. Auto-injected into role startup/resume helpers and into orchestrator flows such as `begin-refinement`, `orchestrator-next`, `orchestrator-steer-next`, `manual-relay-next`, `manual-relay-dispatch`, `orchestrator-prepare-and-packet`, and `create-task-packet`.
 
-**Repomem checkpoint types (10):** All roles should use these during WP work. SESSION_OPEN and SESSION_CLOSE are MUST; the rest are SHOULD (encouraged for diagnostics).
+**Repomem checkpoint types (10):** WP-bound roles use these during WP work: Activation Manager, Coder, WP Validator, Integration Validator, Classical Validator, Orchestrator, and Classic Orchestrator when bound to a WP. Memory Manager is the packetless hygiene exception and is not a normal WP coverage target. SESSION_OPEN and SESSION_CLOSE are MUST; the rest are SHOULD (encouraged for diagnostics).
 
 | Type | Gate | Dossier Section | When to use |
 |------|------|-----------------|-------------|
@@ -407,15 +412,15 @@ just shell-with-memory <ROLE> <command-family> "<command>" [--wp WP-{ID}] [--she
 | `research-close` | 80 chars | FINDING | Research conclusion |
 | `close` | 80 chars + `--decisions` | EXECUTION | Session end (MUST) |
 
-Repomem entries are auto-injected into the dossier on every `just workflow-dossier-sync WP-{ID}`. Manual: `just workflow-dossier-inject-repomem WP-{ID}`.
+WP-bound repomem entries are imported into the dossier by closeout and by `just workflow-dossier-sync WP-{ID}`. Manual: `just workflow-dossier-inject-repomem WP-{ID}`.
 
-**Fail capture (all roles MUST):** When a role encounters a tool failure, wrong tool call, or discovers a workaround, it must immediately record it: `just memory-capture procedural "<what failed, why, and the fix>" --role ROLE [--wp WP-{ID}] [--scope "files"]`. These are surfaced automatically via `memory-recall` before future actions. This is a protocol-level MUST for ORCHESTRATOR, CODER, and WP_VALIDATOR.
+**Fail capture (all roles MUST):** When a role encounters a tool failure, wrong tool call, or discovers a workaround, it must immediately record it: `just memory-capture procedural "<what failed, why, and the fix>" --role ROLE [--wp WP-{ID}] [--scope "files"]`. These are surfaced automatically via `memory-recall` before future actions.
 
 Memory runs automatically at startup (extraction + dual-gate maintenance). Event-driven: every `wp-receipt-append` also extracts to memory immediately. Session-end: CLOSE_SESSION captures session summary. Check failures auto-captured. Pre-task snapshots captured automatically before: WP delegation, steering, relay dispatch, packet creation, closeout, board status change [RGF-144-147].
 
-**Memory Manager:** Two modes. Mechanical pre-pass (`just launch-memory-manager`) runs automatically at orchestrator startup (staleness-gated) -> extraction, soft decay, embedding refresh, recall audit, and report-first candidate detection. Intelligent review (`just launch-memory-manager-session`) launches a model session that reads the hygiene report, emits packetless `MEMORY_*` receipts plus backup proposals, and closes with `repomem close` before governed `SESSION_COMPLETION`. Preferred model: Claude Code Opus 4.6 thinking max. A lower-cost profile may replace it later. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
+**Memory Manager:** Two modes. Mechanical pre-pass (`just launch-memory-manager`) runs automatically at orchestrator startup (staleness-gated) -> extraction, soft decay, embedding refresh, recall audit, and report-first candidate detection. Intelligent review (`just launch-memory-manager-session`) launches a packetless synthetic lane that reads the hygiene report, emits `MEMORY_*` receipts plus backup proposals, and closes with `repomem close` before governed `SESSION_COMPLETION`. It is excluded from normal WP repomem coverage debt. Preferred profile: `OPENAI_GPT_5_5_XHIGH` unless explicitly overridden. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
 
-Canonical guide: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`
+Canonical memory guide: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`; hygiene rubric: `.GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md`
 
 DEPRECATED (redirect to DB, will be removed):
 - `just failure-memory-record` -> use `just memory-capture procedural`
@@ -486,8 +491,9 @@ just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLU
 just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]
 just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]
 AUTO = ordinary headless/direct ACP launch
-CURRENT or SYSTEM_TERMINAL = explicit repair-only launch surface
-VSCODE_PLUGIN = compatibility-only launch surface
+CURRENT = explicit current-shell repair surface
+SYSTEM_TERMINAL = explicit hidden-process repair surface; must not open or focus a visible window
+VSCODE_PLUGIN = disabled for governed role launches under the headless-only policy
 just send-mt WP-{ID} <MT-NNN> "<description>" [PRIMARY|FALLBACK]  - dispatch MT to coder with session keys
 ```
 

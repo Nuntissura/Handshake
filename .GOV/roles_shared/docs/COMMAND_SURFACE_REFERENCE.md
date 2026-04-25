@@ -180,9 +180,15 @@ These are safe starting points for orientation and health checks.
 
 ### Conversation memory (`just repomem`)
 
-- `just repomem open "<what this session is about>" [--role ROLE] [--wp WP-ID]`
+- `just repomem open "<what this session is about>" --role ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR --wp WP-ID`
   - `runtime-write`
-  - **MANDATORY** at session start. Creates session marker, writes SESSION_OPEN checkpoint. All mutation commands are blocked (via `repomem-gate`) until this runs. Content >=80 chars enforced. Shows prior session context on success.
+  - **MANDATORY** at WP-bound role session start. Creates SESSION_OPEN for the role and WP; missing `--role` or `--wp` fails closed for these roles. Content >=80 chars enforced. Shows prior session context on success.
+- `just repomem open "<what this session is about>" --role ORCHESTRATOR|CLASSIC_ORCHESTRATOR [--wp WP-ID]`
+  - `runtime-write`
+  - **MANDATORY** at coordinator session start. Use `--wp` whenever the session is bound to an active WP; coordinator work can start packetless when no WP exists yet.
+- `just repomem open "<what this session is about>" --role MEMORY_MANAGER`
+  - `runtime-write`
+  - Memory Manager is the packetless hygiene exception. It opens/closes its own repomem session but is excluded from normal WP repomem coverage debt; durable evidence is `MEMORY_*` receipts plus proposal backup files.
 - `just repomem pre "<about to do X because Y>" [--wp WP-ID] [--trigger "just cmd"]`
   - `runtime-write`
   - pre-task checkpoint before an action; content >=40 chars; requires active session
@@ -204,6 +210,9 @@ These are safe starting points for orientation and health checks.
 - `just repomem gate`
   - `read-only`
   - check if SESSION_OPEN exists; exits 1 if not; used by mutation commands as a blocking gate
+- `just repomem-gate`
+  - `read-only`
+  - thin recipe wrapper around `just repomem gate`; used internally by mutation recipes before state-changing commands
 
 ### Mutation commands requiring `context` parameter
 
@@ -421,8 +430,8 @@ These mutate packet, board, traceability, or related governed surfaces.
 - `just record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
   - `governance-write`
   - orchestrator-owned workflow state writes
-  - `record-role-model-profiles` is the explicit per-role model/CLI policy gate for new packet families; omit args to record deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for all roles, including Activation Manager when no explicit override is declared)
-  - `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is a supported governed runtime profile and can be selected explicitly for Activation Manager, coder, or validator lanes when the packet or stub declares it
+  - `record-role-model-profiles` is the explicit per-role model/CLI policy gate for new packet families; omit args to record deliberate defaults (`OPENAI_GPT_5_5_XHIGH` for all roles, including Activation Manager when no explicit override is declared)
+  - `CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH` and `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` are supported governed runtime profiles and can be selected explicitly for Activation Manager, coder, or validator lanes when the packet or stub declares them
 - `just create-task-packet WP-{ID}`
   - `governance-write`
   - packet creation from the template
@@ -491,8 +500,9 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
   - `runtime-write`
   - launch/bootstrap lane
   - `AUTO` is the ordinary headless/direct ACP launch path
-  - `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
-  - `VSCODE_PLUGIN` is a compatibility-only host; `AUTO` no longer queues the bridge before starting ACP
+  - `CURRENT` is an explicit current-shell repair surface
+  - `SYSTEM_TERMINAL` is an explicit hidden-process repair surface; it must not open or focus a visible window
+  - `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy; use `AUTO`
   - Activation Manager is the mandatory governed pre-launch lane for orchestrator-managed workflow; manual workflow keeps pre-launch on the Orchestrator
   - if `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and do not begin governed coder/validator launch until it has produced truthful `ACTIVATION_READINESS`
   - on orchestrator-managed lanes, Activation Manager executes refinement/spec-enrichment, packet creation, microtask setup, worktree preparation, backup-branch preparation, and pre-launch health checks, but Orchestrator retains operator approval handling, coder selection, governance patching, readiness acceptance, and relaunch decisions
@@ -523,7 +533,7 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just close-wp-validator-session WP-{ID}`
 - `just close-integration-validator-session WP-{ID}`
   - `runtime-write`
-  - retire steerable thread registration for that lane and attempt deterministic reclaim of any governed system-terminal window owned by that exact session
+  - retire steerable thread registration for that lane and attempt deterministic reclaim of any governed hidden repair process owned by that exact session
 - Generic wrappers:
 - `just session-start <ROLE> WP-{ID} [PRIMARY|FALLBACK]`
 - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
@@ -537,7 +547,7 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
     - `session-start` now waits briefly for READY after a `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY` outcome and settles as `ALREADY_READY` when the role was already becoming steerable in the same attempt
 - `just session-reclaim-terminals WP-{ID} [ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
   - `runtime-write`
-  - manual repair helper that reclaims only registry-owned governed system-terminal windows for the selected WP/session scope; it defaults to `CURRENT_BATCH` so older batch windows are left alone unless `ALL_BATCHES` or an exact `BATCH_ID` is requested
+  - manual repair helper that reclaims only registry-owned governed hidden repair processes for the selected WP/session scope; it defaults to `CURRENT_BATCH` so older batch processes are left alone unless `ALL_BATCHES` or an exact `BATCH_ID` is requested
 
 ## Packet communication surface
 

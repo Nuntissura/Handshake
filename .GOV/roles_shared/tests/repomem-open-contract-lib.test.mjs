@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { validateRepomemOpenContract } from "../scripts/memory/repomem-open-contract-lib.mjs";
 
-test("governed validator repomem open requires explicit role and wp binding", () => {
+test("WP-bound role repomem open requires explicit role and wp binding", () => {
   assert.throws(
     () => validateRepomemOpenContract({
       providedRole: "INTEGRATION_VALIDATOR",
@@ -14,11 +14,19 @@ test("governed validator repomem open requires explicit role and wp binding", ()
   );
   assert.throws(
     () => validateRepomemOpenContract({
-      providedRole: "WP_VALIDATOR",
+      providedRole: "CODER",
       roleFlagProvided: true,
       wpId: "not-a-wp",
     }),
     /valid --wp WP-\{ID\}/i,
+  );
+  assert.throws(
+    () => validateRepomemOpenContract({
+      providedRole: "ACTIVATION_MANAGER",
+      roleFlagProvided: false,
+      wpId: "WP-TEST-v1",
+    }),
+    /requires explicit --role ACTIVATION_MANAGER/i,
   );
   assert.throws(
     () => validateRepomemOpenContract({
@@ -31,7 +39,7 @@ test("governed validator repomem open requires explicit role and wp binding", ()
   );
 });
 
-test("repomem open contract preserves non-governed defaults and accepts bound validator opens", () => {
+test("repomem open contract preserves non-WP-bound defaults and accepts bound role opens", () => {
   assert.deepEqual(
     validateRepomemOpenContract({
       providedRole: "",
@@ -58,10 +66,21 @@ test("repomem open contract preserves non-governed defaults and accepts bound va
     validateRepomemOpenContract({
       providedRole: "VALIDATOR",
       roleFlagProvided: true,
-      wpId: "",
+      wpId: "WP-TEST-CLASSIC-VALIDATOR-v1",
     }),
     {
       role: "VALIDATOR",
+      wpId: "WP-TEST-CLASSIC-VALIDATOR-v1",
+    },
+  );
+  assert.deepEqual(
+    validateRepomemOpenContract({
+      providedRole: "MEMORY_MANAGER",
+      roleFlagProvided: true,
+      wpId: "",
+    }),
+    {
+      role: "MEMORY_MANAGER",
       wpId: "",
     },
   );

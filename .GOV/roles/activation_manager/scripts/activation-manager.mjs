@@ -494,7 +494,7 @@ function printStartup() {
     "- REFINEMENT_STANDARD: match or exceed the old Orchestrator pre-launch quality bar, including research, primitive-index upkeep, matrix upkeep, appendix follow-through, and force-multiplier expansion.",
     "- STUB_DISCOVERY_RULE: create or update stubs when refinement, enrichment, or matrix upkeep discovers new required follow-up items.",
     "- HARD_STOP: no product code edits; no coder/validator launch; no final workflow authority",
-    "- WORKFLOW_SPLIT: orchestrator-managed workflow requires ACTIVATION_MANAGER as the mandatory temporary pre-launch worker and governed pre-launch lane; manual workflow keeps pre-launch on ORCHESTRATOR.",
+    "- WORKFLOW_SPLIT: orchestrator-managed workflow requires ACTIVATION_MANAGER as the mandatory temporary pre-launch worker and governed pre-launch lane; manual workflow keeps pre-launch on CLASSIC_ORCHESTRATOR.",
     "- HANDOFF_MODE: file-first refinement/spec handoff. Return the written file path plus a compact REFINEMENT_HANDOFF_SUMMARY; do not paste the full refinement/spec text by default.",
     "- EXCERPT_FALLBACK_RULE: only if the Orchestrator explicitly requests excerpts should sections/anchors be pasted back; safe default is 4 bounded chunks.",
     "- HANDOFF_SUMMARY_REQUIRED: REFINEMENT_PATH, REFINEMENT_CHECK, ENRICHMENT_NEEDED, NEW_STUBS_CREATED_OR_UPDATED, NEW_FEATURES_OR_CAPABILITIES_DISCOVERED, MAJOR_TECH_UPGRADE_ADVICE, REVIEW_FOCUS, NEXT_ORCHESTRATOR_ACTION.",
@@ -511,7 +511,8 @@ function printStartup() {
     "  7. just activation-manager prepare-and-packet WP-{ID}",
     "  8. just activation-manager readiness WP-{ID} --write",
     "- CHECKPOINT_REQUIRED: SESSION_OPEN",
-    `- Run: just repomem open "<what this activation session is about>" --role ${ACTOR_ROLE} [--wp WP-ID]`,
+    `- Run: just repomem open "<what this activation session is about>" --role ${ACTOR_ROLE} --wp WP-ID`,
+    "- DURABLE_RUN_NOTES: capture activation choices, failures, risks, and discoveries with `just repomem decision|error|concern|insight ... --wp WP-ID`; closeout imports them into the dossier.",
     "- RESUME_HINT: use `just activation-manager next WP-{ID}` to recompute the current activation state.",
   ];
   console.log(lines.join("\n"));

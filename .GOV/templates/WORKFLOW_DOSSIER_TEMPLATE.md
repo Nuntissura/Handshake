@@ -1,15 +1,15 @@
 # Workflow Dossier Template
 
-Use this template for the canonical live run artifact created at WP activation and maintained through closeout.
+Use this template for the canonical WP run artifact created at activation and compiled through closeout.
 
 ## Purpose
 
 The Workflow Dossier is:
 
-- a live execution dossier opened at activation time
+- an execution dossier opened at activation time
 - seeded mechanically from ACP/session-control and WP runtime artifacts
-- maintained during the run by the Orchestrator
-- appended by roles through the live findings surfaces
+- updated during the run only by mechanical telemetry snapshots or sparse governance notes
+- compiled at closeout from receipts, runtime truth, gate artifacts, and WP-bound role repomem checkpoints
 - finalized with closeout judgment, drift assessment, and rubric scoring
 
 ## Migration Rule
@@ -21,13 +21,14 @@ Use that full section structure with these semantic rules:
 - `DOCUMENT_KIND` should be `LIVE_WORKFLOW_DOSSIER`
 - `WORKFLOW_DOSSIER_ID` is the canonical artifact id for new runs
 - `SMOKETEST_REVIEW_ID` remains as a compatibility id until downstream lineage and memory tooling finish migrating
-- the live dossier should be created at WP activation, not reconstructed at closeout
+- the dossier should be created at WP activation to preserve run timing and metadata
 - the ACP/session-control snapshot should appear before the final review/opinion sections
+- role decisions, failures, concerns, findings, abandoned paths, and escalations should be captured in `just repomem ... --wp WP-{ID}` during execution and imported mechanically at closeout
 - the final judgment section should be treated as a closeout layer inside the dossier, not the dossier itself
 
-## Required Live Sections
+## Required Append-Only Sections
 
-The dossier must retain these append-only live sections:
+The dossier must retain these append-only sections for mechanical telemetry and closeout imports:
 
 - `LIVE_EXECUTION_LOG`
 - `LIVE_IDLE_LEDGER`
@@ -45,6 +46,7 @@ Formatting rule for `LIVE_EXECUTION_LOG`:
 - prefer grouped mechanical ledgers such as `counts{...} | route{...} | settlement{...} | repomem{...} | tokens{...} | host{...}` over one long undifferentiated field list
 - include token-cost telemetry as grouped diagnostics: policy, enforcement mode, budget status, ledger health, gross/fresh/cached input, output, turns, and commands
 - assume host load is heavy; shell timeout observations belong under `host{...}` or findings, not as standalone workflow truth
+- at closeout, include repomem imports for `SESSION_OPEN`, `PRE_TASK`, `DECISION`, `ERROR`, `ABANDON`, and `SESSION_CLOSE`
 
 Formatting rule for `LIVE_IDLE_LEDGER`:
 
@@ -52,6 +54,12 @@ Formatting rule for `LIVE_IDLE_LEDGER`:
 - report latency and drift as short ledgers, not prose
 - include request-to-response timing, validator-pass-to-coder timing, current/max idle gaps, wall-clock attribution buckets (active build, validator wait, route wait, dependency wait, human wait, repair overhead), queue-pressure counts, and drift markers such as duplicate receipts or unresolved control rows
 - group idle output into stable blocks such as `latency{...} | idle{...} | wall_clock{...} | current_wait{...} | queue{...} | drift{...}` so raw data stays readable
+
+Formatting rule for memory-import sections:
+
+- `LIVE_CONCERNS_LOG` is populated from `repomem concern` and `repomem escalation` checkpoints at closeout
+- `LIVE_FINDINGS_LOG` is populated from `repomem insight` and `repomem research-close` checkpoints at closeout
+- role-authored findings should not be duplicated by hand in the dossier during execution
 
 ## Required Mechanical Evidence Sections
 

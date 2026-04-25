@@ -4,29 +4,22 @@ import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { registerFailCaptureHook } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import {
-  SESSION_BATCH_MODE_CLI_ESCALATION,
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_ESCALATION_HOST_LEGACY_ALIAS,
   ROLE_SESSION_REASONING_CONFIG_KEY,
   ROLE_SESSION_REASONING_CONFIG_VALUE,
   SESSION_HOST_PREFERENCE,
-  SESSION_PLUGIN_HOST,
   SESSION_HOST_FALLBACK,
-  SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS,
-  SESSION_PLUGIN_BRIDGE_COMMAND,
-  SESSION_PLUGIN_BRIDGE_ID,
   SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import {
   assertOrchestratorLaunchAuthority,
-  buildLaunchRequest,
   ensureSessionStateFiles,
   getOrCreateSessionRecord,
   loadSessionLaunchRequests,
   loadSessionRegistry,
   markPluginResult,
   pendingRequestStatus,
-  queuePluginLaunch,
   registryBatchLaunchSummary,
   registrySessionSummary,
   settleTimedOutPluginRequests,
@@ -173,7 +166,7 @@ function buildCodexArgs() {
 function buildClaudeCodeArgs() {
   return [
     "--model", selectedModel,
-    "--effort", selectedProfile.launch_reasoning_config_value || "max",
+    "--effort", selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE,
     "--dangerously-skip-permissions",
     prompt,
   ];
@@ -248,7 +241,7 @@ function launchSystemTerminal() {
     hostKind: launch.hostKind,
     terminalTitle: roleConfig.title,
   });
-  console.log(`[LAUNCH_CLI_SESSION] launched via ${CLI_ESCALATION_HOST_DEFAULT} (${roleConfig.title})`);
+  console.log(`[LAUNCH_CLI_SESSION] launched hidden via ${CLI_ESCALATION_HOST_DEFAULT} (${roleConfig.title})`);
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_profile_id=${selectedProfileId}`);
@@ -413,82 +406,6 @@ function autoStartGovernedSession(reason) {
   refreshSessionSummary();
 }
 
-function queueVsCodePluginLaunch() {
-  const result = mutateSessionRegistrySync(repoRoot, (registry) => {
-    const { requests } = loadSessionLaunchRequests(repoRoot);
-    settleTimedOutPluginRequests(registry, requests);
-    const session = getOrCreateSessionRecord(registry, sessionDescriptor);
-    const currentBatchSummary = registryBatchLaunchSummary(registry);
-    if (currentBatchSummary.batch_cli_escalation_active) {
-      return {
-        status: "batch_cli",
-        summary: registrySessionSummary(session),
-        batchSummary: currentBatchSummary,
-      };
-    }
-    const pending = session.plugin_last_request_id ? pendingRequestStatus(registry, session.plugin_last_request_id) : null;
-    const lastRequestAtMs = Date.parse(session.plugin_last_request_at || "");
-    const hasFreshPendingRequest =
-      session.plugin_last_result === "QUEUED" &&
-      !pending &&
-      !Number.isNaN(lastRequestAtMs) &&
-      (Date.now() - lastRequestAtMs) < (SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS * 1000);
-    if (hasFreshPendingRequest) {
-      return {
-        status: "pending",
-        summary: registrySessionSummary(session),
-        batchSummary: registryBatchLaunchSummary(registry),
-        requestId: session.plugin_last_request_id,
-      };
-    }
-    const request = buildLaunchRequest({
-      wpId,
-      role,
-      localBranch: roleConfig.branch,
-      localWorktreeDir: roleConfig.worktreeDir,
-      absWorktreeDir,
-      selectedModel,
-      selectedProfileId,
-      reasoningConfigKey: selectedProfile.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY,
-      reasoningConfigValue: selectedProfile.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE,
-      startupCommand: roleConfig.startupCommand,
-      nextCommand: roleConfig.nextCommand,
-      terminalTitleValue: roleConfig.title,
-      command: launchCommand,
-      pluginAttemptNumber: session.plugin_request_count + 1,
-    });
-    queuePluginLaunch(repoRoot, registry, request);
-    return {
-      status: "queued",
-      summary: registrySessionSummary(session),
-      batchSummary: registryBatchLaunchSummary(registry),
-      requestId: request.request_id,
-    };
-  });
-  sessionSummary = result.summary;
-  batchSummary = result.batchSummary;
-  if (result.status === "batch_cli") {
-    console.log("[LAUNCH_CLI_SESSION] plugin launch is disabled for the current governed batch");
-    printSessionSummary();
-    return;
-  }
-  if (result.status === "pending") {
-    console.log(`[LAUNCH_CLI_SESSION] plugin launch request still pending for ${SESSION_PLUGIN_BRIDGE_ID}`);
-    console.log(`[LAUNCH_CLI_SESSION] request_id=${result.requestId}`);
-    console.log(`[LAUNCH_CLI_SESSION] wait_timeout_seconds=${SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS}`);
-    autoStartGovernedSession("plugin launch request already pending");
-    printSessionSummary();
-    return;
-  }
-  console.log(`[LAUNCH_CLI_SESSION] queued plugin launch request for ${SESSION_PLUGIN_BRIDGE_ID}`);
-  console.log(`[LAUNCH_CLI_SESSION] request_id=${result.requestId}`);
-  console.log(`[LAUNCH_CLI_SESSION] preferred_host=${SESSION_PLUGIN_HOST}`);
-  console.log(`[LAUNCH_CLI_SESSION] plugin_command=${SESSION_PLUGIN_BRIDGE_COMMAND}`);
-  console.log(`[LAUNCH_CLI_SESSION] wait_timeout_seconds=${SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS}`);
-  autoStartGovernedSession("plugin launch request queued");
-  printSessionSummary();
-}
-
 function cliEscalationGatePassed() {
   return batchSummary.batch_cli_escalation_active
     || sessionSummary.cli_escalation_allowed
@@ -535,18 +452,12 @@ if (requestedHost === "AUTO") {
 }
 
 if (requestedHost === "VSCODE_PLUGIN" || requestedHost === "VSCODE") {
-  if (!cliEscalationGatePassed()) {
-    queueVsCodePluginLaunch();
-    process.exit(0);
-  }
   printOnly(
-    batchSummary.launch_batch_mode === SESSION_BATCH_MODE_CLI_ESCALATION
-      ? `Batch launch mode is ${SESSION_BATCH_MODE_CLI_ESCALATION}; use AUTO for headless ACP direct launch or CURRENT/${CLI_ESCALATION_HOST_DEFAULT} for explicit repair until the governed batch is reset`
-      : `Plugin launch has already failed ${sessionSummary.plugin_failure_count} time(s); use AUTO for headless ACP direct launch or CURRENT/${CLI_ESCALATION_HOST_DEFAULT} for explicit repair`,
+    "VSCODE_PLUGIN launch is disabled by the headless-only role-session policy; use AUTO for ACP direct launch or PRINT for debug output",
     "PRINT",
   );
   printSessionSummary();
-  process.exit(0);
+  process.exit(1);
 }
 
 if ((requestedHost === "CURRENT" || isSystemTerminalMode(requestedHost)) && !cliEscalationGatePassed()) {
@@ -578,7 +489,7 @@ if (isSystemTerminalMode(requestedHost)) {
 }
 
 printOnly(
-  `Unsupported host mode; use AUTO, VSCODE_PLUGIN, CURRENT, ${CLI_ESCALATION_HOST_DEFAULT}, or PRINT (${CLI_ESCALATION_HOST_LEGACY_ALIAS} remains a legacy alias)`,
+  `Unsupported host mode; use AUTO, CURRENT, ${CLI_ESCALATION_HOST_DEFAULT}, or PRINT (${CLI_ESCALATION_HOST_LEGACY_ALIAS} remains a legacy alias; VSCODE_PLUGIN is disabled by headless-only policy)`,
   "PRINT",
 );
 printSessionSummary();

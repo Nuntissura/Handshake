@@ -73,4 +73,4 @@ Authoritative folder-placement law for the Orchestrator bundle lives in `.GOV/co
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
 - `just manual-relay-next WP-{ID} [--debug]`
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
-- `AUTO` is the ordinary headless/direct ACP path; `CURRENT` / `SYSTEM_TERMINAL` are repair-only; `VSCODE_PLUGIN` is compatibility-only
+- `AUTO` is the ordinary headless/direct ACP path; `CURRENT` is current-shell repair; `SYSTEM_TERMINAL` is hidden-process repair; `VSCODE_PLUGIN` is disabled

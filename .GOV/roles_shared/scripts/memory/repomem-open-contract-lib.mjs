@@ -1,3 +1,11 @@
+const WP_BOUND_REPOMEM_ROLE_VALUES = new Set([
+  "ACTIVATION_MANAGER",
+  "CODER",
+  "WP_VALIDATOR",
+  "INTEGRATION_VALIDATOR",
+  "VALIDATOR",
+]);
+
 const GOVERNED_VALIDATOR_REPOMEM_ROLE_VALUES = new Set([
   "WP_VALIDATOR",
   "INTEGRATION_VALIDATOR",
@@ -25,6 +33,9 @@ export function validateRepomemOpenContract({
   const governedRole = GOVERNED_VALIDATOR_REPOMEM_ROLE_VALUES.has(normalizedRole)
     ? normalizedRole
     : "";
+  const wpBoundRole = WP_BOUND_REPOMEM_ROLE_VALUES.has(normalizedRole)
+    ? normalizedRole
+    : "";
   const normalizedWpId = String(wpId || "").trim();
 
   if (governedEnvironmentRole && !roleFlagProvided) {
@@ -36,11 +47,14 @@ export function validateRepomemOpenContract({
   if (governedRole && !roleFlagProvided) {
     throw new Error(`Governed validator SESSION_OPEN requires explicit --role ${governedRole}.`);
   }
-  if (governedRole && !normalizedWpId) {
-    throw new Error(`Governed validator SESSION_OPEN requires --wp WP-{ID}.`);
+  if (wpBoundRole && !roleFlagProvided) {
+    throw new Error(`WP-bound SESSION_OPEN requires explicit --role ${wpBoundRole}.`);
   }
-  if (governedRole && !WP_ID_RE.test(normalizedWpId)) {
-    throw new Error(`Governed validator SESSION_OPEN requires a valid --wp WP-{ID}.`);
+  if (wpBoundRole && !normalizedWpId) {
+    throw new Error(`WP-bound SESSION_OPEN requires --wp WP-{ID}.`);
+  }
+  if (wpBoundRole && !WP_ID_RE.test(normalizedWpId)) {
+    throw new Error(`WP-bound SESSION_OPEN requires a valid --wp WP-{ID}.`);
   }
 
   return {
