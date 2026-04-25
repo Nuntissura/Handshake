@@ -6267,7 +6267,7 @@ pub async fn create_session_checkpoint(
     let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids)
         .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
 
-    let checkpoint = crate::storage::SessionCheckpoint {
+    let checkpoint = SessionCheckpoint {
         checkpoint_id: checkpoint_id.clone(),
         session_id: session_id.to_string(),
         timestamp: now,
