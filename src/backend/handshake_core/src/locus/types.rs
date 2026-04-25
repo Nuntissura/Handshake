@@ -1785,6 +1785,7 @@ pub fn validate_structured_collaboration_record(
         project_profile_kind,
         &mut result,
     );
+    validate_governed_action_fields(obj, &mut result);
 
     match family {
         StructuredCollaborationRecordFamily::WorkPacketPacket
@@ -2351,6 +2352,124 @@ fn validate_mirror_state(
     }
 }
 
+pub fn is_registered_governed_action_id(action_id: &str) -> bool {
+    [
+        WorkflowStateFamily::Intake,
+        WorkflowStateFamily::Ready,
+        WorkflowStateFamily::Active,
+        WorkflowStateFamily::Waiting,
+        WorkflowStateFamily::Review,
+        WorkflowStateFamily::Approval,
+        WorkflowStateFamily::Validation,
+        WorkflowStateFamily::Blocked,
+        WorkflowStateFamily::Done,
+        WorkflowStateFamily::Canceled,
+    ]
+    .into_iter()
+    .flat_map(governed_action_ids_for_family)
+    .any(|registered| registered == action_id)
+}
+
+pub fn is_governed_action_id_allowed_for_workflow_family(
+    family: WorkflowStateFamily,
+    action_id: &str,
+) -> bool {
+    governed_action_ids_for_family(family)
+        .iter()
+        .any(|allowed| allowed == action_id)
+}
+
+pub fn preferred_governed_next_action_for_family(
+    family: WorkflowStateFamily,
+) -> Option<&'static str> {
+    match family {
+        WorkflowStateFamily::Intake => Some("triage"),
+        WorkflowStateFamily::Ready => Some("start"),
+        WorkflowStateFamily::Active => Some("update"),
+        WorkflowStateFamily::Waiting => Some("resume"),
+        WorkflowStateFamily::Review => Some("review"),
+        WorkflowStateFamily::Approval => Some("approve"),
+        WorkflowStateFamily::Validation => Some("validate"),
+        WorkflowStateFamily::Blocked => Some("unblock"),
+        WorkflowStateFamily::Done => Some("archive"),
+        WorkflowStateFamily::Canceled => Some("archive"),
+        WorkflowStateFamily::Archived => None,
+    }
+}
+
+fn workflow_state_family_from_obj(
+    obj: &serde_json::Map<String, Value>,
+) -> Option<WorkflowStateFamily> {
+    obj.get("workflow_state_family")
+        .cloned()
+        .and_then(|family| serde_json::from_value(family).ok())
+}
+
+fn validate_governed_action_fields(
+    obj: &serde_json::Map<String, Value>,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let family = workflow_state_family_from_obj(obj);
+
+    if let Some(allowed_action_ids) = obj.get("allowed_action_ids").and_then(Value::as_array) {
+        for (index, action_id_value) in allowed_action_ids.iter().enumerate() {
+            let Some(action_id) = action_id_value.as_str() else {
+                continue;
+            };
+            let field = format!("allowed_action_ids[{index}]");
+            if !is_registered_governed_action_id(action_id) {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    field,
+                    Some("registered governed action id".to_string()),
+                    Some(action_id.to_string()),
+                    "allowed_action_ids must contain registered governed action ids",
+                );
+                continue;
+            }
+            if let Some(family) = family {
+                if !is_governed_action_id_allowed_for_workflow_family(family, action_id) {
+                    result.push_issue(
+                        StructuredCollaborationValidationCode::InvalidFieldValue,
+                        field,
+                        Some(format!(
+                            "action allowed for workflow_state_family={family:?}"
+                        )),
+                        Some(action_id.to_string()),
+                        "allowed_action_ids must match workflow_state_family",
+                    );
+                }
+            }
+        }
+    }
+
+    if let Some(action_id) = obj.get("next_action").and_then(Value::as_str) {
+        if !is_registered_governed_action_id(action_id) {
+            result.push_issue(
+                StructuredCollaborationValidationCode::InvalidFieldValue,
+                "next_action",
+                Some("registered governed action id".to_string()),
+                Some(action_id.to_string()),
+                "next_action must be a registered governed action id",
+            );
+            return;
+        }
+        if let Some(family) = family {
+            if !is_governed_action_id_allowed_for_workflow_family(family, action_id) {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    "next_action",
+                    Some(format!(
+                        "action allowed for workflow_state_family={family:?}"
+                    )),
+                    Some(action_id.to_string()),
+                    "next_action must match workflow_state_family",
+                );
+            }
+        }
+    }
+}
+
 fn validate_profile_extension(
     value: Option<&Value>,
     project_profile_kind: Option<ProjectProfileKind>,
@@ -2387,6 +2506,17 @@ fn validate_profile_extension(
         "profile_extension.extension_schema_version",
         result,
     );
+    if let Some(extension_schema_id) = extension_schema_id {
+        if !is_registered_profile_extension_schema(project_profile_kind, extension_schema_id) {
+            result.push_issue(
+                StructuredCollaborationValidationCode::InvalidFieldValue,
+                "profile_extension.extension_schema_id",
+                Some("registered profile extension schema id".to_string()),
+                Some(extension_schema_id.to_string()),
+                "profile_extension schema id must be registered for the project profile kind",
+            );
+        }
+    }
     if extension_schema_id == Some(GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1) {
         if !matches!(project_profile_kind, Some(ProjectProfileKind::SoftwareDelivery)) {
             result.push_issue(
@@ -2425,6 +2555,27 @@ fn validate_profile_extension(
             compatibility_repr(obj.get("compatibility")),
             "profile_extension declares breaking compatibility and must be rejected deterministically",
         );
+    }
+}
+
+fn is_registered_profile_extension_schema(
+    project_profile_kind: Option<ProjectProfileKind>,
+    extension_schema_id: &str,
+) -> bool {
+    if extension_schema_id == GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1 {
+        return true;
+    }
+
+    match project_profile_kind {
+        Some(ProjectProfileKind::SoftwareDelivery) => matches!(
+            extension_schema_id,
+            "hsk.profile.software_delivery@1" | "handshake.project_profile.software_delivery"
+        ),
+        Some(ProjectProfileKind::Research) => matches!(
+            extension_schema_id,
+            "hsk.profile.research@1" | "hsk.profile.research.exploratory@1"
+        ),
+        _ => false,
     }
 }
 

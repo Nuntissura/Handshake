@@ -20,14 +20,12 @@ use handshake_core::workflows::{
     locus::{
         governed_action_ids_for_family, is_governed_action_id_allowed_for_workflow_family,
         is_registered_governed_action_id,
-        task_board::{
-            validate_task_board_entry_authoritative_fields, TaskBoardEntryRecordV1,
-            TaskBoardIndexV1, TaskBoardViewV1,
-        },
+        task_board::{TaskBoardEntryRecordV1, TaskBoardIndexV1, TaskBoardViewV1},
         validate_structured_collaboration_record, validate_structured_collaboration_summary_join,
-        StructuredCollaborationRecordFamily, StructuredCollaborationValidationCode,
-        StructuredCollaborationValidationResult, TrackedMicroTaskArtifactV1,
-        TrackedWorkPacketArtifactV1, WorkflowQueueReasonCode, WorkflowStateFamily,
+        validate_task_board_entry_authoritative_fields, StructuredCollaborationRecordFamily,
+        StructuredCollaborationValidationCode, StructuredCollaborationValidationResult,
+        TrackedMicroTaskArtifactV1, TrackedWorkPacketArtifactV1, WorkflowQueueReasonCode,
+        WorkflowStateFamily,
     },
     start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
 };
@@ -302,7 +300,6 @@ fn validate_runtime_structured_record(
             "authority_refs must stay within the product-runtime .handshake/gov boundary",
         );
     }
-    validate_governed_action_fields(value, &mut validation);
     validation
 }
 
@@ -322,172 +319,6 @@ fn json_string_array_field(value: &Value, field: &str) -> Vec<String> {
 
 fn json_field_absent_or_null(value: &Value, field: &str) -> bool {
     value.get(field).map(Value::is_null).unwrap_or(true)
-}
-
-fn is_registered_governed_action_id(action_id: &str) -> bool {
-    matches!(
-        action_id,
-        "triage"
-            | "prioritize"
-            | "start"
-            | "assign"
-            | "update"
-            | "complete"
-            | "pause"
-            | "resume"
-            | "escalate"
-            | "review"
-            | "request_changes"
-            | "approve"
-            | "reject"
-            | "validate"
-            | "repair"
-            | "unblock"
-            | "archive"
-            | "reopen"
-    )
-}
-
-fn is_governed_action_id_allowed_for_workflow_family(
-    family: WorkflowStateFamily,
-    action_id: &str,
-) -> bool {
-    match family {
-        WorkflowStateFamily::Intake => matches!(action_id, "triage" | "prioritize"),
-        WorkflowStateFamily::Ready => matches!(action_id, "start" | "assign"),
-        WorkflowStateFamily::Active => matches!(action_id, "update" | "complete" | "pause"),
-        WorkflowStateFamily::Waiting => matches!(action_id, "resume" | "escalate"),
-        WorkflowStateFamily::Review => matches!(action_id, "review" | "request_changes"),
-        WorkflowStateFamily::Approval => matches!(action_id, "approve" | "reject"),
-        WorkflowStateFamily::Validation => matches!(action_id, "validate" | "repair"),
-        WorkflowStateFamily::Blocked => matches!(
-            action_id,
-            "unblock" | "escalate"
-        ),
-        WorkflowStateFamily::Done | WorkflowStateFamily::Canceled => {
-            matches!(action_id, "archive" | "reopen")
-        }
-        WorkflowStateFamily::Archived => false,
-    }
-}
-
-fn validate_governed_action_fields(
-    value: &Value,
-    validation: &mut StructuredCollaborationValidationResult,
-) {
-    validate_profile_extension_fields(value, validation);
-    let family = value
-        .get("workflow_state_family")
-        .cloned()
-        .and_then(|family| serde_json::from_value::<WorkflowStateFamily>(family).ok());
-
-    if let Some(allowed_action_ids) = value.get("allowed_action_ids").and_then(Value::as_array) {
-        for (index, action_id_value) in allowed_action_ids.iter().enumerate() {
-            let Some(action_id) = action_id_value.as_str() else {
-                continue;
-            };
-            let field = format!("allowed_action_ids[{index}]");
-            if !is_registered_governed_action_id(action_id) {
-                validation.push_issue(
-                    StructuredCollaborationValidationCode::InvalidFieldValue,
-                    field,
-                    Some("registered governed action id".to_string()),
-                    Some(action_id.to_string()),
-                    "allowed_action_ids must contain registered governed action ids",
-                );
-                continue;
-            }
-            if let Some(family) = family {
-                if !is_governed_action_id_allowed_for_workflow_family(family, action_id) {
-                    validation.push_issue(
-                        StructuredCollaborationValidationCode::InvalidFieldValue,
-                        field,
-                        Some(format!("action allowed for workflow_state_family={family:?}")),
-                        Some(action_id.to_string()),
-                        "allowed_action_ids must match workflow_state_family",
-                    );
-                }
-            }
-        }
-    }
-
-    if let Some(action_id) = value.get("next_action").and_then(Value::as_str) {
-        if !is_registered_governed_action_id(action_id) {
-            validation.push_issue(
-                StructuredCollaborationValidationCode::InvalidFieldValue,
-                "next_action",
-                Some("registered governed action id".to_string()),
-                Some(action_id.to_string()),
-                "next_action must be a registered governed action id",
-            );
-            return;
-        }
-        if let Some(family) = family {
-            if !is_governed_action_id_allowed_for_workflow_family(family, action_id) {
-                validation.push_issue(
-                    StructuredCollaborationValidationCode::InvalidFieldValue,
-                    "next_action",
-                    Some(format!("action allowed for workflow_state_family={family:?}")),
-                    Some(action_id.to_string()),
-                    "next_action must match workflow_state_family",
-                );
-            }
-        }
-    }
-}
-
-fn validate_profile_extension_fields(
-    value: &Value,
-    validation: &mut StructuredCollaborationValidationResult,
-) {
-    let Some(profile_extension) = value.get("profile_extension") else {
-        return;
-    };
-    if profile_extension.is_null() {
-        return;
-    }
-    let Some(profile_extension) = profile_extension.as_object() else {
-        return;
-    };
-    let Some(extension_schema_id) = profile_extension
-        .get("extension_schema_id")
-        .and_then(Value::as_str)
-    else {
-        return;
-    };
-    let project_profile_kind = value
-        .get("project_profile_kind")
-        .and_then(Value::as_str)
-        .and_then(handshake_core::workflows::locus::ProjectProfileKind::parse);
-
-    if !is_registered_profile_extension_schema(project_profile_kind, extension_schema_id) {
-        validation.push_issue(
-            StructuredCollaborationValidationCode::InvalidFieldValue,
-            "profile_extension.extension_schema_id",
-            Some("registered profile extension schema id".to_string()),
-            Some(extension_schema_id.to_string()),
-            "profile_extension schema id must be registered for the project profile kind",
-        );
-    }
-}
-
-fn is_registered_profile_extension_schema(
-    project_profile_kind: Option<handshake_core::workflows::locus::ProjectProfileKind>,
-    extension_schema_id: &str,
-) -> bool {
-    match project_profile_kind {
-        Some(handshake_core::workflows::locus::ProjectProfileKind::SoftwareDelivery) => matches!(
-            extension_schema_id,
-            "hsk.profile.software_delivery@1"
-                | "handshake.project_profile.software_delivery"
-                | handshake_core::workflows::locus::GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1
-        ),
-        Some(handshake_core::workflows::locus::ProjectProfileKind::Research) => matches!(
-            extension_schema_id,
-            "hsk.profile.research@1" | "hsk.profile.research.exploratory@1"
-        ),
-        _ => false,
-    }
 }
 
 fn validate_task_board_row_against_packet_truth(
@@ -515,6 +346,10 @@ fn validate_task_board_row_against_packet_truth(
     )
     .expect("queue_reason_code enum");
     let expected_allowed_action_ids = json_string_array_field(packet, "allowed_action_ids");
+    assert_eq!(
+        expected_allowed_action_ids,
+        governed_action_ids_for_family(expected_workflow_state_family)
+    );
 
     validate_task_board_entry_authoritative_fields(
         &entry,
@@ -1116,7 +951,10 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
             .and_then(Value::as_str),
         Some("generic")
     );
-    assert!(json_field_absent_or_null(&summary_json, "profile_extension"));
+    assert!(json_field_absent_or_null(
+        &summary_json,
+        "profile_extension"
+    ));
     assert_eq!(
         summary_json.get("status").and_then(Value::as_str),
         Some("stub")
@@ -2022,7 +1860,10 @@ async fn locus_register_mts_emits_structured_micro_task_packet_and_summary_with_
         legacy_packet.summary_ref,
         ".handshake/gov/micro_tasks/WP-TEST/MT-ARTIFACTS/summary.json"
     );
-    assert_eq!(legacy_packet.profile_extension.as_ref(), Some(&research_extension));
+    assert_eq!(
+        legacy_packet.profile_extension.as_ref(),
+        Some(&research_extension)
+    );
     assert_eq!(
         packet_metadata
             .get("structured_collaboration_summary_path")

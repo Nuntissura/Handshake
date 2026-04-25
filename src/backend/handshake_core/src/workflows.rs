@@ -4903,7 +4903,6 @@ async fn emit_runtime_structured_work_packet_artifacts(
         locus::StructuredCollaborationRecordFamily::WorkPacketPacket,
         &detail_value,
     );
-    validate_governed_action_fields(&detail_value, &mut validation);
     let invalid_detail_authority_refs =
         runtime_paths.invalid_runtime_authority_refs(&tracked_wp.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
@@ -4922,7 +4921,6 @@ async fn emit_runtime_structured_work_packet_artifacts(
         locus::StructuredCollaborationRecordFamily::WorkPacketSummary,
         &summary_value,
     );
-    validate_governed_action_fields(&summary_value, &mut summary_validation);
     let summary_authority_refs =
         structured_collaboration_string_vec(summary_value.get("authority_refs"));
     let invalid_summary_authority_refs =
@@ -4976,7 +4974,6 @@ async fn emit_runtime_structured_micro_task_artifacts(
         locus::StructuredCollaborationRecordFamily::MicroTaskPacket,
         &detail_value,
     );
-    validate_governed_action_fields(&detail_value, &mut validation);
     let invalid_detail_authority_refs =
         runtime_paths.invalid_runtime_authority_refs(&tracked_mt.authority_refs);
     if !invalid_detail_authority_refs.is_empty() {
@@ -5282,6 +5279,16 @@ fn read_existing_work_packet_type(
         .and_then(parse_work_packet_type_value)
 }
 
+fn governed_work_packet_next_action(status: locus::WorkPacketStatus) -> &'static str {
+    let (family, _) = work_packet_workflow_state(status);
+    locus::preferred_governed_next_action_for_family(family).unwrap_or("archive")
+}
+
+fn governed_micro_task_next_action(status: locus::MicroTaskStatus) -> &'static str {
+    let (family, _) = micro_task_workflow_state(status);
+    locus::preferred_governed_next_action_for_family(family).unwrap_or("archive")
+}
+
 fn build_structured_work_packet_summary(
     tracked_wp: &locus::TrackedWorkPacket,
 ) -> locus::StructuredCollaborationSummaryRecord {
@@ -5290,7 +5297,7 @@ fn build_structured_work_packet_summary(
         tracked_wp.record_id.clone(),
         tracked_wp.title.clone(),
         structured_work_packet_status(tracked_wp.status),
-        structured_work_packet_next_action(tracked_wp.status),
+        governed_work_packet_next_action(tracked_wp.status),
         tracked_wp.authority_refs.clone(),
         tracked_wp.evidence_refs.clone(),
         tracked_wp.updated_at.to_rfc3339(),
@@ -5398,7 +5405,7 @@ fn build_structured_micro_task_summary(
         tracked_mt.record_id.clone(),
         tracked_mt.name.clone(),
         structured_micro_task_status(tracked_mt.status),
-        structured_micro_task_next_action(tracked_mt.status),
+        governed_micro_task_next_action(tracked_mt.status),
         tracked_mt.authority_refs.clone(),
         tracked_mt.evidence_refs.clone(),
         tracked_mt.updated_at.to_rfc3339(),
@@ -5975,8 +5982,15 @@ fn structured_work_packet_status(status: locus::WorkPacketStatus) -> &'static st
 }
 
 fn structured_work_packet_next_action(status: locus::WorkPacketStatus) -> &'static str {
-    let (family, _) = work_packet_workflow_state(status);
-    preferred_governed_next_action_for_family(family).unwrap_or("archive")
+    match status {
+        locus::WorkPacketStatus::Unknown => "refine_work_packet",
+        locus::WorkPacketStatus::Ready => "start_work_packet",
+        locus::WorkPacketStatus::InProgress => "continue_work_packet",
+        locus::WorkPacketStatus::Blocked => "resolve_blocker",
+        locus::WorkPacketStatus::Gated => "await_gate_review",
+        locus::WorkPacketStatus::Done => "archive_work_packet",
+        locus::WorkPacketStatus::Cancelled => "close_work_packet",
+    }
 }
 
 async fn submit_locus_start_mt(
@@ -6235,9 +6249,8 @@ pub async fn create_session_checkpoint(
     let now = Utc::now();
     let checkpoint_id = Uuid::new_v4().to_string();
     let checkpoint_artifact_id = Uuid::new_v4().to_string();
-    let session_state_json = serde_json::to_string(&session).map_err(|e| {
-        WorkflowError::Terminal(format!("session checkpoint serialization failed: {e}"))
-    })?;
+    let session_state_json =
+        serde_json::to_string(&session).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let message_thread_tail_id = messages
         .last()
         .map(|message| message.message_id.clone())
@@ -6247,11 +6260,10 @@ pub async fn create_session_checkpoint(
         .filter(|message| matches!(message.role, SessionMessageRole::ToolCall))
         .filter_map(|message| message.tool_call_id.clone())
         .collect();
-    let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids).map_err(|e| {
-        WorkflowError::Terminal(format!("pending tool calls serialization failed: {e}"))
-    })?;
+    let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids)
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
 
-    let checkpoint = SessionCheckpoint {
+    let checkpoint = crate::storage::SessionCheckpoint {
         checkpoint_id: checkpoint_id.clone(),
         session_id: session_id.to_string(),
         timestamp: now,
@@ -13915,7 +13927,6 @@ fn apply_runtime_structured_micro_task_registry(
             locus::StructuredCollaborationRecordFamily::MicroTaskSummary,
             summary_value,
         );
-        validate_governed_action_fields(summary_value, &mut summary_validation);
         let summary_authority_refs =
             structured_collaboration_string_vec(summary_value.get("authority_refs"));
         let invalid_summary_authority_refs =
@@ -13970,8 +13981,14 @@ fn structured_micro_task_status(status: locus::MicroTaskStatus) -> &'static str 
 }
 
 fn structured_micro_task_next_action(status: locus::MicroTaskStatus) -> &'static str {
-    let (family, _) = micro_task_workflow_state(status);
-    preferred_governed_next_action_for_family(family).unwrap_or("archive")
+    match status {
+        locus::MicroTaskStatus::Pending => "start_micro_task",
+        locus::MicroTaskStatus::InProgress => "continue_micro_task",
+        locus::MicroTaskStatus::Completed => "archive_micro_task",
+        locus::MicroTaskStatus::Failed => "retry_micro_task",
+        locus::MicroTaskStatus::Blocked => "resolve_micro_task_blocker",
+        locus::MicroTaskStatus::Skipped => "review_skipped_micro_task",
+    }
 }
 
 fn locus_iteration_outcome(outcome: IterationOutcome) -> locus::MicroTaskIterationOutcome {
