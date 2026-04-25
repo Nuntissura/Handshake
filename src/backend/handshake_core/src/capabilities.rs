@@ -10,6 +10,8 @@ const MD_COOKIE_IMPORT_PROTOCOL_ID_V0: &str = "hsk.media_downloader.cookie_impor
 
 /// Canonical capability identifiers from Master Spec §11.1 (Capabilities & Consent Model).
 const CANONICAL_CAPABILITY_IDS: &[&str] = &[
+    "calendar.sync.read",
+    "calendar.sync.write",
     "CALENDAR_READ_BASIC",
     "CALENDAR_READ_DETAILS",
     "CALENDAR_READ_ANALYTICS",
@@ -136,6 +138,25 @@ impl CapabilityRegistry {
                     "proc.exec".to_string(),
                     "net.http".to_string(),
                     "secrets.use".to_string(),
+                ],
+            },
+        );
+
+        profiles.insert(
+            "CalendarSync".to_string(),
+            CapabilityProfile {
+                id: "CalendarSync".to_string(),
+                allowed: vec![
+                    "calendar.sync.read".to_string(),
+                    "calendar.sync.write".to_string(),
+                    "CALENDAR_READ_BASIC".to_string(),
+                    "CALENDAR_READ_DETAILS".to_string(),
+                    "CALENDAR_WRITE_LOCAL".to_string(),
+                    "CALENDAR_WRITE_EXTERNAL".to_string(),
+                    "CALENDAR_DELETE_LOCAL".to_string(),
+                    "CALENDAR_DELETE_EXTERNAL".to_string(),
+                    "CALENDAR_MOVE_EVENT".to_string(),
+                    "CALENDAR_RESOLVE_CONFLICT".to_string(),
                 ],
             },
         );
@@ -357,6 +378,10 @@ impl CapabilityRegistry {
         job_kind: &str,
         protocol_id: &str,
     ) -> Result<&CapabilityProfile, RegistryError> {
+        if job_kind == "workflow_run" && protocol_id == "calendar_sync" {
+            return self.profile_by_id("CalendarSync");
+        }
+
         if job_kind == "workflow_run" && protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
             return self.profile_by_id("Operator");
         }
@@ -382,6 +407,10 @@ impl CapabilityRegistry {
         job_kind: &str,
         protocol_id: &str,
     ) -> Result<Vec<String>, RegistryError> {
+        if job_kind == "workflow_run" && protocol_id == "calendar_sync" {
+            return Ok(vec!["calendar.sync.read".to_string()]);
+        }
+
         if job_kind == "workflow_run" && protocol_id == GOVERNANCE_PACK_EXPORT_PROTOCOL_ID {
             return Ok(vec![
                 "fs.read".to_string(),

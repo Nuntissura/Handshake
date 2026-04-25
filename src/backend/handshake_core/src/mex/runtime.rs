@@ -519,6 +519,10 @@ impl MexRuntime {
     fn denied_capability_id(denial: &GateDenial) -> Option<String> {
         match denial.details.as_ref() {
             Some(serde_json::Value::String(value)) => Some(value.clone()),
+            Some(serde_json::Value::Object(value)) => value
+                .get("capability_id")
+                .and_then(|capability| capability.as_str())
+                .map(|capability| capability.to_string()),
             _ => None,
         }
     }

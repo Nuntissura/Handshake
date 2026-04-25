@@ -38,7 +38,9 @@ use crate::{
         openai_compat_canonical_request_bytes, CompletionRequest, LlmError, ModelTier,
     },
     mex::gates::evaluate_session_safety_gates,
-    mex::runtime::{AdapterError as MexAdapterError, EngineAdapter, ShellEngineAdapter},
+    mex::runtime::{
+        AdapterError as MexAdapterError, EngineAdapter, MexRuntimeError, ShellEngineAdapter,
+    },
     mex::{
         BudgetGate, BudgetSpec, CapabilityGate, DetGate, DeterminismLevel, EngineError,
         EngineResult, EngineStatus, EvidencePolicy, GatePipeline, IntegrityGate, MexRegistry,
@@ -48,10 +50,12 @@ use crate::{
     models::{AiJob, JobKind, WorkflowRun},
     runtime_governance::RuntimeGovernancePaths,
     storage::{
-        validate_job_contract, AiJobListFilter, JobState, JobStatusUpdate, ModelSession,
-        ModelSessionState, NewModelSession, NewNodeExecution, NewSessionMessage, SessionCheckpoint,
-        SessionMessageRole, StorageCapabilityStore, StorageError, StructuredCollabWorkPacketRow,
-        StructuredCollaborationStore,
+        validate_job_contract, AiJobListFilter, CalendarEventUpsert, CalendarMutationAction,
+        CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy,
+        CalendarSyncEventUpsert, CalendarSyncInput, CalendarSyncStateStage, JobState,
+        JobStatusUpdate, ModelSession, ModelSessionState, NewModelSession, NewNodeExecution,
+        NewSessionMessage, SessionCheckpoint, SessionMessageRole, StorageCapabilityStore,
+        StorageError, StructuredCollabWorkPacketRow, StructuredCollaborationStore, WriteContext,
     },
     terminal::{
         config::TerminalConfig,
@@ -8184,17 +8188,23 @@ pub async fn start_workflow_for_job(
     let trace_id = derive_trace_id(&job, None);
 
     if let Err(err) = enforce_capabilities(state, &job, trace_id).await {
+        let err_text = err.to_string();
+        let denied_output = if is_calendar_sync_job(&job) {
+            Some(calendar_sync_denied_output(&job, None, &err_text))
+        } else {
+            None
+        };
         state
             .storage
             .update_ai_job_status(JobStatusUpdate {
                 job_id: job.job_id,
                 state: JobState::Failed,
-                error_message: Some(err.to_string()),
-                status_reason: err.to_string(),
+                error_message: Some(err_text.clone()),
+                status_reason: err_text,
                 metrics: None,
                 workflow_run_id: None,
                 trace_id: Some(trace_id),
-                job_outputs: None,
+                job_outputs: denied_output,
             })
             .await?;
         return Err(err);
@@ -9534,6 +9544,10 @@ async fn run_job(
 
         if is_fems_protocol(&job.protocol_id) {
             return run_fems_memory_job(state, job, workflow_run_id, trace_id).await;
+        }
+
+        if job.protocol_id == CALENDAR_SYNC_PROTOCOL_ID {
+            return run_calendar_sync_job(state, job, workflow_run_id, trace_id).await;
         }
 
         if job.protocol_id == MD_BATCH_PROTOCOL_ID_V0 {
@@ -13294,6 +13308,487 @@ impl EngineAdapter for MediaDownloaderEngineAdapter {
     }
 }
 
+pub const CALENDAR_SYNC_PROTOCOL_ID: &str = "calendar_sync";
+const CALENDAR_SYNC_ENGINE_ID: &str = "calendar_sync";
+const CALENDAR_SYNC_OPERATION: &str = "calendar_sync.run";
+const CALENDAR_SYNC_READ_CAPABILITY: &str = "calendar.sync.read";
+const CALENDAR_SYNC_WRITE_CAPABILITY: &str = "calendar.sync.write";
+
+fn is_calendar_sync_job(job: &AiJob) -> bool {
+    matches!(job.job_kind, JobKind::WorkflowRun) && job.protocol_id == CALENDAR_SYNC_PROTOCOL_ID
+}
+
+fn calendar_sync_denied_output(
+    job: &AiJob,
+    workflow_run_id: Option<Uuid>,
+    reason: &str,
+) -> Value {
+    json!({
+        "schema_version": "hsk.calendar_sync_result@v1",
+        "engine_id": CALENDAR_SYNC_ENGINE_ID,
+        "operation": CALENDAR_SYNC_OPERATION,
+        "status": "denied",
+        "job_id": job.job_id.to_string(),
+        "workflow_run_id": workflow_run_id.map(|id| id.to_string()),
+        "capability_profile_id": job.capability_profile_id.as_str(),
+        "provider_safe_evidence": {
+            "remote_write_attempted": false,
+            "credentials_ref_emitted": false,
+            "provider_payload_redacted": true
+        },
+        "error": {
+            "code": "CALENDAR_SYNC_CAPABILITY_DENIED",
+            "message": reason
+        }
+    })
+}
+
+fn calendar_event_upsert_from_sync_event(
+    workspace_id: &str,
+    source_id: &str,
+    event: CalendarSyncEventUpsert,
+) -> CalendarEventUpsert {
+    CalendarEventUpsert {
+        id: event.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
+        workspace_id: workspace_id.to_string(),
+        source_id: source_id.to_string(),
+        external_id: event.external_id,
+        external_etag: event.external_etag,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        start_ts_utc: event.start_ts_utc,
+        end_ts_utc: event.end_ts_utc,
+        start_local: event.start_local,
+        end_local: event.end_local,
+        tzid: event.tzid,
+        all_day: event.all_day,
+        was_floating: event.was_floating,
+        status: event.status,
+        visibility: event.visibility,
+        export_mode: event.export_mode,
+        rrule: event.rrule,
+        rdate: event.rdate,
+        exdate: event.exdate,
+        is_recurring: event.is_recurring,
+        series_id: event.series_id,
+        instance_key: event.instance_key,
+        is_override: event.is_override,
+        source_last_seen_at: event.source_last_seen_at.or_else(|| Some(Utc::now())),
+        attendees: event.attendees,
+        links: event.links,
+        provider_payload: event.provider_payload,
+    }
+}
+
+struct CalendarSyncAdapterOutcome {
+    status: EngineStatus,
+    output: Value,
+    errors: Vec<EngineError>,
+}
+
+struct CalendarSyncEngineAdapter {
+    state: AppState,
+}
+
+impl CalendarSyncEngineAdapter {
+    fn new(state: AppState) -> Self {
+        Self { state }
+    }
+}
+
+#[async_trait]
+impl EngineAdapter for CalendarSyncEngineAdapter {
+    async fn invoke(&self, op: &PlannedOperation) -> Result<EngineResult, MexAdapterError> {
+        if op.engine_id != CALENDAR_SYNC_ENGINE_ID {
+            return Err(MexAdapterError::Engine(format!(
+                "unsupported engine_id for calendar sync adapter: {}",
+                op.engine_id
+            )));
+        }
+        if op.operation != CALENDAR_SYNC_OPERATION {
+            return Err(MexAdapterError::Engine(format!(
+                "unsupported operation for calendar sync adapter: {}",
+                op.operation
+            )));
+        }
+
+        let started_at = Utc::now();
+        let input: CalendarSyncInput = serde_json::from_value(op.params.clone())
+            .map_err(|e| MexAdapterError::Engine(format!("invalid calendar sync input: {e}")))?;
+        let outcome = apply_calendar_sync(&self.state, op, input).await?;
+        let ended_at = Utc::now();
+        let output_handle = ArtifactHandle::new(
+            op.op_id,
+            format!("calendar_sync_result/{}.json", op.op_id),
+        );
+        let provenance = ProvenanceRecord {
+            engine_id: op.engine_id.clone(),
+            engine_version: Some("0.1.0".to_string()),
+            implementation: Some("workflow.run_calendar_sync_job".to_string()),
+            determinism: op.determinism,
+            config_hash: None,
+            inputs: op.inputs.clone(),
+            outputs: vec![output_handle.clone()],
+            capabilities_granted: op.capabilities_requested.clone(),
+            environment: Some(json!({
+                "calendar_sync_result": outcome.output,
+                "provider_safe": true
+            })),
+        };
+
+        Ok(EngineResult {
+            op_id: op.op_id,
+            status: outcome.status,
+            started_at,
+            ended_at,
+            outputs: vec![output_handle.clone()],
+            evidence: vec![output_handle],
+            provenance,
+            errors: outcome.errors,
+            logs_ref: None,
+        })
+    }
+}
+
+async fn apply_calendar_sync(
+    state: &AppState,
+    op: &PlannedOperation,
+    input: CalendarSyncInput,
+) -> Result<CalendarSyncAdapterOutcome, MexAdapterError> {
+    let now = Utc::now();
+    let source = state
+        .storage
+        .get_calendar_source(&input.workspace_id, &input.source_id)
+        .await
+        .map_err(|e| MexAdapterError::Engine(e.to_string()))?
+        .ok_or_else(|| MexAdapterError::Engine("calendar source not found".to_string()))?;
+    let read_only_source = source.write_policy == CalendarSourceWritePolicy::ReadOnlyImport;
+    let mutation_count = input.mutations.len();
+
+    if mutation_count > 0 && read_only_source {
+        let output = json!({
+            "schema_version": "hsk.calendar_sync_result@v1",
+            "engine_id": CALENDAR_SYNC_ENGINE_ID,
+            "operation": CALENDAR_SYNC_OPERATION,
+            "status": "denied",
+            "workspace_id": input.workspace_id,
+            "source_id": input.source_id,
+            "write_policy": source.write_policy.as_str(),
+            "provider_safe_evidence": {
+                "remote_write_attempted": false,
+                "credentials_ref_emitted": false,
+                "provider_payload_redacted": true
+            },
+            "error": {
+                "code": "CALENDAR_SYNC_READ_ONLY_SOURCE",
+                "message": "calendar mutations are denied for read_only_import sources"
+            }
+        });
+        return Ok(CalendarSyncAdapterOutcome {
+            status: EngineStatus::Denied,
+            output,
+            errors: vec![EngineError {
+                code: "CALENDAR_SYNC_READ_ONLY_SOURCE".to_string(),
+                message: "calendar mutations are denied for read_only_import sources".to_string(),
+                details_ref: None,
+            }],
+        });
+    }
+
+    if mutation_count > 0 {
+        let profile_id = op.capability_profile_id.as_deref().unwrap_or_default();
+        let can_write = state
+            .capability_registry
+            .profile_can(profile_id, CALENDAR_SYNC_WRITE_CAPABILITY)
+            .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+        if !can_write {
+            let output = json!({
+                "schema_version": "hsk.calendar_sync_result@v1",
+                "engine_id": CALENDAR_SYNC_ENGINE_ID,
+                "operation": CALENDAR_SYNC_OPERATION,
+                "status": "denied",
+                "workspace_id": input.workspace_id,
+                "source_id": input.source_id,
+                "capability_profile_id": profile_id,
+                "provider_safe_evidence": {
+                    "remote_write_attempted": false,
+                    "credentials_ref_emitted": false,
+                    "provider_payload_redacted": true
+                },
+                "error": {
+                    "code": "CALENDAR_SYNC_WRITE_CAPABILITY_DENIED",
+                    "message": "calendar.sync.write is required for calendar mutations"
+                }
+            });
+            return Ok(CalendarSyncAdapterOutcome {
+                status: EngineStatus::Denied,
+                output,
+                errors: vec![EngineError {
+                    code: "CALENDAR_SYNC_WRITE_CAPABILITY_DENIED".to_string(),
+                    message: "calendar.sync.write is required for calendar mutations".to_string(),
+                    details_ref: None,
+                }],
+            });
+        }
+    }
+
+    let workflow_id = op
+        .params
+        .get("workflow_run_id")
+        .and_then(|v| v.as_str())
+        .and_then(|value| Uuid::parse_str(value).ok())
+        .unwrap_or(op.op_id);
+    let ctx = WriteContext::ai(
+        Some("calendar_sync".to_string()),
+        Some(op.op_id),
+        Some(workflow_id),
+    );
+    let mut provider_events_upserted = 0usize;
+    for provider_event in input.provider_events {
+        let upsert =
+            calendar_event_upsert_from_sync_event(&input.workspace_id, &input.source_id, provider_event);
+        state
+            .storage
+            .upsert_calendar_event(&ctx, upsert)
+            .await
+            .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+        provider_events_upserted += 1;
+    }
+
+    let mut mutations_applied = 0usize;
+    for mutation in input.mutations {
+        match mutation.action {
+            CalendarMutationAction::UpsertEvent => {
+                let event = mutation.event.ok_or_else(|| {
+                    MexAdapterError::Engine("calendar mutation upsert_event requires event".into())
+                })?;
+                let upsert =
+                    calendar_event_upsert_from_sync_event(&input.workspace_id, &input.source_id, event);
+                state
+                    .storage
+                    .upsert_calendar_event(&ctx, upsert)
+                    .await
+                    .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+                mutations_applied += 1;
+            }
+            CalendarMutationAction::DeleteSourceData => {
+                return Err(MexAdapterError::Engine(
+                    "calendar mutation delete_source_data is not supported by calendar_sync".into(),
+                ));
+            }
+        }
+    }
+
+    let last_rev = source.sync_state.last_local_applied_rev.unwrap_or(0);
+    let sync_state = CalendarSourceSyncState {
+        state: Some(CalendarSyncStateStage::Idle),
+        sync_token: input.next_sync_token.or(source.sync_state.sync_token.clone()),
+        last_synced_at: Some(now),
+        last_full_sync_at: if input.full_sync {
+            Some(now)
+        } else {
+            source.sync_state.last_full_sync_at
+        },
+        last_ok_at: Some(now),
+        last_pull_at: Some(now),
+        last_push_at: if mutations_applied > 0 {
+            Some(now)
+        } else {
+            source.sync_state.last_push_at
+        },
+        last_error_at: None,
+        last_error_code: None,
+        last_error: None,
+        backoff_until: None,
+        consecutive_failures: Some(0),
+        last_remote_watermark: input
+            .remote_watermark
+            .or(source.sync_state.last_remote_watermark.clone()),
+        last_local_applied_rev: Some(
+            last_rev + provider_events_upserted as i64 + mutations_applied as i64,
+        ),
+    };
+
+    let updated_source = state
+        .storage
+        .upsert_calendar_source(
+            &ctx,
+            CalendarSourceUpsert {
+                id: source.id.clone(),
+                workspace_id: source.workspace_id.clone(),
+                display_name: source.display_name.clone(),
+                provider_type: source.provider_type.clone(),
+                write_policy: source.write_policy.clone(),
+                default_tzid: source.default_tzid.clone(),
+                auto_export: source.auto_export,
+                credentials_ref: source.credentials_ref.clone(),
+                provider_calendar_id: source.provider_calendar_id.clone(),
+                capability_profile_id: source.capability_profile_id.clone(),
+                config: source.config.clone(),
+                sync_state,
+            },
+        )
+        .await
+        .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+
+    let output = json!({
+        "schema_version": "hsk.calendar_sync_result@v1",
+        "engine_id": CALENDAR_SYNC_ENGINE_ID,
+        "operation": CALENDAR_SYNC_OPERATION,
+        "status": "succeeded",
+        "workspace_id": input.workspace_id,
+        "source_id": input.source_id,
+        "provider_type": source.provider_type.as_str(),
+        "write_policy": source.write_policy.as_str(),
+        "read_only_source": read_only_source,
+        "provider_events_upserted": provider_events_upserted,
+        "mutations_applied": mutations_applied,
+        "remote_write_attempted": false,
+        "provider_safe_evidence": {
+            "remote_write_attempted": false,
+            "credentials_ref_emitted": false,
+            "credentials_ref_present": source.credentials_ref.is_some(),
+            "provider_payload_redacted": true
+        },
+        "sync_state": {
+            "state": updated_source.sync_state.state.as_ref().map(|s| s.as_str()),
+            "sync_token": updated_source.sync_state.sync_token,
+            "last_remote_watermark": updated_source.sync_state.last_remote_watermark,
+            "last_local_applied_rev": updated_source.sync_state.last_local_applied_rev
+        }
+    });
+
+    record_event_safely(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::Agent,
+            op.op_id,
+            json!({
+                "message": "calendar_sync_result",
+                "calendar_sync_result": output.clone()
+            }),
+        )
+        .with_job_id(op.op_id.to_string()),
+    )
+    .await;
+
+    Ok(CalendarSyncAdapterOutcome {
+        status: EngineStatus::Succeeded,
+        output,
+        errors: Vec::new(),
+    })
+}
+
+async fn run_calendar_sync_job(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    _trace_id: Uuid,
+) -> Result<RunJobOutcome, WorkflowError> {
+    let repo_root = repo_root_for_artifacts()?;
+    let mex_runtime = build_mex_runtime(state, &repo_root)?;
+    let mut params = job.job_inputs.clone().unwrap_or_else(|| json!({}));
+    if let Some(params_obj) = params.as_object_mut() {
+        params_obj.insert(
+            "workflow_run_id".to_string(),
+            Value::String(workflow_run_id.to_string()),
+        );
+    }
+    let mutation_requested = params
+        .get("mutations")
+        .and_then(|v| v.as_array())
+        .map(|items| !items.is_empty())
+        .unwrap_or(false);
+    let mut capabilities_requested = vec![CALENDAR_SYNC_READ_CAPABILITY.to_string()];
+    if mutation_requested {
+        capabilities_requested.push(CALENDAR_SYNC_WRITE_CAPABILITY.to_string());
+    }
+
+    let op = PlannedOperation {
+        schema_version: POE_SCHEMA_VERSION.to_string(),
+        op_id: job.job_id,
+        engine_id: CALENDAR_SYNC_ENGINE_ID.to_string(),
+        engine_version_req: None,
+        operation: CALENDAR_SYNC_OPERATION.to_string(),
+        inputs: Vec::new(),
+        params,
+        capabilities_requested,
+        capability_profile_id: Some(job.capability_profile_id.clone()),
+        human_consent_obtained: false,
+        budget: BudgetSpec {
+            cpu_time_ms: Some(60_000),
+            wall_time_ms: Some(300_000),
+            memory_bytes: Some(256 * 1024 * 1024),
+            output_bytes: Some(1024 * 1024),
+        },
+        determinism: DeterminismLevel::D2,
+        evidence_policy: Some(EvidencePolicy {
+            required: true,
+            notes: Some("calendar_sync_result".to_string()),
+        }),
+        output_spec: OutputSpec {
+            expected_types: vec!["calendar_sync_result".to_string()],
+            max_bytes: Some(1024 * 1024),
+        },
+    };
+
+    let result = match mex_runtime.execute(op).await {
+        Ok(result) => result,
+        Err(MexRuntimeError::Gate(denial)) => {
+            let output = calendar_sync_denied_output(job, Some(workflow_run_id), &denial.reason);
+            return Ok(RunJobOutcome {
+                state: JobState::Failed,
+                status_reason: "calendar_sync_denied".to_string(),
+                output: Some(output),
+                error_message: Some(denial.reason),
+            });
+        }
+        Err(err) => {
+            return Err(WorkflowError::Terminal(format!(
+                "calendar_sync MEX execute failed: {err}"
+            )));
+        }
+    };
+
+    let output = result
+        .provenance
+        .environment
+        .as_ref()
+        .and_then(|value| value.get("calendar_sync_result"))
+        .cloned()
+        .unwrap_or_else(|| {
+            json!({
+                "schema_version": "hsk.calendar_sync_result@v1",
+                "engine_id": CALENDAR_SYNC_ENGINE_ID,
+                "operation": CALENDAR_SYNC_OPERATION,
+                "status": format!("{:?}", result.status)
+            })
+        });
+
+    let (state, status_reason, error_message) = match result.status {
+        EngineStatus::Succeeded => (JobState::Completed, "completed".to_string(), None),
+        EngineStatus::Denied => (
+            JobState::Failed,
+            "calendar_sync_denied".to_string(),
+            result.errors.first().map(|err| err.message.clone()),
+        ),
+        EngineStatus::Failed => (
+            JobState::Failed,
+            "calendar_sync_failed".to_string(),
+            result.errors.first().map(|err| err.message.clone()),
+        ),
+    };
+
+    Ok(RunJobOutcome {
+        state,
+        status_reason,
+        output: Some(output),
+        error_message,
+    })
+}
+
 fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, WorkflowError> {
     let registry_path = repo_root.join("src/backend/handshake_core/mechanical_engines.json");
     let registry = MexRegistry::load_from_path(&registry_path)
@@ -13325,6 +13820,10 @@ fn build_mex_runtime(state: &AppState, repo_root: &Path) -> Result<MexRuntime, W
     .with_adapter(
         MD_TOOL_ENGINE_ID,
         Arc::new(MediaDownloaderEngineAdapter::new(repo_root.to_path_buf())),
+    )
+    .with_adapter(
+        CALENDAR_SYNC_ENGINE_ID,
+        Arc::new(CalendarSyncEngineAdapter::new(state.clone())),
     ))
 }
 

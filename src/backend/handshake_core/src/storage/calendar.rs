@@ -138,6 +138,93 @@ pub struct CalendarSourceSyncState {
     pub last_local_applied_rev: Option<i64>,
 }
 
+fn default_calendar_tzid() -> String {
+    "UTC".to_string()
+}
+
+fn default_calendar_event_status() -> CalendarEventStatus {
+    CalendarEventStatus::Confirmed
+}
+
+fn default_calendar_event_visibility() -> CalendarEventVisibility {
+    CalendarEventVisibility::Private
+}
+
+fn default_calendar_event_export_mode() -> CalendarEventExportMode {
+    CalendarEventExportMode::LocalOnly
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CalendarSyncInput {
+    pub workspace_id: String,
+    pub source_id: String,
+    #[serde(default)]
+    pub provider_events: Vec<CalendarSyncEventUpsert>,
+    #[serde(default)]
+    pub mutations: Vec<CalendarMutation>,
+    pub next_sync_token: Option<String>,
+    pub remote_watermark: Option<String>,
+    #[serde(default)]
+    pub full_sync: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CalendarSyncEventUpsert {
+    pub id: Option<String>,
+    pub external_id: Option<String>,
+    pub external_etag: Option<String>,
+    pub title: String,
+    pub description: Option<String>,
+    pub location: Option<String>,
+    pub start_ts_utc: DateTime<Utc>,
+    pub end_ts_utc: DateTime<Utc>,
+    pub start_local: Option<String>,
+    pub end_local: Option<String>,
+    #[serde(default = "default_calendar_tzid")]
+    pub tzid: String,
+    #[serde(default)]
+    pub all_day: bool,
+    #[serde(default)]
+    pub was_floating: bool,
+    #[serde(default = "default_calendar_event_status")]
+    pub status: CalendarEventStatus,
+    #[serde(default = "default_calendar_event_visibility")]
+    pub visibility: CalendarEventVisibility,
+    #[serde(default = "default_calendar_event_export_mode")]
+    pub export_mode: CalendarEventExportMode,
+    pub rrule: Option<String>,
+    #[serde(default)]
+    pub rdate: Vec<String>,
+    #[serde(default)]
+    pub exdate: Vec<String>,
+    #[serde(default)]
+    pub is_recurring: bool,
+    pub series_id: Option<String>,
+    pub instance_key: Option<String>,
+    #[serde(default)]
+    pub is_override: bool,
+    pub source_last_seen_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub attendees: Value,
+    #[serde(default)]
+    pub links: Value,
+    pub provider_payload: Option<Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarMutationAction {
+    UpsertEvent,
+    DeleteSourceData,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CalendarMutation {
+    pub mutation_id: Option<String>,
+    pub action: CalendarMutationAction,
+    pub event: Option<CalendarSyncEventUpsert>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CalendarSource {
     pub id: String,

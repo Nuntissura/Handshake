@@ -1,4 +1,32 @@
 {
+  "calendar_sync": {
+    "engine_id": "calendar_sync",
+    "determinism_ceiling": "d2",
+    "required_caps": ["calendar.sync.read"],
+    "required_gates": [
+      "G-SCHEMA",
+      "G-CAP",
+      "G-INTEGRITY",
+      "G-BUDGET",
+      "G-PROVENANCE",
+      "G-DET"
+    ],
+    "default_budget": {
+      "cpu_time_ms": 60000,
+      "wall_time_ms": 300000,
+      "memory_bytes": 268435456,
+      "output_bytes": 1048576
+    },
+    "ops": [
+      {
+        "name": "calendar_sync.run",
+        "schema_ref": "poe-1.0",
+        "params_schema": "schemas/calendar_sync.run.json",
+        "capabilities": ["calendar.sync.read", "calendar.sync.write"],
+        "output_types": ["calendar_sync_result"]
+      }
+    ]
+  },
   "engine.shell": {
     "engine_id": "engine.shell",
     "determinism_ceiling": "d1",

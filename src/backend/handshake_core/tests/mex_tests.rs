@@ -1,12 +1,17 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use async_trait::async_trait;
+use chrono::{Duration, Utc};
 use handshake_core::ace::ArtifactHandle;
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, DiagnosticsStore};
 use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
 use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+};
+use handshake_core::llm::{
+    CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
 use handshake_core::mex::conformance::{
     single_engine_registry, ConformanceCase, ConformanceHarness, TestEngineAdapter,
@@ -21,14 +26,67 @@ use handshake_core::mex::registry::MexRegistry;
 use handshake_core::mex::runtime::{EngineAdapter, MexRuntime, MexRuntimeError};
 use handshake_core::mex::supply_chain::ToolRunner;
 use handshake_core::mex::{SupplyChainAllowlists, SupplyChainEngineAdapter, TerminalServiceRunner};
+use handshake_core::storage::{
+    tests::sqlite_backend, AccessMode, CalendarEventWindowQuery, CalendarSourceProviderType,
+    CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy, JobKind, JobMetrics,
+    NewAiJob, NewWorkspace, SafetyMode, WriteContext,
+};
 use handshake_core::terminal::config::TerminalConfig;
 use handshake_core::terminal::redaction::PatternRedactor;
 use handshake_core::terminal::{TerminalRequest, TerminalResult};
+use handshake_core::workflows::{
+    start_workflow_for_job, SessionRegistry, SessionSchedulerConfig, CALENDAR_SYNC_PROTOCOL_ID,
+};
+use handshake_core::AppState;
 use tempfile::tempdir;
 use uuid::Uuid;
 
 fn recorder() -> Arc<DuckDbFlightRecorder> {
     Arc::new(DuckDbFlightRecorder::new_in_memory(32).expect("flight recorder should init"))
+}
+
+struct EchoLlmClient {
+    profile: ModelProfile,
+}
+
+impl EchoLlmClient {
+    fn new() -> Self {
+        Self {
+            profile: ModelProfile::new("mex-calendar-sync-test".to_string(), 4096),
+        }
+    }
+}
+
+#[async_trait]
+impl LlmClient for EchoLlmClient {
+    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        Ok(CompletionResponse {
+            text: req.prompt,
+            usage: TokenUsage {
+                prompt_tokens: 1,
+                completion_tokens: 1,
+                total_tokens: 2,
+            },
+            latency_ms: 1,
+        })
+    }
+
+    fn profile(&self) -> &ModelProfile {
+        &self.profile
+    }
+}
+
+async fn calendar_sync_test_state() -> Result<AppState, Box<dyn std::error::Error>> {
+    let storage = sqlite_backend().await?;
+    let flight_recorder = recorder();
+    Ok(AppState {
+        storage,
+        flight_recorder: flight_recorder.clone(),
+        diagnostics: flight_recorder,
+        llm_client: Arc::new(EchoLlmClient::new()),
+        capability_registry: Arc::new(CapabilityRegistry::new()),
+        session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+    })
 }
 
 struct FakeToolRunner {
@@ -643,6 +701,333 @@ fn build_runtime_with_supply_chain_adapter(
         .with_adapter("engine.supply_chain.vuln", adapter.clone())
         .with_adapter("engine.supply_chain.sbom", adapter.clone())
         .with_adapter("engine.supply_chain.license", adapter)
+}
+
+#[tokio::test]
+async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability() {
+    let recorder = recorder();
+    let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
+    let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
+    let runtime = MexRuntime::new(
+        mex_registry_from_disk(),
+        flight_recorder,
+        diagnostics,
+        mex_gates(),
+    )
+    .with_adapter("calendar_sync", Arc::new(PassThroughAdapter));
+
+    let op_id = Uuid::new_v4();
+    let op = PlannedOperation {
+        schema_version: POE_SCHEMA_VERSION.to_string(),
+        op_id,
+        engine_id: "calendar_sync".to_string(),
+        engine_version_req: None,
+        operation: "calendar_sync.run".to_string(),
+        inputs: Vec::new(),
+        params: serde_json::json!({
+            "workspace_id": "ws-deny",
+            "source_id": "source-deny"
+        }),
+        capabilities_requested: vec!["calendar.sync.read".to_string()],
+        capability_profile_id: Some("Analyst".to_string()),
+        human_consent_obtained: false,
+        budget: BudgetSpec {
+            cpu_time_ms: Some(1000),
+            wall_time_ms: Some(2000),
+            memory_bytes: Some(64 * 1024 * 1024),
+            output_bytes: Some(1024 * 1024),
+        },
+        determinism: DeterminismLevel::D2,
+        evidence_policy: Some(EvidencePolicy {
+            required: true,
+            notes: Some("calendar_sync_result".to_string()),
+        }),
+        output_spec: OutputSpec {
+            expected_types: vec!["calendar_sync_result".to_string()],
+            max_bytes: Some(1024 * 1024),
+        },
+    };
+
+    let denial = match runtime.execute(op).await {
+        Err(MexRuntimeError::Gate(denial)) => denial,
+        other => panic!("expected G-CAP denial, got {other:?}"),
+    };
+
+    assert_eq!(denial.gate, "G-CAP");
+    assert_eq!(
+        denial.reason,
+        "Capability not granted by capability_profile_id"
+    );
+    assert_ne!(denial.code.as_deref(), Some("HSK-4001"));
+    assert!(
+        !denial.reason.contains("UnknownCapability"),
+        "calendar capability should be known, got: {}",
+        denial.reason
+    );
+    assert_eq!(
+        denial
+            .details
+            .as_ref()
+            .and_then(|value| value.get("capability_id"))
+            .and_then(|value| value.as_str()),
+        Some("calendar.sync.read")
+    );
+
+    let events = recorder
+        .list_events(EventFilter {
+            job_id: Some(op_id.to_string()),
+            ..Default::default()
+        })
+        .await
+        .expect("events should be queryable");
+    assert!(
+        events.iter().any(|event| {
+            event.event_type == FlightRecorderEventType::CapabilityAction
+                && event.payload.get("capability_id").and_then(|v| v.as_str())
+                    == Some("calendar.sync.read")
+                && event
+                    .payload
+                    .get("decision_outcome")
+                    .and_then(|v| v.as_str())
+                    == Some("deny")
+        }),
+        "expected denied capability action for calendar.sync.read"
+    );
+    assert!(
+        events.iter().any(|event| {
+            event.event_type == FlightRecorderEventType::System
+                && event.payload.get("message").and_then(|v| v.as_str()) == Some("gate_outcome")
+                && event
+                    .payload
+                    .get("details")
+                    .and_then(|details| details.get("outcome"))
+                    .and_then(|v| v.as_str())
+                    == Some("deny")
+        }),
+        "expected denied gate outcome event"
+    );
+
+    let state = calendar_sync_test_state()
+        .await
+        .expect("calendar sync state should initialize");
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: JobKind::WorkflowRun,
+            protocol_id: CALENDAR_SYNC_PROTOCOL_ID.to_string(),
+            profile_id: "CalendarSync".to_string(),
+            capability_profile_id: "Analyst".to_string(),
+            access_mode: AccessMode::ApplyScoped,
+            safety_mode: SafetyMode::Strict,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(serde_json::json!({
+                "workspace_id": "ws-deny",
+                "source_id": "source-deny"
+            })),
+        })
+        .await
+        .expect("job should create");
+    let err = start_workflow_for_job(&state, job.clone())
+        .await
+        .expect_err("Analyst must not run calendar_sync");
+    let err_text = err.to_string();
+    assert!(
+        err_text.contains("AccessDenied") || err_text.contains("Capability not granted"),
+        "expected access denial, got {err_text}"
+    );
+    assert!(
+        !err_text.contains("UnknownCapability"),
+        "workflow denial must not fall through UnknownCapability: {err_text}"
+    );
+    let denied_job = state
+        .storage
+        .get_ai_job(&job.job_id.to_string())
+        .await
+        .expect("job lookup");
+    assert_eq!(denied_job.state.as_str(), "failed");
+    let denied_output = denied_job.job_outputs.expect("denied output parity");
+    assert_eq!(
+        denied_output.get("status").and_then(|value| value.as_str()),
+        Some("denied")
+    );
+    assert_eq!(
+        denied_output
+            .get("engine_id")
+            .and_then(|value| value.as_str()),
+        Some("calendar_sync")
+    );
+    assert!(
+        !denied_output.to_string().contains("UnknownCapability"),
+        "denied output should preserve calendar denial without UnknownCapability"
+    );
+}
+
+#[tokio::test]
+async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let state = calendar_sync_test_state().await?;
+    let ctx = WriteContext::human(Some("calendar-sync-test".to_string()));
+    let workspace = state
+        .storage
+        .create_workspace(
+            &ctx,
+            NewWorkspace {
+                name: "calendar-sync-workflow".to_string(),
+            },
+        )
+        .await?;
+    let source_id = format!("google:read-only:{}", Uuid::new_v4());
+    state
+        .storage
+        .upsert_calendar_source(
+            &ctx,
+            CalendarSourceUpsert {
+                id: source_id.clone(),
+                workspace_id: workspace.id.clone(),
+                display_name: "Google read only".to_string(),
+                provider_type: CalendarSourceProviderType::Google,
+                write_policy: CalendarSourceWritePolicy::ReadOnlyImport,
+                default_tzid: "Europe/Brussels".to_string(),
+                auto_export: false,
+                credentials_ref: Some("secret:calendar:test".to_string()),
+                provider_calendar_id: Some("primary".to_string()),
+                capability_profile_id: Some("CalendarSync".to_string()),
+                config: serde_json::json!({"provider": "google"}),
+                sync_state: CalendarSourceSyncState::default(),
+            },
+        )
+        .await?;
+
+    let start = Utc::now() + Duration::days(1);
+    let end = start + Duration::hours(1);
+    let job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::new_v4(),
+            job_kind: JobKind::WorkflowRun,
+            protocol_id: CALENDAR_SYNC_PROTOCOL_ID.to_string(),
+            profile_id: "CalendarSync".to_string(),
+            capability_profile_id: "CalendarSync".to_string(),
+            access_mode: AccessMode::ApplyScoped,
+            safety_mode: SafetyMode::Strict,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(serde_json::json!({
+                "workspace_id": workspace.id,
+                "source_id": source_id,
+                "next_sync_token": "sync-token-2",
+                "remote_watermark": "remote-watermark-2",
+                "full_sync": true,
+                "provider_events": [{
+                    "external_id": "provider-event-1",
+                    "external_etag": "etag-1",
+                    "title": "Provider event",
+                    "description": "imported without remote mutation",
+                    "start_ts_utc": start,
+                    "end_ts_utc": end,
+                    "tzid": "Europe/Brussels",
+                    "status": "confirmed",
+                    "visibility": "private",
+                    "export_mode": "busy_only",
+                    "provider_payload": {"summary": "redacted in evidence"}
+                }]
+            })),
+        })
+        .await?;
+
+    let workflow_run = start_workflow_for_job(&state, job.clone()).await?;
+    let completed = state.storage.get_ai_job(&job.job_id.to_string()).await?;
+    assert_eq!(completed.state.as_str(), "completed");
+    let output = completed.job_outputs.expect("calendar sync output");
+    assert_eq!(
+        output.get("engine_id").and_then(|value| value.as_str()),
+        Some("calendar_sync")
+    );
+    assert_eq!(
+        output
+            .get("provider_events_upserted")
+            .and_then(|value| value.as_u64()),
+        Some(1)
+    );
+    assert_eq!(
+        output
+            .get("remote_write_attempted")
+            .and_then(|value| value.as_bool()),
+        Some(false)
+    );
+    assert_eq!(
+        output
+            .get("read_only_source")
+            .and_then(|value| value.as_bool()),
+        Some(true)
+    );
+
+    let source = state
+        .storage
+        .get_calendar_source(
+            output
+                .get("workspace_id")
+                .and_then(|value| value.as_str())
+                .unwrap(),
+            output
+                .get("source_id")
+                .and_then(|value| value.as_str())
+                .unwrap(),
+        )
+        .await?
+        .expect("source should exist");
+    assert_eq!(
+        source.sync_state.sync_token.as_deref(),
+        Some("sync-token-2")
+    );
+    assert_eq!(
+        source.sync_state.last_remote_watermark.as_deref(),
+        Some("remote-watermark-2")
+    );
+    assert!(source.sync_state.last_ok_at.is_some());
+    assert!(source.sync_state.last_pull_at.is_some());
+    assert!(source.sync_state.last_push_at.is_none());
+
+    let events = state
+        .storage
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: source.workspace_id.clone(),
+            window_start_utc: start - Duration::minutes(5),
+            window_end_utc: end + Duration::minutes(5),
+            source_ids: vec![source.id.clone()],
+        })
+        .await?;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].external_id.as_deref(), Some("provider-event-1"));
+    assert_eq!(events[0].title, "Provider event");
+
+    let fr_events = state
+        .flight_recorder
+        .list_events(EventFilter {
+            job_id: Some(job.job_id.to_string()),
+            ..Default::default()
+        })
+        .await?;
+    assert!(
+        fr_events.iter().any(|event| {
+            event.event_type == FlightRecorderEventType::System
+                && event
+                    .payload
+                    .get("message")
+                    .and_then(|value| value.as_str())
+                    == Some("calendar_sync_result")
+        }),
+        "expected provider-safe calendar_sync_result evidence event"
+    );
+    assert_eq!(workflow_run.status.as_str(), "completed");
+
+    Ok(())
 }
 
 #[tokio::test]
