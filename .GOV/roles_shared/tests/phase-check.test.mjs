@@ -419,6 +419,17 @@ test("closeout next commands surface the typed governed closeout sync when merge
   }
 });
 
+test("closeout next commands classify workflow dossier failure as diagnostic debt", () => {
+  const nextCommands = buildCloseoutNextCommands({
+    wpId: "WP-TEST-DOSSIER-DEBT-v1",
+    ok: true,
+    workflowDossierCloseoutOk: false,
+  });
+
+  assert(nextCommands.some((line) => /diagnostic debt/i.test(line)));
+  assert(nextCommands.some((line) => /do not block product closeout/i.test(line)));
+});
+
 test("terminal READY session cleanup targets only governed READY sessions for the active WP", () => {
   const sessions = resolveTerminalReadySessionsForWp({
     wpId: "WP-TEST-PHASE-v1",

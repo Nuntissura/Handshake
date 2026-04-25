@@ -783,6 +783,12 @@ function buildLiveReview({
     "",
     "---",
     "",
+    "## LIVE_ORCHESTRATOR_DIAGNOSTIC_LOG",
+    "",
+    "This section is append-only newest-first. During live execution, Orchestrator notes and governance diagnostics land here so they do not collide with ACP/session-control output at the end of the file.",
+    "",
+    `- [${formatLocalTimestamp(now)}] [ORCHESTRATOR] [REVIEW_OPENED] [${normalizePath(packetPath)}] Workflow dossier created with current ACP/session snapshot`,
+    "",
     "## 1. Executive Summary",
     "",
     "- WORKFLOW DOSSIER OPENED at activation. During execution, roles capture durable decisions, failures, concerns, and discoveries with `just repomem ... --wp`; closeout imports those memories mechanically.",
@@ -1098,6 +1104,12 @@ function buildLiveReview({
     "Format: `- [TIMESTAMP] [ROLE] [CATEGORY] <finding>`",
     "",
     "- [<TIMESTAMP>] [ROLE] [REPOMEM_INSIGHT] [GOVERNANCE_MEMORY] [SESSION] <finding>",
+    "",
+    "## LIVE_ACP_SESSION_TRACE",
+    "",
+    "This section is append-only oldest-first. ACP/session-control live entries are written here at the end of the file during execution; terminal closeout may append the repomem snapshot after ACP lanes settle.",
+    "",
+    "Format: `- [TIMESTAMP] [ORCHESTRATOR] [ACP_UPDATE|ACP_SESSION_CONTROL] <route> <event> | <fields>`",
   ].join("\n");
 }
 

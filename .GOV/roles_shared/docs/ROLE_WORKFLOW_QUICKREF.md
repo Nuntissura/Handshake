@@ -149,6 +149,7 @@ Primary commands:
 - `just workflow-dossier-sync WP-... [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]`
 - `just workflow-dossier-inject-repomem WP-... [--debug]`
 - `just workflow-dossier-autofill-costs WP-... [--debug]`
+- dossier writes are diagnostic-only: Orchestrator notes prepend near the top, ACP/session-control traces append at EOF, and terminal repomem imports append at EOF after ACP lanes settle
 - `just orchestrator-prepare-and-packet` now seeds the live workflow dossier automatically; use `workflow-dossier-init` only for repair or manual re-seeding
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`
@@ -236,7 +237,7 @@ Primary commands (per WP validation):
 - `just closeout-repair WP-... [--dry-run] [--debug]` before whole-WP closeout when packet/runtime/SHA/artifact truth needs mechanical repair
 - `just phase-check CLOSEOUT WP-...`
 - governed closeout write through the same phase surface: `just phase-check CLOSEOUT WP-... --sync-mode <MODE> --context "<why this truth is being written>"`
-- `phase-check CLOSEOUT --sync-mode ...` now also appends the mechanical closeout trace into the active Workflow Dossier; add the human post-mortem/review and rubric after it succeeds
+- `phase-check CLOSEOUT --sync-mode ...` also makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot; dossier debt is diagnostic only, and the human post-mortem/review plus rubric can be appended after terminal truth is recorded
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just product-scan` (product boundary enforcement)

@@ -1,6 +1,6 @@
 ﻿# Repo Governance Refactor Task Board
 
-**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, and the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified. No next governance-only reduction item is currently queued on this board.
+**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, and the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified.
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
@@ -284,6 +284,9 @@
 | RGF-219 | DONE | Terminal Settlement Fence and Route Projection Quarantine | RGF-200, RGF-211, RGF-216, RGF-217 | `AUDIT-20260421-CALENDAR-SYNC-ENGINE-SMOKETEST-REVIEW` / `SMOKETEST-REVIEW-20260421-CALENDAR-SYNC-ENGINE` | route-anchor projection libs, `wp-communication-health-check`, `orchestrator-next`, `orchestrator-steer-next`, session-registry / active-lane status | once a verdict-of-record exists, terminal lanes cannot be reopened or kept artificially live by stale route anchors, relay projections, or late status mirrors; any remaining repair is fenced as bounded settlement debt |
 | RGF-220 | DONE | Heavy-Host Timeout Neutrality and Subcheck Attribution | RGF-194, RGF-216 | 2026-04-22 operator directive on treating the host as heavy-load by default; current aggregate `gov-check` flakiness under bundle child-process timeouts | bundled check runners, `gov-check`, timeout-facing status/docs surfaces | governance aggregates no longer fail purely because child timeout thresholds expire under load, and failing subchecks are attributed explicitly enough to inspect the real authority surface before retrying |
 | RGF-221 | DONE | Diagnostic-Only Token Cost Policy and Structured Dossier Ledgers | RGF-217, RGF-220 | `AUDIT-20260421-CALENDAR-SYNC-ENGINE-SMOKETEST-REVIEW` / `SMOKETEST-REVIEW-20260421-CALENDAR-SYNC-ENGINE`; 2026-04-22 operator directive on token-cost blockers and dossier readability | token-budget/session policy, `orchestrator-next`, workflow dossier sync/autofill, timeline metrics, templates/docs | token-cost overrun and token-ledger drift stay machine-visible but do not block WP continuation, and dossier cost/idle output is grouped into stable mechanical ledgers with gross/fresh/cached token detail |
+| RGF-222 | DONE | Workflow Dossier Append-Lane Separation and Malformation Tolerance | RGF-218, RGF-221 | 2026-04-25 operator directive on diagnostic-only dossiers; live Calendar Sync v3 dossier duplicate live sections and mixed Orchestrator/ACP append regions | workflow dossier template/generator, `workflow-dossier-lib.mjs`, `workflow-dossier.mjs`, session-control dossier writes, focused dossier tests | Orchestrator live diagnostics write near the top newest-first, ACP/session-control telemetry writes at EOF oldest-first, heading lookup tolerates parenthetical/malformed sections, and malformed/missing dossier fields remain diagnostic debt instead of write blockers |
+| RGF-223 | DONE | Terminal Repomem Snapshot and Dossier Non-Blocking Closeout | RGF-217, RGF-218, RGF-222 | 2026-04-25 operator directive on appending all WP-bound role memories at terminal PASS/FAIL or remediation-WP split | `workflow-dossier.mjs inject-repomem`, `phase-check CLOSEOUT`, governance memory readers, closeout tests | terminal closeout appends a full idempotent WP-bound repomem snapshot at EOF after ACP work has settled, and dossier append/import failures are reported as `DIAGNOSTIC_DEBT` without changing the product closeout verdict |
+| RGF-224 | DONE | Integration Validator FAIL Same-WP Remediation Preference | RGF-211, RGF-219, RGF-223 | 2026-04-25 operator directive preferring Integration Validator FAIL reports inside the active WP over new remediation WPs | Integration Validator and Orchestrator protocols, closeout next-action text, packet/report guidance | Integration Validator FAIL routes Coder remediation inside the same WP by default, preserving the fail report in the WP artifact; a new remediation WP is reserved for real scope expansion or explicit Operator choice after the old dossier receives its terminal memory snapshot |
 
 ## Active / Recent Hardening State (2026-04-22)
 
@@ -295,6 +298,7 @@
 6. Windows-safe wrappers: `RGF-213` is `DONE`; validator session prompts and startup hints now carry explicit role/WP binding, the Windows wrapper path preserves closeout context through the proxy plus multi-token reconstruction, and governed validator `repomem open` rejects malformed role/wp usage before the wrong lane can be opened.
 7. Repomem coverage gates: `RGF-214` is `DONE`; a shared WP/role coverage evaluator now turns missing OPEN/CLOSE/WP-durable checkpoint proof into explicit dossier, closeout, session-status, and memory-hygiene debt instead of silent absence.
 8. Reduction-first follow-on tranche: `RGF-217` through `RGF-221` are `DONE`; the work is constrained to authority reduction, heavy-host tolerance, diagnostic-only cost telemetry, sparse runtime memory capture, and terminal settlement fencing rather than adding new co-authoritative surfaces.
+9. Diagnostic dossier tranche: `RGF-222` through `RGF-224` are `DONE`; the work separates Orchestrator/ACP/terminal memory write lanes, imports terminal WP-bound memory snapshots, prefers same-WP remediation after Integration Validator FAIL, and keeps malformed dossier state as diagnostic debt only.
 
 ## Execution Briefs (2026-04-21)
 
@@ -309,6 +313,10 @@
 - `RGF-219`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260422.md` section `RGF-219 - Terminal Settlement Fence and Route Projection Quarantine`
 - `RGF-220`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260422.md` section `RGF-220 - Heavy-Host Timeout Neutrality and Subcheck Attribution`
 - `RGF-221`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260422.md` section `RGF-221 - Diagnostic-Only Token Cost Policy and Structured Dossier Ledgers`
+
+## Execution Briefs (2026-04-25)
+
+- `RGF-222`, `RGF-223`, and `RGF-224`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md` entry `GOV-CHANGE-20260425-03`.
 
 ## Refactor Sequence (Historical)
 
@@ -381,6 +389,9 @@
 58. `RGF-219`
 59. `RGF-220`
 60. `RGF-221`
+61. `RGF-222`
+62. `RGF-223`
+63. `RGF-224`
 
 ## Proposed Next Sequence
 

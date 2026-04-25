@@ -181,8 +181,9 @@ function appendWorkflowDossierExecutionLog(targetWpId, summaryLine) {
     appendWorkflowDossierEntry({
       repoRoot,
       wpId: targetWpId,
-      section: "EXECUTION",
+      section: "ACP_TRACE",
       line: summaryLine,
+      insertMode: "section-append",
     });
   } catch {
     // Non-fatal: dossier append is observability only.

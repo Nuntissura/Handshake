@@ -40,6 +40,7 @@ import {
 import {
   appendWorkflowDossierEntry,
   formatRepomemDossierEntry,
+  formatRepomemDossierSnapshotEntry,
   formatWorkflowDossierTimestamp,
   normalizePath,
   normalizeWorkflowDossierSection,
@@ -365,12 +366,20 @@ function runInit(rootDir, options) {
 
 function runNote(rootDir, options) {
   const { section, line } = buildNoteLine(options);
+  const role = String(options.role || "ORCHESTRATOR").trim().toUpperCase();
+  const targetSection = role === "ORCHESTRATOR"
+    ? "ORCHESTRATOR_DIAGNOSTIC"
+    : section;
+  const insertMode = role === "ORCHESTRATOR"
+    ? "section-prepend"
+    : "section-append";
   const dossierPath = appendWorkflowDossierEntry({
     repoRoot: rootDir,
     wpId: options.wpId,
     filePath: options.file,
-    section,
+    section: targetSection,
     line,
+    insertMode,
   });
   if (!dossierPath) {
     fail(`No open workflow dossier found for ${options.wpId}. Run \`just workflow-dossier-init ${options.wpId}\` first or pass --file.`);
@@ -575,9 +584,10 @@ function runSync(rootDir, options) {
     repoRoot: rootDir,
     wpId: options.wpId,
     filePath: options.file,
-    section: "EXECUTION",
+    section: "ACP_TRACE",
     line: `- [${timestamp}] ${executionPayload}`,
     dedupeSuffix: executionPayload,
+    insertMode: "section-append",
   });
   if (!dossierPath) {
     fail(`No open workflow dossier found for ${options.wpId}. Run \`just workflow-dossier-init ${options.wpId}\` first or pass --file.`);
@@ -589,6 +599,7 @@ function runSync(rootDir, options) {
     section: "IDLE",
     line: `- [${timestamp}] ${idlePayload}`,
     dedupeSuffix: idlePayload,
+    insertMode: "section-append",
   });
   console.log(normalizePath(path.relative(rootDir, dossierPath)) || normalizePath(dossierPath));
 }
@@ -603,10 +614,8 @@ function runInjectRepomem(rootDir, options) {
 
   // Parse OPENED_AT_UTC from dossier metadata.
   const openedMatch = dossierContent.match(/^-\s*OPENED_AT_UTC:\s*(.+)$/m);
-  const openedAtUtc = openedMatch ? openedMatch[1].trim() : "";
-  if (!openedAtUtc) {
-    fail(`Could not parse OPENED_AT_UTC from dossier: ${normalizePath(dossierPath)}`);
-  }
+  const openedAtUtc = openedMatch ? openedMatch[1].trim() : "1970-01-01T00:00:00.000Z";
+  const openedAtSource = openedMatch ? "OPENED_AT_UTC" : "MISSING_OPENED_AT_UTC_FALLBACK";
 
   // Open governance memory DB and query conversation_log.
   const { db } = openGovernanceMemoryDb();
@@ -624,7 +633,7 @@ function runInjectRepomem(rootDir, options) {
 
   const entries = selectRepomemEntriesForWorkflowDossier(rawEntries, { wpId: options.wpId });
   if (!entries || entries.length === 0) {
-    console.log(`[workflow-dossier inject-repomem] No WP-bound repomem entries for ${options.wpId} since ${openedAtUtc}. 0 appended (${rawEntries?.length || 0} raw matched).`);
+    console.log(`[workflow-dossier inject-repomem] No WP-bound repomem entries for ${options.wpId} since ${openedAtUtc} (${openedAtSource}). 0 appended (${rawEntries?.length || 0} raw matched).`);
     return;
   }
 
@@ -633,7 +642,7 @@ function runInjectRepomem(rootDir, options) {
   let appended = 0;
 
   for (const entry of entries) {
-    const formatted = formatRepomemDossierEntry(entry);
+    const formatted = formatRepomemDossierSnapshotEntry(entry) || formatRepomemDossierEntry(entry);
     if (!formatted) continue;
 
     // Idempotence: skip if a line with this session_id and timestamp already exists.
@@ -648,11 +657,12 @@ function runInjectRepomem(rootDir, options) {
       filePath: options.file,
       section: formatted.section,
       line: formatted.line,
+      insertMode: "section-append",
     });
     appended++;
   }
 
-  console.log(`[workflow-dossier inject-repomem] ${appended} entries appended to ${normalizePath(path.relative(rootDir, dossierPath))} (${entries.length} WP-bound, ${rawEntries?.length || 0} raw matched, ${entries.length - appended} skipped as duplicates).`);
+  console.log(`[workflow-dossier inject-repomem] ${appended} entries appended to ${normalizePath(path.relative(rootDir, dossierPath))} (${entries.length} WP-bound, ${rawEntries?.length || 0} raw matched since ${openedAtUtc} via ${openedAtSource}, ${entries.length - appended} skipped as duplicates).`);
 }
 
 // RGF-187: Autofill Cost Attribution and Comparison Table from live timeline data.

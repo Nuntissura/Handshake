@@ -5,6 +5,9 @@ import { GOV_ROOT_REPO_REL } from "../lib/runtime-paths.mjs";
 export const WORKFLOW_DOSSIER_TIMEZONE = "Europe/Brussels";
 
 export const WORKFLOW_DOSSIER_SECTION_HEADINGS = {
+  ORCHESTRATOR_DIAGNOSTIC: "LIVE_ORCHESTRATOR_DIAGNOSTIC_LOG",
+  ACP_TRACE: "LIVE_ACP_SESSION_TRACE",
+  TERMINAL_REPOMEM: "CLOSEOUT_REPOMEM_IMPORT",
   EXECUTION: "LIVE_EXECUTION_LOG",
   IDLE: "LIVE_IDLE_LEDGER",
   GOV_CHANGE: "LIVE_GOVERNANCE_CHANGE_LOG",
@@ -39,6 +42,15 @@ export const REPOMEM_CHECKPOINT_TO_TAG = {
 };
 
 const WORKFLOW_DOSSIER_SECTION_ALIASES = {
+  ORCHESTRATOR_DIAGNOSTIC: "ORCHESTRATOR_DIAGNOSTIC",
+  ORCH_DIAGNOSTIC: "ORCHESTRATOR_DIAGNOSTIC",
+  LIVE_ORCHESTRATOR_DIAGNOSTIC_LOG: "ORCHESTRATOR_DIAGNOSTIC",
+  ACP_TRACE: "ACP_TRACE",
+  LIVE_ACP_SESSION_TRACE: "ACP_TRACE",
+  SESSION_TRACE: "ACP_TRACE",
+  TERMINAL_REPOMEM: "TERMINAL_REPOMEM",
+  CLOSEOUT_REPOMEM: "TERMINAL_REPOMEM",
+  CLOSEOUT_REPOMEM_IMPORT: "TERMINAL_REPOMEM",
   EXECUTION: "EXECUTION",
   LIVE_EXECUTION_LOG: "EXECUTION",
   IDLE: "IDLE",
@@ -161,6 +173,28 @@ export function formatRepomemDossierEntry(entry = {}) {
   };
 }
 
+export function formatRepomemDossierSnapshotEntry(entry = {}) {
+  const checkpointType = normalizeCheckpointType(entry?.checkpoint_type) || "CHECKPOINT";
+  const timestamp = formatWorkflowDossierTimestamp(entry?.timestamp_utc);
+  const role = normalizeScalar(entry?.role).toUpperCase() || "ROLE";
+  const sessionId = normalizeScalar(entry?.session_id) || "NO_SESSION";
+  const wpId = normalizeScalar(entry?.wp_id) || "GLOBAL";
+  const topic = normalizeScalar(entry?.topic).replace(/\s+/g, " ");
+  const content = normalizeScalar(entry?.content).replace(/\s+/g, " ");
+  const entryId = normalizeScalar(entry?.id || entry?.checkpoint_id || entry?.rowid);
+  const idPart = entryId ? ` id=${entryId}` : "";
+  const payload = content && content !== topic
+    ? `${topic} :: ${content}`
+    : topic || content || "<empty>";
+  return {
+    section: "TERMINAL_REPOMEM",
+    tag: `REPOMEM_${checkpointType}`,
+    timestamp,
+    sessionId,
+    line: `- [${timestamp}] [${role}] [REPOMEM_${checkpointType}] [GOVERNANCE_MEMORY] [${sessionId}] wp=${wpId}${idPart} :: ${payload}`,
+  };
+}
+
 function workflowDossierDirectory(repoRoot) {
   return path.resolve(repoRoot, GOV_ROOT_REPO_REL, "Audits", "smoketest");
 }
@@ -198,6 +232,111 @@ export function resolveWorkflowDossierPath(repoRoot, { wpId = "", filePath = "" 
   return findOpenWorkflowDossierPath(repoRoot, wpId);
 }
 
+function escapeRegex(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function findWorkflowDossierSectionHeadingIndex(lines = [], canonicalSection = "") {
+  const heading = WORKFLOW_DOSSIER_SECTION_HEADINGS[canonicalSection];
+  if (!heading) return -1;
+  const pattern = new RegExp(`^##\\s+${escapeRegex(heading)}(?:\\s|\\(|$)`);
+  return lines.findIndex((entry) => pattern.test(String(entry || "").trim()));
+}
+
+function findNextSectionHeadingIndex(lines = [], headingIndex = -1) {
+  if (headingIndex < 0) return -1;
+  const nextIndex = lines.findIndex((entry, index) => index > headingIndex && /^##\s+/.test(entry));
+  return nextIndex === -1 ? lines.length : nextIndex;
+}
+
+function findTopSectionPlacement(lines = []) {
+  const metadataIndex = lines.findIndex((entry) => String(entry || "").trim() === "## METADATA");
+  if (metadataIndex !== -1) {
+    const separatorIndex = lines.findIndex((entry, index) => index > metadataIndex && String(entry || "").trim() === "---");
+    if (separatorIndex !== -1) return separatorIndex + 1;
+    const nextHeading = findNextSectionHeadingIndex(lines, metadataIndex);
+    if (nextHeading !== -1) return nextHeading;
+  }
+
+  const h1Index = lines.findIndex((entry) => /^#\s+/.test(String(entry || "").trim()));
+  if (h1Index !== -1) {
+    let index = h1Index + 1;
+    while (index < lines.length && String(lines[index] || "").trim() === "") index += 1;
+    return index;
+  }
+  return 0;
+}
+
+function createWorkflowDossierSection(lines = [], canonicalSection = "", insertMode = "section-append") {
+  const heading = `## ${WORKFLOW_DOSSIER_SECTION_HEADINGS[canonicalSection]}`;
+  const normalizedMode = String(insertMode || "").trim().toLowerCase();
+  if (normalizedMode === "section-prepend" || normalizedMode === "top-prepend") {
+    const insertAt = findTopSectionPlacement(lines);
+    const block = ["", heading, ""];
+    lines.splice(insertAt, 0, ...block);
+    return insertAt + 1;
+  }
+
+  while (lines.length > 0 && String(lines[lines.length - 1] || "").trim() === "") {
+    lines.pop();
+  }
+  lines.push("", heading, "");
+  return lines.length - 2;
+}
+
+function findPrependInsertIndex(lines = [], headingIndex = -1) {
+  const nextHeading = findNextSectionHeadingIndex(lines, headingIndex);
+  const firstEntry = lines.findIndex((entry, index) =>
+    index > headingIndex
+    && index < nextHeading
+    && /^\s*-\s+/.test(String(entry || ""))
+  );
+  if (firstEntry !== -1) return firstEntry;
+  let insertIndex = nextHeading;
+  while (insertIndex > headingIndex + 1 && String(lines[insertIndex - 1] || "").trim() === "") {
+    insertIndex -= 1;
+  }
+  return insertIndex;
+}
+
+function findAppendInsertIndex(lines = [], headingIndex = -1) {
+  let insertIndex = findNextSectionHeadingIndex(lines, headingIndex);
+  while (insertIndex > (headingIndex + 1) && String(lines[insertIndex - 1] || "").trim() === "") {
+    insertIndex -= 1;
+  }
+  return insertIndex;
+}
+
+function shouldSkipConsecutiveDuplicate({
+  lines = [],
+  headingIndex = -1,
+  insertIndex = -1,
+  line = "",
+  dedupeSuffix = "",
+  insertMode = "section-append",
+} = {}) {
+  const normalizedDedupeSuffix = String(dedupeSuffix || "").trim();
+  if (!normalizedDedupeSuffix) return false;
+
+  const normalizedMode = String(insertMode || "").trim().toLowerCase();
+  let compareIndex = normalizedMode === "section-prepend" || normalizedMode === "top-prepend"
+    ? insertIndex
+    : insertIndex - 1;
+  const step = normalizedMode === "section-prepend" || normalizedMode === "top-prepend" ? 1 : -1;
+  while (
+    compareIndex > headingIndex
+    && compareIndex < lines.length
+    && String(lines[compareIndex] || "").trim() === ""
+  ) {
+    compareIndex += step;
+  }
+  const previousEntry = compareIndex > headingIndex && compareIndex < lines.length
+    ? String(lines[compareIndex] || "").trimEnd()
+    : "";
+  const nextEntry = String(line || "").trimEnd();
+  return previousEntry.endsWith(normalizedDedupeSuffix) && nextEntry.endsWith(normalizedDedupeSuffix);
+}
+
 export function appendWorkflowDossierEntry({
   repoRoot,
   wpId = "",
@@ -205,39 +344,28 @@ export function appendWorkflowDossierEntry({
   section = "",
   line = "",
   dedupeSuffix = "",
+  insertMode = "section-append",
 } = {}) {
   const canonicalSection = normalizeWorkflowDossierSection(section);
   const dossierPath = resolveWorkflowDossierPath(repoRoot, { wpId, filePath });
   if (!dossierPath || !line || !canonicalSection) return "";
 
-  const heading = `## ${WORKFLOW_DOSSIER_SECTION_HEADINGS[canonicalSection]}`;
   const content = fs.readFileSync(dossierPath, "utf8");
   const lines = content.split(/\r?\n/);
-  const headingIndex = lines.findIndex((entry) => entry.trim() === heading);
+  const normalizedMode = String(insertMode || "section-append").trim().toLowerCase();
+  let headingIndex = findWorkflowDossierSectionHeadingIndex(lines, canonicalSection);
 
   if (headingIndex === -1) {
-    const nextContent = `${content.trimEnd()}\n\n${heading}\n\n${line}\n`;
-    fs.writeFileSync(dossierPath, nextContent, "utf8");
+    headingIndex = createWorkflowDossierSection(lines, canonicalSection, normalizedMode);
+  }
+
+  const insertIndex = normalizedMode === "section-prepend" || normalizedMode === "top-prepend"
+    ? findPrependInsertIndex(lines, headingIndex)
+    : findAppendInsertIndex(lines, headingIndex);
+  if (shouldSkipConsecutiveDuplicate({ lines, headingIndex, insertIndex, line, dedupeSuffix, insertMode: normalizedMode })) {
     return dossierPath;
   }
 
-  let insertIndex = lines.findIndex((entry, index) => index > headingIndex && /^##\s+/.test(entry));
-  if (insertIndex === -1) insertIndex = lines.length;
-  while (insertIndex > (headingIndex + 1) && String(lines[insertIndex - 1] || "").trim() === "") {
-    insertIndex -= 1;
-  }
-  const normalizedDedupeSuffix = String(dedupeSuffix || "").trim();
-  if (normalizedDedupeSuffix) {
-    let previousEntryIndex = insertIndex - 1;
-    while (previousEntryIndex > headingIndex && String(lines[previousEntryIndex] || "").trim() === "") {
-      previousEntryIndex -= 1;
-    }
-    const previousEntry = previousEntryIndex > headingIndex ? String(lines[previousEntryIndex] || "").trimEnd() : "";
-    const nextEntry = String(line || "").trimEnd();
-    if (previousEntry.endsWith(normalizedDedupeSuffix) && nextEntry.endsWith(normalizedDedupeSuffix)) {
-      return dossierPath;
-    }
-  }
   lines.splice(insertIndex, 0, line);
   fs.writeFileSync(dossierPath, `${lines.join("\n").replace(/\n*$/, "\n")}`, "utf8");
   return dossierPath;

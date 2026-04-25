@@ -94,7 +94,7 @@ Cross-session conversational memory captures what was refined, decided, and flag
 - **CONCERN when flagging activation risks (SHOULD):** When you spot a scope risk, missing prerequisite, or spec ambiguity that may affect downstream work: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars.
 - **ESCALATION when needing operator/orchestrator input (SHOULD):** When activation decisions exceed your authority — scope questions, spec conflicts, build-order ambiguity: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
 - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what was activated, outcome>" --decisions "<key choices made>"`.
-- WP-bound repomem checkpoints are mechanically imported into the Workflow Dossier during closeout; do not maintain a parallel live dossier narrative for the same findings.
+- WP-bound repomem checkpoints are appended to the Workflow Dossier as a terminal diagnostic snapshot during closeout; import debt is diagnostic only, so do not maintain a parallel live dossier narrative for the same findings.
 
 ## Worktree And Branch
 

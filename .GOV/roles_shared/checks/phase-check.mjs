@@ -553,7 +553,7 @@ function runWorkflowDossierCloseoutStep({
     encoding: "utf8",
     env: process.env,
   });
-  outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] note=${noteResult.status === 0 ? "PASS" : "FAIL"}`);
+  outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] note=${noteResult.status === 0 ? "PASS" : "DIAGNOSTIC_DEBT"}`);
   const renderedNoteOutput = ensureTrailingNewline(`${noteResult.stdout || ""}${noteResult.stderr || ""}`.trimEnd());
   for (const line of renderedNoteOutput.trimEnd().split("\n")) {
     if (line.trim()) outputLines.push(`  ${line}`);
@@ -579,7 +579,7 @@ function runWorkflowDossierCloseoutStep({
       env: process.env,
     });
     syncResultOk = syncResult.status === 0;
-    outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] sync=${syncResultOk ? "PASS" : "FAIL"}`);
+    outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] sync=${syncResultOk ? "PASS" : "DIAGNOSTIC_DEBT"}`);
     const renderedSyncOutput = ensureTrailingNewline(`${syncResult.stdout || ""}${syncResult.stderr || ""}`.trimEnd());
     for (const line of renderedSyncOutput.trimEnd().split("\n")) {
       if (line.trim()) outputLines.push(`  ${line}`);
@@ -600,7 +600,7 @@ function runWorkflowDossierCloseoutStep({
     env: process.env,
   });
   const injectResultOk = injectResult.status === 0;
-  outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] repomem_import=${injectResultOk ? "PASS" : "FAIL"}`);
+  outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] repomem_import=${injectResultOk ? "PASS" : "DIAGNOSTIC_DEBT"}`);
   const renderedInjectOutput = ensureTrailingNewline(`${injectResult.stdout || ""}${injectResult.stderr || ""}`.trimEnd());
   for (const line of renderedInjectOutput.trimEnd().split("\n")) {
     if (line.trim()) outputLines.push(`  ${line}`);
@@ -674,7 +674,7 @@ function runWorkflowDossierCloseoutStep({
   }
 
   return {
-    ok: noteResult.status === 0 && syncResultOk && injectResultOk,
+    ok: true,
     output: `${outputLines.join("\n")}\n`,
   };
 }
@@ -1054,8 +1054,7 @@ export function buildCloseoutNextCommands({
   }
 
   if (!workflowDossierCloseoutOk) {
-    nextCommands.push(`Repair the Workflow Dossier closeout import path: just workflow-dossier-inject-repomem ${wpId}`);
-    nextCommands.push(`If mechanical telemetry is missing, also run: just workflow-dossier-sync ${wpId} --role INTEGRATION_VALIDATOR --tag CLOSEOUT_SYNC --surface PHASE_CHECK_CLOSEOUT`);
+    nextCommands.push(`Workflow Dossier diagnostic debt is recorded; do not block product closeout on dossier repair. Best-effort repair: just workflow-dossier-inject-repomem ${wpId}`);
   }
 
   const syncMode = String(syncOptions?.modeSpec?.mode || "").trim().toUpperCase();

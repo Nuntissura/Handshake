@@ -53,7 +53,7 @@ Cross-session conversational memory captures the manual relay decisions, failure
 - **ERROR when tooling breaks (SHOULD):** When a command fails, relay state is inconsistent, or a workaround is needed, run `just repomem error "<what went wrong and what worked instead>" --wp WP-{ID}` immediately. Min 40 chars.
 - **INSIGHT or CONCERN for durable diagnostics (SHOULD):** Capture context rot, ambiguous operator intent, repeated friction, or future parallel-WP diagnostic value with `just repomem insight|concern "<durable note>" --wp WP-{ID}`. Min 80 chars.
 - **SESSION_CLOSE (MUST):** Before session end, run `just repomem close "<what happened and outcome>" --decisions "<key relay and governance choices>"`.
-- WP-bound repomem checkpoints are mechanically imported into the Workflow Dossier during closeout; do not duplicate the same narrative by hand in live dossier sections.
+- WP-bound repomem checkpoints are appended to the Workflow Dossier as a terminal diagnostic snapshot during closeout; import debt is diagnostic only, so do not duplicate the same narrative by hand in live dossier sections.
 
 ## Governance Surface Reduction Discipline
 

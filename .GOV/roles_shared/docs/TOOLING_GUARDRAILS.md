@@ -163,3 +163,15 @@ Rules:
   - Artifact-root drift makes build outputs appear random, breaks deterministic cleanup, and allows governance publish to succeed while artifact retention and NAS backup fail later in the flush pipeline.
 - Context:
   - Recurring when product worktrees drift away from the canonical `Handshake_Artifacts/handshake-cargo-target` root and the mismatch only becomes visible during late `gov-flush` cleanup.
+
+### TG-015
+- Do:
+  - Treat Workflow Dossier sections, imports, and generated telemetry as diagnostic evidence.
+  - Preserve write-lane separation: Orchestrator notes near the top, ACP/session-control traces at EOF, terminal repomem snapshots at EOF after ACP settles.
+- Don't:
+  - Do not turn malformed dossier markdown, missing placeholders, duplicate live sections, or failed dossier imports into product outcome blockers.
+  - Do not use mid-run manual dossier narration as a substitute for role-bound `just repomem ... --wp WP-{ID}` checkpoints.
+- Why:
+  - The dossier is allowed to be partial or malformed so it can preserve diagnostic evidence during live WP pressure without blocking the workflow it is observing.
+- Context:
+  - Recurring on closeout flows where support-surface debt was mistaken for validator authority or where ACP EOF appends conflicted with manually maintained live sections.

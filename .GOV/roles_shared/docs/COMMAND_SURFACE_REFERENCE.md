@@ -457,14 +457,14 @@ These mutate packet, board, traceability, or related governed surfaces.
   - create or reuse the live workflow dossier under `.GOV/Audits/smoketest/` with the current ACP/session-control snapshot
 - `just workflow-dossier-note WP-{ID} <EXECUTION|GOV_CHANGE|CONCERN|FINDING> "<summary>" [--role ROLE] [--tag TAG] [--surface SURFACE]`
   - `governance-write`
-  - append a typed line into the live workflow dossier without manual markdown editing
+  - append a typed line into the live workflow dossier without manual markdown editing; Orchestrator notes land in `LIVE_ORCHESTRATOR_DIAGNOSTIC_LOG` near the top, newest-first
 - `just workflow-dossier-sync WP-{ID} [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]`
   - `governance-write`
-  - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_EXECUTION_LOG` and a latency/drift ledger line into `LIVE_IDLE_LEDGER`
+  - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_ACP_SESSION_TRACE` at EOF and a latency/drift ledger line into `LIVE_IDLE_LEDGER`
   - the execution snapshot now includes per-lane ACP activity summaries so the Orchestrator can compare idle gaps against actual session output before waking a role
 - `just workflow-dossier-inject-repomem WP-{ID} [--debug]`
   - `governance-write`
-  - backfill governance-memory session-open, pre-task, insight, and session-close entries into the active workflow dossier without manual copy/paste
+  - append the complete WP-bound governance-memory snapshot into `CLOSEOUT_REPOMEM_IMPORT` without manual copy/paste; import failures are diagnostic debt, not product outcome blockers
 - `just workflow-dossier-autofill-costs WP-{ID} [--debug]`
   - `governance-write`
   - backfill cost and token rollups into the active workflow dossier from the authoritative runtime and session telemetry surfaces
@@ -591,7 +591,7 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - `STARTUP`: is the canonical startup/bootstrapping gate; for `CODER` it owns the packet/startup proof that used to live behind `pre-work`, and for validator roles it proves the startup communication mesh before productive work starts
   - `HANDOFF`: proves coder closure or validator handoff readiness from one phase artifact, depending on role
   - `VERDICT`: proves the final review communication boundary from one phase artifact
-  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and appends the mechanical closeout trace into the active Workflow Dossier
+  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot. Dossier debt is diagnostic only.
 - `just closeout-repair WP-{ID} [--dry-run] [--debug]`
   - `governance-write`
   - mechanical closeout pre-repair surface owned by the Orchestrator
