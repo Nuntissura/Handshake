@@ -20,12 +20,14 @@ use handshake_core::workflows::{
     locus::{
         governed_action_ids_for_family, is_governed_action_id_allowed_for_workflow_family,
         is_registered_governed_action_id,
-        task_board::{TaskBoardEntryRecordV1, TaskBoardIndexV1, TaskBoardViewV1},
+        task_board::{
+            validate_task_board_entry_authoritative_fields, TaskBoardEntryRecordV1,
+            TaskBoardIndexV1, TaskBoardViewV1,
+        },
         validate_structured_collaboration_record, validate_structured_collaboration_summary_join,
-        validate_task_board_entry_authoritative_fields, StructuredCollaborationRecordFamily,
-        StructuredCollaborationValidationCode, StructuredCollaborationValidationResult,
-        TrackedMicroTaskArtifactV1, TrackedWorkPacketArtifactV1, WorkflowQueueReasonCode,
-        WorkflowStateFamily,
+        StructuredCollaborationRecordFamily, StructuredCollaborationValidationCode,
+        StructuredCollaborationValidationResult, TrackedMicroTaskArtifactV1,
+        TrackedWorkPacketArtifactV1, WorkflowQueueReasonCode, WorkflowStateFamily,
     },
     start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
 };
@@ -315,6 +317,53 @@ fn json_string_array_field(value: &Value, field: &str) -> Vec<String> {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()
+}
+
+fn is_registered_governed_action_id(action_id: &str) -> bool {
+    matches!(
+        action_id,
+        "refine_work_packet"
+            | "start_work_packet"
+            | "continue_work_packet"
+            | "resolve_blocker"
+            | "await_gate_review"
+            | "archive_work_packet"
+            | "close_work_packet"
+            | "start_micro_task"
+            | "continue_micro_task"
+            | "archive_micro_task"
+            | "retry_micro_task"
+            | "resolve_micro_task_blocker"
+            | "review_skipped_micro_task"
+    )
+}
+
+fn is_governed_action_id_allowed_for_workflow_family(
+    family: WorkflowStateFamily,
+    action_id: &str,
+) -> bool {
+    match family {
+        WorkflowStateFamily::Intake => matches!(action_id, "refine_work_packet"),
+        WorkflowStateFamily::Ready => matches!(action_id, "start_work_packet" | "start_micro_task"),
+        WorkflowStateFamily::Active => {
+            matches!(action_id, "continue_work_packet" | "continue_micro_task")
+        }
+        WorkflowStateFamily::Blocked => matches!(
+            action_id,
+            "resolve_blocker" | "retry_micro_task" | "resolve_micro_task_blocker"
+        ),
+        WorkflowStateFamily::Approval => matches!(action_id, "await_gate_review"),
+        WorkflowStateFamily::Done => {
+            matches!(action_id, "archive_work_packet" | "archive_micro_task")
+        }
+        WorkflowStateFamily::Canceled => {
+            matches!(action_id, "close_work_packet" | "review_skipped_micro_task")
+        }
+        WorkflowStateFamily::Waiting
+        | WorkflowStateFamily::Review
+        | WorkflowStateFamily::Validation
+        | WorkflowStateFamily::Archived => false,
+    }
 }
 
 fn validate_task_board_row_against_packet_truth(
