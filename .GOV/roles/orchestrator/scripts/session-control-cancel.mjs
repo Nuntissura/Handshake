@@ -22,5 +22,5 @@ if (!["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "M
 execFileSync(
   process.execPath,
   [path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs"), "CANCEL_SESSION", role, wpId],
-  { stdio: "inherit", env: sessionControlEnv },
+  { stdio: "inherit", env: sessionControlEnv, windowsHide: true },
 );

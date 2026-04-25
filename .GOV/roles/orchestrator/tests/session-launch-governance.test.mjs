@@ -8,6 +8,7 @@ import test from "node:test";
 const repoRoot = path.resolve(".");
 const launchScript = path.join(repoRoot, ".GOV", "roles", "orchestrator", "scripts", "launch-cli-session.mjs");
 const controlScript = path.join(repoRoot, ".GOV", "roles", "orchestrator", "scripts", "session-control-command.mjs");
+const vscodeBridgeExtension = path.join(repoRoot, ".GOV", "tools", "vscode-session-bridge", "extension.js");
 const blockedWpId = "WP-1-Loom-Storage-Portability-v3";
 
 function collectFiles(rootDir) {
@@ -117,4 +118,13 @@ test("launch-cli-session refuses VS Code plugin launches under headless-only pol
     assert.match(output, /VSCODE_PLUGIN launch is disabled by the headless-only role-session policy/i);
     assert.doesNotMatch(output, /queued plugin launch request/i);
   });
+});
+
+test("legacy VS Code bridge dispatches hidden terminals without revealing the terminal panel", () => {
+  const extensionText = fs.readFileSync(vscodeBridgeExtension, "utf8");
+
+  assert.match(extensionText, /terminal\.sendText\(request\.command, true\)/);
+  assert.doesNotMatch(extensionText, /terminal\.show\(/);
+  assert.match(extensionText, /session_host_preference: "HANDSHAKE_ACP_BROKER"/);
+  assert.match(extensionText, /session_host_fallback: "SYSTEM_TERMINAL_REPAIR_ONLY"/);
 });

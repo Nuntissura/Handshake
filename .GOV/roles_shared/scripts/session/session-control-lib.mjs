@@ -93,7 +93,11 @@ function writeJsonlEvent(outputStream, event) {
 
 function resolveCliToolByName(toolName) {
   if (process.platform !== "win32") return toolName;
-  const result = spawnSync("where.exe", [toolName], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  const result = spawnSync("where.exe", [toolName], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    windowsHide: true,
+  });
   if (result.status !== 0) return `${toolName}.cmd`;
   const matches = result.stdout
     .split(/\r?\n/)

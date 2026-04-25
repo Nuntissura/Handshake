@@ -63,7 +63,7 @@ function readPersistedUserEnv(name) {
     return execFileSync(
       "powershell.exe",
       ["-NoLogo", "-NonInteractive", "-Command", `[Environment]::GetEnvironmentVariable('${name}','User')`],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }
     ).trim();
   } catch {
     return "";
@@ -149,8 +149,8 @@ function defaultRegistry(repoRoot) {
     schema_version: "role_session_registry_v1",
     updated_at: nowIso(),
     session_start_authority: "ORCHESTRATOR_ONLY",
-    session_host_preference: "VSCODE_EXTENSION_TERMINAL",
-    session_host_fallback: "CLI_ESCALATION_WINDOW",
+    session_host_preference: "HANDSHAKE_ACP_BROKER",
+    session_host_fallback: "SYSTEM_TERMINAL_REPAIR_ONLY",
     session_watch_policy: "EVENT_WATCH_PRIMARY_HEARTBEAT_FALLBACK",
     session_plugin_bridge_id: "handshake.handshake-session-bridge",
     session_plugin_bridge_command: "handshakeSessionBridge.processLaunchQueue",
@@ -422,7 +422,6 @@ async function processLaunchQueue() {
 
       try {
         const terminal = getOrCreateTerminal(request.terminal_title, resolveLaunchCwd(repoRoot, request));
-        terminal.show(true);
         terminal.sendText(request.command, true);
         session.plugin_last_result = "PLUGIN_DISPATCHED";
         session.plugin_last_error = "";

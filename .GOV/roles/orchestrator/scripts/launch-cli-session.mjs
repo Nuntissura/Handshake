@@ -69,7 +69,7 @@ if (!["PRIMARY", "FALLBACK"].includes(requestedModel)) {
 }
 
 function runGit(args) {
-  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
 }
 
 const roleConfig = resolveRoleConfig(role, wpId);
@@ -134,7 +134,7 @@ if (!fs.existsSync(absWorktreeDir)) {
   execFileSync(
     process.execPath,
     [path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs"), role, wpId, roleConfig.branch, roleConfig.worktreeDir],
-    { stdio: "inherit" },
+    { stdio: "inherit", windowsHide: true },
   );
 }
 
@@ -387,6 +387,7 @@ function autoStartGovernedSession(reason) {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
         env: sessionControlEnv,
+        windowsHide: true,
       },
     );
     if (output?.trim()) {

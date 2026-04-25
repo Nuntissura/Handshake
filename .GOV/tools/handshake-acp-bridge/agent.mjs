@@ -107,7 +107,10 @@ function killProcessTree(pid) {
   if (!Number.isInteger(numeric) || numeric <= 0) return;
   try {
     if (process.platform === "win32") {
-      spawnSync("taskkill", ["/PID", String(numeric), "/T", "/F"], { stdio: "ignore" });
+      spawnSync("taskkill", ["/PID", String(numeric), "/T", "/F"], {
+        stdio: "ignore",
+        windowsHide: true,
+      });
       return;
     }
     process.kill(numeric, "SIGTERM");

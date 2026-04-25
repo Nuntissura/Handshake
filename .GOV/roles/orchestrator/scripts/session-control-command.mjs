@@ -105,7 +105,7 @@ function reclaimOwnedTerminalsForSession(context = "") {
 }
 
 function runGit(args) {
-  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
 }
 
 function shortenDossierToken(value = "", prefix = 8, suffix = 6) {
@@ -616,7 +616,7 @@ if (!fs.existsSync(absWorktreeDir)) {
   execFileSync(
     process.execPath,
     [path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs"), role, wpId, roleConfig.branch, roleConfig.worktreeDir],
-    { stdio: "inherit" },
+    { stdio: "inherit", windowsHide: true },
   );
 }
 
