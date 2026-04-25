@@ -6239,8 +6239,9 @@ pub async fn create_session_checkpoint(
     let now = Utc::now();
     let checkpoint_id = Uuid::new_v4().to_string();
     let checkpoint_artifact_id = Uuid::new_v4().to_string();
-    let session_state_json =
-        serde_json::to_string(&session).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let session_state_json = serde_json::to_string(&session).map_err(|e| {
+        WorkflowError::Terminal(format!("session checkpoint serialization failed: {e}"))
+    })?;
     let message_thread_tail_id = messages
         .last()
         .map(|message| message.message_id.clone())
@@ -6250,8 +6251,9 @@ pub async fn create_session_checkpoint(
         .filter(|message| matches!(message.role, SessionMessageRole::ToolCall))
         .filter_map(|message| message.tool_call_id.clone())
         .collect();
-    let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids)
-        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let pending_tool_calls_json = serde_json::to_string(&pending_tool_call_ids).map_err(|e| {
+        WorkflowError::Terminal(format!("pending tool calls serialization failed: {e}"))
+    })?;
 
     let checkpoint = SessionCheckpoint {
         checkpoint_id: checkpoint_id.clone(),

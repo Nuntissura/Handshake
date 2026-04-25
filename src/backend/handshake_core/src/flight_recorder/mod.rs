@@ -499,9 +499,17 @@ impl FlightRecorderEvent {
         self
     }
 
+    pub fn with_activity_span_id(self, span: impl Into<String>) -> Self {
+        self.with_activity_span(span)
+    }
+
     pub fn with_session_span(mut self, span: impl Into<String>) -> Self {
         self.session_span_id = Some(span.into());
         self
+    }
+
+    pub fn with_session_span_id(self, span: impl Into<String>) -> Self {
+        self.with_session_span(span)
     }
 
     pub fn with_capability(mut self, capability_id: impl Into<String>) -> Self {
@@ -509,9 +517,17 @@ impl FlightRecorderEvent {
         self
     }
 
+    pub fn with_capability_id(self, capability_id: impl Into<String>) -> Self {
+        self.with_capability(capability_id)
+    }
+
     pub fn with_policy_decision(mut self, policy_decision_id: impl Into<String>) -> Self {
         self.policy_decision_id = Some(policy_decision_id.into());
         self
+    }
+
+    pub fn with_policy_decision_id(self, policy_decision_id: impl Into<String>) -> Self {
+        self.with_policy_decision(policy_decision_id)
     }
 
     pub fn with_wsids(mut self, wsids: Vec<String>) -> Self {
