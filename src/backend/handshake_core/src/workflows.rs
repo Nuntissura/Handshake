@@ -5287,12 +5287,12 @@ fn read_existing_work_packet_type(
 }
 
 fn governed_work_packet_next_action(status: locus::WorkPacketStatus) -> &'static str {
-    let (family, _) = work_packet_workflow_state(status);
+    let (family, _) = work_packet_workflow_state_with_mailbox(status, false);
     locus::preferred_governed_next_action_for_family(family).unwrap_or("archive")
 }
 
 fn governed_micro_task_next_action(status: locus::MicroTaskStatus) -> &'static str {
-    let (family, _) = micro_task_workflow_state(status);
+    let (family, _) = micro_task_workflow_state_with_mailbox(status, false);
     locus::preferred_governed_next_action_for_family(family).unwrap_or("archive")
 }
 
