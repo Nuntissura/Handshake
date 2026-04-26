@@ -19,6 +19,10 @@
 - The packet-declared `WP_VALIDATOR_MODEL_PROFILE` is authoritative.
 - The ACP broker is a mechanical session-control relay, not a model. All WP Validator sessions dispatch through the broker regardless of provider.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+Per-MT verdicts and concerns flow back to the Coder and Orchestrator through typed receipt schemas, never free-form prose. Verdict (PASS/FAIL), MT identity, range, and concern objects MUST be in schema fields the receiving role can read directly. Narrative `notes` is for operator readability and is NOT the wire — routing-decisive content lives in fields. Future RGFs (RGF-248) will tighten this with a typed `MT_VERDICT` verb family. See Codex `[CX-130]` for the full rule.
+
 ---
 
 ## Evaluation Criteria

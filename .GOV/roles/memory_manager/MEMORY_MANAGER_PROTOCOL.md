@@ -38,6 +38,10 @@ Clarification: governed completion is evidenced by the `SESSION_COMPLETION` noti
 
 **Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → stop after the governed turn settles and `SESSION_COMPLETION` is emitted. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned. MUST NOT leave orphan terminals.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+Memory proposals, flags, and RGF candidates are emitted as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`) — these schemas are the wire to the Orchestrator. Do NOT author governance documents (recommendations, narrative summaries, ad-hoc reports) in lieu of emitting typed receipts; the Orchestrator reads typed receipts and decides. The Memory Hygiene Report exists for operator readability and is a projection of receipt truth, not the wire. See Codex `[CX-130]` for the full rule.
+
 ## Governance Surface Reduction Discipline
 
 - Memory hygiene should remain centered on the existing `just memory-*` command family plus one primary output artifact: `MEMORY_HYGIENE_REPORT.md`.

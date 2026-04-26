@@ -31,3 +31,18 @@ This enables a **governance kernel worktree**: a dedicated worktree holding the 
 - Raw: SQLite-backed content is persisted by the backend (`src/backend/handshake_core/migrations/` and API handlers in `src/backend/handshake_core/src/api/`).
 - Derived: TBD (HSK-1003) - no concrete derived pipeline is implemented yet; track when indexing/embeddings land.
 - Display: UI rendering in `app/src/` (DocumentView/CanvasView) builds display state from backend responses; no persisted display layer yet.
+
+## Inter-Role Wire Format [CX-130]
+
+Communication between governed roles is structured event traffic, not free-form prose. The wire is the receipt and notification schema family:
+
+| Surface | Schema family | Authority |
+| --- | --- | --- |
+| Receipts | `WP_RECEIPT.schema.json` | role-to-role events (`CODER_INTENT`, `CODER_HANDOFF`, validator review responses, verdicts) |
+| Notifications | `WP_NOTIFICATION.schema.json` | governance-routing wakes and alerts |
+| Session control | `SESSION_CONTROL_REQUEST.schema.json`, `SESSION_CONTROL_RESULT.schema.json` | typed governed-action envelopes for launch/steer/cancel/close |
+| Memory packetless receipts | `MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE` (kinds in `WP_RECEIPT`) | memory-manager → orchestrator |
+
+Operator-facing artifacts — WP packets (`packet.md`), Workflow Dossier (`templates/WORKFLOW_DOSSIER_TEMPLATE.md`), validator reports, post-mortems — are **projections rendered from receipt and notification truth**. They are not the wire between roles. Roles MUST NOT author them as a substitute for emitting structured receipts; the projection layer (`workflow-dossier-lib.mjs`, `wp-receipt-append.mjs`, packet/runtime projection helpers) materializes them for human review.
+
+This separation is load-bearing: model-authored prose between roles is the documented dominant token-cost driver. Typed events eliminate the malformation/repair loops, the cache invalidation on doc revisions, and the read-cost of paragraphs the receiving model cannot reliably parse. Operator readability is preserved through the projection layer. See Codex `[CX-130]`.

@@ -34,6 +34,10 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 - This role is the pre-launch authoring lane so the Orchestrator can stay focused on workflow authority, repair decisions, launch control, and multi-WP coordination.
 - It exists specifically to offload refinement-heavy pre-launch reasoning from the Orchestrator, reduce context rot, and keep orchestrator-managed multi-WP steering viable.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+Refinement signature, packet creation, and pre-launch handback to the Orchestrator/Coder pipeline emit typed receipts and notifications. Pre-launch state (signature, scope, MT contract, model profiles, worktree assignment) crosses into orchestrator-managed via schema fields, never through prose summaries the next role must parse. Operator-facing refinement narrative belongs in the refinement artifact for human review and is NOT the wire to the Orchestrator. See Codex `[CX-130]` for the full rule.
+
 ## Refinement And Enrichment Standard (HARD)
 
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager refinement/enrichment pass MUST be equal to or better than the old Orchestrator-owned pre-launch flow. Moving the work out of the Orchestrator does not lower the standard.

@@ -72,6 +72,10 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 
 **Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The Integration Validator is the default owner for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. Root-level repo control files are separate from that kernel flow: `AGENTS.md` and the root `justfile` are authored only in `handshake_main` on local `main`, never from a role worktree or WP worktree. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+Validator output (review verdicts, concerns, gate decisions, closeout judgments) lands in typed receipt and report-template fields, not in narrative paragraphs the Orchestrator or Coder must parse. Routing-decisive content (verdict, blocking-or-not, next-actor) MUST live in schema fields. Narrative prose in report templates exists for operator readability and is NOT the wire between roles. Operator-facing artifacts (validator reports, dossier sections) are projections of typed receipt/notification truth. See Codex `[CX-130]` for the full rule.
+
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.

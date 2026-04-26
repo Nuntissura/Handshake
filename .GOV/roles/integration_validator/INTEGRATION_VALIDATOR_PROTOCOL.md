@@ -28,6 +28,10 @@
 - The packet-declared `INTEGRATION_VALIDATOR_MODEL_PROFILE` is authoritative.
 - The ACP broker is a mechanical session-control relay. All sessions dispatch through the broker regardless of provider.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`). Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability — they project from the typed verdict, they are NOT the verdict. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout receipt. See Codex `[CX-130]` for the full rule.
+
 ## What The Integration Validator Receives
 
 When the Integration Validator launches, the Orchestrator has already:

@@ -49,6 +49,11 @@ const REQUIRED_FILES = [
   "roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
   "roles/coder/CODER_PROTOCOL.md",
   "roles/validator/VALIDATOR_PROTOCOL.md",
+  "roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+  "roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+  "roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md",
+  "roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md",
+  "roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md",
   "roles_shared/docs/COMMAND_SURFACE_REFERENCE.md",
   "roles_shared/docs/ARCHITECTURE.md",
   "roles_shared/docs/START_HERE.md",
@@ -68,9 +73,25 @@ const PROTOCOLS = {
   orchestrator: "roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
   coder: "roles/coder/CODER_PROTOCOL.md",
   validator: "roles/validator/VALIDATOR_PROTOCOL.md",
+  wp_validator: "roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+  integration_validator: "roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+  activation_manager: "roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md",
+  classic_orchestrator: "roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md",
+  memory_manager: "roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md",
 };
 
+// Reference checks shared by all protocols. Each role protocol SHOULD reference
+// these invariants somewhere in its body so the rule is visible at session start.
 const PROTOCOL_EXPECTED_REFS = [
+  { pattern: "CX-130", label: "inter-role wire discipline [CX-130]" },
+];
+
+// Reference checks that apply only to the legacy three-role protocols
+// (orchestrator/coder/validator) which carry the full repo-boundary boilerplate.
+// The newer split protocols (wp_validator, integration_validator, etc.) inherit
+// these invariants from the legacy authority files referenced in their startup
+// prompts, so the checks below are scoped to the legacy three.
+const LEGACY_PROTOCOL_EXPECTED_REFS = [
   { pattern: "TOOLING_GUARDRAILS", label: "TOOLING_GUARDRAILS ref" },
   { pattern: "COMMAND_SURFACE_REFERENCE", label: "COMMAND_SURFACE_REFERENCE ref" },
   { pattern: /permanent.branch/i, label: "permanent branch model" },
@@ -79,8 +100,11 @@ const PROTOCOL_EXPECTED_REFS = [
   { pattern: "CX-109A", label: "no-spaces-in-names rule [CX-109A]" },
 ];
 
+const LEGACY_PROTOCOLS = new Set(["orchestrator", "coder", "validator"]);
+
 for (const [role, filePath] of Object.entries(PROTOCOLS)) {
   const content = readFile(filePath) || "";
+  // Universal refs every protocol MUST carry.
   for (const ref of PROTOCOL_EXPECTED_REFS) {
     const found = typeof ref.pattern === "string"
       ? content.includes(ref.pattern)
@@ -90,6 +114,19 @@ for (const [role, filePath] of Object.entries(PROTOCOLS)) {
       found ? PASS : WARN,
       found ? "" : `not found in ${role} protocol`,
     );
+  }
+  // Legacy-three-only refs (full boundary boilerplate).
+  if (LEGACY_PROTOCOLS.has(role)) {
+    for (const ref of LEGACY_PROTOCOL_EXPECTED_REFS) {
+      const found = typeof ref.pattern === "string"
+        ? content.includes(ref.pattern)
+        : ref.pattern.test(content);
+      check(
+        `${role}-protocol: ${ref.label}`,
+        found ? PASS : WARN,
+        found ? "" : `not found in ${role} protocol`,
+      );
+    }
   }
 }
 
@@ -162,6 +199,7 @@ const CODEX_EXPECTED = [
   { pattern: /governance.kernel/i, label: "governance kernel concept" },
   { pattern: /permanent.branch/i, label: "permanent branch model" },
   { pattern: /drive.agnostic/i, label: "drive-agnostic rule" },
+  { pattern: "CX-130", label: "inter-role wire discipline [CX-130]" },
 ];
 
 for (const ref of CODEX_EXPECTED) {
@@ -259,8 +297,33 @@ const REVIEW_BRIEF = [
   },
   {
     file: "roles/validator/VALIDATOR_PROTOCOL.md",
-    purpose: "Validator execution rules — review authority, proof standards, closeout gates",
-    directive: "Check if the governance change affects validation criteria, proof requirements, or closeout rules. Update rules or references if applicable.",
+    purpose: "Classic Validator execution rules — review authority, proof standards, closeout gates (manual-relay lane)",
+    directive: "Check if the governance change affects classic validation criteria, proof requirements, or closeout rules. Update rules or references if applicable.",
+  },
+  {
+    file: "roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+    purpose: "WP Validator execution rules — per-MT boundary enforcement, scope containment, code review (orchestrator-managed lane)",
+    directive: "Check if the governance change affects per-MT review, the bounded fix loop, or the WP Validator's scope. Update rules or references if applicable.",
+  },
+  {
+    file: "roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+    purpose: "Integration Validator execution rules — whole-WP judgment, verdict authority, merge-to-main, sync-gov-to-main",
+    directive: "Check if the governance change affects whole-WP judgment, verdict writing, merge authority, or closeout sync. Update rules or references if applicable.",
+  },
+  {
+    file: "roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md",
+    purpose: "Activation Manager execution rules — refinement, packet creation, pre-launch authoring (orchestrator-managed lane)",
+    directive: "Check if the governance change affects refinement, enrichment, packet hydration, or pre-launch handback. Update rules or references if applicable.",
+  },
+  {
+    file: "roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md",
+    purpose: "Classic Orchestrator execution rules — combined pre-launch + manual relay coordination (manual-relay lane)",
+    directive: "Check if the governance change affects MANUAL_RELAY workflow authority, manual relay envelopes, or the combined pre-launch flow. Update rules or references if applicable.",
+  },
+  {
+    file: "roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md",
+    purpose: "Memory Manager execution rules — memory hygiene, packetless receipt emission, proposal/flag/RGF candidate authoring",
+    directive: "Check if the governance change affects memory hygiene, the memory packetless receipt schemas, or memory-manager session lifecycle. Update rules or references if applicable.",
   },
   {
     file: "roles_shared/docs/COMMAND_SURFACE_REFERENCE.md",
