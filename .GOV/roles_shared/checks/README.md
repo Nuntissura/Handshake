@@ -2,6 +2,13 @@
 
 Repo-shared checks live here.
 
+## Check Result Output
+
+- Migrated runners print compact model-visible lines as `OK|WARN|FAIL | summary`.
+- Full stdout/stderr or structured result detail is appended to `gov_runtime/check_details.jsonl` for repo-wide checks.
+- WP-scoped checks append to `gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl`.
+- Use `--verbose` on migrated runners to print the structured detail entry for human debugging.
+
 ## Core Governance Gates
 
 - `gov-check.mjs`
@@ -23,6 +30,7 @@ Repo-shared checks live here.
 - `worktree-concurrency-check.mjs`
 - `wp-communications-check.mjs`
 - `wp-activation-traceability-check.mjs`
+- `cache-stability-check.mjs`
 
 ## Shared Proof / Spec Integrity Checks
 

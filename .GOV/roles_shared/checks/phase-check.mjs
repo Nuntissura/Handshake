@@ -6,6 +6,10 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 import { compactGateOutputSummary, writeGateOutputArtifact } from "../scripts/lib/gate-output-artifact-lib.mjs";
+import {
+  formatVerboseCheckDetails,
+  recordCheckResult,
+} from "../scripts/lib/check-result-lib.mjs";
 import { ensureWpCommunications } from "../scripts/wp/ensure-wp-communications.mjs";
 import { captureCheckFindings } from "../scripts/memory/memory-capture-from-check.mjs";
 import { buildActiveLaneBrief, formatActiveLaneBrief } from "../scripts/session/active-lane-brief-lib.mjs";
@@ -1137,18 +1141,28 @@ export function buildCloseoutNextCommands({
   return nextCommands;
 }
 
-function printStepSummary({ label, result, verbose = false }) {
-  console.log(`- ${label}: ${result.ok ? "PASS" : "FAIL"}`);
+function printStepSummary({ phase = "", wpId = "", label, result, verbose = false }) {
+  const output = ensureTrailingNewline(String(result.output || "").trimEnd());
+  const recorded = recordCheckResult({
+    check: `phase-check:${label}`,
+    wpId,
+    phase,
+    verdict: result.ok ? "OK" : "FAIL",
+    summary: `${label} ${result.ok ? "passed" : "failed"}`,
+    details: {
+      label,
+      ok: Boolean(result.ok),
+      compact_output: compactGateOutputSummary(output),
+      output,
+      result_data: result.resultData || null,
+    },
+  });
+
+  console.log(recorded.summaryLine);
   if (verbose) {
-    const renderedOutput = ensureTrailingNewline(result.output.trimEnd());
-    for (const line of renderedOutput.trimEnd().split("\n")) {
-      console.log(`  ${line}`);
-    }
-    return;
+    console.log(formatVerboseCheckDetails(recorded.writeResult.entry));
   }
-  for (const line of compactGateOutputSummary(result.output)) {
-    console.log(`  ${line}`);
-  }
+  return recorded;
 }
 
 async function runCli() {
@@ -1188,6 +1202,7 @@ async function runCli() {
     });
     const sections = [];
     const stepResults = new Map();
+    let nextCommands = [];
     let ok = true;
     let why = `${normalizedPhase} phase checks passed.`;
     let deferredCloseoutMaintenanceStep = null;
@@ -1207,7 +1222,7 @@ async function runCli() {
       const result = runStep(currentStep);
       stepResults.set(currentStep.label, result);
       sections.push({ title: currentStep.label, body: result.output });
-      printStepSummary({ label: currentStep.label, result, verbose });
+      printStepSummary({ phase: normalizedPhase, wpId: wpIdArg, label: currentStep.label, result, verbose });
       if (!result.ok && ok) {
         ok = false;
         why = `${currentStep.label} failed.`;
@@ -1221,7 +1236,7 @@ async function runCli() {
       });
       stepResults.set("closeout-truth-sync", syncResult);
       sections.push({ title: "closeout-truth-sync", body: syncResult.output });
-      printStepSummary({ label: "closeout-truth-sync", result: syncResult, verbose });
+      printStepSummary({ phase: normalizedPhase, wpId: wpIdArg, label: "closeout-truth-sync", result: syncResult, verbose });
       if (!syncResult.ok) {
         ok = false;
         why = "closeout-truth-sync failed.";
@@ -1232,7 +1247,7 @@ async function runCli() {
       const maintenanceResult = runStep(deferredCloseoutMaintenanceStep);
       stepResults.set(deferredCloseoutMaintenanceStep.label, maintenanceResult);
       sections.push({ title: deferredCloseoutMaintenanceStep.label, body: maintenanceResult.output });
-      printStepSummary({ label: deferredCloseoutMaintenanceStep.label, result: maintenanceResult, verbose });
+      printStepSummary({ phase: normalizedPhase, wpId: wpIdArg, label: deferredCloseoutMaintenanceStep.label, result: maintenanceResult, verbose });
       if (!maintenanceResult.ok) {
         ok = false;
         why = `${deferredCloseoutMaintenanceStep.label} failed.`;
@@ -1245,7 +1260,7 @@ async function runCli() {
       });
       stepResults.set("close-terminal-sessions", terminalCleanupResult);
       sections.push({ title: "close-terminal-sessions", body: terminalCleanupResult.output });
-      printStepSummary({ label: "close-terminal-sessions", result: terminalCleanupResult, verbose });
+      printStepSummary({ phase: normalizedPhase, wpId: wpIdArg, label: "close-terminal-sessions", result: terminalCleanupResult, verbose });
       if (!terminalCleanupResult.ok) {
         ok = false;
         why = "close-terminal-sessions failed.";
@@ -1261,7 +1276,7 @@ async function runCli() {
       });
       stepResults.set("workflow-dossier-closeout", workflowDossierCloseoutResult);
       sections.push({ title: "workflow-dossier-closeout", body: workflowDossierCloseoutResult.output });
-      printStepSummary({ label: "workflow-dossier-closeout", result: workflowDossierCloseoutResult, verbose });
+      printStepSummary({ phase: normalizedPhase, wpId: wpIdArg, label: "workflow-dossier-closeout", result: workflowDossierCloseoutResult, verbose });
     }
 
     if (normalizedPhase === "STARTUP" && normalizedRole === "CODER") {
@@ -1280,6 +1295,7 @@ async function runCli() {
       if (!ok) {
         captureCheckFindings({ check: "phase-check-startup", findings: [why], wpId: wpIdArg });
       }
+      nextCommands = startupOutcome.nextCommands;
       console.log("");
       console.log("NEXT_COMMANDS [CX-PHASE-CHECK-001]");
       for (const line of startupOutcome.nextCommands) {
@@ -1295,6 +1311,7 @@ async function runCli() {
         workflowDossierCloseoutOk: workflowDossierCloseoutResult?.ok !== false,
         integrationValidatorCloseoutResult: stepResults.get("integration-validator-closeout-check")?.resultData || null,
       });
+      nextCommands = closeoutNextCommands;
       console.log("");
       console.log("NEXT_COMMANDS [CX-PHASE-CHECK-001]");
       for (const line of closeoutNextCommands) {
@@ -1303,16 +1320,41 @@ async function runCli() {
     }
 
     const artifactPath = writeGateOutputArtifact(`phase-check-${normalizedPhase.toLowerCase()}`, wpIdArg, sections);
-    console.log("");
-    console.log(`PHASE_CHECK_STATUS [CX-PHASE-CHECK-001]`);
-    console.log(`- PHASE: ${normalizedPhase}`);
-    console.log(`- GATE_RAN: ${buildPhaseCheckCommand({
+    const gateCommand = buildPhaseCheckCommand({
       phase: normalizedPhase,
       wpId: wpIdArg,
       role: roleArg,
       session: sessionArg,
       args: extraArgs,
-    })}`);
+    });
+    const finalRecorded = recordCheckResult({
+      check: "phase-check",
+      wpId: wpIdArg,
+      phase: normalizedPhase,
+      verdict: ok ? "OK" : "FAIL",
+      summary: `phase-check ${normalizedPhase} ${ok ? "passed" : "failed"} for ${wpIdArg}`,
+      details: {
+        phase: normalizedPhase,
+        wp_id: wpIdArg,
+        role: roleArg,
+        session: sessionArg,
+        gate_command: gateCommand,
+        artifact_path: artifactPath,
+        result: ok ? "PASS" : "FAIL",
+        why,
+        next_commands: nextCommands,
+        sections,
+      },
+    });
+    console.log("");
+    console.log(finalRecorded.summaryLine);
+    if (verbose) {
+      console.log(formatVerboseCheckDetails(finalRecorded.writeResult.entry));
+    }
+    console.log("");
+    console.log(`PHASE_CHECK_STATUS [CX-PHASE-CHECK-001]`);
+    console.log(`- PHASE: ${normalizedPhase}`);
+    console.log(`- GATE_RAN: ${gateCommand}`);
     console.log(`- ARTIFACT_PATH: ${artifactPath}`);
     console.log(`- RESULT: ${ok ? "PASS" : "FAIL"}`);
     console.log(`- WHY: ${why}`);

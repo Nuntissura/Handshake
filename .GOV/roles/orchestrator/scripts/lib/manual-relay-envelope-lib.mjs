@@ -1,3 +1,5 @@
+import { buildEphemeralContextBlock } from "../../../../roles_shared/scripts/session/ephemeral-injection-lib.mjs";
+
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
 }
@@ -154,9 +156,7 @@ export function buildRelayDispatchPrompt({
   const trailingInstructions = Array.isArray(terminalInstructions)
     ? terminalInstructions.map((entry) => String(entry || "").trim()).filter(Boolean)
     : [];
-  return [
-    prompt,
-    "",
+  const contextBody = [
     contextLabel,
     `- FROM: ${relayEnvelope.fromEndpoint || formatEndpoint(relayEnvelope.fromRole, relayEnvelope.fromSession)}`,
     `- TO: ${relayEnvelope.toEndpoint || formatEndpoint(relayEnvelope.toRole, relayEnvelope.toSession)}`,
@@ -169,6 +169,15 @@ export function buildRelayDispatchPrompt({
     `- ${normalizeText(relayEnvelope.message, "Review the active packet/runtime/notifications and perform the next governed action.")}`,
     "",
     ...trailingInstructions,
+  ].join("\n");
+  return [
+    prompt,
+    "",
+    buildEphemeralContextBlock({
+      source: contextLabel,
+      trust: "required",
+      body: contextBody,
+    }),
   ].join("\n");
 }
 

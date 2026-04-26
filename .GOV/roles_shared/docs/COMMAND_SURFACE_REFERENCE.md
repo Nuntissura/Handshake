@@ -27,6 +27,17 @@ Coder packet truth exception:
 - Those packet/MT writes land in the governance kernel and must not be committed on the feature branch.
 - Other `.GOV/` surfaces remain read-only context for the coder lane unless the role protocol or a packet explicitly says otherwise.
 
+Cache-stability rule:
+- Active governed role sessions keep their cached system prompt immutable. Governance changes land in durable storage and are read on the next startup/restart.
+- Commands that deliver mid-conversation governance context to an active session must use the normal `SEND_PROMPT` user-message path and wrap injected context in the shared `<governance-context>` fence.
+- A future or repair-only `--now` style flag is the required shape for any explicit immediate invalidation path. Default command behavior must defer invalidation.
+
+Check-result detail logging:
+- `RGF-243` migrated `gov-check`, `phase-check`, and `wp-communication-health-check` toward compact model-visible output.
+- Migrated checks write full structured detail to `gov_runtime/check_details.jsonl` for repo-scope checks or `gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl` for WP-scoped checks.
+- Default model-visible stdout is `VERDICT | summary`; `--verbose` is the expected debug shape for migrated checks.
+- Workflow Dossier sync and the operator monitor `CHECKS` view read the JSONL detail logs for human diagnostics.
+
 ## Operator-facing scope split
 
 Use this split in chat every time scope, remediation, or next steps are discussed:
@@ -89,6 +100,7 @@ These are safe starting points for orientation and health checks.
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
   - `runtime-write`
   - Classic-Orchestrator-owned broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts the projected target session when needed, immediately delivers the active role-to-role payload, and injects typed relay context (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) into the target prompt instead of a generic resume-only steer
+  - injected relay context is fenced as `<governance-context>` user-message context so the active target session's cached system prompt is not rebuilt
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
@@ -120,6 +132,7 @@ These are safe starting points for orientation and health checks.
   - launch or steer the next expected governed actor directly from runtime/receipt projection without a manually written relay prompt
   - if the target session is not running yet, this helper now starts it and immediately sends the typed route payload in the same invocation
   - the governed prompt carries typed route context (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) derived from receipt/notification truth instead of generic resume prose
+  - route context is fenced as `<governance-context>` user-message context; it must not rebuild or mutate the active role session's cached system prompt
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
   - before dispatch, the helper now echoes the runtime-native relay escalation policy for the lane (`failure_class`, `policy_state`, `next_strategy`, strategy budget) so repairs are based on canonical runtime truth rather than local transcript interpretation
 - `just manual-relay-next WP-{ID} [--debug]`

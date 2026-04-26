@@ -41,6 +41,7 @@ import {
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
+import { readCheckDetails } from "../../../roles_shared/scripts/lib/check-result-lib.mjs";
 import { TOPOLOGY_REGISTRY_JSON_PATH } from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
 import {
   relayEscalationPolicyBudgetLabel,
@@ -70,7 +71,7 @@ const PACKETS_DIR = WORK_PACKET_STORAGE_ROOT_REPO_REL;
 const PACKET_STUBS_DIR = WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL;
 
 const FILTERS = ["ALL", "ACTIVE", "READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "STUB", "DONE", "SUPERSEDED"];
-const DETAIL_VIEWS = ["OVERVIEW", "DOCS", "COMMS", "SESSIONS", "TIMELINE", "CONTROL", "EVENTS"];
+const DETAIL_VIEWS = ["OVERVIEW", "DOCS", "COMMS", "SESSIONS", "TIMELINE", "CONTROL", "EVENTS", "CHECKS"];
 const BOARD_ORDER = ["ACTIVE", "READY_FOR_DEV", "IN_PROGRESS", "BLOCKED", "STUB", "DONE", "SUPERSEDED", "OTHER"];
 const REFRESH_INTERVAL_MS = 1000;
 const ACTIVE_RUNTIME_STATES = new Set([
@@ -214,6 +215,27 @@ function parseJsonFile(filePath) {
 
 function parseJsonlFile(filePath) {
   return readCachedFile("jsonl", filePath, (absolutePath) => sharedParseJsonlFile(absolutePath));
+}
+
+function readWpCheckDetails(wpId, limit = 16) {
+  try {
+    return readCheckDetails({ wpId, limit });
+  } catch {
+    return [];
+  }
+}
+
+function renderCheckDetailLines(entry = {}) {
+  const details = entry.details && typeof entry.details === "object" ? entry.details : {};
+  if (Array.isArray(details.output_lines) && details.output_lines.length > 0) {
+    return details.output_lines.slice(-12);
+  }
+  if (typeof details.output === "string" && details.output.trim()) {
+    return details.output.trim().split(/\r?\n/).slice(-12);
+  }
+  const rendered = JSON.stringify(details);
+  if (!rendered || rendered === "{}") return ["<no structured details>"];
+  return [rendered.length > 1200 ? `${rendered.slice(0, 1197)}...` : rendered];
 }
 
 function isProcessAlive(pid) {
@@ -1243,6 +1265,7 @@ function loadMonitorModel() {
     const pendingControlRequests = wpControlRequests.filter((request) => !resultIds.has(request.command_id));
     const controlBrokerRuns = [...(brokerState.activeRunsByWpId.get(entry.wpId) || [])]
       .sort((left, right) => String(left.started_at || "").localeCompare(String(right.started_at || "")));
+    const checkDetails = readWpCheckDetails(entry.wpId, 16);
     if (packetRecord) {
       packetRecord.relayEscalation = evaluateWpRelayEscalation({
         wpId: entry.wpId,
@@ -1266,6 +1289,7 @@ function loadMonitorModel() {
       ...wpControlResults.map((result) => result.processed_at || null),
       ...controlBrokerRuns.map((run) => run.started_at || null),
       ...controlEventTimeline.map((event) => event.timestamp || null),
+      ...checkDetails.map((checkDetail) => checkDetail.timestamp || null),
     ]);
     if (packetRecord) {
       packetRecord.lastActivityAt = lastActivityAt;
@@ -1296,6 +1320,7 @@ function loadMonitorModel() {
       latestRegistrySession,
       controlEventStreams,
       controlEventTimeline,
+      checkDetails,
       canonicalBoardEntry,
       currentBoardEntry,
       currentBoardMatchesSelected,
@@ -1982,6 +2007,20 @@ function buildDetailLinesRich(record, width, detailView, uiState) {
         lines.push(`  ${summarizeControlEvent(entry)}`);
       }
     }
+  } else if (detailView === "CHECKS") {
+    lines.push("CHECKS");
+    lines.push("Recent structured check details from check_details.jsonl.");
+    if ((record.checkDetails || []).length === 0) {
+      lines.push("No WP-scoped check details recorded.");
+    } else {
+      for (const entry of (record.checkDetails || []).slice(-16)) {
+        lines.push(`${entry.timestamp || "<no-ts>"} | ${entry.check || "<unknown>"} | ${entry.verdict || "UNKNOWN"} | ${entry.summary || "<no summary>"}`);
+        lines.push(`  entry=${entry.entry_id || "<none>"}`);
+        for (const detailLine of renderCheckDetailLines(entry)) {
+          lines.push(`  ${detailLine}`);
+        }
+      }
+    }
   } else if (detailView === "TIMELINE") {
     lines.push("TIMELINE");
     lines.push("Merged thread, receipts, control requests/results, and ACP events. Use detail focus + j/k to scroll.");
@@ -2151,8 +2190,8 @@ function renderScreen(model, uiState) {
   }).join("  ");
   const summaryLines = buildTopSummary(records, filtered, selected, model, uiState);
   const help = uiState.admin
-    ? "tab focus  j/k move-scroll  h/l source  [/ ] filter  1 overview 2 docs 3 comms 4 sessions 5 timeline 6 control 7 events  c close  b broker-stop  m message  r refresh  q quit"
-    : "tab focus  j/k move-scroll  h/l source  [/ ] filter  1 overview 2 docs 3 comms 4 sessions 5 timeline 6 control 7 events  r refresh  q quit";
+    ? "tab focus  j/k move-scroll  h/l source  [/ ] filter  1 overview 2 docs 3 comms 4 sessions 5 timeline 6 control 7 events 8 checks  c close  b broker-stop  m message  r refresh  q quit"
+    : "tab focus  j/k move-scroll  h/l source  [/ ] filter  1 overview 2 docs 3 comms 4 sessions 5 timeline 6 control 7 events 8 checks  r refresh  q quit";
   const chromeLines = [...summaryLines, counts, help, "-".repeat(columns)];
   const footerLineCount = 2;
   const bodyHeight = Math.max(12, rows - chromeLines.length - footerLineCount);
@@ -2418,6 +2457,9 @@ async function runInteractive(options) {
       refresh();
     } else if (key === "7") {
       setDetailView(uiState, "EVENTS");
+      refresh();
+    } else if (key === "8") {
+      setDetailView(uiState, "CHECKS");
       refresh();
     } else if (key === "r") {
       uiState.statusMessage = "";

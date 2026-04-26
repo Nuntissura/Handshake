@@ -21,6 +21,41 @@
 
 ## Entries
 
+### 2026.04.26.09 / GOV-CHANGE-20260426-09
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-243 compact check output and durable detail logging
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, starting with tool-result audit/model asymmetry.
+  - `RGF-243`
+- FOLLOW_ON_ITEMS:
+  - `RGF-244`
+  - `RGF-250`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/check-result-lib.mjs`
+  - `.GOV/roles_shared/checks/gov-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/wp-communication-health-check.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles_shared/tests/check-result-lib.test.mjs`
+  - `.GOV/roles_shared/tests/check-details-log.test.mjs`
+  - `.GOV/roles_shared/checks/README.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: `gov-check` now runs checks as subprocess steps, emits compact `OK|FAIL | summary` lines, records stdout/stderr into repo-scope `check_details.jsonl`, and continues collecting step failures. `phase-check` records per-step and final WP-scoped detail rows while preserving existing status markers and artifacts. Workflow Dossier sync and the operator monitor `CHECKS` view read the WP-scoped detail log for human diagnostics.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/check-result-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/check-details-log.test.mjs`
+  - `node --test .GOV/roles_shared/tests/phase-check.test.mjs`
+  - `node --check .GOV/roles_shared/checks/wp-communication-health-check.mjs`
+  - `node --check .GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `node .GOV/roles_shared/checks/gov-check.mjs`
+  - `just build-order-sync`
+  - `just gov-check`
+
 ### 2026.04.26.7 / GOV-CHANGE-20260426-07
 
 - STATUS: APPLIED
@@ -3417,3 +3452,31 @@
 - FOLLOW_ON_ITEMS:
   - none
 - OUTCOME: `AUTO` stays on the headless ACP path, `SYSTEM_TERMINAL` repair launches are hidden owned processes, `VSCODE_PLUGIN` governed launches fail closed instead of queueing the VS Code bridge, Memory Manager defaults to the same headless launch path, historical terminal task-board tokens now block governed role starts before runtime artifacts are created, dead-child active runs self-settle, and ACP broker client socket resets are logged instead of crashing the broker.
+
+### 2026.04.26.08 / GOV-CHANGE-20260426-08
+
+- STATUS: APPLIED
+- SUMMARY: imported the harness-pattern governance tranche and implemented cache-stability discipline for active role sessions
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - Operator approval on 2026-04-26 to import and implement the harness implementation brief items
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426_HARNESS_RGFS.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426_HARNESS_ADDENDUM.md`
+  - MT-008 heuristic-loop review note identifying fuzzy repair-loop escalation needs
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/scripts/session/ephemeral-injection-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/send-mt-prompt.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/lib/manual-relay-envelope-lib.mjs`
+  - `.GOV/roles_shared/checks/cache-stability-check.mjs`
+  - `.GOV/roles_shared/checks/gov-check.mjs`
+  - `.GOV/roles_shared/tests/ephemeral-injection-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/manual-relay-envelope-lib.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-243` through `RGF-250` remain queued from the harness-pattern tranche
+  - `RGF-233` through `RGF-241` remain queued from the closeout-canonicalization tranche
+- OUTCOME: `RGF-242` is implemented: active-session route, relay, and microtask context now uses a shared `<governance-context>` user-message fence instead of any system-prompt rebuild, the Codex and Orchestrator protocol carry cache-stability law, and `gov-check` now includes `cache-stability-check`.

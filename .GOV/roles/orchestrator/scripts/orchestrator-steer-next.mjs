@@ -5,6 +5,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import { buildSteeringPrompt, resolveRoleConfig } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
+import { buildEphemeralContextBlock } from "../../../roles_shared/scripts/session/ephemeral-injection-lib.mjs";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
@@ -229,11 +230,17 @@ let prompt = "";
 if (nextActor === "ACTIVATION_MANAGER") {
   prompt = [
     buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
-    "ACTIVATION_GATE_OVERRIDE [CX-ACT-OVERRIDE-001]",
-    `- ACTIVATION_READINESS_PATH: ${activationGate.readiness.path}`,
-    `- ACTIVATION_READINESS_VERDICT: ${activationGate.readiness.verdict}`,
-    "- REASON: Downstream governed lanes remain blocked until Activation Manager writes truthful readiness for the signed packet/worktree state.",
-    "- REQUIRED_NOW: refresh packet/worktree/backup/readiness artifacts for the current signed packet and write/update ACTIVATION_READINESS before any coder or validator launch.",
+    buildEphemeralContextBlock({
+      source: "ACTIVATION_GATE_OVERRIDE [CX-ACT-OVERRIDE-001]",
+      trust: "required",
+      body: [
+        "ACTIVATION_GATE_OVERRIDE [CX-ACT-OVERRIDE-001]",
+        `- ACTIVATION_READINESS_PATH: ${activationGate.readiness.path}`,
+        `- ACTIVATION_READINESS_VERDICT: ${activationGate.readiness.verdict}`,
+        "- REASON: Downstream governed lanes remain blocked until Activation Manager writes truthful readiness for the signed packet/worktree state.",
+        "- REQUIRED_NOW: refresh packet/worktree/backup/readiness artifacts for the current signed packet and write/update ACTIVATION_READINESS before any coder or validator launch.",
+      ].join("\n"),
+    }),
   ].join("\n");
 } else {
   const targetNotifications = checkNotifications({ wpId, role: nextActor, session: nextSession });

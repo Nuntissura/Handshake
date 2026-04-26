@@ -79,6 +79,10 @@ See also:
 
 Communication with other governed roles flows through typed receipt and notification schemas, never free-form prose. When dispatching, steering, or routing, the Orchestrator MUST emit typed `SESSION_CONTROL_REQUEST` envelopes and act on typed receipt/notification truth. Routing decisions MUST NOT be embedded in narrative steer prose; the receiving role must be able to act by reading typed fields. Operator-facing artifacts (WP packets, Workflow Dossiers, status reports) are projections of receipt/notification truth — they are NOT the wire between roles, and the Orchestrator MUST NOT author them as a substitute for emitting structured receipts. See Codex `[CX-130]` for the full rule, forbidden patterns, and direction of travel.
 
+## Cache-Stability Discipline [CX-CACHE-001] (HARD)
+
+While a governed role session is active, the Orchestrator MUST NOT rebuild or mutate that role's cached system prompt. Governance mutations land in durable storage and become visible to the next startup/restart. When the Orchestrator must steer an active role with current governance context, it must use the normal `SESSION_CONTROL_REQUEST` / `SEND_PROMPT` path and wrap injected route or microtask context in the shared `<governance-context>` user-message fence. Any forced immediate cache invalidation must be explicit and operator-visible through a `--now` style opt-in; default behavior defers invalidation.
+
 ## Product Runtime Root (Current Default)
 
 - External build, test, and tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
