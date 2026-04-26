@@ -29,7 +29,9 @@ import {
   defaultWpValidatorWorktreeDir,
   roleNextCommand,
   roleStartupCommand,
+  sessionKey,
 } from "./session-policy.mjs";
+import { drainNudges } from "./nudge-queue-lib.mjs";
 import {
   buildGovernedActionRequest,
   buildGovernedActionResult,
@@ -810,16 +812,51 @@ export function buildStartupInjectionLines({
       maxLines: STARTUP_CONVERSATION_PROMPT_MAX_LINES,
     },
   );
+  const nudgeLines = drainStartupNudgeLines({ role, wpId });
 
-  if (resolvedStartupMemoryLines.length === 0 && resolvedConversationLines.length === 0) {
+  if (resolvedStartupMemoryLines.length === 0 && resolvedConversationLines.length === 0 && nudgeLines.length === 0) {
     return [];
   }
 
-  return [
-    "MEMORY INJECTION (BOUNDED): recent fail/context lines are included below to reduce repeated mistakes. Treat them as hints; packet, code, and live runtime truth win.",
-    ...resolvedStartupMemoryLines,
-    ...resolvedConversationLines,
-  ];
+  const lines = [];
+  if (resolvedStartupMemoryLines.length > 0 || resolvedConversationLines.length > 0) {
+    lines.push("MEMORY INJECTION (BOUNDED): recent fail/context lines are included below to reduce repeated mistakes. Treat them as hints; packet, code, and live runtime truth win.");
+    lines.push(...resolvedStartupMemoryLines, ...resolvedConversationLines);
+  }
+  if (nudgeLines.length > 0) {
+    lines.push(...nudgeLines);
+  }
+  return lines;
+}
+
+function drainStartupNudgeLines({ role = "", wpId = "" } = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedRole || !normalizedWpId || normalizedRole === "ORCHESTRATOR") return [];
+  const sessionId = sessionKey(normalizedRole, normalizedWpId);
+  try {
+    const drained = drainNudges({
+      sessionId,
+      wpId: normalizedWpId,
+      drainerId: `startup:${normalizedRole}:${normalizedWpId}`,
+    });
+    if (!drained.nudges.length && !drained.orphansRecovered && !drained.expired) return [];
+    const lines = [
+      "TURN_BOUNDARY_NUDGES (RGF-245): queued governance nudges drained at this safe startup/turn boundary. Treat them as current user-message context; live packet/runtime truth still wins.",
+    ];
+    if (drained.orphansRecovered) lines.push(`- ORPHANS_RECOVERED: ${drained.orphansRecovered}`);
+    if (drained.expired) lines.push(`- EXPIRED: ${drained.expired}`);
+    drained.nudges.forEach((nudge, index) => {
+      lines.push(`- NUDGE_${index + 1}: kind=${nudge.kind} from=${nudge.from_role} priority=${nudge.priority} correlation=${nudge.correlation_id}`);
+      lines.push(`  BODY_JSON: ${JSON.stringify(nudge.body || {})}`);
+    });
+    return lines;
+  } catch (error) {
+    return [
+      "TURN_BOUNDARY_NUDGES (RGF-245): drain failed; continue from packet/runtime truth and report this to Orchestrator.",
+      `- ERROR: ${error?.message || error}`,
+    ];
+  }
 }
 
 function roleRepomemOpenCommand(role, wpId) {

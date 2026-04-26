@@ -21,6 +21,12 @@ Repo-shared checks live here.
 - `HEURISTIC_RISK=YES` MTs require corpus/property/negative evidence and project strategy-escalation fields into microtask contracts.
 - Repeated non-PASS review responses on a heuristic-risk MT emit `HEURISTIC_RISK_STRATEGY_ESCALATION` before the generic fix-cycle cap.
 
+## Turn-Boundary Nudges
+
+- `../scripts/session/nudge-queue-lib.mjs` owns the RGF-245 queue primitive.
+- Enqueue validates typed payloads, writes FIFO JSON files, enforces a depth cap, and stores files below `gov_runtime/nudges/`.
+- Drain uses atomic `.claimed` rename, TTL expiry, stale-claim recovery, and failure requeue.
+
 ## Core Governance Gates
 
 - `gov-check.mjs`

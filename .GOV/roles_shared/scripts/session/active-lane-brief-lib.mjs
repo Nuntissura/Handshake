@@ -24,6 +24,7 @@ import {
   formatSessionStepTelemetryInline,
   selectLatestPushAlert,
 } from "./session-telemetry-lib.mjs";
+import { listQueueDepth } from "./nudge-queue-lib.mjs";
 
 const COMMAND_SURFACE_PATH = ".GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md";
 
@@ -287,6 +288,7 @@ export function buildActiveLaneBrief({
         resume_disposition: normalize(session?.last_governed_action?.resume_disposition),
       },
       pending_control_queue_count: Number(session?.pending_control_queue_count || 0),
+      nudge_queue_depth: session?.session_key ? listQueueDepth(session.session_key, { wpId }) : 0,
       next_queued_control_request: {
         command_id: normalize(session?.next_queued_control_request?.command_id),
         command_kind: normalize(session?.next_queued_control_request?.command_kind),
@@ -345,7 +347,7 @@ export function formatActiveLaneBrief(brief) {
     `- PACKET: ${brief.packet_path}`,
     `- ROLE_CONTEXT: branch=${brief.role_config.branch} | worktree=${brief.role_config.worktree_dir}`,
     `- RUNTIME: status=${brief.runtime.status} | phase=${brief.runtime.phase} | milestone=${brief.runtime.milestone} | board=${brief.runtime.task_board_status} | next=${brief.runtime.next_expected_actor}${brief.runtime.next_expected_session !== "<none>" ? `:${brief.runtime.next_expected_session}` : ""} | waiting_on=${brief.runtime.waiting_on}${brief.runtime.waiting_on_session !== "<none>" ? ` (${brief.runtime.waiting_on_session})` : ""}`,
-    `- SESSION: key=${brief.session.session_key} | actor_session=${brief.session.actor_session} | runtime_state=${brief.session.runtime_state} | thread=${brief.session.thread_id} | effective_command=${brief.session.effective_governed_action.command_kind}/${brief.session.effective_governed_action.command_status} | effective_action=${brief.session.effective_governed_action.action_kind}/${brief.session.effective_governed_action.action_state} | disposition=${brief.session.effective_governed_action.resume_disposition} | source=${brief.session.effective_governed_action.source} | queued=${brief.session.pending_control_queue_count}${brief.session.next_queued_control_request.command_id !== "<none>" ? ` | next_queue=${brief.session.next_queued_control_request.command_kind}:${brief.session.next_queued_control_request.command_id}` : ""}`,
+    `- SESSION: key=${brief.session.session_key} | actor_session=${brief.session.actor_session} | runtime_state=${brief.session.runtime_state} | thread=${brief.session.thread_id} | effective_command=${brief.session.effective_governed_action.command_kind}/${brief.session.effective_governed_action.command_status} | effective_action=${brief.session.effective_governed_action.action_kind}/${brief.session.effective_governed_action.action_state} | disposition=${brief.session.effective_governed_action.resume_disposition} | source=${brief.session.effective_governed_action.source} | queued=${brief.session.pending_control_queue_count} | nudges=${brief.session.nudge_queue_depth}${brief.session.next_queued_control_request.command_id !== "<none>" ? ` | next_queue=${brief.session.next_queued_control_request.command_kind}:${brief.session.next_queued_control_request.command_id}` : ""}`,
     `- SESSION_TELEMETRY: ${formatSessionRunTelemetryInline(brief.session.telemetry?.run)} | ${formatSessionStepTelemetryInline(brief.session.telemetry?.step)}${brief.session.telemetry?.latest_push_alert ? ` | ${formatPushAlertInline(brief.session.telemetry.latest_push_alert)}` : ""}`,
     `- NOTIFICATIONS: pending=${brief.notifications.pending_count} | by_kind=${JSON.stringify(brief.notifications.by_kind)}`,
     `- MICROTASKS: declared=${brief.microtasks.declared_count} | active=${brief.microtasks.active_microtask?.mt_id || "<none>"} | next=${brief.microtasks.suggested_next_microtask?.mt_id || "<none>"}`,

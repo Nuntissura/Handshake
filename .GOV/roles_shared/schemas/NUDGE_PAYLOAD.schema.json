@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.nudge_payload@1",
+  "title": "Governed Turn-Boundary Nudge Payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "from_role",
+    "wp_id",
+    "correlation_id",
+    "body",
+    "enqueued_at",
+    "expires_at",
+    "priority",
+    "delivery_attempts"
+  ],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "STEER",
+        "RELAUNCH_REQUEST",
+        "PHASE_TRANSITION",
+        "MT_VERDICT",
+        "GOVERNANCE_REMINDER"
+      ]
+    },
+    "from_role": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wp_id": {
+      "type": "string",
+      "pattern": "^WP-"
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "body": {
+      "type": "object"
+    },
+    "enqueued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "urgent"
+      ]
+    },
+    "delivery_attempts": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

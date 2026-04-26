@@ -645,6 +645,15 @@ mt-populate wp-id:
 heuristic-risk-check wp-id *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/checks/heuristic-risk-check.mjs" {{wp-id}} {{FLAGS}}
 
+nudge-enqueue session-id payload-json:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/nudge-queue.mjs" enqueue "{{session-id}}" '{{payload-json}}'
+
+nudge-drain session-id:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/nudge-queue.mjs" drain "{{session-id}}"
+
+nudge-depth session-id:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/nudge-queue.mjs" depth "{{session-id}}"
+
 closeout-repair wp-id *FLAGS:
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/closeout-repair.mjs" {{wp-id}} {{FLAGS}}
 

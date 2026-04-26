@@ -33,6 +33,7 @@ import {
   formatSessionStepTelemetryInline,
   selectLatestPushAlert,
 } from "../../../roles_shared/scripts/session/session-telemetry-lib.mjs";
+import { listQueueDepth } from "../../../roles_shared/scripts/session/nudge-queue-lib.mjs";
 import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
 import {
   SESSION_CONTROL_BROKER_STATE_FILE,
@@ -652,6 +653,12 @@ function sessionPendingQueueCount(session = {}) {
   return 0;
 }
 
+function sessionNudgeQueueDepth(session = {}) {
+  const sessionId = String(session?.session_key || "").trim();
+  if (!sessionId) return 0;
+  return listQueueDepth(sessionId, { wpId: session?.wp_id || "" });
+}
+
 function sessionNextQueuedControlRequest(session = {}) {
   if (session?.next_queued_control_request && typeof session.next_queued_control_request === "object") {
     return session.next_queued_control_request;
@@ -664,10 +671,12 @@ function sessionNextQueuedControlRequest(session = {}) {
 
 function sessionQueuedWorkDetailLines(session = {}) {
   const count = sessionPendingQueueCount(session);
-  if (count <= 0) return [];
+  const nudgeDepth = sessionNudgeQueueDepth(session);
+  if (count <= 0 && nudgeDepth <= 0) return [];
   const nextQueued = sessionNextQueuedControlRequest(session);
   const queueLine = [
     `queue=${count}`,
+    `nudges=${nudgeDepth}`,
     `next=${nextQueued?.command_kind || "<unknown>"}`,
     `queued=${nextQueued?.queued_at || session.updated_at || "<no-ts>"}`,
     `blocking=${nextQueued?.blocking_command_id || "<none>"}`,
@@ -675,6 +684,22 @@ function sessionQueuedWorkDetailLines(session = {}) {
   const lines = [`  ${queueLine}`];
   if (nextQueued?.summary) lines.push(`  queued_summary=${nextQueued.summary}`);
   return lines;
+}
+
+export function summarizeNudgeQueuedWork(record = {}) {
+  const queuedSessions = (record.registrySessions || [])
+    .map((session) => ({
+      session,
+      nudgeDepth: sessionNudgeQueueDepth(session),
+    }))
+    .filter((entry) => entry.nudgeDepth > 0)
+    .sort((left, right) => String(left.session.role || "").localeCompare(String(right.session.role || "")));
+  return {
+    totalNudges: queuedSessions.reduce((sum, entry) => sum + entry.nudgeDepth, 0),
+    sessionCount: queuedSessions.length,
+    queuedSessions,
+    headSession: queuedSessions[0]?.session || null,
+  };
 }
 
 export function summarizeQueuedGovernedWork(record = {}) {
@@ -1542,6 +1567,8 @@ export function compactNextActionLabel(record) {
   if (latestPushAlertForRecord(record)) return "alert";
   const queuedGovernedWork = summarizeQueuedGovernedWork(record);
   if (queuedGovernedWork.totalQueuedRequests > 0) return `queue:${queuedGovernedWork.totalQueuedRequests}`;
+  const nudgeQueuedWork = summarizeNudgeQueuedWork(record);
+  if (nudgeQueuedWork.totalNudges > 0) return `nudges:${nudgeQueuedWork.totalNudges}`;
   const runtime = record.packetRecord?.runtime || {};
   const nextTarget = formatTarget(runtime.next_expected_actor, runtime.next_expected_session);
   if (nextTarget) return nextTarget;
@@ -1579,6 +1606,11 @@ export function nextActionSummary(record) {
     const queuedAt = headRequest.queued_at || headSession.updated_at || "<no-ts>";
     const summarySuffix = headRequest.summary ? ` ${headRequest.summary}` : "";
     return `Queued governed work: ${queuedGovernedWork.totalQueuedRequests} follow-up request(s) across ${queuedGovernedWork.sessionCount} session(s); next is ${headSession.role || "<unknown>"} ${headRequest.command_kind || "SEND_PROMPT"} queued ${queuedAt}. Wait for broker drain instead of resending another steer.${summarySuffix}`;
+  }
+  const nudgeQueuedWork = summarizeNudgeQueuedWork(record);
+  if (nudgeQueuedWork.totalNudges > 0) {
+    const headSession = nudgeQueuedWork.headSession || {};
+    return `Turn-boundary nudges queued: ${nudgeQueuedWork.totalNudges} nudge(s) across ${nudgeQueuedWork.sessionCount} session(s); next is ${headSession.role || "<unknown>"}. Wait for the governed session to drain at a safe turn boundary instead of direct prompt traffic.`;
   }
   const runtime = record.packetRecord?.runtime || {};
   const nextTarget = formatTarget(runtime.next_expected_actor, runtime.next_expected_session);

@@ -1,6 +1,6 @@
 ﻿# Repo Governance Refactor Task Board
 
-**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the closeout canonicalization tranche has `RGF-233` through `RGF-241` queued for implementation, `RGF-242` through `RGF-244` and `RGF-250` are implemented and verified, and the remaining harness-pattern items `RGF-245` through `RGF-249` are queued for implementation.
+**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the closeout canonicalization tranche has `RGF-233` through `RGF-241` queued for implementation, `RGF-242` through `RGF-245` and `RGF-250` are implemented and verified, and the remaining harness-pattern items `RGF-246` through `RGF-249` are queued for implementation.
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
@@ -307,7 +307,7 @@
 | RGF-242 | DONE | Mid-Conversation Cache-Stability Policy and Ephemeral User-Message Injection | - | `.GOV/codex/Handshake_Codex_v1.4.md`, session-control prompt builders, ephemeral-injection helper, cache-stability check, command docs/tests | active governed role sessions keep cached system prompts immutable; governance mutations land in durable storage, mid-conversation context is injected only as fenced user-message context, and forced invalidation requires an explicit opt-in path; verified with focused helper/session/relay tests plus `cache-stability-check` |
 | RGF-243 | DONE | Tool-Result Audit / Model Asymmetry (`details` vs. `content`) | RGF-242 | check-result helper, `gov-check`, `phase-check`, `wp-communication-health-check`, Workflow Dossier sync, operator monitor, detail-log tests | model-visible check output is compact while full stdout/stderr and structured machine/audit detail is durable in `check_details.jsonl`; dossier/operator views read the log for human diagnostics |
 | RGF-244 | DONE | Deterministic Artifact-Malformation Absorber | RGF-238 | artifact normalizer library, receipt appenders, validator-report checks, packet-truth checks, closeout-repair pre-pass, absorber hit ledger/tests | known artifact malformations are normalized deterministically before repair loops begin, hit counts are recorded in `gov_runtime/absorber_hits.jsonl`, and validation still owns reject/pass decisions |
-| RGF-245 | QUEUED | Turn-Boundary Nudge Queue with Atomic Claim | RGF-242 | governance runtime nudge queues, enqueue/drain helpers, session startup/turn hooks, typed payload schemas, queue-depth and orphan-recovery tests | governance-side nudges queue durably per session, drain atomically at turn boundaries, survive broker restarts, and avoid interrupting active model turns with direct prompt traffic |
+| RGF-245 | DONE | Turn-Boundary Nudge Queue with Atomic Claim | RGF-242 | governance runtime nudge queues, enqueue/drain helpers, session startup/turn hooks, typed payload schemas, queue-depth and orphan-recovery tests | governance-side nudges queue durably per session with atomic claim, TTL expiry, orphan recovery, failure requeue, startup-boundary drain, operator visibility, and non-emergency `orchestrator-steer-next` enqueue delivery |
 | RGF-246 | QUEUED | Hook-Driven Session Self-Rehydration | RGF-245 | role startup hooks, self-prime helpers, nudge queue drain, session-control launch path, hook templates/tests | governed sessions rehydrate current role/WP context through deterministic hooks instead of requiring Orchestrator to rebuild complete launch context on every restart or compaction |
 | RGF-247 | QUEUED | Mechanical-Track Validator-as-Tool-Result | RGF-242, RGF-243, RGF-246 | WP Validator mechanical review helper, post-commit MT hook, review projection, typed `MT_VERDICT_MECHANICAL` receipts, validator tests | deterministic per-MT validation runs as a synchronous helper/tool result inside the coder lifecycle while judgment-track WP Validator review remains an independent ACP role |
 | RGF-248 | QUEUED | Named-Verb Inter-Role Message Schema | RGF-244 | inter-role verb schemas, `wp-receipt-append`, route projection, dossier projection, nudge queue payload validation, schema tests | routine inter-role traffic uses small typed verbs such as `MT_DONE`, `MT_VERDICT`, `REWORK_REQUEST`, `PHASE_TRANSITION`, and `CONCERN`; routing reads fields directly instead of parsing prose |
@@ -332,7 +332,7 @@
 14. Downtime red alert: `RGF-230` is `DONE`; relay watchdog emits `RED_ALERT_ORCHESTRATOR_DOWNTIME` when an active orchestrator-managed WP has no fresh control-plane progress for 10 minutes and recommends visible rescue at 20 minutes.
 15. Rescue single-authority guard: `RGF-232` is `DONE`; visible rescue records takeover attempts and starts in read-only/status mode unless stale-state criteria or explicit Operator force authority permits takeover.
 16. Closeout canonicalization tranche: `RGF-233` through `RGF-241` are `QUEUED`; the tranche collapses terminal closeout authority into one canonical record, splits product proof from projection sync, resolves product-main compatibility through topology, quarantines stale terminal sessions, emits bounded debt reports, enforces repair-loop budgets, migrates legacy closeouts, protects monotonic publication, and captures closeout breakpoints as executable fixtures.
-17. Harness-pattern tranche: `RGF-242` through `RGF-244` and `RGF-250` are `DONE`, and `RGF-245` through `RGF-249` are `QUEUED`; the tranche introduces cache stability, tool-result asymmetry, deterministic artifact absorbers, turn-boundary nudges, hook self-rehydration, named inter-role verbs, mechanical-track validator helpers, predecessor-session summaries, and heuristic-risk strategy escalation.
+17. Harness-pattern tranche: `RGF-242` through `RGF-245` and `RGF-250` are `DONE`, and `RGF-246` through `RGF-249` are `QUEUED`; the tranche introduces cache stability, tool-result asymmetry, deterministic artifact absorbers, turn-boundary nudges, hook self-rehydration, named inter-role verbs, mechanical-track validator helpers, predecessor-session summaries, and heuristic-risk strategy escalation.
 18. Heuristic-risk escalation: `RGF-250` is `DONE`; heuristic/fuzzy MTs are classified before implementation and repeated counterexamples force strategy escalation rather than indefinite threshold repair.
 
 ## Execution Briefs (2026-04-21)
@@ -454,20 +454,19 @@
 
 ## Proposed Next Sequence
 
-1. `RGF-245`
-2. `RGF-246`
-3. `RGF-248`
-4. `RGF-247`
-5. `RGF-249`
-6. `RGF-233`
-7. `RGF-234`
-8. `RGF-235`
-9. `RGF-236`
-10. `RGF-237`
-11. `RGF-238`
-12. `RGF-239`
-13. `RGF-240`
-14. `RGF-241`
+1. `RGF-246`
+2. `RGF-248`
+3. `RGF-247`
+4. `RGF-249`
+5. `RGF-233`
+6. `RGF-234`
+7. `RGF-235`
+8. `RGF-236`
+9. `RGF-237`
+10. `RGF-238`
+11. `RGF-239`
+12. `RGF-240`
+13. `RGF-241`
 
 ## Explicit Holds
 

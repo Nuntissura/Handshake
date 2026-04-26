@@ -49,6 +49,14 @@ Heuristic-risk classification:
   - `HEURISTIC_RISK=YES` requires the listed corpus/property/negative evidence and projects strategy-escalation fields into microtask review contracts.
   - receipt append emits `HEURISTIC_RISK_STRATEGY_ESCALATION` to Orchestrator when repeated non-PASS review responses hit the MT strategy threshold.
 
+Turn-boundary nudge queue:
+- `just nudge-enqueue <SESSION_ID> '<PAYLOAD_JSON>'`
+- `just nudge-drain <SESSION_ID>`
+- `just nudge-depth <SESSION_ID>`
+  - `RGF-245` stores governance nudges under `gov_runtime/nudges/<wp_id>/<session_id>/` and drains them with atomic `.claimed` rename semantics.
+  - Non-emergency `orchestrator-steer-next` `SEND_PROMPT` delivery enqueues a `STEER` nudge; use `--now` only for explicit immediate/direct ACP sends.
+  - Governed startup prompt assembly drains queued nudges at a safe boundary and injects them as bounded user-message context.
+
 ## Operator-facing scope split
 
 Use this split in chat every time scope, remediation, or next steps are discussed:

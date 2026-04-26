@@ -21,6 +21,44 @@
 
 ## Entries
 
+### 2026.04.27.03 / GOV-CHANGE-20260427-03
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-245 turn-boundary nudge queue with atomic claim
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including turn-boundary nudge delivery.
+  - `RGF-245`
+- FOLLOW_ON_ITEMS:
+  - `RGF-246`
+  - `RGF-248`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/nudge-queue-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/nudge-queue.mjs`
+  - `.GOV/roles_shared/schemas/NUDGE_PAYLOAD.schema.json`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles_shared/tests/nudge-queue-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/checks/README.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- OUTCOME: Governance nudges now have a durable per-session queue under `gov_runtime/nudges/` with typed payload validation, FIFO JSON filenames, atomic `.claimed` drain, TTL expiry, stale-claim recovery, failure requeue, and queue-depth caps. Governed startup prompt assembly drains queued nudges at a safe boundary, active-lane/operator views expose nudge depth, and non-emergency `orchestrator-steer-next` `SEND_PROMPT` delivery now enqueues `STEER` nudges unless `--now`/`--direct` is explicitly used.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/nudge-queue-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/operator-monitor-tui.test.mjs .GOV/roles/orchestrator/tests/orchestrator-steer-lib.test.mjs`
+  - `node --check` on modified nudge queue, session, active-lane, orchestrator-steer, and operator-monitor scripts
+  - `just nudge-depth CODER:WP-TEST-NUDGE-v1`
+  - `node .GOV/roles_shared/checks/task-board-check.mjs`
+  - `just docs-check`
+  - `just build-order-sync`
+  - `git diff --check`
+  - `just gov-check`
+
 ### 2026.04.27.02 / GOV-CHANGE-20260427-02
 
 - STATUS: APPLIED
