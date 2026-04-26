@@ -1,12 +1,12 @@
 ﻿# Repo Governance Refactor Task Board
 
-**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, and the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified.
+**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, and the closeout canonicalization tranche now has `RGF-233` through `RGF-241` queued for implementation.
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
 **Closeout record:** `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_CLOSEOUT.md`
 **Changelog:** `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
-**Implementation briefs:** `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260421.md`; `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260422.md`
+**Implementation briefs:** `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260421.md`; `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260422.md`; `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426.md`
 
 ## Notes
 
@@ -295,6 +295,15 @@
 | RGF-230 | DONE | Orchestrator Downtime Red Alert | RGF-201, RGF-208, RGF-227 | 2026-04-26 operator directive: ACP should raise a red alert if downtime exceeds 10 minutes | `orchestrator-watchdog`, session telemetry libs, operator monitor, Orchestrator notification lane, session registry health projection | relay watchdog now evaluates active orchestrator-managed WPs for missing Orchestrator/control-plane progress, emits deduped `RED_ALERT_ORCHESTRATOR_DOWNTIME` at the 10-minute band, recommends `just orchestrator-rescue WP-{ID}` at the 20-minute band, and surfaces the alert in `orchestrator-next` plus push-alert telemetry |
 | RGF-231 | DONE | Visible-Terminal Exception Policy for Orchestrator Rescue | RGF-228 | current policy prefers headless ACP, but rescue requires operator-visible interaction | Codex, Orchestrator protocol, command surface docs, launcher tests | normal ACP role launches remain headless-only; `orchestrator-rescue` labels itself as `visible_terminal_exception=YES`, `acp_launch_used=NO`, and is documented as the sanctioned visible interactive Operator takeover path |
 | RGF-232 | DONE | Rescue Session Single-Authority Guard | RGF-228, RGF-230, RGF-231 | risk: backup Orchestrator could create two competing Orchestrators | session registry, rescue launcher, orchestrator health, takeover receipt/projection | rescue launch now records `ORCHESTRATOR_TAKEOVER_ATTEMPT`, evaluates downtime/control-plane freshness, and defaults the visible session to read-only/status mode unless downtime red-alert criteria or explicit `--force-takeover` Operator authority is present |
+| RGF-233 | QUEUED | Canonical Terminal Closeout Record | RGF-217, RGF-219, RGF-223 | 2026-04-26 operator directive: closeout repair loops still read and rewrite many terminal artifacts instead of one canonical terminal state | `phase-check CLOSEOUT`, `closeout-repair`, closeout dependency libs, runtime authority, validator verdict records, terminal publication artifacts | one schema-versioned terminal closeout record is the sole authoritative PASS/FAIL/SETTLEMENT_DEBT state; packet, task-board, dossier, build-order, and route surfaces become projections regenerated from that record, and crashes between verdict and publication resume from the record instead of re-reading the whole artifact mesh |
+| RGF-234 | QUEUED | Closeout Proof / Projection Sync Split | RGF-217, RGF-233 | stale task-board, packet, dossier, build-order, and route projections still risk blocking progress after product outcome proof is known | closeout dependency view, `phase-check CLOSEOUT`, projection sync helpers, packet/runtime/task-board writers, dossier import helpers | closeout exposes separate commands or phases for product outcome proof and projection settlement; only proof failures block validator verdict or product outcome, while projection drift produces bounded governance debt plus an idempotent sync command |
+| RGF-235 | QUEUED | Product-Only Main Compatibility Resolver | RGF-226, RGF-233 | closeout can still stall or produce false stale-main blockers if current-main compatibility reads a guessed sibling path, `.GOV` mirror state, or governance worktree instead of product main | topology resolver, signed-scope compatibility helpers, branch/range proof libs, closeout-repair, Integration Validator context bundle | every closeout compatibility check resolves product main through topology-backed branch truth, ignores repo-governance-only paths, records the product-main head used in the terminal record, and fails with diagnostics rather than silently using a wrong path |
+| RGF-236 | QUEUED | Terminal Session Settlement and READY Residue Quarantine | RGF-210, RGF-219, RGF-230, RGF-232, RGF-233 | ACP sessions can remain READY with stale completed commands after verdict, making the WP look live and causing repeated steering or status rereads | session registry, broker result ledger, orchestrator health, communication health, terminal publication writer | terminal publication classifies inactive governed role sessions as SETTLED/TERMINAL_RESIDUE unless active runs or queued commands exist; stale READY residue is reported as governance debt and cannot reopen a terminal verdict |
+| RGF-237 | QUEUED | Closeout Debt Report and Non-Revalidation Policy | RGF-216, RGF-217, RGF-221, RGF-233, RGF-234 | governance debt can still be misread as a reason to relaunch Integration Validator or restart closeout proof | closeout status output, `orchestrator-next`, `orchestrator-health`, validator protocol text, debt-report generator | after a verdict-of-record, closeout emits a compact debt report with stable keys, owner surface, severity, next sync command, and explicit `revalidation_required=NO` unless a product-proof key is present |
+| RGF-238 | QUEUED | Closeout Repair Loop Breaker and Escalation Packet | RGF-193, RGF-220, RGF-233, RGF-234, RGF-237 | repair commands can still loop under heavy load or malformed artifacts because each retry rehydrates broad context and attempts another partial rewrite | `closeout-repair`, `phase-check CLOSEOUT`, orchestrator next-action text, memory fail-capture hooks, closeout artifacts | closeout repair gets a hard retry budget, records every attempted repair with before/after blocker keys, stops after the allowed automated pass plus one manual remediation pass, and emits a minimal escalation packet instead of continuing recursive artifact cleanup |
+| RGF-239 | QUEUED | Terminal Authority Migration and Legacy Artifact Compatibility | RGF-150, RGF-158, RGF-216, RGF-233 | old WPs and partial closeouts may not have the canonical terminal record, so readers could fall back inconsistently or block on absent new state | migration helper, terminal-record reader, runtime publication view, closeout sync, tests with legacy packet/runtime fixtures | readers use a single migration path that derives a terminal record from legacy verdict/runtime/packet truth when possible, stamps provenance as `MIGRATED_LEGACY`, and reports missing proof as explicit product blocker rather than ad hoc parse failure |
+| RGF-240 | QUEUED | Monotonic Terminal State Machine and Atomic Publication | RGF-211, RGF-216, RGF-219, RGF-233 | concurrent Orchestrator, rescue, validator, or sync commands could race and publish older or weaker terminal state over newer authority | terminal closeout writer, runtime authority update path, file-lock / compare-and-swap helper, closeout publication tests | terminal state transitions are monotonic (`NO_VERDICT` -> `VERDICT_OF_RECORD` -> `MERGED` or `SETTLEMENT_DEBT` -> `TERMINAL_SETTLED`), writes are atomic, stale writers are rejected, and no projection sync can downgrade product outcome authority |
+| RGF-241 | QUEUED | Closeout Breakpoint Scenario Harness | RGF-233, RGF-234, RGF-235, RGF-236, RGF-237, RGF-238, RGF-239, RGF-240 | fixes can regress because closeout breakpoints are currently learned from live failures instead of encoded as fixtures | closeout dependency tests, phase-check tests, session registry fixtures, topology fixtures, projection fixtures | a focused scenario harness covers PASS-with-dossier-failure, PASS-with-stale-task-board, PASS-with-stale READY sessions, stale product-main proof, signed-scope mismatch, legacy missing terminal record, heavy-host timeout, concurrent stale writer, and projection-only drift without relying on a live WP |
 
 ## Active / Recent Hardening State (2026-04-22)
 
@@ -313,6 +322,7 @@
 13. Visible rescue launcher and fallback ladder: `RGF-228`, `RGF-229`, and `RGF-231` are `DONE`; Orchestrator rescue is the sanctioned visible-terminal exception and falls back to a ready-to-run PowerShell script with the rescue prompt embedded.
 14. Downtime red alert: `RGF-230` is `DONE`; relay watchdog emits `RED_ALERT_ORCHESTRATOR_DOWNTIME` when an active orchestrator-managed WP has no fresh control-plane progress for 10 minutes and recommends visible rescue at 20 minutes.
 15. Rescue single-authority guard: `RGF-232` is `DONE`; visible rescue records takeover attempts and starts in read-only/status mode unless stale-state criteria or explicit Operator force authority permits takeover.
+16. Closeout canonicalization tranche: `RGF-233` through `RGF-241` are `QUEUED`; the tranche collapses terminal closeout authority into one canonical record, splits product proof from projection sync, resolves product-main compatibility through topology, quarantines stale terminal sessions, emits bounded debt reports, enforces repair-loop budgets, migrates legacy closeouts, protects monotonic publication, and captures closeout breakpoints as executable fixtures.
 
 ## Execution Briefs (2026-04-21)
 
@@ -331,6 +341,10 @@
 ## Execution Briefs (2026-04-25)
 
 - `RGF-222`, `RGF-223`, and `RGF-224`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md` entry `GOV-CHANGE-20260425-03`.
+
+## Execution Briefs (2026-04-26)
+
+- `RGF-233` through `RGF-241`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426.md`.
 
 ## Refactor Sequence (Historical)
 
@@ -406,10 +420,27 @@
 61. `RGF-222`
 62. `RGF-223`
 63. `RGF-224`
+64. `RGF-233`
+65. `RGF-234`
+66. `RGF-235`
+67. `RGF-236`
+68. `RGF-237`
+69. `RGF-238`
+70. `RGF-239`
+71. `RGF-240`
+72. `RGF-241`
 
 ## Proposed Next Sequence
 
-1. NONE - no next governance-only reduction item is queued on this board.
+1. `RGF-233`
+2. `RGF-234`
+3. `RGF-235`
+4. `RGF-236`
+5. `RGF-237`
+6. `RGF-238`
+7. `RGF-239`
+8. `RGF-240`
+9. `RGF-241`
 
 ## Explicit Holds
 

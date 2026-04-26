@@ -21,6 +21,41 @@
 
 ## Entries
 
+### 2026.04.26.7 / GOV-CHANGE-20260426-07
+
+- STATUS: APPLIED
+- SUMMARY: queued closeout canonicalization refactor items and implementation briefs
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: closeout repair loops still read and rewrite governance artifacts instead of relying on one canonical terminal state, causing token waste, repair loops, and progress stalls.
+  - `RGF-233`
+  - `RGF-234`
+  - `RGF-235`
+  - `RGF-236`
+  - `RGF-237`
+  - `RGF-238`
+  - `RGF-239`
+  - `RGF-240`
+  - `RGF-241`
+- FOLLOW_ON_ITEMS:
+  - `RGF-233`
+  - `RGF-234`
+  - `RGF-235`
+  - `RGF-236`
+  - `RGF-237`
+  - `RGF-238`
+  - `RGF-239`
+  - `RGF-240`
+  - `RGF-241`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: The governance refactor board now queues `RGF-233` through `RGF-241` for canonical terminal closeout records, product-proof/projection-sync separation, product-only main compatibility, terminal session settlement, closeout debt reports, repair-loop budgets, legacy terminal migration, monotonic terminal publication, and executable closeout breakpoint scenarios.
+- VERIFICATION:
+  - `just build-order-sync`
+  - `just gov-check`
+
 ### 2026.04.26.6 / GOV-CHANGE-20260426-06
 
 - STATUS: APPLIED
