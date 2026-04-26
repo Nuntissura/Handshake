@@ -2287,6 +2287,63 @@ test("active notification projection keeps only the live route notification for 
   assert.equal(projection.historyHidden, true);
 });
 
+test("active notification projection keeps orchestrator push alerts visible outside the current route", () => {
+  const input = baseInput({
+    receipts: [
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+    ],
+  });
+  const statusEvaluation = evaluateWpCommunicationHealth(input);
+  const projection = deriveActiveWpNotificationProjection({
+    statusEvaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+    pendingNotifications: [
+      {
+        source_kind: "RED_ALERT_ORCHESTRATOR_DOWNTIME",
+        source_role: "SYSTEM",
+        target_role: "ORCHESTRATOR",
+        correlation_id: "orchestrator-downtime:WP-TEST:WARN",
+        timestamp_utc: "2026-03-22T10:05:00Z",
+        summary: "Control plane has been idle for the warning band",
+      },
+      {
+        source_kind: "ACP_HEALTH_ALERT",
+        source_role: "SYSTEM",
+        target_role: "ORCHESTRATOR",
+        correlation_id: "acp-health:WP-TEST:coder:HEARTBEAT_STALE",
+        timestamp_utc: "2026-03-22T10:06:00Z",
+        summary: "ACP health alert should remain visible",
+      },
+      {
+        source_kind: "GOVERNANCE_CHECKPOINT",
+        source_role: "WP_VALIDATOR",
+        target_role: "ORCHESTRATOR",
+        correlation_id: "historical-checkpoint",
+        timestamp_utc: "2026-03-22T10:07:00Z",
+        summary: "Route-unrelated checkpoint should remain hidden",
+      },
+    ],
+  });
+
+  assert.equal(projection.pendingCount, 2);
+  assert.deepEqual(projection.byKind, {
+    RED_ALERT_ORCHESTRATOR_DOWNTIME: 1,
+    ACP_HEALTH_ALERT: 1,
+  });
+  assert.equal(projection.hiddenPendingCount, 1);
+  assert.equal(projection.historyHidden, true);
+});
+
 test("active notification projection respects runtime route anchors even when the direct review contract is not applicable", () => {
   const projection = deriveActiveWpNotificationProjection({
     statusEvaluation: {

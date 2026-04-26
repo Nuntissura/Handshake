@@ -72,6 +72,11 @@ const ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES = new Set([
   "VALIDATOR_RESPONSE",
   "VALIDATOR_REVIEW",
 ]);
+const ACTIVE_PUSH_ALERT_SOURCE_KIND_VALUES = new Set([
+  "ACP_HEALTH_ALERT",
+  "RED_ALERT_ORCHESTRATOR_DOWNTIME",
+  "RELAY_WATCHDOG_REPAIR",
+]);
 
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
@@ -302,6 +307,10 @@ function activeCorrelationIdsFromStatus(statusEvaluation = null, runtimeStatus =
 
 function notificationMatchesProjectedRoute(notification = null, autoRoute = null, activeCorrelationIds = new Set()) {
   const sourceKind = normalizeReceiptKind(notification?.source_kind);
+  if (ACTIVE_PUSH_ALERT_SOURCE_KIND_VALUES.has(sourceKind)) {
+    const targetRole = normalizeRole(notification?.target_role);
+    return targetRole === "ORCHESTRATOR" || targetRole === "OPERATOR";
+  }
   if (!ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES.has(sourceKind)) return false;
 
   const targetRole = normalizeRole(notification?.target_role);

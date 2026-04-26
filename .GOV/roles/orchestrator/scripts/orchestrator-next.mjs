@@ -218,6 +218,12 @@ export function latestOrchestratorRelayWatchdogRepair(notificationsByRole = {}) 
   return repairs.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
 }
 
+export function latestOrchestratorDowntimeRedAlert(notificationsByRole = {}) {
+  const notifications = notificationsByRole?.ORCHESTRATOR?.notifications || [];
+  const alerts = notifications.filter((entry) => String(entry?.source_kind || "").trim().toUpperCase() === "RED_ALERT_ORCHESTRATOR_DOWNTIME");
+  return alerts.sort((left, right) => String(right?.timestamp_utc || "").localeCompare(String(left?.timestamp_utc || "")))[0] || null;
+}
+
 export function relayEscalationPolicyFindings(policy = null) {
   const normalized = normalizeRelayEscalationPolicy(policy);
   if (!normalized) return [];
@@ -784,6 +790,27 @@ function main() {
     ? loadRelayEscalationState(wpId, packetRuntimeState, notificationState.pendingNotifications, governedSessions)
     : null;
   const orchestratorCheckpoint = latestOrchestratorGovernanceCheckpoint(notificationState.byRole);
+  const downtimeRedAlert = latestOrchestratorDowntimeRedAlert(notificationState.byRole);
+  if (downtimeRedAlert) {
+    printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });
+    printOperatorEnvelope("NONE", "ORCHESTRATOR_DOWNTIME_RED_ALERT");
+    printConfidence(confidence.level, confidenceDetail);
+    printState("A red alert reports stale Orchestrator/control-plane progress; inspect health before governed mutation and use visible rescue if the rescue threshold was reached.");
+    printFindings([
+      ...tokenPolicyContinuation.findings,
+      `Alert summary: ${downtimeRedAlert.summary || "<missing>"}`,
+      `Alert correlation: ${downtimeRedAlert.correlation_id || "<missing>"}`,
+      `Packet: ${packetPath}`,
+    ]);
+    printNextCommands([
+      `just check-notifications ${wpId} ORCHESTRATOR`,
+      `just orchestrator-health ${wpId}`,
+      `just wp-relay-watchdog ${wpId} --observe-only`,
+      `just orchestrator-rescue ${wpId}`,
+      `just orchestrator-next ${wpId}`,
+    ]);
+    return;
+  }
   const relayWatchdogRepair = latestOrchestratorRelayWatchdogRepair(notificationState.byRole);
   if (relayWatchdogRepair) {
     printLifecycle({ wpId, stage: "DELEGATION", next: "STOP" });

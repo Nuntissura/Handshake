@@ -21,6 +21,39 @@
 
 ## Entries
 
+### 2026.04.26.5 / GOV-CHANGE-20260426-05
+
+- STATUS: APPLIED
+- SUMMARY: added Orchestrator downtime red alert projection to the relay watchdog
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: ACP should raise a red alert when Orchestrator/control-plane downtime exceeds 10 minutes and recommend visible rescue at 20 minutes
+  - `RGF-230`
+- FOLLOW_ON_ITEMS:
+  - `RGF-232`
+- FILES_CHANGED:
+  - `.GOV/roles/orchestrator/scripts/lib/orchestrator-downtime-alert-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-downtime-alert.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-telemetry-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-telemetry-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just wp-relay-watchdog` now evaluates active orchestrator-managed WPs for stale Orchestrator/control-plane progress, ignores prior downtime alerts as fresh-progress evidence, emits deduped `RED_ALERT_ORCHESTRATOR_DOWNTIME` notifications to the Orchestrator lane at the 10-minute band, changes the 20-minute band recommendation to `just orchestrator-rescue WP-{ID}`, and makes active notification projection, `orchestrator-next`, plus push-alert telemetry stop on that red alert instead of continuing blind re-wakes.
+- VERIFICATION:
+  - `node --check .GOV/roles/orchestrator/scripts/lib/orchestrator-downtime-alert-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `node --check .GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-downtime-alert.test.mjs .GOV/roles/orchestrator/tests/orchestrator-next.test.mjs .GOV/roles_shared/tests/session-telemetry-lib.test.mjs .GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `just wp-relay-watchdog WP-1-Calendar-Sync-Engine-v3 --observe-only`
+  - `just gov-check`
+
 ### 2026.04.26.4 / GOV-CHANGE-20260426-04
 
 - STATUS: APPLIED

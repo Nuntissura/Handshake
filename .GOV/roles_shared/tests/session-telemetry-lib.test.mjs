@@ -68,6 +68,7 @@ test("session step telemetry marks stale output when progress goes quiet", () =>
       item: { type: "command_execution", timestamp: "2026-04-20T08:00:00.000Z" },
     },
   ]);
+  fs.utimesSync(outputFile, new Date("2026-04-20T08:00:00.000Z"), new Date("2026-04-20T08:00:00.000Z"));
 
   const telemetry = buildSessionStepTelemetry({
     session: {
@@ -138,6 +139,13 @@ test("session telemetry selects the latest pending push alert for the requested 
         acknowledged: false,
       },
       {
+        source_kind: "RED_ALERT_ORCHESTRATOR_DOWNTIME",
+        target_role: "ORCHESTRATOR",
+        timestamp_utc: "2026-04-20T10:06:00.000Z",
+        summary: "operator-visible downtime alert",
+        acknowledged: false,
+      },
+      {
         source_kind: "ACP_HEALTH_ALERT",
         target_role: "CODER",
         target_session: "coder-1",
@@ -155,4 +163,22 @@ test("session telemetry selects the latest pending push alert for the requested 
   assert.equal(alert?.source_kind, "RELAY_WATCHDOG_REPAIR");
   assert.equal(alert?.state, "PENDING");
   assert.match(formatPushAlertInline(alert), /RELAY_WATCHDOG_REPAIR/);
+});
+
+test("session telemetry treats orchestrator downtime red alert as a push alert", () => {
+  const alert = selectLatestPushAlert(
+    [
+      {
+        source_kind: "RED_ALERT_ORCHESTRATOR_DOWNTIME",
+        target_role: "ORCHESTRATOR",
+        timestamp_utc: "2026-04-20T10:06:00.000Z",
+        summary: "visible rescue may be needed",
+        acknowledged: false,
+      },
+    ],
+    { targetRole: "ORCHESTRATOR" },
+  );
+
+  assert.equal(alert?.source_kind, "RED_ALERT_ORCHESTRATOR_DOWNTIME");
+  assert.match(formatPushAlertInline(alert), /RED_ALERT_ORCHESTRATOR_DOWNTIME/);
 });

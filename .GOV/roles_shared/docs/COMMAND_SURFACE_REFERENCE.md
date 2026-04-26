@@ -75,6 +75,7 @@ These are safe starting points for orientation and health checks.
   - active target runs are checked conservatively with `session-stall-scan`, which now treats ACP `command_execution`, `file_change`, `web_search`, and `todo_list` events as progress before reporting `WAIT_ACTIVE_RUN` / `REPORT_STALLED_ACTIVE_RUN`
   - successful automatic re-steers increment the runtime relay-cycle counter; healthy lanes reset it; once the WP exhausts `max_relay_escalation_cycles`, the watchdog stops auto-re-waking and leaves the lane attention-visible
   - every watchdog pass also persists a typed `relay_escalation_policy` object in runtime truth so follow-on status surfaces can read the canonical `failure_class`, `policy_state`, `next_strategy`, and strategy budget instead of reconstructing retry state from counters or prose
+  - active orchestrator-managed WPs with no fresh Orchestrator/control-plane progress for 10 minutes emit `RED_ALERT_ORCHESTRATOR_DOWNTIME`; after 20 minutes the alert recommends `just orchestrator-rescue WP-{ID}`
   - direct worker interruption uses a separate runtime budget: `current_worker_interrupt_cycle` against `max_worker_interrupt_cycles`
   - `--allow-restart` is default-off; when enabled, restart remains conservative and only cancels/re-steers a proven stale active run after the lane verdict permits bounded worker interruption, freshness guards pass (`COMMAND_RUNNING`, expired `timeout_at`, and old output/session activity), and the worker-interrupt budget has remaining capacity
   - `--observe-only` keeps the command read-only: it prints the same conservative poke verdict the watchdog would use, but does not steer, restart, or mutate runtime state
@@ -281,6 +282,7 @@ These legacy commands still work (they redirect to the governance memory DB) but
 - `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - non-LLM relay watcher for orchestrator-managed lanes; consumes receipt/notification/escalation truth, records a `STEERING` receipt when it performs a safe automatic re-wake, and persists both bounded relay-cycle accounting and bounded worker-interrupt accounting into WP runtime status
+  - emits `RED_ALERT_ORCHESTRATOR_DOWNTIME` to the Orchestrator notification lane when no fresh control-plane progress appears for 10 minutes; the 20-minute band recommends visible rescue
   - with `--allow-restart`, the watcher may perform one bounded cancel-plus-resteer only for a proven stale active run whose lane verdict permits bounded worker interruption and whose timeout/freshness thresholds are already exceeded
 - `just session-stall-scan <ROLE> WP-{ID}`
   - `read-only`
