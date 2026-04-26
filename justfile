@@ -339,6 +339,10 @@ orchestrator-next wp-id="" *FLAGS:
 	@just memory-recall RESUME --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-next.mjs" {{wp-id}} {{FLAGS}}
 
+orchestrator-health wp-id="" *FLAGS:
+	@just repomem-soft-gate
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-health.mjs" {{wp-id}} {{FLAGS}}
+
 orchestrator-steer-next wp-id context model="PRIMARY" *FLAGS:
 	@just repomem-gate
 	@just memory-recall STEERING --wp {{wp-id}}

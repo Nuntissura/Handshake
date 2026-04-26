@@ -62,6 +62,9 @@ These are safe starting points for orientation and health checks.
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
   - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, the runtime-native relay escalation policy (`failure_class`, `policy_state`, `next_strategy`, strategy budget), the active terminal batch id, and owned-terminal metadata/reclaim status
+- `just orchestrator-health [WP-{ID}]`
+  - `read-only`
+  - compact Orchestrator recovery bundle: WP lifecycle, ACP broker health, active/session role rows, model/profile/thread/queue/command state, stale age, and the next safe read-only command
 - `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - run a local non-LLM relay watcher over one or more orchestrator-managed WPs; stale `WATCH` / `ESCALATED` routes are re-steered only when the projected target session is not already running

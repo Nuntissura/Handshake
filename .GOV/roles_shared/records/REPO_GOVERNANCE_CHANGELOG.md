@@ -21,6 +21,36 @@
 
 ## Entries
 
+### 2026.04.26.3 / GOV-CHANGE-20260426-03
+
+- STATUS: APPLIED
+- SUMMARY: added a compact read-only Orchestrator health bundle for recovery and takeover checks
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: one command should show ACP health, active roles, model/profile state, and WP lifecycle during recovery
+  - `RGF-227`
+- FOLLOW_ON_ITEMS:
+  - `RGF-228`
+  - `RGF-229`
+  - `RGF-230`
+  - `RGF-231`
+  - `RGF-232`
+- FILES_CHANGED:
+  - `justfile`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-health.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-health-lib.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-health.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just orchestrator-health [WP-{ID}]` now prints a bounded read-only recovery bundle with registry freshness, ACP broker liveness/build/active-run state, WP lifecycle and steering blockers when a WP is supplied, role rows with model/profile/thread/command/queue/stale-age/worktree state, active runs, and the next safe `orchestrator-next` command. Unfiltered mode suppresses historical closed-session noise.
+- VERIFICATION:
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-health-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-health.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-health.test.mjs`
+  - `just orchestrator-health`
+  - `just orchestrator-health WP-1-Calendar-Sync-Engine-v3`
+
 ### 2026.04.26.2 / GOV-CHANGE-20260426-02
 
 - STATUS: APPLIED
