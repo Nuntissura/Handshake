@@ -1,0 +1,7 @@
+{
+  "absorber": "normalizeHeadingLevels",
+  "input": "### VALIDATION_REPORTS\n### Not Top\n",
+  "output": "## VALIDATION_REPORTS\n### Not Top\n",
+  "applied": true
+}
+

@@ -432,6 +432,45 @@ test("review exchange preflight rejects placeholder unassigned target sessions",
   }
 });
 
+test("receipt append absorbs smart quotes and JSON-string array fields before persist", () => {
+  const wpId = "WP-TEST-RECEIPT-ABSORBER-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+
+  try {
+    const { context, entry } = appendWpReceipt({
+      wpId,
+      actorRole: "ORCHESTRATOR",
+      actorSession: "orch-test",
+      receiptKind: "STATUS",
+      summary: "Status \u201cok\u201d",
+      refs: JSON.stringify(["C:\\\\tmp\\\\proof.txt"]),
+    }, { autoRelay: false });
+
+    assert.equal(entry.summary, 'Status "ok"');
+    assert(Array.isArray(entry.refs));
+    assert(entry.refs.some((ref) => /proof\.txt$/.test(ref)));
+    assert(entry.metadata?.absorbers_applied?.includes("normalizeSmartQuotes"));
+    assert(entry.metadata?.absorbers_applied?.includes("normalizeJsonStringVsArray"));
+    const persisted = fs.readFileSync(context.receiptsAbsPath, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line));
+    assert.equal(persisted.at(-1).summary, 'Status "ok"');
+    assert.deepEqual(persisted.at(-1).metadata, entry.metadata);
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
+  }
+});
+
 test("review exchange splits the committed coder handoff preflight out of the transaction lock only for coder handoffs", () => {
   assert.equal(
     requiresSplitCommittedCoderHandoffValidation({

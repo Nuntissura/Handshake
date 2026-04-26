@@ -1,0 +1,7 @@
+{
+  "absorber": "normalizeTrailingNewline",
+  "input": "alpha\n\n",
+  "output": "alpha\n",
+  "applied": true
+}
+

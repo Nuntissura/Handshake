@@ -282,6 +282,22 @@
       ],
       "pattern": "^[A-Z0-9_]+$"
     },
+    "metadata": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "absorbers_applied": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
     "refs": {
       "type": "array",
       "items": {

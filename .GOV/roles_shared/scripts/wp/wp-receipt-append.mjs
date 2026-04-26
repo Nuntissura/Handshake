@@ -53,6 +53,7 @@ import {
 } from "../lib/wp-microtask-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
+import { runAbsorber } from "../lib/artifact-normalizers/index.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
 import { reconcileWpCommunicationTruth, syncProjectedTaskBoardTruth } from "./ensure-wp-communications.mjs";
@@ -135,6 +136,24 @@ function normalizeSession(value) {
 
 function normalizeReceiptKind(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+function absorbReceiptAppendArgs(args = {}) {
+  const absorbed = runAbsorber(JSON.stringify(args || {}), {
+    artifactKind: "receipt_args",
+    wpId: args?.wpId,
+  });
+  if (absorbed.applied.length === 0) {
+    return { args, applied: [] };
+  }
+  try {
+    return {
+      args: JSON.parse(absorbed.output),
+      applied: absorbed.applied,
+    };
+  } catch {
+    return { args, applied: [] };
+  }
 }
 
 function parseChangedPaths(statusPorcelain) {
@@ -1179,29 +1198,53 @@ function appendWpReceiptCore({
     throw new Error("WP_ID is required");
   }
 
+  const absorbed = absorbReceiptAppendArgs({
+    wpId: WP_ID,
+    actorRole,
+    actorSession,
+    receiptKind,
+    summary,
+    stateBefore,
+    stateAfter,
+    refs,
+    branch,
+    worktreeDir,
+    timestamp,
+    targetRole,
+    targetSession,
+    correlationId,
+    requiresAck,
+    ackFor,
+    specAnchor,
+    packetRowRef,
+    microtaskContract,
+    workflowInvalidityCode,
+  });
+  const receiptArgs = absorbed.args;
+
   const preflight = options.skipPreflight
     ? null
     : validateWpReceiptAppendPreconditions({
-      wpId,
-      actorRole,
-      actorSession,
-      receiptKind,
-      summary,
-      stateBefore,
-      stateAfter,
-      refs,
-      branch,
-      worktreeDir,
-      timestamp,
-      targetRole,
-      targetSession,
-      correlationId,
-      requiresAck,
-      ackFor,
-      specAnchor,
-      packetRowRef,
-      microtaskContract,
-      workflowInvalidityCode,
+      wpId: receiptArgs.wpId,
+      actorRole: receiptArgs.actorRole,
+      actorSession: receiptArgs.actorSession,
+      receiptKind: receiptArgs.receiptKind,
+      summary: receiptArgs.summary,
+      stateBefore: receiptArgs.stateBefore,
+      stateAfter: receiptArgs.stateAfter,
+      refs: receiptArgs.refs,
+      branch: receiptArgs.branch,
+      worktreeDir: receiptArgs.worktreeDir,
+      timestamp: receiptArgs.timestamp,
+      targetRole: receiptArgs.targetRole,
+      targetSession: receiptArgs.targetSession,
+      correlationId: receiptArgs.correlationId,
+      requiresAck: receiptArgs.requiresAck,
+      ackFor: receiptArgs.ackFor,
+      specAnchor: receiptArgs.specAnchor,
+      packetRowRef: receiptArgs.packetRowRef,
+      microtaskContract: receiptArgs.microtaskContract,
+      workflowInvalidityCode: receiptArgs.workflowInvalidityCode,
     });
   const context = preflight?.context || loadPacketContext(WP_ID);
   let runtimeStatus = preflight?.runtimeStatus;
@@ -1210,34 +1253,21 @@ function appendWpReceiptCore({
       ? parseJsonFile(context.runtimeStatusFile)
       : null;
   }
-  const reviewTrackedReceipt = REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(receiptKind || "").trim().toUpperCase());
+  const reviewTrackedReceipt = REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(receiptArgs.receiptKind || "").trim().toUpperCase());
   const entry = buildReceiptValidationEntry({
     args: {
+      ...receiptArgs,
       wpId: WP_ID,
-      actorRole,
-      actorSession,
-      receiptKind,
-      summary,
-      stateBefore,
-      stateAfter,
-      refs,
-      branch,
-      worktreeDir,
-      timestamp,
-      targetRole,
-      targetSession,
-      correlationId,
-      requiresAck,
-      ackFor,
-      specAnchor,
-      packetRowRef,
-      microtaskContract,
-      workflowInvalidityCode,
     },
     context,
     runtimeStatus,
-    timestamp,
+    timestamp: receiptArgs.timestamp,
   });
+  if (absorbed.applied.length > 0) {
+    entry.metadata = {
+      absorbers_applied: absorbed.applied.map((item) => item.name),
+    };
+  }
 
   const errors = validateReceipt(entry);
   if (errors.length > 0) {

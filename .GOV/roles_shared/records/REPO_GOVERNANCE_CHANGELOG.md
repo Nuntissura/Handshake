@@ -21,6 +21,41 @@
 
 ## Entries
 
+### 2026.04.27.01 / GOV-CHANGE-20260427-01
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-244 deterministic artifact-malformation absorbers
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including deterministic artifact-malformation absorption before repair loops.
+  - `RGF-244`
+- FOLLOW_ON_ITEMS:
+  - `RGF-250`
+  - `RGF-245`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/artifact-normalizers/`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `.GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles_shared/tests/artifact-normalizers/`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/checks/README.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: Shared artifact absorbers now cover line endings, trailing newlines, smart quotes, unicode dashes, JSON-string arrays, bullet/heading-prefixed fields, key-value whitespace, Windows path escapes, nullish field values, and unambiguous heading-level drift. Receipt append normalizes before persist and records applied absorbers in receipt metadata. Validator-report and packet-truth checks normalize before evaluation, and closeout repair runs an absorber pre-pass before entering mechanical repair classification. Applied absorbers append hit rows to `gov_runtime/absorber_hits.jsonl`.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/artifact-normalizers/normalizers.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `node .GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `node .GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/closeout-repair.test.mjs`
+  - `node .GOV/roles_shared/checks/topology-bundle-check.mjs`
+  - `git diff --check`
+  - `just gov-check`
+
 ### 2026.04.26.09 / GOV-CHANGE-20260426-09
 
 - STATUS: APPLIED

@@ -1,0 +1,7 @@
+{
+  "absorber": "normalizeLineEndings",
+  "input": "alpha\r\nbeta\r",
+  "output": "alpha\nbeta\n",
+  "applied": true
+}
+

@@ -1,0 +1,7 @@
+{
+  "absorber": "normalizeBulletPrefixedFields",
+  "input": "- GOVERNANCE_VERDICT: PASS\n- normal bullet\n",
+  "output": "GOVERNANCE_VERDICT: PASS\n- normal bullet\n",
+  "applied": true
+}
+

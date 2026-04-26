@@ -9,6 +9,12 @@ Repo-shared checks live here.
 - WP-scoped checks append to `gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl`.
 - Use `--verbose` on migrated runners to print the structured detail entry for human debugging.
 
+## Artifact Absorbers
+
+- `RGF-244` artifact normalizers live in `../scripts/lib/artifact-normalizers/`.
+- Absorbers are additive pre-validation shims only; checks and validators still own rejection.
+- Applied absorbers append hit rows to `gov_runtime/absorber_hits.jsonl` for operator review.
+
 ## Core Governance Gates
 
 - `gov-check.mjs`

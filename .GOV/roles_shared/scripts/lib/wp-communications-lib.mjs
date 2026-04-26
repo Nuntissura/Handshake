@@ -997,7 +997,7 @@ export function validateReceipt(entry) {
     "state_after",
     "refs",
   ];
-  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "workflow_invalidity_code", "resolved_cwd"];
+  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "workflow_invalidity_code", "resolved_cwd", "metadata"];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in entry)) errors.push(`missing key: ${key}`);
@@ -1047,6 +1047,13 @@ export function validateReceipt(entry) {
     errors.push("packet_row_ref must be null or a non-empty string");
   }
   validateMicrotaskContract(entry.microtask_contract, "microtask_contract", errors);
+  if (!(entry.metadata === undefined || entry.metadata === null || isPlainObject(entry.metadata))) {
+    errors.push("metadata must be an object when present");
+  } else if (isPlainObject(entry.metadata) && "absorbers_applied" in entry.metadata) {
+    if (!Array.isArray(entry.metadata.absorbers_applied) || entry.metadata.absorbers_applied.some((value) => !isNonEmptyString(value))) {
+      errors.push("metadata.absorbers_applied must be an array of non-empty strings");
+    }
+  }
   if (!(entry.workflow_invalidity_code === undefined || isNullableString(entry.workflow_invalidity_code))) {
     errors.push("workflow_invalidity_code must be null or a non-empty string");
   }

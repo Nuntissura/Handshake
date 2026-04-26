@@ -5,7 +5,8 @@ import {
   packetRequiresSpecClauseMap,
   packetUsesStructuredValidationReport,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
-import { listOfficialWorkPacketPaths, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { inferWpIdFromPacketPath, listOfficialWorkPacketPaths, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { runAbsorber } from "../../../roles_shared/scripts/lib/artifact-normalizers/index.mjs";
 import {
   packetUsesDataContractProfile,
   parseDataContractProfile,
@@ -134,7 +135,11 @@ if (files.length === 0) {
 const violations = [];
 
 for (const rel of files) {
-  const text = fs.readFileSync(rel, "utf8");
+  const rawText = fs.readFileSync(rel, "utf8");
+  const text = runAbsorber(rawText, {
+    artifactKind: "validator_report",
+    wpId: inferWpIdFromPacketPath(rel),
+  }).output;
   const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
   if (!packetUsesStructuredValidationReport(packetFormatVersion)) continue;
   const usesDataContractProfile = packetUsesDataContractProfile(packetFormatVersion);

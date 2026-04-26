@@ -1,0 +1,7 @@
+{
+  "absorber": "normalizeSmartQuotes",
+  "input": "SUMMARY: \u201cPASS \u2018ok\u2019\u201d\n```\nconst text = \u201ckeep\u201d;\n```\n",
+  "output": "SUMMARY: \"PASS 'ok'\"\n```\nconst text = \u201ckeep\u201d;\n```\n",
+  "applied": true
+}
+

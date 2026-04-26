@@ -38,6 +38,11 @@ Check-result detail logging:
 - Default model-visible stdout is `VERDICT | summary`; `--verbose` is the expected debug shape for migrated checks.
 - Workflow Dossier sync and the operator monitor `CHECKS` view read the JSONL detail logs for human diagnostics.
 
+Artifact absorber rule:
+- `RGF-244` normalizers absorb known non-semantic artifact malformations before validation or persistence.
+- Absorbers never approve or reject; they normalize, record hit rows in `gov_runtime/absorber_hits.jsonl`, and then existing validators/checks decide.
+- Receipt append stores applied absorber names in receipt `metadata.absorbers_applied` when the persisted receipt was normalized.
+
 ## Operator-facing scope split
 
 Use this split in chat every time scope, remediation, or next steps are discussed:
