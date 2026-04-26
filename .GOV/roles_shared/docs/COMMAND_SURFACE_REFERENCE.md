@@ -65,6 +65,10 @@ These are safe starting points for orientation and health checks.
 - `just orchestrator-health [WP-{ID}]`
   - `read-only`
   - compact Orchestrator recovery bundle: WP lifecycle, ACP broker health, active/session role rows, model/profile/thread/queue/command state, stale age, and the next safe read-only command
+- `just orchestrator-rescue [WP-{ID}] [--dry-run] [--print-prompt]`
+  - `visible-terminal exception`
+  - opens a visible interactive Orchestrator rescue session from `wt-gov-kernel` using Windows Terminal first, visible PowerShell second, and a ready-to-run `.ps1` manual fallback; this command is explicitly not a headless ACP role launch
+  - the generated rescue session runs `just orchestrator-health [WP-{ID}]`, starts Codex with the Orchestrator rescue prompt, and carries a single-authority guard to stop if another Orchestrator is actively mutating the same lane
 - `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - run a local non-LLM relay watcher over one or more orchestrator-managed WPs; stale `WATCH` / `ESCALATED` routes are re-steered only when the projected target session is not already running

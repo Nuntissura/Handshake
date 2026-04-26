@@ -21,6 +21,34 @@
 
 ## Entries
 
+### 2026.04.26.4 / GOV-CHANGE-20260426-04
+
+- STATUS: APPLIED
+- SUMMARY: added the visible Orchestrator rescue launcher and fallback ladder
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: backup Orchestrator startup must open a visible interactive terminal, not a headless ACP lane
+  - `RGF-228`
+  - `RGF-229`
+  - `RGF-231`
+- FOLLOW_ON_ITEMS:
+  - `RGF-230`
+  - `RGF-232`
+- FILES_CHANGED:
+  - `justfile`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue-lib.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-rescue.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just orchestrator-rescue [WP-{ID}]` now creates a visible takeover script under the temp directory, tries Windows Terminal first, visible PowerShell second, and leaves an exact manual script fallback. The generated session runs `orchestrator-health`, launches Codex on `gpt-5.5` with `model_reasoning_effort=xhigh`, embeds the Orchestrator rescue prompt, labels itself as the sanctioned visible-terminal exception, and avoids ACP headless launch mechanics.
+- VERIFICATION:
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-rescue-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-rescue.test.mjs .GOV/roles/orchestrator/tests/orchestrator-health.test.mjs`
+  - `just orchestrator-rescue WP-1-Calendar-Sync-Engine-v3 --dry-run`
+
 ### 2026.04.26.3 / GOV-CHANGE-20260426-03
 
 - STATUS: APPLIED
