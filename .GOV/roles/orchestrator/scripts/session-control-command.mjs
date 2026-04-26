@@ -21,6 +21,7 @@ import {
   isAcceptedSessionControlOutcomeState,
   resolveRoleConfig,
   resolveRoleLaunchSelection,
+  resolveRoleWorktreePath,
   assertRoleLaunchProfileSupported,
 } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { settleRecoverableSessionControlResults } from "../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
@@ -264,7 +265,8 @@ if (!roleConfig) fail(`Unknown role: ${role}`);
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
 assertOrchestratorLaunchAuthority(currentBranch);
-const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
+const worktreeResolution = resolveRoleWorktreePath(repoRoot, roleConfig);
+const absWorktreeDir = worktreeResolution.absWorktreeDir;
 const environmentOverrides = buildRoleEnvironmentOverrides({ role });
 
 const sessionDescriptor = {
@@ -611,6 +613,13 @@ if (commandKind === "CLOSE_SESSION") {
 
   reclaimOwnedTerminalsForSession("CLOSE_SESSION_SUCCESS");
   process.exit(0);
+}
+
+if (worktreeResolution.resolution && !worktreeResolution.resolution.ok) {
+  fail([
+    `Protected role worktree resolution is invalid: ${absWorktreeDir}`,
+    ...worktreeResolution.diagnostics,
+  ].join("\n"));
 }
 
 if (!fs.existsSync(absWorktreeDir)) {

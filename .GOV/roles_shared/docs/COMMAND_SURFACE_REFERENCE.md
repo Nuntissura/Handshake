@@ -48,7 +48,10 @@ These are safe starting points for orientation and health checks.
   - shared governance health; expected before new governed execution and before final closure
 - `just docs-check`
   - `read-only`
-  - presence check for required governance docs
+  - topology-resolved presence check for required governance docs and canonical `handshake_main/AGENTS.md`
+- `just resolve-protected-worktree <handshake_main|wt-gov-kernel|wt-ilja> [--path-only]`
+  - `read-only`
+  - resolve permanent worktrees from `git worktree list --porcelain` before falling back to configured sibling paths; failure output includes the discovered worktree list
 - `just canonise-gov`
   - `read-only`
   - inspects the canonisation file set for governance drift and prints the mandatory review checklist; after running it, inspect every listed file and update applicable drift before closeout

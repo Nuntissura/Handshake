@@ -7,11 +7,11 @@ ARTIFACT_ROOT := env_var_or_default('HANDSHAKE_ARTIFACT_ROOT', '../Handshake_Art
 CARGO_TARGET_DIR := "{{ARTIFACT_ROOT}}/handshake-cargo-target"
 
 docs-check:
-	node -e "['{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md', '{{MAIN_ROOT}}/AGENTS.md', '{{GOV_ROOT}}/README.md', '{{GOV_ROOT}}/roles/README.md', '{{GOV_ROOT}}/roles_shared/README.md', '{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md', '{{GOV_ROOT}}/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md', '{{GOV_ROOT}}/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md', '{{GOV_ROOT}}/roles_shared/docs/START_HERE.md', '{{GOV_ROOT}}/spec/SPEC_CURRENT.md', '{{GOV_ROOT}}/roles_shared/docs/ARCHITECTURE.md', '{{GOV_ROOT}}/roles_shared/docs/RUNBOOK_DEBUG.md', '{{GOV_ROOT}}/roles_shared/docs/REPO_RESILIENCE.md', '{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md', '{{GOV_ROOT}}/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md'].forEach(f => { if (!require('fs').existsSync(f)) { console.error('Missing: ' + f); process.exit(1); } })"
+	node "{{GOV_ROOT}}/roles_shared/checks/docs-check.mjs"
 
 gov-check:
 	just docs-check
-	$env:HANDSHAKE_ACTIVE_REPO_ROOT=(Resolve-Path "{{MAIN_ROOT}}").Path; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/gov-check.mjs"
+	$mainRoot = (& node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only); if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $env:HANDSHAKE_ACTIVE_REPO_ROOT=(Resolve-Path $mainRoot).Path; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/gov-check.mjs"
 
 canonise-gov:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/checks/canonise-gov.mjs"
@@ -32,7 +32,7 @@ backup-snapshot label="manual" out_root="" nas_root="":
 	node "{{GOV_ROOT}}/roles_shared/scripts/topology/backup-snapshot.mjs" --label "{{label}}" --out-root "{{out_root}}" --nas-root "{{nas_root}}"
 
 sync-gov-to-main:
-	node "{{GOV_ROOT}}/roles_shared/scripts/topology/sync-gov-to-main.mjs" --main-worktree {{MAIN_ROOT}}
+	node "{{GOV_ROOT}}/roles_shared/scripts/topology/sync-gov-to-main.mjs"
 
 enumerate-cleanup-targets:
 	node "{{GOV_ROOT}}/roles_shared/scripts/topology/enumerate-cleanup-targets.mjs"
@@ -578,6 +578,9 @@ repomem-gate:
 
 repomem-soft-gate:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate --soft
+
+resolve-protected-worktree worktree_id *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" {{worktree_id}} {{FLAGS}}
 
 memory-refresh *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-refresh.mjs" --raw-flags "{{FLAGS}}"

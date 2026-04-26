@@ -48,6 +48,10 @@ import {
   resolveWorkPacketPath,
   workPacketPath,
 } from "../lib/runtime-paths.mjs";
+import {
+  formatProtectedWorktreeResolutionDiagnostics,
+  resolveProtectedWorktree,
+} from "../topology/git-topology-lib.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -244,6 +248,24 @@ export function resolveRoleConfig(roleName, workPacketId) {
     };
   }
   return null;
+}
+
+export function resolveRoleWorktreePath(repoRoot, roleConfig = {}) {
+  const normalizedBranch = String(roleConfig.branch || "").trim();
+  const worktreeDir = String(roleConfig.worktreeDir || "").trim();
+  if (normalizedBranch === "main" || /(^|[\\/])handshake_main$/i.test(worktreeDir)) {
+    const resolution = resolveProtectedWorktree("handshake_main", { repoRoot });
+    return {
+      absWorktreeDir: resolution.absDir,
+      resolution,
+      diagnostics: formatProtectedWorktreeResolutionDiagnostics(resolution),
+    };
+  }
+  return {
+    absWorktreeDir: path.resolve(repoRoot, worktreeDir || "."),
+    resolution: null,
+    diagnostics: [],
+  };
 }
 
 function sessionCompatScript(role, scriptName) {

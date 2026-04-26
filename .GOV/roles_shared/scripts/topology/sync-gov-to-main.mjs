@@ -22,10 +22,11 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   WORKTREE_SPECS,
-  absFromRepo,
   currentBranchInRepo,
+  formatProtectedWorktreeResolutionDiagnostics,
   gitCheckoutExists,
   headShaInRepo,
+  resolveProtectedWorktree,
   runGitInRepo,
   runGitInherit,
 } from "./git-topology-lib.mjs";
@@ -36,8 +37,9 @@ registerFailCaptureHook("sync-gov-to-main.mjs", { role: "SHARED" });
 
 const PREFIX = "[SYNC_GOV_TO_MAIN]";
 
-function fail(message) {
-  failWithMemory("sync-gov-to-main.mjs", message, { role: "SHARED" });
+function fail(message, details = []) {
+  const detailRows = Array.isArray(details) ? details.filter(Boolean) : [String(details || "")].filter(Boolean);
+  failWithMemory("sync-gov-to-main.mjs", [message, ...detailRows].join("\n"), { role: "SHARED", details: detailRows });
 }
 
 function parseMainWorktreeOverride(argv) {
@@ -132,11 +134,13 @@ const mainSpec = WORKTREE_SPECS.find((s) => s.canonical);
 if (!mainSpec) fail("No canonical worktree found in WORKTREE_SPECS");
 
 const mainWorktreeOverrideAbs = parseMainWorktreeOverride(process.argv);
-const mainWorktreeAbs = mainWorktreeOverrideAbs || absFromRepo(mainSpec.rel_path);
+const mainResolution = resolveProtectedWorktree(mainSpec);
+const mainWorktreeAbs = mainWorktreeOverrideAbs || mainResolution.absDir;
 const mainGovAbs = path.join(mainWorktreeAbs, ".GOV");
 
 const kernelSpec = WORKTREE_SPECS.find((s) => s.role === "GOV_KERNEL");
-const kernelWorktreeAbs = kernelSpec ? absFromRepo(kernelSpec.rel_path) : null;
+const kernelResolution = kernelSpec ? resolveProtectedWorktree(kernelSpec) : null;
+const kernelWorktreeAbs = kernelResolution?.absDir || null;
 const kernelGovAbs = GOV_ROOT_ABS;
 
 // --- Pre-flight checks ---
@@ -146,16 +150,27 @@ if (!fs.existsSync(kernelGovAbs)) {
 }
 
 if (!fs.existsSync(mainWorktreeAbs) || !gitCheckoutExists(mainWorktreeAbs)) {
-  fail(`Main worktree not found or not a git checkout: ${mainWorktreeAbs}`);
+  fail(
+    `Main worktree not found or not a git checkout: ${mainWorktreeAbs}`,
+    mainWorktreeOverrideAbs
+      ? [`override_path=${mainWorktreeOverrideAbs}`, ...formatProtectedWorktreeResolutionDiagnostics(mainResolution)]
+      : formatProtectedWorktreeResolutionDiagnostics(mainResolution),
+  );
 }
 
 if (!kernelWorktreeAbs || !gitCheckoutExists(kernelWorktreeAbs)) {
-  fail(`Kernel worktree not found or not a git checkout: ${kernelWorktreeAbs || "<missing>"}`);
+  fail(
+    `Kernel worktree not found or not a git checkout: ${kernelWorktreeAbs || "<missing>"}`,
+    kernelResolution ? formatProtectedWorktreeResolutionDiagnostics(kernelResolution) : [],
+  );
 }
 
 const kernelBranch = currentBranchInRepo(kernelWorktreeAbs);
 if (kernelBranch !== "gov_kernel") {
-  fail(`Kernel worktree is on branch '${kernelBranch}', expected 'gov_kernel'`);
+  fail(
+    `Kernel worktree is on branch '${kernelBranch}', expected 'gov_kernel'`,
+    kernelResolution ? formatProtectedWorktreeResolutionDiagnostics({ ...kernelResolution, currentBranch: kernelBranch }) : [],
+  );
 }
 
 const kernelGovDirty = runGitInRepo(kernelWorktreeAbs, ["status", "--porcelain=v1", "--", ".GOV"]);
@@ -165,7 +180,12 @@ if (kernelGovDirty.trim()) {
 
 const mainBranch = currentBranchInRepo(mainWorktreeAbs);
 if (mainBranch !== "main") {
-  fail(`Main worktree is on branch '${mainBranch}', expected 'main'`);
+  fail(
+    `Main worktree is on branch '${mainBranch}', expected 'main'`,
+    mainWorktreeOverrideAbs
+      ? [`override_path=${mainWorktreeOverrideAbs}`, ...formatProtectedWorktreeResolutionDiagnostics({ ...mainResolution, currentBranch: mainBranch })]
+      : formatProtectedWorktreeResolutionDiagnostics({ ...mainResolution, currentBranch: mainBranch }),
+  );
 }
 
 const mainStatus = readGitStatusPorcelainRaw(mainWorktreeAbs);

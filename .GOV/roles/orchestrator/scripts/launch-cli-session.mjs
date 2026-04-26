@@ -37,6 +37,7 @@ import {
   resolveCliToolForProfile,
   resolveRoleConfig,
   resolveRoleLaunchSelection,
+  resolveRoleWorktreePath,
   assertRoleLaunchProfileSupported,
 } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
@@ -79,7 +80,8 @@ const launchEnvironmentOverrides = buildRoleEnvironmentOverrides({ role });
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
 assertOrchestratorLaunchAuthority(currentBranch);
-const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
+const worktreeResolution = resolveRoleWorktreePath(repoRoot, roleConfig);
+const absWorktreeDir = worktreeResolution.absWorktreeDir;
 const {
   selectedProfileId,
   selectedProfile,
@@ -128,6 +130,13 @@ capturePreTaskSnapshot({
 
 if (!governance.launchAllowed) {
   fail(`Governed session ${role}:${wpId} cannot be launched: ${governance.launchBlockers.join("; ")}`);
+}
+
+if (worktreeResolution.resolution && !worktreeResolution.resolution.ok) {
+  fail([
+    `Protected role worktree resolution is invalid: ${absWorktreeDir}`,
+    ...worktreeResolution.diagnostics,
+  ].join("\n"));
 }
 
 if (!fs.existsSync(absWorktreeDir)) {

@@ -73,6 +73,7 @@ export const WORKSPACE_ROOT = path.resolve(REPO_ROOT, "..");
 export const compareStrings = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 export const toPosix = (value) => String(value || "").replace(/\\/g, "/");
 export const absFromRepo = (relPath) => path.resolve(REPO_ROOT, relPath);
+export const absFromRepoAt = (repoRoot, relPath) => path.resolve(path.resolve(repoRoot || REPO_ROOT), relPath);
 export const relFromRepo = (absPath) => toPosix(path.relative(REPO_ROOT, absPath));
 export const absFromWorkspace = (relPath) => path.resolve(WORKSPACE_ROOT, relPath);
 export const relFromWorkspace = (absPath) => toPosix(path.relative(WORKSPACE_ROOT, absPath));
@@ -178,6 +179,136 @@ export function discoverGitCheckouts() {
   return entries;
 }
 
+export function normalizeBranchName(value = "") {
+  return String(value || "").trim().replace(/^refs\/heads\//, "");
+}
+
+export function parseGitWorktreeListPorcelain(output = "") {
+  const entries = [];
+  let current = null;
+  for (const line of String(output || "").split(/\r?\n/)) {
+    if (line.startsWith("worktree ")) {
+      if (current?.path) entries.push(current);
+      current = {
+        path: line.slice("worktree ".length).trim(),
+        head: "",
+        branch: "",
+        bare: false,
+        detached: false,
+      };
+    } else if (!current) {
+      continue;
+    } else if (line.startsWith("HEAD ")) {
+      current.head = line.slice("HEAD ".length).trim();
+    } else if (line.startsWith("branch ")) {
+      current.branch = normalizeBranchName(line.slice("branch ".length).trim());
+    } else if (line === "bare") {
+      current.bare = true;
+    } else if (line === "detached") {
+      current.detached = true;
+    }
+  }
+  if (current?.path) entries.push(current);
+  return entries;
+}
+
+export function listGitWorktrees(repoDir = REPO_ROOT) {
+  try {
+    return parseGitWorktreeListPorcelain(runGitInRepo(repoDir, ["worktree", "list", "--porcelain"]));
+  } catch {
+    return [];
+  }
+}
+
+function protectedWorktreeSpec(specOrId) {
+  if (specOrId && typeof specOrId === "object") return specOrId;
+  const id = String(specOrId || "").trim();
+  return WORKTREE_SPECS.find((entry) => entry.id === id || entry.role === id) || null;
+}
+
+function basenameMatchesId(absPath, id) {
+  return path.basename(String(absPath || "")).toLowerCase() === String(id || "").toLowerCase();
+}
+
+export function resolveProtectedWorktree(specOrId, { repoRoot = REPO_ROOT, worktrees = null } = {}) {
+  const spec = protectedWorktreeSpec(specOrId);
+  if (!spec) {
+    return {
+      ok: false,
+      reason: `unknown protected worktree: ${String(specOrId || "") || "<empty>"}`,
+      spec: null,
+      discoveredWorktrees: Array.isArray(worktrees) ? worktrees : listGitWorktrees(repoRoot),
+    };
+  }
+
+  const repoRootAbs = path.resolve(repoRoot || REPO_ROOT);
+  const discoveredWorktrees = Array.isArray(worktrees) ? worktrees : listGitWorktrees(repoRootAbs);
+  const expectedBranch = normalizeBranchName(spec.local_branch);
+  const configuredAbs = absFromRepoAt(repoRootAbs, spec.rel_path);
+  const branchEntry = discoveredWorktrees.find((entry) => normalizeBranchName(entry.branch) === expectedBranch) || null;
+  const idEntry = discoveredWorktrees.find((entry) => basenameMatchesId(entry.path, spec.id)) || null;
+  const selectedEntry = branchEntry || idEntry || null;
+  const absDir = path.resolve(selectedEntry?.path || configuredAbs);
+  const exists = fs.existsSync(absDir);
+  const repoOk = exists && gitCheckoutExists(absDir);
+  let currentBranch = normalizeBranchName(selectedEntry?.branch || "");
+  if (repoOk) {
+    try {
+      currentBranch = normalizeBranchName(currentBranchInRepo(absDir));
+    } catch {
+      // Keep worktree-list branch if direct branch probing fails.
+    }
+  }
+
+  return {
+    ok: repoOk && currentBranch === expectedBranch,
+    reason: !repoOk
+      ? "resolved path is not an available git checkout"
+      : currentBranch === expectedBranch
+        ? ""
+        : `resolved branch '${currentBranch || "<unknown>"}' does not match expected '${expectedBranch}'`,
+    spec,
+    id: spec.id,
+    role: spec.role,
+    expectedBranch,
+    configuredRelPath: spec.rel_path,
+    configuredAbs,
+    absDir,
+    relPath: toPosix(path.relative(repoRootAbs, absDir)) || ".",
+    source: branchEntry ? "git-worktree-branch" : idEntry ? "git-worktree-id" : "configured-rel-path",
+    exists,
+    repoOk,
+    currentBranch,
+    branchMatches: currentBranch === expectedBranch,
+    worktreeEntry: selectedEntry,
+    discoveredWorktrees,
+  };
+}
+
+export function formatGitWorktreeList(entries = []) {
+  if (!Array.isArray(entries) || entries.length === 0) return ["discovered_worktrees=<none>"];
+  return entries.map((entry) => {
+    const branch = normalizeBranchName(entry.branch) || (entry.detached ? "<detached>" : "<unknown>");
+    const head = entry.head ? entry.head.slice(0, 12) : "<unknown>";
+    return `- ${toPosix(entry.path)} branch=${branch} head=${head}`;
+  });
+}
+
+export function formatProtectedWorktreeResolutionDiagnostics(resolution = {}) {
+  const lines = [
+    `target=${resolution.id || resolution.spec?.id || "<unknown>"}`,
+    `expected_branch=${resolution.expectedBranch || resolution.spec?.local_branch || "<unknown>"}`,
+    `configured_path=${toPosix(resolution.configuredAbs || resolution.spec?.rel_path || "<unknown>")}`,
+    `resolved_path=${toPosix(resolution.absDir || "<unknown>")}`,
+    `resolution_source=${resolution.source || "<unknown>"}`,
+    `resolved_repo_ok=${resolution.repoOk ? "YES" : "NO"}`,
+    `resolved_branch=${resolution.currentBranch || "<unknown>"}`,
+    "discovered_worktrees:",
+    ...formatGitWorktreeList(resolution.discoveredWorktrees || []),
+  ];
+  return lines;
+}
+
 export function buildTopologyRegistry() {
   return {
     schema_version: SCHEMA_VERSION,
@@ -260,19 +391,20 @@ export function renderTopologyRegistryMd(registry) {
 export function buildDynamicTopologySnapshot() {
   const registry = buildTopologyRegistry();
   const protectedWorktrees = registry.protected_worktrees.map((spec) => {
-    const absDir = absFromRepo(spec.rel_path);
-    const exists = fs.existsSync(absDir);
-    const repoOk = exists && gitCheckoutExists(absDir);
+    const resolution = resolveProtectedWorktree(spec);
+    const absDir = resolution.absDir;
     const snapshot = {
       id: spec.id,
       rel_path: spec.rel_path,
+      resolved_rel_path: resolution.relPath,
+      resolution_source: resolution.source,
       role: spec.role,
       local_branch: spec.local_branch,
       remote_branch: spec.remote_branch,
-      exists,
-      repo_ok: repoOk,
+      exists: resolution.exists,
+      repo_ok: resolution.repoOk,
     };
-    if (repoOk) {
+    if (resolution.repoOk) {
       snapshot.current_branch = currentBranchInRepo(absDir);
       snapshot.head_sha = headShaInRepo(absDir);
       snapshot.dirty = dirtyInRepo(absDir);

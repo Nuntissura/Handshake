@@ -21,6 +21,47 @@
 
 ## Entries
 
+### 2026.04.26.2 / GOV-CHANGE-20260426-02
+
+- STATUS: APPLIED
+- SUMMARY: replaced guessed permanent worktree paths with topology-resolved protected worktree authority
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: wrong `handshake_main` path guesses must not stop recovery/status commands without actionable diagnostics
+  - `RGF-226`
+- FOLLOW_ON_ITEMS:
+  - `RGF-227`
+  - `RGF-228`
+  - `RGF-229`
+  - `RGF-230`
+  - `RGF-231`
+  - `RGF-232`
+- FILES_CHANGED:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/topology/git-topology-lib.mjs`
+  - `.GOV/roles_shared/scripts/topology/resolve-protected-worktree.mjs`
+  - `.GOV/roles_shared/checks/docs-check.mjs`
+  - `.GOV/roles_shared/scripts/protocol-ack.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs`
+  - `.GOV/roles_shared/scripts/topology/sync-gov-to-main.mjs`
+  - `.GOV/roles_shared/scripts/topology/gov-flush.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/tests/git-topology-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: protected worktree consumers now resolve `handshake_main`, `wt-gov-kernel`, and `wt-ilja` from live `git worktree list --porcelain` truth before falling back to configured sibling paths. `docs-check`, `gov-check`, `protocol-ack`, `sync-gov-to-main`, `gov-flush`, Integration Validator launch/start helpers, and the new `just resolve-protected-worktree` command surface path failures with discovered worktrees instead of leaving the operator with a silent or guessed-path failure.
+- VERIFICATION:
+  - `node --check` on modified topology/session/orchestrator scripts
+  - `node --test .GOV/roles_shared/tests/git-topology-lib.test.mjs .GOV/roles_shared/tests/repomem-gate-cli.test.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/session-launch-governance.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `just docs-check`
+  - `node .GOV/roles_shared/scripts/topology/resolve-protected-worktree.mjs handshake_main --path-only`
+
 ### 2026.04.26.1 / GOV-CHANGE-20260426-01
 
 - STATUS: APPLIED
