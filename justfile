@@ -9,7 +9,7 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"
 GOV_ROOT := env_var_or_default('HANDSHAKE_GOV_ROOT', '.GOV')
 
 # External build/test artifacts (Cargo target dir) MUST live outside the repo working tree.
-CARGO_TARGET_DIR := "../Handshake Artifacts/handshake-cargo-target"
+CARGO_TARGET_DIR := "../Handshake_Artifacts/handshake-cargo-target"
 
 dev: preflight-ollama
 	node -e "const {execFileSync}=require('child_process'); const path=require('path'); const repo=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim(); const cargoTarget=path.resolve(repo,'{{CARGO_TARGET_DIR}}'); execFileSync('pnpm',['-C','app','run','tauri','dev'],{stdio:'inherit', env:{...process.env, CARGO_TARGET_DIR:cargoTarget}});"
@@ -359,8 +359,8 @@ orchestrator-startup:
 	@just orchestrator-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
 
-validator-startup:
-	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md"
+validator-startup role="":
+	@switch ("{{role}}".Trim().ToUpper()) { "" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md"; break } "WP_VALIDATOR" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md"; break } "INTEGRATION_VALIDATOR" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md"; break } "VALIDATOR" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md"; break } default { Write-Error 'Usage: just validator-startup [WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR]'; exit 1 } }
 	@just backup-status
 	@just validator-preflight
 	@echo 'RESUME_HINT: After a reset/compaction, run `just validator-next [WP-{ID}]` and continue automatically when OPERATOR_ACTION: NONE.'
@@ -619,10 +619,16 @@ integration-validator-closeout-sync wp-id mode merged_main_sha="":
 	@node "{{GOV_ROOT}}/roles/validator/scripts/integration-validator-closeout-sync.mjs" {{wp-id}} {{mode}} {{merged_main_sha}}
 
 integration-validator-context-brief wp-id *args:
-	@node "{{GOV_ROOT}}/roles/validator/checks/integration-validator-context-brief.mjs" {{wp-id}} {{args}}
+	@node "{{GOV_ROOT}}/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs" {{wp-id}} {{args}}
 
 external-validator-brief wp-id *args:
 	@node "{{GOV_ROOT}}/roles/validator/checks/external-validator-brief.mjs" {{wp-id}} {{args}}
+
+repomem subcommand content="" *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" {{subcommand}} "{{content}}" --raw-flags "{{FLAGS}}"
+
+repomem-gate:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate
 
 # Validator Gate Commands [CX-VAL-GATE] - Mechanical enforcement of validation sequence
 validator-gate-present wp-id verdict="":

@@ -48,11 +48,12 @@
   - Target shape: one real public command per phase or authority boundary and one primary artifact/debug surface per phase or boundary.
   - Thin wrappers, compatibility aliases, and duplicate public helpers are governance debt, not neutral convenience.
   - For governance scripts and public recipes specifically, prefer one canonical public script per phase or authority boundary. If a new script would share the same owner, inputs, primary artifact/debug surface, and usual invocation path as an existing script, extend the existing script instead of adding a sibling.
+  - When several deterministic checks or repairs belong to the same phase or authority boundary and normally run together, fold them into one canonical phase-owned bundle with one primary debug artifact instead of exposing more leaf commands, checks, or scripts.
   - Bias toward fewer larger canonical scripts over multiple small public wrappers that always travel together anyway.
   - Keep a separate public script only when authority owner, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs. Internal helper libs are still allowed; the real target is fewer public entrypoints.
   - If a new live governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether any older surface is being retired or intentionally kept distinct.
   - Do not retire an old public governance surface until the replacement is confirmed as tracked and usable in the active topology.
-- Build/test/tool outputs MUST live at the external sibling root `../Handshake Artifacts/` (subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`). Repo-local `target/` directories are governance violations.
+- Build/test/tool outputs MUST live at the external sibling root `../Handshake_Artifacts/` (subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`). Repo-local `target/` directories are governance violations.
 - When old governance scripts/tests are retired during repo-governance cleanup, move them to an operator-designated external archive root outside the repo for safekeeping and posterity instead of hard-deleting them. Keep that archive location out of runtime assumptions; record the concrete path in the relevant audit/log for the cleanup wave.
 - Operator-facing scope split rule:
   - Always separate `Handshake (Product)` from `Repo Governance` in chat.
@@ -90,7 +91,14 @@
 - The packet-declared `WP_COMMUNICATION_DIR` is the only communication authority for that WP. Do not improvise role-local inboxes.
 - When available, prefer VS Code integrated terminals as the host for multi-session role work. Use `just operator-monitor` as the overview surface instead of treating role-local terminal buffers as authority.
 - Repo-governed multi-session launch is plugin-first: queue VS Code bridge requests through the external repo-governance launch queue (default repo-relative: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`), project current state in the external session registry (`../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`), and keep heartbeat as fallback only.
-- Only the Orchestrator may start repo-governed Coder, WP Validator, and Integration Validator sessions. Coder/Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
+- Lane-owned workflow authority split:
+  - `ORCHESTRATOR` owns `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` only. It delegates pre-launch authoring to `ACTIVATION_MANAGER`, steers governed ACP lanes, and runs mechanical governance.
+  - `CLASSIC_ORCHESTRATOR` owns `WORKFLOW_LANE=MANUAL_RELAY` only. It combines the old Orchestrator + Activation Manager pre-launch duties: refinement, approved spec enrichment, signature capture, packet hydration, microtask/worktree/backup preparation, and operator-brokered relay coordination.
+  - `ACTIVATION_MANAGER` exists only on `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`. It must not be introduced as a second authority lane on `MANUAL_RELAY`.
+- Fresh governed session start is lane-owner-only:
+  - `ORCHESTRATOR` may start `ACTIVATION_MANAGER`, `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR` on `ORCHESTRATOR_MANAGED`.
+  - `CLASSIC_ORCHESTRATOR` may broker-start governed `CODER`, `WP_VALIDATOR`, or classic `VALIDATOR` sessions on `MANUAL_RELAY` via the manual-relay helpers.
+- Coder/Validator sessions may resume work, but they do not self-start a fresh repo-governed session.
 - CLI escalation windows are allowed only after the same role/WP session records 2 plugin failures or timeouts.
 - For newly created stubs/packets, repo-governed CLI session policy is explicit: Model selection uses the per-role model-profile catalog (`ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`). Supported profiles: `OPENAI_GPT_5_4_XHIGH` (default), `OPENAI_GPT_5_2_XHIGH` (fallback), `OPENAI_CODEX_SPARK_5_3_XHIGH` (cost-split coding), `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` (validation). Do not hardcode provider-specific models; use the packet-declared profile.
 - Do not rely on whatever model/reasoning defaults happen to be active in an editor or local CLI profile. Launch or claim the session explicitly.
@@ -100,7 +108,9 @@
 - For new WP communication writes, validator sessions must identify themselves as `WP_VALIDATOR` or `INTEGRATION_VALIDATOR` in `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`. Legacy generic `VALIDATOR` entries are compatibility-only and should not be emitted by new governed sessions.
 - When useful for parallel governed sessions, communication receipts and thread entries may carry structured routing metadata such as `target_role`, `target_session`, `correlation_id`, `requires_ack`, `ack_for`, `spec_anchor`, and `packet_row_ref`, and runtime status may carry `next_expected_session`, `waiting_on_session`, and an `open_review_items` projection for unresolved coder/validator exchanges.
 - Authority split for semi-autonomous work:
-  - Orchestrator = workflow authority
+  - Orchestrator = workflow authority for `ORCHESTRATOR_MANAGED`
+  - Classic Orchestrator = workflow authority for `MANUAL_RELAY`
+  - Activation Manager = bounded pre-launch executor for `ORCHESTRATOR_MANAGED` only
   - WP Validator = advisory technical reviewer
   - Integration Validator = final technical and merge authority
 
