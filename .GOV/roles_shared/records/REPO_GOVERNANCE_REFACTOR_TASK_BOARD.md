@@ -1,6 +1,6 @@
 ﻿# Repo Governance Refactor Task Board
 
-**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the closeout canonicalization tranche has `RGF-233` through `RGF-241` queued for implementation, `RGF-242` through `RGF-244` are implemented and verified, and the remaining harness-pattern items `RGF-245` through `RGF-250` are queued for implementation.
+**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the closeout canonicalization tranche has `RGF-233` through `RGF-241` queued for implementation, `RGF-242` through `RGF-244` and `RGF-250` are implemented and verified, and the remaining harness-pattern items `RGF-245` through `RGF-249` are queued for implementation.
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
@@ -312,7 +312,7 @@
 | RGF-247 | QUEUED | Mechanical-Track Validator-as-Tool-Result | RGF-242, RGF-243, RGF-246 | WP Validator mechanical review helper, post-commit MT hook, review projection, typed `MT_VERDICT_MECHANICAL` receipts, validator tests | deterministic per-MT validation runs as a synchronous helper/tool result inside the coder lifecycle while judgment-track WP Validator review remains an independent ACP role |
 | RGF-248 | QUEUED | Named-Verb Inter-Role Message Schema | RGF-244 | inter-role verb schemas, `wp-receipt-append`, route projection, dossier projection, nudge queue payload validation, schema tests | routine inter-role traffic uses small typed verbs such as `MT_DONE`, `MT_VERDICT`, `REWORK_REQUEST`, `PHASE_TRANSITION`, and `CONCERN`; routing reads fields directly instead of parsing prose |
 | RGF-249 | QUEUED | Predecessor-Session Lookup for Compaction and Restart | RGF-246 | session registry/event readers, self-prime hook, predecessor summary helper, compaction/restart fixtures | restarted or post-compaction governed sessions receive a compact predecessor summary for the same role/WP without rereading full packets, dossiers, or transcripts |
-| RGF-250 | QUEUED | Heuristic-Risk Classification and Strategy Escalation | RGF-100, RGF-177, RGF-179, RGF-242, RGF-244 | refinement/packet risk classifier, MT contract schema, coder and WP Validator protocols, review projection, repair-budget policy, heuristic-risk fixtures/tests | fuzzy/adversarial MTs are mechanically tagged as heuristic-risk, get stronger expected evidence such as corpus/property/negative tests, and repeated counterexample repair cycles escalate to a new strategy instead of continuing threshold-tuning loops |
+| RGF-250 | DONE | Heuristic-Risk Classification and Strategy Escalation | RGF-100, RGF-177, RGF-179, RGF-242, RGF-244 | refinement/packet risk classifier, MT contract schema, coder and WP Validator protocols, review projection, repair-budget policy, heuristic-risk fixtures/tests | fuzzy/adversarial MTs are mechanically tagged as heuristic-risk, get stronger expected evidence such as corpus/property/negative tests, and repeated counterexample repair cycles emit a strategy-escalation notification before the generic fix-cycle cap |
 
 ## Active / Recent Hardening State (2026-04-22)
 
@@ -332,8 +332,8 @@
 14. Downtime red alert: `RGF-230` is `DONE`; relay watchdog emits `RED_ALERT_ORCHESTRATOR_DOWNTIME` when an active orchestrator-managed WP has no fresh control-plane progress for 10 minutes and recommends visible rescue at 20 minutes.
 15. Rescue single-authority guard: `RGF-232` is `DONE`; visible rescue records takeover attempts and starts in read-only/status mode unless stale-state criteria or explicit Operator force authority permits takeover.
 16. Closeout canonicalization tranche: `RGF-233` through `RGF-241` are `QUEUED`; the tranche collapses terminal closeout authority into one canonical record, splits product proof from projection sync, resolves product-main compatibility through topology, quarantines stale terminal sessions, emits bounded debt reports, enforces repair-loop budgets, migrates legacy closeouts, protects monotonic publication, and captures closeout breakpoints as executable fixtures.
-17. Harness-pattern tranche: `RGF-242` through `RGF-244` are `DONE`, and `RGF-245` through `RGF-250` are `QUEUED`; the tranche introduces cache stability, tool-result asymmetry, deterministic artifact absorbers, turn-boundary nudges, hook self-rehydration, named inter-role verbs, mechanical-track validator helpers, predecessor-session summaries, and heuristic-risk strategy escalation.
-18. Heuristic-risk escalation: `RGF-250` is `QUEUED`; heuristic/fuzzy MTs must be classified before implementation and repeated counterexamples must force strategy escalation rather than indefinite threshold repair.
+17. Harness-pattern tranche: `RGF-242` through `RGF-244` and `RGF-250` are `DONE`, and `RGF-245` through `RGF-249` are `QUEUED`; the tranche introduces cache stability, tool-result asymmetry, deterministic artifact absorbers, turn-boundary nudges, hook self-rehydration, named inter-role verbs, mechanical-track validator helpers, predecessor-session summaries, and heuristic-risk strategy escalation.
+18. Heuristic-risk escalation: `RGF-250` is `DONE`; heuristic/fuzzy MTs are classified before implementation and repeated counterexamples force strategy escalation rather than indefinite threshold repair.
 
 ## Execution Briefs (2026-04-21)
 
@@ -454,21 +454,20 @@
 
 ## Proposed Next Sequence
 
-1. `RGF-250`
-2. `RGF-245`
-3. `RGF-246`
-4. `RGF-248`
-5. `RGF-247`
-6. `RGF-249`
-7. `RGF-233`
-8. `RGF-234`
-9. `RGF-235`
-10. `RGF-236`
-11. `RGF-237`
-12. `RGF-238`
-13. `RGF-239`
-14. `RGF-240`
-15. `RGF-241`
+1. `RGF-245`
+2. `RGF-246`
+3. `RGF-248`
+4. `RGF-247`
+5. `RGF-249`
+6. `RGF-233`
+7. `RGF-234`
+8. `RGF-235`
+9. `RGF-236`
+10. `RGF-237`
+11. `RGF-238`
+12. `RGF-239`
+13. `RGF-240`
+14. `RGF-241`
 
 ## Explicit Holds
 

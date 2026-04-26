@@ -118,6 +118,7 @@ WP Validator AI review:
 - After 3 fix cycles on the same MT without PASS, the WP Validator MUST escalate to the Orchestrator with a failure summary receipt.
 - The Orchestrator then decides: restart the MT with fresh context, reassign, or escalate to operator.
 - Do not attempt further fix cycles after escalation.
+- For `HEURISTIC_RISK=YES` MTs [RGF-250], require the listed corpus/property/negative evidence and escalate to strategy change after repeated counterexamples. Do not approve another same-threshold repair loop as progress.
 
 ## Per-MT Stop Pattern (Mechanical Signaling)
 

@@ -674,6 +674,72 @@
                   "null"
                 ]
               },
+              "heuristic_risk": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "YES",
+                  "NO",
+                  null
+                ]
+              },
+              "heuristic_risk_class": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "NONE",
+                  "FUZZY_DISCRIMINATOR",
+                  "THRESHOLD_TUNING",
+                  "ADVERSARIAL_INPUT",
+                  "NATURAL_LANGUAGE_CLASSIFICATION",
+                  "PROBABILISTIC_SCORING",
+                  "SECRET_OR_IDENTIFIER_BOUNDARY",
+                  "OTHER",
+                  null
+                ]
+              },
+              "required_evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "CORPUS_CASES",
+                    "PROPERTY_TESTS",
+                    "NEGATIVE_COUNTEREXAMPLES",
+                    "BOUNDARY_MATRIX",
+                    "THRESHOLD_RATIONALE",
+                    "FALSE_POSITIVE_FALSE_NEGATIVE_PROBES",
+                    "ADVERSARIAL_PROBES"
+                  ]
+                }
+              },
+              "strategy_escalation": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "NONE",
+                  "CORPUS_EXPANSION",
+                  "PROPERTY_BASED_REFRAME",
+                  "DISCRIMINATOR_REDESIGN",
+                  "BOUNDARY_CONTRACT_REWRITE",
+                  "ALTERNATE_MODEL_REVIEW",
+                  "HUMAN_STOP",
+                  null
+                ]
+              },
+              "repair_cycle_strategy_threshold": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
               "review_mode": {
                 "type": [
                   "string",

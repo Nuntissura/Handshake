@@ -9,6 +9,7 @@ import {
   REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
 } from "../lib/wp-communications-lib.mjs";
 import { resolveDeclaredWpMicrotaskByScopeRef } from "../lib/wp-microtask-lib.mjs";
+import { mergeHeuristicRiskContract } from "../lib/heuristic-risk-lib.mjs";
 import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 import { appendWpReceipt, validateWpReceiptAppendPreconditions } from "./wp-receipt-append.mjs";
@@ -89,7 +90,12 @@ export function deriveFallbackReviewMicrotaskContract({
   microtaskContract = null,
 } = {}) {
   if (microtaskContract && typeof microtaskContract === "object" && !Array.isArray(microtaskContract)) {
-    return microtaskContract;
+    const scopeRef = String(microtaskContract.scope_ref || "").trim();
+    if (!scopeRef) return microtaskContract;
+    const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef);
+    return resolution.match
+      ? mergeHeuristicRiskContract(microtaskContract, resolution.match.heuristicRisk)
+      : microtaskContract;
   }
   const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
   if (![
@@ -123,7 +129,7 @@ export function deriveFallbackReviewMicrotaskContract({
   if (normalizedReceiptKind === "REVIEW_REQUEST") {
     contract.expected_receipt_kind = "REVIEW_RESPONSE";
   }
-  return contract;
+  return mergeHeuristicRiskContract(contract, resolution.match.heuristicRisk);
 }
 
 function parseMicrotaskContract(value) {
@@ -153,6 +159,12 @@ function buildThreadMessage({ receiptKind, summary, specAnchor, packetRowRef, co
     lines.push(`microtask_proof=${microtaskContract.proof_commands.join(" ; ")}`);
   }
   if (microtaskContract?.risk_focus) lines.push(`microtask_risk=${microtaskContract.risk_focus}`);
+  if (microtaskContract?.heuristic_risk) lines.push(`microtask_heuristic_risk=${microtaskContract.heuristic_risk}`);
+  if (microtaskContract?.heuristic_risk_class) lines.push(`microtask_heuristic_class=${microtaskContract.heuristic_risk_class}`);
+  if (Array.isArray(microtaskContract?.required_evidence) && microtaskContract.required_evidence.length > 0) {
+    lines.push(`microtask_required_evidence=${microtaskContract.required_evidence.join(", ")}`);
+  }
+  if (microtaskContract?.strategy_escalation) lines.push(`microtask_strategy_escalation=${microtaskContract.strategy_escalation}`);
   if (microtaskContract?.expected_receipt_kind) lines.push(`microtask_expected_receipt=${microtaskContract.expected_receipt_kind}`);
   if (microtaskContract?.review_mode) lines.push(`microtask_review_mode=${microtaskContract.review_mode}`);
   if (microtaskContract?.phase_gate) lines.push(`microtask_phase_gate=${microtaskContract.phase_gate}`);

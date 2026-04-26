@@ -43,6 +43,12 @@ Artifact absorber rule:
 - Absorbers never approve or reject; they normalize, record hit rows in `gov_runtime/absorber_hits.jsonl`, and then existing validators/checks decide.
 - Receipt append stores applied absorber names in receipt `metadata.absorbers_applied` when the persisted receipt was normalized.
 
+Heuristic-risk classification:
+- `just heuristic-risk-check WP-{ID} [--json]`
+  - mechanically classifies declared MT files for fuzzy/adversarial heuristic risk before implementation.
+  - `HEURISTIC_RISK=YES` requires the listed corpus/property/negative evidence and projects strategy-escalation fields into microtask review contracts.
+  - receipt append emits `HEURISTIC_RISK_STRATEGY_ESCALATION` to Orchestrator when repeated non-PASS review responses hit the MT strategy threshold.
+
 ## Operator-facing scope split
 
 Use this split in chat every time scope, remediation, or next steps are discussed:

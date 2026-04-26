@@ -642,6 +642,9 @@ mt-complete wp-id mt-id:
 mt-populate wp-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/mt-board.mjs" populate {{wp-id}}
 
+heuristic-risk-check wp-id *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/checks/heuristic-risk-check.mjs" {{wp-id}} {{FLAGS}}
+
 closeout-repair wp-id *FLAGS:
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/closeout-repair.mjs" {{wp-id}} {{FLAGS}}
 

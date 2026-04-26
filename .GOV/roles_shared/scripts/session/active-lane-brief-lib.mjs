@@ -51,6 +51,13 @@ function summarizeMicrotaskContract(value = null) {
     file_targets: Array.isArray(value.file_targets) ? value.file_targets.filter(Boolean).slice(0, 6) : [],
     proof_commands: Array.isArray(value.proof_commands) ? value.proof_commands.filter(Boolean).slice(0, 4) : [],
     risk_focus: normalize(value.risk_focus),
+    heuristic_risk: normalize(value.heuristic_risk),
+    heuristic_risk_class: normalize(value.heuristic_risk_class),
+    required_evidence: Array.isArray(value.required_evidence) ? value.required_evidence.filter(Boolean).slice(0, 6) : [],
+    strategy_escalation: normalize(value.strategy_escalation),
+    repair_cycle_strategy_threshold: Number.isInteger(value.repair_cycle_strategy_threshold)
+      ? value.repair_cycle_strategy_threshold
+      : null,
     expected_receipt_kind: normalize(value.expected_receipt_kind),
     review_mode: normalize(value.review_mode),
     phase_gate: normalize(value.phase_gate),
@@ -75,6 +82,9 @@ function summarizeMicrotaskEntry(entry = null) {
     last_actor_role: normalize(entry.last_actor_role),
     last_activity_at: normalize(entry.last_activity_at),
     code_surfaces: Array.isArray(entry.code_surfaces) ? entry.code_surfaces.slice(0, 6) : [],
+    heuristic_risk: entry.heuristic_risk?.heuristic_risk || "NO",
+    heuristic_risk_class: entry.heuristic_risk?.heuristic_risk_class || "NONE",
+    strategy_escalation: entry.heuristic_risk?.strategy_escalation || "NONE",
   };
 }
 
@@ -343,6 +353,9 @@ export function formatActiveLaneBrief(brief) {
       ? [
           `- ACTIVE_MICROTASK: ${brief.microtasks.active_microtask.mt_id} | state=${brief.microtasks.active_microtask.state} | reason=${brief.microtasks.active_microtask.state_reason}`,
           `- ACTIVE_MICROTASK_CLAUSE: ${brief.microtasks.active_microtask.clause}`,
+          ...(brief.microtasks.active_microtask.heuristic_risk === "YES"
+            ? [`- ACTIVE_MICROTASK_HEURISTIC: class=${brief.microtasks.active_microtask.heuristic_risk_class} | strategy=${brief.microtasks.active_microtask.strategy_escalation}`]
+            : []),
         ]
       : []),
     ...(brief.microtasks.previous_microtask
@@ -382,6 +395,15 @@ export function formatActiveLaneBrief(brief) {
               }
               if (item.microtask_contract.risk_focus !== "<none>") {
                 lines.push(`     microtask.risk=${item.microtask_contract.risk_focus}`);
+              }
+              if (item.microtask_contract.heuristic_risk === "YES") {
+                lines.push(`     microtask.heuristic=${item.microtask_contract.heuristic_risk_class}`);
+                if (item.microtask_contract.required_evidence.length > 0) {
+                  lines.push(`     microtask.required_evidence=${item.microtask_contract.required_evidence.join(", ")}`);
+                }
+                if (item.microtask_contract.strategy_escalation !== "<none>") {
+                  lines.push(`     microtask.strategy_escalation=${item.microtask_contract.strategy_escalation}`);
+                }
               }
               if (item.microtask_contract.expected_receipt_kind !== "<none>") {
                 lines.push(`     microtask.expected_receipt=${item.microtask_contract.expected_receipt_kind}`);

@@ -54,6 +54,12 @@ import {
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { runAbsorber } from "../lib/artifact-normalizers/index.mjs";
+import {
+  HEURISTIC_RISK_REPAIR_ESCALATION_THRESHOLD,
+  isHeuristicRiskContract,
+  mergeHeuristicRiskContract,
+  summarizeHeuristicRiskContract,
+} from "../lib/heuristic-risk-lib.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
 import { reconcileWpCommunicationTruth, syncProjectedTaskBoardTruth } from "./ensure-wp-communications.mjs";
@@ -154,6 +160,31 @@ function absorbReceiptAppendArgs(args = {}) {
   } catch {
     return { args, applied: [] };
   }
+}
+
+function enrichReceiptArgsWithHeuristicRisk(args = {}) {
+  const microtaskContract = args?.microtaskContract;
+  if (!microtaskContract || typeof microtaskContract !== "object" || Array.isArray(microtaskContract)) {
+    return args;
+  }
+  const wpId = String(args?.wpId || "").trim();
+  const scopeRef = String(microtaskContract.scope_ref || "").trim();
+  if (!wpId || !scopeRef) return args;
+  const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef);
+  if (!resolution.match?.heuristicRisk) return args;
+  return {
+    ...args,
+    microtaskContract: mergeHeuristicRiskContract(microtaskContract, resolution.match.heuristicRisk),
+  };
+}
+
+function heuristicRiskContractForReceipt({ wpId = "", mtId = "", entry = {} } = {}) {
+  if (isHeuristicRiskContract(entry?.microtask_contract)) return entry.microtask_contract;
+  if (!wpId || !mtId) return null;
+  const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, mtId);
+  if (!resolution.match?.heuristicRisk) return null;
+  const merged = mergeHeuristicRiskContract({}, resolution.match.heuristicRisk);
+  return isHeuristicRiskContract(merged) ? merged : null;
 }
 
 function parseChangedPaths(statusPorcelain) {
@@ -1220,7 +1251,7 @@ function appendWpReceiptCore({
     microtaskContract,
     workflowInvalidityCode,
   });
-  const receiptArgs = absorbed.args;
+  const receiptArgs = enrichReceiptArgsWithHeuristicRisk(absorbed.args);
 
   const preflight = options.skipPreflight
     ? null
@@ -1342,6 +1373,26 @@ function appendWpReceiptCore({
           const verdict = deriveValidatorAssessmentVerdict(r);
           return verdict !== "PASS";
         }).length;
+        const heuristicContract = heuristicRiskContractForReceipt({ wpId: WP_ID, mtId, entry });
+        const heuristicThreshold = Number.isInteger(heuristicContract?.repair_cycle_strategy_threshold)
+          ? heuristicContract.repair_cycle_strategy_threshold
+          : HEURISTIC_RISK_REPAIR_ESCALATION_THRESHOLD;
+        if (heuristicContract && steerCount === heuristicThreshold) {
+          const riskSummary = summarizeHeuristicRiskContract(heuristicContract);
+          console.warn(
+            `[WP_RECEIPT] Heuristic-risk strategy escalation reached (${steerCount} REVIEW_RESPONSE receipts for ${mtId}). ${riskSummary}`,
+          );
+          appendWpNotificationCore({
+            wpId: WP_ID,
+            sourceKind: "HEURISTIC_RISK_STRATEGY_ESCALATION",
+            sourceRole: entry.actor_role,
+            targetRole: "ORCHESTRATOR",
+            sourceSession: entry.actor_session,
+            correlationId: entry.correlation_id ?? null,
+            summary: `Heuristic-risk strategy escalation: ${mtId} has ${steerCount} non-PASS review response(s). ${riskSummary}. Change strategy before more threshold tuning.`,
+            timestamp: entry.timestamp_utc,
+          });
+        }
         if (steerCount >= MT_FIX_CYCLE_ESCALATION_THRESHOLD) {
           console.warn(
             `[WP_RECEIPT] MT fix cycle limit reached (${steerCount} STEER responses for ${mtId}). Escalating to orchestrator.`,

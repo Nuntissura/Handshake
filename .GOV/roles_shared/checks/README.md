@@ -15,6 +15,12 @@ Repo-shared checks live here.
 - Absorbers are additive pre-validation shims only; checks and validators still own rejection.
 - Applied absorbers append hit rows to `gov_runtime/absorber_hits.jsonl` for operator review.
 
+## Heuristic-Risk MT Classification
+
+- `heuristic-risk-check.mjs WP-{ID} [--json]` classifies declared MT packets for fuzzy/adversarial implementation risk.
+- `HEURISTIC_RISK=YES` MTs require corpus/property/negative evidence and project strategy-escalation fields into microtask contracts.
+- Repeated non-PASS review responses on a heuristic-risk MT emit `HEURISTIC_RISK_STRATEGY_ESCALATION` before the generic fix-cycle cap.
+
 ## Core Governance Gates
 
 - `gov-check.mjs`

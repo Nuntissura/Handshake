@@ -21,6 +21,54 @@
 
 ## Entries
 
+### 2026.04.27.02 / GOV-CHANGE-20260427-02
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-250 heuristic-risk classification and strategy escalation
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief and add heuristic-risk classification plus strategy escalation for fuzzy MT loops.
+  - `RGF-250`
+- FOLLOW_ON_ITEMS:
+  - `RGF-245`
+  - `RGF-246`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/heuristic-risk-lib.mjs`
+  - `.GOV/roles_shared/checks/heuristic-risk-check.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-microtask-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/mt-board.mjs`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/templates/MICRO_TASK_TEMPLATE.md`
+  - `.GOV/roles_shared/tests/heuristic-risk-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `justfile`
+- OUTCOME: Declared MT files are now mechanically classified for fuzzy/adversarial heuristic risk. Positive classifications project into review microtask contracts with required evidence, strategy-escalation class, and a two-cycle strategy threshold. Receipt append enriches contracts before persistence and emits `HEURISTIC_RISK_STRATEGY_ESCALATION` notifications to Orchestrator when repeated non-PASS review responses hit that threshold, so counterexample loops shift strategy before the generic 3-cycle cap. Coder, WP Validator, and Orchestrator prompts/protocols now surface the rule.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/heuristic-risk-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-microtask-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `node --test .GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `node --check` on modified heuristic-risk, MT, receipt, review, session, and active-lane scripts
+  - `just heuristic-risk-check WP-1-Calendar-Sync-Engine-v3`
+  - `node .GOV/roles_shared/checks/task-board-check.mjs`
+  - `just docs-check`
+  - `just build-order-sync`
+  - `git diff --check`
+  - `node .GOV/roles_shared/checks/topology-bundle-check.mjs`
+  - `node .GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `just gov-check`
+
 ### 2026.04.27.01 / GOV-CHANGE-20260427-01
 
 - STATUS: APPLIED

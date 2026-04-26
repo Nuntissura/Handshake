@@ -1,5 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  HEURISTIC_REQUIRED_EVIDENCE_VALUES,
+  HEURISTIC_RISK_CLASS_VALUES,
+  HEURISTIC_STRATEGY_ESCALATION_VALUES,
+} from "./heuristic-risk-lib.mjs";
 import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "./merge-progression-truth-lib.mjs";
 import { RUNTIME_MILESTONE_VALUES, TASK_BOARD_STATUS_VALUES } from "./wp-authority-projection-lib.mjs";
@@ -203,6 +208,11 @@ function validateMicrotaskContract(value, prefix, errors) {
     "review_mode",
     "phase_gate",
     "review_outcome",
+    "heuristic_risk",
+    "heuristic_risk_class",
+    "required_evidence",
+    "strategy_escalation",
+    "repair_cycle_strategy_threshold",
   ]);
   for (const key of Object.keys(value)) {
     if (!allowedKeys.has(key)) errors.push(`${prefix}.${key} is not allowed`);
@@ -225,6 +235,18 @@ function validateMicrotaskContract(value, prefix, errors) {
   if (!(value.review_outcome === undefined || value.review_outcome === null || MICROTASK_REVIEW_OUTCOME_VALUES.includes(value.review_outcome))) {
     errors.push(`${prefix}.review_outcome invalid (${value.review_outcome})`);
   }
+  if (!(value.heuristic_risk === undefined || value.heuristic_risk === null || ["YES", "NO"].includes(value.heuristic_risk))) {
+    errors.push(`${prefix}.heuristic_risk invalid (${value.heuristic_risk})`);
+  }
+  if (!(value.heuristic_risk_class === undefined || value.heuristic_risk_class === null || HEURISTIC_RISK_CLASS_VALUES.includes(value.heuristic_risk_class))) {
+    errors.push(`${prefix}.heuristic_risk_class invalid (${value.heuristic_risk_class})`);
+  }
+  if (!(value.strategy_escalation === undefined || value.strategy_escalation === null || HEURISTIC_STRATEGY_ESCALATION_VALUES.includes(value.strategy_escalation))) {
+    errors.push(`${prefix}.strategy_escalation invalid (${value.strategy_escalation})`);
+  }
+  if (!(value.repair_cycle_strategy_threshold === undefined || value.repair_cycle_strategy_threshold === null || (Number.isInteger(value.repair_cycle_strategy_threshold) && value.repair_cycle_strategy_threshold >= 1))) {
+    errors.push(`${prefix}.repair_cycle_strategy_threshold must be null or an integer >= 1`);
+  }
   if (!(value.file_targets === undefined || Array.isArray(value.file_targets))) {
     errors.push(`${prefix}.file_targets must be an array when present`);
   } else if (Array.isArray(value.file_targets) && value.file_targets.some((entry) => !isNonEmptyString(entry))) {
@@ -235,6 +257,15 @@ function validateMicrotaskContract(value, prefix, errors) {
   } else if (Array.isArray(value.proof_commands) && value.proof_commands.some((entry) => !isNonEmptyString(entry))) {
     errors.push(`${prefix}.proof_commands must contain non-empty strings`);
   }
+  if (!(value.required_evidence === undefined || Array.isArray(value.required_evidence))) {
+    errors.push(`${prefix}.required_evidence must be an array when present`);
+  } else if (Array.isArray(value.required_evidence)) {
+    value.required_evidence.forEach((entry, index) => {
+      if (!HEURISTIC_REQUIRED_EVIDENCE_VALUES.includes(entry)) {
+        errors.push(`${prefix}.required_evidence[${index}] invalid (${entry})`);
+      }
+    });
+  }
 
   const hasPayload =
     isNonEmptyString(value.scope_ref)
@@ -243,8 +274,13 @@ function validateMicrotaskContract(value, prefix, errors) {
     || isNonEmptyString(value.review_mode)
     || isNonEmptyString(value.phase_gate)
     || isNonEmptyString(value.review_outcome)
+    || isNonEmptyString(value.heuristic_risk)
+    || isNonEmptyString(value.heuristic_risk_class)
+    || isNonEmptyString(value.strategy_escalation)
+    || Number.isInteger(value.repair_cycle_strategy_threshold)
     || (Array.isArray(value.file_targets) && value.file_targets.length > 0)
-    || (Array.isArray(value.proof_commands) && value.proof_commands.length > 0);
+    || (Array.isArray(value.proof_commands) && value.proof_commands.length > 0)
+    || (Array.isArray(value.required_evidence) && value.required_evidence.length > 0);
   if (!hasPayload) {
     errors.push(`${prefix} must contain at least one populated field`);
   }

@@ -471,6 +471,76 @@ test("receipt append absorbs smart quotes and JSON-string array fields before pe
   }
 });
 
+test("heuristic-risk review loops emit strategy escalation before generic fix cap", () => {
+  const wpId = "WP-TEST-HEURISTIC-ESCALATION-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+
+  writeMicrotaskCheckpointPacket(packetDir, wpId, commDir, [{
+    mtId: "MT-001",
+    clause: "Redaction classifier separates base64 secrets from identifier prose",
+    codeSurfaces: ["src/redaction.rs"],
+    expectedTests: ["cargo test redaction"],
+  }]);
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+  const notificationsPath = path.join(commDirAbs, "NOTIFICATIONS.jsonl");
+
+  try {
+    const baseContract = {
+      scope_ref: "MT-001",
+      file_targets: ["src/redaction.rs"],
+      proof_commands: ["cargo test redaction"],
+      review_mode: "OVERLAP",
+      phase_gate: "MICROTASK",
+      review_outcome: "REPAIR_REQUIRED",
+    };
+    appendWpReceipt({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-test",
+      receiptKind: "REVIEW_RESPONSE",
+      summary: "MT-001 STEER: false positive counterexample remains.",
+      targetRole: "CODER",
+      targetSession: "coder-test",
+      correlationId: "heuristic-review-1",
+      ackFor: "heuristic-review-1",
+      microtaskContract: baseContract,
+    }, { autoRelay: false, skipPreflight: true });
+    appendWpReceipt({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-test",
+      receiptKind: "REVIEW_RESPONSE",
+      summary: "MT-001 STEER: false negative counterexample remains.",
+      targetRole: "CODER",
+      targetSession: "coder-test",
+      correlationId: "heuristic-review-2",
+      ackFor: "heuristic-review-2",
+      microtaskContract: baseContract,
+    }, { autoRelay: false, skipPreflight: true });
+
+    const notices = fs.readFileSync(notificationsPath, "utf8")
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+    const escalation = notices.find((entry) => entry.source_kind === "HEURISTIC_RISK_STRATEGY_ESCALATION");
+    assert.equal(escalation?.target_role, "ORCHESTRATOR");
+    assert.match(escalation?.summary || "", /Change strategy before more threshold tuning/i);
+    assert.match(escalation?.summary || "", /DISCRIMINATOR_REDESIGN/i);
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
+  }
+});
+
 test("review exchange splits the committed coder handoff preflight out of the transaction lock only for coder handoffs", () => {
   assert.equal(
     requiresSplitCommittedCoderHandoffValidation({
