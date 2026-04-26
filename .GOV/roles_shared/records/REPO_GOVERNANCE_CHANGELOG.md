@@ -21,6 +21,33 @@
 
 ## Entries
 
+### 2026.04.26.1 / GOV-CHANGE-20260426-01
+
+- STATUS: APPLIED
+- SUMMARY: allowed read-only Orchestrator status checks to continue without an active repomem session
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: `orchestrator-next` should not be blocked by missing repomem for read-only status and recovery checks
+  - `RGF-225`
+- FOLLOW_ON_ITEMS:
+  - `RGF-226`
+  - `RGF-227`
+  - `RGF-228`
+  - `RGF-229`
+  - `RGF-230`
+  - `RGF-231`
+  - `RGF-232`
+- FILES_CHANGED:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/memory/repomem.mjs`
+  - `.GOV/roles_shared/tests/repomem-gate-cli.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just orchestrator-next` now uses `repomem-soft-gate`, so a missing or stale repomem session emits a warning and read-only lifecycle/session truth can still print. Governed mutation commands continue to call hard `repomem-gate`, preserving the `repomem open` requirement before state-changing work.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/repomem-gate-cli.test.mjs .GOV/roles_shared/tests/repomem-open-contract-lib.test.mjs .GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `just repomem-soft-gate`
+
 ### 2026.04.25.3 / GOV-CHANGE-20260425-03
 
 - STATUS: APPLIED

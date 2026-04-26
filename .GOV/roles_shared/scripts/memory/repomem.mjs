@@ -23,7 +23,7 @@
  *   just repomem research-close "<what was found>"      [--wp WP-ID] [--files "a,b"] [--decisions "x"]
  *   just repomem close "<session summary>"              --decisions "key decisions made"
  *   just repomem log                                    [--session last] [--week] [--search "q"] [--wp WP-ID] [--limit N]
- *   just repomem gate                                   (exit 1 if no SESSION_OPEN)
+ *   just repomem gate [--soft]                          (exit 1 if no SESSION_OPEN unless --soft)
  *   just repomem context "<why>" --trigger "just cmd"   (piggybacked context for mutation commands)
  */
 
@@ -107,7 +107,7 @@ function usage() {
   research-close "<found>"   Research conclusion checkpoint (>=80 chars)
   close "<summary>"          Session end checkpoint (>=80 chars, --decisions required)
   log                        Show conversation history
-  gate                       Check if session is open (exit 1 if not)
+  gate [--soft]              Check if session is open (exit 1 if not; warn and exit 0 with --soft)
   context "<why>"            Piggybacked context for mutation commands (>=40 chars)`);
   process.exit(1);
 }
@@ -123,6 +123,12 @@ if (!command) usage();
 if (command === "gate") {
   const result = checkSessionGate();
   if (!result.open) {
+    if (Object.prototype.hasOwnProperty.call(flags, "soft")) {
+      const warning = String(result.message || "REPOMEM_GATE_FAIL: No active session.")
+        .replace(/^REPOMEM_GATE_FAIL:/, "REPOMEM_GATE_WARN:");
+      console.error(`${warning} Read-only command may continue; open repomem before governed mutation.`);
+      process.exit(0);
+    }
     console.error(result.message);
     process.exit(1);
   }

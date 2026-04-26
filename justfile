@@ -277,7 +277,7 @@ orchestrator-startup:
 	@echo ''
 	@echo 'CHECKPOINT_REQUIRED: SESSION_OPEN'
 	@echo 'Run: just repomem open "<what this session is about>" --role ORCHESTRATOR [--wp WP-ID]'
-	@echo 'This is MANDATORY before any orchestrator-next, steer, relay, or packet commands.'
+	@echo 'This is MANDATORY before governed mutation commands. Read-only orchestrator-next may continue with a warning.'
 	@echo ''
 	@echo 'RESUME_HINT: After a reset/compaction, run `just orchestrator-next [WP-{ID}] [--debug]` and continue automatically when OPERATOR_ACTION: NONE.'
 	@echo 'WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, use role `just repomem ... --wp WP-{ID}` for decisions, failures, concerns, and discoveries; `phase-check CLOSEOUT` mechanically imports those memories into the dossier. Use `workflow-dossier-sync` only for mechanical telemetry snapshots.'
@@ -335,7 +335,7 @@ orchestrator-startup-truth-check:
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator-startup-truth-check.mjs"
 
 orchestrator-next wp-id="" *FLAGS:
-	@just repomem-gate
+	@just repomem-soft-gate
 	@just memory-recall RESUME --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-next.mjs" {{wp-id}} {{FLAGS}}
 
@@ -575,6 +575,9 @@ repomem subcommand content="" *FLAGS:
 
 repomem-gate:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate
+
+repomem-soft-gate:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate --soft
 
 memory-refresh *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-refresh.mjs" --raw-flags "{{FLAGS}}"
