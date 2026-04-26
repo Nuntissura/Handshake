@@ -2,11 +2,95 @@ import path from "node:path";
 
 export const RESCUE_MODEL = "gpt-5.5";
 export const RESCUE_REASONING = "xhigh";
+export const ORCHESTRATOR_TAKEOVER_ATTEMPT_SOURCE_KIND = "ORCHESTRATOR_TAKEOVER_ATTEMPT";
 
-export function buildOrchestratorRescuePrompt({ wpId = "" } = {}) {
+export function evaluateRescueTakeoverGuard({
+  wpId = "",
+  forceTakeover = false,
+  downtimeEvaluation = null,
+} = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (forceTakeover) {
+    return {
+      mode: "TAKEOVER_ALLOWED",
+      reason: "OPERATOR_FORCE_TAKEOVER",
+      wpId: normalizedWpId,
+      summary: "Operator explicitly requested visible takeover.",
+    };
+  }
+  if (!normalizedWpId) {
+    return {
+      mode: "READ_ONLY_STATUS",
+      reason: "NO_WP_SCOPE",
+      wpId: "",
+      summary: "No WP scope was supplied; rescue starts in read-only status mode.",
+    };
+  }
+  if (downtimeEvaluation?.shouldEmit) {
+    return {
+      mode: "TAKEOVER_ALLOWED",
+      reason: downtimeEvaluation.reason || "ORCHESTRATOR_DOWNTIME",
+      wpId: normalizedWpId,
+      summary: downtimeEvaluation.summary || "Downtime alert criteria allow visible takeover.",
+    };
+  }
+  if (downtimeEvaluation?.status === "CLEAR") {
+    return {
+      mode: "READ_ONLY_STATUS",
+      reason: "CONTROL_PLANE_PROGRESS_FRESH",
+      wpId: normalizedWpId,
+      summary: "Fresh control-plane progress exists; rescue must inspect status and avoid double-steering by default.",
+    };
+  }
+  return {
+    mode: "READ_ONLY_STATUS",
+    reason: downtimeEvaluation?.reason || "NO_DOWNTIME_AUTHORITY",
+    wpId: normalizedWpId,
+    summary: "No stale-state authority was found; rescue must remain status-only unless the Operator explicitly takes ownership.",
+  };
+}
+
+export function buildTakeoverAttemptNotification({
+  wpId = "",
+  guardDecision = null,
+  downtimeEvaluation = null,
+  timestamp = new Date(),
+} = {}) {
+  const normalizedWpId = String(wpId || guardDecision?.wpId || "").trim();
+  if (!normalizedWpId) return null;
+  const timestampIso = timestamp instanceof Date ? timestamp.toISOString() : new Date().toISOString();
+  const mode = String(guardDecision?.mode || "READ_ONLY_STATUS").trim().toUpperCase() || "READ_ONLY_STATUS";
+  const reason = String(guardDecision?.reason || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
+  return {
+    wpId: normalizedWpId,
+    sourceKind: ORCHESTRATOR_TAKEOVER_ATTEMPT_SOURCE_KIND,
+    targetRole: "ORCHESTRATOR",
+    targetSession: null,
+    correlationId: [
+      "orchestrator-takeover-attempt",
+      normalizedWpId,
+      timestampIso,
+    ].join(":"),
+    summary: [
+      `${ORCHESTRATOR_TAKEOVER_ATTEMPT_SOURCE_KIND}: ${normalizedWpId}`,
+      `mode=${mode}`,
+      `reason=${reason}`,
+      downtimeEvaluation?.status ? `downtime_status=${downtimeEvaluation.status}` : null,
+      downtimeEvaluation?.alertBand ? `downtime_band=${downtimeEvaluation.alertBand}` : null,
+      guardDecision?.summary || "",
+    ].filter(Boolean).join(" | "),
+  };
+}
+
+export function buildOrchestratorRescuePrompt({ wpId = "", guardDecision = null } = {}) {
   const wpSuffix = wpId ? ` --wp ${wpId}` : "";
   const healthCommand = wpId ? `just orchestrator-health ${wpId}` : "just orchestrator-health";
   const nextCommand = wpId ? `just orchestrator-next ${wpId}` : "just orchestrator-next";
+  const takeoverMode = String(guardDecision?.mode || "READ_ONLY_STATUS").trim().toUpperCase() || "READ_ONLY_STATUS";
+  const takeoverReason = String(guardDecision?.reason || "UNASSESSED").trim().toUpperCase() || "UNASSESSED";
+  const takeoverInstruction = takeoverMode === "TAKEOVER_ALLOWED"
+    ? "takeover is mechanically allowed by the guard; still re-run health/status before any governed mutation and stop if fresher Orchestrator activity appears."
+    : "default to read-only health/status only; do not steer, cancel, launch roles, or mutate workflow state unless the Operator explicitly grants takeover in this visible terminal or downtime red-alert criteria are present.";
   return [
     "ROLE LOCK: You are the ORCHESTRATOR. Do not change roles unless explicitly reassigned.",
     "FIRST COMMAND: just orchestrator-startup",
@@ -17,7 +101,8 @@ export function buildOrchestratorRescuePrompt({ wpId = "" } = {}) {
     "LANE_BOUNDARY: this role is `ORCHESTRATOR_MANAGED` only. If the operator deliberately chooses `MANUAL_RELAY`, stop and switch to the `CLASSIC_ORCHESTRATOR` startup prompt instead of continuing under this role.",
     "MECHANICAL_GOVERNANCE: run deterministic checks via direct just/node calls, never via ACP SEND_PROMPT. ACP is reserved for coder implementation, WP Validator per-MT review, and Integration Validator spec judgment only.",
     "VISIBLE_RESCUE_EXCEPTION: this session is intentionally visible and interactive for Operator takeover. Do not convert this Orchestrator rescue lane into a headless ACP role launch.",
-    `RESCUE_TASK: take over the current orchestrator-managed workflow${wpId ? ` for ${wpId}` : ""}; run \`${healthCommand}\` to inspect ACP broker health, active roles, models, threads, queues, stale duration, and lifecycle; then run \`${nextCommand}\` and continue only from mechanical truth.`,
+    `RESCUE_TAKEOVER_MODE: ${takeoverMode}; reason=${takeoverReason}; ${takeoverInstruction}`,
+    `RESCUE_TASK: inspect the current orchestrator-managed workflow${wpId ? ` for ${wpId}` : ""} and take over only if the guard permits it; run \`${healthCommand}\` to inspect ACP broker health, active roles, models, threads, queues, stale duration, and lifecycle; then run \`${nextCommand}\` and continue only from mechanical truth.`,
     "RESCUE_SINGLE_AUTHORITY_GUARD: if another Orchestrator is actively mutating the same lane, stop after health/status output and ask the Operator which Orchestrator owns the lane. Do not double-steer.",
     "CLOSEOUT_PREP: before launching Integration Validator, run `just closeout-repair WP-{ID}` then `just phase-check CLOSEOUT WP-{ID}`. Do NOT launch IntVal with broken mechanical truth.",
     "REMINDER: use `just orchestrator-next` to inspect or resume, `just orchestrator-steer-next` to re-wake governed lanes, and `just orchestrator-prepare-and-packet` only after signature and role-model profiles are recorded.",

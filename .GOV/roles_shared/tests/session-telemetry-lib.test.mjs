@@ -169,6 +169,13 @@ test("session telemetry treats orchestrator downtime red alert as a push alert",
   const alert = selectLatestPushAlert(
     [
       {
+        source_kind: "ORCHESTRATOR_TAKEOVER_ATTEMPT",
+        target_role: "ORCHESTRATOR",
+        timestamp_utc: "2026-04-20T10:05:00.000Z",
+        summary: "read-only rescue session launched",
+        acknowledged: false,
+      },
+      {
         source_kind: "RED_ALERT_ORCHESTRATOR_DOWNTIME",
         target_role: "ORCHESTRATOR",
         timestamp_utc: "2026-04-20T10:06:00.000Z",
@@ -181,4 +188,22 @@ test("session telemetry treats orchestrator downtime red alert as a push alert",
 
   assert.equal(alert?.source_kind, "RED_ALERT_ORCHESTRATOR_DOWNTIME");
   assert.match(formatPushAlertInline(alert), /RED_ALERT_ORCHESTRATOR_DOWNTIME/);
+});
+
+test("session telemetry treats takeover attempts as orchestrator push alerts", () => {
+  const alert = selectLatestPushAlert(
+    [
+      {
+        source_kind: "ORCHESTRATOR_TAKEOVER_ATTEMPT",
+        target_role: "ORCHESTRATOR",
+        timestamp_utc: "2026-04-20T10:05:00.000Z",
+        summary: "read-only rescue session launched",
+        acknowledged: false,
+      },
+    ],
+    { targetRole: "ORCHESTRATOR" },
+  );
+
+  assert.equal(alert?.source_kind, "ORCHESTRATOR_TAKEOVER_ATTEMPT");
+  assert.match(formatPushAlertInline(alert), /ORCHESTRATOR_TAKEOVER_ATTEMPT/);
 });

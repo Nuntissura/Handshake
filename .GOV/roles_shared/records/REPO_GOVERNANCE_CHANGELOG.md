@@ -21,6 +21,34 @@
 
 ## Entries
 
+### 2026.04.26.6 / GOV-CHANGE-20260426-06
+
+- STATUS: APPLIED
+- SUMMARY: added a mechanical single-authority guard to visible Orchestrator rescue
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: backup Orchestrator launch must not create competing Orchestrators
+  - `RGF-232`
+- FOLLOW_ON_ITEMS: []
+- FILES_CHANGED:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue-lib.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-rescue.test.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-telemetry-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-telemetry-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just orchestrator-rescue [WP-{ID}]` now evaluates downtime/control-plane freshness before generating the visible session, prints the guard decision, records `ORCHESTRATOR_TAKEOVER_ATTEMPT` for non-dry-run WP-scoped rescue launches, and defaults the generated prompt to read-only/status mode unless downtime red-alert criteria or explicit `--force-takeover` Operator authority permits takeover. Takeover attempts are projected as Orchestrator push alerts so operator/status surfaces can see the backup launch.
+- VERIFICATION:
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-rescue-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-rescue.test.mjs .GOV/roles_shared/tests/session-telemetry-lib.test.mjs .GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `just orchestrator-rescue WP-1-Calendar-Sync-Engine-v3 --dry-run`
+  - `just gov-check`
+
 ### 2026.04.26.5 / GOV-CHANGE-20260426-05
 
 - STATUS: APPLIED

@@ -2325,6 +2325,14 @@ test("active notification projection keeps orchestrator push alerts visible outs
         summary: "ACP health alert should remain visible",
       },
       {
+        source_kind: "ORCHESTRATOR_TAKEOVER_ATTEMPT",
+        source_role: "SYSTEM",
+        target_role: "ORCHESTRATOR",
+        correlation_id: "orchestrator-takeover-attempt:WP-TEST:2026-03-22T10:06:30.000Z",
+        timestamp_utc: "2026-03-22T10:06:30Z",
+        summary: "Visible rescue attempt should remain visible",
+      },
+      {
         source_kind: "GOVERNANCE_CHECKPOINT",
         source_role: "WP_VALIDATOR",
         target_role: "ORCHESTRATOR",
@@ -2335,10 +2343,11 @@ test("active notification projection keeps orchestrator push alerts visible outs
     ],
   });
 
-  assert.equal(projection.pendingCount, 2);
+  assert.equal(projection.pendingCount, 3);
   assert.deepEqual(projection.byKind, {
     RED_ALERT_ORCHESTRATOR_DOWNTIME: 1,
     ACP_HEALTH_ALERT: 1,
+    ORCHESTRATOR_TAKEOVER_ATTEMPT: 1,
   });
   assert.equal(projection.hiddenPendingCount, 1);
   assert.equal(projection.historyHidden, true);
