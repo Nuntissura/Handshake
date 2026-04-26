@@ -1237,7 +1237,7 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 - **[WP-1-Distillation-v2]** - [VALIDATED]
-- **[WP-1-Calendar-Sync-Engine-v3]** - [MERGE_PENDING]
+- **[WP-1-Calendar-Sync-Engine-v3]** - [VALIDATED]
 
 
 ## Blocked

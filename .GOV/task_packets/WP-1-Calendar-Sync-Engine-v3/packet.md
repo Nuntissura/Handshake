@@ -126,19 +126,19 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Done
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: MERGE_PENDING
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
-- MERGED_MAIN_COMMIT: NONE
+- MERGED_MAIN_COMMIT: ad773a2347ac08493a95c8a8454232d6386aee52
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
-- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-26T00:13:01.489Z
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
 - CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 2ecd453c3eff9d4a93e962eb80dfb7a7f1458e4e
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: ad773a2347ac08493a95c8a8454232d6386aee52
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-25T23:48:55.900Z
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-26T00:13:01.489Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
 - PACKET_WIDENING_DECISION: NOT_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
@@ -197,8 +197,8 @@ Requirements:
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PASS
-Blockers: Awaiting local main containment verification for the approved PASS closure.
-Next: INTEGRATION_VALIDATOR verifies main containment once the approved merge lands in local main.
+Blockers: NONE
+Next: NONE
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
@@ -1290,7 +1290,7 @@ rg -n "calendar_sync|calendar.sync.read|calendar.sync.write|workflow_run|doc.sum
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS: DONE_MERGE_PENDING
+- Current WP_STATUS: DONE_VALIDATED
 - What changed in this update: preserved commits `85673ab5`, `7b5519e13339ef06fafc6ec63d1e768068d038a0`, and `c7c5b6d8`; repaired the direct changed-test failure by validating generated governed action ids/profile-extension schemas in `workflows.rs`, aligning `next_action` generation to the registered governed action vocabulary, allowing MEX validation commands to run from repo-root cwd, and updating the direct integration-test expectations to the current in-scope data shape; regenerated `signed-scope.patch`.
 - Requirements / clauses self-audited: `v2 Integration Validator compile blockers`; `workflow compile/regression contract`; unchanged checkpoint creation path must resolve `SessionCheckpoint`; repaired flight-recorder delimiter so cargo can reach the workflow compile proof; direct changed-test binary must pass after WP Validator STEER.
 - Checks actually run: `cargo check --manifest-path src/backend/handshake_core/Cargo.toml` (EXIT_CODE 0); `cargo test --manifest-path src/backend/handshake_core/Cargo.toml mex_tests` (EXIT_CODE 0, Coder filter-form evidence); `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test mex_tests` (EXIT_CODE 0, Orchestrator cross-check: 9 passed, 4 ignored); `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests` (EXIT_CODE 0).
