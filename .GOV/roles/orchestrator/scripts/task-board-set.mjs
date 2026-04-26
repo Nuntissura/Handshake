@@ -26,6 +26,7 @@ import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/s
 registerFailCaptureHook("task-board-set.mjs", { role: "ORCHESTRATOR" });
 
 const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`;
+const TRACEABILITY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 
 function fail(message, details = []) {
   failWithMemory("task-board-set.mjs", message, { role: "ORCHESTRATOR", details });
@@ -45,12 +46,55 @@ function parseSingleField(text, label) {
   return match ? match[1].trim() : "";
 }
 
+function extractWpId(value) {
+  const match = String(value || "").match(/\bWP-[A-Za-z0-9][A-Za-z0-9-]*-v\d+\b/);
+  return match ? match[0] : "";
+}
+
+function activePacketIdForBase(baseWpId) {
+  if (!baseWpId) return "";
+  const registryAbsPath = repoPathAbs(TRACEABILITY_PATH);
+  if (!fs.existsSync(registryAbsPath)) return "";
+  const registryText = readText(registryAbsPath);
+  for (const line of registryText.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("|") || trimmed.includes("Base WP ID") || trimmed.includes("---")) continue;
+    const cells = trimmed.split("|").map((cell) => cell.trim());
+    if (cells.length < 4) continue;
+    if (cells[1] !== baseWpId) continue;
+    return extractWpId(cells[2]);
+  }
+  return "";
+}
+
+function isSupersededSiblingProjection({ wpId, status, packetText }) {
+  if (status !== "SUPERSEDED") return false;
+  const baseWpId = parseSingleField(packetText, "BASE_WP_ID");
+  const activePacketId = activePacketIdForBase(baseWpId);
+  return Boolean(baseWpId && activePacketId && activePacketId !== wpId);
+}
+
 function writeText(p, text) {
   try {
     fs.writeFileSync(p, text, "utf8");
   } catch (e) {
     fail(`Failed to write: ${p}`, [String(e?.message || e)]);
   }
+}
+
+function writeTextIfChanged(p, text) {
+  const currentText = fs.existsSync(p) ? readText(p) : null;
+  if (currentText === text) return false;
+  writeText(p, text);
+  return true;
+}
+
+function writeJsonFileIfChanged(p, value) {
+  const nextText = `${JSON.stringify(value, null, 2)}\n`;
+  const currentText = fs.existsSync(p) ? readText(p) : null;
+  if (currentText === nextText) return false;
+  writeJsonFile(p, value);
+  return true;
 }
 
 function detectEol(text) {
@@ -163,8 +207,10 @@ function syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext = null
     if (runtimeErrors.length > 0) {
       fail(`Runtime authority materialization failed for ${wpId}`, runtimeErrors);
     }
-    writeJsonFile(runtimeStatusAbsPath, materializedRuntime);
-    return runtimeStatusFile;
+    return {
+      filePath: runtimeStatusFile,
+      wrote: writeJsonFileIfChanged(runtimeStatusAbsPath, materializedRuntime),
+    };
   }
 
   const reconciled = reconcileWpCommunicationTruth({
@@ -181,8 +227,10 @@ function syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext = null
   if (runtimeErrors.length > 0) {
     fail(`Runtime projection sync failed for ${wpId}`, runtimeErrors);
   }
-  writeJsonFile(runtimeStatusAbsPath, syncedRuntimeStatus);
-  return runtimeStatusAbsPath;
+  return {
+    filePath: runtimeStatusAbsPath,
+    wrote: writeJsonFileIfChanged(runtimeStatusAbsPath, syncedRuntimeStatus),
+  };
 }
 
 function main() {
@@ -222,12 +270,13 @@ function main() {
   const runtimeContext = loadDeclaredRuntimeContext(packetText);
   const expectedPacketStatus = expectedPacketStatusForTaskBoardStatus(status);
   const actualPacketStatus = parsePacketStatus(packetText);
+  const supersededSiblingProjection = isSupersededSiblingProjection({ wpId, status, packetText });
   const runtimePublication = readExecutionPublicationView({
     runtimeStatus: runtimeContext?.runtimeStatus || {},
     packetStatus: actualPacketStatus,
   });
   if (runtimePublication.has_canonical_authority && runtimePublication.task_board_status) {
-    if (status !== runtimePublication.task_board_status) {
+    if (status !== runtimePublication.task_board_status && !supersededSiblingProjection) {
       fail("TASK_BOARD status transition conflicts with canonical execution authority", [
         `wp_id=${wpId}`,
         `task_board_status=${status}`,
@@ -236,7 +285,7 @@ function main() {
         `packet_artifact_status=${actualPacketStatus || "<missing>"}`,
       ]);
     }
-  } else if (expectedPacketStatus && actualPacketStatus !== expectedPacketStatus) {
+  } else if (expectedPacketStatus && actualPacketStatus !== expectedPacketStatus && !supersededSiblingProjection) {
     fail("TASK_BOARD status transition conflicts with packet truth", [
       `wp_id=${wpId}`,
       `task_board_status=${status}`,
@@ -270,6 +319,12 @@ function main() {
   // Insert near end of section (keeps existing ordering stable).
   let insertIdx = section.endIdx;
 
+  // Keep the entry anchored to the actual section body instead of drifting downward
+  // through trailing blank lines on repeated idempotent writes.
+  while (insertIdx > (section.startIdx + 1) && String(lines[insertIdx - 1] || "").trim() === "") {
+    insertIdx -= 1;
+  }
+
   // Special-case: if the section contains a standalone horizontal rule at the top, keep it at the bottom
   // (treat it as a separator to the next section), and insert before it.
   {
@@ -292,16 +347,20 @@ function main() {
 
   // Ensure file ends with a newline.
   const out = lines.join(eol);
-  writeText(taskBoardAbsPath, out.endsWith(eol) ? out : out + eol);
-  const runtimeStatusFile = syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext, {
+  const nextTaskBoardText = out.endsWith(eol) ? out : out + eol;
+  const boardChanged = writeTextIfChanged(taskBoardAbsPath, nextTaskBoardText);
+  const runtimeSync = syncRuntimeProjectionIfDeclared(wpId, packetText, runtimeContext, {
     syncFromPacket: !runtimePublication.has_canonical_authority,
   });
 
   console.log("task-board-set ok");
   console.log(`- wp_id: ${wpId}`);
   console.log(`- status: ${status}`);
+  console.log(`- task_board_change: ${boardChanged ? "updated" : "no-op"}`);
+  if (supersededSiblingProjection) console.log("- superseded_history_projection: allowed");
   if (runtimePublication.has_canonical_authority) console.log("- runtime_authority: canonical");
-  if (runtimeStatusFile) console.log(`- runtime_synced: ${runtimeStatusFile}`);
+  if (runtimeSync?.filePath) console.log(`- runtime_synced: ${runtimeSync.filePath}`);
+  if (runtimeSync) console.log(`- runtime_change: ${runtimeSync.wrote ? "updated" : "no-op"}`);
 }
 
 main();

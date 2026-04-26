@@ -162,6 +162,7 @@ function runSessionControl(commandKind, args = []) {
   const result = spawnSync(process.execPath, [SESSION_CONTROL_COMMAND_PATH, commandKind, nextActor, wpId, ...args], {
     encoding: "utf8",
     env: sessionControlEnv,
+    windowsHide: true,
   });
   const output = `${result.stdout || ""}${result.stderr || ""}`;
   if (output) console.log(output.trimEnd());

@@ -84,6 +84,23 @@ test("critical integration-validator helper commands stay aligned across docs, p
   assert.equal(recipeExists(justfile, "wp-token-usage"), true);
 });
 
+test("windows-sensitive validator wrappers route variadic flags through node-argv-proxy", () => {
+  const justfile = fs.readFileSync(JUSTFILE_PATH, "utf8");
+
+  assert.ok(
+    justfile.includes('node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" --role {{role}} {{wp-id}} --raw-flags "{{FLAGS}}"'),
+    "validator-next must route variadic flags through node-argv-proxy",
+  );
+  assert.ok(
+    justfile.includes('node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs" {{wp-id}} --raw-flags "{{args}}"'),
+    "integration-validator-context-brief must route variadic flags through node-argv-proxy",
+  );
+  assert.ok(
+    justfile.includes('node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/checks/phase-check.mjs" {{phase}} {{wp-id}} {{role}} "{{session}}" --raw-flags "{{args}}"'),
+    "phase-check must route variadic flags through node-argv-proxy",
+  );
+});
+
 test("canonical main justfile preserves the governed WP command surface used by active worktrees", () => {
   const mainJustfile = readCanonicalMainJustfile();
   const requiredMainRecipes = [

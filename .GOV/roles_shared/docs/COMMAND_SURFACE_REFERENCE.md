@@ -180,9 +180,15 @@ These are safe starting points for orientation and health checks.
 
 ### Conversation memory (`just repomem`)
 
-- `just repomem open "<what this session is about>" [--role ROLE] [--wp WP-ID]`
+- `just repomem open "<what this session is about>" --role ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR --wp WP-ID`
   - `runtime-write`
-  - **MANDATORY** at session start. Creates session marker, writes SESSION_OPEN checkpoint. All mutation commands are blocked (via `repomem-gate`) until this runs. Content >=80 chars enforced. Shows prior session context on success.
+  - **MANDATORY** at WP-bound role session start. Creates SESSION_OPEN for the role and WP; missing `--role` or `--wp` fails closed for these roles. Content >=80 chars enforced. Shows prior session context on success.
+- `just repomem open "<what this session is about>" --role ORCHESTRATOR|CLASSIC_ORCHESTRATOR [--wp WP-ID]`
+  - `runtime-write`
+  - **MANDATORY** at coordinator session start. Use `--wp` whenever the session is bound to an active WP; coordinator work can start packetless when no WP exists yet.
+- `just repomem open "<what this session is about>" --role MEMORY_MANAGER`
+  - `runtime-write`
+  - Memory Manager is the packetless hygiene exception. It opens/closes its own repomem session but is excluded from normal WP repomem coverage debt; durable evidence is `MEMORY_*` receipts plus proposal backup files.
 - `just repomem pre "<about to do X because Y>" [--wp WP-ID] [--trigger "just cmd"]`
   - `runtime-write`
   - pre-task checkpoint before an action; content >=40 chars; requires active session
@@ -204,6 +210,9 @@ These are safe starting points for orientation and health checks.
 - `just repomem gate`
   - `read-only`
   - check if SESSION_OPEN exists; exits 1 if not; used by mutation commands as a blocking gate
+- `just repomem-gate`
+  - `read-only`
+  - thin recipe wrapper around `just repomem gate`; used internally by mutation recipes before state-changing commands
 
 ### Mutation commands requiring `context` parameter
 
@@ -343,7 +352,7 @@ For orchestrator-managed lanes after signature/prepare:
 - routine Operator asks such as "proceed", checkpoint approval, or generic approval relapse are invalid
 - real escalations must name one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`
 - legacy pre-launch repair may still surface `LEGACY_SIGNATURE_TUPLE_REPAIR` from `just orchestrator-next`
-- if the Operator explicitly authorizes bounded continuation after `TOKEN_BUDGET_EXCEEDED`, record it in the packet `## WAIVERS GRANTED` section as an active `GOVERNANCE` waiver that explicitly mentions `TOKEN_BUDGET_EXCEEDED` or `POLICY_CONFLICT`; `just orchestrator-next` may then continue while still surfacing the waiver in resume output
+- token budget and token-ledger drift remain visible in `just orchestrator-next`, `just session-registry-status`, and `just wp-token-usage`, but they are diagnostic-only cost telemetry and do not require a continuation waiver to keep the WP moving
 
 If a role keeps needing those rereads:
 
@@ -421,8 +430,8 @@ These mutate packet, board, traceability, or related governed surfaces.
 - `just record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
   - `governance-write`
   - orchestrator-owned workflow state writes
-  - `record-role-model-profiles` is the explicit per-role model/CLI policy gate for new packet families; omit args to record deliberate defaults (`OPENAI_GPT_5_4_XHIGH` for all roles, including Activation Manager when no explicit override is declared)
-  - `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is a supported governed runtime profile and can be selected explicitly for Activation Manager, coder, or validator lanes when the packet or stub declares it
+  - `record-role-model-profiles` is the explicit per-role model/CLI policy gate for new packet families; omit args to record deliberate defaults (`OPENAI_GPT_5_5_XHIGH` for all roles, including Activation Manager when no explicit override is declared)
+  - `CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH` and `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` are supported governed runtime profiles and can be selected explicitly for Activation Manager, coder, or validator lanes when the packet or stub declares them
 - `just create-task-packet WP-{ID}`
   - `governance-write`
   - packet creation from the template
@@ -448,14 +457,14 @@ These mutate packet, board, traceability, or related governed surfaces.
   - create or reuse the live workflow dossier under `.GOV/Audits/smoketest/` with the current ACP/session-control snapshot
 - `just workflow-dossier-note WP-{ID} <EXECUTION|GOV_CHANGE|CONCERN|FINDING> "<summary>" [--role ROLE] [--tag TAG] [--surface SURFACE]`
   - `governance-write`
-  - append a typed line into the live workflow dossier without manual markdown editing
+  - append a typed line into the live workflow dossier without manual markdown editing; Orchestrator notes land in `LIVE_ORCHESTRATOR_DIAGNOSTIC_LOG` near the top, newest-first
 - `just workflow-dossier-sync WP-{ID} [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]`
   - `governance-write`
-  - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_EXECUTION_LOG` and a latency/drift ledger line into `LIVE_IDLE_LEDGER`
+  - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_ACP_SESSION_TRACE` at EOF and a latency/drift ledger line into `LIVE_IDLE_LEDGER`
   - the execution snapshot now includes per-lane ACP activity summaries so the Orchestrator can compare idle gaps against actual session output before waking a role
 - `just workflow-dossier-inject-repomem WP-{ID} [--debug]`
   - `governance-write`
-  - backfill governance-memory session-open, pre-task, insight, and session-close entries into the active workflow dossier without manual copy/paste
+  - append the complete WP-bound governance-memory snapshot into `CLOSEOUT_REPOMEM_IMPORT` without manual copy/paste; import failures are diagnostic debt, not product outcome blockers
 - `just workflow-dossier-autofill-costs WP-{ID} [--debug]`
   - `governance-write`
   - backfill cost and token rollups into the active workflow dossier from the authoritative runtime and session telemetry surfaces
@@ -484,15 +493,16 @@ For Orchestrator-managed WPs, this ACP/CLI session surface is the required norma
 For an active orchestrator-managed WP, helper agents/subagents are not allowed to perform coder, validator, or in-lane review/steering duties. Governed ACP sessions are the only legal execution lanes for `ACTIVATION_MANAGER`, `CODER`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR`.
 If the Operator explicitly authorizes separate governance-only helper work outside the active lane, keep it isolated and do not let it write product code unless the packet records `SUB_AGENT_DELEGATION: ALLOWED` plus exact `OPERATOR_APPROVAL_EVIDENCE`.
 
-- `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-coder-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-activation-manager-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+- `just launch-coder-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
 - `just launch-wp-validator-session WP-{ID} ...`
 - `just launch-integration-validator-session WP-{ID} ...`
   - `runtime-write`
   - launch/bootstrap lane
   - `AUTO` is the ordinary headless/direct ACP launch path
-  - `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
-  - `VSCODE_PLUGIN` is a compatibility-only host; `AUTO` no longer queues the bridge before starting ACP
+  - `CURRENT` is disabled for governed role launches because it can capture Operator keyboard input
+  - `SYSTEM_TERMINAL` is an explicit hidden-process repair surface; it must not open or focus a visible window
+  - `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy; use `AUTO`
   - Activation Manager is the mandatory governed pre-launch lane for orchestrator-managed workflow; manual workflow keeps pre-launch on the Orchestrator
   - if `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, launch Activation Manager first and do not begin governed coder/validator launch until it has produced truthful `ACTIVATION_READINESS`
   - on orchestrator-managed lanes, Activation Manager executes refinement/spec-enrichment, packet creation, microtask setup, worktree preparation, backup-branch preparation, and pre-launch health checks, but Orchestrator retains operator approval handling, coder selection, governance patching, readiness acceptance, and relaunch decisions
@@ -523,7 +533,7 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just close-wp-validator-session WP-{ID}`
 - `just close-integration-validator-session WP-{ID}`
   - `runtime-write`
-  - retire steerable thread registration for that lane and attempt deterministic reclaim of any governed system-terminal window owned by that exact session
+  - retire steerable thread registration for that lane and attempt deterministic reclaim of any governed hidden repair process owned by that exact session
 - Generic wrappers:
 - `just session-start <ROLE> WP-{ID} [PRIMARY|FALLBACK]`
 - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
@@ -531,13 +541,13 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
 - `just session-close <ROLE> WP-{ID}`
     - `<ROLE>` may now be `ACTIVATION_MANAGER`, `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`
     - these governed helpers now attempt deterministic self-settlement for their own request ids when a broker dispatch or wait path returns without a terminal result row
-    - `session-start` / `session-send` print a machine-readable `outcome_state=` line so operator/orchestrator surfaces can distinguish `ALREADY_READY`, `BUSY_ACTIVE_RUN`, `REQUIRES_START`, and `REQUIRES_RECOVERY` from generic `FAILED`
+    - `session-start` / `session-send` print a machine-readable `outcome_state=` line so operator/orchestrator surfaces can distinguish accepted transport states such as `ACCEPTED_RUNNING` and `ACCEPTED_QUEUED`, steady-state conditions such as `ALREADY_READY`, and rejection/recovery states such as `BUSY_ACTIVE_RUN`, `REQUIRES_START`, and `REQUIRES_RECOVERY` from generic `FAILED`
     - if a stale same-session broker run only lingers because its child process died or its timeout already expired, the broker now repairs that stale run inside the same request path before returning `BUSY_ACTIVE_RUN`
     - before refusing a broker restart because `active_runs` still exist, the ACP client now prunes/self-settles recoverable broker-state residue so only truly live active runs block restart
     - `session-start` now waits briefly for READY after a `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY` outcome and settles as `ALREADY_READY` when the role was already becoming steerable in the same attempt
 - `just session-reclaim-terminals WP-{ID} [ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
   - `runtime-write`
-  - manual repair helper that reclaims only registry-owned governed system-terminal windows for the selected WP/session scope; it defaults to `CURRENT_BATCH` so older batch windows are left alone unless `ALL_BATCHES` or an exact `BATCH_ID` is requested
+  - manual repair helper that reclaims only registry-owned governed hidden repair processes for the selected WP/session scope; it defaults to `CURRENT_BATCH` so older batch processes are left alone unless `ALL_BATCHES` or an exact `BATCH_ID` is requested
 
 ## Packet communication surface
 
@@ -581,7 +591,7 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - `STARTUP`: is the canonical startup/bootstrapping gate; for `CODER` it owns the packet/startup proof that used to live behind `pre-work`, and for validator roles it proves the startup communication mesh before productive work starts
   - `HANDOFF`: proves coder closure or validator handoff readiness from one phase artifact, depending on role
   - `VERDICT`: proves the final review communication boundary from one phase artifact
-  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and appends the mechanical closeout trace into the active Workflow Dossier
+  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot. Dossier debt is diagnostic only.
 - `just closeout-repair WP-{ID} [--dry-run] [--debug]`
   - `governance-write`
   - mechanical closeout pre-repair surface owned by the Orchestrator

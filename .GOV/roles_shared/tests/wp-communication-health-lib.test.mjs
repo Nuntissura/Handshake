@@ -2111,6 +2111,73 @@ test("contained-main terminal closeout collapses verdict progression to NONE/CLO
   assert.equal(boundary.ok, true);
 });
 
+test("terminal verdict fence suppresses stale route anchors and open review residue", () => {
+  const input = baseInput({
+    receipts: [],
+    runtimeStatus: {
+      runtime_status: "working",
+      current_phase: "VALIDATION",
+      current_milestone: "VERDICT",
+      current_packet_status: "Validated (FAIL)",
+      current_task_board_status: "DONE_FAIL",
+      next_expected_actor: "WP_VALIDATOR",
+      next_expected_session: "wpv-stale",
+      waiting_on: "WP_VALIDATOR_REVIEW",
+      waiting_on_session: "wpv-stale",
+      validator_trigger: "BLOCKED_NEEDS_VALIDATOR",
+      validator_trigger_reason: "stale review boundary",
+      ready_for_validation: true,
+      ready_for_validation_reason: "stale review boundary",
+      attention_required: true,
+      route_anchor_state: "COMM_BLOCKED_OPEN_ITEMS",
+      route_anchor_kind: "VALIDATOR_REVIEW",
+      route_anchor_correlation_id: "review-stale",
+      route_anchor_target_role: "WP_VALIDATOR",
+      route_anchor_target_session: "wpv-stale",
+      open_review_items: [
+        {
+          receipt_kind: "VALIDATOR_REVIEW",
+          correlation_id: "review-stale",
+          target_role: "WP_VALIDATOR",
+          target_session: "wpv-stale",
+          summary: "stale final-lane review residue",
+        },
+      ],
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: null,
+  });
+  const boundary = evaluateWpCommunicationBoundary({
+    stage: "VERDICT",
+    statusEvaluation: evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: null,
+    pendingNotifications: [
+      {
+        source_kind: "AUTO_ROUTE",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-stale",
+        correlation_id: "review-stale",
+      },
+    ],
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.match(evaluation.message, /Terminal verdict-of-record fences/);
+  assert.equal(route.nextExpectedActor, "NONE");
+  assert.equal(route.waitingOn, "CLOSED");
+  assert.equal(route.routeAnchor, null);
+  assert.equal(route.notification, null);
+  assert.equal(boundary.ok, true, JSON.stringify(boundary, null, 2));
+  assert.deepEqual(boundary.boundaryNotifications, []);
+});
+
 test("active notification projection keeps only the live route notification for the current correlation", () => {
   const input = baseInput({
     receipts: [

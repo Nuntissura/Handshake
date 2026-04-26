@@ -324,9 +324,9 @@ function normalizePendingControlQueueEntry(entry = {}) {
     action_surface: entry?.action_surface || entry?.governed_action?.action_surface || "SESSION_CONTROL",
     command_kind: commandKind,
     command_id: commandId,
-    action_state: entry?.action_state || entry?.governed_action?.action_state || "REQUESTED",
+    action_state: entry?.action_state || entry?.governed_action?.action_state || "ACCEPTED_QUEUED",
     status: entry?.status || entry?.governed_action?.status || "QUEUED",
-    outcome_state: entry?.outcome_state || entry?.governed_action?.outcome_state || "",
+    outcome_state: entry?.outcome_state || entry?.governed_action?.outcome_state || "ACCEPTED_QUEUED",
     resume_disposition: entry?.resume_disposition || entry?.governed_action?.resume_disposition || "PENDING",
     target_command_id: entry?.target_command_id || entry?.governed_action?.target_command_id || "",
     reason_code: entry?.reason_code || entry?.governed_action?.reason_code || "",
@@ -384,6 +384,9 @@ export function enqueuePendingSessionControlRequest(session, request, {
     blocking_command_id: blockingCommandId,
     queued_at: queuedAt || request?.created_at || nowIso(),
     updated_at: queuedAt || request?.created_at || nowIso(),
+    action_state: "ACCEPTED_QUEUED",
+    status: "QUEUED",
+    outcome_state: "ACCEPTED_QUEUED",
     governed_action: request?.governed_action || {},
   });
   if (!normalizedEntry) return null;
@@ -991,8 +994,9 @@ export function markSessionCommandQueued(session, command) {
   upsertSessionActionHistory(session, command.governed_action, {
     command_id: command.command_id,
     command_kind: command.command_kind,
-    action_state: "REQUESTED",
+    action_state: "ACCEPTED_QUEUED",
     status: "QUEUED",
+    outcome_state: "ACCEPTED_QUEUED",
     summary: command.summary || command.governed_action?.summary || "",
     requested_at: command.created_at || nowIso(),
     updated_at: command.created_at || nowIso(),
@@ -1016,8 +1020,9 @@ export function markSessionCommandRunning(session, command) {
   upsertSessionActionHistory(session, command.governed_action, {
     command_id: command.command_id,
     command_kind: command.command_kind,
-    action_state: "ACCEPTED_PENDING",
+    action_state: "ACCEPTED_RUNNING",
     status: "RUNNING",
+    outcome_state: "ACCEPTED_RUNNING",
     summary: command.summary || command.governed_action?.summary || "",
     requested_at: command.created_at || nowIso(),
     updated_at: session.last_event_at,

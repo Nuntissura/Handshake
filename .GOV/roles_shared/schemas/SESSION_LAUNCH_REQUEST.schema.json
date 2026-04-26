@@ -69,9 +69,11 @@
     },
     "role": {
       "enum": [
+        "ACTIVATION_MANAGER",
         "CODER",
         "WP_VALIDATOR",
-        "INTEGRATION_VALIDATOR"
+        "INTEGRATION_VALIDATOR",
+        "MEMORY_MANAGER"
       ]
     },
     "session_key": {
@@ -91,18 +93,28 @@
     },
     "selected_model": {
       "enum": [
+        "gpt-5.5",
         "gpt-5.4",
-        "gpt-5.2"
+        "gpt-5.2",
+        "gpt-5.3-codex-spark",
+        "claude-opus-4-7",
+        "claude-opus-4-6",
+        "qwen2.5-coder:7b",
+        "qwen2.5-coder:14b"
       ]
     },
     "selected_profile_id": {
       "type": "string"
     },
     "reasoning_config_key": {
-      "const": "model_reasoning_effort"
+      "enum": [
+        "model_reasoning_effort",
+        "effort",
+        "temperature"
+      ]
     },
     "reasoning_config_value": {
-      "const": "xhigh"
+      "type": "string"
     },
     "startup_command": {
       "type": "string"

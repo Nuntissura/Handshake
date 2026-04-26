@@ -487,6 +487,27 @@ export function comparePrepareAgainstPacketTruth(packetContent, prepareEntry, re
   };
 }
 
+function isSupersedingPrepareRolloverIssue(issue = "") {
+  return /Official packet LOCAL_BRANCH conflicts with PREPARE|Official packet LOCAL_WORKTREE_DIR conflicts with PREPARE/i.test(
+    String(issue || ""),
+  );
+}
+
+export function evaluateSupersedingPrepareRollover(packetContent, lastPrepareEntry, candidatePrepareEntry, referenceRepoRoot) {
+  const previousPrepareComparison = comparePrepareAgainstPacketTruth(packetContent, lastPrepareEntry, referenceRepoRoot);
+  const candidatePrepareComparison = comparePrepareAgainstPacketTruth(packetContent, candidatePrepareEntry, referenceRepoRoot);
+  const rolloverIssues = previousPrepareComparison.issues.filter((issue) => isSupersedingPrepareRolloverIssue(issue));
+  const blockingIssues = previousPrepareComparison.issues.filter((issue) => !isSupersedingPrepareRolloverIssue(issue));
+
+  return {
+    allowRollover: candidatePrepareComparison.ok && rolloverIssues.length > 0 && blockingIssues.length === 0,
+    previousPrepareComparison,
+    candidatePrepareComparison,
+    rolloverIssues,
+    blockingIssues,
+  };
+}
+
 export function preparePacketTruthState(wpId, prepareEntry, referenceRepoRoot) {
   const filePath = packetPathAtRepo(wpId, referenceRepoRoot);
   const packetContent = loadPacketAtRepo(wpId, referenceRepoRoot);
@@ -506,6 +527,7 @@ export function preparePacketTruthState(wpId, prepareEntry, referenceRepoRoot) {
     wpId,
     packetPresent: true,
     packetPath: filePath,
+    packetContent,
   };
 }
 

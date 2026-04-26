@@ -42,6 +42,7 @@ import { GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../../.
 import { settleRecoverableSessionControlResults } from "../../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 import { parseJsonFile } from "../../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { readExecutionPublicationView } from "../../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
+import { evaluateWpRepomemCoverage } from "../../../../roles_shared/scripts/memory/repomem-coverage-lib.mjs";
 import {
   buildGovernedActionResult,
   summarizeGovernedAction,
@@ -681,6 +682,7 @@ export function evaluateIntegrationValidatorCloseoutState({
   requests = null,
   results = null,
   brokerState = null,
+  repomemCoverage = null,
 } = {}) {
   const resolvedRequests = Array.isArray(requests)
     ? requests
@@ -732,6 +734,14 @@ export function evaluateIntegrationValidatorCloseoutState({
       ok: false,
       errors: ["candidate target validation requires committed target_head_sha"],
     };
+  const resolvedRepomemCoverage = repomemCoverage || evaluateWpRepomemCoverage({
+    repoRoot,
+    wpId,
+    packetContent,
+    sessions: resolvedSessions,
+    controlRequests: resolvedRequests,
+    controlResults: resolvedResults,
+  });
   const dependencyView = buildCloseoutDependencyView({
     packetContent,
     closeoutRequirements: {
@@ -743,15 +753,19 @@ export function evaluateIntegrationValidatorCloseoutState({
     closeoutBundle,
     scopeCompatibility,
     candidateSignedScope,
+    repomemCoverage: resolvedRepomemCoverage,
   });
 
   return {
     ok: dependencyView.ok,
+    productOutcomeOk: dependencyView.outcome_ok,
     topology,
     closeoutBundle,
     scopeCompatibility,
     candidateSignedScope,
+    repomemCoverage: resolvedRepomemCoverage,
     dependencyView,
+    governanceDebtKeys: dependencyView.governance_debt_keys,
     issues: [
       ...topology.issues,
       ...closeoutBundle.issues,
@@ -904,11 +918,17 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     scopeCompatibility: evaluation.scopeCompatibility,
     candidateSignedScope: evaluation.candidateSignedScope,
     closeoutSyncGovernance,
+    repomemCoverage: evaluation.repomemCoverage,
   });
 
   if (!evaluation.ok) {
     return integrationValidatorCloseoutFailure("Integration-validator topology or closeout bundle is not ready", [
       `dependency_summary=${closeoutDependencyView.summary}`,
+      `verdict_of_record=${closeoutDependencyView.publication.verdict_of_record}`,
+      `settlement_state=${closeoutDependencyView.settlement.state}`,
+      `settlement_blockers=${closeoutDependencyView.settlement.blockers.join(",") || "none"}`,
+      `product_outcome_blockers=${closeoutDependencyView.product_outcome_blocking_keys.join(",") || "none"}`,
+      `governance_debt=${closeoutDependencyView.governance_debt_keys.join(",") || "none"}`,
       ...closeoutDependencyView.blocking_keys.map((key) =>
         `blocking_dependency.${key}=${closeoutDependencyView.dependencies[key]?.summary || "UNKNOWN"}`
       ),
@@ -925,7 +945,11 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     details: [
       `dependency_summary=${closeoutDependencyView.summary}`,
       `publication_mode=${closeoutDependencyView.publication.closeout_mode}`,
-      `publication_verdict=${closeoutDependencyView.publication.validation_verdict}`,
+      `publication_verdict=${closeoutDependencyView.publication.verdict_of_record}`,
+      `settlement_state=${closeoutDependencyView.settlement.state}`,
+      `settlement_blockers=${closeoutDependencyView.settlement.blockers.join(",") || "none"}`,
+      `product_outcome_blockers=${closeoutDependencyView.product_outcome_blocking_keys.join(",") || "none"}`,
+      `governance_debt=${closeoutDependencyView.governance_debt_keys.join(",") || "none"}`,
       `publication_main_containment=${closeoutDependencyView.publication.main_containment_status}`,
       `target_head_sha=${evaluation.topology.targetHeadSha || "<unknown>"}`,
       `current_main_head_sha=${evaluation.topology.currentMainHeadSha || "<unknown>"}`,
@@ -934,6 +958,7 @@ export function buildIntegrationValidatorCloseoutCheckResult({
       `dependency.scope_compatibility=${closeoutDependencyView.dependencies.scope_compatibility.status}:${closeoutDependencyView.dependencies.scope_compatibility.summary}`,
       `dependency.candidate_target=${closeoutDependencyView.dependencies.candidate_target.status}:${closeoutDependencyView.dependencies.candidate_target.summary}`,
       `dependency.sync_provenance=${closeoutDependencyView.dependencies.sync_provenance.status}:${closeoutDependencyView.dependencies.sync_provenance.summary}`,
+      `dependency.repomem_coverage=${closeoutDependencyView.dependencies.repomem_coverage.status}:${closeoutDependencyView.dependencies.repomem_coverage.summary}`,
       `sync_repair_mode=${allowSyncRepair ? "ENABLED" : "DISABLED"}`,
       `require_ready_for_pass=${closeoutRequirements.requireReadyForPass ? "YES" : "NO"}`,
       `terminal_non_pass_packet=${closeoutRequirements.terminalNonPass ? "YES" : "NO"}`,

@@ -1,9 +1,13 @@
 import { parsePacketStatus } from "./wp-authority-projection-lib.mjs";
+import { readVerdictSettlementTruth } from "./merge-progression-truth-lib.mjs";
 import {
-  inferExecutionCloseoutMode,
   inferValidationVerdictFromPublication,
   readExecutionPublicationView,
 } from "./wp-execution-state-lib.mjs";
+import {
+  authorityClassForCloseoutDependency,
+  dependencyBlocksProductOutcome,
+} from "./closeout-blocking-authority-lib.mjs";
 
 function normalizeText(value, fallback = "") {
   const text = String(value || "").trim();
@@ -21,17 +25,78 @@ function countSummary(name, value) {
   return `${name}=${Number(value || 0)}`;
 }
 
+function uniqueStrings(values = []) {
+  return [...new Set(
+    (Array.isArray(values) ? values : [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  )];
+}
+
 function dependencyEntry({
   key,
   required,
   status,
   summary,
 } = {}) {
+  const normalizedKey = normalizeText(key);
+  const normalizedStatus = normalizeText(status, "UNKNOWN");
+  const requiredFailure = Boolean(required) && normalizedStatus === "FAIL";
+  const productOutcomeBlocker = dependencyBlocksProductOutcome({
+    key: normalizedKey,
+    required,
+    status: normalizedStatus,
+  });
   return {
-    key,
+    key: normalizedKey,
     required: Boolean(required),
-    status: normalizeText(status, "UNKNOWN"),
+    status: normalizedStatus,
     summary: normalizeText(summary, "No summary available."),
+    authority_class: authorityClassForCloseoutDependency(normalizedKey),
+    blocks_product_outcome: productOutcomeBlocker,
+    blocking_disposition: !requiredFailure
+      ? "NONE"
+      : (productOutcomeBlocker ? "OUTCOME_BLOCKER" : "SETTLEMENT_DEBT"),
+  };
+}
+
+function normalizeRepomemCoverage(repomemCoverage = null) {
+  const state = normalizeText(repomemCoverage?.state, "UNASSESSED");
+  const activeRoles = Array.isArray(repomemCoverage?.active_roles) ? repomemCoverage.active_roles : [];
+  const debtRoles = Array.isArray(repomemCoverage?.debt_roles) ? repomemCoverage.debt_roles : [];
+  const debtKeys = Array.isArray(repomemCoverage?.debt_keys) ? repomemCoverage.debt_keys : [];
+  if (repomemCoverage?.summary) {
+    return {
+      state,
+      dependencyStatus: state === "NO_ACTIVE_ROLES" ? "NO_ACTIVITY" : state,
+      summary: repomemCoverage.summary,
+    };
+  }
+  if (state === "NO_ACTIVE_ROLES") {
+    return {
+      state,
+      dependencyStatus: "NO_ACTIVITY",
+      summary: "No materially active roles were detected for this WP.",
+    };
+  }
+  if (state === "PASS") {
+    return {
+      state,
+      dependencyStatus: "PASS",
+      summary: `state=PASS | active_roles=${activeRoles.join(",") || "none"} | debt_keys=none`,
+    };
+  }
+  if (state === "DEBT") {
+    return {
+      state,
+      dependencyStatus: "DEBT",
+      summary: `state=DEBT | active_roles=${activeRoles.join(",") || "none"} | debt_roles=${debtRoles.join(",") || "none"} | debt_keys=${debtKeys.join(",") || "none"}`,
+    };
+  }
+  return {
+    state,
+    dependencyStatus: "UNASSESSED",
+    summary: "Repomem coverage was not assessed for this closeout view.",
   };
 }
 
@@ -45,22 +110,13 @@ export function buildCloseoutDependencyView({
   scopeCompatibility = {},
   candidateSignedScope = {},
   closeoutSyncGovernance = {},
+  repomemCoverage = null,
 } = {}) {
   const packetStatusArtifact = parsePacketStatus(packetContent);
   const publication = readExecutionPublicationView({
     runtimeStatus,
     packetStatus: packetStatusArtifact,
     taskBoardStatus,
-  });
-  const validationVerdict = inferValidationVerdictFromPublication({
-    packetStatus: publication.packet_status || packetStatusArtifact,
-    taskBoardStatus: publication.task_board_status || taskBoardStatus,
-  });
-  const closeoutMode = inferExecutionCloseoutMode({
-    packetStatus: publication.packet_status || packetStatusArtifact,
-    taskBoardStatus: publication.task_board_status || taskBoardStatus,
-    mainContainmentStatus: publication.runtime?.main_containment_status || "",
-    fallbackVerdict: validationVerdict,
   });
   const requirements = {
     requireReadyForPass: Boolean(closeoutRequirements?.requireReadyForPass),
@@ -73,6 +129,11 @@ export function buildCloseoutDependencyView({
   const candidateErrors = Array.isArray(candidateSignedScope?.errors) ? candidateSignedScope.errors : [];
   const latestEvent = closeoutSyncGovernance?.latestEvent || null;
   const latestGovernedAction = closeoutSyncGovernance?.latestGovernedAction || null;
+  const latestEventSettlementDebtKeys = uniqueStrings(latestEvent?.settlement_debt_keys);
+  const latestEventSettlementDebtSummaries = Array.isArray(latestEvent?.settlement_debt_summaries)
+    ? latestEvent.settlement_debt_summaries.map((value) => normalizeText(value)).filter(Boolean)
+    : [];
+  const normalizedRepomemCoverage = normalizeRepomemCoverage(repomemCoverage);
 
   const dependencies = {
     topology: dependencyEntry({
@@ -135,35 +196,105 @@ export function buildCloseoutDependencyView({
             `mode=${normalizeText(latestEvent?.mode, "NONE")}`,
             `governed_action=${normalizeText(latestGovernedAction?.rule_id, "NONE")}`,
             `recorded_at=${normalizeText(latestGovernedAction?.updated_at || latestEvent?.timestamp_utc, "<missing>")}`,
+            `settlement_debt=${latestEventSettlementDebtKeys.join(",") || "none"}`,
           ].join(" | ")
         : "No governed closeout sync provenance is recorded yet.",
+    }),
+    repomem_coverage: dependencyEntry({
+      key: "repomem_coverage",
+      required: false,
+      status: normalizedRepomemCoverage.dependencyStatus,
+      summary: normalizedRepomemCoverage.summary,
     }),
   };
 
   const blockingKeys = Object.values(dependencies)
     .filter((dependency) => dependency.required && dependency.status === "FAIL")
     .map((dependency) => dependency.key);
+  const productOutcomeBlockingKeys = Object.values(dependencies)
+    .filter((dependency) => dependency.blocks_product_outcome)
+    .map((dependency) => dependency.key);
+  const dependencyGovernanceDebtSummaries = Object.values(dependencies)
+    .filter((dependency) => dependency.blocking_disposition === "SETTLEMENT_DEBT")
+    .map((dependency) => ({ key: dependency.key, summary: dependency.summary }));
+  const governanceDebtSummaryMap = new Map(
+    dependencyGovernanceDebtSummaries.map((entry) => [entry.key, entry.summary]),
+  );
+  latestEventSettlementDebtKeys.forEach((key, index) => {
+    governanceDebtSummaryMap.set(
+      key,
+      latestEventSettlementDebtSummaries[index] || governanceDebtSummaryMap.get(key) || key,
+    );
+  });
+  const governanceDebtKeys = uniqueStrings([
+    ...dependencyGovernanceDebtSummaries.map((entry) => entry.key),
+    ...latestEventSettlementDebtKeys,
+  ]);
+  const verdictSettlement = readVerdictSettlementTruth({
+    packetText: packetContent,
+    runtimeStatus,
+    taskBoardStatus,
+    blockingKeys,
+  });
+  const validationVerdict = verdictSettlement.verdictOfRecord
+    || inferValidationVerdictFromPublication({
+      packetStatus: publication.packet_status || packetStatusArtifact,
+      taskBoardStatus: publication.task_board_status || taskBoardStatus,
+    });
+  const closeoutMode = verdictSettlement.closeoutMode;
+  const settlementBlockers = verdictSettlement.terminalPublicationRecorded
+    ? []
+    : verdictSettlement.settlementBlockers;
+  const settlementBlockerSummaries = settlementBlockers.map((blocker) => {
+    if (blocker === "TERMINAL_PUBLICATION_PENDING") {
+      return "Final closeout publication has not been recorded yet.";
+    }
+    if (governanceDebtSummaryMap.has(blocker)) {
+      return governanceDebtSummaryMap.get(blocker);
+    }
+    return dependencies[String(blocker || "").trim().toLowerCase()]?.summary || blocker;
+  });
 
   return {
     ok: blockingKeys.length === 0,
+    outcome_ok: productOutcomeBlockingKeys.length === 0,
     publication: {
       has_canonical_authority: Boolean(publication?.has_canonical_authority),
       packet_status: normalizeText(publication?.packet_status, "<missing>"),
       task_board_status: normalizeText(publication?.task_board_status, "<missing>"),
       validation_verdict: normalizeText(validationVerdict, "UNKNOWN"),
+      verdict_of_record: normalizeText(verdictSettlement.verdictOfRecord, "UNKNOWN"),
+      verdict_recorded_at_utc: normalizeText(verdictSettlement.verdictRecordedAtUtc, "UNKNOWN"),
+      verdict_actor_role: normalizeText(verdictSettlement.verdictActorRole, "UNKNOWN"),
+      verdict_actor_session: normalizeText(verdictSettlement.verdictActorSession, "UNKNOWN"),
+      verdict_evidence_pointer: normalizeText(verdictSettlement.verdictEvidencePointer, "UNKNOWN"),
       main_containment_status: normalizeText(publication?.runtime?.main_containment_status, "UNKNOWN"),
       merged_main_commit: normalizeText(publication?.runtime?.merged_main_commit, "<missing>"),
-      closeout_mode: normalizeText(closeoutMode?.mode, "UNSET"),
+      closeout_mode: normalizeText(closeoutMode, "UNSET"),
       packet_projection_drift: Boolean(publication?.packet_projection_drift),
       task_board_projection_drift: Boolean(publication?.task_board_projection_drift),
+    },
+    settlement: {
+      state: normalizeText(verdictSettlement.settlementState, "VERDICT_PENDING"),
+      blockers: settlementBlockers,
+      blocker_summaries: settlementBlockerSummaries,
+      blocker_count: settlementBlockers.length,
+      terminal_publication_recorded: Boolean(verdictSettlement.terminalPublicationRecorded),
     },
     requirements,
     dependencies,
     blocking_keys: blockingKeys,
+    product_outcome_blocking_keys: productOutcomeBlockingKeys,
+    governance_debt_keys: governanceDebtKeys,
+    governance_debt_summaries: governanceDebtKeys.map((key) => governanceDebtSummaryMap.get(key) || key),
     summary: [
-      `mode=${normalizeText(closeoutMode?.mode, "UNSET")}`,
+      `mode=${normalizeText(closeoutMode, "UNSET")}`,
       `verdict=${normalizeText(validationVerdict, "UNKNOWN")}`,
-      `blockers=${blockingKeys.length > 0 ? blockingKeys.join(",") : "none"}`,
+      `settlement=${normalizeText(verdictSettlement.settlementState, "VERDICT_PENDING")}`,
+      `blockers=${settlementBlockers.length > 0 ? settlementBlockers.join(",") : "none"}`,
+      `outcome_blockers=${productOutcomeBlockingKeys.length > 0 ? productOutcomeBlockingKeys.join(",") : "none"}`,
+      `governance_debt=${governanceDebtKeys.length > 0 ? governanceDebtKeys.join(",") : "none"}`,
+      `repomem=${dependencies.repomem_coverage.status}`,
     ].join(" | "),
   };
 }

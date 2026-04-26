@@ -73,6 +73,9 @@ Rule:
 - `just memory-patterns` â€” cross-WP pattern synthesis â†’ governance improvement candidates
 - `just memory-refresh --force-compact` â€” force extraction + compaction cycle
 
+- `just repomem open "<session purpose>" --role ROLE --wp WP-{ID}` - required SESSION_OPEN for WP-bound roles before governed mutation
+- `just repomem-gate` - internal/session guard used by mutation recipes to require an open repomem session
+
 Pre-task snapshots are captured automatically at: WP delegation, steering, relay dispatch, packet creation, closeout, board status change.
 
 ## Governance vs Product Checks
@@ -89,13 +92,13 @@ Product-scanning / product-boundary enforcement:
 
 ## Session Host + Operator Monitor
 
-- Prefer the governed headless ACP lane for ordinary multi-session work. Use visible terminals only when the Orchestrator intentionally selects a repair/compatibility host.
-- Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs record per-role model profiles explicitly. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` may be declared, but governed launch stays fail-closed until runtime support exists.
+- Prefer the governed headless ACP lane for ordinary multi-session work. Governed role launch and steering must not focus visible terminals; `SYSTEM_TERMINAL` repair is hidden and `VSCODE_PLUGIN` is disabled.
+- Do not rely on ambient editor defaults for repo-governed session model choice or reasoning strength. New packets/stubs record per-role model profiles explicitly. Repo defaults are `OPENAI_GPT_5_5_XHIGH` primary and `OPENAI_GPT_5_4_XHIGH` fallback; `OPENAI_GPT_5_2_XHIGH` remains a supported legacy fallback. `CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH` and `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` are governed ACP runtime profiles.
 - Repo-governed role-session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is headless/direct ACP launch over the external repo-governance runtime root (default repo-relative: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
-- The VS Code bridge launch queue remains a compatibility surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`); treat it as explicit `VSCODE_PLUGIN` repair state, not ordinary launch truth.
+- The VS Code bridge launch queue remains a legacy readable surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`); new governed role launches must not queue `VSCODE_PLUGIN`.
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
-- `SYSTEM_TERMINAL` and `CURRENT` are repair-only surfaces, not the ordinary launch path.
+- `CURRENT` is disabled for governed role launches. `SYSTEM_TERMINAL` is a hidden-process repair surface, not a visible terminal.
 - Recommended VS Code tabs:
   - `ORCH`
   - `CODER <WP_ID>`
@@ -146,18 +149,20 @@ Primary commands:
 - `just workflow-dossier-sync WP-... [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]`
 - `just workflow-dossier-inject-repomem WP-... [--debug]`
 - `just workflow-dossier-autofill-costs WP-... [--debug]`
+- dossier writes are diagnostic-only: Orchestrator notes prepend near the top, ACP/session-control traces append at EOF, and terminal repomem imports append at EOF after ACP lanes settle
 - `just orchestrator-prepare-and-packet` now seeds the live workflow dossier automatically; use `workflow-dossier-init` only for repair or manual re-seeding
 - `just coder-worktree-add WP-...`
 - `just wp-validator-worktree-add WP-...`
 - `just integration-validator-worktree-add WP-...`
-- `just launch-activation-manager-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-activation-manager-session WP-... [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
 - for `ORCHESTRATOR_MANAGED`, launch Activation Manager first and wait for truthful `ACTIVATION_READINESS` before governed coder/validator launch
-- `just launch-coder-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-wp-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
-- `just launch-integration-validator-session WP-... [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]`
+- `just launch-coder-session WP-... [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+- `just launch-wp-validator-session WP-... [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+- `just launch-integration-validator-session WP-... [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
 - `AUTO` is the ordinary headless/direct ACP launch path
-- `CURRENT` and `SYSTEM_TERMINAL` are explicit repair surfaces
-- `VSCODE_PLUGIN` is compatibility-only
+- `CURRENT` is disabled for governed role launches because it can capture Operator keyboard input
+- `SYSTEM_TERMINAL` is an explicit hidden-process repair surface and must not open or focus a visible window
+- `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy
 - `just activation-manager next WP-...`
 - `just activation-manager readiness WP-... --write`
 - `just manual-relay-next WP-... [--debug]`
@@ -232,7 +237,7 @@ Primary commands (per WP validation):
 - `just closeout-repair WP-... [--dry-run] [--debug]` before whole-WP closeout when packet/runtime/SHA/artifact truth needs mechanical repair
 - `just phase-check CLOSEOUT WP-...`
 - governed closeout write through the same phase surface: `just phase-check CLOSEOUT WP-... --sync-mode <MODE> --context "<why this truth is being written>"`
-- `phase-check CLOSEOUT --sync-mode ...` now also appends the mechanical closeout trace into the active Workflow Dossier; add the human post-mortem/review and rubric after it succeeds
+- `phase-check CLOSEOUT --sync-mode ...` also makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot; dossier debt is diagnostic only, and the human post-mortem/review plus rubric can be appended after terminal truth is recorded
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just product-scan` (product boundary enforcement)

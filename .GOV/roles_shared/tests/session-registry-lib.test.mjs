@@ -12,6 +12,7 @@ import {
   getOrCreateSessionRecord,
   loadSessionRegistry,
   markSessionCommandQueued,
+  markSessionCommandRunning,
   markSessionCommandResult,
   markCliEscalationUsed,
   markPluginResult,
@@ -312,10 +313,12 @@ test("session command projection keeps a bounded governed action history alongsi
   assert.equal(summary.last_command_status, "COMPLETED");
   assert.equal(summary.last_governed_action.rule_id, "SESSION_CONTROL_SEND_PROMPT_EXTERNAL_EXECUTE");
   assert.equal(summary.last_governed_action.action_state, "SETTLED");
+  assert.equal(summary.last_governed_action.outcome_state, "SETTLED");
   assert.equal(summary.last_governed_action.resume_disposition, "CONSUME_RESULT");
   assert.equal(summary.effective_governed_action.rule_id, "SESSION_CONTROL_SEND_PROMPT_EXTERNAL_EXECUTE");
   assert.equal(summary.effective_governed_action.command_kind, "SEND_PROMPT");
   assert.equal(summary.effective_governed_action.status, "COMPLETED");
+  assert.equal(summary.effective_governed_action.outcome_state, "SETTLED");
   assert.equal(summary.effective_governed_action.source, "governed_action");
   assert.equal(summary.action_history.length, 1);
 });
@@ -370,7 +373,57 @@ test("session registry summary exposes pending queued control requests without r
   const summary = registrySessionSummary(session);
   assert.equal(summary.pending_control_queue_count, 1);
   assert.equal(summary.next_queued_control_request.command_id, "queued-command");
+  assert.equal(summary.next_queued_control_request.outcome_state, "ACCEPTED_QUEUED");
   assert.equal(summary.next_queued_control_request.queue_reason_code, "BUSY_ACTIVE_RUN");
   assert.equal(summary.effective_governed_action.command_id, "active-command");
   assert.equal(summary.effective_governed_action.status, "RUNNING");
+});
+
+test("queued and running command projections now preserve distinct accepted outcome states", () => {
+  const registry = defaultRegistry();
+  const session = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "CODER",
+    local_branch: "feat/WP-TEST",
+    local_worktree_dir: "../wtc-test",
+    terminal_title: "CODER WP-TEST",
+  });
+
+  const queuedCommand = {
+    command_id: "44444444-4444-4444-4444-444444444444",
+    command_kind: "SEND_PROMPT",
+    created_at: "2026-04-20T10:00:00Z",
+    summary: "Queued governed follow-up.",
+    output_jsonl_file: "gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/CODER_WP-TEST/444.jsonl",
+    governed_action: {
+      schema_id: "hsk.governed_action_request@1",
+      schema_version: "governed_action_request_v1",
+      action_id: "44444444-4444-4444-4444-444444444444",
+      requested_at: "2026-04-20T10:00:00Z",
+      rule_id: "SESSION_CONTROL_SEND_PROMPT_EXTERNAL_EXECUTE",
+      action_kind: "EXTERNAL_EXECUTE",
+      action_surface: "SESSION_CONTROL",
+      command_kind: "SEND_PROMPT",
+      command_id: "44444444-4444-4444-4444-444444444444",
+      created_by_role: "ORCHESTRATOR",
+      session_key: "CODER:WP-TEST",
+      wp_id: "WP-TEST",
+      role: "CODER",
+      reason_code: "SEND_PROMPT",
+      summary: "Queued governed follow-up.",
+      resume_policy: "WAIT_FOR_TRANSPORT_RESULT",
+      metadata: {},
+    },
+  };
+
+  markSessionCommandQueued(session, queuedCommand);
+  let summary = registrySessionSummary(session);
+  assert.equal(summary.last_governed_action.action_state, "ACCEPTED_QUEUED");
+  assert.equal(summary.last_governed_action.outcome_state, "ACCEPTED_QUEUED");
+
+  markSessionCommandRunning(session, queuedCommand);
+  summary = registrySessionSummary(session);
+  assert.equal(summary.last_governed_action.action_state, "ACCEPTED_RUNNING");
+  assert.equal(summary.last_governed_action.outcome_state, "ACCEPTED_RUNNING");
+  assert.equal(summary.effective_governed_action.outcome_state, "ACCEPTED_RUNNING");
 });

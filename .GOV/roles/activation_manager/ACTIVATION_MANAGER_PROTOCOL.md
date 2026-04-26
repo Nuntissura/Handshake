@@ -86,6 +86,7 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 
 Cross-session conversational memory captures what was refined, decided, and flagged during activation. All Activation Manager sessions MUST use repomem:
 - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this activation session covers>" --role ACTIVATION_MANAGER --wp WP-{ID}`. Blocked from mutation commands until done.
+- **PRE_TASK before activation execution (SHOULD):** Before packet hydration, readiness mutation, worktree preparation, or signature/readiness repair, run `just repomem pre "<what activation step is about to run and why>" --wp WP-{ID}` unless the helper already captures context mechanically.
 - **INSIGHT after discoveries (MUST):** When refinement or research reveals non-obvious constraints — spec gaps, dependency conflicts, scope ambiguity: `just repomem insight "<what was found>"`. Min 80 chars.
 - **DECISION when making activation choices (SHOULD):** When choosing MT breakdown, scope boundaries, build order, or spec enrichment strategy: `just repomem decision "<what was chosen and why>" --wp WP-{ID}`. Min 80 chars.
 - **ERROR when activation tooling breaks (SHOULD):** When phase-check fails, signature validation breaks, or readiness checks return unexpected results: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
@@ -93,6 +94,7 @@ Cross-session conversational memory captures what was refined, decided, and flag
 - **CONCERN when flagging activation risks (SHOULD):** When you spot a scope risk, missing prerequisite, or spec ambiguity that may affect downstream work: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars.
 - **ESCALATION when needing operator/orchestrator input (SHOULD):** When activation decisions exceed your authority — scope questions, spec conflicts, build-order ambiguity: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
 - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what was activated, outcome>" --decisions "<key choices made>"`.
+- WP-bound repomem checkpoints are appended to the Workflow Dossier as a terminal diagnostic snapshot during closeout; import debt is diagnostic only, so do not maintain a parallel live dossier narrative for the same findings.
 
 ## Worktree And Branch
 
@@ -185,7 +187,7 @@ ACTIVATION_READINESS
   - `just activation-manager <startup|prompt|next|readiness> [WP-{ID}] [--write|--json]`
   - `just activation-manager record-refinement WP-{ID} [detail]`
   - `just activation-manager record-signature WP-{ID} <signature> [workflow_lane] [execution_lane]`
-  - `just activation-manager record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE]`
+  - `just activation-manager record-role-model-profiles WP-{ID} [ORCHESTRATOR_MODEL_PROFILE] [CODER_MODEL_PROFILE] [WP_VALIDATOR_MODEL_PROFILE] [INTEGRATION_VALIDATOR_MODEL_PROFILE] [ACTIVATION_MANAGER_MODEL_PROFILE]`
   - `just activation-manager record-prepare WP-{ID} [workflow_lane] [execution_lane] [branch] [worktree_dir]`
   - `just activation-manager create-task-packet WP-{ID} "<context>"`
   - `just activation-manager task-board-set WP-{ID} <STATUS> [reason]`

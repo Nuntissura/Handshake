@@ -78,6 +78,7 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 - The Integration Validator, or the Orchestrator when explicitly instructed to perform the `origin/main` push, MUST verify `../Handshake_Artifacts/` is clean of stale artifacts before pushing to `origin/main`.
 - **Integration Validator Artifact Hygiene Gate [CX-503H] (HARD):** Before merging WP product code to `main`, the Integration Validator MUST: (1) run `just artifact-hygiene-check` to verify no repo-local `target/` directories exist, (2) grep for wrongly-placed `Handshake_Artifacts/` directories inside `src/`, `app/`, or `tests/`, (3) verify `../Handshake_Artifacts/` does not contain stale WP-specific build residue. Merge is blocked until all artifact hygiene checks pass.
 - Repo-local `target/` directories are invalid. Treat them as hygiene failures, not as normal residue, and clear them through `just artifact-cleanup` or the governed closeout path.
+- For terminal non-PASS closeout, active-topology artifact hygiene drift does not erase a real validator verdict of record by itself; it must be recorded and repaired as settlement debt unless it proves an actual product-correctness boundary failure.
 - Governed artifact cleanup and integration-validator closeout now write a retention manifest under `../Handshake_Artifacts/handshake-tool/artifact-retention/`; review that manifest when cleanup scope matters for audit or recovery.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
@@ -96,16 +97,16 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 - `just sync-gov-to-main` is only valid from committed kernel governance truth. If `wt-gov-kernel/.GOV` has uncommitted changes, commit `gov_kernel` before mirroring to `handshake_main`.
 - Validator duties are non-agentic in current repo governance, but repo workflows may run multiple validator CLI sessions concurrently when they are explicitly scoped as `WP Validator` and `Integration Validator`.
 - The Validator MUST NOT spawn helper agents or delegate evidence review, verdict formation, merge advice, or cleanup decisions.
-- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults remain `OPENAI_GPT_5_4_XHIGH` primary and `OPENAI_GPT_5_2_XHIGH` fallback, which currently map to `gpt-5.4` primary, `gpt-5.2` fallback, and `model_reasoning_effort=xhigh`; `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` is a supported runtime profile; `OLLAMA_QWEN_CODER_7B` and `OLLAMA_QWEN_CODER_14B` are local model profiles (coder-only). All profiles dispatch through the ACP broker. Do not rely on ambient editor defaults.
+- For newly created repo-governed validator sessions, the packet-declared validator profile is authoritative for claim truth under `ROLE_MODEL_PROFILE_POLICY=ROLE_MODEL_PROFILE_CATALOG_V1`. Repo defaults are `OPENAI_GPT_5_5_XHIGH` primary and `OPENAI_GPT_5_4_XHIGH` fallback, which map to `gpt-5.5` primary, `gpt-5.4` fallback, and `model_reasoning_effort=xhigh`; `OPENAI_GPT_5_2_XHIGH` remains a supported legacy fallback. `CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH` and `CLAUDE_CODE_OPUS_4_6_THINKING_MAX` are supported runtime profiles; `OLLAMA_QWEN_CODER_7B` and `OLLAMA_QWEN_CODER_14B` are local model profiles (coder-only). All profiles dispatch through the ACP broker. Do not rely on ambient editor defaults.
 - Fresh repo-governed validator session start is `ORCHESTRATOR_ONLY`.
 - Primary launch path is headless/direct ACP launch via the external repo-governance runtime root (default repo-relative from a repo worktree: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json` + `../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - The VS Code bridge launch queue remains a compatibility surface only (`../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`).
 - Primary steering lane is the governed Codex thread control path over the external repo-governance control ledgers (`../gov_runtime/roles_shared/SESSION_CONTROL_REQUESTS.jsonl` + `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`).
 - Validator sessions do not own the steering lane. Only the Orchestrator starts, resumes, or cancels governed validator sessions; validators request repair, pause, or cancel through packet communications or an explicit orchestrator instruction.
 - The external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger is the settled steering ledger; the matching external `SESSION_CONTROL_OUTPUTS/` directory holds the per-command ACP event logs that the Operator monitor can surface.
-- Governed system-terminal launches are registry-owned surfaces. Closeout now attempts deterministic reclaim automatically; if a terminal survives, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing windows manually.
+- Governed system-terminal repair launches are hidden registry-owned surfaces. Closeout now attempts deterministic reclaim automatically; if a hidden repair process survives, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing windows manually.
 - Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.
-- CLI escalation windows are repair-only surfaces. Use them only when the Orchestrator explicitly selects them.
+- CLI escalation is hidden-process repair only. `CURRENT` and `VSCODE_PLUGIN` are disabled for governed role launches because they can focus or capture Operator input.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
 ## Final Validator Authority (Current Law)
@@ -187,7 +188,7 @@ Use this governance-maintenance record flow:
   - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
   - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md` (compatibility)
 - audits: use stable `AUDIT_ID` values and add `SMOKETEST_REVIEW_ID` for smoketest or workflow-proof reviews
-- **Workflow Dossier Live Findings:** During WP validation, append notable findings (dead code, cross-surface gaps, spec misalignments) to the active Workflow Dossier `LIVE_FINDINGS_LOG` section if one exists. On orchestrator-managed lanes, this live dossier is seeded at activation time by `just orchestrator-prepare-and-packet`. Format: `- [TIMESTAMP] [WP_VALIDATOR] [CATEGORY] <finding>`
+- **Durable run notes:** During WP validation, capture notable findings (dead code, cross-surface gaps, spec misalignments, verdict reasoning, tooling failures) with `just repomem insight|decision|error|concern ... --wp WP-{ID}`. The Workflow Dossier receives a terminal WP-bound memory snapshot at closeout; import debt is diagnostic only, so do not duplicate the same narrative in live dossier sections.
 - Operator-facing scope split rule:
   - In chat, always separate `Handshake (Product)` from `Repo Governance`.
   - If the review target touches product code or the Master Spec, classify it as `Handshake (Product)` even when the requirement is governance-shaped, workflow-shaped, or contract-shaped.
@@ -339,7 +340,7 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
 - **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR>`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions. Examples: validation check false positives, spec anchor drift, smoketest parser limitations.
 - To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
 - **Governance doc consistency:** When validating governance refactor work, run `just canonise-gov` and then inspect every surfaced governance file, updating applicable drift across protocols, command surface, architecture, quickref, and codex before you call the refactor done.
-- Canonical reference: `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md`.
+- Canonical memory references: `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` for command syntax and `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` for memory-system operation.
 
 ## WP Communication Folder (when the packet defines it)
 
@@ -412,9 +413,9 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
   - `just ack-notifications WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <session>` (acknowledge pending notifications after reading)
   - `just operator-viewport` (canonical operator viewport for ACP-aware session/control/thread/receipt/artifact visibility; `just operator-monitor` remains a compatibility alias)
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Validator session):
-  - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from the shared coder/WP-validator worktree; the governed launcher reuses that declared worktree if missing)
-  - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|CURRENT|SYSTEM_TERMINAL|VSCODE_PLUGIN] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
-  - `AUTO` is the ordinary headless/direct ACP launch path; `CURRENT` / `SYSTEM_TERMINAL` are explicit repair surfaces and `VSCODE_PLUGIN` is compatibility-only
+- `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` (operates from the shared coder/WP-validator worktree; the governed launcher reuses that declared worktree if missing)
+- `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
+- `AUTO` is the ordinary headless/direct ACP launch path; `SYSTEM_TERMINAL` is hidden-process repair only; `CURRENT` and `VSCODE_PLUGIN` are disabled
   - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
   - `just steer-wp-validator-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
@@ -475,7 +476,8 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - Require evidence that `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` ran and passed before PASS handoff or PASS commit clearance. This composite gate includes packet completeness, committed PREPARE-source handoff validation, and the governed handoff communication proof. If absent or failing, verdict = FAIL until fixed.
 - Require evidence that `just phase-check CLOSEOUT WP-{ID}` ran and passed before PASS commit clearance. This composite gate includes packet completeness, the final review communication proof, the integration-validator context bundle, and the governed closeout preflight. If absent or failing, verdict = FAIL until fixed.
 - `integration-validator-context-brief`, `integration-validator-closeout-check`, and `phase-check CLOSEOUT` now honor canonical `execution_state.authority` first during final-lane closeout. Do not waive a stale packet/task-board mismatch by hand if runtime authority already proves the effective terminal state or containment mode.
-- When `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` is used to write terminal truth, it now also appends the mechanical closeout trace into the active Workflow Dossier. After that succeeds, append the human post-mortem/review and closeout rubric in the dossier before final closure claims.
+- Those closeout surfaces now also distinguish `product_outcome_blockers` from `governance_debt`. Only `product_outcome_blockers` may block product outcome once the Integration Validator has established a verdict of record; `governance_debt` must remain visible for settlement/repair but does not reopen judgment on its own.
+- When `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` is used to write terminal truth, it also makes a best-effort append of the closeout trace plus terminal WP-bound repomem snapshot into the active Workflow Dossier. Dossier import or formatting debt is diagnostic only and must not block product outcome; append the human post-mortem/review and closeout rubric after terminal truth is recorded.
 - After the closeout preflight is green, prefer the same phase-owned surface for governed truth sync:
   - PASS before local-main containment: `just phase-check CLOSEOUT WP-{ID} --sync-mode MERGE_PENDING --context "<why this closeout truth is being recorded, >=40 chars>"`
   - PASS after local-main containment is real: `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`
@@ -487,6 +489,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
   - `just phase-check CLOSEOUT WP-{ID} --sync-mode FAIL --context "<why FAIL truth is being recorded, >=40 chars>"`
   - `just phase-check CLOSEOUT WP-{ID} --sync-mode OUTDATED_ONLY --context "<why OUTDATED_ONLY truth is being recorded, >=40 chars>"`
   - `just phase-check CLOSEOUT WP-{ID} --sync-mode ABANDONED --context "<why ABANDONED truth is being recorded, >=40 chars>"`
+- After a non-PASS terminal sync is real, do not relaunch validation purely because support surfaces still show route residue, dossier lag, repomem gaps, provenance formatting debt, or active-topology artifact hygiene debt. Repair the named settlement debt and preserve the verdict of record.
 - Require evidence that `just phase-check HANDOFF WP-{ID} CODER` ran and passed for the validated committed target (typically surfaced through the same deterministic range/rev captured in committed handoff validation). If absent or failing, verdict = FAIL until fixed.
 - Coder handoff sequencing note (echo from CODER_PROTOCOL): `just phase-check HANDOFF ... CODER` validates staged/working changes when present, and on a clean tree validates a deterministic range:
   - If the work packet contains `MERGE_BASE_SHA`: `MERGE_BASE_SHA..HEAD`

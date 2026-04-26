@@ -142,6 +142,20 @@ The expected net effect of the refactor is:
 - stale, legacy, and compatibility-driven surfaces lose more ability to silently poison live workflow truth
 - operator effort shifts away from message relaying and truth repair toward actual oversight
 
+## Reduction-First Addendum (2026-04-25)
+
+The Calendar Sync Engine workflow dossier showed that the worst governance cost came after the product verdict was already known. The reduction-first tranche therefore narrowed support-surface authority instead of adding new co-authoritative records.
+
+Completed follow-ons:
+
+- `RGF-217`: closeout dependencies now distinguish `product_outcome_blockers` from `governance_debt`, so support surfaces can remain visible without withholding product outcome publication.
+- `RGF-218`: mid-run dossier narration is retired in favor of sparse role-authored `repomem` checkpoints, Classic Orchestrator and Activation Manager are covered by WP repomem debt checks, and closeout imports WP-bound memories mechanically while excluding unrelated global session memories from parallel WPs.
+- `RGF-219`: terminal `Validated (...)` verdict truth now fences stale route anchors, stale next-actor mirrors, and stale open-review residue across the shared runtime-authority and communication-health readers.
+- `RGF-220`: bundle checks and protocols now treat host-load timeout symptoms as advisory telemetry unless a real subcheck or authority artifact fails.
+- `RGF-221`: token budget and ledger drift remain detailed diagnostics, but they no longer require continuation waivers or block orchestrator-managed progress by themselves.
+
+No remaining reduction item is queued in this tranche.
+
 ## Remaining Follow-Up Outside This Closeout
 
 - run and audit a fresh live workflow-proof pass across the full orchestrator-managed path

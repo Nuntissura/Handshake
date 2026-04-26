@@ -69,7 +69,7 @@ function fail(message, details = []) {
 }
 
 function runGit(args) {
-  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
 }
 
 function parseSingleField(text, label) {
@@ -305,10 +305,14 @@ if (action === "START_SESSION") {
   execFileSync(process.execPath, [commandScript, "START_SESSION", nextActor, wpId, "", requestedModel], {
     stdio: "inherit",
     env: sessionControlEnv,
+    windowsHide: true,
   });
+  console.log("[ORCHESTRATOR_STEER_NEXT] state=start_session_requested; wait for the governed startup turn to register and settle before sending a follow-up prompt");
+  process.exit(0);
 }
 
 execFileSync(process.execPath, [commandScript, "SEND_PROMPT", nextActor, wpId, prompt, requestedModel], {
   stdio: "inherit",
   env: sessionControlEnv,
+  windowsHide: true,
 });

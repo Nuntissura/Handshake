@@ -310,34 +310,60 @@ Assessment:
 
 ## 14. Cost Attribution
 
-Break down time and token cost by lifecycle phase:
+Break down time and token cost in three ordered blocks:
 
-| Phase | Time (min) | Orchestrator Tokens (est) | Notes |
+### 14.1 Time Attribution
+
+| Phase | Time (min) | Token Surface | Notes |
 |---|---|---|---|
-| Refinement | <N> | <N or %> | <format iteration? discovery? research?> |
-| Per-MT Coding (total) | <N> | <N or %> | <how many MT prompts? retries?> |
-| Validation | <N> | <N or %> | <FAIL/fix cycles?> |
-| Fix Cycle | <N> | <N or %> | <items fixed? coder turns?> |
-| Closeout | <N> | <N or %> | <manual formatting? section ordering?> |
-| Polling/Waiting | <N> | <N or %> | <how many poll cycles? fire-and-forget?> |
-| TOTAL | <N> | <N or %> | |
+| Product active | <N> | see token diagnostics | <implementation + test> |
+| Validation | <N> | see token diagnostics | <validator wait / review> |
+| Fix/Repair | <N> | see token diagnostics | <mechanical or product repair> |
+| Routing/Waiting | <N> | see token diagnostics | <route + queue + idle time> |
+| TOTAL | <N> | gross <N> / fresh <N> / cached <N> / out <N> / <turns> turns | <gov overhead ratio / notable host-load effect> |
 
-If exact token counts are unavailable, use percentages of total estimated cost.
+### 14.2 Token Diagnostics
+
+| Metric | Value | Notes |
+|---|---|---|
+| Policy | <policy id> | diagnostic-only cost contract |
+| Enforcement mode | <DIAGNOSTIC_ONLY> | overrun does not block WP completion |
+| Budget status | <PASS/WARN/FAIL> | <summary> |
+| Ledger health | <status/severity> | <summary> |
+| Tokens in (gross) | <N> | includes cached replay |
+| Tokens in (fresh) | <N> | new-context spend proxy |
+| Tokens in (cached) | <N> | replay / compaction signal |
+| Tokens out | <N> | |
+| Turns | <N> | |
+| Token commands | <N> | |
+| Host stance | HEAVY_ASSUMED | timeout observations are telemetry, not workflow truth |
+
+### 14.3 Role Token Breakdown
+
+| Role | Commands | Turns | Gross In | Fresh In | Cached In | Out | Status |
+|---|---|---|---|---|---|---|---|
+| <ROLE> | <N> | <N> | <N> | <N> | <N> | <N> | <status> |
+| TOTAL | <N> | <N> | <N> | <N> | <N> | <N> | <status> |
 
 ## 15. Comparison Table (vs Previous WP)
 
 | Metric | Previous WP | This WP | Trend |
 |---|---|---|---|
-| Total lines changed | <N> | <N> | |
+| Workflow lane | <lane> | <lane> | |
+| Wall clock (min) | <N> | <N> | |
 | Microtask count | <N> | <N> | |
-| Compile errors (first pass) | <N> | <N> | |
-| Validator findings | <N> | <N> | |
 | Fix cycles | <N> | <N> | |
-| Stubs discovered | <N> | <N> | |
-| Governed receipts created | <N> | <N> | |
-| Broker dispatch failures | <N> | <N> | |
-| Stale terminals remaining | <N> | <N> | |
-| Time to close (hours) | <N> | <N> | |
+| Governed receipts | <N> | <N> | |
+| ACP commands | <N> | <N> | |
+| Session restarts | <N> | <N> | |
+| Tokens in (gross) | <N> | <N> | |
+| Tokens in (fresh) | <N> | <N> | |
+| Tokens in (cached) | <N> | <N> | |
+| Tokens out | <N> | <N> | |
+| Turns | <N> | <N> | |
+| Token commands | <N> | <N> | |
+| Budget status | <status> | <status> | |
+| Ledger health | <status> | <status> | |
 
 ## 16. Remaining Product or Spec Debt
 
@@ -427,9 +453,9 @@ If exact token counts are unavailable, use percentages of total estimated cost.
 
 - `<command>` -> <PASS|FAIL|PARTIAL> (<notes>)
 
-## LIVE_EXECUTION_LOG (append-only during WP execution)
+## LIVE_EXECUTION_LOG (mechanical telemetry and closeout imports)
 
-This section is append-only. The Orchestrator records execution milestones, dead-time observations, ACP/runtime events, and notable route changes as they happen.
+This section is append-only. Mechanical sync records execution telemetry; closeout imports WP-bound repomem decisions, errors, pre-task checkpoints, abandoned paths, and session open/close entries.
 
 Format: `- [TIMESTAMP] [ROLE] [TYPE] [SURFACE] <summary>`
 
@@ -437,29 +463,29 @@ Example:
 - [2026-04-06T01:04:11Z] [ORCHESTRATOR] [ACP_RUNTIME] [SESSION_CONTROL_RESULTS.jsonl] START_SESSION failed due to stale broker build; restart attempted
 - [2026-04-06T01:21:02Z] [ORCHESTRATOR] [DOWNTIME] [CODER->WP_VALIDATOR] 11m gap between review request and first validator action
 
-## LIVE_GOVERNANCE_CHANGE_LOG (append-only during WP execution)
+## LIVE_GOVERNANCE_CHANGE_LOG (sparse manual governance notes)
 
-This section is append-only. Record governance-only refactors, template changes, helper patches, law clarifications, or on-the-spot protocol repairs made during the run.
+This section is append-only. Record governance-only refactors, template changes, helper patches, law clarifications, or on-the-spot protocol repairs only when they are not already represented by repomem, receipts, or changelog entries.
 
 Format: `- [TIMESTAMP] [ROLE] [CHANGE_TYPE] <surface> :: <summary>`
 
 Example:
 - [2026-04-06T01:40:00Z] [ORCHESTRATOR] [PATCH] `.GOV/roles_shared/scripts/session/session-control-lib.mjs` :: tightened overlap-forward resume contract
 
-## LIVE_CONCERNS_LOG (append-only during WP execution)
+## LIVE_CONCERNS_LOG (closeout memory import)
 
-This section is append-only. Capture unresolved concerns, skepticism, or operator-observed smells before they are forgotten at closeout.
+This section is append-only. Role concerns are captured with `just repomem concern ... --wp WP-{ID}` during execution and imported mechanically at closeout.
 
-Format: `- [TIMESTAMP] [ROLE] [CONCERN] <summary>`
+Format: `- [TIMESTAMP] [ROLE] [REPOMEM_CONCERN] [GOVERNANCE_MEMORY] [SESSION] <summary>`
 
 Example:
 - [2026-04-06T02:05:00Z] [ORCHESTRATOR] [CONCERN] watchdog intervention count is rising faster than product progress
 
-## LIVE_FINDINGS_LOG (append-only during WP execution)
+## LIVE_FINDINGS_LOG (closeout memory import)
 
-This section is append-only. Roles add findings as they occur during WP work.
+This section is append-only. Role findings and discoveries are captured with `just repomem insight|research-close ... --wp WP-{ID}` during execution and imported mechanically at closeout.
 
-Format: `- [TIMESTAMP] [ROLE] [CATEGORY] <finding>`
+Format: `- [TIMESTAMP] [ROLE] [REPOMEM_INSIGHT] [GOVERNANCE_MEMORY] [SESSION] <finding>`
 
 Example:
 - [2026-04-06T01:10Z] [ORCHESTRATOR] [ACP_RUNTIME] Broker dispatch failed for SEND_PROMPT, retrying

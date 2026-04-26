@@ -23,6 +23,9 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja250420260848 | Orchestrator | 2026-04-25 08:48 | Work packet creation: WP-1-Calendar-Sync-Engine-v3 | v02.181 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Calendar-Sync-Engine-v3.md ). |
+| ilja210420261037 | Orchestrator | 2026-04-21 10:37 | Work packet creation: WP-1-Calendar-Sync-Engine-v2 | v02.181 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Calendar-Sync-Engine-v2.md ). |
+| ilja210420260315 | Orchestrator | 2026-04-21 03:15 | Work packet creation: WP-1-Calendar-Sync-Engine-v1 | v02.181 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Calendar-Sync-Engine-v1.md ). |
 | ilja140420260053 | Orchestrator | 2026-04-14 00:53 | Work packet creation: WP-1-Distillation-v2 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Distillation-v2.md ). |
 | ilja130420261117 | Orchestrator | 2026-04-13 11:17 | Work packet creation: WP-1-Calendar-Storage-v2 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Calendar-Storage-v2.md ). |
 | ilja130420260159 | Orchestrator | 2026-04-13 01:59 | Work packet creation: WP-1-Project-Agnostic-Workflow-State-Registry-v1 | v02.180 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Project-Agnostic-Workflow-State-Registry-v1.md ). |

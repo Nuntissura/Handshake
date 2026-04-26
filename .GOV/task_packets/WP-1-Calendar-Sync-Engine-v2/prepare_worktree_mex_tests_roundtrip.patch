@@ -1,0 +1,35 @@
+diff --git a/src/backend/handshake_core/tests/mex_tests.rs b/src/backend/handshake_core/tests/mex_tests.rs
+index 5586bae7..8f75c8f8 100644
+--- a/src/backend/handshake_core/tests/mex_tests.rs
++++ b/src/backend/handshake_core/tests/mex_tests.rs
+@@ -1026,10 +1026,16 @@ async fn calendar_sync_runtime_preserves_workflow_context_in_tool_events() {
+         .iter()
+         .find(|event| event.event_type == FlightRecorderEventType::ToolCall)
+         .expect("tool_call event should be recorded");
+-    assert_eq!(tool_event.workflow_id.as_deref(), Some(workflow_run_id_str.as_str()));
++    assert_eq!(
++        tool_event.workflow_id.as_deref(),
++        Some(workflow_run_id_str.as_str())
++    );
+     assert_eq!(tool_event.trace_id, trace_id);
+     assert_eq!(
+-        tool_event.payload.get("trace_id").and_then(|value| value.as_str()),
++        tool_event
++            .payload
++            .get("trace_id")
++            .and_then(|value| value.as_str()),
+         Some(trace_id_str.as_str())
+     );
+     assert_eq!(
+@@ -1169,7 +1175,10 @@ async fn calendar_sync_adapter_missing_records_tool_failure_with_workflow_contex
+         .iter()
+         .find(|event| event.event_type == FlightRecorderEventType::ToolCall)
+         .expect("adapter-missing path should still emit a tool_call event");
+-    assert_eq!(tool_event.workflow_id.as_deref(), Some(workflow_run_id_str.as_str()));
++    assert_eq!(
++        tool_event.workflow_id.as_deref(),
++        Some(workflow_run_id_str.as_str())
++    );
+     assert_eq!(
+         tool_event
+             .payload

@@ -14,13 +14,11 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 
 ## Primary launch path
 - Preferred host: `HANDSHAKE_ACP_BROKER`
-- Compatibility launch queue: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
+- Legacy launch queue, readable for old records only: `../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl`
 - Session registry: `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
 - Launch/bootstrap only: governed command dispatch plus ACP settlement on the ordinary `AUTO` path.
-- `AUTO` launch is headless/direct through ACP and should not open a visible system terminal on the ordinary path.
-- Bridge compatibility path: `handshake.handshake-session-bridge`
-- Bridge command: `handshakeSessionBridge.processLaunchQueue`
-- The VS Code bridge queue remains an explicit compatibility/repair launch surface, not the ordinary `AUTO` path.
+- `AUTO` launch is headless/direct through ACP and should not open or focus a visible terminal on the ordinary path.
+- Bridge compatibility path: disabled for governed role launches under the headless-only policy. The legacy queue remains readable for old records only; new role starts use ACP direct.
 
 ## Primary steering lane
 - Control mode: `STEERABLE`
@@ -36,20 +34,20 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the ordinary order is Activation Manager first, then downstream Coder/Validator lanes after truthful `ACTIVATION_READINESS`. Do not bypass that pre-launch worker by keeping heavy activation reasoning in long-lived Orchestrator context.
 - Helper agents/subagents may assist the Orchestrator on governance/spec/runtime/orchestrator tasks, but they are not Coder or Validator lanes.
 - Do not use helper agents/subagents to perform Coder or Validator duties, and do not let them write product code, unless the Operator explicitly approved that path and the work packet records `SUB_AGENT_DELEGATION: ALLOWED` plus the exact `OPERATOR_APPROVAL_EVIDENCE`.
-- `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session, settle through the same append-only request/result ledgers, and attempt deterministic reclaim of any governed system-terminal window owned by that exact session.
-- governed `START_SESSION` / `SEND_PROMPT` results now carry an explicit `outcome_state` alongside terminal `status` so wrappers can distinguish steady-state conditions such as `ALREADY_READY`, `BUSY_ACTIVE_RUN`, or `REQUIRES_RECOVERY` from generic failures.
+- `START_SESSION`, `SEND_PROMPT`, `CANCEL_SESSION`, and `CLOSE_SESSION` are first-class governed control commands. Cancel rows carry a target-command reference. Close rows clear the steerable thread registration for that governed role/WP session, settle through the same append-only request/result ledgers, and attempt deterministic reclaim of any governed hidden repair process owned by that exact session.
+- governed `START_SESSION` / `SEND_PROMPT` results now carry an explicit `outcome_state` alongside terminal `status` so wrappers can distinguish accepted transport states such as `ACCEPTED_RUNNING` / `ACCEPTED_QUEUED`, steady-state conditions such as `ALREADY_READY`, and rejection/recovery states such as `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY` from generic failures.
 - The registry `session_thread_id` is the steering identity for that role/WP session.
 
 ## Fallback Law
 - Primary launch path is ACP-direct headless.
-- `VSCODE_PLUGIN` / `VSCODE` remain explicit compatibility hosts only.
-- A CLI escalation window is repair-only and should be operator-directed, not the ordinary `AUTO` path.
-- A CLI escalation window is allowed only after the same role/WP session has recorded 2 compatibility-host failures or timeouts.
+- `VSCODE_PLUGIN` / `VSCODE` are disabled for governed role launches because they can steal focus through editor terminal activation.
+- CLI escalation is repair-only and should be operator-directed, not the ordinary `AUTO` path.
+- Hidden CLI escalation is allowed only after the same role/WP session has recorded 2 compatibility-host failures or timeouts. Visible `CURRENT` repair is operator-directed only.
 - If compatibility-host instability reaches 2 failures across the governed batch, the session registry flips the batch into explicit CLI escalation mode for compatibility launches only until the batch is deliberately reset with `node .GOV/roles/orchestrator/scripts/session-reset-batch-launch-mode.mjs "<reason>"`.
-- Default escalation host: `SYSTEM_TERMINAL`
+- Default escalation host token: `SYSTEM_TERMINAL`, implemented as a hidden owned process, not a visible terminal window.
 - Legacy compatibility: `WINDOWS_TERMINAL` is accepted as an older token, but new packets/protocol examples should use `SYSTEM_TERMINAL`.
 - Manual `PRINT` output is a repair/debug surface, not the preferred runtime.
-- Governed system-terminal launches must record terminal ownership in the session registry (`owned_terminal_process_id`, host kind, window title, recorded time, `owned_terminal_batch_id`) so closeout can reclaim only registry-owned governed windows from the intended governed batch.
+- Governed system-terminal launches must record ownership in the session registry (`owned_terminal_process_id`, host kind, title, recorded time, `owned_terminal_batch_id`) so closeout can reclaim only registry-owned governed processes from the intended governed batch.
 
 ## Wake-Up / Notice Protocol
 - Primary wake channel: `VS_CODE_FILE_WATCH`
@@ -66,20 +64,20 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
   - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/**/RUNTIME_STATUS.json`
   - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/**/RECEIPTS.jsonl`
   - `../gov_runtime/roles_shared/WP_COMMUNICATIONS/**/THREAD.md`
-- The ACP broker owns the ordinary launch/bootstrap and steering state, result settlement, and per-command output logs. The VS Code bridge remains a compatibility launch surface plus operator-facing notice path when explicitly used.
+- The ACP broker owns the ordinary launch/bootstrap and steering state, result settlement, and per-command output logs. The legacy VS Code bridge queue is readable for old records only; new governed role starts must use headless ACP.
 - `just operator-viewport` is the canonical ACP-aware read-only operator viewport: it merges canonical task-board source/drift, broker status, session registry state, control results/output activity, packet thread/receipt activity, and packet/runtime visibility.
 - `just operator-monitor` remains a compatibility alias.
 - `just operator-admin` is the explicit admin-mode console for governed lifecycle actions. It remains non-authoritative and must invoke the same governed scripts the Orchestrator would run directly.
 - Roles should not depend on blind continuous polling when a watch event exists.
 
 ## Deterministic State
-- Launch requests are append-only JSONL records.
+- Legacy launch requests are append-only JSONL records kept for old-record visibility only.
 - Control requests and control results are append-only JSONL records.
 - Per-command ACP event logs under the external repo-governance `SESSION_CONTROL_OUTPUTS/` directory are append-only detail surfaces for governed command execution, including cancel evidence and broker-settled output.
 - The session registry is the current state projection for active and historical role sessions.
-- The launch queue, control ledgers, broker state, output logs, and session registry are runtime artifacts. They are not packet/work-scope authority, and generic drive-agnostic scanning may treat them like operator evidence rather than normative governance text.
+- The legacy launch queue, control ledgers, broker state, output logs, and session registry are runtime artifacts. They are not packet/work-scope authority, and generic drive-agnostic scanning may treat them like operator evidence rather than normative governance text.
 - Packet truth still wins over session state for scope, verdict, and acceptance.
-- `TERMINAL_COMMAND_DISPATCHED` means the VS Code bridge created/reused a terminal and sent the governed command into it. It is not proof that the CLI session is alive yet.
+- Legacy `TERMINAL_COMMAND_DISPATCHED` means the VS Code bridge created/reused a terminal and sent the governed command into it. It is old-record evidence only and is not proof that the CLI session is alive yet.
 - Treat packet-scoped receipts, runtime-state movement, or heartbeat evidence as the actual proof that the launched role session started executing.
 - `READY` with a non-empty `session_thread_id` means a steerable Codex thread is registered and may be resumed through the governed control lane.
 - `READY` is thread-registration proof, not by itself proof that packet-scoped WP communications are already live.
@@ -91,8 +89,8 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 - One governed role/WP session has at most one active ACP run at a time. Concurrent steering for the same governed session is not allowed.
 
 ## Session Model Policy
-- Primary model: `gpt-5.4`
-- Fallback model: `gpt-5.2`
+- Primary model: `gpt-5.5`
+- Fallback model: `gpt-5.4`
 - Reasoning strength: `EXTRA_HIGH`
 - Launcher config: `model_reasoning_effort=xhigh`
 - Codex model aliases are not allowed in new repo-governed claim fields.
@@ -130,7 +128,7 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 - Before refusing a broker restart because `active_runs` still exist, the ACP client should first prune/self-settle recoverable broker-state residue. Only genuinely live active runs should block a restart.
 - If packet communication routing looks wrong, run `just wp-communication-health-check`, `just check-notifications` (add `--history` only when you need suppressed terminal or superseded residue), and `just ack-notifications` with the explicit role/session identity before considering any deeper repair.
 - Do not hand-edit session-control ledgers, broker state, packet receipts, or packet notifications to "unstick" a session. Prefer the governed helpers or a controlled session close/recreate flow.
-- If a governed session launched through a system terminal remains open after closeout, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing terminals by guesswork.
+- If a governed session launched through hidden `SYSTEM_TERMINAL` repair remains open after closeout, use `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]` instead of killing processes by guesswork.
 - If session/runtime truth disagrees with packet truth, packet truth still wins for scope, verdict, and acceptance. Repair the runtime projection; do not rewrite packet truth to match stale runtime state.
 - `PRINT` launch output is a repair/debug surface only. It is not proof that a governed session is healthy or resumable.
 

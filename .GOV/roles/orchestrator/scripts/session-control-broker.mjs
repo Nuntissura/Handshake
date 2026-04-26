@@ -13,7 +13,7 @@ function fail(message) {
 }
 
 function runGit(args) {
-  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
 }
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
@@ -41,5 +41,4 @@ console.log(`[BROKER_CONTROL] status=${stopped.status}`);
 if (stopped.result?.broker_build_id) {
   console.log(`[BROKER_CONTROL] result_build_id=${stopped.result.broker_build_id}`);
 }
-
 

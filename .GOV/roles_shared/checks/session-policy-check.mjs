@@ -18,6 +18,8 @@ import {
   packetUsesSharedRemoteWpBackup,
   packetUsesStructuredValidationReport,
   ROLE_MODEL_PROFILE_POLICY,
+  fallbackRoleModelProfileId,
+  roleModelProfile,
   roleModelProfileField,
   roleModelProfileFromPacket,
   roleModelProfileMatchesClaim,
@@ -99,6 +101,27 @@ function checkExpectedWithLegacyAlias(errors, rel, text, label, expected, legacy
   if (actual !== expected && actual !== legacyAlias) {
     errors.push(`${rel}: ${label} must be ${expected} or legacy ${legacyAlias} (got: ${actual || "<missing>"})`);
   }
+}
+
+function checkSessionModelFields(errors, rel, text) {
+  const profileId = roleModelProfileFromPacket(text, "ORCHESTRATOR", { fallbackToDefault: false });
+  const profile = profileId ? roleModelProfile(profileId) : null;
+  const fallbackProfile = profileId ? roleModelProfile(fallbackRoleModelProfileId(profileId)) : null;
+  const allowedPrimary = Array.from(new Set([
+    ROLE_SESSION_PRIMARY_MODEL,
+    profile?.launch_model,
+  ].filter(Boolean)));
+  const allowedFallback = Array.from(new Set([
+    ROLE_SESSION_FALLBACK_MODEL,
+    fallbackProfile?.launch_model,
+  ].filter(Boolean)));
+  if (!profileId) {
+    allowedPrimary.push("gpt-5.4");
+    allowedFallback.push("gpt-5.2");
+  }
+
+  checkAllowed(errors, rel, text, "ROLE_SESSION_PRIMARY_MODEL", allowedPrimary);
+  checkAllowed(errors, rel, text, "ROLE_SESSION_FALLBACK_MODEL", allowedFallback);
 }
 
 function checkMirrorField(errors, rel, text, label, sourceLabel) {
@@ -203,8 +226,7 @@ function checkPacket(filePath) {
   checkExpectedWithLegacyAlias(errors, rel, text, "CLI_ESCALATION_HOST_DEFAULT", CLI_ESCALATION_HOST_DEFAULT, CLI_ESCALATION_HOST_LEGACY_ALIAS);
   checkExpected(errors, rel, text, "MODEL_FAMILY_POLICY", modelFamilyPolicyForPacketVersion(version));
   checkExpected(errors, rel, text, "CODEX_MODEL_ALIASES_ALLOWED", CODEX_MODEL_ALIASES_ALLOWED);
-  checkExpected(errors, rel, text, "ROLE_SESSION_PRIMARY_MODEL", ROLE_SESSION_PRIMARY_MODEL);
-  checkExpected(errors, rel, text, "ROLE_SESSION_FALLBACK_MODEL", ROLE_SESSION_FALLBACK_MODEL);
+  checkSessionModelFields(errors, rel, text);
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_REQUIRED", ROLE_SESSION_REASONING_REQUIRED);
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_CONFIG_KEY", ROLE_SESSION_REASONING_CONFIG_KEY);
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_CONFIG_VALUE", ROLE_SESSION_REASONING_CONFIG_VALUE);
@@ -311,8 +333,7 @@ function checkStub(filePath) {
   checkExpectedWithLegacyAlias(errors, rel, text, "CLI_ESCALATION_HOST_DEFAULT", CLI_ESCALATION_HOST_DEFAULT, CLI_ESCALATION_HOST_LEGACY_ALIAS);
   checkExpected(errors, rel, text, "MODEL_FAMILY_POLICY", modelFamilyPolicyForStubVersion(version));
   checkExpected(errors, rel, text, "CODEX_MODEL_ALIASES_ALLOWED", CODEX_MODEL_ALIASES_ALLOWED);
-  checkExpected(errors, rel, text, "ROLE_SESSION_PRIMARY_MODEL", ROLE_SESSION_PRIMARY_MODEL);
-  checkExpected(errors, rel, text, "ROLE_SESSION_FALLBACK_MODEL", ROLE_SESSION_FALLBACK_MODEL);
+  checkSessionModelFields(errors, rel, text);
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_REQUIRED", ROLE_SESSION_REASONING_REQUIRED);
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_CONFIG_KEY", ROLE_SESSION_REASONING_CONFIG_KEY);
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_CONFIG_VALUE", ROLE_SESSION_REASONING_CONFIG_VALUE);

@@ -11,6 +11,7 @@ import {
   buildPostWorkCommand,
   comparePrepareAgainstPacketTruth,
   displayRepoRelativePath,
+  evaluateSupersedingPrepareRollover,
   inferWpIdFromPrepare,
   isTerminalTaskBoardStatus,
   normalizeVerdict,
@@ -84,6 +85,64 @@ test("comparePrepareAgainstPacketTruth flags packet/PREPARE authority drift", ()
     "Official packet EXECUTION_OWNER conflicts with PREPARE: expected CODER_A, got CODER_B",
     "Official packet LOCAL_BRANCH conflicts with PREPARE: expected feat/WP-1-Example-v1, got feat/WP-1-Other-v1",
     "Official packet LOCAL_WORKTREE_DIR conflicts with PREPARE: expected ../wtc-example-v1, got ../wtc-other-v1",
+  ]);
+});
+
+test("evaluateSupersedingPrepareRollover allows PREPARE rollover when only candidate branch/worktree truth changed", () => {
+  const packet = [
+    "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+    "- EXECUTION_OWNER: CODER_A",
+    "- LOCAL_BRANCH: feat/WP-1-Example-v1-mainproof",
+    "- LOCAL_WORKTREE_DIR: ../wtc-example-v1-mainproof",
+  ].join("\n");
+  const lastPrepare = {
+    workflow_lane: "ORCHESTRATOR_MANAGED",
+    execution_lane: "CODER_A",
+    branch: "feat/WP-1-Example-v1",
+    worktree_dir: "../wtc-example-v1",
+  };
+  const nextPrepare = {
+    workflow_lane: "ORCHESTRATOR_MANAGED",
+    execution_lane: "CODER_A",
+    branch: "feat/WP-1-Example-v1-mainproof",
+    worktree_dir: "../wtc-example-v1-mainproof",
+  };
+
+  const result = evaluateSupersedingPrepareRollover(packet, lastPrepare, nextPrepare, REPO_ROOT);
+
+  assert.equal(result.allowRollover, true);
+  assert.deepEqual(result.blockingIssues, []);
+  assert.deepEqual(result.rolloverIssues, [
+    "Official packet LOCAL_BRANCH conflicts with PREPARE: expected feat/WP-1-Example-v1-mainproof, got feat/WP-1-Example-v1",
+    "Official packet LOCAL_WORKTREE_DIR conflicts with PREPARE: expected ../wtc-example-v1-mainproof, got ../wtc-example-v1",
+  ]);
+});
+
+test("evaluateSupersedingPrepareRollover rejects PREPARE rollover when workflow authority also changed", () => {
+  const packet = [
+    "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+    "- EXECUTION_OWNER: CODER_A",
+    "- LOCAL_BRANCH: feat/WP-1-Example-v1-mainproof",
+    "- LOCAL_WORKTREE_DIR: ../wtc-example-v1-mainproof",
+  ].join("\n");
+  const lastPrepare = {
+    workflow_lane: "MANUAL_RELAY",
+    execution_lane: "CODER_A",
+    branch: "feat/WP-1-Example-v1",
+    worktree_dir: "../wtc-example-v1",
+  };
+  const nextPrepare = {
+    workflow_lane: "ORCHESTRATOR_MANAGED",
+    execution_lane: "CODER_A",
+    branch: "feat/WP-1-Example-v1-mainproof",
+    worktree_dir: "../wtc-example-v1-mainproof",
+  };
+
+  const result = evaluateSupersedingPrepareRollover(packet, lastPrepare, nextPrepare, REPO_ROOT);
+
+  assert.equal(result.allowRollover, false);
+  assert.deepEqual(result.blockingIssues, [
+    "Official packet WORKFLOW_LANE conflicts with PREPARE: expected ORCHESTRATOR_MANAGED, got MANUAL_RELAY",
   ]);
 });
 

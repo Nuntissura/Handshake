@@ -13,34 +13,48 @@ import {
   resolveRoleConfig,
 } from "../scripts/session/session-control-lib.mjs";
 import {
+  ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH,
   ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
-  ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+  ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
   ROLE_SESSION_PRIMARY_MODEL,
   resolveRoleModelProfileSelection,
+  roleNextCommand,
   roleModelProfile,
+  roleStartupCommand,
 } from "../scripts/session/session-policy.mjs";
+
+test("session policy binds validator startup and resume commands to explicit roles", () => {
+  assert.equal(roleStartupCommand("WP_VALIDATOR"), "just validator-startup WP_VALIDATOR");
+  assert.equal(roleStartupCommand("INTEGRATION_VALIDATOR"), "just validator-startup INTEGRATION_VALIDATOR");
+  assert.equal(roleStartupCommand("VALIDATOR"), "just validator-startup VALIDATOR");
+  assert.equal(roleNextCommand("WP_VALIDATOR", "WP-TEST-WPVAL-v1"), "just validator-next WP_VALIDATOR WP-TEST-WPVAL-v1");
+  assert.equal(roleNextCommand("INTEGRATION_VALIDATOR", "WP-TEST-VALIDATOR-v1"), "just validator-next INTEGRATION_VALIDATOR WP-TEST-VALIDATOR-v1");
+  assert.equal(roleNextCommand("VALIDATOR", ""), "just validator-next VALIDATOR");
+});
 
 test("coder startup prompt carries orchestrator-managed relapse guard and lane-aware flow", () => {
   const wpId = "WP-TEST-CODER-v1";
   const roleConfig = resolveRoleConfig("CODER", wpId);
-  const selectedProfile = roleModelProfile(ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH);
+  const selectedProfile = roleModelProfile(ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH);
   const prompt = buildStartupPrompt({
     role: "CODER",
     wpId,
     roleConfig,
     selectedModel: ROLE_SESSION_PRIMARY_MODEL,
-    selectedProfileId: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
+    selectedProfileId: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
     selectedProfile,
     startupMemoryLines: [],
     conversationContextLines: [],
   });
 
-  assert.match(prompt, /MODEL PROFILE: OPENAI_GPT_5_4_XHIGH/i);
+  assert.match(prompt, /MODEL PROFILE: OPENAI_GPT_5_5_XHIGH/i);
   assert.match(prompt, /POST-SIGNATURE RELAPSE GUARD \(MANDATORY\):/i);
   assert.match(prompt, /POLICY_CONFLICT, AUTHORITY_OVERRIDE_REQUIRED, OPERATOR_ARTIFACT_REQUIRED, ENVIRONMENT_FAILURE/i);
   assert.match(prompt, /`MANUAL_RELAY` = .*skeleton approval when required/i);
   assert.match(prompt, /`ORCHESTRATOR_MANAGED` = .*no routine Operator approvals after signature/i);
   assert.match(prompt, /just active-lane-brief CODER WP-TEST-CODER-v1/i);
+  assert.match(prompt, /SESSION_OPEN \(MANDATORY\): Before any governed mutation/i);
+  assert.match(prompt, /node \.GOV\/roles_shared\/scripts\/session\/repomem-compat\.mjs open .* --role CODER --wp WP-TEST-CODER-v1/i);
   assert.match(prompt, /just phase-check STARTUP WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-CODER-v1 CODER <your-session>/i);
   assert.match(prompt, /read-only context except for the assigned packet and declared MT files/i);
@@ -70,6 +84,8 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
   assert.match(prompt, /Do not use handshake_main\/.GOV as the live source of truth/i);
   assert.match(prompt, /Do not manually grep, browse, or rebuild authority from handshake_main\/.GOV/i);
   assert.match(prompt, /FINAL-LANE STARTUP ORDER \(HARD\): Before any repo search, packet rediscovery, or broad \.GOV inspection/i);
+  assert.match(prompt, /1\. node "\$env:HANDSHAKE_GOV_ROOT\/roles_shared\/scripts\/session\/role-command-compat\.mjs" validator-startup INTEGRATION_VALIDATOR/i);
+  assert.match(prompt, /2\. node "\$env:HANDSHAKE_GOV_ROOT\/roles_shared\/scripts\/session\/role-command-compat\.mjs" validator-next INTEGRATION_VALIDATOR WP-TEST-VALIDATOR-v1/i);
   assert.match(prompt, /packet_read_path/i);
   assert.match(prompt, /ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature\/prepare/i);
   assert.match(prompt, /3\. just integration-validator-context-brief WP-TEST-VALIDATOR-v1/i);
@@ -94,6 +110,8 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
   assert.match(prompt, /judge bootstrap\/skeleton\/micro-task direction early/i);
   assert.match(prompt, /EARLY STEERING \(MANDATORY\): You own the governed bootstrap\/skeleton checkpoint/i);
   assert.match(prompt, /WORKTREE SYNC \(MANDATORY\): You share the coder `feat\/WP-TEST-WPVAL-v1` branch and `wtc-\*` worktree surface/i);
+  assert.match(prompt, /1\. node \.GOV\/roles_shared\/scripts\/session\/role-command-compat\.mjs validator-startup WP_VALIDATOR/i);
+  assert.match(prompt, /2\. node \.GOV\/roles_shared\/scripts\/session\/role-command-compat\.mjs validator-next WP_VALIDATOR WP-TEST-WPVAL-v1/i);
   assert.match(prompt, /just phase-check STARTUP WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
   assert.match(prompt, /just check-notifications WP-TEST-WPVAL-v1 WP_VALIDATOR <your-session>/i);
   assert.match(prompt, /\.GOV\/roles\/wp_validator\/WP_VALIDATOR_PROTOCOL\.md/i);
@@ -134,8 +152,10 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.match(prompt, /just activation-manager readiness WP-TEST-ACTMAN-v1 --write/i);
   assert.match(prompt, /just activation-manager startup/i);
   assert.match(prompt, /just activation-manager next WP-TEST-ACTMAN-v1/i);
+  assert.match(prompt, /node \.GOV\/roles_shared\/scripts\/session\/repomem-compat\.mjs open .* --role ACTIVATION_MANAGER --wp WP-TEST-ACTMAN-v1/i);
 
   assert.match(steerPrompt, /RESUME GOVERNED ACTIVATION_MANAGER lane/i);
+  assert.match(steerPrompt, /SESSION_OPEN GATE:/i);
   assert.match(steerPrompt, /mandatory temporary pre-launch worker/i);
   assert.match(steerPrompt, /FILE-FIRST HANDOFF RULE \(HARD\):/i);
   assert.match(steerPrompt, /REFINEMENT_HANDOFF_SUMMARY \(HARD\):/i);
@@ -149,20 +169,20 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.doesNotMatch(steerPrompt, /check-notifications/i);
 });
 
-test("activation-manager profile selection honors an explicit declared Claude profile", () => {
+test("activation-manager profile selection honors an explicit declared Claude Opus 4.7 profile", () => {
   const packetLikeText = [
-    "- ACTIVATION_MANAGER_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX",
-    "- ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH",
+    "- ACTIVATION_MANAGER_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH",
+    "- ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH",
   ].join("\n");
 
   const selection = resolveRoleModelProfileSelection("ACTIVATION_MANAGER", packetLikeText, "PRIMARY");
   const fallbackSelection = resolveRoleModelProfileSelection("ACTIVATION_MANAGER", packetLikeText, "FALLBACK");
 
-  assert.equal(selection.primary_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
-  assert.equal(selection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
-  assert.equal(selection.profile?.launch_model, "claude-opus-4-6");
-  assert.equal(selection.profile?.launch_reasoning_config_value, "max");
-  assert.equal(fallbackSelection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
+  assert.equal(selection.primary_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
+  assert.equal(selection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
+  assert.equal(selection.profile?.launch_model, "claude-opus-4-7");
+  assert.equal(selection.profile?.launch_reasoning_config_value, "xhigh");
+  assert.equal(fallbackSelection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
 });
 
 test("memory-manager prompts advertise synthetic receipt emission instead of packet assumptions", () => {
@@ -189,8 +209,10 @@ test("memory-manager prompts advertise synthetic receipt emission instead of pac
   assert.match(startupPrompt, /just repomem close "<session summary>" --decisions/i);
   assert.match(startupPrompt, /SESSION_COMPLETION/i);
   assert.match(startupPrompt, /do not expect an official packet/i);
+  assert.match(startupPrompt, /not a normal WP repomem coverage target/i);
 
   assert.match(steerPrompt, /There is no official packet for this lane/i);
+  assert.match(steerPrompt, /not a normal WP coverage target/i);
   assert.match(steerPrompt, /MEMORY_PROPOSAL \/ MEMORY_FLAG \/ MEMORY_RGF_CANDIDATE/i);
   assert.match(steerPrompt, /SESSION_COMPLETION/i);
   assert.match(steerPrompt, /just repomem close "<session summary>" --decisions/i);
@@ -249,7 +271,15 @@ test("buildStartupInjectionLines returns no section when both sources are empty"
   assert.deepEqual(lines, []);
 });
 
-test("session-control outcome classifier distinguishes ready, busy, recovery, and missing-start cases", () => {
+test("session-control outcome classifier distinguishes accepted running, accepted queued, ready, busy, recovery, and missing-start cases", () => {
+  assert.equal(classifySessionControlOutcomeState({
+    status: "RUNNING",
+    commandKind: "SEND_PROMPT",
+  }), "ACCEPTED_RUNNING");
+  assert.equal(classifySessionControlOutcomeState({
+    status: "QUEUED",
+    commandKind: "SEND_PROMPT",
+  }), "ACCEPTED_QUEUED");
   assert.equal(classifySessionControlOutcomeState({
     status: "COMPLETED",
     commandKind: "START_SESSION",
@@ -303,7 +333,7 @@ test("steering prompt stays compact and codex-explicit", () => {
   assert.match(prompt, /just active-lane-brief INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
   assert.match(prompt, /Run in order:/i);
   assert.match(prompt, /just integration-validator-context-brief WP-TEST-STEER-v1/i);
-  assert.match(prompt, /just validator-next WP-TEST-STEER-v1/i);
+  assert.match(prompt, /role-command-compat\.mjs" validator-next INTEGRATION_VALIDATOR WP-TEST-STEER-v1/i);
   assert.match(prompt, /just check-notifications WP-TEST-STEER-v1 INTEGRATION_VALIDATOR <your-session>/i);
   assert.match(prompt, /Do not manually inspect handshake_main\/.GOV as authoritative context/i);
   assert.match(prompt, /FIRST READ RULE: before any repo-wide search or packet rediscovery/i);

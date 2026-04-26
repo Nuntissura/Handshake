@@ -104,6 +104,7 @@ try {
     stdio: ["ignore", "pipe", "pipe"],
     cwd: REPO_ROOT,
     env: sessionControlEnv,
+    windowsHide: true,
   });
   const lines = output.trim().split(/\r?\n/).filter(Boolean);
   for (const line of lines) console.log(line);

@@ -71,7 +71,8 @@ export function evaluateSessionGovernanceState(repoRoot, sessionLike = {}) {
       });
   const packetStatus = runtimeProjection.packet_status || packetStatusArtifact;
   const taskBoardStatus = runtimeProjection.task_board_status || taskBoardStatusArtifact;
-  const terminalTaskBoardStatus = isTerminalSessionTaskBoardStatus(taskBoardStatus);
+  const terminalTaskBoardStatus = isTerminalSessionTaskBoardStatus(taskBoardStatus)
+    || isTerminalSessionTaskBoardStatus(taskBoardStatusArtifact);
   const localWorktreeAbs = localWorktreeDir ? path.resolve(root, localWorktreeDir) : "";
   const localWorktreeExists = Boolean(localWorktreeAbs) && fs.existsSync(localWorktreeAbs);
   const packetProjectionDrift = Boolean(
@@ -96,7 +97,7 @@ export function evaluateSessionGovernanceState(repoRoot, sessionLike = {}) {
   }
 
   if (terminalTaskBoardStatus) {
-    const reason = `task board status is terminal: ${taskBoardStatus}`;
+    const reason = `task board status is terminal: ${isTerminalSessionTaskBoardStatus(taskBoardStatusArtifact) ? taskBoardStatusArtifact : taskBoardStatus}`;
     launchBlockers.push(reason);
     steeringBlockers.push(reason);
   }

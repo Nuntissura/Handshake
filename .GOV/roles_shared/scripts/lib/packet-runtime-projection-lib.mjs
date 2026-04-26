@@ -7,6 +7,7 @@ import {
 } from "./wp-authority-projection-lib.mjs";
 import {
   readExecutionPublicationView,
+  runtimeExecutionCheckpointFingerprint,
   syncRuntimeExecutionState,
 } from "./wp-execution-state-lib.mjs";
 
@@ -90,6 +91,11 @@ function deriveRuntimeCloseoutState(projection = {}, currentRuntime = {}) {
     nextRuntime.current_files_touched = [];
     nextRuntime.active_role_sessions = [];
     nextRuntime.open_review_items = [];
+    nextRuntime.route_anchor_state = null;
+    nextRuntime.route_anchor_kind = null;
+    nextRuntime.route_anchor_correlation_id = null;
+    nextRuntime.route_anchor_target_role = null;
+    nextRuntime.route_anchor_target_session = null;
     return nextRuntime;
   }
 
@@ -100,6 +106,10 @@ export function syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
   eventName = "task_board_sync",
   eventAt = new Date().toISOString(),
 } = {}) {
+  const previousFingerprint = runtimeExecutionCheckpointFingerprint(runtimeStatus);
+  const existingCheckpointCount = Array.isArray(runtimeStatus?.execution_state?.checkpoint_lineage?.checkpoints)
+    ? runtimeStatus.execution_state.checkpoint_lineage.checkpoints.length
+    : 0;
   const projection = parseRuntimeProjectionFromPacket(packetText);
   const nextRuntime = deriveRuntimeCloseoutState(projection, runtimeStatus || {});
   const currentMilestone = derivePacketMilestone({
@@ -110,7 +120,6 @@ export function syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
   nextRuntime.current_task_board_status = projection.current_task_board_status;
   nextRuntime.current_milestone = currentMilestone;
   nextRuntime.current_phase = runtimePhaseForMilestone(currentMilestone, nextRuntime.current_phase || "BOOTSTRAP");
-  nextRuntime.last_milestone_sync_at = eventAt;
   nextRuntime.wp_validator_of_record = projection.wp_validator_of_record;
   nextRuntime.integration_validator_of_record = projection.integration_validator_of_record;
   nextRuntime.main_containment_status = projection.main_containment_status;
@@ -121,8 +130,12 @@ export function syncRuntimeProjectionFromPacket(runtimeStatus, packetText, {
   nextRuntime.current_main_compatibility_verified_at_utc = projection.current_main_compatibility_verified_at_utc;
   nextRuntime.packet_widening_decision = projection.packet_widening_decision;
   nextRuntime.packet_widening_evidence = projection.packet_widening_evidence;
-  nextRuntime.last_event = eventName;
-  nextRuntime.last_event_at = eventAt;
+  const nextFingerprint = runtimeExecutionCheckpointFingerprint(nextRuntime);
+  if (existingCheckpointCount === 0 || previousFingerprint !== nextFingerprint) {
+    nextRuntime.last_milestone_sync_at = eventAt;
+    nextRuntime.last_event = eventName;
+    nextRuntime.last_event_at = eventAt;
+  }
   return syncRuntimeExecutionState(nextRuntime, {
     eventName,
     eventAt,

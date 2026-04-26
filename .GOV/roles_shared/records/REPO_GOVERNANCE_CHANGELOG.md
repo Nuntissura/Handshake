@@ -21,6 +21,115 @@
 
 ## Entries
 
+### 2026.04.25.3 / GOV-CHANGE-20260425-03
+
+- STATUS: APPLIED
+- SUMMARY: completed diagnostic Workflow Dossier write-lane separation and terminal repomem snapshot behavior
+- CHANGE_TYPE: WORKFLOW_REDUCTION
+- DRIVER_EVIDENCE:
+  - 2026-04-25 Operator directive: dossier is malformed-tolerant diagnostic evidence, Orchestrator writes top-of-file, ACP writes EOF, terminal repomem snapshot appends after ACP settles, and Integration Validator FAIL should prefer same-WP remediation
+  - `.GOV/Audits/smoketest/DOSSIER_20260425_CALENDAR_SYNC_ENGINE_WORKFLOW_DOSSIER.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-222`
+  - `RGF-223`
+  - `RGF-224`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/roles/orchestrator/README.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`
+  - `.GOV/roles_shared/tests/workflow-dossier-lib.test.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+- OUTCOME: Workflow Dossier writes now use separate diagnostic lanes: Orchestrator notes prepend near the top, ACP/session-control traces append at EOF, and closeout imports a full WP-bound repomem snapshot at EOF. Dossier append/import failures surface as `DIAGNOSTIC_DEBT` and no longer fail the closeout step. Integration Validator FAIL guidance now defaults to same-WP remediation unless scope expansion or explicit Operator choice requires a new WP.
+- VERIFICATION:
+  - `node --check .GOV\roles_shared\scripts\audit\workflow-dossier-lib.mjs; node --check .GOV\roles_shared\scripts\audit\workflow-dossier.mjs; node --check .GOV\roles_shared\scripts\audit\generate-post-run-audit-skeleton.mjs; node --check .GOV\roles_shared\checks\phase-check.mjs; node --check .GOV\roles\orchestrator\scripts\session-control-command.mjs`
+  - `node --test .GOV\roles_shared\tests\workflow-dossier-lib.test.mjs`
+  - `node --test .GOV\roles_shared\tests\phase-check.test.mjs`
+  - `node --test .GOV\roles_shared\tests\generate-post-run-audit-skeleton.test.mjs`
+  - `node .GOV\roles_shared\checks\task-board-check.mjs`
+  - `just docs-check`
+  - `just canonise-gov`
+  - `just gov-check`
+  - `git diff --check -- <refactor-touched files>`; repo-wide `git diff --check` still reports pre-existing trailing whitespace in the live Calendar Sync dossier outside this refactor
+
+### 2026.04.25.2 / GOV-CHANGE-20260425-02
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-218 sparse repomem event contract and closeout memory import
+- CHANGE_TYPE: WORKFLOW_REDUCTION
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260421-CALENDAR-SYNC-ENGINE-SMOKETEST-REVIEW`
+  - `SMOKETEST-REVIEW-20260421-CALENDAR-SYNC-ENGINE`
+  - `.GOV/Audits/smoketest/DOSSIER_20260421_CALENDAR_SYNC_ENGINE_WORKFLOW_DOSSIER.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-218`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/memory/repomem-coverage-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/templates/WORKFLOW_DOSSIER_TEMPLATE.md`
+  - `.GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md`
+- OUTCOME: governed roles now use sparse WP-bound repomem as the durable mid-run judgment trail, repomem coverage includes Classic Orchestrator and Activation Manager, Workflow Dossier sync remains mechanical telemetry only, and `phase-check CLOSEOUT` explicitly imports WP-bound repomem entries while excluding unrelated global session memories from parallel WPs.
+- VERIFICATION:
+  - `node --test .GOV\roles_shared\tests\repomem-coverage-lib.test.mjs .GOV\roles_shared\tests\workflow-dossier-lib.test.mjs`
+  - `node --test .GOV\roles_shared\tests\phase-check.test.mjs .GOV\roles_shared\tests\generate-post-run-audit-skeleton.test.mjs`
+  - `node .GOV\roles_shared\checks\task-board-check.mjs`
+  - `just gov-check`
+
+### 2026.04.25.1 / GOV-CHANGE-20260425-01
+
+- STATUS: APPLIED
+- SUMMARY: completed the reduction-first blocker-authority tranche and added a terminal verdict settlement fence
+- CHANGE_TYPE: WORKFLOW_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260421-CALENDAR-SYNC-ENGINE-SMOKETEST-REVIEW`
+  - `SMOKETEST-REVIEW-20260421-CALENDAR-SYNC-ENGINE`
+  - `.GOV/Audits/smoketest/DOSSIER_20260421_CALENDAR_SYNC_ENGINE_WORKFLOW_DOSSIER.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-217`
+  - `RGF-219`
+  - `RGF-220`
+  - `RGF-221`
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/wp-execution-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-closeout-dependency-lib.mjs`
+  - `.GOV/roles_shared/checks/bundled-check-runner-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: terminal `Validated (...)` verdict truth now fences stale route anchors, stale next-actor mirrors, and stale open-review residue so post-verdict support drift remains settlement debt instead of resurrecting a live review lane; closeout dependency surfaces distinguish product outcome blockers from governance debt; aggregate bundle checks attribute real subcheck failures without treating host-load timeouts as workflow truth; token-budget failures remain detailed diagnostic telemetry instead of continuation blockers.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/wp-execution-state-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-closeout-dependency-lib.test.mjs .GOV/roles_shared/tests/closeout-blocking-authority-lib.test.mjs`
+  - `node --test .GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs .GOV/roles/validator/tests/integration-validator-context-brief-lib.test.mjs`
+  - `node --check .GOV/roles_shared/checks/bundled-check-runner-lib.mjs; node .GOV/roles_shared/checks/spec-bundle-check.mjs; node .GOV/roles_shared/checks/wp-comm-bundle-check.mjs; node .GOV/roles_shared/checks/topology-bundle-check.mjs`
+
 ### 2026.04.14.1 / GOV-CHANGE-20260414-01
 
 - STATUS: APPLIED
@@ -3038,3 +3147,51 @@
 - FOLLOW_ON_ITEMS:
   - none
 - OUTCOME: the product worktrees now resolve Cargo artifacts to the canonical `Handshake_Artifacts/handshake-cargo-target` root, `artifact-hygiene-check` and `artifact-cleanup --dry-run` pass again, and `gov-flush` now blocks before any publish step when discovered worktrees drift to a stale Cargo artifact root or repo-local `target/` residue.
+
+### 2026.04.20.15 / GOV-CHANGE-20260420-15
+
+- STATUS: APPLIED
+- SUMMARY: refreshed the operator startup cheat sheet for the new lane/path command contract and repaired stale role-model-profile command signatures in the protocols
+- CHANGE_TYPE: DOCUMENTATION_HARDENING
+- DRIVER_EVIDENCE:
+  - `Operator request 2026-04-20`
+  - startup cheat sheet drift after recent lane/topology/governance hardening
+  - protocol inconsistency on `record-role-model-profiles` argument shape
+- SURFACES:
+  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+- FOLLOW_ON_ITEMS:
+  - none
+- OUTCOME: the operator cheat sheet now uses repo-relative workspace anchors instead of host absolute paths, documents `gov-flush`, `classic-orchestrator-startup`, and `orchestrator-steer-next`, clarifies main-only ownership of the canonical root `AGENTS.md` and root `justfile`, and aligns `record-role-model-profiles` with the live five-argument command contract including `ACTIVATION_MANAGER_MODEL_PROFILE`.
+
+### 2026.04.25.01 / GOV-CHANGE-20260425-01
+
+- STATUS: APPLIED
+- SUMMARY: made governed ACP/role launch headless-only so role starts and repair launches cannot steal operator keyboard focus
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - Operator request on 2026-04-25: ACP and role launches were hijacking keyboard input by focusing visible windows
+  - Calendar Sync v3 workflow-proof startup exposed stale broker/runtime handling at the same control-plane boundary
+- SURFACES:
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles_shared/scripts/session/terminal-ownership-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-governance-state-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-self-settle-lib.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles/memory_manager/scripts/launch-memory-manager-session.mjs`
+  - `.GOV/roles_shared/tests/terminal-ownership-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/session-launch-governance.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-self-settle-lib.test.mjs`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `justfile`
+- FOLLOW_ON_ITEMS:
+  - none
+- OUTCOME: `AUTO` stays on the headless ACP path, `SYSTEM_TERMINAL` repair launches are hidden owned processes, `VSCODE_PLUGIN` governed launches fail closed instead of queueing the VS Code bridge, Memory Manager defaults to the same headless launch path, historical terminal task-board tokens now block governed role starts before runtime artifacts are created, dead-child active runs self-settle, and ACP broker client socket resets are logged instead of crashing the broker.

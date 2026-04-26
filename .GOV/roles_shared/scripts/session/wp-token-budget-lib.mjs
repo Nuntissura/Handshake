@@ -88,6 +88,7 @@ export function evaluateWpTokenBudget(ledger = {}) {
   let status = totalEvaluation.status;
   const warnings = [...totalEvaluation.warnings];
   const failures = [...totalEvaluation.failures];
+  const enforcementMode = "DIAGNOSTIC_ONLY";
 
   for (const [roleName, budget] of Object.entries(WP_ROLE_TOKEN_BUDGETS)) {
     const evaluation = evaluateBudgetSlice(roleName, roleTotals[roleName] || {}, budget);
@@ -102,6 +103,7 @@ export function evaluateWpTokenBudget(ledger = {}) {
   if (commandCount === 0 && turnCount === 0) {
     return {
       policy_id: WP_TOKEN_BUDGET_POLICY_ID,
+      enforcement_mode: enforcementMode,
       status: "NO_OUTPUTS",
       blocker_class: "NONE",
       invalidity_code: "",
@@ -115,20 +117,21 @@ export function evaluateWpTokenBudget(ledger = {}) {
 
   return {
     policy_id: WP_TOKEN_BUDGET_POLICY_ID,
+    enforcement_mode: enforcementMode,
     status,
-    blocker_class: status === "FAIL" ? "POLICY_CONFLICT" : "NONE",
-    invalidity_code: status === "FAIL" ? "TOKEN_BUDGET_EXCEEDED" : "",
+    blocker_class: "NONE",
+    invalidity_code: "",
     total: totalEvaluation,
     roles,
     warnings,
     failures,
     summary:
       status === "FAIL"
-        ? "WP turn/fresh-input spend exceeded the governed fail budget and requires lane repair before more orchestrator-managed work continues."
+        ? "WP turn/fresh-input spend exceeded the governed high-cost threshold. Continue the WP, but record the overrun mechanically in the dossier and use compaction or context rotation to reduce further waste."
         : status === "WARN"
-          ? "WP turn/fresh-input spend exceeded the governed warning budget and should be compacted before further ambiguity-driven retries."
+          ? "WP turn/fresh-input spend exceeded the governed warning threshold. Continue the WP and treat the overrun as diagnostic telemetry for compaction and workflow repair."
           : warnings.length > 0
-            ? "WP fresh-input spend is within the governed budget envelope, but gross cached replay has crossed telemetry thresholds and should be watched for compaction."
-            : "WP fresh-input spend is within the governed budget envelope.",
+            ? "WP fresh-input spend is within the governed envelope, but cached replay volume has crossed telemetry thresholds and should be watched for compaction."
+            : "WP fresh-input spend is within the governed diagnostic envelope.",
   };
 }

@@ -42,7 +42,7 @@ export const CLI_SESSION_TOOL = "codex";
 export const SESSION_PLUGIN_BRIDGE_ID = "handshake.handshake-session-bridge";
 export const SESSION_PLUGIN_BRIDGE_COMMAND = "handshakeSessionBridge.processLaunchQueue";
 export const SESSION_PLUGIN_REQUESTS_FILE = SHARED_GOV_SESSION_LAUNCH_REQUESTS_FILE;
-export const SESSION_COMPATIBILITY_SURFACE = "VSCODE_PLUGIN_REPAIR_ONLY";
+export const SESSION_COMPATIBILITY_SURFACE = "VSCODE_PLUGIN_DISABLED";
 export const SESSION_COMPATIBILITY_QUEUE_FILE = SESSION_PLUGIN_REQUESTS_FILE;
 export const SESSION_REGISTRY_FILE = SHARED_GOV_SESSION_REGISTRY_FILE;
 export const SESSION_CONTROL_MODE = "STEERABLE";
@@ -79,14 +79,16 @@ export const CODEX_MODEL_ALIASES_ALLOWED = "NO";
 export const ROLE_MODEL_PROFILE_POLICY = "ROLE_MODEL_PROFILE_CATALOG_V1";
 export const ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED = "GOVERNED_LAUNCH_SUPPORTED";
 export const ROLE_MODEL_PROFILE_RUNTIME_DECLARED_ONLY = "DECLARED_ONLY";
+export const ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH = "OPENAI_GPT_5_5_XHIGH";
 export const ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH = "OPENAI_GPT_5_4_XHIGH";
 export const ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH = "OPENAI_GPT_5_2_XHIGH";
+export const ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH = "CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH";
 export const ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX = "CLAUDE_CODE_OPUS_4_6_THINKING_MAX";
 export const ROLE_MODEL_PROFILE_OPENAI_CODEX_SPARK_5_3_XHIGH = "OPENAI_CODEX_SPARK_5_3_XHIGH";
 export const ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_7B = "OLLAMA_QWEN_CODER_7B";
 export const ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_14B = "OLLAMA_QWEN_CODER_14B";
-export const ROLE_SESSION_PRIMARY_MODEL = "gpt-5.4";
-export const ROLE_SESSION_FALLBACK_MODEL = "gpt-5.2";
+export const ROLE_SESSION_PRIMARY_MODEL = "gpt-5.5";
+export const ROLE_SESSION_FALLBACK_MODEL = "gpt-5.4";
 export const ROLE_SESSION_REASONING_REQUIRED = "EXTRA_HIGH";
 export const REASONING_ENFORCEMENT_MODE = "SESSION_BRIEF_AND_CLAIM_CHECK";
 export const ROLE_SESSION_REASONING_CONFIG_KEY = "model_reasoning_effort";
@@ -99,15 +101,28 @@ export const ROLE_MODEL_PROFILE_FIELD_BY_ROLE = Object.freeze({
   INTEGRATION_VALIDATOR: "INTEGRATION_VALIDATOR_MODEL_PROFILE",
 });
 export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
+  [ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH]: Object.freeze({
+    profile_id: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+    provider: "OPENAI",
+    session_tool: CLI_SESSION_TOOL,
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
+    claim_model: "gpt-5.5",
+    claim_model_aliases: Object.freeze(["gpt-5.5", "GPT-5.5"]),
+    reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
+    launch_model: "gpt-5.5",
+    launch_reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
+    launch_reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
+    reasoning_policy_note: `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}`,
+  }),
   [ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH]: Object.freeze({
     profile_id: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
     provider: "OPENAI",
     session_tool: CLI_SESSION_TOOL,
     runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
-    claim_model: ROLE_SESSION_PRIMARY_MODEL,
+    claim_model: "gpt-5.4",
     claim_model_aliases: Object.freeze(["gpt-5.4", "GPT-5.4"]),
     reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
-    launch_model: ROLE_SESSION_PRIMARY_MODEL,
+    launch_model: "gpt-5.4",
     launch_reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
     launch_reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
     reasoning_policy_note: `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}`,
@@ -117,13 +132,30 @@ export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
     provider: "OPENAI",
     session_tool: CLI_SESSION_TOOL,
     runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
-    claim_model: ROLE_SESSION_FALLBACK_MODEL,
+    claim_model: "gpt-5.2",
     claim_model_aliases: Object.freeze(["gpt-5.2", "GPT-5.2", "GPT-5.2 (Codex CLI)"]),
     reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
-    launch_model: ROLE_SESSION_FALLBACK_MODEL,
+    launch_model: "gpt-5.2",
     launch_reasoning_config_key: ROLE_SESSION_REASONING_CONFIG_KEY,
     launch_reasoning_config_value: ROLE_SESSION_REASONING_CONFIG_VALUE,
     reasoning_policy_note: `${ROLE_SESSION_REASONING_CONFIG_KEY}=${ROLE_SESSION_REASONING_CONFIG_VALUE}`,
+  }),
+  [ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH]: Object.freeze({
+    profile_id: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH,
+    provider: "ANTHROPIC",
+    session_tool: "claude-code",
+    runtime_support: ROLE_MODEL_PROFILE_RUNTIME_SUPPORTED,
+    claim_model: "claude-opus-4-7",
+    claim_model_aliases: Object.freeze([
+      "claude-opus-4-7",
+      "Claude Code Opus 4.7 Thinking xhigh",
+      "Claude Code Opus 4.7",
+    ]),
+    reasoning_strength: ROLE_SESSION_REASONING_REQUIRED,
+    launch_model: "claude-opus-4-7",
+    launch_reasoning_config_key: "effort",
+    launch_reasoning_config_value: "xhigh",
+    reasoning_policy_note: "effort=xhigh (Opus 4.7 adaptive reasoning, recommended default in Claude Code CLI)",
   }),
   [ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX]: Object.freeze({
     profile_id: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
@@ -188,22 +220,24 @@ export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
 export const ROLE_MODEL_PROFILE_IDS = Object.freeze(Object.keys(ROLE_MODEL_PROFILE_CATALOG));
 export const ROLE_MODEL_PROFILE_HELP = ROLE_MODEL_PROFILE_IDS.join(" | ");
 export const DEFAULT_ROLE_MODEL_PROFILE_IDS = Object.freeze({
-  ACTIVATION_MANAGER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
-  ORCHESTRATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
-  CODER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
-  WP_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
-  INTEGRATION_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
-  MEMORY_MANAGER: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
+  ACTIVATION_MANAGER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+  ORCHESTRATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+  CODER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+  WP_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+  INTEGRATION_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+  MEMORY_MANAGER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
 });
 export const ROLE_MODEL_PROFILE_FALLBACKS = Object.freeze({
+  [ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   [ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
   [ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
+  [ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH]: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH,
   [ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX]: ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
-  [ROLE_MODEL_PROFILE_OPENAI_CODEX_SPARK_5_3_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
-  [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_7B]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
-  [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_14B]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_2_XHIGH,
+  [ROLE_MODEL_PROFILE_OPENAI_CODEX_SPARK_5_3_XHIGH]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+  [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_7B]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+  [ROLE_MODEL_PROFILE_OLLAMA_QWEN_CODER_14B]: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
 });
-export const WP_TOKEN_BUDGET_POLICY_ID = "ORCHESTRATOR_MANAGED_V2_CACHED_AWARE";
+export const WP_TOKEN_BUDGET_POLICY_ID = "ORCHESTRATOR_MANAGED_V3_DIAGNOSTIC_COST";
 export const WP_TOKEN_LEDGER_HEALTH_POLICY_ID = "ORCHESTRATOR_MANAGED_LEDGER_V1";
 export const WP_TOKEN_LEDGER_HEALTH_THRESHOLDS = Object.freeze({
   warn_command_delta_count: 1,
@@ -304,6 +338,8 @@ export const SESSION_COMMAND_STATUSES = [
 export const SESSION_COMMAND_OUTCOME_STATES = [
   "NONE",
   "SETTLED",
+  "ACCEPTED_RUNNING",
+  "ACCEPTED_QUEUED",
   "ALREADY_READY",
   "BUSY_ACTIVE_RUN",
   "ACCEPTED_PENDING",
@@ -703,9 +739,9 @@ export function sessionRegistryFileForStubVersion(stubFormatVersion) {
 export function roleStartupCommand(role) {
   if (role === "ACTIVATION_MANAGER") return "just activation-manager startup";
   if (role === "CODER") return "just coder-startup";
-  if (role === "WP_VALIDATOR") return "just validator-startup";
-  if (role === "INTEGRATION_VALIDATOR") return "just validator-startup";
-  if (role === "VALIDATOR") return "just validator-startup";
+  if (role === "WP_VALIDATOR") return "just validator-startup WP_VALIDATOR";
+  if (role === "INTEGRATION_VALIDATOR") return "just validator-startup INTEGRATION_VALIDATOR";
+  if (role === "VALIDATOR") return "just validator-startup VALIDATOR";
   if (role === "MEMORY_MANAGER") return "just memory-manager-startup";
   return "just orchestrator-startup";
 }
@@ -713,9 +749,9 @@ export function roleStartupCommand(role) {
 export function roleNextCommand(role, wpId) {
   if (role === "ACTIVATION_MANAGER") return `just activation-manager next ${wpId}`;
   if (role === "CODER") return `just coder-next ${wpId}`;
-  if (role === "WP_VALIDATOR") return `just validator-next ${wpId}`;
-  if (role === "INTEGRATION_VALIDATOR") return `just validator-next ${wpId}`;
-  if (role === "VALIDATOR") return `just validator-next ${wpId}`;
+  if (role === "WP_VALIDATOR") return wpId ? `just validator-next WP_VALIDATOR ${wpId}` : "just validator-next WP_VALIDATOR";
+  if (role === "INTEGRATION_VALIDATOR") return wpId ? `just validator-next INTEGRATION_VALIDATOR ${wpId}` : "just validator-next INTEGRATION_VALIDATOR";
+  if (role === "VALIDATOR") return wpId ? `just validator-next VALIDATOR ${wpId}` : "just validator-next VALIDATOR";
   if (role === "MEMORY_MANAGER") return "just launch-memory-manager --force";
   return `just orchestrator-next ${wpId}`;
 }

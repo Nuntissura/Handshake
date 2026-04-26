@@ -440,7 +440,18 @@ export function runActiveLaneBriefCli(argv = process.argv.slice(2)) {
   }
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+function sameCliPath(left, right) {
+  const leftPath = path.resolve(left);
+  const rightPath = path.resolve(right);
+  if (leftPath === rightPath) return true;
+  try {
+    return fs.realpathSync.native(leftPath) === fs.realpathSync.native(rightPath);
+  } catch {
+    return false;
+  }
+}
+
+const isMain = process.argv[1] && sameCliPath(process.argv[1], fileURLToPath(import.meta.url));
 if (isMain) {
   runActiveLaneBriefCli();
 }

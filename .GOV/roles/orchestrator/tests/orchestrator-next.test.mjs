@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   closeoutModeFromPacketStatus,
+  closeoutSyncCommandForProjection,
   findActiveTokenBudgetContinuationWaiver,
   isTerminalOrchestratorBoardStatus,
   latestOrchestratorAcpHealthAlert,
@@ -20,6 +21,78 @@ test("orchestrator-next maps packet closeout states to the correct task-board cl
   assert.equal(closeoutModeFromPacketStatus("Validated (OUTDATED_ONLY)"), "DONE_OUTDATED_ONLY");
   assert.equal(closeoutModeFromPacketStatus("Validated (ABANDONED)"), "DONE_ABANDONED");
   assert.equal(closeoutModeFromPacketStatus("In Progress"), "");
+});
+
+test("orchestrator-next suppresses duplicate task-board closeout publication when board history is already current", () => {
+  const command = closeoutSyncCommandForProjection(
+    "WP-TEST",
+    {
+      current_packet_status: "Validated (PASS)",
+      current_task_board_status: "DONE_VALIDATED",
+    },
+    {
+      current_packet_status: "Validated (PASS)",
+      current_task_board_status: "DONE_VALIDATED",
+      runtime_status: "completed",
+      current_phase: "STATUS_SYNC",
+      main_containment_status: "CONTAINED_IN_MAIN",
+    },
+    null,
+    "VALIDATED",
+  );
+
+  assert.equal(command, "");
+});
+
+test("orchestrator-next still requests task-board publication when closeout truth is ready but board history lags", () => {
+  const command = closeoutSyncCommandForProjection(
+    "WP-TEST",
+    {
+      current_packet_status: "Validated (PASS)",
+      current_task_board_status: "DONE_VALIDATED",
+    },
+    {
+      current_packet_status: "Validated (PASS)",
+      current_task_board_status: "DONE_VALIDATED",
+      runtime_status: "completed",
+      current_phase: "STATUS_SYNC",
+      main_containment_status: "CONTAINED_IN_MAIN",
+    },
+    null,
+    "IN_PROGRESS",
+  );
+
+  assert.equal(command, "just task-board-set WP-TEST DONE_VALIDATED");
+});
+
+test("orchestrator-next prefers canonical closeout repair over duplicate board publication when packet truth drifts", () => {
+  const command = closeoutSyncCommandForProjection(
+    "WP-TEST",
+    {
+      current_packet_status: "Done",
+      current_task_board_status: "DONE_MERGE_PENDING",
+    },
+    {
+      current_packet_status: "Done",
+      current_task_board_status: "DONE_MERGE_PENDING",
+      main_containment_status: "MERGE_PENDING",
+      execution_state: {
+        authority: {
+          packet_status: "Validated (PASS)",
+          task_board_status: "DONE_VALIDATED",
+          runtime_status: "completed",
+          phase: "STATUS_SYNC",
+          main_containment_status: "CONTAINED_IN_MAIN",
+          route_anchor: {},
+          review_anchor: {},
+        },
+      },
+    },
+    null,
+    "VALIDATED",
+  );
+
+  assert.match(command, /^just phase-check CLOSEOUT WP-TEST --sync-mode CONTAINED_IN_MAIN /);
 });
 
 test("orchestrator-next treats abandoned task-board state as terminal orchestrator history", () => {
@@ -126,7 +199,7 @@ test("orchestrator-next ignores unrelated governance waivers for token-budget co
   assert.equal(waiver, null);
 });
 
-test("orchestrator-next continuation waiver suppresses token policy hard stops but keeps findings", () => {
+test("orchestrator-next keeps token policy findings diagnostic even when a legacy waiver is present", () => {
   const decision = tokenPolicyContinuationDecision({
     workflowLane: "ORCHESTRATOR_MANAGED",
     boardStatus: "IN_PROGRESS",
@@ -139,11 +212,12 @@ test("orchestrator-next continuation waiver suppresses token policy hard stops b
   assert.equal(decision.blockLedgerHealth, false);
   assert.equal(decision.blockBudget, false);
   assert.match(decision.findings.join(" | "), /CX-TEST-TOKEN-001/);
-  assert.match(decision.findings.join(" | "), /token-ledger policy remains FAIL/i);
-  assert.match(decision.findings.join(" | "), /token-budget policy remains FAIL/i);
+  assert.match(decision.findings.join(" | "), /must not stop orchestrator-managed continuation/i);
+  assert.match(decision.findings.join(" | "), /diagnostic only/i);
+  assert.match(decision.findings.join(" | "), /no longer requires a waiver/i);
 });
 
-test("orchestrator-next blocks token policy conflicts without a continuation waiver", () => {
+test("orchestrator-next does not block token policy conflicts without a continuation waiver", () => {
   const decision = tokenPolicyContinuationDecision({
     workflowLane: "ORCHESTRATOR_MANAGED",
     boardStatus: "IN_PROGRESS",
@@ -153,9 +227,10 @@ test("orchestrator-next blocks token policy conflicts without a continuation wai
   });
 
   assert.equal(decision.continuationActive, false);
-  assert.equal(decision.blockLedgerHealth, true);
-  assert.equal(decision.blockBudget, true);
-  assert.deepEqual(decision.findings, []);
+  assert.equal(decision.blockLedgerHealth, false);
+  assert.equal(decision.blockBudget, false);
+  assert.match(decision.findings.join(" | "), /governance telemetry only/i);
+  assert.match(decision.findings.join(" | "), /recorded mechanically/i);
 });
 
 test("orchestrator-next classifies queue-backed governed wait state for the projected actor", () => {

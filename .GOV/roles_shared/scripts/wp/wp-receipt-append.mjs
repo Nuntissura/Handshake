@@ -1065,6 +1065,13 @@ function syncReviewGovernanceTruth({
     if (reconciliation.nextPacketText !== originalPacketText) {
       fs.writeFileSync(context.packetAbsPath, reconciliation.nextPacketText, "utf8");
     }
+    if (context.runtimeStatusAbsPath) {
+      fs.writeFileSync(
+        context.runtimeStatusAbsPath,
+        `${JSON.stringify(reconciliation.nextRuntimeStatus, null, 2)}\n`,
+        "utf8",
+      );
+    }
     syncProjectedTaskBoardTruth(wpId, reconciliation.packetProjection);
     return reconciliation.nextRuntimeStatus;
   } catch (error) {

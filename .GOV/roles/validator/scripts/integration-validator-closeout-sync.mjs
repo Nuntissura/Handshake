@@ -18,6 +18,7 @@ import {
   validateContainedMainCommitAgainstSignedScope,
 } from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
+import { resolveArtifactHygieneCloseoutPolicy } from "../../../roles_shared/scripts/lib/closeout-blocking-authority-lib.mjs";
 import {
   activeWorkflowInvalidityReceipt,
   parseJsonlFile,
@@ -55,6 +56,10 @@ import {
   evaluateArtifactHygiene,
   writeArtifactRetentionManifest,
 } from "../../../roles_shared/scripts/lib/artifact-hygiene-lib.mjs";
+import {
+  activeDeclaredTopologyRepoRoots,
+  evaluateWpDeclaredTopology,
+} from "../../../roles_shared/scripts/lib/wp-declared-topology-lib.mjs";
 import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/memory-snapshot.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 registerFailCaptureHook("integration-validator-closeout-sync.mjs", { role: "INTEGRATION_VALIDATOR" });
@@ -433,14 +438,42 @@ if (!evaluation.ok) {
 }
 
 ensureArtifactRootStructure(repoRoot);
-const artifactEvaluationBeforeCleanup = evaluateArtifactHygiene({ repoRoot });
+const declaredTopology = evaluateWpDeclaredTopology({
+  repoRoot,
+  wpId,
+  packetContent: originalPacketText,
+});
+const artifactHygienePolicy = resolveArtifactHygieneCloseoutPolicy({
+  closeoutMode: requestedMode.mode,
+});
+const settlementDebtKeys = [];
+const settlementDebtSummaries = [];
+const activeArtifactRepoRoots = activeDeclaredTopologyRepoRoots({
+  repoRoot,
+  topology: declaredTopology.topology,
+  governanceRootAbs: evaluation.topology.liveGovernanceRootAbs || GOV_ROOT_ABS,
+});
+const artifactEvaluationBeforeCleanup = evaluateArtifactHygiene({
+  repoRoot,
+  repoRoots: activeArtifactRepoRoots,
+});
 const artifactCleanup = cleanupArtifactResidue(artifactEvaluationBeforeCleanup);
 if (artifactCleanup.errors.length > 0) {
   fail("Closeout sync could not clean artifact residue", artifactCleanup.errors);
 }
-const artifactEvaluation = evaluateArtifactHygiene({ repoRoot });
+const artifactEvaluation = evaluateArtifactHygiene({
+  repoRoot,
+  repoRoots: activeArtifactRepoRoots,
+});
 if (artifactEvaluation.blockingIssues.length > 0) {
-  fail("Closeout sync requires clean artifact hygiene before terminal truth can be promoted", artifactEvaluation.blockingIssues);
+  if (artifactHygienePolicy.disposition === "SETTLEMENT_DEBT") {
+    settlementDebtKeys.push(artifactHygienePolicy.debt_key);
+    settlementDebtSummaries.push(
+      `Artifact hygiene demoted to settlement debt for ${requestedMode.mode}: ${artifactEvaluation.blockingIssues.join(" | ")}`,
+    );
+  } else {
+    fail("Closeout sync requires clean artifact hygiene before terminal truth can be promoted", artifactEvaluation.blockingIssues);
+  }
 }
 const artifactRetentionManifest = buildArtifactRetentionManifest({
   repoRoot,
@@ -588,6 +621,8 @@ try {
       artifact_retention_manifest_abs: normalizePath(artifactRetentionManifestWrite.manifestAbsPath),
       artifact_cleanup_removed_repo_local_dirs: artifactCleanup.removedRepoLocalDirs.map((entry) => normalizePath(entry)),
       artifact_cleanup_removed_external_dirs: artifactCleanup.removedExternalDirs.map((entry) => normalizePath(entry)),
+      settlement_debt_keys: settlementDebtKeys,
+      settlement_debt_summaries: settlementDebtSummaries,
       governed_action: buildCloseoutSyncGovernedAction({
         wpId,
         mode: requestedMode.mode,

@@ -63,11 +63,19 @@ function isPlainObject(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object || {}, key);
+}
+
 function normalizeNullableString(value) {
   if (value === null || value === undefined) return null;
   const raw = String(value).trim();
   if (!raw) return null;
   return raw;
+}
+
+function normalizeUpperString(value) {
+  return String(value || "").trim().toUpperCase();
 }
 
 function normalizeNullableInteger(value) {
@@ -135,49 +143,131 @@ function normalizeReviewAnchor(reviewAnchor = {}) {
 }
 
 export function buildExecutionAuthorityFromRuntime(runtimeStatus = {}) {
-  return {
-    packet_status: normalizeNullableString(runtimeStatus.current_packet_status),
-    task_board_status: normalizeNullableString(runtimeStatus.current_task_board_status),
-    milestone: normalizeNullableString(runtimeStatus.current_milestone),
-    phase: normalizeNullableString(runtimeStatus.current_phase),
-    runtime_status: normalizeNullableString(runtimeStatus.runtime_status),
-    next_expected_actor: normalizeNullableString(runtimeStatus.next_expected_actor),
-    next_expected_session: normalizeNullableString(runtimeStatus.next_expected_session),
-    waiting_on: normalizeNullableString(runtimeStatus.waiting_on),
-    waiting_on_session: normalizeNullableString(runtimeStatus.waiting_on_session),
-    validator_trigger: normalizeNullableString(runtimeStatus.validator_trigger),
-    validator_trigger_reason: normalizeNullableString(runtimeStatus.validator_trigger_reason),
-    attention_required: normalizeBoolean(runtimeStatus.attention_required),
-    ready_for_validation: normalizeBoolean(runtimeStatus.ready_for_validation),
-    ready_for_validation_reason: normalizeNullableString(runtimeStatus.ready_for_validation_reason),
-    wp_validator_of_record: normalizeNullableString(runtimeStatus.wp_validator_of_record),
-    integration_validator_of_record: normalizeNullableString(runtimeStatus.integration_validator_of_record),
-    main_containment_status: normalizeNullableString(runtimeStatus.main_containment_status),
-    merged_main_commit: normalizeNullableString(runtimeStatus.merged_main_commit),
-    main_containment_verified_at_utc: normalizeNullableString(runtimeStatus.main_containment_verified_at_utc),
-    current_main_compatibility_status: normalizeNullableString(runtimeStatus.current_main_compatibility_status),
-    current_main_compatibility_baseline_sha: normalizeNullableString(runtimeStatus.current_main_compatibility_baseline_sha),
-    current_main_compatibility_verified_at_utc: normalizeNullableString(runtimeStatus.current_main_compatibility_verified_at_utc),
-    packet_widening_decision: normalizeNullableString(runtimeStatus.packet_widening_decision),
-    packet_widening_evidence: normalizeNullableString(runtimeStatus.packet_widening_evidence),
-    route_anchor: normalizeRouteAnchor({
-      state: runtimeStatus.route_anchor_state,
-      kind: runtimeStatus.route_anchor_kind,
-      correlation_id: runtimeStatus.route_anchor_correlation_id,
-      target_role: runtimeStatus.route_anchor_target_role,
-      target_session: runtimeStatus.route_anchor_target_session,
-    }),
-    review_anchor: normalizeReviewAnchor({
-      receipt_kind: runtimeStatus.authoritative_review_receipt_kind,
-      correlation_id: runtimeStatus.authoritative_review_correlation_id,
-      actor_session: runtimeStatus.authoritative_review_actor_session,
-      target_session: runtimeStatus.authoritative_review_target_session,
-      round: runtimeStatus.authoritative_review_round,
-      committed_handoff_base_sha: runtimeStatus.committed_handoff_base_sha,
-      committed_handoff_head_sha: runtimeStatus.committed_handoff_head_sha,
-      committed_handoff_range_source: runtimeStatus.committed_handoff_range_source,
-    }),
-  };
+  const authority = {};
+
+  if (hasOwn(runtimeStatus, "current_packet_status")) {
+    authority.packet_status = normalizeNullableString(runtimeStatus.current_packet_status);
+  }
+  if (hasOwn(runtimeStatus, "current_task_board_status")) {
+    authority.task_board_status = normalizeNullableString(runtimeStatus.current_task_board_status);
+  }
+  if (hasOwn(runtimeStatus, "current_milestone")) {
+    authority.milestone = normalizeNullableString(runtimeStatus.current_milestone);
+  }
+  if (hasOwn(runtimeStatus, "current_phase")) {
+    authority.phase = normalizeNullableString(runtimeStatus.current_phase);
+  }
+  if (hasOwn(runtimeStatus, "runtime_status")) {
+    authority.runtime_status = normalizeNullableString(runtimeStatus.runtime_status);
+  }
+  if (hasOwn(runtimeStatus, "next_expected_actor")) {
+    authority.next_expected_actor = normalizeNullableString(runtimeStatus.next_expected_actor);
+  }
+  if (hasOwn(runtimeStatus, "next_expected_session")) {
+    authority.next_expected_session = normalizeNullableString(runtimeStatus.next_expected_session);
+  }
+  if (hasOwn(runtimeStatus, "waiting_on")) {
+    authority.waiting_on = normalizeNullableString(runtimeStatus.waiting_on);
+  }
+  if (hasOwn(runtimeStatus, "waiting_on_session")) {
+    authority.waiting_on_session = normalizeNullableString(runtimeStatus.waiting_on_session);
+  }
+  if (hasOwn(runtimeStatus, "validator_trigger")) {
+    authority.validator_trigger = normalizeNullableString(runtimeStatus.validator_trigger);
+  }
+  if (hasOwn(runtimeStatus, "validator_trigger_reason")) {
+    authority.validator_trigger_reason = normalizeNullableString(runtimeStatus.validator_trigger_reason);
+  }
+  if (hasOwn(runtimeStatus, "attention_required")) {
+    authority.attention_required = normalizeBoolean(runtimeStatus.attention_required);
+  }
+  if (hasOwn(runtimeStatus, "ready_for_validation")) {
+    authority.ready_for_validation = normalizeBoolean(runtimeStatus.ready_for_validation);
+  }
+  if (hasOwn(runtimeStatus, "ready_for_validation_reason")) {
+    authority.ready_for_validation_reason = normalizeNullableString(runtimeStatus.ready_for_validation_reason);
+  }
+  if (hasOwn(runtimeStatus, "wp_validator_of_record")) {
+    authority.wp_validator_of_record = normalizeNullableString(runtimeStatus.wp_validator_of_record);
+  }
+  if (hasOwn(runtimeStatus, "integration_validator_of_record")) {
+    authority.integration_validator_of_record = normalizeNullableString(runtimeStatus.integration_validator_of_record);
+  }
+  if (hasOwn(runtimeStatus, "main_containment_status")) {
+    authority.main_containment_status = normalizeNullableString(runtimeStatus.main_containment_status);
+  }
+  if (hasOwn(runtimeStatus, "merged_main_commit")) {
+    authority.merged_main_commit = normalizeNullableString(runtimeStatus.merged_main_commit);
+  }
+  if (hasOwn(runtimeStatus, "main_containment_verified_at_utc")) {
+    authority.main_containment_verified_at_utc = normalizeNullableString(runtimeStatus.main_containment_verified_at_utc);
+  }
+  if (hasOwn(runtimeStatus, "current_main_compatibility_status")) {
+    authority.current_main_compatibility_status = normalizeNullableString(runtimeStatus.current_main_compatibility_status);
+  }
+  if (hasOwn(runtimeStatus, "current_main_compatibility_baseline_sha")) {
+    authority.current_main_compatibility_baseline_sha = normalizeNullableString(runtimeStatus.current_main_compatibility_baseline_sha);
+  }
+  if (hasOwn(runtimeStatus, "current_main_compatibility_verified_at_utc")) {
+    authority.current_main_compatibility_verified_at_utc = normalizeNullableString(runtimeStatus.current_main_compatibility_verified_at_utc);
+  }
+  if (hasOwn(runtimeStatus, "packet_widening_decision")) {
+    authority.packet_widening_decision = normalizeNullableString(runtimeStatus.packet_widening_decision);
+  }
+  if (hasOwn(runtimeStatus, "packet_widening_evidence")) {
+    authority.packet_widening_evidence = normalizeNullableString(runtimeStatus.packet_widening_evidence);
+  }
+
+  const routeAnchor = {};
+  if (hasOwn(runtimeStatus, "route_anchor_state")) {
+    routeAnchor.state = normalizeNullableString(runtimeStatus.route_anchor_state);
+  }
+  if (hasOwn(runtimeStatus, "route_anchor_kind")) {
+    routeAnchor.kind = normalizeNullableString(runtimeStatus.route_anchor_kind);
+  }
+  if (hasOwn(runtimeStatus, "route_anchor_correlation_id")) {
+    routeAnchor.correlation_id = normalizeNullableString(runtimeStatus.route_anchor_correlation_id);
+  }
+  if (hasOwn(runtimeStatus, "route_anchor_target_role")) {
+    routeAnchor.target_role = normalizeNullableString(runtimeStatus.route_anchor_target_role);
+  }
+  if (hasOwn(runtimeStatus, "route_anchor_target_session")) {
+    routeAnchor.target_session = normalizeNullableString(runtimeStatus.route_anchor_target_session);
+  }
+  if (Object.keys(routeAnchor).length > 0) {
+    authority.route_anchor = routeAnchor;
+  }
+
+  const reviewAnchor = {};
+  if (hasOwn(runtimeStatus, "authoritative_review_receipt_kind")) {
+    reviewAnchor.receipt_kind = normalizeNullableString(runtimeStatus.authoritative_review_receipt_kind);
+  }
+  if (hasOwn(runtimeStatus, "authoritative_review_correlation_id")) {
+    reviewAnchor.correlation_id = normalizeNullableString(runtimeStatus.authoritative_review_correlation_id);
+  }
+  if (hasOwn(runtimeStatus, "authoritative_review_actor_session")) {
+    reviewAnchor.actor_session = normalizeNullableString(runtimeStatus.authoritative_review_actor_session);
+  }
+  if (hasOwn(runtimeStatus, "authoritative_review_target_session")) {
+    reviewAnchor.target_session = normalizeNullableString(runtimeStatus.authoritative_review_target_session);
+  }
+  if (hasOwn(runtimeStatus, "authoritative_review_round")) {
+    reviewAnchor.round = normalizeNullableInteger(runtimeStatus.authoritative_review_round);
+  }
+  if (hasOwn(runtimeStatus, "committed_handoff_base_sha")) {
+    reviewAnchor.committed_handoff_base_sha = normalizeNullableString(runtimeStatus.committed_handoff_base_sha);
+  }
+  if (hasOwn(runtimeStatus, "committed_handoff_head_sha")) {
+    reviewAnchor.committed_handoff_head_sha = normalizeNullableString(runtimeStatus.committed_handoff_head_sha);
+  }
+  if (hasOwn(runtimeStatus, "committed_handoff_range_source")) {
+    reviewAnchor.committed_handoff_range_source = normalizeNullableString(runtimeStatus.committed_handoff_range_source);
+  }
+  if (Object.keys(reviewAnchor).length > 0) {
+    authority.review_anchor = reviewAnchor;
+  }
+
+  return authority;
 }
 
 export function readRuntimeExecutionAuthority(runtimeStatus = {}) {
@@ -185,82 +275,240 @@ export function readRuntimeExecutionAuthority(runtimeStatus = {}) {
   const executionStateAuthority = isPlainObject(runtimeStatus?.execution_state?.authority)
     ? runtimeStatus.execution_state.authority
     : {};
-  return mergeExecutionAuthority(runtimeAuthority, executionStateAuthority);
+  return applyTerminalSettlementFence(mergeExecutionAuthority(runtimeAuthority, executionStateAuthority));
+}
+
+export function hasTerminalVerdictOfRecord(authority = {}) {
+  const packetStatus = normalizeUpperString(authority.packet_status);
+  const taskBoardStatus = normalizeUpperString(authority.task_board_status);
+  return /^VALIDATED \((PASS|FAIL|OUTDATED_ONLY|ABANDONED)\)$/.test(packetStatus)
+    || [
+      "VALIDATED",
+      "FAIL",
+      "OUTDATED_ONLY",
+      "ABANDONED",
+      "DONE_VALIDATED",
+      "DONE_FAIL",
+      "DONE_OUTDATED_ONLY",
+      "DONE_ABANDONED",
+    ].includes(taskBoardStatus);
+}
+
+function applyTerminalSettlementFence(authority = {}) {
+  if (!hasTerminalVerdictOfRecord(authority)) return authority;
+  return {
+    ...authority,
+    milestone: "CONTAINMENT",
+    phase: "STATUS_SYNC",
+    runtime_status: "completed",
+    next_expected_actor: "NONE",
+    next_expected_session: null,
+    waiting_on: "CLOSED",
+    waiting_on_session: null,
+    validator_trigger: "NONE",
+    validator_trigger_reason: null,
+    attention_required: false,
+    ready_for_validation: false,
+    ready_for_validation_reason: null,
+    route_anchor: {
+      state: null,
+      kind: null,
+      correlation_id: null,
+      target_role: null,
+      target_session: null,
+    },
+  };
 }
 
 function mergeExecutionAuthority(previousAuthority = {}, nextAuthority = {}) {
   const previousRouteAnchor = normalizeRouteAnchor(previousAuthority.route_anchor);
   const previousReviewAnchor = normalizeReviewAnchor(previousAuthority.review_anchor);
-  const currentRouteAnchor = normalizeRouteAnchor(nextAuthority.route_anchor);
-  const currentReviewAnchor = normalizeReviewAnchor(nextAuthority.review_anchor);
+  const hasNextRouteAnchor = hasOwn(nextAuthority, "route_anchor");
+  const hasNextReviewAnchor = hasOwn(nextAuthority, "review_anchor");
+  const nextRouteAnchor = hasNextRouteAnchor
+    ? (nextAuthority.route_anchor === null ? null : (isPlainObject(nextAuthority.route_anchor) ? nextAuthority.route_anchor : {}))
+    : null;
+  const nextReviewAnchor = hasNextReviewAnchor
+    ? (nextAuthority.review_anchor === null ? null : (isPlainObject(nextAuthority.review_anchor) ? nextAuthority.review_anchor : {}))
+    : null;
 
   return {
-    packet_status: normalizeNullableString(nextAuthority.packet_status ?? previousAuthority.packet_status),
-    task_board_status: normalizeNullableString(nextAuthority.task_board_status ?? previousAuthority.task_board_status),
-    milestone: normalizeNullableString(nextAuthority.milestone ?? previousAuthority.milestone),
-    phase: normalizeNullableString(nextAuthority.phase ?? previousAuthority.phase),
-    runtime_status: normalizeNullableString(nextAuthority.runtime_status ?? previousAuthority.runtime_status),
-    next_expected_actor: normalizeNullableString(nextAuthority.next_expected_actor ?? previousAuthority.next_expected_actor),
-    next_expected_session: normalizeNullableString(nextAuthority.next_expected_session ?? previousAuthority.next_expected_session),
-    waiting_on: normalizeNullableString(nextAuthority.waiting_on ?? previousAuthority.waiting_on),
-    waiting_on_session: normalizeNullableString(nextAuthority.waiting_on_session ?? previousAuthority.waiting_on_session),
-    validator_trigger: normalizeNullableString(nextAuthority.validator_trigger ?? previousAuthority.validator_trigger),
-    validator_trigger_reason: normalizeNullableString(nextAuthority.validator_trigger_reason ?? previousAuthority.validator_trigger_reason),
-    attention_required: normalizeBoolean(
-      nextAuthority.attention_required,
-      normalizeBoolean(previousAuthority.attention_required),
-    ),
-    ready_for_validation: normalizeBoolean(
-      nextAuthority.ready_for_validation,
-      normalizeBoolean(previousAuthority.ready_for_validation),
-    ),
-    ready_for_validation_reason: normalizeNullableString(
-      nextAuthority.ready_for_validation_reason ?? previousAuthority.ready_for_validation_reason,
-    ),
-    wp_validator_of_record: normalizeNullableString(
-      nextAuthority.wp_validator_of_record ?? previousAuthority.wp_validator_of_record,
-    ),
-    integration_validator_of_record: normalizeNullableString(
-      nextAuthority.integration_validator_of_record ?? previousAuthority.integration_validator_of_record,
-    ),
-    main_containment_status: normalizeNullableString(
-      nextAuthority.main_containment_status ?? previousAuthority.main_containment_status,
-    ),
-    merged_main_commit: normalizeNullableString(nextAuthority.merged_main_commit ?? previousAuthority.merged_main_commit),
-    main_containment_verified_at_utc: normalizeNullableString(
-      nextAuthority.main_containment_verified_at_utc ?? previousAuthority.main_containment_verified_at_utc,
-    ),
-    current_main_compatibility_status: normalizeNullableString(
-      nextAuthority.current_main_compatibility_status ?? previousAuthority.current_main_compatibility_status,
-    ),
-    current_main_compatibility_baseline_sha: normalizeNullableString(
-      nextAuthority.current_main_compatibility_baseline_sha ?? previousAuthority.current_main_compatibility_baseline_sha,
-    ),
-    current_main_compatibility_verified_at_utc: normalizeNullableString(
-      nextAuthority.current_main_compatibility_verified_at_utc ?? previousAuthority.current_main_compatibility_verified_at_utc,
-    ),
-    packet_widening_decision: normalizeNullableString(
-      nextAuthority.packet_widening_decision ?? previousAuthority.packet_widening_decision,
-    ),
-    packet_widening_evidence: normalizeNullableString(
-      nextAuthority.packet_widening_evidence ?? previousAuthority.packet_widening_evidence,
-    ),
+    packet_status: hasOwn(nextAuthority, "packet_status")
+      ? normalizeNullableString(nextAuthority.packet_status)
+      : normalizeNullableString(previousAuthority.packet_status),
+    task_board_status: hasOwn(nextAuthority, "task_board_status")
+      ? normalizeNullableString(nextAuthority.task_board_status)
+      : normalizeNullableString(previousAuthority.task_board_status),
+    milestone: hasOwn(nextAuthority, "milestone")
+      ? normalizeNullableString(nextAuthority.milestone)
+      : normalizeNullableString(previousAuthority.milestone),
+    phase: hasOwn(nextAuthority, "phase")
+      ? normalizeNullableString(nextAuthority.phase)
+      : normalizeNullableString(previousAuthority.phase),
+    runtime_status: hasOwn(nextAuthority, "runtime_status")
+      ? normalizeNullableString(nextAuthority.runtime_status)
+      : normalizeNullableString(previousAuthority.runtime_status),
+    next_expected_actor: hasOwn(nextAuthority, "next_expected_actor")
+      ? normalizeNullableString(nextAuthority.next_expected_actor)
+      : normalizeNullableString(previousAuthority.next_expected_actor),
+    next_expected_session: hasOwn(nextAuthority, "next_expected_session")
+      ? normalizeNullableString(nextAuthority.next_expected_session)
+      : normalizeNullableString(previousAuthority.next_expected_session),
+    waiting_on: hasOwn(nextAuthority, "waiting_on")
+      ? normalizeNullableString(nextAuthority.waiting_on)
+      : normalizeNullableString(previousAuthority.waiting_on),
+    waiting_on_session: hasOwn(nextAuthority, "waiting_on_session")
+      ? normalizeNullableString(nextAuthority.waiting_on_session)
+      : normalizeNullableString(previousAuthority.waiting_on_session),
+    validator_trigger: hasOwn(nextAuthority, "validator_trigger")
+      ? normalizeNullableString(nextAuthority.validator_trigger)
+      : normalizeNullableString(previousAuthority.validator_trigger),
+    validator_trigger_reason: hasOwn(nextAuthority, "validator_trigger_reason")
+      ? normalizeNullableString(nextAuthority.validator_trigger_reason)
+      : normalizeNullableString(previousAuthority.validator_trigger_reason),
+    attention_required: hasOwn(nextAuthority, "attention_required")
+      ? normalizeBoolean(nextAuthority.attention_required)
+      : normalizeBoolean(previousAuthority.attention_required),
+    ready_for_validation: hasOwn(nextAuthority, "ready_for_validation")
+      ? normalizeBoolean(nextAuthority.ready_for_validation)
+      : normalizeBoolean(previousAuthority.ready_for_validation),
+    ready_for_validation_reason: hasOwn(nextAuthority, "ready_for_validation_reason")
+      ? normalizeNullableString(nextAuthority.ready_for_validation_reason)
+      : normalizeNullableString(previousAuthority.ready_for_validation_reason),
+    wp_validator_of_record: hasOwn(nextAuthority, "wp_validator_of_record")
+      ? normalizeNullableString(nextAuthority.wp_validator_of_record)
+      : normalizeNullableString(previousAuthority.wp_validator_of_record),
+    integration_validator_of_record: hasOwn(nextAuthority, "integration_validator_of_record")
+      ? normalizeNullableString(nextAuthority.integration_validator_of_record)
+      : normalizeNullableString(previousAuthority.integration_validator_of_record),
+    main_containment_status: hasOwn(nextAuthority, "main_containment_status")
+      ? normalizeNullableString(nextAuthority.main_containment_status)
+      : normalizeNullableString(previousAuthority.main_containment_status),
+    merged_main_commit: hasOwn(nextAuthority, "merged_main_commit")
+      ? normalizeNullableString(nextAuthority.merged_main_commit)
+      : normalizeNullableString(previousAuthority.merged_main_commit),
+    main_containment_verified_at_utc: hasOwn(nextAuthority, "main_containment_verified_at_utc")
+      ? normalizeNullableString(nextAuthority.main_containment_verified_at_utc)
+      : normalizeNullableString(previousAuthority.main_containment_verified_at_utc),
+    current_main_compatibility_status: hasOwn(nextAuthority, "current_main_compatibility_status")
+      ? normalizeNullableString(nextAuthority.current_main_compatibility_status)
+      : normalizeNullableString(previousAuthority.current_main_compatibility_status),
+    current_main_compatibility_baseline_sha: hasOwn(nextAuthority, "current_main_compatibility_baseline_sha")
+      ? normalizeNullableString(nextAuthority.current_main_compatibility_baseline_sha)
+      : normalizeNullableString(previousAuthority.current_main_compatibility_baseline_sha),
+    current_main_compatibility_verified_at_utc: hasOwn(nextAuthority, "current_main_compatibility_verified_at_utc")
+      ? normalizeNullableString(nextAuthority.current_main_compatibility_verified_at_utc)
+      : normalizeNullableString(previousAuthority.current_main_compatibility_verified_at_utc),
+    packet_widening_decision: hasOwn(nextAuthority, "packet_widening_decision")
+      ? normalizeNullableString(nextAuthority.packet_widening_decision)
+      : normalizeNullableString(previousAuthority.packet_widening_decision),
+    packet_widening_evidence: hasOwn(nextAuthority, "packet_widening_evidence")
+      ? normalizeNullableString(nextAuthority.packet_widening_evidence)
+      : normalizeNullableString(previousAuthority.packet_widening_evidence),
     route_anchor: {
-      state: currentRouteAnchor.state ?? previousRouteAnchor.state,
-      kind: currentRouteAnchor.kind ?? previousRouteAnchor.kind,
-      correlation_id: currentRouteAnchor.correlation_id ?? previousRouteAnchor.correlation_id,
-      target_role: currentRouteAnchor.target_role ?? previousRouteAnchor.target_role,
-      target_session: currentRouteAnchor.target_session ?? previousRouteAnchor.target_session,
+      state: !hasNextRouteAnchor
+        ? previousRouteAnchor.state
+        : nextRouteAnchor === null
+          ? null
+          : (hasOwn(nextRouteAnchor, "state") ? normalizeNullableString(nextRouteAnchor.state) : previousRouteAnchor.state),
+      kind: !hasNextRouteAnchor
+        ? previousRouteAnchor.kind
+        : nextRouteAnchor === null
+          ? null
+          : (hasOwn(nextRouteAnchor, "kind") ? normalizeNullableString(nextRouteAnchor.kind) : previousRouteAnchor.kind),
+      correlation_id: !hasNextRouteAnchor
+        ? previousRouteAnchor.correlation_id
+        : nextRouteAnchor === null
+          ? null
+          : (
+            hasOwn(nextRouteAnchor, "correlation_id")
+              ? normalizeNullableString(nextRouteAnchor.correlation_id)
+              : previousRouteAnchor.correlation_id
+          ),
+      target_role: !hasNextRouteAnchor
+        ? previousRouteAnchor.target_role
+        : nextRouteAnchor === null
+          ? null
+          : (hasOwn(nextRouteAnchor, "target_role") ? normalizeNullableString(nextRouteAnchor.target_role) : previousRouteAnchor.target_role),
+      target_session: !hasNextRouteAnchor
+        ? previousRouteAnchor.target_session
+        : nextRouteAnchor === null
+          ? null
+          : (
+            hasOwn(nextRouteAnchor, "target_session")
+              ? normalizeNullableString(nextRouteAnchor.target_session)
+              : previousRouteAnchor.target_session
+          ),
     },
     review_anchor: {
-      receipt_kind: currentReviewAnchor.receipt_kind ?? previousReviewAnchor.receipt_kind,
-      correlation_id: currentReviewAnchor.correlation_id ?? previousReviewAnchor.correlation_id,
-      actor_session: currentReviewAnchor.actor_session ?? previousReviewAnchor.actor_session,
-      target_session: currentReviewAnchor.target_session ?? previousReviewAnchor.target_session,
-      round: currentReviewAnchor.round ?? previousReviewAnchor.round,
-      committed_handoff_base_sha: currentReviewAnchor.committed_handoff_base_sha ?? previousReviewAnchor.committed_handoff_base_sha,
-      committed_handoff_head_sha: currentReviewAnchor.committed_handoff_head_sha ?? previousReviewAnchor.committed_handoff_head_sha,
-      committed_handoff_range_source: currentReviewAnchor.committed_handoff_range_source ?? previousReviewAnchor.committed_handoff_range_source,
+      receipt_kind: !hasNextReviewAnchor
+        ? previousReviewAnchor.receipt_kind
+        : nextReviewAnchor === null
+          ? null
+          : (
+            hasOwn(nextReviewAnchor, "receipt_kind")
+              ? normalizeNullableString(nextReviewAnchor.receipt_kind)
+              : previousReviewAnchor.receipt_kind
+          ),
+      correlation_id: !hasNextReviewAnchor
+        ? previousReviewAnchor.correlation_id
+        : nextReviewAnchor === null
+          ? null
+          : (
+            hasOwn(nextReviewAnchor, "correlation_id")
+              ? normalizeNullableString(nextReviewAnchor.correlation_id)
+              : previousReviewAnchor.correlation_id
+          ),
+      actor_session: !hasNextReviewAnchor
+        ? previousReviewAnchor.actor_session
+        : nextReviewAnchor === null
+          ? null
+          : (
+            hasOwn(nextReviewAnchor, "actor_session")
+              ? normalizeNullableString(nextReviewAnchor.actor_session)
+              : previousReviewAnchor.actor_session
+          ),
+      target_session: !hasNextReviewAnchor
+        ? previousReviewAnchor.target_session
+        : nextReviewAnchor === null
+          ? null
+          : (
+            hasOwn(nextReviewAnchor, "target_session")
+              ? normalizeNullableString(nextReviewAnchor.target_session)
+              : previousReviewAnchor.target_session
+          ),
+      round: !hasNextReviewAnchor
+        ? previousReviewAnchor.round
+        : nextReviewAnchor === null
+          ? null
+          : (hasOwn(nextReviewAnchor, "round") ? normalizeNullableInteger(nextReviewAnchor.round) : previousReviewAnchor.round),
+      committed_handoff_base_sha: !hasNextReviewAnchor
+        ? previousReviewAnchor.committed_handoff_base_sha
+        : nextReviewAnchor === null
+          ? null
+          : (
+            hasOwn(nextReviewAnchor, "committed_handoff_base_sha")
+              ? normalizeNullableString(nextReviewAnchor.committed_handoff_base_sha)
+              : previousReviewAnchor.committed_handoff_base_sha
+          ),
+      committed_handoff_head_sha: !hasNextReviewAnchor
+        ? previousReviewAnchor.committed_handoff_head_sha
+        : nextReviewAnchor === null
+          ? null
+          : (
+            hasOwn(nextReviewAnchor, "committed_handoff_head_sha")
+              ? normalizeNullableString(nextReviewAnchor.committed_handoff_head_sha)
+              : previousReviewAnchor.committed_handoff_head_sha
+          ),
+      committed_handoff_range_source: !hasNextReviewAnchor
+        ? previousReviewAnchor.committed_handoff_range_source
+        : nextReviewAnchor === null
+          ? null
+          : (
+            hasOwn(nextReviewAnchor, "committed_handoff_range_source")
+              ? normalizeNullableString(nextReviewAnchor.committed_handoff_range_source)
+              : previousReviewAnchor.committed_handoff_range_source
+          ),
     },
   };
 }
@@ -286,6 +534,18 @@ function projectCheckpointSnapshot(authority = {}) {
     committed_handoff_base_sha: normalizeNullableString(authority.review_anchor?.committed_handoff_base_sha),
     committed_handoff_head_sha: normalizeNullableString(authority.review_anchor?.committed_handoff_head_sha),
   };
+}
+
+function checkpointSnapshotFingerprint(snapshot = {}) {
+  return JSON.stringify(snapshot || {});
+}
+
+export function executionAuthorityCheckpointFingerprint(authority = {}) {
+  return checkpointSnapshotFingerprint(projectCheckpointSnapshot(authority));
+}
+
+export function runtimeExecutionCheckpointFingerprint(runtimeStatus = {}) {
+  return executionAuthorityCheckpointFingerprint(readRuntimeExecutionAuthority(runtimeStatus));
 }
 
 function applyCheckpointSnapshotToAuthority(checkpoint = {}) {
@@ -539,7 +799,7 @@ export function syncRuntimeExecutionState(runtimeStatus = {}, {
   const previousLineage = isPlainObject(previousExecutionState.checkpoint_lineage) ? previousExecutionState.checkpoint_lineage : {};
   const previousCheckpoints = cloneCheckpointList(previousLineage.checkpoints);
   const checkpointSnapshot = projectCheckpointSnapshot(authority);
-  const fingerprint = JSON.stringify(checkpointSnapshot);
+  const fingerprint = checkpointSnapshotFingerprint(checkpointSnapshot);
   const latestFingerprint = normalizeNullableString(previousLineage.latest_checkpoint_fingerprint);
   const shouldAppendCheckpoint = forceCheckpoint || previousCheckpoints.length === 0 || fingerprint !== latestFingerprint;
 

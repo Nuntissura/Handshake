@@ -4,7 +4,9 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   ROLE_MODEL_PROFILE_POLICY,
+  ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH,
   ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX,
+  ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
   ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH,
   CLI_ESCALATION_HOST_DEFAULT,
   CLI_ESCALATION_HOST_LEGACY_ALIAS,
@@ -267,7 +269,9 @@ requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just launch-integration-validator-session");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just phase-check CLOSEOUT");
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "just record-role-model-profiles");
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH);
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, ROLE_MODEL_PROFILE_OPENAI_GPT_5_4_XHIGH);
+requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
 
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "just coder-startup");

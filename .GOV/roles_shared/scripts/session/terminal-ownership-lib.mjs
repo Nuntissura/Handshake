@@ -33,7 +33,7 @@ function defaultInspectProcess(processId) {
         "-Command",
         `$proc = Get-Process -Id ${Number(processId)} -ErrorAction SilentlyContinue; if ($proc) { 'RUNNING' } else { 'MISSING' }`,
       ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true },
     ).trim();
     return output === "RUNNING";
   } catch {
@@ -60,7 +60,7 @@ function defaultStopProcess(processId) {
         "}",
       ].join("; "),
     ],
-    { stdio: ["ignore", "pipe", "pipe"] },
+    { stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
   );
 }
 
@@ -82,7 +82,7 @@ function defaultFindProcessesByWindowTitle(terminalWindowTitle) {
           "} | Select-Object -ExpandProperty Id",
         ].join(" "),
       ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true },
     ).trim();
     return output
       .split(/\r?\n/)
@@ -164,12 +164,12 @@ export function launchOwnedSystemTerminal({
         `$proc = Start-Process -FilePath 'powershell.exe'`,
         `  -WorkingDirectory ${psQuote(worktreeAbs)}`,
         `  -ArgumentList @('-NoLogo','-File',${psQuote(launchScriptPath)})`,
-        "  -WindowStyle Normal",
+        "  -WindowStyle Hidden",
         "  -PassThru;",
         "Write-Output $proc.Id",
       ].join(" "),
     ],
-    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
   ).trim();
 
   const processId = Number.parseInt(String(output || "").split(/\r?\n/).at(-1) || "", 10);

@@ -6,8 +6,8 @@ Thin VS Code extension bridge for Handshake repo-governed session orchestration.
 - Watch the external repo-governance `SESSION_LAUNCH_REQUESTS.jsonl` ledger
 - Watch the external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger
 - Use the external repo-governance `SESSION_CONTROL_OUTPUTS/` directory as the per-command detail source behind steerable completion/cancel notices when the repo tooling requests it
-- Create or reuse named integrated terminals
-- Send the exact repo-governed Codex command into that terminal
+- Create or reuse named integrated terminals only for legacy launch-queue compatibility
+- Send the exact repo-governed Codex command into that hidden terminal without revealing the terminal panel
 - Record plugin acknowledgment or failure in the external repo-governance `ROLE_SESSION_REGISTRY.json`
 - Surface validator wake-up notifications from `WP_COMMUNICATIONS/**/RUNTIME_STATUS.json`
 - Surface steerable session-command completion notices from the external repo-governance `SESSION_CONTROL_RESULTS.jsonl` ledger
@@ -22,7 +22,7 @@ Thin VS Code extension bridge for Handshake repo-governed session orchestration.
 ## Why This Exists
 - Official VS Code extension APIs can create terminals and send command text.
 - The repo scripts remain the authority for launch policy.
-- This extension is only the integrated-terminal transport and notification layer. Primary launch path is here; Primary steering lane runs through the governance ACP bridge.
+- This extension is only the legacy integrated-terminal transport and notification layer. Primary launch and steering run through the governance ACP bridge.
 - Only the Orchestrator starts fresh governed sessions. This bridge does not grant Coder or Validator sessions independent start or steering authority.
 
 ## Install / Run
@@ -38,7 +38,7 @@ Thin VS Code extension bridge for Handshake repo-governed session orchestration.
 - Registry file: default repo-relative `../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json`
 - Steering notice ledger: default repo-relative `../gov_runtime/roles_shared/SESSION_CONTROL_RESULTS.jsonl`
 - Steering detail log root: default repo-relative `../gov_runtime/roles_shared/SESSION_CONTROL_OUTPUTS/`
-- Preferred host: `VSCODE_EXTENSION_TERMINAL`
+- Preferred host: `HANDSHAKE_ACP_BROKER`; `VSCODE_EXTENSION_TERMINAL` is legacy queue compatibility only and must not reveal terminals.
 - Fallback law lives in repo scripts, not here.
 - Wake/notice contract: launch queue + registry for bootstrap, `SESSION_CONTROL_RESULTS.jsonl` plus `SESSION_CONTROL_OUTPUTS/` for ACP steering notices, and packet runtime status for validator/operator wake-ups.
 - The richer ACP-aware oversight surface is `just operator-monitor`; this extension is not the operator authority surface.
@@ -46,5 +46,6 @@ Thin VS Code extension bridge for Handshake repo-governed session orchestration.
 
 ## Safety
 - Only requests with `launch_authority=ORCHESTRATOR_ONLY` are accepted.
+- Legacy terminal dispatch must not call `terminal.show(...)`; hidden dispatch prevents focus theft and keyboard hijacking.
 - Invalid requests are marked as plugin failures in the registry.
 - Packet truth still wins over registry state.

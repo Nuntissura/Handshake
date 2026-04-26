@@ -18,6 +18,7 @@ import {
   buildSessionControlRequest,
   buildStartupPrompt,
   defaultSessionOutputFile,
+  isAcceptedSessionControlOutcomeState,
   resolveRoleConfig,
   resolveRoleLaunchSelection,
   assertRoleLaunchProfileSupported,
@@ -104,7 +105,7 @@ function reclaimOwnedTerminalsForSession(context = "") {
 }
 
 function runGit(args) {
-  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
 }
 
 function shortenDossierToken(value = "", prefix = 8, suffix = 6) {
@@ -180,8 +181,9 @@ function appendWorkflowDossierExecutionLog(targetWpId, summaryLine) {
     appendWorkflowDossierEntry({
       repoRoot,
       wpId: targetWpId,
-      section: "EXECUTION",
+      section: "ACP_TRACE",
       line: summaryLine,
+      insertMode: "section-append",
     });
   } catch {
     // Non-fatal: dossier append is observability only.
@@ -615,7 +617,7 @@ if (!fs.existsSync(absWorktreeDir)) {
   execFileSync(
     process.execPath,
     [path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs"), role, wpId, roleConfig.branch, roleConfig.worktreeDir],
-    { stdio: "inherit" },
+    { stdio: "inherit", windowsHide: true },
   );
 }
 
@@ -803,16 +805,17 @@ const outcomeState = String(
   response.outcome_state
   || classifyResponseOutcome({ settledCommandKind: commandKind, response, refreshedSession }),
 ).trim().toUpperCase() || "FAILED";
+const responseStatus = String(response.status || "").trim().toLowerCase();
 
-if (String(response.status || "").toLowerCase() !== "completed") {
-  if (
-    commandKind === "SEND_PROMPT"
-    && String(response.status || "").toLowerCase() === "queued"
-    && outcomeState === "ACCEPTED_PENDING"
-  ) {
+if (responseStatus !== "completed") {
+  if (["queued", "running"].includes(responseStatus) && isAcceptedSessionControlOutcomeState(outcomeState)) {
     const detail = response.error
       || response.last_agent_message
-      || `Queued ${session.session_key} behind active run ${response.blocking_run_id || "<unknown>"}.`;
+      || (
+        responseStatus === "queued"
+          ? `Queued ${session.session_key} behind active run ${response.blocking_run_id || "<unknown>"}.`
+          : `ACP accepted ${request.command_id} for ${session.session_key}; the governed run is now active.`
+      );
     emitSessionOutcomeLines({
       requestCommandId: request.command_id,
       sessionKey: session.session_key,
@@ -829,7 +832,7 @@ if (String(response.status || "").toLowerCase() !== "completed") {
       commandKind,
       settledRole: role,
       targetWpId: wpId,
-      status: "QUEUED",
+      status: responseStatus.toUpperCase(),
       outcomeState,
       threadId: refreshedSession.session_thread_id || response.thread_id || "",
       outputJsonlFile: response.output_jsonl_file || request.output_jsonl_file || "",

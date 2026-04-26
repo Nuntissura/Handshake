@@ -92,6 +92,40 @@ test("closeout sync options require explicit context and contained-main sha only
   );
 });
 
+test("closeout sync options rebuild multi-token context values after Windows wrapper splitting", () => {
+  assert.deepEqual(
+    parseCloseoutSyncOptions([
+      "--sync-mode",
+      "FAIL",
+      "--context",
+      "Final",
+      "lane",
+      "FAIL",
+      "current",
+      "main",
+      "candidate",
+      "does",
+      "not",
+      "compile",
+      "and",
+      "handoff",
+      "proof",
+      "is",
+      "not",
+      "reproducible",
+    ]),
+    {
+      modeSpec: {
+        mode: "FAIL",
+        requireMergedMainCommit: false,
+      },
+      context: "Final lane FAIL current main candidate does not compile and handoff proof is not reproducible",
+      mergedMainSha: "",
+      debug: false,
+    },
+  );
+});
+
 test("phase-check closeout uses injected active repo root when present", () => {
   const original = process.env.HANDSHAKE_ACTIVE_REPO_ROOT;
   try {
@@ -383,6 +417,17 @@ test("closeout next commands surface the typed governed closeout sync when merge
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
   }
+});
+
+test("closeout next commands classify workflow dossier failure as diagnostic debt", () => {
+  const nextCommands = buildCloseoutNextCommands({
+    wpId: "WP-TEST-DOSSIER-DEBT-v1",
+    ok: true,
+    workflowDossierCloseoutOk: false,
+  });
+
+  assert(nextCommands.some((line) => /diagnostic debt/i.test(line)));
+  assert(nextCommands.some((line) => /do not block product closeout/i.test(line)));
 });
 
 test("terminal READY session cleanup targets only governed READY sessions for the active WP", () => {

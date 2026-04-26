@@ -102,6 +102,11 @@ test("syncRuntimeProjectionFromPacket drives validated packets into STATUS_SYNC 
       validator_trigger: "HANDOFF_READY",
       ready_for_validation: true,
       attention_required: true,
+      route_anchor_state: "ACTIVE",
+      route_anchor_kind: "DIRECT_REVIEW",
+      route_anchor_correlation_id: "route-1",
+      route_anchor_target_role: "INTEGRATION_VALIDATOR",
+      route_anchor_target_session: "integration-validator:wp-test-validator-v1",
       current_files_touched: ["src/demo.rs"],
       active_role_sessions: [
         {
@@ -131,8 +136,49 @@ test("syncRuntimeProjectionFromPacket drives validated packets into STATUS_SYNC 
   assert.deepEqual(runtime.current_files_touched, []);
   assert.deepEqual(runtime.active_role_sessions, []);
   assert.deepEqual(runtime.open_review_items, []);
+  assert.equal(runtime.route_anchor_state, null);
+  assert.equal(runtime.route_anchor_kind, null);
+  assert.equal(runtime.route_anchor_correlation_id, null);
+  assert.equal(runtime.route_anchor_target_role, null);
+  assert.equal(runtime.route_anchor_target_session, null);
   assert.equal(runtime.execution_state.authority.next_expected_actor, "NONE");
   assert.equal(runtime.execution_state.checkpoint_lineage.checkpoint_count, 1);
+});
+
+test("syncRuntimeProjectionFromPacket preserves timestamps when the publication projection is semantically unchanged", () => {
+  const first = syncRuntimeProjectionFromPacket(
+    {
+      current_packet_status: "Done",
+      current_task_board_status: "DONE_MERGE_PENDING",
+      current_phase: "STATUS_SYNC",
+      current_milestone: "CONTAINMENT",
+      runtime_status: "completed",
+      next_expected_actor: "NONE",
+      waiting_on: "CLOSED",
+      last_milestone_sync_at: "2026-03-25T10:00:00Z",
+      last_event: "task_board_sync",
+      last_event_at: "2026-03-25T10:00:00Z",
+    },
+    packetFixture(),
+    {
+      eventName: "task_board_sync",
+      eventAt: "2026-03-26T13:00:00Z",
+    },
+  );
+
+  const second = syncRuntimeProjectionFromPacket(
+    first,
+    packetFixture(),
+    {
+      eventName: "task_board_sync",
+      eventAt: "2026-03-26T14:00:00Z",
+    },
+  );
+
+  assert.equal(second.last_milestone_sync_at, "2026-03-26T13:00:00Z");
+  assert.equal(second.last_event, "task_board_sync");
+  assert.equal(second.last_event_at, "2026-03-26T13:00:00Z");
+  assert.equal(second.execution_state.checkpoint_lineage.checkpoint_count, 1);
 });
 
 test("syncRuntimeProjectionFromPacket treats Validated (ABANDONED) as a closed terminal runtime state", () => {

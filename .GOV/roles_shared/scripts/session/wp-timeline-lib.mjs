@@ -676,6 +676,12 @@ export function buildWpTimelineSummary({
     if (Number.isFinite(span?.duration_ms)) measuredSpanDurationMs += Number(span.duration_ms);
   }
   const tokenBudget = evaluateWpTokenBudget(tokenLedger);
+  const tokenInputTotal = Number(tokenLedger?.summary?.usage_totals?.input_tokens || 0);
+  const tokenCachedInputTotal = Number(tokenLedger?.summary?.usage_totals?.cached_input_tokens || 0);
+  const tokenFreshInputTotal = Math.max(0, tokenInputTotal - tokenCachedInputTotal);
+  const tokenOutputTotal = Number(tokenLedger?.summary?.usage_totals?.output_tokens || 0);
+  const tokenTurnCount = Number(tokenLedger?.summary?.turn_count || 0);
+  const tokenCommandCount = Number(tokenLedger?.summary?.command_count || 0);
   const relayPolicy = evaluateWpRelayCostPolicy({
     workflowLane,
     spans,
@@ -725,14 +731,21 @@ export function buildWpTimelineSummary({
     control_result_count: controlResults.length,
     turn_usage_count: turnUsageCount(entries),
     token_summary_source: tokenLedger?.summary_source || "<missing>",
-    token_input_total: Number(tokenLedger?.summary?.usage_totals?.input_tokens || 0),
-    token_cached_input_total: Number(tokenLedger?.summary?.usage_totals?.cached_input_tokens || 0),
-    token_output_total: Number(tokenLedger?.summary?.usage_totals?.output_tokens || 0),
-    token_turn_count: Number(tokenLedger?.summary?.turn_count || 0),
-    token_command_count: Number(tokenLedger?.summary?.command_count || 0),
+    token_input_total: tokenInputTotal,
+    token_gross_input_total: tokenInputTotal,
+    token_cached_input_total: tokenCachedInputTotal,
+    token_fresh_input_total: tokenFreshInputTotal,
+    token_output_total: tokenOutputTotal,
+    token_turn_count: tokenTurnCount,
+    token_command_count: tokenCommandCount,
     ledger_health_status: tokenLedger?.ledger_health?.status || "<missing>",
     ledger_health_severity: tokenLedger?.ledger_health?.severity || "<missing>",
+    ledger_health_policy_id: tokenLedger?.ledger_health?.policy_id || "<missing>",
+    ledger_health_drift_class: tokenLedger?.ledger_health?.drift_class || "<missing>",
     budget_status: tokenBudget.status,
+    budget_policy_id: tokenBudget.policy_id,
+    budget_enforcement_mode: tokenBudget.enforcement_mode || "<missing>",
+    budget_blocker_class: tokenBudget.blocker_class || "NONE",
     budget_summary: tokenBudget.summary,
     relay_policy: relayPolicy,
     downtime_attribution: idleMetrics.downtime_attribution,
@@ -1216,10 +1229,21 @@ export function buildWpMetrics({ wpId, summary, receipts, controlResults }) {
     zero_execution_incidents: validationEvidence?.zero_execution_incidents ?? 0,
     first_pass_compile_success: validationEvidence?.first_pass_success ?? null,
     token_input_total: summary.token_input_total,
+    token_gross_input_total: summary.token_gross_input_total ?? summary.token_input_total,
+    token_cached_input_total: summary.token_cached_input_total ?? 0,
+    token_fresh_input_total: summary.token_fresh_input_total
+      ?? Math.max(0, Number(summary.token_input_total || 0) - Number(summary.token_cached_input_total || 0)),
     token_output_total: summary.token_output_total,
     token_turn_count: summary.token_turn_count,
+    token_command_count: summary.token_command_count ?? 0,
     ledger_health: summary.ledger_health_status,
+    ledger_health_severity: summary.ledger_health_severity,
+    ledger_health_policy_id: summary.ledger_health_policy_id,
+    ledger_health_drift_class: summary.ledger_health_drift_class,
     budget_status: summary.budget_status,
+    budget_policy_id: summary.budget_policy_id,
+    budget_enforcement_mode: summary.budget_enforcement_mode,
+    budget_blocker_class: summary.budget_blocker_class,
     cost_estimate: summary.cost_estimate,
     queue_pressure_max_score: summary.queue_pressure?.score ?? null,
     runtime_status: summary.runtime_status,
@@ -1244,9 +1268,12 @@ export function buildWpMetricsComparison(metricsA, metricsB) {
     ["mt_count", "Microtasks"],
     ["fix_cycles", "Fix cycles"],
     ["zero_execution_incidents", "Zero-execution incidents"],
-    ["token_input_total", "Tokens in"],
+    ["token_gross_input_total", "Tokens in (gross)"],
+    ["token_fresh_input_total", "Tokens in (fresh)"],
+    ["token_cached_input_total", "Tokens in (cached)"],
     ["token_output_total", "Tokens out"],
     ["token_turn_count", "Turns"],
+    ["token_command_count", "Token commands"],
     ["cost_estimate", "Cost estimate"],
   ];
   return fields.map(([key, label]) => {
