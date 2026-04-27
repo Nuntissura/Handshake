@@ -336,6 +336,7 @@ function buildReceiptValidationEntry({
     spec_anchor: nullableValue(args?.specAnchor),
     packet_row_ref: nullableValue(args?.packetRowRef),
     microtask_contract: args?.microtaskContract && typeof args?.microtaskContract === "object" ? args.microtaskContract : null,
+    mechanical_result: args?.mechanicalResult && typeof args?.mechanicalResult === "object" ? args.mechanicalResult : null,
     workflow_invalidity_code: nullableValue(normalizeWorkflowInvalidityCode(args?.workflowInvalidityCode)),
     // [CX-109D] Capture resolved cwd on CODER_INTENT receipts for worktree confinement verification.
     resolved_cwd: normalizeRole(args?.actorRole) === "CODER"
@@ -1245,6 +1246,7 @@ function appendWpReceiptCore({
   specAnchor = null,
   packetRowRef = null,
   microtaskContract = null,
+  mechanicalResult = null,
   workflowInvalidityCode = null,
   verb = null,
   verbBody = null,
@@ -1274,6 +1276,7 @@ function appendWpReceiptCore({
     specAnchor,
     packetRowRef,
     microtaskContract,
+    mechanicalResult,
     workflowInvalidityCode,
     verb,
     verbBody,
@@ -1302,6 +1305,7 @@ function appendWpReceiptCore({
       specAnchor: receiptArgs.specAnchor,
       packetRowRef: receiptArgs.packetRowRef,
       microtaskContract: receiptArgs.microtaskContract,
+      mechanicalResult: receiptArgs.mechanicalResult,
       workflowInvalidityCode: receiptArgs.workflowInvalidityCode,
       verb: receiptArgs.verb,
       verbBody: receiptArgs.verbBody,

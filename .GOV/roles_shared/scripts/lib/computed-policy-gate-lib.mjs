@@ -6,6 +6,7 @@ import {
 } from "../session/session-policy.mjs";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "./packet-closure-monitor-lib.mjs";
 import { validateSemanticProofAssets } from "./semantic-proof-lib.mjs";
+import { listDeclaredWpMicrotasks } from "./wp-microtask-lib.mjs";
 import {
   validatorReportProfileRequiresDualTrack,
   validatorReportProfileRequiresPrimitiveAudit,
@@ -13,6 +14,7 @@ import {
 } from "./validator-report-profile-lib.mjs";
 
 export const COMPUTED_POLICY_OUTCOMES = ["PASS", "FAIL", "REVIEW_REQUIRED", "WAIVED", "BLOCKED"];
+export const MT_RECEIPT_DUAL_TRACK_MIN_VERSION = "2026-04-27";
 export const POLICY_WAIVER_STATUS_VALUES = ["ACTIVE", "EXPIRED", "REVOKED", "CLOSED"];
 export const POLICY_WAIVER_COVERAGE_VALUES = [
   "SCOPE",
@@ -44,6 +46,15 @@ function parseStatus(text) {
 
 function isClosedStatus(status) {
   return /\b(done|validated)\b/i.test(String(status || ""));
+}
+
+function isVersionAtLeast(current, minimum) {
+  const currentValue = String(current || "").trim();
+  const minimumValue = String(minimum || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(currentValue) || !/^\d{4}-\d{2}-\d{2}$/.test(minimumValue)) {
+    return false;
+  }
+  return currentValue >= minimumValue;
 }
 
 function extractSectionAfterHeading(text, heading) {
@@ -111,6 +122,75 @@ function normalizeNoneFiltered(items) {
 
 function hasOnlyNoneList(items) {
   return items.length === 1 && String(items[0] || "").trim().toUpperCase() === "NONE";
+}
+
+function normalizeMtId(value = "") {
+  const raw = String(value || "").trim().toUpperCase();
+  if (/^MT-\d{3}$/.test(raw)) return raw;
+  const match = raw.match(/^MT-(\d{1,2})$/);
+  return match ? `MT-${match[1].padStart(3, "0")}` : raw;
+}
+
+function latestByMt(receipts = [], predicate = () => false) {
+  const byMt = new Map();
+  for (const entry of Array.isArray(receipts) ? receipts : []) {
+    if (!predicate(entry)) continue;
+    const mtId = normalizeMtId(
+      entry?.mechanical_result?.mt_id
+        || entry?.verb_body?.mt_id
+        || entry?.microtask_contract?.scope_ref
+        || entry?.packet_row_ref
+        || "",
+    );
+    if (!/^MT-\d{3}$/.test(mtId)) continue;
+    const timestamp = String(entry?.timestamp_utc || "").trim();
+    const current = byMt.get(mtId);
+    if (!current || timestamp >= String(current?.timestamp_utc || "")) {
+      byMt.set(mtId, entry);
+    }
+  }
+  return byMt;
+}
+
+function deriveMtReceiptDualTrackState({ wpId = "", receipts = [], declaredMicrotasks = null } = {}) {
+  const microtasks = Array.isArray(declaredMicrotasks)
+    ? declaredMicrotasks
+    : (wpId ? listDeclaredWpMicrotasks(wpId) : []);
+  const mtIds = microtasks.map((entry) => normalizeMtId(entry?.mtId || entry?.mt_id)).filter((entry) => /^MT-\d{3}$/.test(entry));
+  const mechanicalByMt = latestByMt(receipts, (entry) =>
+    String(entry?.receipt_kind || "").trim().toUpperCase() === "MT_VERDICT_MECHANICAL"
+  );
+  const judgmentByMt = latestByMt(receipts, (entry) =>
+    String(entry?.verb || "").trim().toUpperCase() === "MT_VERDICT"
+    && String(entry?.verb_body?.track || "").trim().toUpperCase() === "JUDGMENT"
+  );
+
+  const missingMechanical = [];
+  const failingMechanical = [];
+  const missingJudgment = [];
+  const failingJudgment = [];
+  for (const mtId of mtIds) {
+    const mechanical = mechanicalByMt.get(mtId);
+    const mechanicalVerdict = String(mechanical?.mechanical_result?.verdict || mechanical?.verb_body?.verdict || "").trim().toUpperCase();
+    if (!mechanical) missingMechanical.push(mtId);
+    else if (mechanicalVerdict !== "PASS") failingMechanical.push(`${mtId}:${mechanicalVerdict || "UNKNOWN"}`);
+
+    const judgment = judgmentByMt.get(mtId);
+    const judgmentVerdict = String(judgment?.verb_body?.verdict || "").trim().toUpperCase();
+    if (!judgment) missingJudgment.push(mtId);
+    else if (judgmentVerdict !== "PASS") failingJudgment.push(`${mtId}:${judgmentVerdict || "UNKNOWN"}`);
+  }
+
+  return {
+    applicable: mtIds.length > 0,
+    mtIds,
+    missingMechanical,
+    failingMechanical,
+    missingJudgment,
+    failingJudgment,
+    mechanicalPass: missingMechanical.length === 0 && failingMechanical.length === 0,
+    judgmentPass: missingJudgment.length === 0 && failingJudgment.length === 0,
+  };
 }
 
 function riskTierRank(value) {
@@ -360,6 +440,8 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
   wpId = "",
   packetPath = "",
   requireClosedStatus = true,
+  receipts = [],
+  declaredMicrotasks = null,
 } = {}) {
   const packetFormatVersion = parseSingleField(packetText, "PACKET_FORMAT_VERSION");
   const packetRiskTier = parseSingleField(packetText, "RISK_TIER").toUpperCase();
@@ -379,6 +461,20 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
     packetFormatVersion,
     packetRiskTier,
   );
+  const requiresMtReceiptDualTrack = requiresDualTrack
+    && isVersionAtLeast(packetFormatVersion, MT_RECEIPT_DUAL_TRACK_MIN_VERSION);
+  const mtReceiptDualTrack = requiresMtReceiptDualTrack
+    ? deriveMtReceiptDualTrackState({ wpId, receipts, declaredMicrotasks })
+    : {
+      applicable: false,
+      mtIds: [],
+      missingMechanical: [],
+      failingMechanical: [],
+      missingJudgment: [],
+      failingJudgment: [],
+      mechanicalPass: true,
+      judgmentPass: true,
+    };
   const closedStatus = isClosedStatus(status);
   const folderPacket = /\/packet\.md$/i.test(String(packetPath || "").trim());
   const applicable = usesStructuredReport && requiresCompletionLayer && (!requireClosedStatus || closedStatus);
@@ -587,6 +683,34 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
       blockedValues: ["BLOCKED", "NOT_RUN"],
       source: "REPORT",
     });
+  }
+  if (requiresMtReceiptDualTrack && mtReceiptDualTrack.applicable) {
+    if (!mtReceiptDualTrack.mechanicalPass) {
+      const missing = mtReceiptDualTrack.missingMechanical.length > 0
+        ? ` missing=${mtReceiptDualTrack.missingMechanical.join(",")}`
+        : "";
+      const failing = mtReceiptDualTrack.failingMechanical.length > 0
+        ? ` failing=${mtReceiptDualTrack.failingMechanical.join(",")}`
+        : "";
+      issues.push(issue("MT_VERDICT_MECHANICAL_NOT_PASS", "BLOCKED", `Every declared MT requires MT_VERDICT_MECHANICAL: PASS.${missing}${failing}`, {
+        coverage: "GOVERNANCE",
+        waivable: false,
+        source: "RECEIPTS",
+      }));
+    }
+    if (!mtReceiptDualTrack.judgmentPass) {
+      const missing = mtReceiptDualTrack.missingJudgment.length > 0
+        ? ` missing=${mtReceiptDualTrack.missingJudgment.join(",")}`
+        : "";
+      const failing = mtReceiptDualTrack.failingJudgment.length > 0
+        ? ` failing=${mtReceiptDualTrack.failingJudgment.join(",")}`
+        : "";
+      issues.push(issue("MT_VERDICT_JUDGMENT_NOT_PASS", "BLOCKED", `Every declared MT requires judgment-track MT_VERDICT: PASS.${missing}${failing}`, {
+        coverage: "GOVERNANCE",
+        waivable: false,
+        source: "RECEIPTS",
+      }));
+    }
   }
   addVerdictIssue(issues, report.legalVerdict, "PASS", {
     codePrefix: "LEGAL_VERDICT",
@@ -889,6 +1013,7 @@ export function evaluateComputedPolicyGateFromPacketText(packetText, {
             protectedSurfaceState,
           }
         : null,
+      mtReceiptDualTrack,
       waiverLedger,
     },
     issues: {

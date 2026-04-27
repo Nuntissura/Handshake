@@ -632,6 +632,9 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just wp-validator-review ...`
 - `just wp-validator-response ...`
 - `just wp-review-response ...`
+- `just wp-validator-mechanical-review WP-{ID} MT-NNN [range] [--json] [--no-receipt]`
+  - `runtime-write` by default; `read-only` with `--no-receipt`
+  - runs the deterministic per-MT mechanical track inline (worktree confinement, MT file-list/boundary checks, packet scope check, compile-gate evidence ingest) and writes a typed `MT_VERDICT_MECHANICAL` receipt; mechanical PASS still leaves judgment-track WP Validator review mandatory
 - `just wp-review-exchange <RECEIPT_KIND> ...`
 - `just wp-spec-gap ...`
 - `just wp-spec-confirmation ...`

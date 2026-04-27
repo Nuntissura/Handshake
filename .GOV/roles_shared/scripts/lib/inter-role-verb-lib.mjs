@@ -19,7 +19,7 @@ const VERB_DEFINITIONS = Object.freeze({
     fields: {
       mt_id: { type: "string", pattern: /^MT-\d{3}$/i },
       verdict: { type: "string", enum: ["PASS", "FAIL"] },
-      concerns: { type: "string_array" },
+      concerns: { type: "concern_array" },
       track: { type: "string", enum: ["MECHANICAL", "JUDGMENT"] },
     },
   },
@@ -132,6 +132,31 @@ function validateField({ verb, key, spec, value }) {
     }
     return errors;
   }
+  if (spec.type === "concern_array") {
+    if (!Array.isArray(value)) {
+      errors.push(`${verb}.${key} must be an array`);
+      return errors;
+    }
+    for (const [index, item] of value.entries()) {
+      if (typeof item === "string") {
+        if (!item.trim()) errors.push(`${verb}.${key}[${index}] must be non-empty`);
+        continue;
+      }
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        errors.push(`${verb}.${key}[${index}] must be a string or concern object`);
+        continue;
+      }
+      const concernKey = String(item.key || "").trim();
+      const severity = String(item.severity || "").trim().toUpperCase();
+      const evidencePath = String(item.evidence_path || "").trim();
+      if (!concernKey) errors.push(`${verb}.${key}[${index}].key is required`);
+      if (!["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(severity)) {
+        errors.push(`${verb}.${key}[${index}].severity must be one of LOW | MEDIUM | HIGH | CRITICAL`);
+      }
+      if (!evidencePath) errors.push(`${verb}.${key}[${index}].evidence_path is required`);
+    }
+    return errors;
+  }
   errors.push(`${verb}.${key} uses unsupported field type ${spec.type}`);
   return errors;
 }
@@ -185,7 +210,14 @@ export function validateInterRoleVerbBody(verbValue = "", bodyValue = null) {
 }
 
 function compactList(value = []) {
-  return Array.isArray(value) && value.length > 0 ? value.join("; ") : "none";
+  if (!Array.isArray(value) || value.length === 0) return "none";
+  return value.map((item) => {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object") {
+      return `${item.key || "CONCERN"}:${item.severity || "UNKNOWN"}@${item.evidence_path || "NO_EVIDENCE"}`;
+    }
+    return String(item || "").trim();
+  }).filter(Boolean).join("; ");
 }
 
 export function renderInterRoleVerbReceipt(entry = {}) {

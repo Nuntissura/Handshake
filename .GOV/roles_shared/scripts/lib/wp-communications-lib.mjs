@@ -117,6 +117,7 @@ export const RECEIPT_KIND_VALUES = [
   "CODER_INTENT",
   "CODER_HANDOFF",
   "VALIDATOR_REVIEW",
+  "MT_VERDICT_MECHANICAL",
   "VALIDATOR_QUERY",
   "VALIDATOR_RESPONSE",
   "REVIEW_REQUEST",
@@ -284,6 +285,64 @@ function validateMicrotaskContract(value, prefix, errors) {
     || (Array.isArray(value.required_evidence) && value.required_evidence.length > 0);
   if (!hasPayload) {
     errors.push(`${prefix} must contain at least one populated field`);
+  }
+}
+
+function validateMechanicalResult(value, prefix, errors) {
+  if (!(value === undefined || value === null || isPlainObject(value))) {
+    errors.push(`${prefix} must be null or an object`);
+    return;
+  }
+  if (value === undefined || value === null) return;
+
+  const required = [
+    "mt_id",
+    "verdict",
+    "concerns",
+    "boundary_check_result",
+    "scope_check_result",
+    "file_list_match_result",
+    "build_pass_evidence",
+    "helper_invocation_id",
+  ];
+  const allowedKeys = new Set(required);
+  for (const key of required) {
+    if (!(key in value)) errors.push(`${prefix}.${key} is required`);
+  }
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) errors.push(`${prefix}.${key} is not allowed`);
+  }
+
+  if (typeof value.mt_id !== "string" || !/^MT-\d{3}$/i.test(value.mt_id)) {
+    errors.push(`${prefix}.mt_id invalid (${value.mt_id})`);
+  }
+  if (!["PASS", "FAIL"].includes(String(value.verdict || "").trim().toUpperCase())) {
+    errors.push(`${prefix}.verdict must be PASS or FAIL`);
+  }
+  if (!Array.isArray(value.concerns)) {
+    errors.push(`${prefix}.concerns must be an array`);
+  } else {
+    value.concerns.forEach((concern, index) => {
+      if (!isPlainObject(concern)) {
+        errors.push(`${prefix}.concerns[${index}] must be an object`);
+        return;
+      }
+      const allowedConcernKeys = new Set(["key", "severity", "evidence_path"]);
+      for (const key of Object.keys(concern)) {
+        if (!allowedConcernKeys.has(key)) errors.push(`${prefix}.concerns[${index}].${key} is not allowed`);
+      }
+      if (!isNonEmptyString(concern.key)) errors.push(`${prefix}.concerns[${index}].key is required`);
+      if (!["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(String(concern.severity || "").trim().toUpperCase())) {
+        errors.push(`${prefix}.concerns[${index}].severity must be LOW, MEDIUM, HIGH, or CRITICAL`);
+      }
+      if (!isNonEmptyString(concern.evidence_path)) errors.push(`${prefix}.concerns[${index}].evidence_path is required`);
+    });
+  }
+  for (const key of ["boundary_check_result", "scope_check_result", "file_list_match_result", "build_pass_evidence"]) {
+    if (!isPlainObject(value[key])) errors.push(`${prefix}.${key} must be an object`);
+  }
+  if (!isNonEmptyString(value.helper_invocation_id)) {
+    errors.push(`${prefix}.helper_invocation_id is required`);
   }
 }
 
@@ -1034,7 +1093,7 @@ export function validateReceipt(entry) {
     "state_after",
     "refs",
   ];
-  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "workflow_invalidity_code", "resolved_cwd", "metadata", "verb", "verb_body"];
+  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "mechanical_result", "workflow_invalidity_code", "resolved_cwd", "metadata", "verb", "verb_body"];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in entry)) errors.push(`missing key: ${key}`);
@@ -1093,6 +1152,24 @@ export function validateReceipt(entry) {
     errors.push("packet_row_ref must be null or a non-empty string");
   }
   validateMicrotaskContract(entry.microtask_contract, "microtask_contract", errors);
+  validateMechanicalResult(entry.mechanical_result, "mechanical_result", errors);
+  if (entry.receipt_kind === "MT_VERDICT_MECHANICAL") {
+    if (!isPlainObject(entry.mechanical_result)) {
+      errors.push("mechanical_result is required for MT_VERDICT_MECHANICAL receipts");
+    }
+    const mechanicalMtId = String(entry.mechanical_result?.mt_id || "").trim().toUpperCase();
+    const verbMtId = String(entry.verb_body?.mt_id || "").trim().toUpperCase();
+    const verbVerdict = String(entry.verb_body?.verdict || "").trim().toUpperCase();
+    const mechanicalVerdict = String(entry.mechanical_result?.verdict || "").trim().toUpperCase();
+    if (mechanicalMtId && verbMtId && mechanicalMtId !== verbMtId) {
+      errors.push("mechanical_result.mt_id must match verb_body.mt_id");
+    }
+    if (mechanicalVerdict && verbVerdict && mechanicalVerdict !== verbVerdict) {
+      errors.push("mechanical_result.verdict must match verb_body.verdict");
+    }
+  } else if (entry.mechanical_result !== undefined && entry.mechanical_result !== null) {
+    errors.push("mechanical_result is only allowed for MT_VERDICT_MECHANICAL receipts");
+  }
   if (!(entry.metadata === undefined || entry.metadata === null || isPlainObject(entry.metadata))) {
     errors.push("metadata must be an object when present");
   } else if (isPlainObject(entry.metadata) && "absorbers_applied" in entry.metadata) {

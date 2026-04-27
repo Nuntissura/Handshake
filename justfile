@@ -483,6 +483,9 @@ wp-validator-response wp-id actor_role actor_session coder_session summary corre
 wp-review-response wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" REVIEW_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
+wp-validator-mechanical-review wp-id mt-id range="" *FLAGS:
+	@node "{{GOV_ROOT}}/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs" {{wp-id}} {{mt-id}} {{if range != "" { "--range \"" + range + "\"" } else { "" }}} {{FLAGS}}
+
 generate-refinement-rubric *args:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/generate-refinement-rubric.mjs" {{args}}
 

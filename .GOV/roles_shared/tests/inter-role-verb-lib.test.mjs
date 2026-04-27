@@ -42,3 +42,19 @@ test("inter-role verb renderer produces human-readable projection text", () => {
   assert.match(line, /MT_VERDICT MT-001: FAIL\/JUDGMENT/);
   assert.match(line, /missing proof/);
 });
+
+test("MT_VERDICT accepts typed mechanical concerns", () => {
+  const result = validateInterRoleVerbBody("MT_VERDICT", {
+    mt_id: "MT-001",
+    verdict: "FAIL",
+    concerns: [{ key: "OUTSIDE_MT_CONTRACT", severity: "HIGH", evidence_path: ".GOV/task_packets/WP/MT-001.md" }],
+    track: "MECHANICAL",
+  });
+  assert.equal(result.ok, true, result.errors.join("; "));
+
+  const line = renderInterRoleVerbReceipt({
+    verb: "MT_VERDICT",
+    verb_body: result.body,
+  });
+  assert.match(line, /OUTSIDE_MT_CONTRACT:HIGH/);
+});

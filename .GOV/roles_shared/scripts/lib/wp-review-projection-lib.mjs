@@ -41,6 +41,43 @@ function nullableInteger(value) {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
+function normalizeMechanicalVerdict(value = "") {
+  const normalized = String(value || "").trim().toUpperCase();
+  return ["PASS", "FAIL"].includes(normalized) ? normalized : "";
+}
+
+export function mechanicalTrackRouteAnchorKind(value = "") {
+  const verdict = normalizeMechanicalVerdict(value);
+  if (verdict === "PASS") return "MT_MECHANICAL_PASS";
+  if (verdict === "FAIL") return "MT_MECHANICAL_FAIL";
+  return null;
+}
+
+export function deriveMechanicalTrackRouteAnchorProjection(mechanicalResult = {}, {
+  correlationId = null,
+  targetSession = null,
+} = {}) {
+  const verdict = normalizeMechanicalVerdict(mechanicalResult?.verdict);
+  const kind = mechanicalTrackRouteAnchorKind(verdict);
+  if (!kind) return null;
+  return {
+    route_anchor_state: kind,
+    route_anchor_kind: kind,
+    route_anchor_correlation_id: correlationId ? String(correlationId).trim() : null,
+    route_anchor_target_role: verdict === "FAIL" ? "CODER" : "WP_VALIDATOR",
+    route_anchor_target_session: targetSession ? String(targetSession).trim() : null,
+  };
+}
+
+export function applyMechanicalTrackRouteAnchorProjection(runtimeStatus = {}, mechanicalResult = {}, options = {}) {
+  const projection = deriveMechanicalTrackRouteAnchorProjection(mechanicalResult, options);
+  if (!projection) return { ...(runtimeStatus || {}) };
+  return {
+    ...(runtimeStatus || {}),
+    ...projection,
+  };
+}
+
 function deriveImmutableReviewAnchorProjection(packetText = "", evaluation = {}) {
   const latestAssessment = evaluation?.latestValidatorAssessment || null;
   const wpId = parsePacketWpId(packetText);

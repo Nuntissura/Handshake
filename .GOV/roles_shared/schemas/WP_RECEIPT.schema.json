@@ -82,6 +82,7 @@
         "CODER_INTENT",
         "CODER_HANDOFF",
         "VALIDATOR_REVIEW",
+        "MT_VERDICT_MECHANICAL",
         "VALIDATOR_QUERY",
         "VALIDATOR_RESPONSE",
         "REVIEW_REQUEST",
@@ -348,6 +349,7 @@
             "CODER_INTENT",
             "CODER_HANDOFF",
             "VALIDATOR_REVIEW",
+            "MT_VERDICT_MECHANICAL",
             "VALIDATOR_QUERY",
             "VALIDATOR_RESPONSE",
             "REVIEW_REQUEST",
@@ -361,6 +363,83 @@
             "WORKFLOW_INVALIDITY",
             null
           ]
+        }
+      }
+    },
+    "mechanical_result": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "mt_id",
+        "verdict",
+        "concerns",
+        "boundary_check_result",
+        "scope_check_result",
+        "file_list_match_result",
+        "build_pass_evidence",
+        "helper_invocation_id"
+      ],
+      "properties": {
+        "mt_id": {
+          "type": "string",
+          "pattern": "^MT-[0-9]{3}$"
+        },
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "concerns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "severity",
+              "evidence_path"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH",
+                  "CRITICAL"
+                ]
+              },
+              "evidence_path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "boundary_check_result": {
+          "type": "object"
+        },
+        "scope_check_result": {
+          "type": "object"
+        },
+        "file_list_match_result": {
+          "type": "object"
+        },
+        "build_pass_evidence": {
+          "type": "object"
+        },
+        "helper_invocation_id": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

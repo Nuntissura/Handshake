@@ -295,6 +295,59 @@ test("computed policy gate accepts dual-track V4 closures when both tracks are e
   assert.equal(computedPolicyOutcomeAllowsClosure(evaluation), true);
 });
 
+test("receipt-aware dual-track packets require mechanical and judgment MT verdict receipts", () => {
+  const packet = packetFixture({
+    packetFormatVersion: "2026-04-27",
+    riskTier: "MEDIUM",
+    validatorReportProfile: "SPLIT_DIFF_SCOPED_RIGOR_V4",
+    validatorRiskTier: "MEDIUM",
+    sharedSurfaceRisk: "YES",
+    currentMainCompatibilityStatus: "PASS",
+    mechanicalTrackVerdict: "PASS",
+    specRetentionTrackVerdict: "PASS",
+    boundaryProbeBlock: "- checked producer `src/backend/feature.rs:10` against boundary consumer `src/backend/shared_surface.rs:20`",
+    negativePathBlock: "- removed required field at `src/backend/shared_surface.rs:24` and confirmed guarded failure path stayed intact",
+    negativeProofBlock: "- `src/backend/shared_surface.rs:24` still omits one fallback branch under malformed payloads",
+  });
+  const declaredMicrotasks = [{ mtId: "MT-001" }];
+  const withoutJudgment = evaluateComputedPolicyGateFromPacketText(packet, {
+    wpId: "WP-TEST-POLICY-v1",
+    requireClosedStatus: true,
+    declaredMicrotasks,
+    receipts: [
+      {
+        receipt_kind: "MT_VERDICT_MECHANICAL",
+        timestamp_utc: "2026-04-27T00:00:00.000Z",
+        mechanical_result: { mt_id: "MT-001", verdict: "PASS" },
+        verb_body: { mt_id: "MT-001", verdict: "PASS", track: "MECHANICAL" },
+      },
+    ],
+  });
+  assert.equal(computedPolicyOutcomeAllowsClosure(withoutJudgment), false);
+  assert.ok(withoutJudgment.issues.blocked.some((item) => item.code === "MT_VERDICT_JUDGMENT_NOT_PASS"));
+
+  const complete = evaluateComputedPolicyGateFromPacketText(packet, {
+    wpId: "WP-TEST-POLICY-v1",
+    requireClosedStatus: true,
+    declaredMicrotasks,
+    receipts: [
+      {
+        receipt_kind: "MT_VERDICT_MECHANICAL",
+        timestamp_utc: "2026-04-27T00:00:00.000Z",
+        mechanical_result: { mt_id: "MT-001", verdict: "PASS" },
+        verb_body: { mt_id: "MT-001", verdict: "PASS", track: "MECHANICAL" },
+      },
+      {
+        receipt_kind: "REVIEW_RESPONSE",
+        timestamp_utc: "2026-04-27T00:01:00.000Z",
+        verb: "MT_VERDICT",
+        verb_body: { mt_id: "MT-001", verdict: "PASS", concerns: [], track: "JUDGMENT" },
+      },
+    ],
+  });
+  assert.equal(computedPolicyOutcomeAllowsClosure(complete), true);
+});
+
 test("computed policy gate allows honest OUTDATED_ONLY terminal closure without treating non-pass fields as a regression", () => {
   const evaluation = evaluateComputedPolicyGateFromPacketText(packetFixture({
     packetFormatVersion: "2026-04-05",

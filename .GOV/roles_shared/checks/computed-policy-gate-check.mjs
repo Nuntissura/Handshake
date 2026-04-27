@@ -5,6 +5,8 @@ import {
 } from "../scripts/lib/computed-policy-gate-lib.mjs";
 import { GOV_ROOT_REPO_REL, listOfficialWorkPacketEntries, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+import { parsePacketSingleField } from "../scripts/lib/scope-surface-lib.mjs";
+import { parseJsonlFile } from "../scripts/lib/wp-communications-lib.mjs";
 
 registerFailCaptureHook("computed-policy-gate-check.mjs", { role: "SHARED" });
 
@@ -26,6 +28,12 @@ function loadTargetPackets(wpId) {
   return listOfficialWorkPacketEntries().map(({ wpId, packetPath }) => ({ wpId, packetPath }));
 }
 
+function loadPacketReceipts(packetText = "") {
+  const receiptsFile = parsePacketSingleField(packetText, "WP_RECEIPTS_FILE");
+  if (!receiptsFile || !fs.existsSync(repoPathAbs(receiptsFile))) return [];
+  return parseJsonlFile(receiptsFile);
+}
+
 const wpIdArg = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "";
 const jsonMode = process.argv.includes("--json");
 const results = [];
@@ -36,10 +44,12 @@ for (const target of loadTargetPackets(wpIdArg)) {
     fail("Work packet not found", [target.packetPath]);
   }
   const packetText = fs.readFileSync(packetAbsPath, "utf8");
+  const receipts = loadPacketReceipts(packetText);
   const evaluation = evaluateComputedPolicyGateFromPacketText(packetText, {
     wpId: target.wpId,
     packetPath: target.packetPath,
     requireClosedStatus: true,
+    receipts,
   });
   if (!evaluation.applicable && !evaluation.legacy_remediation_required) continue;
   results.push({
