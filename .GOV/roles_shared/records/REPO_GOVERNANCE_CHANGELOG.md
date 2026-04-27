@@ -21,6 +21,43 @@
 
 ## Entries
 
+### 2026.04.27.09 / GOV-CHANGE-20260427-09
+
+- STATUS: APPLIED
+- SUMMARY: completed memory-system follow-on tranche RGF-251 through RGF-254
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-27 Operator directive: implement the four queued items from the memory-system follow-on tranche after the governance-memory audit on `DOSSIER_20260425_CALENDAR_SYNC_ENGINE_WORKFLOW_DOSSIER.md`.
+  - `RGF-251`, `RGF-252`, `RGF-253`, `RGF-254`
+- FOLLOW_ON_ITEMS:
+  - `RGF-233` (closeout canonicalization tranche, still queued)
+- FILES_CHANGED:
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/memory_manager/scripts/memory-manager-policy.mjs`
+  - `.GOV/roles/memory_manager/scripts/intelligent-review-status-lib.mjs`
+  - `.GOV/roles/memory_manager/checks/intelligent-review-cadence-check.mjs`
+  - `.GOV/roles/memory_manager/tests/memory-manager-policy.test.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles_shared/scripts/memory/repomem.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/repomem-durable-checkpoint-cli.test.mjs`
+  - `.GOV/roles_shared/tests/intelligent-review-marker-cli.test.mjs`
+  - `.GOV/roles_shared/tests/orchestrator-startup-memory-slices.test.mjs`
+- OUTCOME: RGF-252 brings the legacy `VALIDATOR` protocol to repomem parity (full clause set plus `protocol-alignment-check` regression covering SESSION_OPEN, FAIL CAPTURE, DECISION, INSIGHT, CONCERN, ESCALATION, SESSION_CLOSE in all three governed-role protocols). RGF-251 promotes DECISION to MUST in INTEGRATION_VALIDATOR and ACTIVATION_MANAGER protocols and emits `REPOMEM_GOVERNANCE_DEBT` at `repomem close` when judgment-bearing roles close without any durable checkpoint, surfacing the silent OPEN/CLOSE-only pattern to the closing actor. RGF-254 makes the ACP-launched memory_manager intelligent review cadence visible: `MEMORY_MANAGER` `repomem close` writes `INTELLIGENT_REVIEW_LAST_RUN.json`, a new governance-support cadence check runs at IntVal CLOSEOUT and reports FRESH/DEBT against a 7-day staleness gate. RGF-253 redesigns orchestrator startup memory injection: `loadOrchestratorMemoryLines` now composes a recent-procedural-failure slice (last 7d, no `access_count` gate), a hygiene-report-summary slice, and a prior-day cross-role SESSION_CLOSE-decisions slice BEFORE the existing scored PATTERNS bundle, with the budget raised 2000 → 4000 tokens. Together these break the dead-letter loop where one-off captures never surfaced because they could not cross the `access_count >= 5` startup-injection gate.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/repomem-durable-checkpoint-cli.test.mjs` => 4/4 pass
+  - `node --test .GOV/roles_shared/tests/intelligent-review-marker-cli.test.mjs` => 2/2 pass
+  - `node --test .GOV/roles_shared/tests/orchestrator-startup-memory-slices.test.mjs` => 5/5 pass
+  - `node --test .GOV/roles/memory_manager/tests/memory-manager-policy.test.mjs` => 11/11 pass
+  - `node --test .GOV/roles_shared/tests/repomem-{coverage-lib,gate-cli,open-contract-lib}.test.mjs` => 12/12 pass
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs` => 17/17 pass
+  - `node .GOV/roles_shared/checks/protocol-alignment-check.mjs` => ok
+  - `just gov-check` => 18/18 ok
+
 ### 2026.04.27.08 / GOV-CHANGE-20260427-08
 
 - STATUS: APPLIED
