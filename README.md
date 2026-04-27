@@ -108,9 +108,9 @@ Get-Content .GOV/roles_shared/docs/START_HERE.md
 ## Runtime / Artifact Paths
 
 - External build/test artifacts live outside the repo under:
-  - `../Handshake Artifacts/`
-- Current default target for future product runtime state is:
-  - `../Handshake Runtime/`
+  - `../Handshake_Artifacts/`
+- Governance/runtime coordination state lives outside product worktrees under:
+  - `../gov_runtime/`
 - Existing repo-root runtime paths such as `data/` and `.handshake/` are transitional legacy surfaces during the current early Phase 1 state.
 
 ---
