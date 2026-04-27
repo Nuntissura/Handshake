@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { deriveWpScopeContract } from "../scripts/lib/scope-surface-lib.mjs";
+import { deriveValidatorAssessmentVerdict } from "../scripts/lib/wp-communication-health-lib.mjs";
 import {
   applyWorkflowInvalidityRuntimeProjection,
   appendWpReceipt,
@@ -463,6 +464,91 @@ test("receipt append absorbs smart quotes and JSON-string array fields before pe
     const persisted = fs.readFileSync(context.receiptsAbsPath, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line));
     assert.equal(persisted.at(-1).summary, 'Status "ok"');
     assert.deepEqual(persisted.at(-1).metadata, entry.metadata);
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
+  }
+});
+
+test("receipt append validates and persists named inter-role verb bodies", () => {
+  const wpId = "WP-TEST-VERB-RECEIPT-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+
+  try {
+    const { context, entry } = appendWpReceipt({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-test",
+      receiptKind: "REVIEW_RESPONSE",
+      summary: "Structured MT verdict.",
+      targetRole: "CODER",
+      targetSession: "coder-test",
+      correlationId: "verb-review-1",
+      ackFor: "verb-review-1",
+      verb: "MT_VERDICT",
+      verbBody: {
+        mt_id: "MT-001",
+        verdict: "FAIL",
+        concerns: ["missing negative test"],
+        track: "JUDGMENT",
+      },
+    }, { autoRelay: false, skipPreflight: true });
+
+    assert.equal(entry.verb, "MT_VERDICT");
+    assert.deepEqual(entry.verb_body.concerns, ["missing negative test"]);
+    assert.equal(deriveValidatorAssessmentVerdict(entry), "FAIL");
+    const persisted = fs.readFileSync(context.receiptsAbsPath, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line));
+    assert.equal(persisted.at(-1).verb, "MT_VERDICT");
+    assert.equal(persisted.at(-1).verb_body.verdict, "FAIL");
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
+  }
+});
+
+test("receipt append rejects invalid named verb body at write time", () => {
+  const wpId = "WP-TEST-VERB-REJECT-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+
+  try {
+    assert.throws(() => appendWpReceipt({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-test",
+      receiptKind: "REVIEW_RESPONSE",
+      summary: "Invalid structured MT verdict.",
+      targetRole: "CODER",
+      targetSession: "coder-test",
+      correlationId: "verb-review-bad",
+      ackFor: "verb-review-bad",
+      verb: "MT_VERDICT",
+      verbBody: {
+        mt_id: "MT-001",
+        verdict: "PASS",
+        track: "JUDGMENT",
+      },
+    }, { autoRelay: false, skipPreflight: true }), /MT_VERDICT\.concerns is required/);
   } finally {
     fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
     fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");

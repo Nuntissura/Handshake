@@ -60,6 +60,7 @@ import {
   mergeHeuristicRiskContract,
   summarizeHeuristicRiskContract,
 } from "../lib/heuristic-risk-lib.mjs";
+import { renderInterRoleVerbReceipt, validateInterRoleVerbBody } from "../lib/inter-role-verb-lib.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
 import { reconcileWpCommunicationTruth, syncProjectedTaskBoardTruth } from "./ensure-wp-communications.mjs";
@@ -142,6 +143,18 @@ function normalizeSession(value) {
 
 function normalizeReceiptKind(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+function parseVerbBodyValue(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  const text = String(value || "").trim();
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function absorbReceiptAppendArgs(args = {}) {
@@ -308,6 +321,8 @@ function buildReceiptValidationEntry({
     actor_authority_kind: authorityKind,
     validator_role_kind: validatorRoleKind,
     receipt_kind: String(args?.receiptKind || "").trim().toUpperCase(),
+    verb: args?.verb === undefined || args?.verb === null ? null : String(args.verb || "").trim().toUpperCase(),
+    verb_body: args?.verb ? parseVerbBodyValue(args?.verbBody) : null,
     summary: String(args?.summary || "").trim(),
     branch: args?.branch === undefined ? context.branch : nullableValue(args?.branch),
     worktree_dir: args?.worktreeDir === undefined ? context.worktreeDir : nullableValue(args?.worktreeDir),
@@ -329,6 +344,14 @@ function buildReceiptValidationEntry({
       : null,
     refs: [context.packetPath, ...(Array.isArray(args?.refs) ? args.refs : []).filter(Boolean).map((value) => normalize(value))],
   };
+
+  if (entry.verb && !entry.summary) {
+    entry.summary = renderInterRoleVerbReceipt(entry) || `${entry.verb} receipt`;
+  }
+  if (entry.verb) {
+    const verbValidation = validateInterRoleVerbBody(entry.verb, entry.verb_body);
+    if (verbValidation.ok) entry.verb_body = verbValidation.body;
+  }
 
   if (context.runtimeStatusFile && !entry.refs.includes(context.runtimeStatusFile)) entry.refs.push(context.runtimeStatusFile);
   if (context.threadFile && !entry.refs.includes(context.threadFile)) entry.refs.push(context.threadFile);
@@ -1223,6 +1246,8 @@ function appendWpReceiptCore({
   packetRowRef = null,
   microtaskContract = null,
   workflowInvalidityCode = null,
+  verb = null,
+  verbBody = null,
 } = {}, options = {}) {
   const WP_ID = String(wpId || "").trim();
   if (!WP_ID || !/^WP-/.test(WP_ID)) {
@@ -1250,6 +1275,8 @@ function appendWpReceiptCore({
     packetRowRef,
     microtaskContract,
     workflowInvalidityCode,
+    verb,
+    verbBody,
   });
   const receiptArgs = enrichReceiptArgsWithHeuristicRisk(absorbed.args);
 
@@ -1276,6 +1303,8 @@ function appendWpReceiptCore({
       packetRowRef: receiptArgs.packetRowRef,
       microtaskContract: receiptArgs.microtaskContract,
       workflowInvalidityCode: receiptArgs.workflowInvalidityCode,
+      verb: receiptArgs.verb,
+      verbBody: receiptArgs.verbBody,
     });
   const context = preflight?.context || loadPacketContext(WP_ID);
   let runtimeStatus = preflight?.runtimeStatus;
@@ -1459,12 +1488,28 @@ export function appendWpReceipt(args = {}, options = {}) {
 }
 
 function runCli() {
-  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter, targetRole, targetSession, correlationId, requiresAck, ackFor, specAnchor, packetRowRef, workflowInvalidityCode] = process.argv.slice(2);
+  const positionals = [];
+  const flags = { verb: null, verbBody: null };
+  const rawArgs = process.argv.slice(2);
+  for (let index = 0; index < rawArgs.length; index += 1) {
+    const arg = String(rawArgs[index] || "").trim();
+    if (arg === "--verb") {
+      flags.verb = rawArgs[++index] || "";
+      continue;
+    }
+    if (arg === "--verb-body") {
+      flags.verbBody = rawArgs[++index] || "";
+      continue;
+    }
+    positionals.push(rawArgs[index]);
+  }
+  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter, targetRole, targetSession, correlationId, requiresAck, ackFor, specAnchor, packetRowRef, workflowInvalidityCode] = positionals;
   if (!wpId || !actorRole || !actorSession || !receiptKind || !summary) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs"
       + " WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <RECEIPT_KIND> \"<SUMMARY>\""
       + " [STATE_BEFORE] [STATE_AFTER] [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR] [SPEC_ANCHOR] [PACKET_ROW_REF] [WORKFLOW_INVALIDITY_CODE]"
+      + " [--verb <NAME> --verb-body '<JSON>']"
     );
     process.exit(1);
   }
@@ -1485,11 +1530,14 @@ function runCli() {
     specAnchor,
     packetRowRef,
     workflowInvalidityCode,
+    verb: flags.verb,
+    verbBody: flags.verbBody,
   });
 
   console.log(`[WP_RECEIPT] appended ${entry.receipt_kind} for ${entry.wp_id}`);
   console.log(`- ledger: ${context.receiptsFile}`);
   console.log(`- timestamp_utc: ${entry.timestamp_utc}`);
+  if (entry.verb) console.log(`- verb: ${entry.verb}`);
   if (relayAttempt && relayAttempt.status !== "NOT_APPLICABLE") {
     console.log(`- auto_relay_status: ${relayAttempt.status}`);
     console.log(`- auto_relay_reason: ${relayAttempt.reason}`);

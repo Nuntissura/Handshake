@@ -90,6 +90,8 @@ If any tool output, path resolution, or steering prompt suggests navigating to a
 
 Communication with the WP Validator, Orchestrator, and downstream roles flows through typed receipt schemas, never free-form prose. Your `CODER_INTENT` and `CODER_HANDOFF` receipts carry MT identity, range, files-touched, evidence, and concerns in typed schema fields. Do NOT embed verdict-decisive context in `summary` or `notes` prose where a schema field exists; populate the field the receiving role reads. Operator-facing prose (commit messages, MT summaries) is for human readability and does not replace typed fields. See Codex `[CX-130]` for the full rule.
 
+RGF-248 named-verb receipts are the preferred wire for routine handoffs: emit `MT_HANDOFF` for per-MT coder-to-WP-validator handoff and `WP_HANDOFF` for full-WP coder-to-Orchestrator completion when the helper surface supports `--verb`. Legacy receipt kinds remain compatibility carriers, but routing-decisive data belongs in `verb_body`.
+
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders:

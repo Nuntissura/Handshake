@@ -5,6 +5,7 @@ import {
   HEURISTIC_RISK_CLASS_VALUES,
   HEURISTIC_STRATEGY_ESCALATION_VALUES,
 } from "./heuristic-risk-lib.mjs";
+import { normalizeInterRoleVerb, validateInterRoleVerbBody } from "./inter-role-verb-lib.mjs";
 import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "./merge-progression-truth-lib.mjs";
 import { RUNTIME_MILESTONE_VALUES, TASK_BOARD_STATUS_VALUES } from "./wp-authority-projection-lib.mjs";
@@ -1033,7 +1034,7 @@ export function validateReceipt(entry) {
     "state_after",
     "refs",
   ];
-  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "workflow_invalidity_code", "resolved_cwd", "metadata"];
+  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "workflow_invalidity_code", "resolved_cwd", "metadata", "verb", "verb_body"];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in entry)) errors.push(`missing key: ${key}`);
@@ -1056,6 +1057,15 @@ export function validateReceipt(entry) {
     errors.push("validator_role_kind must be INTEGRATION_VALIDATOR when actor_role is INTEGRATION_VALIDATOR");
   }
   if (!RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) errors.push(`receipt_kind invalid (${entry.receipt_kind})`);
+  if (entry.verb !== undefined && entry.verb !== null && !normalizeInterRoleVerb(entry.verb)) {
+    errors.push(`verb invalid (${entry.verb})`);
+  }
+  if (entry.verb) {
+    const verbValidation = validateInterRoleVerbBody(entry.verb, entry.verb_body);
+    if (!verbValidation.ok) errors.push(...verbValidation.errors);
+  } else if (!(entry.verb_body === undefined || entry.verb_body === null)) {
+    errors.push("verb_body is only allowed when verb is set");
+  }
   if (!isNonEmptyString(entry.summary)) errors.push("summary must be a non-empty string");
   if (!isNullableString(entry.branch)) errors.push("branch must be null or a non-empty string");
   if (!isNullableString(entry.worktree_dir)) errors.push("worktree_dir must be null or a non-empty string");

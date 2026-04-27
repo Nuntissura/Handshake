@@ -98,6 +98,29 @@
         "MEMORY_RGF_CANDIDATE"
       ]
     },
+    "verb": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "MT_HANDOFF",
+        "MT_VERDICT",
+        "MT_REMEDIATION_REQUIRED",
+        "WP_HANDOFF",
+        "INTEGRATION_VERDICT",
+        "CONCERN",
+        "PHASE_TRANSITION",
+        "RELAUNCH_REQUEST",
+        null
+      ]
+    },
+    "verb_body": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
     "summary": {
       "type": "string",
       "minLength": 1

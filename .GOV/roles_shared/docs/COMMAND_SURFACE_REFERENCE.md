@@ -63,6 +63,13 @@ Hook-driven role self-prime:
   - Session launch defaults to a small hook bootstrap stub; `--inline-prompt` is the explicit operator repair escape hatch.
   - Provider hook templates live under `.GOV/hooks/templates/<provider>/settings-autonomous.json` and define `SessionStart` plus `PreCompact` self-prime commands.
 
+Named-verb inter-role receipts:
+- `just wp-receipt-append WP-{ID} <ROLE> <SESSION> <RECEIPT_KIND> "<summary>" ... --verb <NAME> --verb-body '<JSON>'`
+- `just verb-coverage-check`
+  - `RGF-248` defines the initial verb set under `.GOV/roles_shared/schemas/inter_role_verbs/`.
+  - Supported verbs: `MT_HANDOFF`, `MT_VERDICT`, `MT_REMEDIATION_REQUIRED`, `WP_HANDOFF`, `INTEGRATION_VERDICT`, `CONCERN`, `PHASE_TRANSITION`, `RELAUNCH_REQUEST`.
+  - Legacy prose receipts remain valid during rollout, but readers prefer `verb` / `verb_body` when present.
+
 ## Operator-facing scope split
 
 Use this split in chat every time scope, remediation, or next steps are discussed:

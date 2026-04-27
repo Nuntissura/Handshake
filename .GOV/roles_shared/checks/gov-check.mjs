@@ -65,6 +65,7 @@ const checkSteps = [
   ["wp-comm-bundle-check", "./wp-comm-bundle-check.mjs"],
   ["session-bundle-check", "./session-bundle-check.mjs"],
   ["cache-stability-check", "./cache-stability-check.mjs"],
+  ["verb-coverage-check", "./verb-coverage-check.mjs"],
   ["governance-structure-bundle-check", "./governance-structure-bundle-check.mjs"],
   ["topology-bundle-check", "./topology-bundle-check.mjs"],
   ["phase1-add-coverage-check", "./phase1-add-coverage-check.mjs"],

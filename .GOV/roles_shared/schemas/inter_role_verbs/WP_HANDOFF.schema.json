@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.inter_role_verb.WP_HANDOFF@1",
+  "title": "WP_HANDOFF",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["wp_id", "final_range", "mts_completed", "summary"],
+  "properties": {
+    "wp_id": { "type": "string", "pattern": "^WP-" },
+    "final_range": { "type": "string", "minLength": 1 },
+    "mts_completed": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "summary": { "type": "string", "minLength": 1 }
+  }
+}

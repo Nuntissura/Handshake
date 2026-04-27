@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.inter_role_verb.MT_REMEDIATION_REQUIRED@1",
+  "title": "MT_REMEDIATION_REQUIRED",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mt_id", "concerns", "next_action"],
+  "properties": {
+    "mt_id": { "type": "string", "pattern": "^MT-[0-9]{3}$" },
+    "concerns": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "next_action": { "type": "string", "minLength": 1 }
+  }
+}

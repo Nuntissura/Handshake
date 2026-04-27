@@ -12,6 +12,7 @@ import {
   resolveWorkPacketPath,
 } from "../lib/runtime-paths.mjs";
 import { resolveValidatorGatePath } from "../lib/validator-gate-paths.mjs";
+import { renderInterRoleVerbReceipt } from "../lib/inter-role-verb-lib.mjs";
 import {
   SESSION_CONTROL_REQUESTS_FILE,
   SESSION_CONTROL_RESULTS_FILE,
@@ -335,6 +336,7 @@ export function buildWpTimelineEntries({
 
   for (const entry of receipts) {
     const target = formatTarget(entry.target_role, entry.target_session);
+    const verbLine = renderInterRoleVerbReceipt(entry);
     entries.push({
       timestamp: entry.timestamp_utc || "",
       timestamp_ms: parseTimestamp(entry.timestamp_utc),
@@ -343,6 +345,7 @@ export function buildWpTimelineEntries({
       role: normalizeRole(entry.actor_role),
       header: `${entry.timestamp_utc || "<no-ts>"} | RECEIPT | ${entry.actor_role || "<unknown>"} | ${entry.receipt_kind || "<unknown>"}`,
       detailLines: [
+        ...(verbLine ? [`verb=${verbLine}`] : []),
         entry.summary || "<no summary>",
         ...(target ? [`target=${target}`] : []),
         ...(entry.correlation_id ? [`corr=${entry.correlation_id}`] : []),

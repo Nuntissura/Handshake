@@ -657,6 +657,9 @@ nudge-drain session-id:
 nudge-depth session-id:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/nudge-queue.mjs" depth "{{session-id}}"
 
+verb-coverage-check:
+	@node "{{GOV_ROOT}}/roles_shared/checks/verb-coverage-check.mjs"
+
 closeout-repair wp-id *FLAGS:
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/closeout-repair.mjs" {{wp-id}} {{FLAGS}}
 

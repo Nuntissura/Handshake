@@ -2,12 +2,14 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { GOVERNANCE_RUNTIME_ROOT_ABS } from "../lib/runtime-paths.mjs";
+import { normalizeInterRoleVerb, validateInterRoleVerbBody } from "../lib/inter-role-verb-lib.mjs";
 
 export const NUDGE_KIND_VALUES = [
   "STEER",
   "RELAUNCH_REQUEST",
   "PHASE_TRANSITION",
   "MT_VERDICT",
+  "CONCERN",
   "GOVERNANCE_REMINDER",
 ];
 export const NUDGE_PRIORITY_VALUES = ["normal", "urgent"];
@@ -85,6 +87,7 @@ function normalizePayload({ sessionId = "", payload = {}, ttl = null, priority =
   return {
     ...payload,
     kind: String(payload.kind || "").trim().toUpperCase(),
+    verb: String(payload.verb || payload.kind || "").trim().toUpperCase(),
     from_role: String(payload.from_role || "").trim().toUpperCase(),
     wp_id: String(payload.wp_id || inferWpIdFromSessionId(sessionId) || "").trim(),
     correlation_id: String(payload.correlation_id || "").trim(),
@@ -105,6 +108,11 @@ export function validateNudgePayload(payload = {}) {
   if (!payload.wp_id || !/^WP-/.test(payload.wp_id)) errors.push("wp_id must be a WP id");
   if (!payload.correlation_id) errors.push("correlation_id is required");
   if (!payload.body || typeof payload.body !== "object" || Array.isArray(payload.body)) errors.push("body must be an object");
+  const verb = normalizeInterRoleVerb(payload.verb || payload.kind);
+  if (verb) {
+    const validation = validateInterRoleVerbBody(verb, payload.body);
+    if (!validation.ok) errors.push(...validation.errors);
+  }
   if (!payload.enqueued_at || Number.isNaN(Date.parse(payload.enqueued_at))) errors.push("enqueued_at must be ISO8601");
   if (!payload.expires_at || Number.isNaN(Date.parse(payload.expires_at))) errors.push("expires_at must be ISO8601");
   if (!NUDGE_PRIORITY_VALUES.includes(payload.priority)) errors.push("priority must be normal or urgent");

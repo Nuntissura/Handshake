@@ -44,6 +44,37 @@ test("enqueueNudge writes validated payloads and reports queue depth", () => {
   }
 });
 
+test("enqueueNudge validates named-verb payload bodies", () => {
+  const root = tempRoot();
+  try {
+    const accepted = enqueueNudge({
+      sessionId: "CODER:WP-TEST-NUDGE-v1",
+      payload: payload({
+        kind: "MT_VERDICT",
+        correlation_id: "verb-ok",
+        body: { mt_id: "MT-001", verdict: "PASS", concerns: [], track: "MECHANICAL" },
+      }),
+      runtimeRootAbs: root,
+    });
+    assert.equal(accepted.ok, true);
+    assert.equal(accepted.payload.verb, "MT_VERDICT");
+
+    const rejected = enqueueNudge({
+      sessionId: "CODER:WP-TEST-NUDGE-v1",
+      payload: payload({
+        kind: "MT_VERDICT",
+        correlation_id: "verb-bad",
+        body: { mt_id: "MT-001", verdict: "PASS", track: "MECHANICAL" },
+      }),
+      runtimeRootAbs: root,
+    });
+    assert.equal(rejected.ok, false);
+    assert.match(rejected.error, /MT_VERDICT\.concerns is required/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("drainNudges claims FIFO files exactly once across racing drainers", () => {
   const root = tempRoot();
   try {

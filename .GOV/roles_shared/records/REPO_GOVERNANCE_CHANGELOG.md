@@ -21,6 +21,73 @@
 
 ## Entries
 
+### 2026.04.27.06 / GOV-CHANGE-20260427-06
+
+- STATUS: APPLIED
+- SUMMARY: queued memory-system follow-on tranche `RGF-251` through `RGF-254` after governance-memory audit on the latest WP dossier
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - 2026-04-27 Operator directive: file RGFs to fix memory-system gaps surfaced by audit on `DOSSIER_20260425_CALENDAR_SYNC_ENGINE_WORKFLOW_DOSSIER.md`.
+  - Audit findings: Integration Validator (5 entries) and Activation Manager (4 entries) recorded only `OPEN`/`CLOSE` pairs across the WP run; legacy `VALIDATOR_PROTOCOL.md` repomem section lacks `DECISION` and `FAIL CAPTURE` clauses; orchestrator startup injects only ~220 tokens / 8 lines and surfaces procedural failures only when `access_count >= 5`; no recent `MEMORY_HYGIENE_REPORT.md` exists, indicating the ACP-launched memory_manager intelligent review has not been running.
+- FOLLOW_ON_ITEMS:
+  - `RGF-251` Integration-Validator and Activation-Manager Repomem Density
+  - `RGF-252` VALIDATOR Protocol Repomem Parity
+  - `RGF-253` Orchestrator-Startup Memory Injection Redesign
+  - `RGF-254` Memory Manager Intelligent-Review Cadence
+- FILES_CHANGED:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+
+### 2026.04.27.05 / GOV-CHANGE-20260427-05
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-248 named-verb inter-role message schema
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including named-verb inter-role traffic.
+  - `RGF-248`
+- FOLLOW_ON_ITEMS:
+  - `RGF-247`
+  - `RGF-249`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/inter-role-verb-lib.mjs`
+  - `.GOV/roles_shared/schemas/inter_role_verbs/*.schema.json`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/schemas/NUDGE_PAYLOAD.schema.json`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/session/nudge-queue-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/checks/verb-coverage-check.mjs`
+  - `.GOV/roles_shared/checks/gov-check.mjs`
+  - `.GOV/roles_shared/tests/inter-role-verb-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/nudge-queue-lib.test.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/templates/WP_RECEIPTS_TEMPLATE.jsonl`
+  - `justfile`
+- OUTCOME: The governance kernel now defines the initial eight inter-role verbs (`MT_HANDOFF`, `MT_VERDICT`, `MT_REMEDIATION_REQUIRED`, `WP_HANDOFF`, `INTEGRATION_VERDICT`, `CONCERN`, `PHASE_TRANSITION`, `RELAUNCH_REQUEST`) with schema files and a shared validator/renderer. `wp-receipt-append` accepts `--verb` and persists validated `verb` / `verb_body` fields while legacy receipts continue to validate. Nudge payloads validate matching verb bodies, validator verdict readers prefer verb verdict fields, timeline/dossier projection renders verb receipts into human-readable lines, and `verb-coverage-check` reports adoption by role pair.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/lib/inter-role-verb-lib.mjs`
+  - `node --check .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/nudge-queue-lib.mjs`
+  - `node --check .GOV/roles_shared/checks/verb-coverage-check.mjs`
+  - `node --test .GOV/roles_shared/tests/inter-role-verb-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `node --test .GOV/roles_shared/tests/nudge-queue-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `node .GOV/roles_shared/checks/verb-coverage-check.mjs`
+  - `just docs-check`
+  - `just build-order-sync`
+  - `git diff --check`
+  - `just gov-check`
+
 ### 2026.04.27.04 / GOV-CHANGE-20260427-04
 
 - STATUS: APPLIED

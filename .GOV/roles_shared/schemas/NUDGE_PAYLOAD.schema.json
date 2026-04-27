@@ -23,6 +23,22 @@
         "RELAUNCH_REQUEST",
         "PHASE_TRANSITION",
         "MT_VERDICT",
+        "CONCERN",
+        "GOVERNANCE_REMINDER"
+      ]
+    },
+    "verb": {
+      "type": "string",
+      "enum": [
+        "MT_HANDOFF",
+        "MT_VERDICT",
+        "MT_REMEDIATION_REQUIRED",
+        "WP_HANDOFF",
+        "INTEGRATION_VERDICT",
+        "CONCERN",
+        "PHASE_TRANSITION",
+        "RELAUNCH_REQUEST",
+        "STEER",
         "GOVERNANCE_REMINDER"
       ]
     },

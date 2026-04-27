@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.inter_role_verb.MT_HANDOFF@1",
+  "title": "MT_HANDOFF",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mt_id", "range", "commit", "summary"],
+  "properties": {
+    "mt_id": { "type": "string", "pattern": "^MT-[0-9]{3}$" },
+    "range": { "type": "string", "minLength": 1 },
+    "commit": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 }
+  }
+}
