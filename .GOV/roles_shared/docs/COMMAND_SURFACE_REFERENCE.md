@@ -3,7 +3,7 @@
 **Status:** Draft  
 **Intent:** canonical operator-facing `just` command surface for current governance workflow  
 **Authority note:** the live executable surface is the root `justfile`; if this document disagrees with `just --list`, treat this document as stale and fix it
-**Startup prompt note:** this document is an operator cheat sheet only. Governed role startup prompts must be derived from `.GOV/roles_shared/scripts/session/session-control-lib.mjs::buildStartupPrompt`, not hand-maintained here.
+**Startup prompt note:** this document is an operator cheat sheet only. Governed role startup stubs come from `.GOV/roles_shared/scripts/session/session-control-lib.mjs::buildStartupPrompt`; the effective role prompt is built by `.GOV/roles_shared/scripts/session/role-self-prime.mjs`.
 
 ## Purpose
 
@@ -56,6 +56,12 @@ Turn-boundary nudge queue:
   - `RGF-245` stores governance nudges under `gov_runtime/nudges/<wp_id>/<session_id>/` and drains them with atomic `.claimed` rename semantics.
   - Non-emergency `orchestrator-steer-next` `SEND_PROMPT` delivery enqueues a `STEER` nudge; use `--now` only for explicit immediate/direct ACP sends.
   - Governed startup prompt assembly drains queued nudges at a safe boundary and injects them as bounded user-message context.
+
+Hook-driven role self-prime:
+- `just role-self-prime <ROLE> WP-{ID} [--mt-id MT-NNN] [--session-id ROLE:WP-{ID}]`
+  - `RGF-246` builds the effective governed role prompt from canonical packet/runtime/MT/memory truth.
+  - Session launch defaults to a small hook bootstrap stub; `--inline-prompt` is the explicit operator repair escape hatch.
+  - Provider hook templates live under `.GOV/hooks/templates/<provider>/settings-autonomous.json` and define `SessionStart` plus `PreCompact` self-prime commands.
 
 ## Operator-facing scope split
 

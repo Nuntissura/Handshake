@@ -21,6 +21,48 @@
 
 ## Entries
 
+### 2026.04.27.04 / GOV-CHANGE-20260427-04
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-246 hook-driven session self-rehydration
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including hook self-rehydration.
+  - `RGF-246`
+- FOLLOW_ON_ITEMS:
+  - `RGF-248`
+  - `RGF-247`
+  - `RGF-249`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/role-self-prime.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/hooks/templates/claude/settings-autonomous.json`
+  - `.GOV/hooks/templates/codex/settings-autonomous.json`
+  - `.GOV/hooks/templates/cursor/settings-autonomous.json`
+  - `.GOV/hooks/templates/gemini/settings-autonomous.json`
+  - `.GOV/hooks/templates/ollama-resident/settings-autonomous.json`
+  - `.GOV/roles_shared/tests/role-self-prime.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- OUTCOME: Governed role startup now defaults to a compact `ROLE_SELF_PRIME_HOOK` stub that directs the spawned role to build its effective context through `role-self-prime` from terminal-record fallback, packet projection, runtime status, MT board, active-lane brief, and bounded memory injection. Launch and session-control paths export hook environment variables, provider templates define `SessionStart` and `PreCompact` self-prime commands, PreCompact can write the fresh prompt prefix into a compaction summary, and `--inline-prompt` preserves the legacy inline repair escape hatch.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/role-self-prime.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/role-self-prime.test.mjs`
+  - `node --test .GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `node .GOV/roles_shared/checks/task-board-check.mjs`
+  - `just docs-check`
+  - `just build-order-sync`
+  - `git diff --check`
+  - `just gov-check`
+
 ### 2026.04.27.03 / GOV-CHANGE-20260427-03
 
 - STATUS: APPLIED

@@ -182,6 +182,9 @@ session-registry-status wp-id="":
 active-lane-brief role wp-id json="":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/session/active-lane-brief-lib.mjs" {{role}} {{wp-id}} {{json}}
 
+role-self-prime role wp-id *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/session/role-self-prime.mjs" --role {{role}} --wp-id {{wp-id}} {{FLAGS}}
+
 wp-token-usage wp-id:
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-report.mjs" {{wp-id}}
 

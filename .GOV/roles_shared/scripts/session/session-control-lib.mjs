@@ -320,6 +320,94 @@ export function buildRoleEnvironmentOverrides({
   };
 }
 
+export const ROLE_SELF_PRIME_SCRIPT_REPO_REL = ".GOV/roles_shared/scripts/session/role-self-prime.mjs";
+
+export function buildRoleSelfPrimeEnvironment({
+  role = "",
+  wpId = "",
+  mtId = "",
+  sessionId = "",
+} = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const normalizedWpId = String(wpId || "").trim();
+  const normalizedMtId = String(mtId || "").trim();
+  const resolvedSessionId = String(sessionId || sessionKey(normalizedRole, normalizedWpId)).trim();
+  const env = {
+    HANDSHAKE_ROLE: normalizedRole,
+    WP_ID: normalizedWpId,
+    SESSION_ID: resolvedSessionId,
+    HANDSHAKE_ROLE_SELF_PRIME: "1",
+  };
+  if (normalizedMtId) env.MT_ID = normalizedMtId;
+  return Object.fromEntries(Object.entries(env).filter(([, value]) => String(value || "").trim()));
+}
+
+export function buildRoleSelfPrimeCommand({
+  role = "",
+  wpId = "",
+  mtId = "",
+  sessionId = "",
+  event = "",
+  writeSummary = "",
+} = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const normalizedWpId = String(wpId || "").trim();
+  const normalizedMtId = String(mtId || "").trim();
+  const normalizedEvent = String(event || "").trim();
+  const normalizedWriteSummary = String(writeSummary || "").trim();
+  const resolvedSessionId = String(sessionId || sessionKey(normalizedRole, normalizedWpId)).trim();
+  const args = [
+    "node",
+    ROLE_SELF_PRIME_SCRIPT_REPO_REL,
+    "--role",
+    normalizedRole,
+    "--wp-id",
+    normalizedWpId,
+  ];
+  if (normalizedMtId) args.push("--mt-id", normalizedMtId);
+  if (resolvedSessionId) args.push("--session-id", resolvedSessionId);
+  if (normalizedEvent) args.push("--event", normalizedEvent);
+  if (normalizedWriteSummary) args.push("--write-summary", normalizedWriteSummary);
+  return args.join(" ");
+}
+
+function buildHookStartupPrompt({
+  role,
+  wpId,
+  roleConfig,
+  selectedModel,
+  selectedProfileId = "",
+  selectedProfile = null,
+  mtId = "",
+  sessionId = "",
+} = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const resolvedSessionId = String(sessionId || sessionKey(normalizedRole, wpId)).trim();
+  const hookCommand = buildRoleSelfPrimeCommand({
+    role: normalizedRole,
+    wpId,
+    mtId,
+    sessionId: resolvedSessionId,
+  });
+  const modelProfileLine = selectedProfileId && selectedProfile
+    ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`
+    : `MODEL PROFILE POLICY: ${ROLE_MODEL_PROFILE_POLICY} (legacy/default packet fields may omit explicit per-role profile ids).`;
+  return [
+    `ROLE LOCK: You are the ${normalizedRole}. Do not change roles unless explicitly reassigned.`,
+    `WP_ID: ${wpId}`,
+    `WORKTREE: ${roleConfig.worktreeDir}`,
+    `BRANCH: ${roleConfig.branch}`,
+    modelProfileLine,
+    `MODEL POLICY: selected ${selectedModel} with ${selectedProfile?.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY}=${selectedProfile?.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE}.`,
+    `ROLE_SELF_PRIME_HOOK (RGF-246): This governed role session must build its effective startup prompt from canonical packet/runtime/task-board/memory truth by running the deterministic self-prime hook.`,
+    `HOOK_COMMAND: ${hookCommand}`,
+    `HOOK_CONTEXT: role=${normalizedRole} wp_id=${wpId} mt_id=${String(mtId || "<none>").trim() || "<none>"} session_id=${resolvedSessionId}`,
+    `HOOK_TRIGGER_POLICY: provider SessionStart and PreCompact hooks should run HOOK_COMMAND automatically. If this stub is visible before hook output, execute HOOK_COMMAND once now, treat the output as the current startup/governance prompt, perform only the bootstrap commands that output specifies, then stop.`,
+    `INLINE_PROMPT_ESCAPE_HATCH: only an Operator/Orchestrator repair launch with --inline-prompt may bypass this hook-driven startup path.`,
+    `Do not implement, validate, merge, or mutate governed artifacts from this stub alone.`,
+  ].join("\n");
+}
+
 export function loadWorkPacketContent(wpId) {
   const packetPath = resolveAuthorityPacketPath(wpId);
   const packetAbs = repoPathAbs(packetPath);
@@ -877,7 +965,7 @@ function roleRepomemOpenCommand(role, wpId) {
   );
 }
 
-export function buildStartupPrompt({
+export function buildInlineStartupPrompt({
   role,
   wpId,
   roleConfig,
@@ -1115,6 +1203,17 @@ export function buildStartupPrompt({
   ];
 
   return [...commonLines, ...roleLines, ...inboxLines, ...startupInjectionLines, ...bootLines].join("\n");
+}
+
+export function buildStartupPrompt({
+  inlinePrompt = false,
+  ...args
+} = {}) {
+  const normalizedRole = String(args.role || "").trim().toUpperCase();
+  if (inlinePrompt || normalizedRole === "ORCHESTRATOR") {
+    return buildInlineStartupPrompt(args);
+  }
+  return buildHookStartupPrompt(args);
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {

@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   boundPromptLines,
   buildStartupInjectionLines,
+  buildInlineStartupPrompt,
   buildRoleEnvironmentOverrides,
+  buildRoleSelfPrimeEnvironment,
   buildSessionControlRequest,
   buildSessionControlResult,
   buildStartupPrompt,
@@ -36,7 +38,7 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   const wpId = "WP-TEST-CODER-v1";
   const roleConfig = resolveRoleConfig("CODER", wpId);
   const selectedProfile = roleModelProfile(ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "CODER",
     wpId,
     roleConfig,
@@ -62,10 +64,30 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   assert.match(prompt, new RegExp(CODEX_AUTHORITY_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
+test("startup prompt defaults to hook-driven role self-prime stub", () => {
+  const wpId = "WP-TEST-CODER-v1";
+  const roleConfig = resolveRoleConfig("CODER", wpId);
+  const selectedProfile = roleModelProfile(ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH);
+  const prompt = buildStartupPrompt({
+    role: "CODER",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    selectedProfileId: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+    selectedProfile,
+  });
+
+  assert.match(prompt, /ROLE_SELF_PRIME_HOOK \(RGF-246\)/);
+  assert.match(prompt, /HOOK_COMMAND: node \.GOV\/roles_shared\/scripts\/session\/role-self-prime\.mjs --role CODER --wp-id WP-TEST-CODER-v1 --session-id CODER:WP-TEST-CODER-v1/);
+  assert.match(prompt, /HOOK_TRIGGER_POLICY: provider SessionStart and PreCompact hooks should run HOOK_COMMAND automatically/);
+  assert.match(prompt, /INLINE_PROMPT_ESCAPE_HATCH: only an Operator\/Orchestrator repair launch with --inline-prompt/i);
+  assert.doesNotMatch(prompt, /POST-SIGNATURE RELAPSE GUARD \(MANDATORY\):/i);
+});
+
 test("integration-validator startup prompt includes direct-review and verdict-gate instructions", () => {
   const wpId = "WP-TEST-VALIDATOR-v1";
   const roleConfig = resolveRoleConfig("INTEGRATION_VALIDATOR", wpId);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "INTEGRATION_VALIDATOR",
     wpId,
     roleConfig,
@@ -95,7 +117,7 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
 test("wp-validator startup prompt uses the dedicated validator lane and early steering instructions", () => {
   const wpId = "WP-TEST-WPVAL-v1";
   const roleConfig = resolveRoleConfig("WP_VALIDATOR", wpId);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "WP_VALIDATOR",
     wpId,
     roleConfig,
@@ -121,7 +143,7 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
 test("activation-manager startup and steering prompts enforce the workflow split", () => {
   const wpId = "WP-TEST-ACTMAN-v1";
   const roleConfig = resolveRoleConfig("ACTIVATION_MANAGER", wpId);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "ACTIVATION_MANAGER",
     wpId,
     roleConfig,
@@ -188,7 +210,7 @@ test("activation-manager profile selection honors an explicit declared Claude Op
 test("memory-manager prompts advertise synthetic receipt emission instead of packet assumptions", () => {
   const wpId = "WP-MEMORY-HYGIENE_2026-04-09T2115Z";
   const roleConfig = resolveRoleConfig("MEMORY_MANAGER", wpId);
-  const startupPrompt = buildStartupPrompt({
+  const startupPrompt = buildInlineStartupPrompt({
     role: "MEMORY_MANAGER",
     wpId,
     roleConfig,
@@ -222,7 +244,7 @@ test("memory-manager prompts advertise synthetic receipt emission instead of pac
 test("startup prompt includes bounded memory injection when lines are supplied", () => {
   const wpId = "WP-TEST-INJECT-v1";
   const roleConfig = resolveRoleConfig("CODER", wpId);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "CODER",
     wpId,
     roleConfig,
@@ -368,6 +390,20 @@ test("integration-validator control requests carry kernel governance env overrid
   assert.equal(request.governed_action.rule_id, "SESSION_CONTROL_START_SESSION_EXTERNAL_EXECUTE");
   assert.equal(request.governed_action.command_id, request.command_id);
   assert.equal(request.busy_ingress_mode, "REJECT");
+});
+
+test("role self-prime environment carries launch hook context", () => {
+  assert.deepEqual(buildRoleSelfPrimeEnvironment({
+    role: "coder",
+    wpId: "WP-TEST-SELF-PRIME-v1",
+    mtId: "MT-002",
+  }), {
+    HANDSHAKE_ROLE: "CODER",
+    WP_ID: "WP-TEST-SELF-PRIME-v1",
+    SESSION_ID: "CODER:WP-TEST-SELF-PRIME-v1",
+    HANDSHAKE_ROLE_SELF_PRIME: "1",
+    MT_ID: "MT-002",
+  });
 });
 
 test("send prompt control requests default to queued busy ingress mode", () => {

@@ -14,6 +14,7 @@ import {
 } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import {
   buildRoleEnvironmentOverrides,
+  buildRoleSelfPrimeEnvironment,
   classifySessionControlOutcomeState,
   buildSessionControlRequest,
   buildStartupPrompt,
@@ -50,6 +51,7 @@ const commandContextArgs = process.argv.slice(5);
 const promptArg = String(commandContextArgs[0] || "").trim();
 const debugMode = String(process.env.HANDSHAKE_SESSION_CONTROL_DEBUG || "").trim() === "1"
   || commandContextArgs.some((arg) => String(arg || "").trim() === "--debug");
+const inlinePromptMode = commandContextArgs.some((arg) => String(arg || "").trim() === "--inline-prompt");
 const requestedModel = (() => {
   const args = commandContextArgs;
   for (const candidate of args) {
@@ -253,7 +255,7 @@ function classifyResponseOutcome({ settledCommandKind = commandKind, response = 
 }
 
 if (!["START_SESSION", "SEND_PROMPT", "CANCEL_SESSION", "CLOSE_SESSION"].includes(commandKind)) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [PROMPT] [PRIMARY|FALLBACK] [--debug]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs <START_SESSION|SEND_PROMPT|CANCEL_SESSION|CLOSE_SESSION> <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [PROMPT] [PRIMARY|FALLBACK] [--debug] [--inline-prompt]`);
 }
 if (!wpId || !wpId.startsWith("WP-")) {
   fail("WP_ID must start with WP-");
@@ -267,7 +269,10 @@ const currentBranch = runGit(["branch", "--show-current"]);
 assertOrchestratorLaunchAuthority(currentBranch);
 const worktreeResolution = resolveRoleWorktreePath(repoRoot, roleConfig);
 const absWorktreeDir = worktreeResolution.absWorktreeDir;
-const environmentOverrides = buildRoleEnvironmentOverrides({ role });
+const environmentOverrides = {
+  ...buildRoleEnvironmentOverrides({ role }),
+  ...buildRoleSelfPrimeEnvironment({ role, wpId }),
+};
 
 const sessionDescriptor = {
   wp_id: wpId,
@@ -631,7 +636,7 @@ if (!fs.existsSync(absWorktreeDir)) {
 }
 
 const prompt = commandKind === "START_SESSION"
-  ? buildStartupPrompt({ role, wpId, roleConfig, selectedModel, selectedProfileId, selectedProfile })
+  ? buildStartupPrompt({ role, wpId, roleConfig, selectedModel, selectedProfileId, selectedProfile, inlinePrompt: inlinePromptMode })
   : promptArg;
 
 if (!prompt) {
