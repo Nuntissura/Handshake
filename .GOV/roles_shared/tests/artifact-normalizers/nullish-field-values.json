@@ -1,0 +1,7 @@
+{
+  "absorber": "normalizeNullishFieldValues",
+  "input": "MERGED_MAIN_COMMIT: None\nOTHER: null\nname: null\n",
+  "output": "MERGED_MAIN_COMMIT: \nOTHER: \nname: null\n",
+  "applied": true
+}
+

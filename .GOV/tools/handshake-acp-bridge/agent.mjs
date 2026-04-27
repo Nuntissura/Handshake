@@ -34,6 +34,7 @@ import {
   inferRecoverableSessionControlResult,
   settleRecoverableSessionControlResults,
 } from "../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
+import { tryAppendSessionEvent } from "../../roles_shared/scripts/session/predecessor-lookup-lib.mjs";
 import { syncWpTokenUsageLedger } from "../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { appendWpNotificationCore } from "../../roles_shared/scripts/wp/wp-notification-append.mjs";
 import {
@@ -80,6 +81,45 @@ function appendBrokerDiagnostic(event = {}) {
   } catch {
     // Diagnostics must never make broker failure worse.
   }
+}
+
+function compactEventText(value = "", limit = 180) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= limit) return text;
+  return `${text.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
+}
+
+function recordGovernedSessionEvent(request = {}, eventType = "", event = {}) {
+  if (!request?.wp_id || !request?.role || !request?.session_key) return;
+  tryAppendSessionEvent({
+    wpId: request.wp_id,
+    role: request.role,
+    sessionId: request.session_key,
+    eventType,
+    event,
+    timestamp: event.timestamp || event.timestamp_utc || "",
+  });
+}
+
+function extractModelToolEvent(event = {}) {
+  const item = event?.item || event?.message || {};
+  const type = String(event?.type || item?.type || "").trim();
+  const itemType = String(item?.type || "").trim();
+  const name = item?.name
+    || item?.tool_name
+    || item?.call?.name
+    || item?.function?.name
+    || event?.name
+    || "";
+  const looksLikeTool = /tool|function|shell|command/i.test(`${type} ${itemType} ${name}`);
+  if (!looksLikeTool) return null;
+  return {
+    tool_name: compactEventText(name || itemType || type || "tool", 64),
+    args_summary: compactEventText(item?.arguments || item?.input || item?.command || event?.summary || "", 140),
+    result_class: compactEventText(item?.status || event?.status || event?.result || "OBSERVED", 48),
+    duration_ms: Number.isFinite(Number(event?.duration_ms)) ? Number(event.duration_ms) : null,
+    source_event_type: type,
+  };
 }
 
 function readJson(filePath, fallbackValue) {
@@ -430,6 +470,16 @@ function ensureResultPersisted(request, session, result) {
   session.active_host = SESSION_CONTROL_HOST_PRIMARY;
   session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
   markSessionCommandResult(session, result);
+  recordGovernedSessionEvent(request, "session_command", {
+    stage: "result",
+    command_id: result.command_id || request.command_id || "",
+    command_kind: result.command_kind || request.command_kind || "",
+    status: result.status || "",
+    outcome_state: result.outcome_state || "",
+    result_class: result.status || "",
+    duration_ms: result.duration_ms || 0,
+    summary: result.summary || "",
+  });
 
   // RGF-93: Mechanical completion notification.
   // Fire-and-forget: inject a notification into WP communications so the orchestrator
@@ -501,6 +551,7 @@ function settleRejectedRequest(request, reason) {
     cancelStatus: request.command_kind === "CANCEL_SESSION" ? "rejected" : "",
     governedAction: request.governed_action,
   });
+  let eventRecordedThroughEnsure = false;
   const persisted = mutateSessionRegistrySync(repoRoot, (registry) => {
     const session = registry.sessions.find((entry) => entry.session_key === request.session_key);
     if (!session) return false;
@@ -509,11 +560,24 @@ function settleRejectedRequest(request, reason) {
       appendResultOnce(result);
     } else {
       ensureResultPersisted(request, session, result);
+      eventRecordedThroughEnsure = true;
     }
     return true;
   });
   if (!persisted) {
     appendResultOnce(result);
+  }
+  if (!eventRecordedThroughEnsure) {
+    recordGovernedSessionEvent(request, "session_command", {
+      stage: "result",
+      command_id: result.command_id || request.command_id || "",
+      command_kind: result.command_kind || request.command_kind || "",
+      status: result.status || "",
+      outcome_state: result.outcome_state || "",
+      result_class: result.status || "",
+      duration_ms: result.duration_ms || 0,
+      summary: result.summary || "",
+    });
   }
   return result;
 }
@@ -659,6 +723,13 @@ async function launchGovernedRequestRun({
     });
     appendJsonlLine(path.resolve(repoRoot, SESSION_CONTROL_REQUESTS_FILE), requestRecord);
   }
+  recordGovernedSessionEvent(requestRecord, "session_command", {
+    stage: queuedLaunch ? "dequeued" : "requested",
+    command_id: requestRecord.command_id,
+    command_kind: requestRecord.command_kind,
+    summary: requestRecord.summary || "",
+    result_class: "ACCEPTED",
+  });
   if (queuedLaunch) {
     appendOutputEvent(outputFile, {
       type: "control.queue.dequeued",
@@ -676,6 +747,13 @@ async function launchGovernedRequestRun({
     markSessionCommandRunning(session, requestRecord);
     session.active_host = SESSION_CONTROL_HOST_PRIMARY;
     session.active_terminal_kind = SESSION_ACTIVE_TERMINAL_KIND_NONE;
+  });
+  recordGovernedSessionEvent(requestRecord, "session_command", {
+    stage: "running",
+    command_id: requestRecord.command_id,
+    command_kind: requestRecord.command_kind,
+    summary: requestRecord.summary || "",
+    result_class: "RUNNING",
   });
 
   const runState = {
@@ -824,6 +902,10 @@ async function launchGovernedRequestRun({
       }
     },
     onEvent: (event) => {
+      const toolEvent = extractModelToolEvent(event);
+      if (toolEvent) {
+        recordGovernedSessionEvent(requestRecord, "tool_call", toolEvent);
+      }
       const observedThreadId = event.thread_id || event.session_id || "";
       if ((event.type === "thread.started" || event.type === "result") && observedThreadId) {
         mutateSessionRegistrySync(repoRoot, (registry) => {
@@ -881,6 +963,14 @@ function queueGovernedRequestOnBusy(socket, rpcId, requestRecord, blockingRun) {
     command_id: requestRecord.command_id,
     command_kind: requestRecord.command_kind,
     blocking_command_id: blockingRun?.request?.command_id || "",
+  });
+  recordGovernedSessionEvent(requestRecord, "session_command", {
+    stage: "busy_queued",
+    command_id: requestRecord.command_id,
+    command_kind: requestRecord.command_kind,
+    blocking_command_id: blockingRun?.request?.command_id || "",
+    summary: requestRecord.summary || "",
+    result_class: "QUEUED",
   });
 
   let queueDepth = 0;

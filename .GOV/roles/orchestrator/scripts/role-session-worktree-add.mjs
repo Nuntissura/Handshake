@@ -11,6 +11,10 @@ import {
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+import {
+  formatProtectedWorktreeResolutionDiagnostics,
+  resolveProtectedWorktree,
+} from "../../../roles_shared/scripts/topology/git-topology-lib.mjs";
 registerFailCaptureHook("role-session-worktree-add.mjs", { role: "ORCHESTRATOR" });
 
 const role = String(process.argv[2] || "").trim().toUpperCase();
@@ -23,7 +27,7 @@ function fail(message) {
 }
 
 if (!wpId || !wpId.startsWith("WP-")) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/role-session-worktree-add.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [branch] [dir]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/role-session-worktree-add.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [branch] [dir]; manual-compatible roles also include CLASSIC_ORCHESTRATOR and VALIDATOR where resolveRoleConfig allows them.`);
 }
 
 function defaultsForRole(roleName, workPacketId) {
@@ -104,9 +108,17 @@ if (role === "ACTIVATION_MANAGER" || role === "MEMORY_MANAGER") {
 }
 
 if (role === "INTEGRATION_VALIDATOR") {
+  const mainResolution = resolveProtectedWorktree("handshake_main", { repoRoot: REPO_ROOT });
   console.log(`[ROLE_SESSION_WORKTREE_ADD] Integration Validator operates from handshake_main on branch main [CX-212D].`);
   console.log(`[ROLE_SESSION_WORKTREE_ADD] No WP-specific worktree creation needed.`);
-  console.log(`[ROLE_SESSION_WORKTREE_ADD] Next: cd "../handshake_main"`);
+  console.log(`[ROLE_SESSION_WORKTREE_ADD] Resolved main worktree: ${mainResolution.absDir || "<missing>"}`);
+  if (!mainResolution.ok) {
+    console.log(`[ROLE_SESSION_WORKTREE_ADD] Main worktree resolution is not ready:`);
+    for (const line of formatProtectedWorktreeResolutionDiagnostics(mainResolution)) {
+      console.log(`[ROLE_SESSION_WORKTREE_ADD]   ${line}`);
+    }
+  }
+  console.log(`[ROLE_SESSION_WORKTREE_ADD] Next: cd "${mainResolution.absDir || "../handshake_main"}"`);
   process.exit(0);
 }
 

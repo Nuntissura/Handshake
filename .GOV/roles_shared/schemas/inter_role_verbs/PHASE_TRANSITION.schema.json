@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.inter_role_verb.PHASE_TRANSITION@1",
+  "title": "PHASE_TRANSITION",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["wp_id", "from_phase", "to_phase", "provenance"],
+  "properties": {
+    "wp_id": { "type": "string", "pattern": "^WP-" },
+    "from_phase": { "type": "string", "minLength": 1 },
+    "to_phase": { "type": "string", "minLength": 1 },
+    "provenance": { "type": "string", "minLength": 1 }
+  }
+}

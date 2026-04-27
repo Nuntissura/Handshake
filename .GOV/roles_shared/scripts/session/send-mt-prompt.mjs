@@ -17,6 +17,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import { sessionKey, defaultCoderWorktreeDir } from "./session-policy.mjs";
 import { loadSessionRegistry } from "./session-registry-lib.mjs";
+import { buildEphemeralContextBlock } from "./ephemeral-injection-lib.mjs";
 import { REPO_ROOT, repoPathAbs } from "../lib/runtime-paths.mjs";
 import path from "node:path";
 
@@ -75,20 +76,26 @@ if (!valSession || !["READY", "COMMAND_RUNNING"].includes(valSession.runtime_sta
 }
 
 const prompt = [
-  `MICROTASK ${mtId}: ${description}`,
-  ``,
-  `Your session key: ${coderKey}`,
-  `Validator session key: ${validatorKey}`,
-  ``,
-  `Instructions:`,
-  `1. Implement the microtask described above`,
-  `2. Use CARGO_TARGET_DIR='../Handshake_Artifacts/handshake-cargo-target' for builds`,
-  `3. Commit with message: feat: ${mtId} ${description}`,
-  `4. After commit, the git hook will automatically send a review request to the validator`,
-  `5. STOP and wait for the validator's response before starting the next MT`,
-  ``,
-  `If the git hook does not fire, run manually:`,
-  `just wp-review-request ${wpId} CODER ${coderKey} WP_VALIDATOR ${validatorKey} '${mtId} complete: ${description}'`,
+  buildEphemeralContextBlock({
+    source: "SEND_MT_PROMPT",
+    trust: "required",
+    body: [
+      `MICROTASK ${mtId}: ${description}`,
+      ``,
+      `Your session key: ${coderKey}`,
+      `Validator session key: ${validatorKey}`,
+      ``,
+      `Instructions:`,
+      `1. Implement the microtask described above`,
+      `2. Use CARGO_TARGET_DIR='../Handshake_Artifacts/handshake-cargo-target' for builds`,
+      `3. Commit with message: feat: ${mtId} ${description}`,
+      `4. After commit, the git hook will automatically send a review request to the validator`,
+      `5. STOP and wait for the validator's response before starting the next MT`,
+      ``,
+      `If the git hook does not fire, run manually:`,
+      `just wp-review-request ${wpId} CODER ${coderKey} WP_VALIDATOR ${validatorKey} '${mtId} complete: ${description}'`,
+    ].join("\n"),
+  }),
 ].join("\n");
 
 console.log(`[SEND_MT] WP: ${wpId}`);

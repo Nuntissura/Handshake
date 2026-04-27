@@ -23,7 +23,7 @@
  *   just repomem research-close "<what was found>"      [--wp WP-ID] [--files "a,b"] [--decisions "x"]
  *   just repomem close "<session summary>"              --decisions "key decisions made"
  *   just repomem log                                    [--session last] [--week] [--search "q"] [--wp WP-ID] [--limit N]
- *   just repomem gate                                   (exit 1 if no SESSION_OPEN)
+ *   just repomem gate [--soft]                          (exit 1 if no SESSION_OPEN unless --soft)
  *   just repomem context "<why>" --trigger "just cmd"   (piggybacked context for mutation commands)
  */
 
@@ -41,6 +41,52 @@ import {
   VALID_CHECKPOINT_TYPES,
 } from "./governance-memory-lib.mjs";
 import { validateRepomemOpenContract } from "./repomem-open-contract-lib.mjs";
+import { REPOMEM_DURABLE_CHECKPOINT_TYPES } from "./repomem-coverage-lib.mjs";
+import fs from "node:fs";
+import path from "node:path";
+import { GOVERNANCE_RUNTIME_ROOT_ABS } from "../lib/runtime-paths.mjs";
+
+// RGF-251: roles whose verdicts and judgment calls are first-class governance
+// truth and must never close a session with only OPEN/CLOSE pairs. When one of
+// these roles closes without any durable checkpoint (INSIGHT/DECISION/ERROR/
+// ABANDON/CONCERN/ESCALATION/RESEARCH_CLOSE), session-close emits a strong
+// REPOMEM_GOVERNANCE_DEBT line so the silent-run pattern surfaces immediately
+// to the closing actor instead of hiding inside the dossier coverage report.
+const REPOMEM_DURABLE_REQUIRED_ROLES = new Set([
+  "INTEGRATION_VALIDATOR",
+  "ACTIVATION_MANAGER",
+  "WP_VALIDATOR",
+]);
+
+// RGF-254: when the MEMORY_MANAGER role closes a session, write a durable
+// marker so downstream readers (closeout-dependency, dossier, status checks)
+// can detect when the ACP-launched intelligent review last completed. Without
+// this marker, every closeout would have to scrape MEMORY_HYGIENE_REPORT.md
+// for an `## Intelligent Review` section heuristically.
+const INTELLIGENT_REVIEW_LAST_RUN_FILE = path.join(
+  GOVERNANCE_RUNTIME_ROOT_ABS,
+  "roles_shared",
+  "INTELLIGENT_REVIEW_LAST_RUN.json",
+);
+
+function writeIntelligentReviewLastRunMarker({ sessionId, content, decisions }) {
+  try {
+    const dir = path.dirname(INTELLIGENT_REVIEW_LAST_RUN_FILE);
+    fs.mkdirSync(dir, { recursive: true });
+    const payload = {
+      schema_version: "intelligent_review_last_run@1",
+      timestamp_utc: new Date().toISOString(),
+      session_id: String(sessionId || "").trim(),
+      summary: String(content || "").slice(0, 500),
+      decisions: String(decisions || "").slice(0, 800),
+    };
+    fs.writeFileSync(INTELLIGENT_REVIEW_LAST_RUN_FILE, JSON.stringify(payload, null, 2));
+    return true;
+  } catch (err) {
+    console.error(`[repomem] WARNING: failed to write intelligent-review marker: ${err?.message || err}`);
+    return false;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Argument parsing — consumes all remaining text after a --flag as its value
@@ -107,7 +153,7 @@ function usage() {
   research-close "<found>"   Research conclusion checkpoint (>=80 chars)
   close "<summary>"          Session end checkpoint (>=80 chars, --decisions required)
   log                        Show conversation history
-  gate                       Check if session is open (exit 1 if not)
+  gate [--soft]              Check if session is open (exit 1 if not; warn and exit 0 with --soft)
   context "<why>"            Piggybacked context for mutation commands (>=40 chars)`);
   process.exit(1);
 }
@@ -123,6 +169,12 @@ if (!command) usage();
 if (command === "gate") {
   const result = checkSessionGate();
   if (!result.open) {
+    if (Object.prototype.hasOwnProperty.call(flags, "soft")) {
+      const warning = String(result.message || "REPOMEM_GATE_FAIL: No active session.")
+        .replace(/^REPOMEM_GATE_FAIL:/, "REPOMEM_GATE_WARN:");
+      console.error(`${warning} Read-only command may continue; open repomem before governed mutation.`);
+      process.exit(0);
+    }
     console.error(result.message);
     process.exit(1);
   }
@@ -445,6 +497,38 @@ try {
 
     if (priorCheckpoints.length <= 1) {
       console.log(`\n  WARNING: Only ${priorCheckpoints.length} checkpoint(s) before close. Consider writing more insights/pre-task notes during sessions.`);
+    }
+
+    // RGF-251: judgment-bearing roles must capture at least one durable
+    // checkpoint per session. Silent OPEN/CLOSE-only runs are governance debt.
+    const sessionRole = String(session.role || "").trim().toUpperCase();
+
+    // RGF-254: every MEMORY_MANAGER session close marks an intelligent review
+    // completion so closeout/dossier readers can detect cadence drift.
+    if (sessionRole === "MEMORY_MANAGER") {
+      writeIntelligentReviewLastRunMarker({
+        sessionId: session.session_id,
+        content,
+        decisions: flags.decisions || "",
+      });
+    }
+
+    if (REPOMEM_DURABLE_REQUIRED_ROLES.has(sessionRole)) {
+      const hasDurable = priorCheckpoints.some((entry) =>
+        REPOMEM_DURABLE_CHECKPOINT_TYPES.includes(String(entry.checkpoint_type || "").trim().toUpperCase()),
+      );
+      if (!hasDurable) {
+        console.log(
+          `\n  REPOMEM_GOVERNANCE_DEBT: ${sessionRole} closed without any durable checkpoint`
+          + ` (INSIGHT/DECISION/ERROR/ABANDON/CONCERN/ESCALATION/RESEARCH_CLOSE).`,
+        );
+        console.log(
+          `  This silent OPEN/CLOSE run becomes governance debt at WP closeout — the`
+          + ` verdict reasoning, scope decision, or judgment call you made is now lost`
+          + ` to future sessions. Capture it next time with`
+          + ` 'just repomem decision|insight|concern' before closing.`,
+        );
+      }
     }
 
     clearSessionMarker();

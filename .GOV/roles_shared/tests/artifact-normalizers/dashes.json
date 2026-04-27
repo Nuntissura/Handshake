@@ -1,0 +1,7 @@
+{
+  "absorber": "normalizeDashes",
+  "input": "PASS \u2014 proof\n```\nPASS \u2014 proof\n```\n",
+  "output": "PASS - proof\n```\nPASS \u2014 proof\n```\n",
+  "applied": true
+}
+

@@ -283,6 +283,11 @@ test("validateReceipt accepts structured microtask contracts on review receipts"
       phase_gate: "MICROTASK",
       review_outcome: "REPAIR_REQUIRED",
       expected_receipt_kind: "REVIEW_RESPONSE",
+      heuristic_risk: "YES",
+      heuristic_risk_class: "FUZZY_DISCRIMINATOR",
+      required_evidence: ["CORPUS_CASES", "NEGATIVE_COUNTEREXAMPLES"],
+      strategy_escalation: "DISCRIMINATOR_REDESIGN",
+      repair_cycle_strategy_threshold: 2,
     },
   }));
   assert.deepEqual(errors, []);
@@ -326,6 +331,9 @@ test("receipt schema exposes microtask_contract for external consumers", () => {
   assert.equal(rule.properties.review_mode.enum.includes("OVERLAP"), true);
   assert.equal(rule.properties.phase_gate.enum.includes("SKELETON"), true);
   assert.equal(rule.properties.review_outcome.enum.includes("REPAIR_REQUIRED"), true);
+  assert.equal(rule.properties.heuristic_risk.enum.includes("YES"), true);
+  assert.equal(rule.properties.heuristic_risk_class.enum.includes("FUZZY_DISCRIMINATOR"), true);
+  assert.equal(rule.properties.strategy_escalation.enum.includes("DISCRIMINATOR_REDESIGN"), true);
 });
 
 test("runtime receipt schema exposes microtask_contract on receipts", () => {
@@ -338,6 +346,9 @@ test("runtime receipt schema exposes microtask_contract on receipts", () => {
   assert.equal(rule.properties.review_mode.enum.includes("BLOCKING"), true);
   assert.equal(rule.properties.phase_gate.enum.includes("BOOTSTRAP"), true);
   assert.equal(rule.properties.review_outcome.enum.includes("APPROVED_FOR_FINAL_REVIEW"), true);
+  assert.equal(rule.properties.heuristic_risk.enum.includes("YES"), true);
+  assert.equal(rule.properties.heuristic_risk_class.enum.includes("SECRET_OR_IDENTIFIER_BOUNDARY"), true);
+  assert.equal(rule.properties.strategy_escalation.enum.includes("PROPERTY_BASED_REFRAME"), true);
 });
 
 test("validateReceipt accepts WORKFLOW_INVALIDITY receipts with a machine code", () => {

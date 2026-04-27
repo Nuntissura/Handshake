@@ -1,0 +1,19 @@
+{
+  "schema_version": "handshake_provider_hooks@1",
+  "provider": "cursor",
+  "description": "RGF-246 governed role self-prime hooks for Cursor sessions.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "node .GOV/roles_shared/scripts/session/role-self-prime.mjs --role ${HANDSHAKE_ROLE} --wp-id ${WP_ID} --mt-id ${MT_ID} --session-id ${SESSION_ID} --event SessionStart"
+      }
+    ],
+    "PreCompact": [
+      {
+        "type": "command",
+        "command": "node .GOV/roles_shared/scripts/session/role-self-prime.mjs --role ${HANDSHAKE_ROLE} --wp-id ${WP_ID} --mt-id ${MT_ID} --session-id ${SESSION_ID} --event PreCompact --write-summary ${COMPACTION_SUMMARY_FILE}"
+      }
+    ]
+  }
+}

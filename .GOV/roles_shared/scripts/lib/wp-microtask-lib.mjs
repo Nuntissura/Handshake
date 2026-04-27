@@ -7,6 +7,7 @@ import {
   parsePacketSingleField,
 } from "./scope-surface-lib.mjs";
 import { normalizePath, resolveWorkPacketPath } from "./runtime-paths.mjs";
+import { classifyHeuristicRiskText } from "./heuristic-risk-lib.mjs";
 
 const MICROTASK_FILE_RE = /^MT-\d{3}\.md$/i;
 
@@ -60,6 +61,7 @@ function parseMicrotaskDefinition(mtAbsPath, mtRelPath) {
   const codeSurfaces = parseDelimitedList(parsePacketSingleField(text, "CODE_SURFACES"), { normalizeAsRepoPath: true });
   const expectedTests = parseDelimitedList(parsePacketSingleField(text, "EXPECTED_TESTS"));
   const dependsOn = String(parsePacketSingleField(text, "DEPENDS_ON") || "").trim() || "NONE";
+  const heuristicRisk = classifyHeuristicRiskText(text);
 
   if (!mtId) {
     throw new Error(`Malformed microtask file ${normalizePath(mtRelPath)}: missing MT_ID`);
@@ -86,6 +88,7 @@ function parseMicrotaskDefinition(mtAbsPath, mtRelPath) {
     codeSurfaces,
     expectedTests,
     dependsOn,
+    heuristicRisk,
     packetPath: normalizePath(mtRelPath),
     scopeRefKeys: Array.from(aliases).map((value) => normalizeScopeRefKey(value)).filter(Boolean),
   };
@@ -294,6 +297,7 @@ export function deriveWpMicrotaskPlan({
       depends_on: definition.dependsOn,
       code_surfaces: definition.codeSurfaces,
       expected_tests: definition.expectedTests,
+      heuristic_risk: definition.heuristicRisk,
       state: "DECLARED",
       state_reason: "declared_only",
       last_activity_at: null,

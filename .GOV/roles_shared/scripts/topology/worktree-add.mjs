@@ -5,6 +5,8 @@ import { defaultCoderWorktreeDir } from "../session/session-policy.mjs";
 import { dirtyOutsideGovInRepo } from "./git-topology-lib.mjs";
 import { suppressSharedGovJunctionDirt } from "./reseed-permanent-worktree-from-main.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
+import { evaluateArtifactHygiene } from "../lib/artifact-hygiene-lib.mjs";
+import { normalizePath } from "../lib/runtime-paths.mjs";
 
 registerFailCaptureHook("worktree-add.mjs", { role: "SHARED" });
 
@@ -99,6 +101,20 @@ function isForbiddenWorktreeDir(dir) {
   // Avoid a RegExp literal here: Node v24.11.1 fails to parse `/^(\\\\|\\/\\/)/` (Invalid flags).
   if (input.startsWith('\\\\') || input.startsWith('//')) return true;
   return false;
+}
+
+function verifyArtifactHygieneForWorktree(absDir) {
+  const evaluation = evaluateArtifactHygiene({
+    repoRoot: absDir,
+    repoRoots: [absDir],
+  });
+  if (evaluation.blockingIssues.length > 0) {
+    fail(
+      `Worktree artifact hygiene preflight failed for ${normalizePath(absDir)}:\n`
+      + evaluation.blockingIssues.map((issue) => `- ${issue}`).join("\n")
+    );
+  }
+  console.log(`[WORKTREE_ADD] Artifact hygiene preflight passed: ${normalizePath(evaluation.artifactRootAbs)}`);
 }
 
 function main() {
@@ -209,6 +225,8 @@ function main() {
     suppressSharedGovJunctionDirt(absDir);
     console.log(`[WORKTREE_ADD] Applied local .GOV suppression for shared kernel junction`);
   }
+
+  verifyArtifactHygieneForWorktree(absDir);
 
   console.log("");
   console.log(`[WORKTREE_ADD] Worktree ready: ${absDir}`);

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.inter_role_verb.RELAUNCH_REQUEST@1",
+  "title": "RELAUNCH_REQUEST",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["wp_id", "target_role", "reason", "priority"],
+  "properties": {
+    "wp_id": { "type": "string", "pattern": "^WP-" },
+    "target_role": {
+      "type": "string",
+      "enum": ["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "MEMORY_MANAGER"]
+    },
+    "reason": { "type": "string", "minLength": 1 },
+    "priority": { "type": "string", "enum": ["normal", "urgent"] }
+  }
+}

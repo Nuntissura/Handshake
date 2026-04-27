@@ -12,9 +12,9 @@ const sessionControlEnv = {
   ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
 };
 
-if (!["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "MEMORY_MANAGER"].includes(role) || !/^WP-/.test(wpId)) {
+if (!["ACTIVATION_MANAGER", "CLASSIC_ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR", "MEMORY_MANAGER"].includes(role) || !/^WP-/.test(wpId)) {
   console.error(
-    `[SESSION_CONTROL] Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-cancel.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [--debug]`
+    `[SESSION_CONTROL] Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-cancel.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [--debug]; manual-compatible roles also include CLASSIC_ORCHESTRATOR and VALIDATOR where resolveRoleConfig allows them.`
   );
   process.exit(1);
 }

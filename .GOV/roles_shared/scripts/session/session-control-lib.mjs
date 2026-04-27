@@ -29,7 +29,9 @@ import {
   defaultWpValidatorWorktreeDir,
   roleNextCommand,
   roleStartupCommand,
+  sessionKey,
 } from "./session-policy.mjs";
+import { drainNudges } from "./nudge-queue-lib.mjs";
 import {
   buildGovernedActionRequest,
   buildGovernedActionResult,
@@ -48,6 +50,10 @@ import {
   resolveWorkPacketPath,
   workPacketPath,
 } from "../lib/runtime-paths.mjs";
+import {
+  formatProtectedWorktreeResolutionDiagnostics,
+  resolveProtectedWorktree,
+} from "../topology/git-topology-lib.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -63,6 +69,7 @@ export const CODEX_AUTHORITY_PATH = ".GOV/codex/Handshake_Codex_v1.4.md";
 
 export function roleProtocolPath(role) {
   if (role === "ACTIVATION_MANAGER") return ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md";
+  if (role === "CLASSIC_ORCHESTRATOR") return ".GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md";
   if (role === "CODER") return ".GOV/roles/coder/CODER_PROTOCOL.md";
   if (role === "MEMORY_MANAGER") return ".GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md";
   if (role === "WP_VALIDATOR") return ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md";
@@ -203,6 +210,16 @@ export function resolveRoleConfig(roleName, workPacketId) {
       focus: "pre-launch governance authoring only: refinement, approved spec enrichment, signature normalization/recording, packet hydration, microtask preparation, worktree preparation, and activation readiness",
     };
   }
+  if (roleName === "CLASSIC_ORCHESTRATOR") {
+    return {
+      branch: "gov_kernel",
+      worktreeDir: ".",
+      title: `CLASSIC ${workPacketId}`,
+      startupCommand: roleStartupCommand("CLASSIC_ORCHESTRATOR"),
+      nextCommand: roleNextCommand("CLASSIC_ORCHESTRATOR", workPacketId),
+      focus: "manual-relay workflow authority: combined Orchestrator and Activation Manager pre-launch duties plus operator-brokered relay coordination",
+    };
+  }
   if (roleName === "CODER") {
     return {
       branch: defaultCoderBranch(workPacketId),
@@ -243,11 +260,39 @@ export function resolveRoleConfig(roleName, workPacketId) {
       focus: "final technical verdict, merge authority, sync-gov-to-main, and main/origin push (operates from handshake_main on branch main)",
     };
   }
+  if (roleName === "VALIDATOR") {
+    return {
+      branch: defaultIntegrationValidatorBranch(workPacketId),
+      worktreeDir: defaultIntegrationValidatorWorktreeDir(workPacketId),
+      title: `VALIDATOR ${workPacketId}`,
+      startupCommand: roleStartupCommand("VALIDATOR"),
+      nextCommand: roleNextCommand("VALIDATOR", workPacketId),
+      focus: "classical manual-relay validation: combined WP-scoped review plus final technical verdict and merge authority for non-orchestrator-managed work",
+    };
+  }
   return null;
 }
 
+export function resolveRoleWorktreePath(repoRoot, roleConfig = {}) {
+  const normalizedBranch = String(roleConfig.branch || "").trim();
+  const worktreeDir = String(roleConfig.worktreeDir || "").trim();
+  if (normalizedBranch === "main" || /(^|[\\/])handshake_main$/i.test(worktreeDir)) {
+    const resolution = resolveProtectedWorktree("handshake_main", { repoRoot });
+    return {
+      absWorktreeDir: resolution.absDir,
+      resolution,
+      diagnostics: formatProtectedWorktreeResolutionDiagnostics(resolution),
+    };
+  }
+  return {
+    absWorktreeDir: path.resolve(repoRoot, worktreeDir || "."),
+    resolution: null,
+    diagnostics: [],
+  };
+}
+
 function sessionCompatScript(role, scriptName) {
-  return role === "INTEGRATION_VALIDATOR"
+  return role === "INTEGRATION_VALIDATOR" || role === "VALIDATOR"
     ? `"$env:${GOV_ROOT_ENV_VAR}/roles_shared/scripts/session/${scriptName}"`
     : `.GOV/roles_shared/scripts/session/${scriptName}`;
 }
@@ -288,12 +333,100 @@ export function buildRoleEnvironmentOverrides({
   role = "",
   governanceRootAbs = GOV_ROOT_ABS,
 } = {}) {
-  if (String(role || "").trim().toUpperCase() !== "INTEGRATION_VALIDATOR") {
+  if (!["INTEGRATION_VALIDATOR", "VALIDATOR"].includes(String(role || "").trim().toUpperCase())) {
     return {};
   }
   return {
     [GOV_ROOT_ENV_VAR]: normalizePath(path.resolve(governanceRootAbs || GOV_ROOT_ABS)),
   };
+}
+
+export const ROLE_SELF_PRIME_SCRIPT_REPO_REL = ".GOV/roles_shared/scripts/session/role-self-prime.mjs";
+
+export function buildRoleSelfPrimeEnvironment({
+  role = "",
+  wpId = "",
+  mtId = "",
+  sessionId = "",
+} = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const normalizedWpId = String(wpId || "").trim();
+  const normalizedMtId = String(mtId || "").trim();
+  const resolvedSessionId = String(sessionId || sessionKey(normalizedRole, normalizedWpId)).trim();
+  const env = {
+    HANDSHAKE_ROLE: normalizedRole,
+    WP_ID: normalizedWpId,
+    SESSION_ID: resolvedSessionId,
+    HANDSHAKE_ROLE_SELF_PRIME: "1",
+  };
+  if (normalizedMtId) env.MT_ID = normalizedMtId;
+  return Object.fromEntries(Object.entries(env).filter(([, value]) => String(value || "").trim()));
+}
+
+export function buildRoleSelfPrimeCommand({
+  role = "",
+  wpId = "",
+  mtId = "",
+  sessionId = "",
+  event = "",
+  writeSummary = "",
+} = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const normalizedWpId = String(wpId || "").trim();
+  const normalizedMtId = String(mtId || "").trim();
+  const normalizedEvent = String(event || "").trim();
+  const normalizedWriteSummary = String(writeSummary || "").trim();
+  const resolvedSessionId = String(sessionId || sessionKey(normalizedRole, normalizedWpId)).trim();
+  const args = [
+    "node",
+    ROLE_SELF_PRIME_SCRIPT_REPO_REL,
+    "--role",
+    normalizedRole,
+    "--wp-id",
+    normalizedWpId,
+  ];
+  if (normalizedMtId) args.push("--mt-id", normalizedMtId);
+  if (resolvedSessionId) args.push("--session-id", resolvedSessionId);
+  if (normalizedEvent) args.push("--event", normalizedEvent);
+  if (normalizedWriteSummary) args.push("--write-summary", normalizedWriteSummary);
+  return args.join(" ");
+}
+
+function buildHookStartupPrompt({
+  role,
+  wpId,
+  roleConfig,
+  selectedModel,
+  selectedProfileId = "",
+  selectedProfile = null,
+  mtId = "",
+  sessionId = "",
+} = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const resolvedSessionId = String(sessionId || sessionKey(normalizedRole, wpId)).trim();
+  const hookCommand = buildRoleSelfPrimeCommand({
+    role: normalizedRole,
+    wpId,
+    mtId,
+    sessionId: resolvedSessionId,
+  });
+  const modelProfileLine = selectedProfileId && selectedProfile
+    ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`
+    : `MODEL PROFILE POLICY: ${ROLE_MODEL_PROFILE_POLICY} (legacy/default packet fields may omit explicit per-role profile ids).`;
+  return [
+    `ROLE LOCK: You are the ${normalizedRole}. Do not change roles unless explicitly reassigned.`,
+    `WP_ID: ${wpId}`,
+    `WORKTREE: ${roleConfig.worktreeDir}`,
+    `BRANCH: ${roleConfig.branch}`,
+    modelProfileLine,
+    `MODEL POLICY: selected ${selectedModel} with ${selectedProfile?.launch_reasoning_config_key || ROLE_SESSION_REASONING_CONFIG_KEY}=${selectedProfile?.launch_reasoning_config_value || ROLE_SESSION_REASONING_CONFIG_VALUE}.`,
+    `ROLE_SELF_PRIME_HOOK (RGF-246): This governed role session must build its effective startup prompt from canonical packet/runtime/task-board/memory truth by running the deterministic self-prime hook.`,
+    `HOOK_COMMAND: ${hookCommand}`,
+    `HOOK_CONTEXT: role=${normalizedRole} wp_id=${wpId} mt_id=${String(mtId || "<none>").trim() || "<none>"} session_id=${resolvedSessionId}`,
+    `HOOK_TRIGGER_POLICY: provider SessionStart and PreCompact hooks should run HOOK_COMMAND automatically. If this stub is visible before hook output, execute HOOK_COMMAND once now, treat the output as the current startup/governance prompt, perform only the bootstrap commands that output specifies, then stop.`,
+    `INLINE_PROMPT_ESCAPE_HATCH: only an Operator/Orchestrator repair launch with --inline-prompt may bypass this hook-driven startup path.`,
+    `Do not implement, validate, merge, or mutate governed artifacts from this stub alone.`,
+  ].join("\n");
 }
 
 export function loadWorkPacketContent(wpId) {
@@ -579,7 +712,130 @@ function loadRecentSnapshots(db, { wpId = "", maxPerType = 1, maxTotal = 3, toke
 }
 
 // RGF-125: Orchestrator memory injection — cross-WP, broader budget, different scoring
-const ORCHESTRATOR_MEMORY_TOKEN_BUDGET = 2000;
+// RGF-253: orchestrator startup memory injection budgets.
+// The legacy 2000-token budget was dominated by access-count-weighted entries,
+// which meant single-shot procedural failures (the very ones that should
+// preempt repeated mistakes) were outranked by repeated-hit semantic patterns
+// and never surfaced. Split the budget into dedicated slices that bypass the
+// access_count gate so recent failures, hygiene-report findings, and
+// prior-day decisions appear deterministically.
+const ORCHESTRATOR_MEMORY_TOKEN_BUDGET = 4000;
+const ORCHESTRATOR_RECENT_FAILURE_BUDGET = 700;
+const ORCHESTRATOR_RECENT_FAILURE_DAYS = 7;
+const ORCHESTRATOR_RECENT_FAILURE_LIMIT = 10;
+const ORCHESTRATOR_HYGIENE_REPORT_BUDGET = 400;
+const ORCHESTRATOR_HYGIENE_REPORT_BYTE_LIMIT = 1600;
+const ORCHESTRATOR_PRIOR_DAY_DECISIONS_BUDGET = 400;
+const ORCHESTRATOR_PRIOR_DAY_DECISIONS_HOURS = 30;
+const ORCHESTRATOR_PRIOR_DAY_DECISIONS_LIMIT = 8;
+
+export function loadRecentProceduralFailureLines(db, { now = Date.now() } = {}) {
+  // RGF-253 slice 1: surface every procedural memory created in the last 7
+  // days regardless of access_count. This is the dead-letter fix — single-shot
+  // tool failures and path mistakes get a guaranteed week of visibility before
+  // they need to compete with repeated patterns under the scored bundle.
+  const result = { lines: [], tokenCount: 0, count: 0 };
+  try {
+    const cutoffMs = now - ORCHESTRATOR_RECENT_FAILURE_DAYS * 24 * 60 * 60 * 1000;
+    const cutoffIso = new Date(cutoffMs).toISOString();
+    const rows = db.prepare(
+      `SELECT id, memory_type, topic, summary, wp_id, created_at
+       FROM memory_index
+       WHERE memory_type = 'procedural'
+         AND consolidated = 0
+         AND created_at >= ?
+       ORDER BY created_at DESC
+       LIMIT ?`
+    ).all(cutoffIso, ORCHESTRATOR_RECENT_FAILURE_LIMIT);
+    if (rows.length === 0) return result;
+    for (const row of rows) {
+      const ageHours = Math.max(0, Math.round((now - new Date(row.created_at).getTime()) / 3600000));
+      const ageLabel = ageHours < 1 ? "<1h ago" : ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`;
+      const wpTag = row.wp_id ? ` [${row.wp_id}]` : "";
+      const summary = String(row.summary || "").trim().slice(0, 200);
+      const line = `- (${ageLabel})${wpTag} ${row.topic}: ${summary}`;
+      const lineTokens = estimateTokens(line);
+      if (result.tokenCount + lineTokens > ORCHESTRATOR_RECENT_FAILURE_BUDGET) break;
+      result.lines.push(line);
+      result.tokenCount += lineTokens;
+      result.count += 1;
+    }
+  } catch { /* best-effort */ }
+  return result;
+}
+
+export function loadHygieneReportSummaryLines({ now = Date.now() } = {}) {
+  // RGF-253 slice 2: pull the top of MEMORY_HYGIENE_REPORT.md so the
+  // intelligent-review findings (contradictions resolved, RGF candidates,
+  // stale-entry analysis) are visible at orchestrator startup instead of
+  // sitting unread on disk.
+  const result = { lines: [], tokenCount: 0, present: false };
+  try {
+    const reportPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "MEMORY_HYGIENE_REPORT.md");
+    if (!fs.existsSync(reportPath)) return result;
+    const stat = fs.statSync(reportPath);
+    const ageHours = Math.max(0, Math.round((now - stat.mtimeMs) / 3600000));
+    const ageLabel = ageHours < 1 ? "<1h ago" : ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`;
+    const raw = fs.readFileSync(reportPath, "utf8");
+    const trimmed = raw.slice(0, ORCHESTRATOR_HYGIENE_REPORT_BYTE_LIMIT);
+    // Take only non-empty lines to keep the slice compact; cap the line count
+    // so a long report does not blow past the token budget.
+    const reportLines = trimmed
+      .split(/\r?\n/)
+      .map((line) => line.trimEnd())
+      .filter((line) => line.length > 0);
+    let tokenCount = 0;
+    const collected = [];
+    for (const line of reportLines) {
+      const lineTokens = estimateTokens(line);
+      if (tokenCount + lineTokens > ORCHESTRATOR_HYGIENE_REPORT_BUDGET) break;
+      collected.push(line.length > 240 ? `${line.slice(0, 237)}...` : line);
+      tokenCount += lineTokens;
+    }
+    if (collected.length === 0) return result;
+    result.present = true;
+    result.tokenCount = tokenCount;
+    result.lines = [`(${ageLabel}) ${reportPath.replace(/\\/g, "/")}`, ...collected];
+  } catch { /* best-effort */ }
+  return result;
+}
+
+export function loadPriorDaySessionCloseLines(db, { now = Date.now() } = {}) {
+  // RGF-253 slice 3: yesterday's SESSION_CLOSE decisions across roles. The
+  // PRIOR_SESSION_LOG already does this for ORCHESTRATOR-only at startup; lift
+  // it to the cross-role view so the orchestrator sees what IntVal/CODER/
+  // WP_VALIDATOR concluded yesterday without rereading conversation logs.
+  const result = { lines: [], tokenCount: 0, count: 0 };
+  try {
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_log'").get();
+    if (!tables) return result;
+    const cutoffMs = now - ORCHESTRATOR_PRIOR_DAY_DECISIONS_HOURS * 60 * 60 * 1000;
+    const cutoffIso = new Date(cutoffMs).toISOString();
+    const rows = db.prepare(
+      `SELECT role, wp_id, topic, content, decisions, timestamp_utc
+       FROM conversation_log
+       WHERE checkpoint_type = 'SESSION_CLOSE'
+         AND timestamp_utc >= ?
+       ORDER BY timestamp_utc DESC
+       LIMIT ?`
+    ).all(cutoffIso, ORCHESTRATOR_PRIOR_DAY_DECISIONS_LIMIT);
+    if (rows.length === 0) return result;
+    for (const row of rows) {
+      const ageHours = Math.max(0, Math.round((now - new Date(row.timestamp_utc).getTime()) / 3600000));
+      const ageLabel = ageHours < 1 ? "<1h ago" : ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`;
+      const wpTag = row.wp_id ? ` [${row.wp_id}]` : "";
+      const decisionsRaw = String(row.decisions || row.content || row.topic || "").trim();
+      const decisions = decisionsRaw.slice(0, 220);
+      const line = `- (${ageLabel}) [${row.role || "UNKNOWN"}]${wpTag} ${decisions}`;
+      const lineTokens = estimateTokens(line);
+      if (result.tokenCount + lineTokens > ORCHESTRATOR_PRIOR_DAY_DECISIONS_BUDGET) break;
+      result.lines.push(line);
+      result.tokenCount += lineTokens;
+      result.count += 1;
+    }
+  } catch { /* best-effort */ }
+  return result;
+}
 
 function loadOrchestratorMemoryLines() {
   try {
@@ -647,10 +903,42 @@ function loadOrchestratorMemoryLines() {
          WHERE id IN (${allEntries.map(() => "?").join(",")})`
       ).run(new Date().toISOString(), ...allEntries.map(s => s.id));
 
+      // RGF-253: compose dedicated bypass-scoring slices BEFORE the
+      // access-count-weighted bundle so single-shot fail captures and recent
+      // hygiene findings are guaranteed visibility at orchestrator startup.
+      const recentFailures = loadRecentProceduralFailureLines(db, { now });
+      const hygieneReport = loadHygieneReportSummaryLines({ now });
+      const priorDayDecisions = loadPriorDaySessionCloseLines(db, { now });
+
+      const totalTokenCount = tokenCount + snapshots.tokenCount + recentFailures.tokenCount + hygieneReport.tokenCount + priorDayDecisions.tokenCount;
+      const headerCounts = [
+        `${selected.length} patterns`,
+        `${snapshots.entries.length} snapshots`,
+        `${recentFailures.count} recent_failures`,
+        `${hygieneReport.present ? 1 : 0} hygiene_report`,
+        `${priorDayDecisions.count} prior_day_decisions`,
+      ].join(", ");
+
       const lines = [
-        `GOVERNANCE MEMORY (${selected.length} entries${snapshots.entries.length > 0 ? `, ${snapshots.entries.length} snapshots` : ""}, ${tokenCount} est. tokens, cross-WP):`,
-        ...selected.map(s => s._line),
+        `GOVERNANCE MEMORY (${headerCounts}, ${totalTokenCount} est. tokens, cross-WP):`,
       ];
+
+      if (recentFailures.lines.length > 0) {
+        lines.push(`RECENT FAILURES (last ${ORCHESTRATOR_RECENT_FAILURE_DAYS}d, all procedural — no access_count gate):`);
+        for (const line of recentFailures.lines) lines.push(line);
+      }
+      if (hygieneReport.present) {
+        lines.push(`HYGIENE REPORT SUMMARY:`);
+        for (const line of hygieneReport.lines) lines.push(line);
+      }
+      if (priorDayDecisions.lines.length > 0) {
+        lines.push(`PRIOR-DAY DECISIONS (SESSION_CLOSE, last ${ORCHESTRATOR_PRIOR_DAY_DECISIONS_HOURS}h, cross-role):`);
+        for (const line of priorDayDecisions.lines) lines.push(line);
+      }
+
+      lines.push(`PATTERNS (scored, cross-WP):`);
+      for (const s of selected) lines.push(s._line);
+
       if (snapshots.entries.length > 0) {
         lines.push("SNAPSHOTS:");
         for (const s of snapshots.entries) lines.push(s._line);
@@ -788,16 +1076,51 @@ export function buildStartupInjectionLines({
       maxLines: STARTUP_CONVERSATION_PROMPT_MAX_LINES,
     },
   );
+  const nudgeLines = drainStartupNudgeLines({ role, wpId });
 
-  if (resolvedStartupMemoryLines.length === 0 && resolvedConversationLines.length === 0) {
+  if (resolvedStartupMemoryLines.length === 0 && resolvedConversationLines.length === 0 && nudgeLines.length === 0) {
     return [];
   }
 
-  return [
-    "MEMORY INJECTION (BOUNDED): recent fail/context lines are included below to reduce repeated mistakes. Treat them as hints; packet, code, and live runtime truth win.",
-    ...resolvedStartupMemoryLines,
-    ...resolvedConversationLines,
-  ];
+  const lines = [];
+  if (resolvedStartupMemoryLines.length > 0 || resolvedConversationLines.length > 0) {
+    lines.push("MEMORY INJECTION (BOUNDED): recent fail/context lines are included below to reduce repeated mistakes. Treat them as hints; packet, code, and live runtime truth win.");
+    lines.push(...resolvedStartupMemoryLines, ...resolvedConversationLines);
+  }
+  if (nudgeLines.length > 0) {
+    lines.push(...nudgeLines);
+  }
+  return lines;
+}
+
+function drainStartupNudgeLines({ role = "", wpId = "" } = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedRole || !normalizedWpId || normalizedRole === "ORCHESTRATOR") return [];
+  const sessionId = sessionKey(normalizedRole, normalizedWpId);
+  try {
+    const drained = drainNudges({
+      sessionId,
+      wpId: normalizedWpId,
+      drainerId: `startup:${normalizedRole}:${normalizedWpId}`,
+    });
+    if (!drained.nudges.length && !drained.orphansRecovered && !drained.expired) return [];
+    const lines = [
+      "TURN_BOUNDARY_NUDGES (RGF-245): queued governance nudges drained at this safe startup/turn boundary. Treat them as current user-message context; live packet/runtime truth still wins.",
+    ];
+    if (drained.orphansRecovered) lines.push(`- ORPHANS_RECOVERED: ${drained.orphansRecovered}`);
+    if (drained.expired) lines.push(`- EXPIRED: ${drained.expired}`);
+    drained.nudges.forEach((nudge, index) => {
+      lines.push(`- NUDGE_${index + 1}: kind=${nudge.kind} from=${nudge.from_role} priority=${nudge.priority} correlation=${nudge.correlation_id}`);
+      lines.push(`  BODY_JSON: ${JSON.stringify(nudge.body || {})}`);
+    });
+    return lines;
+  } catch (error) {
+    return [
+      "TURN_BOUNDARY_NUDGES (RGF-245): drain failed; continue from packet/runtime truth and report this to Orchestrator.",
+      `- ERROR: ${error?.message || error}`,
+    ];
+  }
 }
 
 function roleRepomemOpenCommand(role, wpId) {
@@ -818,7 +1141,7 @@ function roleRepomemOpenCommand(role, wpId) {
   );
 }
 
-export function buildStartupPrompt({
+export function buildInlineStartupPrompt({
   role,
   wpId,
   roleConfig,
@@ -833,6 +1156,20 @@ export function buildStartupPrompt({
     ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`
     : `MODEL PROFILE POLICY: ${ROLE_MODEL_PROFILE_POLICY} (legacy/default packet fields may omit explicit per-role profile ids).`;
   const repomemOpenCommand = roleRepomemOpenCommand(role, wpId);
+  const contextDigestCommand = role === "ACTIVATION_MANAGER"
+    ? `just activation-manager next ${wpId}`
+    : role === "CLASSIC_ORCHESTRATOR"
+      ? `just manual-relay-next ${wpId}`
+      : role === "VALIDATOR"
+        ? `just validator-next VALIDATOR ${wpId}`
+        : `just active-lane-brief ${role} ${wpId}`;
+  const contextDigestSurface = role === "ACTIVATION_MANAGER"
+    ? "refinement/packet/task-board/runtime"
+    : role === "CLASSIC_ORCHESTRATOR"
+      ? "manual relay packet/runtime/session"
+      : role === "VALIDATOR"
+        ? "packet/runtime/validator session"
+        : "packet/runtime/task-board/session";
   const commonLines = [
     `ROLE LOCK: You are the ${role}. Do not change roles unless explicitly reassigned.`,
     `WP_ID: ${wpId}`,
@@ -857,8 +1194,9 @@ export function buildStartupPrompt({
       : [`SESSION ISOLATION: do not spawn or use helper agents/subagents inside this governed role lane.`]
     ),
     `MINIMAL LIVE READ SET (MANDATORY): After startup and assignment, work from startup output + active packet + active WP thread/notifications + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md when command choice is unclear.`,
-    `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${role === "ACTIVATION_MANAGER" ? `just activation-manager next ${wpId}` : `just active-lane-brief ${role} ${wpId}`} instead of rereading ${role === "ACTIVATION_MANAGER" ? "refinement/packet/task-board/runtime" : "packet/runtime/task-board/session"} surfaces separately.`,
+    `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${contextDigestCommand} instead of rereading ${contextDigestSurface} surfaces separately.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
+    `INTER_ROLE_VERB_RULE (RGF-248): Routine role traffic should use named verbs where available via \`wp-receipt-append --verb <NAME> --verb-body '<JSON>'\`. Readers prefer \`verb\` / \`verb_body\` fields and fall back to legacy prose receipts only for compatibility.`,
     role === "MEMORY_MANAGER"
       ? `REPOMEM EXCEPTION: Memory Manager is a packetless hygiene lane, not a normal WP repomem coverage target. Use this lane's synthetic receipts and, if mutation is needed, open memory with: ${repomemOpenCommand}.`
       : `SESSION_OPEN (MANDATORY): Before any governed mutation or role-owned WP action, run ${repomemOpenCommand}. Capture decisions, failures, concerns, discoveries, and escalations with role-bound \`just repomem ... --wp ${wpId}\`; closeout imports those checkpoints mechanically into the Workflow Dossier.`,
@@ -866,7 +1204,26 @@ export function buildStartupPrompt({
   ];
 
   let roleLines;
-  if (role === "ACTIVATION_MANAGER") {
+  if (role === "CLASSIC_ORCHESTRATOR") {
+    roleLines = [
+      `AFTER STARTUP: Wait for Operator instruction. Do not start refinement, packet creation, dispatch, validation, merge, or status sync without a specific manual-relay task.`,
+      `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      `FOCUS: MANUAL_RELAY workflow authority in wt-gov-kernel on branch gov_kernel.`,
+      `MANUAL-RELAY AUTHORITY (HARD): Operator remains the active relay between roles. You may use deterministic relay helpers, but do not convert this lane into autonomous ORCHESTRATOR_MANAGED ACP control.`,
+      `COMBINED PRE-LAUNCH PARITY (HARD): You own the old Orchestrator plus Activation Manager pre-launch duties for MANUAL_RELAY: refinement, approved spec enrichment, signature evidence, packet hydration, microtask/worktree/backup preparation, and activation readiness.`,
+      `REFINEMENT STANDARD (HARD): refinement and spec-enrichment work must match the Activation Manager quality bar. Own the research, primitive-index, matrix, appendix, force-multiplier follow-through, and stub discovery needed for a reviewable packet.`,
+      `LOCAL-FIRST RESEARCH RULE (HARD): for internal, repo-governed, or product-governance mirror work already grounded in current Master Spec plus local code/runtime truth, prefer local evidence and mark external research NOT_APPLICABLE when honest.`,
+      `CONVERGENCE RULE (HARD): once enough local evidence exists, update the named refinement/spec artifact immediately. Inspect at most 2 directly analogous artifacts only when structure help is genuinely needed.`,
+      `WINDOWS EDIT LIMIT RULE (HARD): update long-path refinement/spec artifacts with bounded section edits or chunked apply_patch updates instead of monolithic whole-file rewrites.`,
+      `BLOCKER-FIRST REPAIR RULE (HARD): when a gate reports named blockers, repair those blocker-named lines or sections first and rerun the gate before broad rereads.`,
+      `FILE-FIRST HANDOFF RULE (HARD): write the refinement/spec artifact, run the real checker, and return the file path plus compact REFINEMENT_HANDOFF_SUMMARY unless the Operator explicitly asks for excerpts.`,
+      `SIGNATURE ROUND-TRIP (MANDATORY): obtain operator approval evidence, the one-time signature, and selected Coder-A..Z owner before packet, microtask, worktree, backup, or readiness work.`,
+      `MANUAL RELAY ROUTE (MANDATORY): use \`just manual-relay-next ${wpId}\` for projected next-actor truth and \`just manual-relay-dispatch ${wpId} "<context>"\` for one brokered governed hop. Keep ROLE_TO_ROLE_MESSAGE separate from OPERATOR_EXPLAINER.`,
+      `VALIDATION FORM (MANDATORY): manual relay uses \`VALIDATOR\` as the combined classical validator unless a packet explicitly opts into split \`WP_VALIDATOR\` / \`INTEGRATION_VALIDATOR\` lanes.`,
+      `SELF-PRIME (RGF-249): after compaction or fresh role recovery, run \`just role-self-prime CLASSIC_ORCHESTRATOR ${wpId} --session-id CLASSIC_ORCHESTRATOR:${wpId}\` and treat predecessor summary as context only; packet/runtime/receipts remain canonical.`,
+      `HARD BOUNDARIES: do not use Activation Manager as a second manual authority lane; do not approve validation; do not merge product code unless the Operator explicitly assigns a mechanical sync/push action.`,
+    ];
+  } else if (role === "ACTIVATION_MANAGER") {
     roleLines = [
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start downstream launch, workflow status sync, or product work without a specific task.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
@@ -921,6 +1278,7 @@ export function buildStartupPrompt({
       `STARTUP MESH (MANDATORY): Before the first WP-specific bootstrap or code change, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `EARLY GATE (HARD): After every governed \`CODER_INTENT\`, wait for explicit WP-validator clearance before implementation hardens or full \`CODER_HANDOFF\` is legal. If runtime is waiting on \`WP_VALIDATOR_INTENT_CHECKPOINT\`, keep the lane in early review instead of treating it like implementation-ready state.`,
       `MICROTASK OVERLAP (BOUNDED): For a completed narrow slice, you may open \`REVIEW_REQUEST\` to \`WP_VALIDATOR\` with \`microtask_json.review_mode=OVERLAP\` while you advance one next declared microtask, but the unresolved overlap queue is capped at 1 and full \`CODER_HANDOFF\` remains blocked until those overlap review items are drained.`,
+      `HEURISTIC-RISK RULE (RGF-250): Before implementing a declared MT, inspect \`just heuristic-risk-check ${wpId}\` or the active-lane brief. If the MT is tagged \`HEURISTIC_RISK=YES\`, provide the required corpus/property/negative evidence in the MT proof and change strategy when repeated counterexamples appear; do not keep threshold-tuning the same discriminator.`,
       `CONTRACT GATE (HARD): Before claiming validator-ready handoff, \`just wp-communication-health-check ${wpId} KICKOFF\` must pass.`,
       `HANDOFF QUALITY (MANDATORY): Before requesting validation, you MUST produce a WEAK_SPOTS section listing the least-proven requirement and the riskiest file/boundary. "Done, tests pass" is not an acceptable handoff. See .GOV/roles/coder/docs/CODER_RUBRIC_V2.md (live law).`,
       `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} CODER <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} CODER <your-session>\` to clear them. Check again before each handoff.`,
@@ -949,6 +1307,7 @@ export function buildStartupPrompt({
       `STARTUP MESH (MANDATORY): Before bootstrap steering or verdict work, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `EARLY STEERING (MANDATORY): You own the governed bootstrap/skeleton checkpoint. After \`CODER_INTENT\`, either clear the plan, narrow it, or reject it; do not let the lane drift into hard implementation or full handoff on coder say-so alone.`,
       `MICROTASK OVERLAP (BOUNDED): While coder is the main projected actor, you may still review unresolved overlap microtask items in parallel. Keep that queue bounded to 1, reply explicitly with repair/clearance truth, and require the queue to drain before final coder handoff is accepted.`,
+      `HEURISTIC-RISK RULE (RGF-250): Use \`just heuristic-risk-check ${wpId}\` and the microtask contract fields to identify fuzzy/adversarial MTs. For \`HEURISTIC_RISK=YES\`, require the listed corpus/property/negative evidence and escalate to strategy change after repeated counterexamples instead of approving another same-threshold repair loop.`,
       `WORKTREE SYNC (MANDATORY): You share the coder \`feat/${wpId}\` branch and \`wtc-*\` worktree surface for this lane. Keep that shared review surface current instead of creating extra validator-only branches or worktrees.`,
       `CONTRACT GATE (HARD): Before PASS clearance, \`${contractGateCommand}\` must pass.`,
       `ANTI-GAMING (MANDATORY): Do not trust passing tests alone. Do not trust coder summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main. See .GOV/roles/validator/docs/VALIDATOR_ANTI_GAMING_RUBRIC.md (live law).`,
@@ -988,6 +1347,29 @@ export function buildStartupPrompt({
       `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} INTEGRATION_VALIDATOR <your-session>\` to see only the notifications targeted to your governed session. After reading, run \`just ack-notifications ${wpId} INTEGRATION_VALIDATOR <your-session>\` to clear them. Check again before each verdict.`,
       `REMINDER: status sync is not a validation verdict. The Orchestrator remains workflow authority; only you can own merge-to-main authority.`,
     ];
+  } else if (role === "VALIDATOR") {
+    const contractGateCommand = buildPhaseCheckCommand({
+      phase: "VERDICT",
+      wpId,
+      role: "VALIDATOR",
+    });
+    roleLines = [
+      `AFTER STARTUP: Wait for Operator or Classic Orchestrator relay instruction. Do not start validation, cleanup, merge, or status sync without a specific manual-relay task.`,
+      `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      `FOCUS: combined classical validation for MANUAL_RELAY and non-orchestrator-managed work. Validate evidence in the assigned WP worktree, not intent, and own final closure only for that manual lane.`,
+      `MANUAL-RELAY AUTHORITY (HARD): the Operator is the relay. Do not assume autonomous Orchestrator-managed steering, do not ask for split WP/Integration Validator behavior unless the packet explicitly declares it, and keep role-to-role payloads in typed receipts/envelopes.`,
+      `KERNEL GOVERNANCE RULE: operate from handshake_main for product truth, but use ${GOV_ROOT_ENV_VAR} and the current gov kernel for live governance truth. Do not treat handshake_main/.GOV as authoritative when a kernel root is provided.`,
+      `STARTUP ORDER (HARD): complete \`${roleStartupCommand("VALIDATOR")}\` -> \`${roleNextCommand("VALIDATOR", wpId)}\` -> \`just external-validator-brief ${wpId}\` before repo-wide searches or broad packet rediscovery.`,
+      `COMBINED VALIDATOR PARITY (HARD): you combine WP Validator early review obligations with Integration Validator final verdict obligations for MANUAL_RELAY: challenge bootstrap/skeleton/spec drift early, require concrete coder proof, then independently verify whole-WP merge readiness.`,
+      `HEURISTIC-RISK RULE (RGF-250): use \`just heuristic-risk-check ${wpId}\` and packet microtask contracts to identify fuzzy/adversarial MTs. Require corpus/property/negative evidence and trigger strategy escalation after repeated counterexamples instead of approving another same-threshold loop.`,
+      `CONTRACT GATE (HARD): Before PASS clearance, \`${contractGateCommand}\` must pass when the packet exposes the required communications/runtime surfaces.`,
+      `ANTI-GAMING (MANDATORY): Do not trust passing tests, coder summaries, or prior validator summaries alone. Build your own review target from packet scope, exact spec clauses, and diff against main.`,
+      `SPEC EVIDENCE (MANDATORY): Every PASS verdict MUST include a spec_clause_map with file:line citations and at least one negative/counterfactual proof that demonstrates independent code reading.`,
+      `MERGE AUTHORITY (MANUAL ONLY): after a lawful PASS and required validator gates, the classical Validator owns merge-to-main authority for MANUAL_RELAY. WP_VALIDATOR never owns merge authority in split lanes.`,
+      `NOTIFICATIONS (MANDATORY): After startup, run \`just check-notifications ${wpId} VALIDATOR <your-session>\` to see only notifications targeted to your governed session. Acknowledge consumed notifications with \`just ack-notifications ${wpId} VALIDATOR <your-session>\`.`,
+      `SELF-PRIME (RGF-249): after compaction or fresh role recovery, run \`just role-self-prime VALIDATOR ${wpId} --session-id VALIDATOR:${wpId}\`; predecessor summary is context, not proof.`,
+      `REMINDER: status sync is not a validation verdict. Manual relay final closure belongs to VALIDATOR only when the packet is not using the split Orchestrator-managed validator lanes.`,
+    ];
   } else {
     roleLines = [
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
@@ -1006,11 +1388,12 @@ export function buildStartupPrompt({
     executableStartupCommand(role, wpId, roleConfig),
     executableNextCommand(role, wpId, roleConfig),
     ...(role === "INTEGRATION_VALIDATOR" ? [`just integration-validator-context-brief ${wpId}`] : []),
+    ...(role === "VALIDATOR" ? [`just external-validator-brief ${wpId}`] : []),
   ];
 
   // Inject runtime inbox state so the model sees concrete pending obligations.
   const inboxLines = [];
-  if (role === "CODER" || role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR") {
+  if (role === "CODER" || role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR" || role === "VALIDATOR") {
     try {
       const runtimeStatusPath = repoPathAbs(
         `${GOV_ROOT_ABS.replace(/\\/g, "/").replace(/.*\.GOV$/i, ".GOV")}/../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}/RUNTIME_STATUS.json`
@@ -1056,6 +1439,17 @@ export function buildStartupPrompt({
   return [...commonLines, ...roleLines, ...inboxLines, ...startupInjectionLines, ...bootLines].join("\n");
 }
 
+export function buildStartupPrompt({
+  inlinePrompt = false,
+  ...args
+} = {}) {
+  const normalizedRole = String(args.role || "").trim().toUpperCase();
+  if (inlinePrompt || normalizedRole === "ORCHESTRATOR") {
+    return buildInlineStartupPrompt(args);
+  }
+  return buildHookStartupPrompt(args);
+}
+
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   const resolvedRoleConfig = roleConfig || resolveRoleConfig(role, wpId);
   if (!resolvedRoleConfig) {
@@ -1076,6 +1470,39 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       `4. If this steer completes the review, run \`just repomem close "<session summary>" --decisions "<key decisions>"\` and then stop. The governed control lane will emit \`SESSION_COMPLETION\` when the turn settles; do not invent your own session-retirement mechanism.`,
       `Report only maintenance findings, emitted receipt kinds, blockers, and next required command(s).`,
       `Do not request routine Operator approval or treat this like a packet-based implementation lane.`,
+    ].join("\n");
+  }
+  if (role === "CLASSIC_ORCHESTRATOR") {
+    return [
+      `RESUME MANUAL_RELAY ${role} lane for ${wpId}.`,
+      `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable run notes.`,
+      `Use packet + runtime projection + task board + WP communications as live truth. Do not convert this manual lane into autonomous ORCHESTRATOR_MANAGED steering.`,
+      `If route/context feels fragmented, use \`just manual-relay-next ${wpId}\` before dispatching or updating status.`,
+      `Run in order:`,
+      `1. ${executableNext}`,
+      `2. just check-notifications ${wpId} CLASSIC_ORCHESTRATOR <your-session>`,
+      `3. If the next actor is a governed role and the Operator asked you to broker the hop, use \`just manual-relay-dispatch ${wpId} "<context>"\` once.`,
+      `Then perform only the single next manual-relay action the Operator assigned.`,
+      `Report only relay state, blockers, and next required command(s).`,
+    ].join("\n");
+  }
+  if (role === "VALIDATOR") {
+    return [
+      `RESUME MANUAL_RELAY ${role} lane for ${wpId}.`,
+      `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable validation notes.`,
+      `Operator is the relay for this lane. Do not assume autonomous split-validator steering unless the packet explicitly declares ORCHESTRATOR_MANAGED.`,
+      `Use packet + active WP thread/notifications + current runtime projection + \`just external-validator-brief ${wpId}\` as the live truth surface. Do not reread large governance documents if context is already stable.`,
+      `If route/context feels fragmented, use \`just validator-next VALIDATOR ${wpId}\` instead of calling active-lane-brief for the classical validator.`,
+      `KERNEL GOVERNANCE RULE: operate from handshake_main for product truth, but use ${GOV_ROOT_ENV_VAR} for live governance truth when it is set. Do not treat handshake_main/.GOV as authoritative over the kernel.`,
+      `Run in order:`,
+      `1. ${executableNext}`,
+      `2. just external-validator-brief ${wpId}`,
+      `3. just check-notifications ${wpId} VALIDATOR <your-session>`,
+      `4. If you consume any pending notification, acknowledge it with your actor session id using just ack-notifications ${wpId} VALIDATOR <your-session>.`,
+      `Then perform only the single next validation action implied by receipts/notifications and runtime projection.`,
+      `Report only lifecycle/gate state, findings/blockers, and next required command(s).`,
     ].join("\n");
   }
   const orderedCommands = role === "ACTIVATION_MANAGER"

@@ -21,7 +21,12 @@ const RUN_WAITING_STATES = new Set(["WAITING"]);
 const RUN_READY_STATES = new Set(["READY"]);
 const RUN_TERMINAL_STATES = new Set(["CLOSED", "COMPLETED"]);
 const RUN_FAILED_STATES = new Set(["FAILED"]);
-const PUSH_ALERT_SOURCE_KINDS = new Set(["ACP_HEALTH_ALERT", "RELAY_WATCHDOG_REPAIR"]);
+const PUSH_ALERT_SOURCE_KINDS = new Set([
+  "ACP_HEALTH_ALERT",
+  "ORCHESTRATOR_TAKEOVER_ATTEMPT",
+  "RED_ALERT_ORCHESTRATOR_DOWNTIME",
+  "RELAY_WATCHDOG_REPAIR",
+]);
 
 function normalizeUpper(value, fallback = "UNKNOWN") {
   const text = String(value || "").trim().toUpperCase();

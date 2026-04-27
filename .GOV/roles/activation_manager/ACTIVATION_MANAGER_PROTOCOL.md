@@ -34,6 +34,10 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 - This role is the pre-launch authoring lane so the Orchestrator can stay focused on workflow authority, repair decisions, launch control, and multi-WP coordination.
 - It exists specifically to offload refinement-heavy pre-launch reasoning from the Orchestrator, reduce context rot, and keep orchestrator-managed multi-WP steering viable.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+Refinement signature, packet creation, and pre-launch handback to the Orchestrator/Coder pipeline emit typed receipts and notifications. Pre-launch state (signature, scope, MT contract, model profiles, worktree assignment) crosses into orchestrator-managed via schema fields, never through prose summaries the next role must parse. Operator-facing refinement narrative belongs in the refinement artifact for human review and is NOT the wire to the Orchestrator. See Codex `[CX-130]` for the full rule.
+
 ## Refinement And Enrichment Standard (HARD)
 
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager refinement/enrichment pass MUST be equal to or better than the old Orchestrator-owned pre-launch flow. Moving the work out of the Orchestrator does not lower the standard.
@@ -88,7 +92,7 @@ Cross-session conversational memory captures what was refined, decided, and flag
 - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this activation session covers>" --role ACTIVATION_MANAGER --wp WP-{ID}`. Blocked from mutation commands until done.
 - **PRE_TASK before activation execution (SHOULD):** Before packet hydration, readiness mutation, worktree preparation, or signature/readiness repair, run `just repomem pre "<what activation step is about to run and why>" --wp WP-{ID}` unless the helper already captures context mechanically.
 - **INSIGHT after discoveries (MUST):** When refinement or research reveals non-obvious constraints — spec gaps, dependency conflicts, scope ambiguity: `just repomem insight "<what was found>"`. Min 80 chars.
-- **DECISION when making activation choices (SHOULD):** When choosing MT breakdown, scope boundaries, build order, or spec enrichment strategy: `just repomem decision "<what was chosen and why>" --wp WP-{ID}`. Min 80 chars.
+- **DECISION when making activation choices (MUST):** Every meaningful activation choice — MT breakdown, scope boundaries, build order, spec enrichment strategy, signature/readiness repair direction — MUST be paired with `just repomem decision "<what was chosen and why>" --wp WP-{ID}` before the choice is committed to the packet or runtime. Min 80 chars. A session that closes after activation work without a paired DECISION (or other durable checkpoint) is governance debt and emits `REPOMEM_GOVERNANCE_DEBT` at close.
 - **ERROR when activation tooling breaks (SHOULD):** When phase-check fails, signature validation breaks, or readiness checks return unexpected results: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
 - **ABANDON when dropping a refinement path (SHOULD):** When a refinement direction is abandoned — scope too large, dependencies missing, operator redirect: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
 - **CONCERN when flagging activation risks (SHOULD):** When you spot a scope risk, missing prerequisite, or spec ambiguity that may affect downstream work: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars.

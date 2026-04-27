@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.inter_role_verb.CONCERN@1",
+  "title": "CONCERN",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["concern_class", "severity", "evidence_path", "notes"],
+  "properties": {
+    "concern_class": { "type": "string", "minLength": 1 },
+    "severity": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+    "wp_id": { "type": "string", "pattern": "^WP-" },
+    "mt_id": { "type": "string", "pattern": "^MT-[0-9]{3}$" },
+    "evidence_path": { "type": "string", "minLength": 1 },
+    "notes": { "type": "string", "minLength": 1 }
+  }
+}

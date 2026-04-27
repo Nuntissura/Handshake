@@ -75,6 +75,58 @@ test("evaluateArtifactHygiene detects repo-local target dirs and stale noncanoni
   }
 });
 
+test("evaluateArtifactHygiene blocks noncanonical sibling artifact roots", () => {
+  const workspaceRoot = makeTempRoot("handshake-artifact-sibling-");
+  const repoRoot = path.join(workspaceRoot, "repo");
+  fs.mkdirSync(repoRoot, { recursive: true });
+
+  try {
+    const artifactRootAbs = ensureArtifactRootStructure(repoRoot);
+    const driftRootAbs = path.join(workspaceRoot, "Handshake Artifacts");
+    fs.mkdirSync(path.join(driftRootAbs, "handshake-cargo-target"), { recursive: true });
+
+    const evaluation = evaluateArtifactHygiene({
+      repoRoot,
+      repoRoots: [repoRoot],
+      artifactRootAbs,
+    });
+    const summary = cleanupArtifactResidue(evaluation);
+
+    assert.equal(evaluation.siblingArtifactRootDrift.length, 1);
+    assert.equal(evaluation.siblingArtifactRootDrift[0].dirName, "Handshake Artifacts");
+    assert.equal(evaluation.blockingSiblingArtifactRoots.length, 1);
+    assert.equal(evaluation.blockingIssues.some((issue) => issue.includes("Handshake Artifacts")), true);
+    assert.equal(summary.removedExternalDirs.includes(driftRootAbs), false);
+    assert.equal(fs.existsSync(driftRootAbs), true);
+  } finally {
+    removeTree(workspaceRoot);
+  }
+});
+
+test("evaluateArtifactHygiene requires canonical Cargo target config for product checkouts", () => {
+  const workspaceRoot = makeTempRoot("handshake-artifact-cargo-required-");
+  const repoRoot = path.join(workspaceRoot, "repo");
+  const crateRoot = path.join(repoRoot, "src", "backend", "handshake_core");
+  fs.mkdirSync(crateRoot, { recursive: true });
+  fs.writeFileSync(path.join(crateRoot, "Cargo.toml"), "[package]\nname = \"handshake_core\"\nversion = \"0.0.0\"\n", "utf8");
+
+  try {
+    const artifactRootAbs = ensureArtifactRootStructure(repoRoot);
+    const evaluation = evaluateArtifactHygiene({
+      repoRoot,
+      repoRoots: [repoRoot],
+      artifactRootAbs,
+    });
+
+    assert.equal(evaluation.cargoTargetConfigs.length, 1);
+    assert.equal(evaluation.cargoTargetConfigs[0].exists, false);
+    assert.equal(evaluation.cargoTargetConfigs[0].requiresCanonicalTargetConfig, true);
+    assert.equal(evaluation.blockingIssues.some((issue) => issue.includes("missing required cargo target-dir config")), true);
+  } finally {
+    removeTree(workspaceRoot);
+  }
+});
+
 test("cleanupArtifactResidue removes repo-local target dirs and reclaimable external dirs only", () => {
   const workspaceRoot = makeTempRoot("handshake-artifact-clean-");
   const repoRoot = path.join(workspaceRoot, "repo");
@@ -146,6 +198,7 @@ test("artifact retention manifests record retained policy surfaces and write und
     assert.equal(manifest.removed_repo_local_dirs.length, 1);
     assert.equal(manifest.removed_external_dirs.length, 1);
     assert.equal(manifest.retained_canonical_dirs.length, CANONICAL_ARTIFACT_DIRS.length);
+    assert.equal(Array.isArray(manifest.retained_sibling_artifact_roots), true);
     assert.equal(
       written.manifestRelPath.startsWith(ARTIFACT_RETENTION_MANIFEST_DIR_SEGMENTS.join("/")),
       true,

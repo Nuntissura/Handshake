@@ -1,5 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  HEURISTIC_REQUIRED_EVIDENCE_VALUES,
+  HEURISTIC_RISK_CLASS_VALUES,
+  HEURISTIC_STRATEGY_ESCALATION_VALUES,
+} from "./heuristic-risk-lib.mjs";
+import { normalizeInterRoleVerb, validateInterRoleVerbBody } from "./inter-role-verb-lib.mjs";
 import { EXECUTION_OWNER_VALUES } from "../session/session-policy.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "./merge-progression-truth-lib.mjs";
 import { RUNTIME_MILESTONE_VALUES, TASK_BOARD_STATUS_VALUES } from "./wp-authority-projection-lib.mjs";
@@ -111,6 +117,7 @@ export const RECEIPT_KIND_VALUES = [
   "CODER_INTENT",
   "CODER_HANDOFF",
   "VALIDATOR_REVIEW",
+  "MT_VERDICT_MECHANICAL",
   "VALIDATOR_QUERY",
   "VALIDATOR_RESPONSE",
   "REVIEW_REQUEST",
@@ -203,6 +210,11 @@ function validateMicrotaskContract(value, prefix, errors) {
     "review_mode",
     "phase_gate",
     "review_outcome",
+    "heuristic_risk",
+    "heuristic_risk_class",
+    "required_evidence",
+    "strategy_escalation",
+    "repair_cycle_strategy_threshold",
   ]);
   for (const key of Object.keys(value)) {
     if (!allowedKeys.has(key)) errors.push(`${prefix}.${key} is not allowed`);
@@ -225,6 +237,18 @@ function validateMicrotaskContract(value, prefix, errors) {
   if (!(value.review_outcome === undefined || value.review_outcome === null || MICROTASK_REVIEW_OUTCOME_VALUES.includes(value.review_outcome))) {
     errors.push(`${prefix}.review_outcome invalid (${value.review_outcome})`);
   }
+  if (!(value.heuristic_risk === undefined || value.heuristic_risk === null || ["YES", "NO"].includes(value.heuristic_risk))) {
+    errors.push(`${prefix}.heuristic_risk invalid (${value.heuristic_risk})`);
+  }
+  if (!(value.heuristic_risk_class === undefined || value.heuristic_risk_class === null || HEURISTIC_RISK_CLASS_VALUES.includes(value.heuristic_risk_class))) {
+    errors.push(`${prefix}.heuristic_risk_class invalid (${value.heuristic_risk_class})`);
+  }
+  if (!(value.strategy_escalation === undefined || value.strategy_escalation === null || HEURISTIC_STRATEGY_ESCALATION_VALUES.includes(value.strategy_escalation))) {
+    errors.push(`${prefix}.strategy_escalation invalid (${value.strategy_escalation})`);
+  }
+  if (!(value.repair_cycle_strategy_threshold === undefined || value.repair_cycle_strategy_threshold === null || (Number.isInteger(value.repair_cycle_strategy_threshold) && value.repair_cycle_strategy_threshold >= 1))) {
+    errors.push(`${prefix}.repair_cycle_strategy_threshold must be null or an integer >= 1`);
+  }
   if (!(value.file_targets === undefined || Array.isArray(value.file_targets))) {
     errors.push(`${prefix}.file_targets must be an array when present`);
   } else if (Array.isArray(value.file_targets) && value.file_targets.some((entry) => !isNonEmptyString(entry))) {
@@ -235,6 +259,15 @@ function validateMicrotaskContract(value, prefix, errors) {
   } else if (Array.isArray(value.proof_commands) && value.proof_commands.some((entry) => !isNonEmptyString(entry))) {
     errors.push(`${prefix}.proof_commands must contain non-empty strings`);
   }
+  if (!(value.required_evidence === undefined || Array.isArray(value.required_evidence))) {
+    errors.push(`${prefix}.required_evidence must be an array when present`);
+  } else if (Array.isArray(value.required_evidence)) {
+    value.required_evidence.forEach((entry, index) => {
+      if (!HEURISTIC_REQUIRED_EVIDENCE_VALUES.includes(entry)) {
+        errors.push(`${prefix}.required_evidence[${index}] invalid (${entry})`);
+      }
+    });
+  }
 
   const hasPayload =
     isNonEmptyString(value.scope_ref)
@@ -243,10 +276,73 @@ function validateMicrotaskContract(value, prefix, errors) {
     || isNonEmptyString(value.review_mode)
     || isNonEmptyString(value.phase_gate)
     || isNonEmptyString(value.review_outcome)
+    || isNonEmptyString(value.heuristic_risk)
+    || isNonEmptyString(value.heuristic_risk_class)
+    || isNonEmptyString(value.strategy_escalation)
+    || Number.isInteger(value.repair_cycle_strategy_threshold)
     || (Array.isArray(value.file_targets) && value.file_targets.length > 0)
-    || (Array.isArray(value.proof_commands) && value.proof_commands.length > 0);
+    || (Array.isArray(value.proof_commands) && value.proof_commands.length > 0)
+    || (Array.isArray(value.required_evidence) && value.required_evidence.length > 0);
   if (!hasPayload) {
     errors.push(`${prefix} must contain at least one populated field`);
+  }
+}
+
+function validateMechanicalResult(value, prefix, errors) {
+  if (!(value === undefined || value === null || isPlainObject(value))) {
+    errors.push(`${prefix} must be null or an object`);
+    return;
+  }
+  if (value === undefined || value === null) return;
+
+  const required = [
+    "mt_id",
+    "verdict",
+    "concerns",
+    "boundary_check_result",
+    "scope_check_result",
+    "file_list_match_result",
+    "build_pass_evidence",
+    "helper_invocation_id",
+  ];
+  const allowedKeys = new Set(required);
+  for (const key of required) {
+    if (!(key in value)) errors.push(`${prefix}.${key} is required`);
+  }
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) errors.push(`${prefix}.${key} is not allowed`);
+  }
+
+  if (typeof value.mt_id !== "string" || !/^MT-\d{3}$/i.test(value.mt_id)) {
+    errors.push(`${prefix}.mt_id invalid (${value.mt_id})`);
+  }
+  if (!["PASS", "FAIL"].includes(String(value.verdict || "").trim().toUpperCase())) {
+    errors.push(`${prefix}.verdict must be PASS or FAIL`);
+  }
+  if (!Array.isArray(value.concerns)) {
+    errors.push(`${prefix}.concerns must be an array`);
+  } else {
+    value.concerns.forEach((concern, index) => {
+      if (!isPlainObject(concern)) {
+        errors.push(`${prefix}.concerns[${index}] must be an object`);
+        return;
+      }
+      const allowedConcernKeys = new Set(["key", "severity", "evidence_path"]);
+      for (const key of Object.keys(concern)) {
+        if (!allowedConcernKeys.has(key)) errors.push(`${prefix}.concerns[${index}].${key} is not allowed`);
+      }
+      if (!isNonEmptyString(concern.key)) errors.push(`${prefix}.concerns[${index}].key is required`);
+      if (!["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(String(concern.severity || "").trim().toUpperCase())) {
+        errors.push(`${prefix}.concerns[${index}].severity must be LOW, MEDIUM, HIGH, or CRITICAL`);
+      }
+      if (!isNonEmptyString(concern.evidence_path)) errors.push(`${prefix}.concerns[${index}].evidence_path is required`);
+    });
+  }
+  for (const key of ["boundary_check_result", "scope_check_result", "file_list_match_result", "build_pass_evidence"]) {
+    if (!isPlainObject(value[key])) errors.push(`${prefix}.${key} must be an object`);
+  }
+  if (!isNonEmptyString(value.helper_invocation_id)) {
+    errors.push(`${prefix}.helper_invocation_id is required`);
   }
 }
 
@@ -997,7 +1093,7 @@ export function validateReceipt(entry) {
     "state_after",
     "refs",
   ];
-  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "workflow_invalidity_code", "resolved_cwd"];
+  const optionalKeys = ["target_role", "target_session", "correlation_id", "requires_ack", "ack_for", "spec_anchor", "packet_row_ref", "microtask_contract", "mechanical_result", "workflow_invalidity_code", "resolved_cwd", "metadata", "verb", "verb_body"];
   const allowedKeys = new Set([...requiredKeys, ...optionalKeys]);
   for (const key of requiredKeys) {
     if (!(key in entry)) errors.push(`missing key: ${key}`);
@@ -1020,6 +1116,15 @@ export function validateReceipt(entry) {
     errors.push("validator_role_kind must be INTEGRATION_VALIDATOR when actor_role is INTEGRATION_VALIDATOR");
   }
   if (!RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) errors.push(`receipt_kind invalid (${entry.receipt_kind})`);
+  if (entry.verb !== undefined && entry.verb !== null && !normalizeInterRoleVerb(entry.verb)) {
+    errors.push(`verb invalid (${entry.verb})`);
+  }
+  if (entry.verb) {
+    const verbValidation = validateInterRoleVerbBody(entry.verb, entry.verb_body);
+    if (!verbValidation.ok) errors.push(...verbValidation.errors);
+  } else if (!(entry.verb_body === undefined || entry.verb_body === null)) {
+    errors.push("verb_body is only allowed when verb is set");
+  }
   if (!isNonEmptyString(entry.summary)) errors.push("summary must be a non-empty string");
   if (!isNullableString(entry.branch)) errors.push("branch must be null or a non-empty string");
   if (!isNullableString(entry.worktree_dir)) errors.push("worktree_dir must be null or a non-empty string");
@@ -1047,6 +1152,31 @@ export function validateReceipt(entry) {
     errors.push("packet_row_ref must be null or a non-empty string");
   }
   validateMicrotaskContract(entry.microtask_contract, "microtask_contract", errors);
+  validateMechanicalResult(entry.mechanical_result, "mechanical_result", errors);
+  if (entry.receipt_kind === "MT_VERDICT_MECHANICAL") {
+    if (!isPlainObject(entry.mechanical_result)) {
+      errors.push("mechanical_result is required for MT_VERDICT_MECHANICAL receipts");
+    }
+    const mechanicalMtId = String(entry.mechanical_result?.mt_id || "").trim().toUpperCase();
+    const verbMtId = String(entry.verb_body?.mt_id || "").trim().toUpperCase();
+    const verbVerdict = String(entry.verb_body?.verdict || "").trim().toUpperCase();
+    const mechanicalVerdict = String(entry.mechanical_result?.verdict || "").trim().toUpperCase();
+    if (mechanicalMtId && verbMtId && mechanicalMtId !== verbMtId) {
+      errors.push("mechanical_result.mt_id must match verb_body.mt_id");
+    }
+    if (mechanicalVerdict && verbVerdict && mechanicalVerdict !== verbVerdict) {
+      errors.push("mechanical_result.verdict must match verb_body.verdict");
+    }
+  } else if (entry.mechanical_result !== undefined && entry.mechanical_result !== null) {
+    errors.push("mechanical_result is only allowed for MT_VERDICT_MECHANICAL receipts");
+  }
+  if (!(entry.metadata === undefined || entry.metadata === null || isPlainObject(entry.metadata))) {
+    errors.push("metadata must be an object when present");
+  } else if (isPlainObject(entry.metadata) && "absorbers_applied" in entry.metadata) {
+    if (!Array.isArray(entry.metadata.absorbers_applied) || entry.metadata.absorbers_applied.some((value) => !isNonEmptyString(value))) {
+      errors.push("metadata.absorbers_applied must be an array of non-empty strings");
+    }
+  }
   if (!(entry.workflow_invalidity_code === undefined || isNullableString(entry.workflow_invalidity_code))) {
     errors.push("workflow_invalidity_code must be null or a non-empty string");
   }

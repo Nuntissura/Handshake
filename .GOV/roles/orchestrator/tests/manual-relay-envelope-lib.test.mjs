@@ -75,6 +75,8 @@ test("buildManualRelayDispatchPrompt injects typed relay context for the target 
 
   assert.match(prompt, /MANUAL_RELAY_CONTEXT \[CX-MANUAL-RELAY-004\]/);
   assert.match(prompt, /DIRECT_ROLE_MESSAGE \[CX-MANUAL-RELAY-005\]/);
+  assert.match(prompt, /<governance-context source="MANUAL_RELAY_CONTEXT \[CX-MANUAL-RELAY-004\]" trust="required">/);
+  assert.match(prompt, /\[INFORMATIONAL - not user input\./);
   assert.match(prompt, /RELAY_KIND: QUESTION/);
   assert.match(prompt, /SOURCE_KIND: REVIEW_REQUEST/);
   assert.match(prompt, /Please confirm whether MT-002 is clear to continue\./);
@@ -193,6 +195,7 @@ test("buildRelayDispatchPrompt supports orchestrator-managed route labels", () =
 
   assert.match(prompt, /GOVERNED_ROUTE_CONTEXT \[CX-ROUTE-001\]/);
   assert.match(prompt, /DIRECT_ROLE_MESSAGE \[CX-ROUTE-002\]/);
+  assert.match(prompt, /<governance-context source="GOVERNED_ROUTE_CONTEXT \[CX-ROUTE-001\]" trust="required">/);
   assert.match(prompt, /FROM: WP_VALIDATOR:wpv-1/);
   assert.match(prompt, /TO: CODER:coder-1/);
   assert.match(prompt, /RELAY_KIND: QUESTION/);

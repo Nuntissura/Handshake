@@ -38,6 +38,10 @@ Clarification: governed completion is evidenced by the `SESSION_COMPLETION` noti
 
 **Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → stop after the governed turn settles and `SESSION_COMPLETION` is emitted. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned. MUST NOT leave orphan terminals.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+Memory proposals, flags, and RGF candidates are emitted as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`) — these schemas are the wire to the Orchestrator. Do NOT author governance documents (recommendations, narrative summaries, ad-hoc reports) in lieu of emitting typed receipts; the Orchestrator reads typed receipts and decides. The Memory Hygiene Report exists for operator readability and is a projection of receipt truth, not the wire. See Codex `[CX-130]` for the full rule.
+
 ## Governance Surface Reduction Discipline
 
 - Memory hygiene should remain centered on the existing `just memory-*` command family plus one primary output artifact: `MEMORY_HYGIENE_REPORT.md`.
@@ -53,9 +57,14 @@ Clarification: governed completion is evidenced by the `SESSION_COMPLETION` noti
 |---|---|---|---|
 | Orchestrator startup | Mechanical | `just orchestrator-startup` | Staleness gate: >24h since last run AND >10 new entries |
 | Integration Validator closeout | Mechanical | `just phase-check CLOSEOUT WP-{ID}` | Always before WP merge to main |
+| Integration Validator closeout | Cadence check | `just phase-check CLOSEOUT WP-{ID}` | RGF-254: `intelligent-review-cadence-check` runs after the mechanical pass and reports `DEBT` when intelligent review has not completed within the staleness window |
 | Operator manual (mechanical) | Mechanical | `just launch-memory-manager [--force]` | On demand |
-| Operator manual (intelligent) | ACP session | `just launch-memory-manager-session [host] [model]` | On demand; runs mechanical pre-pass first, then launches governed ACP session |
+| Operator manual (intelligent) | ACP session | `just launch-memory-manager-session [host] [model]` | On demand; runs mechanical pre-pass first, then launches governed ACP session. **RGF-254 cadence:** SHOULD run at least every 7 days, and again whenever IntVal closeout reports `DEBT`. Operator-driven schedule (no in-process cron) — set up via OS Task Scheduler / cron / `claude /schedule` if you want it weekly. |
 | Gov-flush | Mechanical | `just gov-flush` | Step 6: memory hygiene before NAS backup |
+
+### RGF-254 Cadence Markers
+
+The intelligent review writes `gov_runtime/roles_shared/INTELLIGENT_REVIEW_LAST_RUN.json` automatically when the `MEMORY_MANAGER` role calls `just repomem close` at end of session — no extra command needed. `intelligent-review-cadence-check` reads this marker and the `INTELLIGENT_REVIEW_STALENESS_DAYS` policy (default 7 days) to emit `FRESH` / `DEBT` status. Missing marker is treated as `MISSING` and reported as `DEBT`. The check is governance-support (always exit 0) so it does not block closeout, but it surfaces in `phase-check CLOSEOUT` output and the IntVal context brief so accumulated one-off captures cannot dead-letter behind the startup-injection access-count gate.
 
 ## Memory System Architecture (What You Manage)
 

@@ -16,6 +16,7 @@ import path from "node:path";
 import { execFileSync, execSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+import { runAbsorber } from "../../../roles_shared/scripts/lib/artifact-normalizers/index.mjs";
 import {
   GOV_ROOT_REPO_REL,
   REPO_ROOT,
@@ -179,6 +180,27 @@ function resolvePacketContext(wpId, repoRoot = REPO_ROOT) {
     packetPath: normalizePath(path.relative(repoRoot, resolved.packetAbsPath)) || normalizePath(resolved.packetPath),
     packetAbsPath: resolved.packetAbsPath,
     packetText: fs.readFileSync(resolved.packetAbsPath, "utf8"),
+  };
+}
+
+export function runCloseoutAbsorberPrepass({
+  wpId = "",
+  repoRoot = REPO_ROOT,
+  dryRun = false,
+} = {}) {
+  const packetContext = resolvePacketContext(wpId, repoRoot);
+  const absorbed = runAbsorber(packetContext.packetText, {
+    artifactKind: "packet",
+    wpId,
+  });
+  if (absorbed.applied.length > 0 && !dryRun) {
+    fs.writeFileSync(packetContext.packetAbsPath, absorbed.output, "utf8");
+  }
+  return {
+    ...packetContext,
+    output: absorbed.output,
+    applied: absorbed.applied,
+    wrote: absorbed.applied.length > 0 && !dryRun,
   };
 }
 
@@ -511,6 +533,27 @@ export function runCloseoutRepairCli(argv = process.argv.slice(2)) {
   log("phase-check CLOSEOUT failed. Analyzing failures from direct packet/runtime truth...");
   logDebug(debug, `stdout: ${String(initialCheck.stdout || "").trim()}`);
   logDebug(debug, `stderr: ${String(initialCheck.stderr || "").trim()}`);
+
+  log("Step 2: Running deterministic artifact absorbers before repair classification...");
+  const absorberPrepass = runCloseoutAbsorberPrepass({ wpId, dryRun });
+  if (absorberPrepass.applied.length > 0) {
+    log(
+      `  Absorbers applied: ${absorberPrepass.applied.map((entry) => entry.name).join(", ")}`
+      + `${dryRun ? " (dry-run, not written)" : ""}`,
+    );
+    if (!dryRun) {
+      const normalizedCheck = runPhaseCheck(wpId);
+      if (normalizedCheck.passed) {
+        log("RESULT: phase-check CLOSEOUT passes after deterministic absorber pre-pass.");
+        process.exit(0);
+      }
+      log("  Absorber pre-pass applied; closeout still needs repair classification.");
+      logDebug(debug, `absorber recheck stdout: ${String(normalizedCheck.stdout || "").trim()}`);
+      logDebug(debug, `absorber recheck stderr: ${String(normalizedCheck.stderr || "").trim()}`);
+    }
+  } else {
+    log("  No absorber changes detected.");
+  }
 
   const diagnostics = buildCloseoutRepairDiagnostics(wpId);
   const { failures } = diagnostics;

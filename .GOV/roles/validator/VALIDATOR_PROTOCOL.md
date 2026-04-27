@@ -72,6 +72,10 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 
 **Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The Integration Validator is the default owner for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. Root-level repo control files are separate from that kernel flow: `AGENTS.md` and the root `justfile` are authored only in `handshake_main` on local `main`, never from a role worktree or WP worktree. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+Validator output (review verdicts, concerns, gate decisions, closeout judgments) lands in typed receipt and report-template fields, not in narrative paragraphs the Orchestrator or Coder must parse. Routing-decisive content (verdict, blocking-or-not, next-actor) MUST live in schema fields. Narrative prose in report templates exists for operator readability and is NOT the wire between roles. Operator-facing artifacts (validator reports, dossier sections) are projections of typed receipt/notification truth. See Codex `[CX-130]` for the full rule.
+
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
@@ -108,6 +112,26 @@ See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_sha
 - Session launch/control ledgers and the session registry are runtime projections, not packet-scope authority. Treat them as operator/runtime evidence only; use the PREPARE worktree plus packet/WP-communications truth for validation decisions.
 - CLI escalation is hidden-process repair only. `CURRENT` and `VSCODE_PLUGIN` are disabled for governed role launches because they can focus or capture Operator input.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
+
+## Classical Validator Parity For MANUAL_RELAY
+
+When the active workflow is `WORKFLOW_LANE=MANUAL_RELAY`, the `VALIDATOR` role is the combined classical validator:
+
+- It combines WP Validator early-review duties and Integration Validator final-verdict duties.
+- The Operator remains the relay. The Validator must not assume autonomous Orchestrator-managed steering or bypass the structured manual relay envelope.
+- Startup/resume is `just validator-startup VALIDATOR` followed by `just validator-next VALIDATOR WP-{ID}` and `just external-validator-brief WP-{ID}` when a packet is active.
+- `VALIDATOR` may own final validation closure and merge-to-`main` authority only for manual/non-orchestrator-managed work. It must not stand in for `INTEGRATION_VALIDATOR` on split orchestrator-managed WPs.
+- Manual-relay role-to-role content must remain in typed receipts/envelopes. Operator narrative is explanation, not the routing wire.
+- The same anti-gaming, spec evidence, negative proof, heuristic-risk, strategy-escalation, validator gates, and merge-safety rules apply to the combined classical role.
+
+## Self-Prime And Predecessor Summary (RGF-249)
+
+- `VALIDATOR`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR` are all eligible for deterministic self-prime.
+- For classical manual validation, after startup, compaction, or fresh recovery, run:
+  - `just role-self-prime VALIDATOR WP-{ID} --session-id VALIDATOR:WP-{ID}`
+- Self-prime assembles packet/runtime/task-board/memory context and includes a same-role predecessor summary when available.
+- Predecessor summaries are context only. They do not override packet truth, runtime projection, receipts, task-board state, validator reports, or explicit Operator instruction.
+- If self-prime and `just validator-next VALIDATOR WP-{ID}` disagree, reconcile against packet/runtime/receipts before validating or merging.
 
 ## Final Validator Authority (Current Law)
 
@@ -332,10 +356,17 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix
 - **Your work feeds memory automatically.** SMOKE-FIND and SMOKE-CONTROL entries in smoketest reviews are extracted. Validation receipts feed event-driven extraction. Check failures from `validator-scan`, `phase-check HANDOFF`, and `phase-check CLOSEOUT` are auto-captured as procedural memories.
 - **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — high-signal context captures taken before governance decisions (e.g. PRE_CLOSEOUT before this WP entered final validation, PRE_WP_DELEGATION before your session was launched). Use them to understand what was planned; verify against the packet and current state.
 - **Intent snapshots (SHOULD).** Before starting a complex validation (deep multi-file review, cross-surface regression analysis), record your plan: `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR> --reason "<why>"`. Judgment-based — no gate enforces it.
-- **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory. **HARD rules:**
-  - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this session is about>" --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR> --wp WP-{ID}`. Blocked from mutation commands until done.
-  - **INSIGHT after discoveries (MUST):** When validation reveals a non-obvious regression, spec gap, or systemic pattern, capture with `just repomem insight "<what was found and why it matters>"` before moving on. Minimum 80 characters.
-  - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what happened>" --decisions "<key findings and verdict>"`.
+- **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory captures what was reviewed, decided, and discovered — context that receipts and verdict records do not carry. **This is mandatory, not optional.** The following rules are **HARD**:
+  - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this session is about, why, continuing from what>" --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR> --wp WP-{ID}`. Blocked from mutation commands until done. Minimum 80 characters.
+  - **PRE_TASK before governed verdict (SHOULD):** Before a material verdict action — issuing PASS/FAIL, opening a steer/remediation request, or syncing closeout truth — run `just repomem pre "<what you are about to do and why>" --wp WP-{ID}` unless the command already captures a context checkpoint mechanically.
+  - **INSIGHT after discoveries (MUST):** When validation reveals a non-obvious regression, spec gap, scope drift, contract gap, or systemic pattern, capture with `just repomem insight "<what was found and why it matters>"` before moving on. Minimum 80 characters.
+  - **DECISION when choosing between alternatives (SHOULD):** When you make a deliberate verdict-shaping choice — which evidence to weight, what to defer to a follow-on packet, whether to fail closed or steer back — record it: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. This is the only record of *why* a verdict took the shape it did. Minimum 80 characters.
+  - **ERROR when something goes wrong (SHOULD):** When a validation tool fails, a check returns unexpected results, a session doesn't launch, or any unexpected state is encountered: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) — write immediately, don't wait.
+  - **ABANDON when dropping an approach (SHOULD):** When you abandon a verification path, partial verdict draft, or workaround — whether due to failure, scope discovery, or a better alternative: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Minimum 80 characters.
+  - **CONCERN when flagging a risk (SHOULD):** When you identify a risk, a potential regression, a scope issue, or anything that could affect the WP, downstream WPs, or future closeout: `just repomem concern "<risk or issue flagged>" --wp WP-{ID}`. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout. Minimum 80 characters.
+  - **ESCALATION when escalating to operator/orchestrator (SHOULD):** When you escalate a decision, blocker, or ambiguity to the Operator, Orchestrator, or another role: `just repomem escalation "<what was escalated and to whom>" --wp WP-{ID}`. Fast capture (min 40 chars).
+  - **SESSION_CLOSE (MUST):** Before session ends, run `just repomem close "<what happened this session>" --decisions "<key findings and verdict>"`. Both content and decisions are required.
+  - **repomem log for continuity:** Use `just repomem log --session last` to review prior session context. Use `just repomem log --week` for recent history. Use `just repomem log --search "<topic>"` for subject retrieval.
 - **Capture insights.** For ad-hoc findings: `just memory-capture semantic "description" --scope "file.rs" --wp WP-{ID}`.
 - **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR>`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions. Examples: validation check false positives, spec anchor drift, smoketest parser limitations.
 - To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.

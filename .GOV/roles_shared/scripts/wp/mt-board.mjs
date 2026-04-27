@@ -9,8 +9,8 @@
  *   populate <WP_ID>                        — populate board from packet MTs
  */
 
-import { openWpCommDb, claimNextMt, completeMt, formatMtBoard, populateMtTasks, getMtTasks } from "../lib/wp-comm-sqlite.mjs";
-import { listDeclaredWpMicrotasks } from "../lib/wp-communications-lib.mjs";
+import { openWpCommDb, claimNextMt, completeMt, formatMtBoard, populateMtTasks } from "../lib/wp-comm-sqlite.mjs";
+import { listDeclaredWpMicrotasks } from "../lib/wp-microtask-lib.mjs";
 
 const command = String(process.argv[2] || "").trim().toLowerCase();
 const wpId = String(process.argv[3] || "").trim();
@@ -38,8 +38,8 @@ if (command === "board") {
     }
     const mts = declared.map((mt) => ({
       mtId: mt.mtId || mt.id || mt,
-      description: mt.title || mt.description || "",
-      complexityTier: mt.complexityTier || "MEDIUM",
+      description: mt.title || mt.description || mt.clause || "",
+      complexityTier: mt.heuristicRisk?.heuristic_risk === "YES" ? "HEURISTIC" : (mt.complexityTier || "MEDIUM"),
     }));
     populateMtTasks(db, wpId, mts);
     console.log(`[MT_BOARD] Populated ${mts.length} microtasks for ${wpId}`);

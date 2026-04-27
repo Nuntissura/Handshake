@@ -19,6 +19,14 @@
 - The packet-declared `WP_VALIDATOR_MODEL_PROFILE` is authoritative.
 - The ACP broker is a mechanical session-control relay, not a model. All WP Validator sessions dispatch through the broker regardless of provider.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+RGF-247 split the per-MT transport into two tracks:
+- Mechanical track: deterministic helper `just wp-validator-mechanical-review WP-{ID} MT-NNN [range]` writes `MT_VERDICT_MECHANICAL` inline from the coder hook/session. It checks worktree confinement, file-list/boundary, packet scope, and compile-gate evidence.
+- Judgment track: WP Validator ACP review remains responsible for code quality, MT satisfaction, and product/repo conceptual boundary. A mechanical PASS is input evidence only; it never authorizes closeout or replaces `REVIEW_RESPONSE`/judgment `MT_VERDICT`.
+
+Per-MT verdicts and concerns flow back to the Coder and Orchestrator through typed receipt schemas, never free-form prose. Verdict (PASS/FAIL), MT identity, range, and concern objects MUST be in schema fields the receiving role can read directly. Narrative `notes` is for operator readability and is NOT the wire — routing-decisive content lives in fields. RGF-248 named verbs are now the preferred wire: emit `MT_VERDICT` for PASS/FAIL, `MT_REMEDIATION_REQUIRED` for coder repair, and `CONCERN` for non-verdict risk flags when the helper surface supports `--verb`. See Codex `[CX-130]` for the full rule.
+
 ---
 
 ## Evaluation Criteria
@@ -114,6 +122,7 @@ WP Validator AI review:
 - After 3 fix cycles on the same MT without PASS, the WP Validator MUST escalate to the Orchestrator with a failure summary receipt.
 - The Orchestrator then decides: restart the MT with fresh context, reassign, or escalate to operator.
 - Do not attempt further fix cycles after escalation.
+- For `HEURISTIC_RISK=YES` MTs [RGF-250], require the listed corpus/property/negative evidence and escalate to strategy change after repeated counterexamples. Do not approve another same-threshold repair loop as progress.
 
 ## Per-MT Stop Pattern (Mechanical Signaling)
 

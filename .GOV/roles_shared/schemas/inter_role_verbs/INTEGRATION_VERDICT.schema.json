@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.inter_role_verb.INTEGRATION_VERDICT@1",
+  "title": "INTEGRATION_VERDICT",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["wp_id", "verdict", "mechanical_track", "judgment_track", "closeout_path"],
+  "properties": {
+    "wp_id": { "type": "string", "pattern": "^WP-" },
+    "verdict": { "type": "string", "enum": ["PASS", "FAIL"] },
+    "mechanical_track": { "type": "string", "enum": ["PASS", "FAIL", "PENDING", "NOT_APPLICABLE"] },
+    "judgment_track": { "type": "string", "enum": ["PASS", "FAIL", "PENDING", "NOT_APPLICABLE"] },
+    "closeout_path": { "type": "string", "minLength": 1 }
+  }
+}

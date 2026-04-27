@@ -1,0 +1,8 @@
+{
+  "absorber": "normalizeWindowsPathEscapes",
+  "input": "{\"path\":\"C:\\\\\\\\Users\\\\\\\\Ilja\"}",
+  "output": "{\"path\":\"C:\\\\Users\\\\Ilja\"}",
+  "applied": true,
+  "compareJson": true
+}
+

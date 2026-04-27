@@ -22,7 +22,7 @@ import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/mem
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 
-const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"]);
 const SESSION_CONTROL_COMMAND_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "session-control-command.mjs",
@@ -141,7 +141,7 @@ capturePreTaskSnapshot({
 
 const { registry } = loadSessionRegistry(REPO_ROOT);
 const governedSession = (registry.sessions || []).find((entry) => entry.session_key === sessionKey(nextActor, wpId)) || null;
-const action = steerActionForSession(governedSession);
+let action = steerActionForSession(governedSession);
 const targetSession = preferredTargetSession(runtimeStatus, governedSession);
 const notifications = checkNotifications({ wpId, role: nextActor, session: targetSession });
 const envelope = deriveManualRelayEnvelope({

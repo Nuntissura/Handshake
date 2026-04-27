@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { deriveWpScopeContract } from "../scripts/lib/scope-surface-lib.mjs";
+import { deriveValidatorAssessmentVerdict } from "../scripts/lib/wp-communication-health-lib.mjs";
 import {
   applyWorkflowInvalidityRuntimeProjection,
   appendWpReceipt,
@@ -429,6 +430,200 @@ test("review exchange preflight rejects placeholder unassigned target sessions",
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
     fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("receipt append absorbs smart quotes and JSON-string array fields before persist", () => {
+  const wpId = "WP-TEST-RECEIPT-ABSORBER-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+
+  try {
+    const { context, entry } = appendWpReceipt({
+      wpId,
+      actorRole: "ORCHESTRATOR",
+      actorSession: "orch-test",
+      receiptKind: "STATUS",
+      summary: "Status \u201cok\u201d",
+      refs: JSON.stringify(["C:\\\\tmp\\\\proof.txt"]),
+    }, { autoRelay: false });
+
+    assert.equal(entry.summary, 'Status "ok"');
+    assert(Array.isArray(entry.refs));
+    assert(entry.refs.some((ref) => /proof\.txt$/.test(ref)));
+    assert(entry.metadata?.absorbers_applied?.includes("normalizeSmartQuotes"));
+    assert(entry.metadata?.absorbers_applied?.includes("normalizeJsonStringVsArray"));
+    const persisted = fs.readFileSync(context.receiptsAbsPath, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line));
+    assert.equal(persisted.at(-1).summary, 'Status "ok"');
+    assert.deepEqual(persisted.at(-1).metadata, entry.metadata);
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
+  }
+});
+
+test("receipt append validates and persists named inter-role verb bodies", () => {
+  const wpId = "WP-TEST-VERB-RECEIPT-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+
+  try {
+    const { context, entry } = appendWpReceipt({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-test",
+      receiptKind: "REVIEW_RESPONSE",
+      summary: "Structured MT verdict.",
+      targetRole: "CODER",
+      targetSession: "coder-test",
+      correlationId: "verb-review-1",
+      ackFor: "verb-review-1",
+      verb: "MT_VERDICT",
+      verbBody: {
+        mt_id: "MT-001",
+        verdict: "FAIL",
+        concerns: ["missing negative test"],
+        track: "JUDGMENT",
+      },
+    }, { autoRelay: false, skipPreflight: true });
+
+    assert.equal(entry.verb, "MT_VERDICT");
+    assert.deepEqual(entry.verb_body.concerns, ["missing negative test"]);
+    assert.equal(deriveValidatorAssessmentVerdict(entry), "FAIL");
+    const persisted = fs.readFileSync(context.receiptsAbsPath, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line));
+    assert.equal(persisted.at(-1).verb, "MT_VERDICT");
+    assert.equal(persisted.at(-1).verb_body.verdict, "FAIL");
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
+  }
+});
+
+test("receipt append rejects invalid named verb body at write time", () => {
+  const wpId = "WP-TEST-VERB-REJECT-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+
+  try {
+    assert.throws(() => appendWpReceipt({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-test",
+      receiptKind: "REVIEW_RESPONSE",
+      summary: "Invalid structured MT verdict.",
+      targetRole: "CODER",
+      targetSession: "coder-test",
+      correlationId: "verb-review-bad",
+      ackFor: "verb-review-bad",
+      verb: "MT_VERDICT",
+      verbBody: {
+        mt_id: "MT-001",
+        verdict: "PASS",
+        track: "JUDGMENT",
+      },
+    }, { autoRelay: false, skipPreflight: true }), /MT_VERDICT\.concerns is required/);
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
+  }
+});
+
+test("heuristic-risk review loops emit strategy escalation before generic fix cap", () => {
+  const wpId = "WP-TEST-HEURISTIC-ESCALATION-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}`;
+  const taskBoardPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "TASK_BOARD.md");
+  const buildOrderPath = path.join(repoRoot, ".GOV", "roles_shared", "records", "BUILD_ORDER.md");
+  const originalTaskBoard = fs.readFileSync(taskBoardPath, "utf8");
+  const originalBuildOrder = fs.readFileSync(buildOrderPath, "utf8");
+
+  writeMicrotaskCheckpointPacket(packetDir, wpId, commDir, [{
+    mtId: "MT-001",
+    clause: "Redaction classifier separates base64 secrets from identifier prose",
+    codeSurfaces: ["src/redaction.rs"],
+    expectedTests: ["cargo test redaction"],
+  }]);
+  const commPaths = ensureWpCommunications({ wpId });
+  const commDirAbs = path.resolve(repoRoot, commPaths.dir);
+  const notificationsPath = path.join(commDirAbs, "NOTIFICATIONS.jsonl");
+
+  try {
+    const baseContract = {
+      scope_ref: "MT-001",
+      file_targets: ["src/redaction.rs"],
+      proof_commands: ["cargo test redaction"],
+      review_mode: "OVERLAP",
+      phase_gate: "MICROTASK",
+      review_outcome: "REPAIR_REQUIRED",
+    };
+    appendWpReceipt({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-test",
+      receiptKind: "REVIEW_RESPONSE",
+      summary: "MT-001 STEER: false positive counterexample remains.",
+      targetRole: "CODER",
+      targetSession: "coder-test",
+      correlationId: "heuristic-review-1",
+      ackFor: "heuristic-review-1",
+      microtaskContract: baseContract,
+    }, { autoRelay: false, skipPreflight: true });
+    appendWpReceipt({
+      wpId,
+      actorRole: "WP_VALIDATOR",
+      actorSession: "wpv-test",
+      receiptKind: "REVIEW_RESPONSE",
+      summary: "MT-001 STEER: false negative counterexample remains.",
+      targetRole: "CODER",
+      targetSession: "coder-test",
+      correlationId: "heuristic-review-2",
+      ackFor: "heuristic-review-2",
+      microtaskContract: baseContract,
+    }, { autoRelay: false, skipPreflight: true });
+
+    const notices = fs.readFileSync(notificationsPath, "utf8")
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+    const escalation = notices.find((entry) => entry.source_kind === "HEURISTIC_RISK_STRATEGY_ESCALATION");
+    assert.equal(escalation?.target_role, "ORCHESTRATOR");
+    assert.match(escalation?.summary || "", /Change strategy before more threshold tuning/i);
+    assert.match(escalation?.summary || "", /DISCRIMINATOR_REDESIGN/i);
+  } finally {
+    fs.writeFileSync(taskBoardPath, originalTaskBoard, "utf8");
+    fs.writeFileSync(buildOrderPath, originalBuildOrder, "utf8");
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDirAbs, { recursive: true, force: true });
   }
 });
 

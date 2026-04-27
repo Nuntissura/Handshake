@@ -495,6 +495,36 @@ forbidRegex(
   "stale ORCHESTRATOR_PROTOCOL part-number reference",
 );
 
+// RGF-252: every governed role protocol must declare the seven required repomem clauses
+// (SESSION_OPEN, FAIL CAPTURE, DECISION, INSIGHT, CONCERN, ESCALATION, SESSION_CLOSE).
+// Legacy validator surface previously only declared SESSION_OPEN/INSIGHT/SESSION_CLOSE,
+// which left verdict reasoning, abandoned paths, and tool failures unrecorded.
+const REQUIRED_REPOMEM_CLAUSES = [
+  { label: "SESSION_OPEN", regex: /\*\*SESSION_OPEN\s*\(MUST\)[^*]*\*\*/ },
+  // FAIL CAPTURE uses `just memory-capture procedural`, not repomem; phrasing differs
+  // across protocols ("Fail capture", "FAIL CAPTURE", "fail capture") so we match loosely.
+  { label: "FAIL CAPTURE", regex: /\*\*\s*Fail capture\s*\(MUST\)[^*]*\*\*|memory-capture\s+procedural/i },
+  { label: "DECISION", regex: /\*\*DECISION\b[^*]*\*\*/ },
+  { label: "INSIGHT", regex: /\*\*INSIGHT\b[^*]*\*\*/ },
+  { label: "CONCERN", regex: /\*\*CONCERN\b[^*]*\*\*/ },
+  { label: "ESCALATION", regex: /\*\*ESCALATION\b[^*]*\*\*/ },
+  { label: "SESSION_CLOSE", regex: /\*\*SESSION_CLOSE\s*\(MUST\)[^*]*\*\*/ },
+];
+
+const REPOMEM_CLAUSE_PROTOCOLS = [
+  { label: "ORCHESTRATOR_PROTOCOL.md", filePath: ORCHESTRATOR_PROTOCOL_PATH, content: orchestratorProtocol },
+  { label: "CODER_PROTOCOL.md", filePath: CODER_PROTOCOL_PATH, content: coderProtocol },
+  { label: "VALIDATOR_PROTOCOL.md", filePath: VALIDATOR_PROTOCOL_PATH, content: validatorProtocol },
+];
+
+for (const { filePath, content } of REPOMEM_CLAUSE_PROTOCOLS) {
+  for (const { label, regex } of REQUIRED_REPOMEM_CLAUSES) {
+    if (!regex.test(content)) {
+      errors.push(`${filePath}: missing required repomem clause ${label}`);
+    }
+  }
+}
+
 // Active surfaces must not point at retired orchestrator/session paths.
 const retiredPatterns = [
   {

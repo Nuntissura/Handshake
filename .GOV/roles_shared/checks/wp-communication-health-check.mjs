@@ -10,6 +10,10 @@ import {
 } from "../scripts/lib/wp-communication-health-lib.mjs";
 import { normalize, parseJsonFile, parseJsonlFile } from "../scripts/lib/wp-communications-lib.mjs";
 import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import {
+  formatVerboseCheckDetails,
+  recordCheckResult,
+} from "../scripts/lib/check-result-lib.mjs";
 import { ensureWpCommunications } from "../scripts/wp/ensure-wp-communications.mjs";
 import { checkAllNotifications } from "../scripts/wp/wp-check-notifications.mjs";
 
@@ -143,16 +147,32 @@ export function buildWpCommunicationHealthCheckResult({
   };
 }
 
-function printResult(evaluation) {
-  process.stdout.write(formatWpCommunicationHealthCheckResult(evaluation));
+function printResult(evaluation, { wpId = "", stage = "", verbose = false } = {}) {
+  const recorded = recordCheckResult({
+    check: "wp-communication-health-check",
+    wpId,
+    phase: stage,
+    verdict: evaluation.ok ? "OK" : "FAIL",
+    summary: `wp-communication-health-check ${stage || "STATUS"} ${evaluation.ok ? "ok" : "failed"}`,
+    details: {
+      evaluation,
+      rendered_output: formatWpCommunicationHealthCheckResult(evaluation),
+    },
+  });
+  process.stdout.write(`${recorded.summaryLine}\n`);
+  if (verbose) {
+    process.stdout.write(`${formatVerboseCheckDetails(recorded.writeResult.entry)}\n`);
+  }
   process.exit(evaluation.ok ? 0 : 1);
 }
 
 export function runWpCommunicationHealthCheckCli(argv = process.argv.slice(2)) {
-  const wpId = String(argv[0] || "").trim();
-  const stage = String(argv[1] || "STATUS").trim().toUpperCase();
-  const actorRole = String(argv[2] || "").trim();
-  const actorSession = String(argv[3] || "").trim();
+  const verbose = argv.includes("--verbose");
+  const args = argv.filter((value) => value !== "--verbose");
+  const wpId = String(args[0] || "").trim();
+  const stage = String(args[1] || "STATUS").trim().toUpperCase();
+  const actorRole = String(args[2] || "").trim();
+  const actorSession = String(args[3] || "").trim();
   if (!wpId || !/^WP-/.test(wpId)) usage();
   if (!COMMUNICATION_HEALTH_STAGE_VALUES.includes(stage)) usage();
 
@@ -162,9 +182,20 @@ export function runWpCommunicationHealthCheckCli(argv = process.argv.slice(2)) {
       stage,
       actorRole,
       actorSession,
-    }));
+    }), { wpId, stage, verbose });
   } catch (error) {
-    console.error(`[WP_COMMUNICATION_HEALTH] FAIL: ${error?.message || String(error || "")}`);
+    const recorded = recordCheckResult({
+      check: "wp-communication-health-check",
+      wpId,
+      phase: stage,
+      verdict: "FAIL",
+      summary: `wp-communication-health-check ${stage} failed`,
+      details: { error: error?.message || String(error || "") },
+    });
+    console.error(recorded.summaryLine);
+    if (verbose) {
+      console.error(formatVerboseCheckDetails(recorded.writeResult.entry));
+    }
     process.exit(1);
   }
 }

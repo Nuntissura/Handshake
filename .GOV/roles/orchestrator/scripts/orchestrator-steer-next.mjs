@@ -5,7 +5,9 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import { buildSteeringPrompt, resolveRoleConfig } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
+import { buildEphemeralContextBlock } from "../../../roles_shared/scripts/session/ephemeral-injection-lib.mjs";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+import { enqueueNudge } from "../../../roles_shared/scripts/session/nudge-queue-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import {
@@ -31,6 +33,7 @@ import { capturePreTaskSnapshot } from "../../../roles_shared/scripts/memory/mem
 
 const wpId = String(process.argv[2] || "").trim();
 const debugMode = process.argv.slice(3).some((arg) => String(arg || "").trim() === "--debug");
+const sendNow = process.argv.slice(3).some((arg) => ["--now", "--direct"].includes(String(arg || "").trim()));
 const explicitTargetRole = (() => {
   for (const candidate of process.argv.slice(3)) {
     const value = String(candidate || "").trim();
@@ -104,6 +107,9 @@ if (!wpId || !/^WP-/.test(wpId)) {
 
 if (debugMode) {
   console.log("[ORCHESTRATOR_STEER_NEXT] debug_mode=enabled");
+}
+if (sendNow) {
+  console.log("[ORCHESTRATOR_STEER_NEXT] direct_send=enabled");
 }
 
 const packetPath = resolveWorkPacketPath(wpId)?.packetPath
@@ -229,11 +235,17 @@ let prompt = "";
 if (nextActor === "ACTIVATION_MANAGER") {
   prompt = [
     buildSteeringPrompt({ role: nextActor, wpId, roleConfig }),
-    "ACTIVATION_GATE_OVERRIDE [CX-ACT-OVERRIDE-001]",
-    `- ACTIVATION_READINESS_PATH: ${activationGate.readiness.path}`,
-    `- ACTIVATION_READINESS_VERDICT: ${activationGate.readiness.verdict}`,
-    "- REASON: Downstream governed lanes remain blocked until Activation Manager writes truthful readiness for the signed packet/worktree state.",
-    "- REQUIRED_NOW: refresh packet/worktree/backup/readiness artifacts for the current signed packet and write/update ACTIVATION_READINESS before any coder or validator launch.",
+    buildEphemeralContextBlock({
+      source: "ACTIVATION_GATE_OVERRIDE [CX-ACT-OVERRIDE-001]",
+      trust: "required",
+      body: [
+        "ACTIVATION_GATE_OVERRIDE [CX-ACT-OVERRIDE-001]",
+        `- ACTIVATION_READINESS_PATH: ${activationGate.readiness.path}`,
+        `- ACTIVATION_READINESS_VERDICT: ${activationGate.readiness.verdict}`,
+        "- REASON: Downstream governed lanes remain blocked until Activation Manager writes truthful readiness for the signed packet/worktree state.",
+        "- REQUIRED_NOW: refresh packet/worktree/backup/readiness artifacts for the current signed packet and write/update ACTIVATION_READINESS before any coder or validator launch.",
+      ].join("\n"),
+    }),
   ].join("\n");
 } else {
   const targetNotifications = checkNotifications({ wpId, role: nextActor, session: nextSession });
@@ -294,6 +306,7 @@ if (nextActor === "ACTIVATION_MANAGER") {
   console.log(`[ORCHESTRATOR_STEER_NEXT] activation_readiness_path=${activationGate.readiness.path}`);
 }
 console.log(`[ORCHESTRATOR_STEER_NEXT] action=${action}`);
+console.log(`[ORCHESTRATOR_STEER_NEXT] delivery=${action === "SEND_PROMPT" && !sendNow ? "NUDGE_QUEUE" : "DIRECT_ACP"}`);
 if (envelope) {
   console.log(`[ORCHESTRATOR_STEER_NEXT] relay_kind=${envelope.relayKind}`);
   console.log(`[ORCHESTRATOR_STEER_NEXT] source_kind=${envelope.sourceKind}`);
@@ -308,6 +321,37 @@ if (action === "START_SESSION") {
     windowsHide: true,
   });
   console.log("[ORCHESTRATOR_STEER_NEXT] state=start_session_requested; wait for the governed startup turn to register and settle before sending a follow-up prompt");
+  process.exit(0);
+}
+
+if (!sendNow) {
+  const result = enqueueNudge({
+    sessionId: sessionKey(nextActor, wpId),
+    payload: {
+      kind: "STEER",
+      from_role: "ORCHESTRATOR",
+      wp_id: wpId,
+      correlation_id: envelope?.correlationId || `steer:${wpId}:${nextActor}:${Date.now().toString(36)}`,
+      priority: relayPolicy?.next_strategy === "HUMAN_STOP" ? "urgent" : "normal",
+      body: {
+        prompt,
+        target_role: nextActor,
+        target_session: nextSession || null,
+        requested_model: requestedModel,
+        relay_kind: envelope?.relayKind || null,
+        source_kind: envelope?.sourceKind || null,
+        action,
+        waiting_on: runtimeStatus.waiting_on || null,
+      },
+    },
+    priority: relayPolicy?.next_strategy === "HUMAN_STOP" ? "urgent" : "normal",
+  });
+  if (!result.ok) {
+    fail("Failed to enqueue turn-boundary nudge", [result.error || "unknown enqueue failure"]);
+  }
+  console.log(`[ORCHESTRATOR_STEER_NEXT] nudge_status=ENQUEUED`);
+  console.log(`[ORCHESTRATOR_STEER_NEXT] nudge_queue_depth=${result.queueDepth}`);
+  console.log("[ORCHESTRATOR_STEER_NEXT] state=nudge_queued; wait for the governed session to drain at the next safe turn boundary");
   process.exit(0);
 }
 

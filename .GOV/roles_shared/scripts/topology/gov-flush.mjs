@@ -26,13 +26,12 @@ import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   REPO_ROOT,
-  WORKSPACE_ROOT,
   WORKTREE_SPECS,
-  absFromRepo,
   currentBranchInRepo,
   dirtyInRepo,
+  formatProtectedWorktreeResolutionDiagnostics,
   headShaInRepo,
-  runGit,
+  resolveProtectedWorktree,
   runGitInRepo,
   runGitInherit,
 } from "./git-topology-lib.mjs";
@@ -50,10 +49,12 @@ const BACKUP_SNAPSHOT_TIMEOUT_MS = 20 * 60 * 1000;
 
 function log(msg) { console.log(`${PREFIX} ${msg}`); }
 function warn(msg) { report.warnings.push(msg); console.warn(`${PREFIX} WARN: ${msg}`); }
-function fail(msg) {
-  captureFailure("gov-flush.mjs", msg, { role: "SHARED" });
-  report.errors.push(msg);
-  console.error(`${PREFIX} FAIL: ${msg}`);
+function fail(msg, details = []) {
+  const detailRows = Array.isArray(details) ? details.filter(Boolean) : [String(details || "")].filter(Boolean);
+  const fullMessage = [msg, ...detailRows].join("\n");
+  captureFailure("gov-flush.mjs", fullMessage, { role: "SHARED", details: detailRows });
+  report.errors.push(fullMessage);
+  console.error(`${PREFIX} FAIL: ${fullMessage}`);
   printReport();
   process.exit(1);
 }
@@ -116,9 +117,24 @@ function runTimedSpawnSync(command, args, options = {}) {
 const GOV_KERNEL_SPEC = WORKTREE_SPECS.find(s => s.id === "wt-gov-kernel");
 const MAIN_SPEC = WORKTREE_SPECS.find(s => s.id === "handshake_main");
 const ILJA_SPEC = WORKTREE_SPECS.find(s => s.id === "wt-ilja");
-const govKernelAbs = absFromRepo(GOV_KERNEL_SPEC.rel_path);
-const mainAbs = absFromRepo(MAIN_SPEC.rel_path);
-const iljaAbs = absFromRepo(ILJA_SPEC.rel_path);
+const govKernelResolution = resolveProtectedWorktree(GOV_KERNEL_SPEC);
+const mainResolution = resolveProtectedWorktree(MAIN_SPEC);
+const iljaResolution = resolveProtectedWorktree(ILJA_SPEC);
+const govKernelAbs = govKernelResolution.absDir;
+const mainAbs = mainResolution.absDir;
+const iljaAbs = iljaResolution.absDir;
+
+function assertProtectedWorktree(label, resolution) {
+  if (resolution?.repoOk) return;
+  fail(
+    `${label} worktree is unavailable or not a git checkout: ${resolution?.absDir || "<missing>"}`,
+    formatProtectedWorktreeResolutionDiagnostics(resolution || {}),
+  );
+}
+
+assertProtectedWorktree("wt-gov-kernel", govKernelResolution);
+assertProtectedWorktree("handshake_main", mainResolution);
+assertProtectedWorktree("wt-ilja", iljaResolution);
 
 // ─── Step 0: Artifact-root drift preflight ──────────────────────────────────
 {
@@ -140,7 +156,12 @@ const iljaAbs = absFromRepo(ILJA_SPEC.rel_path);
 {
   const s = step("commit-gov-kernel", "commit all dirty files in wt-gov-kernel + push to origin/gov_kernel");
   const branch = currentBranchInRepo(govKernelAbs);
-  if (branch !== "gov_kernel") fail(`wt-gov-kernel is on branch '${branch}', expected 'gov_kernel'`);
+  if (branch !== "gov_kernel") {
+    fail(
+      `wt-gov-kernel is on branch '${branch}', expected 'gov_kernel'`,
+      formatProtectedWorktreeResolutionDiagnostics({ ...govKernelResolution, currentBranch: branch }),
+    );
+  }
 
   ensureGovKernelTracksGov(govKernelAbs);
 

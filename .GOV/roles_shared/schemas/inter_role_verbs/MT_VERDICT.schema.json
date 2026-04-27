@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.inter_role_verb.MT_VERDICT@1",
+  "title": "MT_VERDICT",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mt_id", "verdict", "concerns", "track"],
+  "properties": {
+    "mt_id": { "type": "string", "pattern": "^MT-[0-9]{3}$" },
+    "verdict": { "type": "string", "enum": ["PASS", "FAIL"] },
+    "concerns": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string", "minLength": 1 },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "severity", "evidence_path"],
+            "properties": {
+              "key": { "type": "string", "minLength": 1 },
+              "severity": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+              "evidence_path": { "type": "string", "minLength": 1 }
+            }
+          }
+        ]
+      }
+    },
+    "track": { "type": "string", "enum": ["MECHANICAL", "JUDGMENT"] }
+  }
+}

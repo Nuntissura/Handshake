@@ -3,6 +3,7 @@ import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath, repoPathAbs } from "../scri
 import { parseMergeProgressionTruth } from "../scripts/lib/merge-progression-truth-lib.mjs";
 import { packetRequiresMergeContainmentTruth } from "../scripts/session/session-policy.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+import { runAbsorber } from "../scripts/lib/artifact-normalizers/index.mjs";
 
 registerFailCaptureHook("packet-truth-check.mjs", { role: "SHARED" });
 
@@ -158,7 +159,11 @@ function readPacketInventory(dir, kind) {
     } else {
       continue;
     }
-    const text = fs.readFileSync(repoPathAbs(filePath), "utf8");
+    const rawText = fs.readFileSync(repoPathAbs(filePath), "utf8");
+    const text = runAbsorber(rawText, {
+      artifactKind: "packet",
+      wpId: packetId,
+    }).output;
     entries.push({
       kind,
       filePath,

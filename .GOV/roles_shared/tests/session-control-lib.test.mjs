@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   boundPromptLines,
   buildStartupInjectionLines,
+  buildInlineStartupPrompt,
   buildRoleEnvironmentOverrides,
+  buildRoleSelfPrimeEnvironment,
   buildSessionControlRequest,
   buildSessionControlResult,
   buildStartupPrompt,
@@ -24,11 +26,14 @@ import {
 } from "../scripts/session/session-policy.mjs";
 
 test("session policy binds validator startup and resume commands to explicit roles", () => {
+  assert.equal(roleStartupCommand("CLASSIC_ORCHESTRATOR"), "just classic-orchestrator-startup");
   assert.equal(roleStartupCommand("WP_VALIDATOR"), "just validator-startup WP_VALIDATOR");
   assert.equal(roleStartupCommand("INTEGRATION_VALIDATOR"), "just validator-startup INTEGRATION_VALIDATOR");
   assert.equal(roleStartupCommand("VALIDATOR"), "just validator-startup VALIDATOR");
+  assert.equal(roleNextCommand("CLASSIC_ORCHESTRATOR", "WP-TEST-MANUAL-v1"), "just manual-relay-next WP-TEST-MANUAL-v1");
   assert.equal(roleNextCommand("WP_VALIDATOR", "WP-TEST-WPVAL-v1"), "just validator-next WP_VALIDATOR WP-TEST-WPVAL-v1");
   assert.equal(roleNextCommand("INTEGRATION_VALIDATOR", "WP-TEST-VALIDATOR-v1"), "just validator-next INTEGRATION_VALIDATOR WP-TEST-VALIDATOR-v1");
+  assert.equal(roleNextCommand("VALIDATOR", "WP-TEST-MANUAL-v1"), "just validator-next VALIDATOR WP-TEST-MANUAL-v1");
   assert.equal(roleNextCommand("VALIDATOR", ""), "just validator-next VALIDATOR");
 });
 
@@ -36,7 +41,7 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   const wpId = "WP-TEST-CODER-v1";
   const roleConfig = resolveRoleConfig("CODER", wpId);
   const selectedProfile = roleModelProfile(ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "CODER",
     wpId,
     roleConfig,
@@ -62,10 +67,30 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   assert.match(prompt, new RegExp(CODEX_AUTHORITY_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
+test("startup prompt defaults to hook-driven role self-prime stub", () => {
+  const wpId = "WP-TEST-CODER-v1";
+  const roleConfig = resolveRoleConfig("CODER", wpId);
+  const selectedProfile = roleModelProfile(ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH);
+  const prompt = buildStartupPrompt({
+    role: "CODER",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    selectedProfileId: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+    selectedProfile,
+  });
+
+  assert.match(prompt, /ROLE_SELF_PRIME_HOOK \(RGF-246\)/);
+  assert.match(prompt, /HOOK_COMMAND: node \.GOV\/roles_shared\/scripts\/session\/role-self-prime\.mjs --role CODER --wp-id WP-TEST-CODER-v1 --session-id CODER:WP-TEST-CODER-v1/);
+  assert.match(prompt, /HOOK_TRIGGER_POLICY: provider SessionStart and PreCompact hooks should run HOOK_COMMAND automatically/);
+  assert.match(prompt, /INLINE_PROMPT_ESCAPE_HATCH: only an Operator\/Orchestrator repair launch with --inline-prompt/i);
+  assert.doesNotMatch(prompt, /POST-SIGNATURE RELAPSE GUARD \(MANDATORY\):/i);
+});
+
 test("integration-validator startup prompt includes direct-review and verdict-gate instructions", () => {
   const wpId = "WP-TEST-VALIDATOR-v1";
   const roleConfig = resolveRoleConfig("INTEGRATION_VALIDATOR", wpId);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "INTEGRATION_VALIDATOR",
     wpId,
     roleConfig,
@@ -95,7 +120,7 @@ test("integration-validator startup prompt includes direct-review and verdict-ga
 test("wp-validator startup prompt uses the dedicated validator lane and early steering instructions", () => {
   const wpId = "WP-TEST-WPVAL-v1";
   const roleConfig = resolveRoleConfig("WP_VALIDATOR", wpId);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "WP_VALIDATOR",
     wpId,
     roleConfig,
@@ -121,7 +146,7 @@ test("wp-validator startup prompt uses the dedicated validator lane and early st
 test("activation-manager startup and steering prompts enforce the workflow split", () => {
   const wpId = "WP-TEST-ACTMAN-v1";
   const roleConfig = resolveRoleConfig("ACTIVATION_MANAGER", wpId);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "ACTIVATION_MANAGER",
     wpId,
     roleConfig,
@@ -169,6 +194,71 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.doesNotMatch(steerPrompt, /check-notifications/i);
 });
 
+test("classic orchestrator prompts carry manual-relay combined prelaunch authority", () => {
+  const wpId = "WP-TEST-CLASSIC-v1";
+  const roleConfig = resolveRoleConfig("CLASSIC_ORCHESTRATOR", wpId);
+  const prompt = buildInlineStartupPrompt({
+    role: "CLASSIC_ORCHESTRATOR",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [],
+    conversationContextLines: [],
+  });
+  const steerPrompt = buildSteeringPrompt({
+    role: "CLASSIC_ORCHESTRATOR",
+    wpId,
+    roleConfig,
+  });
+
+  assert.equal(roleConfig.branch, "gov_kernel");
+  assert.equal(roleConfig.worktreeDir, ".");
+  assert.match(prompt, /MANUAL-RELAY AUTHORITY \(HARD\): Operator remains the active relay/i);
+  assert.match(prompt, /COMBINED PRE-LAUNCH PARITY \(HARD\)/i);
+  assert.match(prompt, /just manual-relay-next WP-TEST-CLASSIC-v1/i);
+  assert.match(prompt, /just manual-relay-dispatch WP-TEST-CLASSIC-v1 "<context>"/i);
+  assert.match(prompt, /just role-self-prime CLASSIC_ORCHESTRATOR WP-TEST-CLASSIC-v1/i);
+  assert.match(prompt, /\.GOV\/roles\/classic_orchestrator\/CLASSIC_ORCHESTRATOR_PROTOCOL\.md/i);
+  assert.doesNotMatch(prompt, /just active-lane-brief CLASSIC_ORCHESTRATOR/i);
+
+  assert.match(steerPrompt, /RESUME MANUAL_RELAY CLASSIC_ORCHESTRATOR lane/i);
+  assert.match(steerPrompt, /Operator asked you to broker the hop/i);
+  assert.doesNotMatch(steerPrompt, /just active-lane-brief VALIDATOR/i);
+});
+
+test("classical validator prompts use manual-relay validator surfaces", () => {
+  const wpId = "WP-TEST-CLASSIC-VALIDATOR-v1";
+  const roleConfig = resolveRoleConfig("VALIDATOR", wpId);
+  const prompt = buildInlineStartupPrompt({
+    role: "VALIDATOR",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [],
+    conversationContextLines: [],
+  });
+  const steerPrompt = buildSteeringPrompt({
+    role: "VALIDATOR",
+    wpId,
+    roleConfig,
+  });
+
+  assert.equal(roleConfig.branch, "main");
+  assert.equal(roleConfig.worktreeDir, "../handshake_main");
+  assert.match(prompt, /COMBINED VALIDATOR PARITY \(HARD\)/i);
+  assert.match(prompt, /just validator-next VALIDATOR WP-TEST-CLASSIC-VALIDATOR-v1/i);
+  assert.match(prompt, /just external-validator-brief WP-TEST-CLASSIC-VALIDATOR-v1/i);
+  assert.match(prompt, /node "\$env:HANDSHAKE_GOV_ROOT\/roles_shared\/scripts\/session\/role-command-compat\.mjs" validator-startup VALIDATOR/i);
+  assert.match(prompt, /just role-self-prime VALIDATOR WP-TEST-CLASSIC-VALIDATOR-v1/i);
+  assert.match(prompt, /\.GOV\/roles\/validator\/VALIDATOR_PROTOCOL\.md/i);
+  assert.doesNotMatch(prompt, /just active-lane-brief VALIDATOR/i);
+
+  assert.match(steerPrompt, /RESUME MANUAL_RELAY VALIDATOR lane/i);
+  assert.match(steerPrompt, /Operator is the relay for this lane/i);
+  assert.match(steerPrompt, /just external-validator-brief WP-TEST-CLASSIC-VALIDATOR-v1/i);
+  assert.doesNotMatch(steerPrompt, /just active-lane-brief VALIDATOR/i);
+});
+
 test("activation-manager profile selection honors an explicit declared Claude Opus 4.7 profile", () => {
   const packetLikeText = [
     "- ACTIVATION_MANAGER_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH",
@@ -185,10 +275,23 @@ test("activation-manager profile selection honors an explicit declared Claude Op
   assert.equal(fallbackSelection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
 });
 
+test("classic role profile selection reuses orchestrator and integration validator packet fields", () => {
+  const packetLikeText = [
+    "- ORCHESTRATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH",
+    "- INTEGRATION_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX",
+  ].join("\n");
+
+  const classicSelection = resolveRoleModelProfileSelection("CLASSIC_ORCHESTRATOR", packetLikeText, "PRIMARY");
+  const validatorSelection = resolveRoleModelProfileSelection("VALIDATOR", packetLikeText, "PRIMARY");
+
+  assert.equal(classicSelection.primary_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
+  assert.equal(validatorSelection.primary_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
+});
+
 test("memory-manager prompts advertise synthetic receipt emission instead of packet assumptions", () => {
   const wpId = "WP-MEMORY-HYGIENE_2026-04-09T2115Z";
   const roleConfig = resolveRoleConfig("MEMORY_MANAGER", wpId);
-  const startupPrompt = buildStartupPrompt({
+  const startupPrompt = buildInlineStartupPrompt({
     role: "MEMORY_MANAGER",
     wpId,
     roleConfig,
@@ -222,7 +325,7 @@ test("memory-manager prompts advertise synthetic receipt emission instead of pac
 test("startup prompt includes bounded memory injection when lines are supplied", () => {
   const wpId = "WP-TEST-INJECT-v1";
   const roleConfig = resolveRoleConfig("CODER", wpId);
-  const prompt = buildStartupPrompt({
+  const prompt = buildInlineStartupPrompt({
     role: "CODER",
     wpId,
     roleConfig,
@@ -368,6 +471,31 @@ test("integration-validator control requests carry kernel governance env overrid
   assert.equal(request.governed_action.rule_id, "SESSION_CONTROL_START_SESSION_EXTERNAL_EXECUTE");
   assert.equal(request.governed_action.command_id, request.command_id);
   assert.equal(request.busy_ingress_mode, "REJECT");
+});
+
+test("classical validator control requests also carry kernel governance env override", () => {
+  const env = buildRoleEnvironmentOverrides({
+    role: "VALIDATOR",
+    governanceRootAbs: "D:/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV",
+  });
+
+  assert.deepEqual(env, {
+    HANDSHAKE_GOV_ROOT: "D:/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV",
+  });
+});
+
+test("role self-prime environment carries launch hook context", () => {
+  assert.deepEqual(buildRoleSelfPrimeEnvironment({
+    role: "coder",
+    wpId: "WP-TEST-SELF-PRIME-v1",
+    mtId: "MT-002",
+  }), {
+    HANDSHAKE_ROLE: "CODER",
+    WP_ID: "WP-TEST-SELF-PRIME-v1",
+    SESSION_ID: "CODER:WP-TEST-SELF-PRIME-v1",
+    HANDSHAKE_ROLE_SELF_PRIME: "1",
+    MT_ID: "MT-002",
+  });
 });
 
 test("send prompt control requests default to queued busy ingress mode", () => {

@@ -45,6 +45,11 @@ import {
   relayRepairSignalAlreadyPending,
   workerInterruptCycleBudget,
 } from "./lib/wp-relay-watchdog-lib.mjs";
+import {
+  buildOrchestratorDowntimeAlertCandidate,
+  evaluateOrchestratorDowntime,
+  orchestratorDowntimeAlertAlreadyPending,
+} from "./lib/orchestrator-downtime-alert-lib.mjs";
 
 const ORCHESTRATOR_STEER_SCRIPT_PATH = path.resolve(REPO_ROOT, ".GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs");
 const SESSION_CONTROL_CANCEL_SCRIPT_PATH = path.resolve(REPO_ROOT, ".GOV/roles/orchestrator/scripts/session-control-cancel.mjs");
@@ -580,10 +585,12 @@ function loadWpRelayInputs(wpId, registrySessions) {
   return {
     wpId,
     applicable: true,
+    workflowLane,
     packetPath: resolved.packetPath,
     runtimeStatusFile,
     runtimeStatusAbsPath: repoPathAbs(runtimeStatusFile),
     runtimeStatus,
+    receipts,
     pendingNotifications,
     relayStatus,
   };
@@ -799,6 +806,46 @@ function maybeEmitAcpHealthAlert({
   };
 }
 
+function maybeEmitOrchestratorDowntimeAlert({
+  wpId,
+  base = null,
+  evaluation = null,
+} = {}) {
+  const alertCandidate = buildOrchestratorDowntimeAlertCandidate({
+    wpId,
+    evaluation,
+  });
+  if (!alertCandidate) {
+    return { status: "NOT_APPLICABLE", reason: evaluation?.reason || "NO_DOWNTIME_ALERT", evaluation: evaluation || null };
+  }
+  if (orchestratorDowntimeAlertAlreadyPending(base?.pendingNotifications, alertCandidate)) {
+    return {
+      status: "ALREADY_PENDING",
+      reason: "DUPLICATE_CORRELATION",
+      correlationId: alertCandidate.correlationId,
+      summary: alertCandidate.summary,
+      evaluation,
+    };
+  }
+  const notification = appendWpNotification({
+    wpId,
+    sourceKind: alertCandidate.sourceKind,
+    sourceRole: "SYSTEM",
+    sourceSession: WATCHDOG_SESSION,
+    targetRole: alertCandidate.targetRole,
+    targetSession: alertCandidate.targetSession,
+    correlationId: alertCandidate.correlationId,
+    summary: alertCandidate.summary,
+  }, { autoRelay: false });
+  return {
+    status: notification ? "EMITTED" : "SKIPPED",
+    reason: notification ? "DOWNTIME_ALERT_APPENDED" : "NOTIFICATION_APPEND_SKIPPED",
+    correlationId: alertCandidate.correlationId,
+    summary: alertCandidate.summary,
+    evaluation,
+  };
+}
+
 function evaluateWp(wpId, {
   registrySessions,
   brokerState,
@@ -815,11 +862,14 @@ function evaluateWp(wpId, {
       summary: `RELAY_WATCHDOG | wp=${wpId} | decision=SKIP | reason=${base.skipReason}`,
       skipped: true,
       reason: base.skipReason,
+      downtimeAlert: { status: "NOT_APPLICABLE", reason: base.skipReason },
     };
   }
 
   const targetRole = normalizeRole(base.relayStatus?.target_role);
   const targetSession = base.relayStatus?.target_session || null;
+  const wpActiveRuns = (Array.isArray(brokerState?.active_runs) ? brokerState.active_runs : [])
+    .filter((run) => String(run?.wp_id || run?.wpId || "").trim() === String(wpId || "").trim());
   const activeRuns = activeRunsForTarget(brokerState?.active_runs, {
     wpId,
     role: targetRole,
@@ -834,6 +884,22 @@ function evaluateWp(wpId, {
   const outputFreshness = activeRuns.length > 0
     ? inspectActiveRunOutputFreshness(targetSessionRecord)
     : { status: "UNKNOWN", reason: "NO_ACTIVE_RUN", outputFile: null, outputIdleSeconds: null };
+  const orchestratorDowntime = evaluateOrchestratorDowntime({
+    wpId,
+    workflowLane: base.workflowLane,
+    runtimeStatus: base.runtimeStatus,
+    receipts: base.receipts,
+    pendingNotifications: base.pendingNotifications,
+    registrySessions: (registrySessions || []).filter((entry) => String(entry?.wp_id || "").trim() === String(wpId || "").trim()),
+    brokerActiveRuns: wpActiveRuns,
+  });
+  const downtimeAlert = observeOnly
+    ? { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY", evaluation: orchestratorDowntime }
+    : maybeEmitOrchestratorDowntimeAlert({
+      wpId,
+      base,
+      evaluation: orchestratorDowntime,
+    });
   const sessionHealth = targetRole
     ? evaluateGovernedSessionHealth({
       targetRole,
@@ -939,6 +1005,7 @@ function evaluateWp(wpId, {
       runtimeUpdate: null,
       repairSignal: { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY" },
       healthAlert: { status: "NOT_APPLICABLE", reason: "OBSERVE_ONLY" },
+      downtimeAlert,
       observeOnly: true,
       skipped: false,
     };
@@ -975,6 +1042,7 @@ function evaluateWp(wpId, {
       outputLines: restartRepair.outputLines,
       repairSignal: { status: "NOT_APPLICABLE", reason: "RESTARTED" },
       healthAlert: { status: "NOT_APPLICABLE", reason: "RESTARTED" },
+      downtimeAlert,
       skipped: false,
     };
   }
@@ -1021,6 +1089,7 @@ function evaluateWp(wpId, {
       runtimeUpdate,
       repairSignal,
       healthAlert,
+      downtimeAlert,
       skipped: true,
     };
   }
@@ -1066,6 +1135,7 @@ function evaluateWp(wpId, {
     runtimeUpdate,
     repairSignal: { status: "NOT_APPLICABLE", reason: "STEER_ACTION" },
     healthAlert: { status: "NOT_APPLICABLE", reason: "STEER_ACTION" },
+    downtimeAlert,
     skipped: false,
   };
 }
@@ -1095,6 +1165,7 @@ function buildWatchdogErrorResult(wpId, error, { observeOnly = false } = {}) {
     runtimeUpdate: null,
     repairSignal: { status: "NOT_APPLICABLE", reason: "WATCHDOG_EVALUATION_ERROR" },
     healthAlert: { status: "NOT_APPLICABLE", reason: "WATCHDOG_EVALUATION_ERROR" },
+    downtimeAlert: { status: "NOT_APPLICABLE", reason: "WATCHDOG_EVALUATION_ERROR" },
   };
 }
 
@@ -1121,6 +1192,7 @@ function serializeResult(result) {
     restartRepair: result.restartRepair || null,
     repairSignal: result.repairSignal || null,
     healthAlert: result.healthAlert || null,
+    downtimeAlert: result.downtimeAlert || null,
     activeRunCount: Array.isArray(result.activeRuns) ? result.activeRuns.length : 0,
   };
 }
@@ -1229,6 +1301,20 @@ function printResult(result, { json = false } = {}) {
     console.log(`- health_alert_status: ${result.healthAlert.status}`);
     console.log(`- health_alert_reason: ${result.healthAlert.reason}`);
     if (result.healthAlert.correlationId) console.log(`- health_alert_correlation: ${result.healthAlert.correlationId}`);
+  }
+  if (result.downtimeAlert?.evaluation?.applicable) {
+    const evaluation = result.downtimeAlert.evaluation;
+    console.log(`- orchestrator_downtime_status: ${evaluation.status}`);
+    console.log(`- orchestrator_downtime_reason: ${evaluation.reason}`);
+    if (Number.isInteger(evaluation.ageSeconds)) console.log(`- orchestrator_downtime_age_seconds: ${evaluation.ageSeconds}`);
+    if (evaluation.latestProgressAt) console.log(`- orchestrator_downtime_last_progress_at: ${evaluation.latestProgressAt}`);
+    if (evaluation.latestProgressSource) console.log(`- orchestrator_downtime_last_progress_source: ${evaluation.latestProgressSource}`);
+    if (evaluation.recommendedCommand) console.log(`- orchestrator_downtime_recommended_command: ${evaluation.recommendedCommand}`);
+  }
+  if (result.downtimeAlert && result.downtimeAlert.status !== "NOT_APPLICABLE") {
+    console.log(`- downtime_alert_status: ${result.downtimeAlert.status}`);
+    console.log(`- downtime_alert_reason: ${result.downtimeAlert.reason}`);
+    if (result.downtimeAlert.correlationId) console.log(`- downtime_alert_correlation: ${result.downtimeAlert.correlationId}`);
   }
   if (Array.isArray(result.activeRuns) && result.activeRuns.length > 0) {
     console.log(`- active_runs: ${result.activeRuns.length}`);

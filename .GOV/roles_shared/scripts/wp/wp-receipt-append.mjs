@@ -53,7 +53,16 @@ import {
 } from "../lib/wp-microtask-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
 import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
+import { runAbsorber } from "../lib/artifact-normalizers/index.mjs";
+import {
+  HEURISTIC_RISK_REPAIR_ESCALATION_THRESHOLD,
+  isHeuristicRiskContract,
+  mergeHeuristicRiskContract,
+  summarizeHeuristicRiskContract,
+} from "../lib/heuristic-risk-lib.mjs";
+import { renderInterRoleVerbReceipt, validateInterRoleVerbBody } from "../lib/inter-role-verb-lib.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
+import { tryAppendSessionEvent } from "../session/predecessor-lookup-lib.mjs";
 import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
 import { reconcileWpCommunicationTruth, syncProjectedTaskBoardTruth } from "./ensure-wp-communications.mjs";
 import { openGovernanceMemoryDb, closeDb as closeMemDb, extractMemoryFromReceipt, HIGH_SIGNAL_RECEIPT_KINDS } from "../memory/governance-memory-lib.mjs";
@@ -135,6 +144,61 @@ function normalizeSession(value) {
 
 function normalizeReceiptKind(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+function parseVerbBodyValue(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  const text = String(value || "").trim();
+  if (!text) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function absorbReceiptAppendArgs(args = {}) {
+  const absorbed = runAbsorber(JSON.stringify(args || {}), {
+    artifactKind: "receipt_args",
+    wpId: args?.wpId,
+  });
+  if (absorbed.applied.length === 0) {
+    return { args, applied: [] };
+  }
+  try {
+    return {
+      args: JSON.parse(absorbed.output),
+      applied: absorbed.applied,
+    };
+  } catch {
+    return { args, applied: [] };
+  }
+}
+
+function enrichReceiptArgsWithHeuristicRisk(args = {}) {
+  const microtaskContract = args?.microtaskContract;
+  if (!microtaskContract || typeof microtaskContract !== "object" || Array.isArray(microtaskContract)) {
+    return args;
+  }
+  const wpId = String(args?.wpId || "").trim();
+  const scopeRef = String(microtaskContract.scope_ref || "").trim();
+  if (!wpId || !scopeRef) return args;
+  const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef);
+  if (!resolution.match?.heuristicRisk) return args;
+  return {
+    ...args,
+    microtaskContract: mergeHeuristicRiskContract(microtaskContract, resolution.match.heuristicRisk),
+  };
+}
+
+function heuristicRiskContractForReceipt({ wpId = "", mtId = "", entry = {} } = {}) {
+  if (isHeuristicRiskContract(entry?.microtask_contract)) return entry.microtask_contract;
+  if (!wpId || !mtId) return null;
+  const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, mtId);
+  if (!resolution.match?.heuristicRisk) return null;
+  const merged = mergeHeuristicRiskContract({}, resolution.match.heuristicRisk);
+  return isHeuristicRiskContract(merged) ? merged : null;
 }
 
 function parseChangedPaths(statusPorcelain) {
@@ -258,6 +322,8 @@ function buildReceiptValidationEntry({
     actor_authority_kind: authorityKind,
     validator_role_kind: validatorRoleKind,
     receipt_kind: String(args?.receiptKind || "").trim().toUpperCase(),
+    verb: args?.verb === undefined || args?.verb === null ? null : String(args.verb || "").trim().toUpperCase(),
+    verb_body: args?.verb ? parseVerbBodyValue(args?.verbBody) : null,
     summary: String(args?.summary || "").trim(),
     branch: args?.branch === undefined ? context.branch : nullableValue(args?.branch),
     worktree_dir: args?.worktreeDir === undefined ? context.worktreeDir : nullableValue(args?.worktreeDir),
@@ -271,6 +337,7 @@ function buildReceiptValidationEntry({
     spec_anchor: nullableValue(args?.specAnchor),
     packet_row_ref: nullableValue(args?.packetRowRef),
     microtask_contract: args?.microtaskContract && typeof args?.microtaskContract === "object" ? args.microtaskContract : null,
+    mechanical_result: args?.mechanicalResult && typeof args?.mechanicalResult === "object" ? args.mechanicalResult : null,
     workflow_invalidity_code: nullableValue(normalizeWorkflowInvalidityCode(args?.workflowInvalidityCode)),
     // [CX-109D] Capture resolved cwd on CODER_INTENT receipts for worktree confinement verification.
     resolved_cwd: normalizeRole(args?.actorRole) === "CODER"
@@ -279,6 +346,14 @@ function buildReceiptValidationEntry({
       : null,
     refs: [context.packetPath, ...(Array.isArray(args?.refs) ? args.refs : []).filter(Boolean).map((value) => normalize(value))],
   };
+
+  if (entry.verb && !entry.summary) {
+    entry.summary = renderInterRoleVerbReceipt(entry) || `${entry.verb} receipt`;
+  }
+  if (entry.verb) {
+    const verbValidation = validateInterRoleVerbBody(entry.verb, entry.verb_body);
+    if (verbValidation.ok) entry.verb_body = verbValidation.body;
+  }
 
   if (context.runtimeStatusFile && !entry.refs.includes(context.runtimeStatusFile)) entry.refs.push(context.runtimeStatusFile);
   if (context.threadFile && !entry.refs.includes(context.threadFile)) entry.refs.push(context.threadFile);
@@ -1172,36 +1247,69 @@ function appendWpReceiptCore({
   specAnchor = null,
   packetRowRef = null,
   microtaskContract = null,
+  mechanicalResult = null,
   workflowInvalidityCode = null,
+  verb = null,
+  verbBody = null,
 } = {}, options = {}) {
   const WP_ID = String(wpId || "").trim();
   if (!WP_ID || !/^WP-/.test(WP_ID)) {
     throw new Error("WP_ID is required");
   }
 
+  const absorbed = absorbReceiptAppendArgs({
+    wpId: WP_ID,
+    actorRole,
+    actorSession,
+    receiptKind,
+    summary,
+    stateBefore,
+    stateAfter,
+    refs,
+    branch,
+    worktreeDir,
+    timestamp,
+    targetRole,
+    targetSession,
+    correlationId,
+    requiresAck,
+    ackFor,
+    specAnchor,
+    packetRowRef,
+    microtaskContract,
+    mechanicalResult,
+    workflowInvalidityCode,
+    verb,
+    verbBody,
+  });
+  const receiptArgs = enrichReceiptArgsWithHeuristicRisk(absorbed.args);
+
   const preflight = options.skipPreflight
     ? null
     : validateWpReceiptAppendPreconditions({
-      wpId,
-      actorRole,
-      actorSession,
-      receiptKind,
-      summary,
-      stateBefore,
-      stateAfter,
-      refs,
-      branch,
-      worktreeDir,
-      timestamp,
-      targetRole,
-      targetSession,
-      correlationId,
-      requiresAck,
-      ackFor,
-      specAnchor,
-      packetRowRef,
-      microtaskContract,
-      workflowInvalidityCode,
+      wpId: receiptArgs.wpId,
+      actorRole: receiptArgs.actorRole,
+      actorSession: receiptArgs.actorSession,
+      receiptKind: receiptArgs.receiptKind,
+      summary: receiptArgs.summary,
+      stateBefore: receiptArgs.stateBefore,
+      stateAfter: receiptArgs.stateAfter,
+      refs: receiptArgs.refs,
+      branch: receiptArgs.branch,
+      worktreeDir: receiptArgs.worktreeDir,
+      timestamp: receiptArgs.timestamp,
+      targetRole: receiptArgs.targetRole,
+      targetSession: receiptArgs.targetSession,
+      correlationId: receiptArgs.correlationId,
+      requiresAck: receiptArgs.requiresAck,
+      ackFor: receiptArgs.ackFor,
+      specAnchor: receiptArgs.specAnchor,
+      packetRowRef: receiptArgs.packetRowRef,
+      microtaskContract: receiptArgs.microtaskContract,
+      mechanicalResult: receiptArgs.mechanicalResult,
+      workflowInvalidityCode: receiptArgs.workflowInvalidityCode,
+      verb: receiptArgs.verb,
+      verbBody: receiptArgs.verbBody,
     });
   const context = preflight?.context || loadPacketContext(WP_ID);
   let runtimeStatus = preflight?.runtimeStatus;
@@ -1210,34 +1318,21 @@ function appendWpReceiptCore({
       ? parseJsonFile(context.runtimeStatusFile)
       : null;
   }
-  const reviewTrackedReceipt = REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(receiptKind || "").trim().toUpperCase());
+  const reviewTrackedReceipt = REVIEW_TRACKED_RECEIPT_KIND_VALUES.includes(String(receiptArgs.receiptKind || "").trim().toUpperCase());
   const entry = buildReceiptValidationEntry({
     args: {
+      ...receiptArgs,
       wpId: WP_ID,
-      actorRole,
-      actorSession,
-      receiptKind,
-      summary,
-      stateBefore,
-      stateAfter,
-      refs,
-      branch,
-      worktreeDir,
-      timestamp,
-      targetRole,
-      targetSession,
-      correlationId,
-      requiresAck,
-      ackFor,
-      specAnchor,
-      packetRowRef,
-      microtaskContract,
-      workflowInvalidityCode,
     },
     context,
     runtimeStatus,
-    timestamp,
+    timestamp: receiptArgs.timestamp,
   });
+  if (absorbed.applied.length > 0) {
+    entry.metadata = {
+      absorbers_applied: absorbed.applied.map((item) => item.name),
+    };
+  }
 
   const errors = validateReceipt(entry);
   if (errors.length > 0) {
@@ -1288,6 +1383,20 @@ function appendWpReceiptCore({
   }
 
   appendJsonlLine(context.receiptsAbsPath, entry);
+  tryAppendSessionEvent({
+    wpId: WP_ID,
+    role: entry.actor_role,
+    sessionId: entry.actor_session,
+    eventType: "receipt_emitted",
+    event: {
+      receipt_kind: entry.receipt_kind,
+      verb: entry.verb || "",
+      mt_id: String(entry.microtask_contract?.scope_ref || "").trim(),
+      correlation_id: entry.correlation_id || "",
+      summary: entry.summary || "",
+    },
+    timestamp: entry.timestamp_utc,
+  });
   if (reviewTrackedReceipt) {
     appendReviewNotifications({ wpId: WP_ID, workflowLane: context.workflowLane, entry, autoRoute });
   }
@@ -1312,6 +1421,26 @@ function appendWpReceiptCore({
           const verdict = deriveValidatorAssessmentVerdict(r);
           return verdict !== "PASS";
         }).length;
+        const heuristicContract = heuristicRiskContractForReceipt({ wpId: WP_ID, mtId, entry });
+        const heuristicThreshold = Number.isInteger(heuristicContract?.repair_cycle_strategy_threshold)
+          ? heuristicContract.repair_cycle_strategy_threshold
+          : HEURISTIC_RISK_REPAIR_ESCALATION_THRESHOLD;
+        if (heuristicContract && steerCount === heuristicThreshold) {
+          const riskSummary = summarizeHeuristicRiskContract(heuristicContract);
+          console.warn(
+            `[WP_RECEIPT] Heuristic-risk strategy escalation reached (${steerCount} REVIEW_RESPONSE receipts for ${mtId}). ${riskSummary}`,
+          );
+          appendWpNotificationCore({
+            wpId: WP_ID,
+            sourceKind: "HEURISTIC_RISK_STRATEGY_ESCALATION",
+            sourceRole: entry.actor_role,
+            targetRole: "ORCHESTRATOR",
+            sourceSession: entry.actor_session,
+            correlationId: entry.correlation_id ?? null,
+            summary: `Heuristic-risk strategy escalation: ${mtId} has ${steerCount} non-PASS review response(s). ${riskSummary}. Change strategy before more threshold tuning.`,
+            timestamp: entry.timestamp_utc,
+          });
+        }
         if (steerCount >= MT_FIX_CYCLE_ESCALATION_THRESHOLD) {
           console.warn(
             `[WP_RECEIPT] MT fix cycle limit reached (${steerCount} STEER responses for ${mtId}). Escalating to orchestrator.`,
@@ -1378,12 +1507,28 @@ export function appendWpReceipt(args = {}, options = {}) {
 }
 
 function runCli() {
-  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter, targetRole, targetSession, correlationId, requiresAck, ackFor, specAnchor, packetRowRef, workflowInvalidityCode] = process.argv.slice(2);
+  const positionals = [];
+  const flags = { verb: null, verbBody: null };
+  const rawArgs = process.argv.slice(2);
+  for (let index = 0; index < rawArgs.length; index += 1) {
+    const arg = String(rawArgs[index] || "").trim();
+    if (arg === "--verb") {
+      flags.verb = rawArgs[++index] || "";
+      continue;
+    }
+    if (arg === "--verb-body") {
+      flags.verbBody = rawArgs[++index] || "";
+      continue;
+    }
+    positionals.push(rawArgs[index]);
+  }
+  const [wpId, actorRole, actorSession, receiptKind, summary, stateBefore, stateAfter, targetRole, targetSession, correlationId, requiresAck, ackFor, specAnchor, packetRowRef, workflowInvalidityCode] = positionals;
   if (!wpId || !actorRole || !actorSession || !receiptKind || !summary) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs"
       + " WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <RECEIPT_KIND> \"<SUMMARY>\""
       + " [STATE_BEFORE] [STATE_AFTER] [TARGET_ROLE] [TARGET_SESSION] [CORRELATION_ID] [REQUIRES_ACK] [ACK_FOR] [SPEC_ANCHOR] [PACKET_ROW_REF] [WORKFLOW_INVALIDITY_CODE]"
+      + " [--verb <NAME> --verb-body '<JSON>']"
     );
     process.exit(1);
   }
@@ -1404,11 +1549,14 @@ function runCli() {
     specAnchor,
     packetRowRef,
     workflowInvalidityCode,
+    verb: flags.verb,
+    verbBody: flags.verbBody,
   });
 
   console.log(`[WP_RECEIPT] appended ${entry.receipt_kind} for ${entry.wp_id}`);
   console.log(`- ledger: ${context.receiptsFile}`);
   console.log(`- timestamp_utc: ${entry.timestamp_utc}`);
+  if (entry.verb) console.log(`- verb: ${entry.verb}`);
   if (relayAttempt && relayAttempt.status !== "NOT_APPLICABLE") {
     console.log(`- auto_relay_status: ${relayAttempt.status}`);
     console.log(`- auto_relay_reason: ${relayAttempt.reason}`);

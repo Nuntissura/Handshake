@@ -3,7 +3,7 @@
 **Status:** Draft  
 **Intent:** canonical operator-facing `just` command surface for current governance workflow  
 **Authority note:** the live executable surface is the root `justfile`; if this document disagrees with `just --list`, treat this document as stale and fix it
-**Startup prompt note:** this document is an operator cheat sheet only. Governed role startup prompts must be derived from `.GOV/roles_shared/scripts/session/session-control-lib.mjs::buildStartupPrompt`, not hand-maintained here.
+**Startup prompt note:** this document is an operator cheat sheet only. Governed role startup stubs come from `.GOV/roles_shared/scripts/session/session-control-lib.mjs::buildStartupPrompt`; the effective role prompt is built by `.GOV/roles_shared/scripts/session/role-self-prime.mjs`.
 
 ## Purpose
 
@@ -27,6 +27,49 @@ Coder packet truth exception:
 - Those packet/MT writes land in the governance kernel and must not be committed on the feature branch.
 - Other `.GOV/` surfaces remain read-only context for the coder lane unless the role protocol or a packet explicitly says otherwise.
 
+Cache-stability rule:
+- Active governed role sessions keep their cached system prompt immutable. Governance changes land in durable storage and are read on the next startup/restart.
+- Commands that deliver mid-conversation governance context to an active session must use the normal `SEND_PROMPT` user-message path and wrap injected context in the shared `<governance-context>` fence.
+- A future or repair-only `--now` style flag is the required shape for any explicit immediate invalidation path. Default command behavior must defer invalidation.
+
+Check-result detail logging:
+- `RGF-243` migrated `gov-check`, `phase-check`, and `wp-communication-health-check` toward compact model-visible output.
+- Migrated checks write full structured detail to `gov_runtime/check_details.jsonl` for repo-scope checks or `gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl` for WP-scoped checks.
+- Default model-visible stdout is `VERDICT | summary`; `--verbose` is the expected debug shape for migrated checks.
+- Workflow Dossier sync and the operator monitor `CHECKS` view read the JSONL detail logs for human diagnostics.
+
+Artifact absorber rule:
+- `RGF-244` normalizers absorb known non-semantic artifact malformations before validation or persistence.
+- Absorbers never approve or reject; they normalize, record hit rows in `gov_runtime/absorber_hits.jsonl`, and then existing validators/checks decide.
+- Receipt append stores applied absorber names in receipt `metadata.absorbers_applied` when the persisted receipt was normalized.
+
+Heuristic-risk classification:
+- `just heuristic-risk-check WP-{ID} [--json]`
+  - mechanically classifies declared MT files for fuzzy/adversarial heuristic risk before implementation.
+  - `HEURISTIC_RISK=YES` requires the listed corpus/property/negative evidence and projects strategy-escalation fields into microtask review contracts.
+  - receipt append emits `HEURISTIC_RISK_STRATEGY_ESCALATION` to Orchestrator when repeated non-PASS review responses hit the MT strategy threshold.
+
+Turn-boundary nudge queue:
+- `just nudge-enqueue <SESSION_ID> '<PAYLOAD_JSON>'`
+- `just nudge-drain <SESSION_ID>`
+- `just nudge-depth <SESSION_ID>`
+  - `RGF-245` stores governance nudges under `gov_runtime/nudges/<wp_id>/<session_id>/` and drains them with atomic `.claimed` rename semantics.
+  - Non-emergency `orchestrator-steer-next` `SEND_PROMPT` delivery enqueues a `STEER` nudge; use `--now` only for explicit immediate/direct ACP sends.
+  - Governed startup prompt assembly drains queued nudges at a safe boundary and injects them as bounded user-message context.
+
+Hook-driven role self-prime:
+- `just role-self-prime <ROLE> WP-{ID} [--mt-id MT-NNN] [--session-id ROLE:WP-{ID}]`
+  - `RGF-246` builds the effective governed role prompt from canonical packet/runtime/MT/memory truth.
+  - Session launch defaults to a small hook bootstrap stub; `--inline-prompt` is the explicit operator repair escape hatch.
+  - Provider hook templates live under `.GOV/hooks/templates/<provider>/settings-autonomous.json` and define `SessionStart` plus `PreCompact` self-prime commands.
+
+Named-verb inter-role receipts:
+- `just wp-receipt-append WP-{ID} <ROLE> <SESSION> <RECEIPT_KIND> "<summary>" ... --verb <NAME> --verb-body '<JSON>'`
+- `just verb-coverage-check`
+  - `RGF-248` defines the initial verb set under `.GOV/roles_shared/schemas/inter_role_verbs/`.
+  - Supported verbs: `MT_HANDOFF`, `MT_VERDICT`, `MT_REMEDIATION_REQUIRED`, `WP_HANDOFF`, `INTEGRATION_VERDICT`, `CONCERN`, `PHASE_TRANSITION`, `RELAUNCH_REQUEST`.
+  - Legacy prose receipts remain valid during rollout, but readers prefer `verb` / `verb_body` when present.
+
 ## Operator-facing scope split
 
 Use this split in chat every time scope, remediation, or next steps are discussed:
@@ -48,23 +91,34 @@ These are safe starting points for orientation and health checks.
   - shared governance health; expected before new governed execution and before final closure
 - `just docs-check`
   - `read-only`
-  - presence check for required governance docs
+  - topology-resolved presence check for required governance docs and canonical `handshake_main/AGENTS.md`
+- `just resolve-protected-worktree <handshake_main|wt-gov-kernel|wt-ilja> [--path-only]`
+  - `read-only`
+  - resolve permanent worktrees from `git worktree list --porcelain` before falling back to configured sibling paths; failure output includes the discovered worktree list
 - `just canonise-gov`
   - `read-only`
   - inspects the canonisation file set for governance drift and prints the mandatory review checklist; after running it, inspect every listed file and update applicable drift before closeout
 - `just artifact-hygiene-check`
   - `read-only`
-  - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake_Artifacts` residue fail closed
+  - validates external artifact placement; repo-local `target/` directories, stale Cargo target-dir posture, and sibling artifact-root aliases such as `../Handshake Artifacts/` fail closed
   - retention policy authority: `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
   - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, the runtime-native relay escalation policy (`failure_class`, `policy_state`, `next_strategy`, strategy budget), the active terminal batch id, and owned-terminal metadata/reclaim status
+- `just orchestrator-health [WP-{ID}]`
+  - `read-only`
+  - compact Orchestrator recovery bundle: WP lifecycle, ACP broker health, active/session role rows, model/profile/thread/queue/command state, stale age, and the next safe read-only command
+- `just orchestrator-rescue [WP-{ID}] [--dry-run] [--print-prompt] [--force-takeover]`
+  - `visible-terminal exception`
+  - opens a visible interactive Orchestrator rescue session from `wt-gov-kernel` using Windows Terminal first, visible PowerShell second, and a ready-to-run `.ps1` manual fallback; this command is explicitly not a headless ACP role launch
+  - the generated rescue session runs `just orchestrator-health [WP-{ID}]`, starts Codex with the Orchestrator rescue prompt, records `ORCHESTRATOR_TAKEOVER_ATTEMPT`, and carries a single-authority guard that defaults to read-only/status mode unless downtime red-alert criteria or explicit `--force-takeover` authority permits takeover
 - `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - run a local non-LLM relay watcher over one or more orchestrator-managed WPs; stale `WATCH` / `ESCALATED` routes are re-steered only when the projected target session is not already running
   - active target runs are checked conservatively with `session-stall-scan`, which now treats ACP `command_execution`, `file_change`, `web_search`, and `todo_list` events as progress before reporting `WAIT_ACTIVE_RUN` / `REPORT_STALLED_ACTIVE_RUN`
   - successful automatic re-steers increment the runtime relay-cycle counter; healthy lanes reset it; once the WP exhausts `max_relay_escalation_cycles`, the watchdog stops auto-re-waking and leaves the lane attention-visible
   - every watchdog pass also persists a typed `relay_escalation_policy` object in runtime truth so follow-on status surfaces can read the canonical `failure_class`, `policy_state`, `next_strategy`, and strategy budget instead of reconstructing retry state from counters or prose
+  - active orchestrator-managed WPs with no fresh Orchestrator/control-plane progress for 10 minutes emit `RED_ALERT_ORCHESTRATOR_DOWNTIME`; after 20 minutes the alert recommends `just orchestrator-rescue WP-{ID}`
   - direct worker interruption uses a separate runtime budget: `current_worker_interrupt_cycle` against `max_worker_interrupt_cycles`
   - `--allow-restart` is default-off; when enabled, restart remains conservative and only cancels/re-steers a proven stale active run after the lane verdict permits bounded worker interruption, freshness guards pass (`COMMAND_RUNNING`, expired `timeout_at`, and old output/session activity), and the worker-interrupt budget has remaining capacity
   - `--observe-only` keeps the command read-only: it prints the same conservative poke verdict the watchdog would use, but does not steer, restart, or mutate runtime state
@@ -78,6 +132,7 @@ These are safe starting points for orientation and health checks.
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]`
   - `runtime-write`
   - Classic-Orchestrator-owned broker for `WORKFLOW_LANE=MANUAL_RELAY`; starts the projected target session when needed, immediately delivers the active role-to-role payload, and injects typed relay context (`MANUAL_RELAY_CONTEXT`, `DIRECT_ROLE_MESSAGE`) into the target prompt instead of a generic resume-only steer
+  - injected relay context is fenced as `<governance-context>` user-message context so the active target session's cached system prompt is not rebuilt
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
@@ -109,6 +164,7 @@ These are safe starting points for orientation and health checks.
   - launch or steer the next expected governed actor directly from runtime/receipt projection without a manually written relay prompt
   - if the target session is not running yet, this helper now starts it and immediately sends the typed route payload in the same invocation
   - the governed prompt carries typed route context (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) derived from receipt/notification truth instead of generic resume prose
+  - route context is fenced as `<governance-context>` user-message context; it must not rebuild or mutate the active role session's cached system prompt
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
   - before dispatch, the helper now echoes the runtime-native relay escalation policy for the lane (`failure_class`, `policy_state`, `next_strategy`, strategy budget) so repairs are based on canonical runtime truth rather than local transcript interpretation
 - `just manual-relay-next WP-{ID} [--debug]`
@@ -271,6 +327,7 @@ These legacy commands still work (they redirect to the governance memory DB) but
 - `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--observe-only] [--restart-output-idle-seconds N]`
   - `runtime-write`
   - non-LLM relay watcher for orchestrator-managed lanes; consumes receipt/notification/escalation truth, records a `STEERING` receipt when it performs a safe automatic re-wake, and persists both bounded relay-cycle accounting and bounded worker-interrupt accounting into WP runtime status
+  - emits `RED_ALERT_ORCHESTRATOR_DOWNTIME` to the Orchestrator notification lane when no fresh control-plane progress appears for 10 minutes; the 20-minute band recommends visible rescue
   - with `--allow-restart`, the watcher may perform one bounded cancel-plus-resteer only for a proven stale active run whose lane verdict permits bounded worker interruption and whose timeout/freshness thresholds are already exceeded
 - `just session-stall-scan <ROLE> WP-{ID}`
   - `read-only`
@@ -575,6 +632,9 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just wp-validator-review ...`
 - `just wp-validator-response ...`
 - `just wp-review-response ...`
+- `just wp-validator-mechanical-review WP-{ID} MT-NNN [range] [--json] [--no-receipt]`
+  - `runtime-write` by default; `read-only` with `--no-receipt`
+  - runs the deterministic per-MT mechanical track inline (worktree confinement, MT file-list/boundary checks, packet scope check, compile-gate evidence ingest) and writes a typed `MT_VERDICT_MECHANICAL` receipt; mechanical PASS still leaves judgment-track WP Validator review mandatory
 - `just wp-review-exchange <RECEIPT_KIND> ...`
 - `just wp-spec-gap ...`
 - `just wp-spec-confirmation ...`

@@ -28,6 +28,10 @@
 - The packet-declared `INTEGRATION_VALIDATOR_MODEL_PROFILE` is authoritative.
 - The ACP broker is a mechanical session-control relay. All sessions dispatch through the broker regardless of provider.
 
+## Inter-Role Wire Discipline [CX-130] (HARD)
+
+Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`). Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability — they project from the typed verdict, they are NOT the verdict. RGF-248 named verbs are now the preferred receipt wire: emit `INTEGRATION_VERDICT` for final PASS/FAIL and `CONCERN` for integration risks when the helper surface supports `--verb`. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout receipt. See Codex `[CX-130]` for the full rule.
+
 ## What The Integration Validator Receives
 
 When the Integration Validator launches, the Orchestrator has already:
@@ -188,7 +192,7 @@ Cross-session conversational memory captures what was validated, decided, and fl
 - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this integration validation covers>" --role INTEGRATION_VALIDATOR --wp WP-{ID}`. Blocked from mutation commands until done.
 - **PRE_TASK before verdict or closeout execution (SHOULD):** Before whole-WP review, closeout repair, merge/containment action, or verdict publication, run `just repomem pre "<what final-lane action is about to run and why>" --wp WP-{ID}` unless the phase command already captures context mechanically.
 - **INSIGHT after discoveries (MUST):** When whole-WP review reveals a systemic issue — cross-MT drift, spec misalignment, architectural concern: `just repomem insight "<what was found>"`. Min 80 chars.
-- **DECISION when issuing verdicts (SHOULD):** When you pass, conditionally pass, or fail a WP: `just repomem decision "<verdict, reasoning, conditions>" --wp WP-{ID}`. Min 80 chars. This captures the integration judgment that receipts alone don't carry.
+- **DECISION when issuing verdicts (MUST):** Every verdict — PASS, conditional PASS, FAIL, OUTDATED_ONLY, ABANDON — MUST be paired with `just repomem decision "<verdict, reasoning, conditions>" --wp WP-{ID}` before the verdict receipt is published. Min 80 chars. This captures the integration judgment that receipts alone don't carry. A session that closes after a verdict without a paired DECISION is governance debt and emits `REPOMEM_GOVERNANCE_DEBT` at close.
 - **ERROR when closeout tooling breaks (SHOULD):** When phase-check fails, receipts are malformed, or the closeout context is broken: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
 - **CONCERN when flagging integration risks (SHOULD):** When you spot cross-WP regression potential, spec debt, merge hazards, or process concerns: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout.
 - **ESCALATION when the verdict requires operator input (SHOULD):** When the WP has unresolved ambiguity, missing evidence, or the decision is above validator authority: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).

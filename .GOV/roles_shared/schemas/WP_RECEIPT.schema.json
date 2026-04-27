@@ -82,6 +82,7 @@
         "CODER_INTENT",
         "CODER_HANDOFF",
         "VALIDATOR_REVIEW",
+        "MT_VERDICT_MECHANICAL",
         "VALIDATOR_QUERY",
         "VALIDATOR_RESPONSE",
         "REVIEW_REQUEST",
@@ -96,6 +97,29 @@
         "MEMORY_PROPOSAL",
         "MEMORY_FLAG",
         "MEMORY_RGF_CANDIDATE"
+      ]
+    },
+    "verb": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "MT_HANDOFF",
+        "MT_VERDICT",
+        "MT_REMEDIATION_REQUIRED",
+        "WP_HANDOFF",
+        "INTEGRATION_VERDICT",
+        "CONCERN",
+        "PHASE_TRANSITION",
+        "RELAUNCH_REQUEST",
+        null
+      ]
+    },
+    "verb_body": {
+      "type": [
+        "object",
+        "null"
       ]
     },
     "summary": {
@@ -208,6 +232,72 @@
             "null"
           ]
         },
+        "heuristic_risk": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "YES",
+            "NO",
+            null
+          ]
+        },
+        "heuristic_risk_class": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "NONE",
+            "FUZZY_DISCRIMINATOR",
+            "THRESHOLD_TUNING",
+            "ADVERSARIAL_INPUT",
+            "NATURAL_LANGUAGE_CLASSIFICATION",
+            "PROBABILISTIC_SCORING",
+            "SECRET_OR_IDENTIFIER_BOUNDARY",
+            "OTHER",
+            null
+          ]
+        },
+        "required_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "CORPUS_CASES",
+              "PROPERTY_TESTS",
+              "NEGATIVE_COUNTEREXAMPLES",
+              "BOUNDARY_MATRIX",
+              "THRESHOLD_RATIONALE",
+              "FALSE_POSITIVE_FALSE_NEGATIVE_PROBES",
+              "ADVERSARIAL_PROBES"
+            ]
+          }
+        },
+        "strategy_escalation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "NONE",
+            "CORPUS_EXPANSION",
+            "PROPERTY_BASED_REFRAME",
+            "DISCRIMINATOR_REDESIGN",
+            "BOUNDARY_CONTRACT_REWRITE",
+            "ALTERNATE_MODEL_REVIEW",
+            "HUMAN_STOP",
+            null
+          ]
+        },
+        "repair_cycle_strategy_threshold": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
         "review_mode": {
           "type": [
             "string",
@@ -259,6 +349,7 @@
             "CODER_INTENT",
             "CODER_HANDOFF",
             "VALIDATOR_REVIEW",
+            "MT_VERDICT_MECHANICAL",
             "VALIDATOR_QUERY",
             "VALIDATOR_RESPONSE",
             "REVIEW_REQUEST",
@@ -275,12 +366,105 @@
         }
       }
     },
+    "mechanical_result": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "mt_id",
+        "verdict",
+        "concerns",
+        "boundary_check_result",
+        "scope_check_result",
+        "file_list_match_result",
+        "build_pass_evidence",
+        "helper_invocation_id"
+      ],
+      "properties": {
+        "mt_id": {
+          "type": "string",
+          "pattern": "^MT-[0-9]{3}$"
+        },
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "concerns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "severity",
+              "evidence_path"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH",
+                  "CRITICAL"
+                ]
+              },
+              "evidence_path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "boundary_check_result": {
+          "type": "object"
+        },
+        "scope_check_result": {
+          "type": "object"
+        },
+        "file_list_match_result": {
+          "type": "object"
+        },
+        "build_pass_evidence": {
+          "type": "object"
+        },
+        "helper_invocation_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "workflow_invalidity_code": {
       "type": [
         "string",
         "null"
       ],
       "pattern": "^[A-Z0-9_]+$"
+    },
+    "metadata": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "absorbers_applied": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
     "refs": {
       "type": "array",

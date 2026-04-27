@@ -8,6 +8,11 @@
  */
 
 import fs from "node:fs";
+import path from "node:path";
+import {
+  formatProtectedWorktreeResolutionDiagnostics,
+  resolveProtectedWorktree,
+} from "./topology/git-topology-lib.mjs";
 
 function firstNonEmptyLine(raw) {
   const lines = raw.split(/\r?\n/);
@@ -26,15 +31,32 @@ if (files.length === 0) {
 let missing = false;
 console.log("PROTOCOL_ACK (first non-empty line from each file read)");
 for (const file of files) {
-  if (!fs.existsSync(file)) {
+  let resolvedFile = file;
+  const normalized = String(file || "").replace(/\\/g, "/");
+  if (!fs.existsSync(resolvedFile) && /(^|\/)handshake_main\/AGENTS\.md$/i.test(normalized)) {
+    const mainResolution = resolveProtectedWorktree("handshake_main");
+    const candidate = mainResolution.absDir ? path.join(mainResolution.absDir, "AGENTS.md") : "";
+    if (candidate && fs.existsSync(candidate)) {
+      resolvedFile = candidate;
+    } else {
+      console.log(`- ${file}: <MISSING>`);
+      for (const line of formatProtectedWorktreeResolutionDiagnostics(mainResolution)) {
+        console.log(`  ${line}`);
+      }
+      missing = true;
+      continue;
+    }
+  }
+
+  if (!fs.existsSync(resolvedFile)) {
     missing = true;
     console.log(`- ${file}: <MISSING>`);
     continue;
   }
-  const raw = fs.readFileSync(file, "utf8");
+  const raw = fs.readFileSync(resolvedFile, "utf8");
   const line = firstNonEmptyLine(raw);
-  console.log(`- ${file}: ${line}`);
+  const label = resolvedFile === file ? file : `${file} -> ${resolvedFile}`;
+  console.log(`- ${label}: ${line}`);
 }
 
 if (missing) process.exit(2);
-

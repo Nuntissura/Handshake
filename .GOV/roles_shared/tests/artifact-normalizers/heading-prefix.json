@@ -1,0 +1,7 @@
+{
+  "absorber": "normalizeHeadingPrefix",
+  "input": "#### Verdict: PASS\n",
+  "output": "Verdict: PASS\n",
+  "applied": true
+}
+

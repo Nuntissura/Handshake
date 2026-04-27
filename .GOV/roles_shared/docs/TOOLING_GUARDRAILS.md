@@ -156,7 +156,7 @@ Rules:
 ### TG-014
 - Do:
   - Keep every discovered worktree `.cargo/config.toml` aligned to the canonical external artifact root from project invariants.
-  - Treat Cargo `target-dir` drift as a governance-blocking hygiene issue and fix it before running `gov-flush`.
+  - Treat Cargo `target-dir` drift and sibling artifact-root aliases such as `../Handshake Artifacts/` as governance-blocking hygiene issues and fix them before role launch or `gov-flush`.
 - Don't:
   - Do not allow coder or validator worktrees to introduce alternate artifact roots such as spaced-path variants or repo-local `target/` fallbacks.
 - Why:

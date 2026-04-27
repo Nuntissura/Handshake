@@ -96,9 +96,11 @@ export const ROLE_SESSION_REASONING_CONFIG_VALUE = "xhigh";
 export const ROLE_MODEL_PROFILE_FIELD_BY_ROLE = Object.freeze({
   ACTIVATION_MANAGER: "ACTIVATION_MANAGER_MODEL_PROFILE",
   ORCHESTRATOR: "ORCHESTRATOR_MODEL_PROFILE",
+  CLASSIC_ORCHESTRATOR: "ORCHESTRATOR_MODEL_PROFILE",
   CODER: "CODER_MODEL_PROFILE",
   WP_VALIDATOR: "WP_VALIDATOR_MODEL_PROFILE",
   INTEGRATION_VALIDATOR: "INTEGRATION_VALIDATOR_MODEL_PROFILE",
+  VALIDATOR: "INTEGRATION_VALIDATOR_MODEL_PROFILE",
 });
 export const ROLE_MODEL_PROFILE_CATALOG = Object.freeze({
   [ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH]: Object.freeze({
@@ -222,9 +224,11 @@ export const ROLE_MODEL_PROFILE_HELP = ROLE_MODEL_PROFILE_IDS.join(" | ");
 export const DEFAULT_ROLE_MODEL_PROFILE_IDS = Object.freeze({
   ACTIVATION_MANAGER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
   ORCHESTRATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+  CLASSIC_ORCHESTRATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
   CODER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
   WP_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
   INTEGRATION_VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
+  VALIDATOR: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
   MEMORY_MANAGER: ROLE_MODEL_PROFILE_OPENAI_GPT_5_5_XHIGH,
 });
 export const ROLE_MODEL_PROFILE_FALLBACKS = Object.freeze({
@@ -738,6 +742,7 @@ export function sessionRegistryFileForStubVersion(stubFormatVersion) {
 
 export function roleStartupCommand(role) {
   if (role === "ACTIVATION_MANAGER") return "just activation-manager startup";
+  if (role === "CLASSIC_ORCHESTRATOR") return "just classic-orchestrator-startup";
   if (role === "CODER") return "just coder-startup";
   if (role === "WP_VALIDATOR") return "just validator-startup WP_VALIDATOR";
   if (role === "INTEGRATION_VALIDATOR") return "just validator-startup INTEGRATION_VALIDATOR";
@@ -748,6 +753,7 @@ export function roleStartupCommand(role) {
 
 export function roleNextCommand(role, wpId) {
   if (role === "ACTIVATION_MANAGER") return `just activation-manager next ${wpId}`;
+  if (role === "CLASSIC_ORCHESTRATOR") return wpId ? `just manual-relay-next ${wpId}` : "just manual-relay-next";
   if (role === "CODER") return `just coder-next ${wpId}`;
   if (role === "WP_VALIDATOR") return wpId ? `just validator-next WP_VALIDATOR ${wpId}` : "just validator-next WP_VALIDATOR";
   if (role === "INTEGRATION_VALIDATOR") return wpId ? `just validator-next INTEGRATION_VALIDATOR ${wpId}` : "just validator-next INTEGRATION_VALIDATOR";
@@ -758,9 +764,11 @@ export function roleNextCommand(role, wpId) {
 
 export function roleStageLabel(role) {
   if (role === "ACTIVATION_MANAGER") return "ACTIVATION_MANAGER";
+  if (role === "CLASSIC_ORCHESTRATOR") return "CLASSIC_ORCHESTRATOR";
   if (role === "CODER") return "CODER";
   if (role === "WP_VALIDATOR") return "WP_VALIDATOR";
   if (role === "INTEGRATION_VALIDATOR") return "INTEGRATION_VALIDATOR";
+  if (role === "VALIDATOR") return "VALIDATOR";
   return "ORCHESTRATOR";
 }
 

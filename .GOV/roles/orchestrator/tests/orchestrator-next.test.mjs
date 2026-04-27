@@ -7,6 +7,7 @@ import {
   findActiveTokenBudgetContinuationWaiver,
   isTerminalOrchestratorBoardStatus,
   latestOrchestratorAcpHealthAlert,
+  latestOrchestratorDowntimeRedAlert,
   latestOrchestratorGovernanceCheckpoint,
   latestOrchestratorRelayWatchdogRepair,
   queuedGovernedWaitState,
@@ -179,6 +180,32 @@ test("orchestrator-next picks the latest relay watchdog repair notification for 
   });
 
   assert.equal(notification?.summary, "latest repair");
+});
+
+test("orchestrator-next picks the latest orchestrator downtime red alert", () => {
+  const notification = latestOrchestratorDowntimeRedAlert({
+    ORCHESTRATOR: {
+      notifications: [
+        {
+          source_kind: "RED_ALERT_ORCHESTRATOR_DOWNTIME",
+          timestamp_utc: "2026-04-26T10:00:00Z",
+          summary: "older downtime alert",
+        },
+        {
+          source_kind: "ACP_HEALTH_ALERT",
+          timestamp_utc: "2026-04-26T10:01:00Z",
+          summary: "not downtime",
+        },
+        {
+          source_kind: "RED_ALERT_ORCHESTRATOR_DOWNTIME",
+          timestamp_utc: "2026-04-26T10:02:00Z",
+          summary: "latest downtime alert",
+        },
+      ],
+    },
+  });
+
+  assert.equal(notification?.summary, "latest downtime alert");
 });
 
 test("orchestrator-next detects an active governance waiver for token-budget continuation", () => {

@@ -5,8 +5,10 @@ import { REPO_ROOT, normalizePath } from "./runtime-paths.mjs";
 
 export const HANDSHAKE_ARTIFACT_ROOT_ENV_VAR = "HANDSHAKE_ARTIFACT_ROOT";
 export const DEFAULT_ARTIFACT_ROOT_DIRNAME = "Handshake_Artifacts";
+export const CANONICAL_CARGO_TARGET_DIRNAME = "handshake-cargo-target";
+export const PRODUCT_CARGO_MANIFEST_REPO_REL = normalizePath(path.join("src", "backend", "handshake_core", "Cargo.toml"));
 export const CANONICAL_ARTIFACT_DIRS = Object.freeze([
-  "handshake-cargo-target",
+  CANONICAL_CARGO_TARGET_DIRNAME,
   "handshake-product",
   "handshake-test",
   "handshake-tool",
@@ -45,6 +47,13 @@ function safeStat(absPath) {
 
 function normalizeComparablePath(value) {
   return normalizePath(path.resolve(String(value || ""))).toLowerCase();
+}
+
+function artifactRootNameFingerprint(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
 }
 
 function sanitizeFileSegment(value) {
@@ -92,6 +101,10 @@ function parseCargoTargetDir(repoRoot) {
   };
 }
 
+function repoRequiresCargoTargetConfig(repoRoot) {
+  return fs.existsSync(path.resolve(repoRoot, PRODUCT_CARGO_MANIFEST_REPO_REL));
+}
+
 function scanForbiddenRepoLocalDirs(repoRoot) {
   const discovered = [];
   const stack = [path.resolve(repoRoot)];
@@ -117,6 +130,32 @@ function scanForbiddenRepoLocalDirs(repoRoot) {
   return discovered.sort((left, right) =>
     left.repoRootAbs.localeCompare(right.repoRootAbs) || left.repoRelativePath.localeCompare(right.repoRelativePath)
   );
+}
+
+function scanSiblingArtifactRootDrift(artifactRootAbs) {
+  const rootAbs = path.resolve(artifactRootAbs);
+  const parentAbs = path.dirname(rootAbs);
+  const canonicalDirName = path.basename(rootAbs);
+  const canonicalFingerprint = artifactRootNameFingerprint(canonicalDirName);
+
+  return directoryChildren(parentAbs)
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const absPath = path.join(parentAbs, entry.name);
+      if (normalizeComparablePath(absPath) === normalizeComparablePath(rootAbs)) return null;
+      if (artifactRootNameFingerprint(entry.name) !== canonicalFingerprint) return null;
+      return {
+        kind: "NONCANONICAL_SIBLING_ARTIFACT_ROOT",
+        dirName: entry.name,
+        absPath,
+        canonicalArtifactRootAbs: rootAbs,
+        blocking: true,
+        reclaimable: false,
+        reason: `noncanonical sibling artifact root; use ${canonicalDirName} and remove or quarantine this root after review`,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.dirName.localeCompare(right.dirName));
 }
 
 function classifyExternalArtifactDir({
@@ -245,11 +284,13 @@ export function evaluateArtifactHygiene({
   const cargoTargetConfigs = repoRoots
     .map((candidateRoot) => {
       const parsed = parseCargoTargetDir(candidateRoot);
-      const expectedTargetDirAbs = path.join(rootAbs, "handshake-cargo-target");
+      const expectedTargetDirAbs = path.join(rootAbs, CANONICAL_CARGO_TARGET_DIRNAME);
+      const requiresCanonicalTargetConfig = repoRequiresCargoTargetConfig(candidateRoot);
       return {
         repoRootAbs: path.resolve(candidateRoot),
         cargoConfigAbs: parsed.cargoConfigAbs,
         exists: parsed.exists,
+        requiresCanonicalTargetConfig,
         declaredTargetDir: parsed.declaredTargetDir,
         resolvedTargetDirAbs: parsed.resolvedTargetDirAbs,
         expectedTargetDirAbs,
@@ -259,18 +300,31 @@ export function evaluateArtifactHygiene({
           && normalizeComparablePath(parsed.resolvedTargetDirAbs) === normalizeComparablePath(expectedTargetDirAbs),
       };
     })
-    .filter((entry) => entry.exists)
+    .filter((entry) => entry.exists || entry.requiresCanonicalTargetConfig)
     .sort((left, right) => left.repoRootAbs.localeCompare(right.repoRootAbs));
 
+  const siblingArtifactRootDrift = scanSiblingArtifactRootDrift(rootAbs);
   const reclaimableExternalDirs = externalArtifactDirs.filter((entry) => entry.reclaimable);
   const blockingExternalDirs = externalArtifactDirs.filter((entry) => entry.blocking);
-  const blockingCargoConfigEntries = cargoTargetConfigs.filter((entry) => !entry.matchesCanonicalTarget);
+  const blockingSiblingArtifactRoots = siblingArtifactRootDrift.filter((entry) => entry.blocking);
+  const blockingCargoConfigEntries = cargoTargetConfigs.filter((entry) =>
+    entry.requiresCanonicalTargetConfig
+      ? !entry.matchesCanonicalTarget
+      : entry.exists && !entry.matchesCanonicalTarget
+  );
   const blockingIssues = [
     ...repoLocalForbiddenDirs.map((entry) =>
       `repo-local forbidden build artifact directory detected: ${normalizePath(path.relative(entry.repoRootAbs, entry.absPath))} under ${normalizePath(entry.repoRootAbs)}`
     ),
-    ...blockingCargoConfigEntries.map((entry) =>
-      `${normalizePath(path.relative(entry.repoRootAbs, entry.cargoConfigAbs))}: cargo target-dir must resolve to ${normalizePath(entry.expectedTargetDirAbs)}`
+    ...blockingCargoConfigEntries.map((entry) => {
+      const cargoConfigRel = normalizePath(path.relative(entry.repoRootAbs, entry.cargoConfigAbs));
+      if (!entry.exists) {
+        return `${cargoConfigRel}: missing required cargo target-dir config for product checkout; must resolve to ${normalizePath(entry.expectedTargetDirAbs)}`;
+      }
+      return `${cargoConfigRel}: cargo target-dir must resolve to ${normalizePath(entry.expectedTargetDirAbs)}`;
+    }),
+    ...blockingSiblingArtifactRoots.map((entry) =>
+      `${entry.dirName}: ${entry.reason} (${normalizePath(entry.absPath)})`
     ),
     ...blockingExternalDirs.map((entry) =>
       `${entry.dirName}: ${entry.reason}`
@@ -287,6 +341,8 @@ export function evaluateArtifactHygiene({
     repoRoots: repoRoots.map((candidate) => path.resolve(candidate)),
     repoLocalForbiddenDirs,
     cargoTargetConfigs,
+    siblingArtifactRootDrift,
+    blockingSiblingArtifactRoots,
     externalArtifactDirs,
     reclaimableExternalDirs,
     blockingExternalDirs,
@@ -375,6 +431,7 @@ export function buildArtifactRetentionManifest({
       retained_noncanonical_classes: [
         "NONCANONICAL_EPHEMERAL_RECENT",
         "NONCANONICAL_UNKNOWN",
+        "NONCANONICAL_SIBLING_ARTIFACT_ROOT",
       ],
       evidence_preservation_rule: "cleanup removes reclaimable residue only; canonical artifact roots and retention manifests remain durable audit surfaces",
     },
@@ -397,9 +454,19 @@ export function buildArtifactRetentionManifest({
         age_ms: Number.isFinite(entry.ageMs) ? Math.round(entry.ageMs) : null,
         reason: entry.reason,
       })),
+    retained_sibling_artifact_roots: (after.siblingArtifactRootDrift || []).map((entry) => ({
+      dir_name: entry.dirName,
+      abs_path: normalizePath(entry.absPath),
+      canonical_artifact_root_abs: normalizePath(entry.canonicalArtifactRootAbs),
+      classification: entry.kind,
+      blocking: Boolean(entry.blocking),
+      reclaimable: Boolean(entry.reclaimable),
+      reason: entry.reason,
+    })),
     cargo_target_configs: (after.cargoTargetConfigs || []).map((entry) => ({
       repo_root_abs: normalizePath(entry.repoRootAbs),
       cargo_config_abs: normalizePath(entry.cargoConfigAbs),
+      required_for_product_checkout: Boolean(entry.requiresCanonicalTargetConfig),
       declared_target_dir: entry.declaredTargetDir || "",
       resolved_target_dir_abs: normalizePath(entry.resolvedTargetDirAbs || ""),
       expected_target_dir_abs: normalizePath(entry.expectedTargetDirAbs || ""),

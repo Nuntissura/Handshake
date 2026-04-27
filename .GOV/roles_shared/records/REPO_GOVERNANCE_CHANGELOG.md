@@ -21,6 +21,593 @@
 
 ## Entries
 
+### 2026.04.27.09 / GOV-CHANGE-20260427-09
+
+- STATUS: APPLIED
+- SUMMARY: completed memory-system follow-on tranche RGF-251 through RGF-254
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-27 Operator directive: implement the four queued items from the memory-system follow-on tranche after the governance-memory audit on `DOSSIER_20260425_CALENDAR_SYNC_ENGINE_WORKFLOW_DOSSIER.md`.
+  - `RGF-251`, `RGF-252`, `RGF-253`, `RGF-254`
+- FOLLOW_ON_ITEMS:
+  - `RGF-233` (closeout canonicalization tranche, still queued)
+- FILES_CHANGED:
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/memory_manager/scripts/memory-manager-policy.mjs`
+  - `.GOV/roles/memory_manager/scripts/intelligent-review-status-lib.mjs`
+  - `.GOV/roles/memory_manager/checks/intelligent-review-cadence-check.mjs`
+  - `.GOV/roles/memory_manager/tests/memory-manager-policy.test.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles_shared/scripts/memory/repomem.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/repomem-durable-checkpoint-cli.test.mjs`
+  - `.GOV/roles_shared/tests/intelligent-review-marker-cli.test.mjs`
+  - `.GOV/roles_shared/tests/orchestrator-startup-memory-slices.test.mjs`
+- OUTCOME: RGF-252 brings the legacy `VALIDATOR` protocol to repomem parity (full clause set plus `protocol-alignment-check` regression covering SESSION_OPEN, FAIL CAPTURE, DECISION, INSIGHT, CONCERN, ESCALATION, SESSION_CLOSE in all three governed-role protocols). RGF-251 promotes DECISION to MUST in INTEGRATION_VALIDATOR and ACTIVATION_MANAGER protocols and emits `REPOMEM_GOVERNANCE_DEBT` at `repomem close` when judgment-bearing roles close without any durable checkpoint, surfacing the silent OPEN/CLOSE-only pattern to the closing actor. RGF-254 makes the ACP-launched memory_manager intelligent review cadence visible: `MEMORY_MANAGER` `repomem close` writes `INTELLIGENT_REVIEW_LAST_RUN.json`, a new governance-support cadence check runs at IntVal CLOSEOUT and reports FRESH/DEBT against a 7-day staleness gate. RGF-253 redesigns orchestrator startup memory injection: `loadOrchestratorMemoryLines` now composes a recent-procedural-failure slice (last 7d, no `access_count` gate), a hygiene-report-summary slice, and a prior-day cross-role SESSION_CLOSE-decisions slice BEFORE the existing scored PATTERNS bundle, with the budget raised 2000 → 4000 tokens. Together these break the dead-letter loop where one-off captures never surfaced because they could not cross the `access_count >= 5` startup-injection gate.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/repomem-durable-checkpoint-cli.test.mjs` => 4/4 pass
+  - `node --test .GOV/roles_shared/tests/intelligent-review-marker-cli.test.mjs` => 2/2 pass
+  - `node --test .GOV/roles_shared/tests/orchestrator-startup-memory-slices.test.mjs` => 5/5 pass
+  - `node --test .GOV/roles/memory_manager/tests/memory-manager-policy.test.mjs` => 11/11 pass
+  - `node --test .GOV/roles_shared/tests/repomem-{coverage-lib,gate-cli,open-contract-lib}.test.mjs` => 12/12 pass
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs` => 17/17 pass
+  - `node .GOV/roles_shared/checks/protocol-alignment-check.mjs` => ok
+  - `just gov-check` => 18/18 ok
+
+### 2026.04.27.08 / GOV-CHANGE-20260427-08
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-249 predecessor-session lookup for compaction and restart
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including predecessor-session lookup.
+  - `RGF-249`
+- FOLLOW_ON_ITEMS:
+  - `RGF-233`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/predecessor-lookup-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/role-self-prime.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/tests/predecessor-lookup-lib.test.mjs`
+  - `.GOV/roles_shared/tests/role-self-prime.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: Governed sessions now write compact append-only event logs under the external governance runtime `roles_shared/WP_SESSIONS/<WP_ID>/<SESSION_ID>/events.jsonl`. `role-self-prime` injects a bounded same-role predecessor summary when available, omits it for first sessions, and treats the current session as predecessor during `PreCompact`. Receipt emission and ACP session-command/tool telemetry feed the event stream without crossing role boundaries.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/predecessor-lookup-lib.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/role-self-prime.mjs`
+  - `node --check .GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `node --check .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `node --test .GOV/roles_shared/tests/predecessor-lookup-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/role-self-prime.test.mjs`
+  - `just gov-check`
+
+### 2026.04.27.07 / GOV-CHANGE-20260427-07
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-247 mechanical-track validator-as-tool-result
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including mechanical-track validator helpers.
+  - `RGF-247`
+- FOLLOW_ON_ITEMS:
+  - `RGF-249`
+- FILES_CHANGED:
+  - `.GOV/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs`
+  - `.GOV/roles/wp_validator/tests/wp-validator-mechanical-track.test.mjs`
+  - `.GOV/roles_shared/scripts/hooks/post-commit-mt-review-request.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/computed-policy-gate-lib.mjs`
+  - `.GOV/roles_shared/checks/computed-policy-gate-check.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/schemas/inter_role_verbs/MT_VERDICT.schema.json`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- OUTCOME: Per-MT mechanical validation can now run inline via `wp-validator-mechanical-track`, producing typed `MT_VERDICT_MECHANICAL` receipts with boundary, scope, file-list, build-evidence, concerns, and helper invocation identity. The post-commit MT hook runs the helper before sending the judgment-track review request; mechanical FAIL routes coder remediation immediately and skips WP Validator ACP launch. Computed closeout policy now requires both mechanical and judgment MT PASS receipts for receipt-aware packet formats.
+- VERIFICATION:
+  - `node --check .GOV/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs`
+  - `node --check .GOV/roles_shared/scripts/hooks/post-commit-mt-review-request.mjs`
+  - `node --test .GOV/roles/wp_validator/tests/wp-validator-mechanical-track.test.mjs`
+  - `node --test .GOV/roles_shared/tests/inter-role-verb-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
+  - `just gov-check`
+
+### 2026.04.27.06 / GOV-CHANGE-20260427-06
+
+- STATUS: APPLIED
+- SUMMARY: queued memory-system follow-on tranche `RGF-251` through `RGF-254` after governance-memory audit on the latest WP dossier
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - 2026-04-27 Operator directive: file RGFs to fix memory-system gaps surfaced by audit on `DOSSIER_20260425_CALENDAR_SYNC_ENGINE_WORKFLOW_DOSSIER.md`.
+  - Audit findings: Integration Validator (5 entries) and Activation Manager (4 entries) recorded only `OPEN`/`CLOSE` pairs across the WP run; legacy `VALIDATOR_PROTOCOL.md` repomem section lacks `DECISION` and `FAIL CAPTURE` clauses; orchestrator startup injects only ~220 tokens / 8 lines and surfaces procedural failures only when `access_count >= 5`; no recent `MEMORY_HYGIENE_REPORT.md` exists, indicating the ACP-launched memory_manager intelligent review has not been running.
+- FOLLOW_ON_ITEMS:
+  - `RGF-251` Integration-Validator and Activation-Manager Repomem Density
+  - `RGF-252` VALIDATOR Protocol Repomem Parity
+  - `RGF-253` Orchestrator-Startup Memory Injection Redesign
+  - `RGF-254` Memory Manager Intelligent-Review Cadence
+- FILES_CHANGED:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+
+### 2026.04.27.05 / GOV-CHANGE-20260427-05
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-248 named-verb inter-role message schema
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including named-verb inter-role traffic.
+  - `RGF-248`
+- FOLLOW_ON_ITEMS:
+  - `RGF-247`
+  - `RGF-249`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/inter-role-verb-lib.mjs`
+  - `.GOV/roles_shared/schemas/inter_role_verbs/*.schema.json`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/schemas/NUDGE_PAYLOAD.schema.json`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/session/nudge-queue-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/checks/verb-coverage-check.mjs`
+  - `.GOV/roles_shared/checks/gov-check.mjs`
+  - `.GOV/roles_shared/tests/inter-role-verb-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/nudge-queue-lib.test.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/templates/WP_RECEIPTS_TEMPLATE.jsonl`
+  - `justfile`
+- OUTCOME: The governance kernel now defines the initial eight inter-role verbs (`MT_HANDOFF`, `MT_VERDICT`, `MT_REMEDIATION_REQUIRED`, `WP_HANDOFF`, `INTEGRATION_VERDICT`, `CONCERN`, `PHASE_TRANSITION`, `RELAUNCH_REQUEST`) with schema files and a shared validator/renderer. `wp-receipt-append` accepts `--verb` and persists validated `verb` / `verb_body` fields while legacy receipts continue to validate. Nudge payloads validate matching verb bodies, validator verdict readers prefer verb verdict fields, timeline/dossier projection renders verb receipts into human-readable lines, and `verb-coverage-check` reports adoption by role pair.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/lib/inter-role-verb-lib.mjs`
+  - `node --check .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/nudge-queue-lib.mjs`
+  - `node --check .GOV/roles_shared/checks/verb-coverage-check.mjs`
+  - `node --test .GOV/roles_shared/tests/inter-role-verb-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `node --test .GOV/roles_shared/tests/nudge-queue-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `node .GOV/roles_shared/checks/verb-coverage-check.mjs`
+  - `just docs-check`
+  - `just build-order-sync`
+  - `git diff --check`
+  - `just gov-check`
+
+### 2026.04.27.04 / GOV-CHANGE-20260427-04
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-246 hook-driven session self-rehydration
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including hook self-rehydration.
+  - `RGF-246`
+- FOLLOW_ON_ITEMS:
+  - `RGF-248`
+  - `RGF-247`
+  - `RGF-249`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/role-self-prime.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/hooks/templates/claude/settings-autonomous.json`
+  - `.GOV/hooks/templates/codex/settings-autonomous.json`
+  - `.GOV/hooks/templates/cursor/settings-autonomous.json`
+  - `.GOV/hooks/templates/gemini/settings-autonomous.json`
+  - `.GOV/hooks/templates/ollama-resident/settings-autonomous.json`
+  - `.GOV/roles_shared/tests/role-self-prime.test.mjs`
+  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- OUTCOME: Governed role startup now defaults to a compact `ROLE_SELF_PRIME_HOOK` stub that directs the spawned role to build its effective context through `role-self-prime` from terminal-record fallback, packet projection, runtime status, MT board, active-lane brief, and bounded memory injection. Launch and session-control paths export hook environment variables, provider templates define `SessionStart` and `PreCompact` self-prime commands, PreCompact can write the fresh prompt prefix into a compaction summary, and `--inline-prompt` preserves the legacy inline repair escape hatch.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/role-self-prime.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/role-self-prime.test.mjs`
+  - `node --test .GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `node .GOV/roles_shared/checks/task-board-check.mjs`
+  - `just docs-check`
+  - `just build-order-sync`
+  - `git diff --check`
+  - `just gov-check`
+
+### 2026.04.27.03 / GOV-CHANGE-20260427-03
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-245 turn-boundary nudge queue with atomic claim
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including turn-boundary nudge delivery.
+  - `RGF-245`
+- FOLLOW_ON_ITEMS:
+  - `RGF-246`
+  - `RGF-248`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/nudge-queue-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/nudge-queue.mjs`
+  - `.GOV/roles_shared/schemas/NUDGE_PAYLOAD.schema.json`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles_shared/tests/nudge-queue-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/checks/README.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- OUTCOME: Governance nudges now have a durable per-session queue under `gov_runtime/nudges/` with typed payload validation, FIFO JSON filenames, atomic `.claimed` drain, TTL expiry, stale-claim recovery, failure requeue, and queue-depth caps. Governed startup prompt assembly drains queued nudges at a safe boundary, active-lane/operator views expose nudge depth, and non-emergency `orchestrator-steer-next` `SEND_PROMPT` delivery now enqueues `STEER` nudges unless `--now`/`--direct` is explicitly used.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/nudge-queue-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/operator-monitor-tui.test.mjs .GOV/roles/orchestrator/tests/orchestrator-steer-lib.test.mjs`
+  - `node --check` on modified nudge queue, session, active-lane, orchestrator-steer, and operator-monitor scripts
+  - `just nudge-depth CODER:WP-TEST-NUDGE-v1`
+  - `node .GOV/roles_shared/checks/task-board-check.mjs`
+  - `just docs-check`
+  - `just build-order-sync`
+  - `git diff --check`
+  - `just gov-check`
+
+### 2026.04.27.02 / GOV-CHANGE-20260427-02
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-250 heuristic-risk classification and strategy escalation
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief and add heuristic-risk classification plus strategy escalation for fuzzy MT loops.
+  - `RGF-250`
+- FOLLOW_ON_ITEMS:
+  - `RGF-245`
+  - `RGF-246`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/heuristic-risk-lib.mjs`
+  - `.GOV/roles_shared/checks/heuristic-risk-check.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-microtask-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/mt-board.mjs`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/templates/MICRO_TASK_TEMPLATE.md`
+  - `.GOV/roles_shared/tests/heuristic-risk-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `justfile`
+- OUTCOME: Declared MT files are now mechanically classified for fuzzy/adversarial heuristic risk. Positive classifications project into review microtask contracts with required evidence, strategy-escalation class, and a two-cycle strategy threshold. Receipt append enriches contracts before persistence and emits `HEURISTIC_RISK_STRATEGY_ESCALATION` notifications to Orchestrator when repeated non-PASS review responses hit that threshold, so counterexample loops shift strategy before the generic 3-cycle cap. Coder, WP Validator, and Orchestrator prompts/protocols now surface the rule.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/heuristic-risk-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-microtask-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `node --test .GOV/roles_shared/tests/active-lane-brief.test.mjs`
+  - `node --check` on modified heuristic-risk, MT, receipt, review, session, and active-lane scripts
+  - `just heuristic-risk-check WP-1-Calendar-Sync-Engine-v3`
+  - `node .GOV/roles_shared/checks/task-board-check.mjs`
+  - `just docs-check`
+  - `just build-order-sync`
+  - `git diff --check`
+  - `node .GOV/roles_shared/checks/topology-bundle-check.mjs`
+  - `node .GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `just gov-check`
+
+### 2026.04.27.01 / GOV-CHANGE-20260427-01
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-244 deterministic artifact-malformation absorbers
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including deterministic artifact-malformation absorption before repair loops.
+  - `RGF-244`
+- FOLLOW_ON_ITEMS:
+  - `RGF-250`
+  - `RGF-245`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/artifact-normalizers/`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `.GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles_shared/tests/artifact-normalizers/`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/checks/README.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: Shared artifact absorbers now cover line endings, trailing newlines, smart quotes, unicode dashes, JSON-string arrays, bullet/heading-prefixed fields, key-value whitespace, Windows path escapes, nullish field values, and unambiguous heading-level drift. Receipt append normalizes before persist and records applied absorbers in receipt metadata. Validator-report and packet-truth checks normalize before evaluation, and closeout repair runs an absorber pre-pass before entering mechanical repair classification. Applied absorbers append hit rows to `gov_runtime/absorber_hits.jsonl`.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/artifact-normalizers/normalizers.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `node .GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `node .GOV/roles/validator/checks/validator-report-structure-check.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/closeout-repair.test.mjs`
+  - `node .GOV/roles_shared/checks/topology-bundle-check.mjs`
+  - `git diff --check`
+  - `just gov-check`
+
+### 2026.04.26.09 / GOV-CHANGE-20260426-09
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-243 compact check output and durable detail logging
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, starting with tool-result audit/model asymmetry.
+  - `RGF-243`
+- FOLLOW_ON_ITEMS:
+  - `RGF-244`
+  - `RGF-250`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/check-result-lib.mjs`
+  - `.GOV/roles_shared/checks/gov-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/wp-communication-health-check.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `.GOV/roles_shared/tests/check-result-lib.test.mjs`
+  - `.GOV/roles_shared/tests/check-details-log.test.mjs`
+  - `.GOV/roles_shared/checks/README.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: `gov-check` now runs checks as subprocess steps, emits compact `OK|FAIL | summary` lines, records stdout/stderr into repo-scope `check_details.jsonl`, and continues collecting step failures. `phase-check` records per-step and final WP-scoped detail rows while preserving existing status markers and artifacts. Workflow Dossier sync and the operator monitor `CHECKS` view read the WP-scoped detail log for human diagnostics.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/check-result-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/check-details-log.test.mjs`
+  - `node --test .GOV/roles_shared/tests/phase-check.test.mjs`
+  - `node --check .GOV/roles_shared/checks/wp-communication-health-check.mjs`
+  - `node --check .GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/operator-monitor-tui.mjs`
+  - `node .GOV/roles_shared/checks/gov-check.mjs`
+  - `just build-order-sync`
+  - `just gov-check`
+
+### 2026.04.26.7 / GOV-CHANGE-20260426-07
+
+- STATUS: APPLIED
+- SUMMARY: queued closeout canonicalization refactor items and implementation briefs
+- CHANGE_TYPE: GOVERNANCE_PLANNING
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: closeout repair loops still read and rewrite governance artifacts instead of relying on one canonical terminal state, causing token waste, repair loops, and progress stalls.
+  - `RGF-233`
+  - `RGF-234`
+  - `RGF-235`
+  - `RGF-236`
+  - `RGF-237`
+  - `RGF-238`
+  - `RGF-239`
+  - `RGF-240`
+  - `RGF-241`
+- FOLLOW_ON_ITEMS:
+  - `RGF-233`
+  - `RGF-234`
+  - `RGF-235`
+  - `RGF-236`
+  - `RGF-237`
+  - `RGF-238`
+  - `RGF-239`
+  - `RGF-240`
+  - `RGF-241`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: The governance refactor board now queues `RGF-233` through `RGF-241` for canonical terminal closeout records, product-proof/projection-sync separation, product-only main compatibility, terminal session settlement, closeout debt reports, repair-loop budgets, legacy terminal migration, monotonic terminal publication, and executable closeout breakpoint scenarios.
+- VERIFICATION:
+  - `just build-order-sync`
+  - `just gov-check`
+
+### 2026.04.26.6 / GOV-CHANGE-20260426-06
+
+- STATUS: APPLIED
+- SUMMARY: added a mechanical single-authority guard to visible Orchestrator rescue
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: backup Orchestrator launch must not create competing Orchestrators
+  - `RGF-232`
+- FOLLOW_ON_ITEMS: []
+- FILES_CHANGED:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue-lib.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-rescue.test.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-telemetry-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-telemetry-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just orchestrator-rescue [WP-{ID}]` now evaluates downtime/control-plane freshness before generating the visible session, prints the guard decision, records `ORCHESTRATOR_TAKEOVER_ATTEMPT` for non-dry-run WP-scoped rescue launches, and defaults the generated prompt to read-only/status mode unless downtime red-alert criteria or explicit `--force-takeover` Operator authority permits takeover. Takeover attempts are projected as Orchestrator push alerts so operator/status surfaces can see the backup launch.
+- VERIFICATION:
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-rescue-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-rescue.test.mjs .GOV/roles_shared/tests/session-telemetry-lib.test.mjs .GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `just orchestrator-rescue WP-1-Calendar-Sync-Engine-v3 --dry-run`
+  - `just gov-check`
+
+### 2026.04.26.5 / GOV-CHANGE-20260426-05
+
+- STATUS: APPLIED
+- SUMMARY: added Orchestrator downtime red alert projection to the relay watchdog
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: ACP should raise a red alert when Orchestrator/control-plane downtime exceeds 10 minutes and recommend visible rescue at 20 minutes
+  - `RGF-230`
+- FOLLOW_ON_ITEMS:
+  - `RGF-232`
+- FILES_CHANGED:
+  - `.GOV/roles/orchestrator/scripts/lib/orchestrator-downtime-alert-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-downtime-alert.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-telemetry-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/session-telemetry-lib.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just wp-relay-watchdog` now evaluates active orchestrator-managed WPs for stale Orchestrator/control-plane progress, ignores prior downtime alerts as fresh-progress evidence, emits deduped `RED_ALERT_ORCHESTRATOR_DOWNTIME` notifications to the Orchestrator lane at the 10-minute band, changes the 20-minute band recommendation to `just orchestrator-rescue WP-{ID}`, and makes active notification projection, `orchestrator-next`, plus push-alert telemetry stop on that red alert instead of continuing blind re-wakes.
+- VERIFICATION:
+  - `node --check .GOV/roles/orchestrator/scripts/lib/orchestrator-downtime-alert-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `node --check .GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-downtime-alert.test.mjs .GOV/roles/orchestrator/tests/orchestrator-next.test.mjs .GOV/roles_shared/tests/session-telemetry-lib.test.mjs .GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `just wp-relay-watchdog WP-1-Calendar-Sync-Engine-v3 --observe-only`
+  - `just gov-check`
+
+### 2026.04.26.4 / GOV-CHANGE-20260426-04
+
+- STATUS: APPLIED
+- SUMMARY: added the visible Orchestrator rescue launcher and fallback ladder
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: backup Orchestrator startup must open a visible interactive terminal, not a headless ACP lane
+  - `RGF-228`
+  - `RGF-229`
+  - `RGF-231`
+- FOLLOW_ON_ITEMS:
+  - `RGF-230`
+  - `RGF-232`
+- FILES_CHANGED:
+  - `justfile`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue-lib.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-rescue.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just orchestrator-rescue [WP-{ID}]` now creates a visible takeover script under the temp directory, tries Windows Terminal first, visible PowerShell second, and leaves an exact manual script fallback. The generated session runs `orchestrator-health`, launches Codex on `gpt-5.5` with `model_reasoning_effort=xhigh`, embeds the Orchestrator rescue prompt, labels itself as the sanctioned visible-terminal exception, and avoids ACP headless launch mechanics.
+- VERIFICATION:
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-rescue-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-rescue.test.mjs .GOV/roles/orchestrator/tests/orchestrator-health.test.mjs`
+  - `just orchestrator-rescue WP-1-Calendar-Sync-Engine-v3 --dry-run`
+
+### 2026.04.26.3 / GOV-CHANGE-20260426-03
+
+- STATUS: APPLIED
+- SUMMARY: added a compact read-only Orchestrator health bundle for recovery and takeover checks
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: one command should show ACP health, active roles, model/profile state, and WP lifecycle during recovery
+  - `RGF-227`
+- FOLLOW_ON_ITEMS:
+  - `RGF-228`
+  - `RGF-229`
+  - `RGF-230`
+  - `RGF-231`
+  - `RGF-232`
+- FILES_CHANGED:
+  - `justfile`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-health.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-health-lib.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-health.test.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just orchestrator-health [WP-{ID}]` now prints a bounded read-only recovery bundle with registry freshness, ACP broker liveness/build/active-run state, WP lifecycle and steering blockers when a WP is supplied, role rows with model/profile/thread/command/queue/stale-age/worktree state, active runs, and the next safe `orchestrator-next` command. Unfiltered mode suppresses historical closed-session noise.
+- VERIFICATION:
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-health-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-health.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-health.test.mjs`
+  - `just orchestrator-health`
+  - `just orchestrator-health WP-1-Calendar-Sync-Engine-v3`
+
+### 2026.04.26.2 / GOV-CHANGE-20260426-02
+
+- STATUS: APPLIED
+- SUMMARY: replaced guessed permanent worktree paths with topology-resolved protected worktree authority
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: wrong `handshake_main` path guesses must not stop recovery/status commands without actionable diagnostics
+  - `RGF-226`
+- FOLLOW_ON_ITEMS:
+  - `RGF-227`
+  - `RGF-228`
+  - `RGF-229`
+  - `RGF-230`
+  - `RGF-231`
+  - `RGF-232`
+- FILES_CHANGED:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/topology/git-topology-lib.mjs`
+  - `.GOV/roles_shared/scripts/topology/resolve-protected-worktree.mjs`
+  - `.GOV/roles_shared/checks/docs-check.mjs`
+  - `.GOV/roles_shared/scripts/protocol-ack.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles/orchestrator/scripts/role-session-worktree-add.mjs`
+  - `.GOV/roles_shared/scripts/topology/sync-gov-to-main.mjs`
+  - `.GOV/roles_shared/scripts/topology/gov-flush.mjs`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/tests/git-topology-lib.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: protected worktree consumers now resolve `handshake_main`, `wt-gov-kernel`, and `wt-ilja` from live `git worktree list --porcelain` truth before falling back to configured sibling paths. `docs-check`, `gov-check`, `protocol-ack`, `sync-gov-to-main`, `gov-flush`, Integration Validator launch/start helpers, and the new `just resolve-protected-worktree` command surface path failures with discovered worktrees instead of leaving the operator with a silent or guessed-path failure.
+- VERIFICATION:
+  - `node --check` on modified topology/session/orchestrator scripts
+  - `node --test .GOV/roles_shared/tests/git-topology-lib.test.mjs .GOV/roles_shared/tests/repomem-gate-cli.test.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/session-launch-governance.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `just docs-check`
+  - `node .GOV/roles_shared/scripts/topology/resolve-protected-worktree.mjs handshake_main --path-only`
+
+### 2026.04.26.1 / GOV-CHANGE-20260426-01
+
+- STATUS: APPLIED
+- SUMMARY: allowed read-only Orchestrator status checks to continue without an active repomem session
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: `orchestrator-next` should not be blocked by missing repomem for read-only status and recovery checks
+  - `RGF-225`
+- FOLLOW_ON_ITEMS:
+  - `RGF-226`
+  - `RGF-227`
+  - `RGF-228`
+  - `RGF-229`
+  - `RGF-230`
+  - `RGF-231`
+  - `RGF-232`
+- FILES_CHANGED:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/memory/repomem.mjs`
+  - `.GOV/roles_shared/tests/repomem-gate-cli.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `just orchestrator-next` now uses `repomem-soft-gate`, so a missing or stale repomem session emits a warning and read-only lifecycle/session truth can still print. Governed mutation commands continue to call hard `repomem-gate`, preserving the `repomem open` requirement before state-changing work.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/repomem-gate-cli.test.mjs .GOV/roles_shared/tests/repomem-open-contract-lib.test.mjs .GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `just repomem-soft-gate`
+
 ### 2026.04.25.3 / GOV-CHANGE-20260425-03
 
 - STATUS: APPLIED
@@ -3195,3 +3782,31 @@
 - FOLLOW_ON_ITEMS:
   - none
 - OUTCOME: `AUTO` stays on the headless ACP path, `SYSTEM_TERMINAL` repair launches are hidden owned processes, `VSCODE_PLUGIN` governed launches fail closed instead of queueing the VS Code bridge, Memory Manager defaults to the same headless launch path, historical terminal task-board tokens now block governed role starts before runtime artifacts are created, dead-child active runs self-settle, and ACP broker client socket resets are logged instead of crashing the broker.
+
+### 2026.04.26.08 / GOV-CHANGE-20260426-08
+
+- STATUS: APPLIED
+- SUMMARY: imported the harness-pattern governance tranche and implemented cache-stability discipline for active role sessions
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - Operator approval on 2026-04-26 to import and implement the harness implementation brief items
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426_HARNESS_RGFS.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426_HARNESS_ADDENDUM.md`
+  - MT-008 heuristic-loop review note identifying fuzzy repair-loop escalation needs
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/scripts/session/ephemeral-injection-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/send-mt-prompt.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/lib/manual-relay-envelope-lib.mjs`
+  - `.GOV/roles_shared/checks/cache-stability-check.mjs`
+  - `.GOV/roles_shared/checks/gov-check.mjs`
+  - `.GOV/roles_shared/tests/ephemeral-injection-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/manual-relay-envelope-lib.test.mjs`
+- FOLLOW_ON_ITEMS:
+  - `RGF-243` through `RGF-250` remain queued from the harness-pattern tranche
+  - `RGF-233` through `RGF-241` remain queued from the closeout-canonicalization tranche
+- OUTCOME: `RGF-242` is implemented: active-session route, relay, and microtask context now uses a shared `<governance-context>` user-message fence instead of any system-prompt rebuild, the Codex and Orchestrator protocol carry cache-stability law, and `gov-check` now includes `cache-stability-check`.

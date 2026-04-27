@@ -18,6 +18,7 @@ import {
   parsePacketSingleField,
 } from "./scope-surface-lib.mjs";
 import { deriveWpMicrotaskPlan } from "./wp-microtask-lib.mjs";
+import { normalizeInterRoleVerb } from "./inter-role-verb-lib.mjs";
 import {
   hasTerminalVerdictOfRecord,
   materializeRuntimeAuthorityView,
@@ -63,6 +64,7 @@ const ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES = new Set([
   "CODER_HANDOFF",
   "CODER_INTENT",
   "GOVERNANCE_CHECKPOINT",
+  "MT_VERDICT_MECHANICAL",
   "MT_FIX_CYCLE_ESCALATION",
   "REVIEW_REQUEST",
   "REVIEW_RESPONSE",
@@ -71,6 +73,12 @@ const ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES = new Set([
   "VALIDATOR_QUERY",
   "VALIDATOR_RESPONSE",
   "VALIDATOR_REVIEW",
+]);
+const ACTIVE_PUSH_ALERT_SOURCE_KIND_VALUES = new Set([
+  "ACP_HEALTH_ALERT",
+  "ORCHESTRATOR_TAKEOVER_ATTEMPT",
+  "RED_ALERT_ORCHESTRATOR_DOWNTIME",
+  "RELAY_WATCHDOG_REPAIR",
 ]);
 
 function normalizeRole(value) {
@@ -302,6 +310,10 @@ function activeCorrelationIdsFromStatus(statusEvaluation = null, runtimeStatus =
 
 function notificationMatchesProjectedRoute(notification = null, autoRoute = null, activeCorrelationIds = new Set()) {
   const sourceKind = normalizeReceiptKind(notification?.source_kind);
+  if (ACTIVE_PUSH_ALERT_SOURCE_KIND_VALUES.has(sourceKind)) {
+    const targetRole = normalizeRole(notification?.target_role);
+    return targetRole === "ORCHESTRATOR" || targetRole === "OPERATOR";
+  }
   if (!ACTIVE_NOTIFICATION_SOURCE_KIND_VALUES.has(sourceKind)) return false;
 
   const targetRole = normalizeRole(notification?.target_role);
@@ -629,6 +641,14 @@ function latestIntentCheckpointClearance(receipts = [], intentReceipt = null) {
 }
 
 export function deriveValidatorReviewOutcome(reviewReceipt = null) {
+  const verb = normalizeInterRoleVerb(reviewReceipt?.verb);
+  if ((verb === "MT_VERDICT" || verb === "INTEGRATION_VERDICT") && reviewReceipt?.verb_body?.verdict === "FAIL") {
+    return "REPAIR_REQUIRED";
+  }
+  if ((verb === "MT_VERDICT" || verb === "INTEGRATION_VERDICT") && reviewReceipt?.verb_body?.verdict === "PASS") {
+    return "APPROVED_FOR_FINAL_REVIEW";
+  }
+  if (verb === "MT_REMEDIATION_REQUIRED") return "REPAIR_REQUIRED";
   const microtaskOutcome = normalizeReviewOutcome(reviewReceipt?.microtask_contract?.review_outcome);
   if (microtaskOutcome !== "UNKNOWN") return microtaskOutcome;
   if (summarySuggestsRepairRequired(reviewReceipt?.summary)) return "REPAIR_REQUIRED";
@@ -637,6 +657,12 @@ export function deriveValidatorReviewOutcome(reviewReceipt = null) {
 }
 
 export function deriveValidatorAssessmentVerdict(reviewReceipt = null) {
+  const verb = normalizeInterRoleVerb(reviewReceipt?.verb);
+  const verbVerdict = String(reviewReceipt?.verb_body?.verdict || "").trim().toUpperCase();
+  if ((verb === "MT_VERDICT" || verb === "INTEGRATION_VERDICT") && ["PASS", "FAIL"].includes(verbVerdict)) {
+    return verbVerdict;
+  }
+  if (verb === "MT_REMEDIATION_REQUIRED") return "FAIL";
   const explicitVerdict = explicitSummaryAssessmentVerdict(reviewReceipt?.summary);
   if (explicitVerdict) return explicitVerdict;
   const outcome = deriveValidatorReviewOutcome(reviewReceipt);

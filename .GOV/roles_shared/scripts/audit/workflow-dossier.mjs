@@ -54,6 +54,10 @@ import {
 import { evaluateWpRepomemCoverage } from "../memory/repomem-coverage-lib.mjs";
 import { evaluateWpTokenBudget } from "../session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../session/wp-token-usage-lib.mjs";
+import {
+  checkDetailsLogPath,
+  readCheckDetails,
+} from "../lib/check-result-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
 
 registerFailCaptureHook("workflow-dossier.mjs", { role: "SHARED" });
@@ -199,6 +203,24 @@ function summarizeTokenTelemetry(tokenLedger = {}, tokenBudget = {}) {
     ["turns", String(turns)],
     ["commands", String(commands)],
   ]);
+}
+
+function formatCheckDetailsInline(details = {}) {
+  const text = JSON.stringify(details || {});
+  if (text.length <= 2400) return text;
+  return `${text.slice(0, 2397)}...`;
+}
+
+function latestCheckDetailDossierLines({ wpId = "", limit = 5 } = {}) {
+  const rows = readCheckDetails({ wpId, limit });
+  return rows.map((row) => {
+    const timestamp = row.timestamp || "UNKNOWN";
+    const check = row.check || "unknown-check";
+    const verdict = row.verdict || "UNKNOWN";
+    const summary = row.summary || "<no summary>";
+    const entryId = row.entry_id || "<no-entry-id>";
+    return `- [${timestamp}] [CHECK_DETAIL] [${check}] ${verdict} | ${summary} | entry=${entryId} | details=${formatCheckDetailsInline(row.details || {})}`;
+  });
 }
 
 function usage() {
@@ -601,6 +623,30 @@ function runSync(rootDir, options) {
     dedupeSuffix: idlePayload,
     insertMode: "section-append",
   });
+  const checkDetailsPath = checkDetailsLogPath({ wpId: options.wpId });
+  const checkDetailLines = latestCheckDetailDossierLines({ wpId: options.wpId, limit: 5 });
+  if (checkDetailLines.length > 0) {
+    for (const line of checkDetailLines.reverse()) {
+      appendWorkflowDossierEntry({
+        repoRoot: rootDir,
+        wpId: options.wpId,
+        filePath: options.file,
+        section: "ORCHESTRATOR_DIAGNOSTIC",
+        line,
+        dedupeSuffix: line.match(/entry=([^ ]+)/)?.[1] || line,
+        insertMode: "section-prepend",
+      });
+    }
+    appendWorkflowDossierEntry({
+      repoRoot: rootDir,
+      wpId: options.wpId,
+      filePath: options.file,
+      section: "ORCHESTRATOR_DIAGNOSTIC",
+      line: `- [${timestamp}] [${role}] [CHECK_DETAILS] [${surface}] latest=${checkDetailLines.length} log=${normalizePath(path.relative(rootDir, checkDetailsPath)) || normalizePath(checkDetailsPath)}`,
+      dedupeSuffix: `CHECK_DETAILS_LOG:${checkDetailLines.map((line) => line.match(/entry=([^ ]+)/)?.[1] || line).join(",")}`,
+      insertMode: "section-prepend",
+    });
+  }
   console.log(normalizePath(path.relative(rootDir, dossierPath)) || normalizePath(dossierPath));
 }
 

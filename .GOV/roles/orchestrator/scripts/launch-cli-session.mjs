@@ -11,6 +11,7 @@ import {
   SESSION_HOST_PREFERENCE,
   SESSION_HOST_FALLBACK,
   SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION,
+  sessionKey,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import {
   assertOrchestratorLaunchAuthority,
@@ -33,10 +34,12 @@ import {
 } from "../../../roles_shared/scripts/session/terminal-ownership-lib.mjs";
 import {
   buildRoleEnvironmentOverrides,
+  buildRoleSelfPrimeEnvironment,
   buildStartupPrompt,
   resolveCliToolForProfile,
   resolveRoleConfig,
   resolveRoleLaunchSelection,
+  resolveRoleWorktreePath,
   assertRoleLaunchProfileSupported,
 } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { evaluateSessionGovernanceState } from "../../../roles_shared/scripts/session/session-governance-state-lib.mjs";
@@ -49,6 +52,7 @@ const requestedHost = String(process.argv[4] || "").trim().toUpperCase() || "AUT
 const requestedModel = String(process.argv[5] || "").trim().toUpperCase() || "PRIMARY";
 const sessionControlCommandPath = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
 const debugMode = process.argv.slice(6).some((arg) => String(arg || "").trim() === "--debug");
+const inlinePromptMode = process.argv.slice(6).some((arg) => String(arg || "").trim() === "--inline-prompt");
 const sessionControlEnv = {
   ...process.env,
   ...(debugMode ? { HANDSHAKE_SESSION_CONTROL_DEBUG: "1" } : {}),
@@ -62,7 +66,7 @@ function fail(message) {
 }
 
 if (!wpId || !wpId.startsWith("WP-")) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/launch-cli-session.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [AUTO|PRINT|${CLI_ESCALATION_HOST_DEFAULT}|${CLI_ESCALATION_HOST_LEGACY_ALIAS}|VSCODE_PLUGIN|VSCODE] [PRIMARY|FALLBACK]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/launch-cli-session.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [AUTO|PRINT|${CLI_ESCALATION_HOST_DEFAULT}|${CLI_ESCALATION_HOST_LEGACY_ALIAS}|VSCODE_PLUGIN|VSCODE] [PRIMARY|FALLBACK] [--inline-prompt]; manual-compatible roles also include CLASSIC_ORCHESTRATOR and VALIDATOR where resolveRoleConfig allows them.`);
 }
 if (!["PRIMARY", "FALLBACK"].includes(requestedModel)) {
   fail(`Invalid model selector: ${requestedModel} (expected PRIMARY or FALLBACK)`);
@@ -74,12 +78,17 @@ function runGit(args) {
 
 const roleConfig = resolveRoleConfig(role, wpId);
 if (!roleConfig) fail(`Unknown role: ${role}`);
-const launchEnvironmentOverrides = buildRoleEnvironmentOverrides({ role });
+const roleSessionId = sessionKey(role, wpId);
+const launchEnvironmentOverrides = {
+  ...buildRoleEnvironmentOverrides({ role }),
+  ...buildRoleSelfPrimeEnvironment({ role, wpId, sessionId: roleSessionId }),
+};
 
 const repoRoot = runGit(["rev-parse", "--show-toplevel"]);
 const currentBranch = runGit(["branch", "--show-current"]);
 assertOrchestratorLaunchAuthority(currentBranch);
-const absWorktreeDir = path.resolve(repoRoot, roleConfig.worktreeDir);
+const worktreeResolution = resolveRoleWorktreePath(repoRoot, roleConfig);
+const absWorktreeDir = worktreeResolution.absWorktreeDir;
 const {
   selectedProfileId,
   selectedProfile,
@@ -130,6 +139,13 @@ if (!governance.launchAllowed) {
   fail(`Governed session ${role}:${wpId} cannot be launched: ${governance.launchBlockers.join("; ")}`);
 }
 
+if (worktreeResolution.resolution && !worktreeResolution.resolution.ok) {
+  fail([
+    `Protected role worktree resolution is invalid: ${absWorktreeDir}`,
+    ...worktreeResolution.diagnostics,
+  ].join("\n"));
+}
+
 if (!fs.existsSync(absWorktreeDir)) {
   execFileSync(
     process.execPath,
@@ -145,6 +161,8 @@ const prompt = buildStartupPrompt({
   selectedModel,
   selectedProfileId,
   selectedProfile,
+  sessionId: roleSessionId,
+  inlinePrompt: inlinePromptMode,
 });
 
 const isClaudeCode = selectedProfile.provider === "ANTHROPIC";
@@ -241,6 +259,7 @@ function launchSystemTerminal() {
   console.log(`[LAUNCH_CLI_SESSION] worktree=${absWorktreeDir}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_profile_id=${selectedProfileId}`);
+  console.log(`[LAUNCH_CLI_SESSION] inline_prompt=${inlinePromptMode ? "YES" : "NO"}`);
   console.log(`[LAUNCH_CLI_SESSION] startup=${roleConfig.startupCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] next=${roleConfig.nextCommand}`);
   console.log(`[LAUNCH_CLI_SESSION] terminal_pid=${launch.processId}`);
@@ -256,6 +275,7 @@ function printOnly(reason, resolvedHost, { includeLaunchScript = true } = {}) {
   console.log(`[LAUNCH_CLI_SESSION] branch=${roleConfig.branch}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_model=${selectedModel}`);
   console.log(`[LAUNCH_CLI_SESSION] selected_profile_id=${selectedProfileId}`);
+  console.log(`[LAUNCH_CLI_SESSION] inline_prompt=${inlinePromptMode ? "YES" : "NO"}`);
   if (includeLaunchScript) {
     console.log(`[LAUNCH_CLI_SESSION] launch_script=${launchScriptPath}`);
   }
@@ -383,7 +403,15 @@ function autoStartGovernedSession(reason) {
   try {
     const output = execFileSync(
       process.execPath,
-      [sessionControlCommandPath, "START_SESSION", role, wpId, "", requestedModel],
+      [
+        sessionControlCommandPath,
+        "START_SESSION",
+        role,
+        wpId,
+        "",
+        requestedModel,
+        ...(inlinePromptMode ? ["--inline-prompt"] : []),
+      ],
       {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
