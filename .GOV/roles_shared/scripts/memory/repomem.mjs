@@ -42,6 +42,9 @@ import {
 } from "./governance-memory-lib.mjs";
 import { validateRepomemOpenContract } from "./repomem-open-contract-lib.mjs";
 import { REPOMEM_DURABLE_CHECKPOINT_TYPES } from "./repomem-coverage-lib.mjs";
+import fs from "node:fs";
+import path from "node:path";
+import { GOVERNANCE_RUNTIME_ROOT_ABS } from "../lib/runtime-paths.mjs";
 
 // RGF-251: roles whose verdicts and judgment calls are first-class governance
 // truth and must never close a session with only OPEN/CLOSE pairs. When one of
@@ -54,6 +57,36 @@ const REPOMEM_DURABLE_REQUIRED_ROLES = new Set([
   "ACTIVATION_MANAGER",
   "WP_VALIDATOR",
 ]);
+
+// RGF-254: when the MEMORY_MANAGER role closes a session, write a durable
+// marker so downstream readers (closeout-dependency, dossier, status checks)
+// can detect when the ACP-launched intelligent review last completed. Without
+// this marker, every closeout would have to scrape MEMORY_HYGIENE_REPORT.md
+// for an `## Intelligent Review` section heuristically.
+const INTELLIGENT_REVIEW_LAST_RUN_FILE = path.join(
+  GOVERNANCE_RUNTIME_ROOT_ABS,
+  "roles_shared",
+  "INTELLIGENT_REVIEW_LAST_RUN.json",
+);
+
+function writeIntelligentReviewLastRunMarker({ sessionId, content, decisions }) {
+  try {
+    const dir = path.dirname(INTELLIGENT_REVIEW_LAST_RUN_FILE);
+    fs.mkdirSync(dir, { recursive: true });
+    const payload = {
+      schema_version: "intelligent_review_last_run@1",
+      timestamp_utc: new Date().toISOString(),
+      session_id: String(sessionId || "").trim(),
+      summary: String(content || "").slice(0, 500),
+      decisions: String(decisions || "").slice(0, 800),
+    };
+    fs.writeFileSync(INTELLIGENT_REVIEW_LAST_RUN_FILE, JSON.stringify(payload, null, 2));
+    return true;
+  } catch (err) {
+    console.error(`[repomem] WARNING: failed to write intelligent-review marker: ${err?.message || err}`);
+    return false;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Argument parsing — consumes all remaining text after a --flag as its value
@@ -469,6 +502,17 @@ try {
     // RGF-251: judgment-bearing roles must capture at least one durable
     // checkpoint per session. Silent OPEN/CLOSE-only runs are governance debt.
     const sessionRole = String(session.role || "").trim().toUpperCase();
+
+    // RGF-254: every MEMORY_MANAGER session close marks an intelligent review
+    // completion so closeout/dossier readers can detect cadence drift.
+    if (sessionRole === "MEMORY_MANAGER") {
+      writeIntelligentReviewLastRunMarker({
+        sessionId: session.session_id,
+        content,
+        decisions: flags.decisions || "",
+      });
+    }
+
     if (REPOMEM_DURABLE_REQUIRED_ROLES.has(sessionRole)) {
       const hasDurable = priorCheckpoints.some((entry) =>
         REPOMEM_DURABLE_CHECKPOINT_TYPES.includes(String(entry.checkpoint_type || "").trim().toUpperCase()),

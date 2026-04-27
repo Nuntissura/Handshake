@@ -156,5 +156,9 @@ export function buildPhaseCheckPlan({
     step("integration-validator-context-brief", "roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs", [normalizedWpId]),
     step("integration-validator-closeout-check", "roles/validator/scripts/lib/integration-validator-closeout-lib.mjs", [normalizedWpId, ...normalizedArgs]),
     step("launch-memory-manager", "roles/memory_manager/scripts/launch-memory-manager.mjs", ["--force"]),
+    // RGF-254: governance-support check — surfaces when the ACP-launched
+    // intelligent review has not run within the cadence window so accumulated
+    // one-off captures get reviewed instead of dead-lettering.
+    step("intelligent-review-cadence-check", "roles/memory_manager/checks/intelligent-review-cadence-check.mjs", []),
   ];
 }

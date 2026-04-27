@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  INTELLIGENT_REVIEW_STALENESS_DAYS,
+  INTELLIGENT_REVIEW_STALENESS_MS,
   MECHANICAL_DECAY_OPTIONS,
+  evaluateIntelligentReviewStaleness,
   isAgeConsolidationCandidate,
   isStaleFileScopeCandidate,
   shouldRunMechanicalPass,
@@ -77,4 +80,43 @@ test("age consolidation candidates are identified without auto-consolidating", (
     accessCount: 4,
     importance: 0.2,
   }), false);
+});
+
+test("intelligent review staleness: MISSING when no marker recorded", () => {
+  const result = evaluateIntelligentReviewStaleness({
+    lastRunIso: "",
+    now: new Date("2026-04-27T00:00:00.000Z").getTime(),
+  });
+  assert.equal(result.status, "MISSING");
+  assert.equal(result.last_intelligent_review_iso, null);
+  assert.equal(result.days_since_intelligent_review, null);
+});
+
+test("intelligent review staleness: FRESH when within window", () => {
+  const now = new Date("2026-04-27T00:00:00.000Z").getTime();
+  const lastRunIso = new Date(now - 3 * 24 * 60 * 60 * 1000).toISOString();
+  const result = evaluateIntelligentReviewStaleness({ lastRunIso, now });
+  assert.equal(result.status, "FRESH");
+  assert.equal(result.days_since_intelligent_review, 3);
+});
+
+test("intelligent review staleness: STALE when past window", () => {
+  const now = new Date("2026-04-27T00:00:00.000Z").getTime();
+  const lastRunIso = new Date(now - (INTELLIGENT_REVIEW_STALENESS_DAYS + 2) * 24 * 60 * 60 * 1000).toISOString();
+  const result = evaluateIntelligentReviewStaleness({ lastRunIso, now });
+  assert.equal(result.status, "STALE");
+  assert.equal(result.days_since_intelligent_review, INTELLIGENT_REVIEW_STALENESS_DAYS + 2);
+});
+
+test("intelligent review staleness: MALFORMED when timestamp is unparseable", () => {
+  const result = evaluateIntelligentReviewStaleness({
+    lastRunIso: "not-a-real-iso-timestamp",
+    now: Date.now(),
+  });
+  assert.equal(result.status, "MALFORMED");
+  assert.equal(result.days_since_intelligent_review, null);
+});
+
+test("intelligent review staleness: gate equals INTELLIGENT_REVIEW_STALENESS_MS / day", () => {
+  assert.equal(INTELLIGENT_REVIEW_STALENESS_MS, INTELLIGENT_REVIEW_STALENESS_DAYS * 24 * 60 * 60 * 1000);
 });
