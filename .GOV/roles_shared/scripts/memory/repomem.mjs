@@ -41,6 +41,19 @@ import {
   VALID_CHECKPOINT_TYPES,
 } from "./governance-memory-lib.mjs";
 import { validateRepomemOpenContract } from "./repomem-open-contract-lib.mjs";
+import { REPOMEM_DURABLE_CHECKPOINT_TYPES } from "./repomem-coverage-lib.mjs";
+
+// RGF-251: roles whose verdicts and judgment calls are first-class governance
+// truth and must never close a session with only OPEN/CLOSE pairs. When one of
+// these roles closes without any durable checkpoint (INSIGHT/DECISION/ERROR/
+// ABANDON/CONCERN/ESCALATION/RESEARCH_CLOSE), session-close emits a strong
+// REPOMEM_GOVERNANCE_DEBT line so the silent-run pattern surfaces immediately
+// to the closing actor instead of hiding inside the dossier coverage report.
+const REPOMEM_DURABLE_REQUIRED_ROLES = new Set([
+  "INTEGRATION_VALIDATOR",
+  "ACTIVATION_MANAGER",
+  "WP_VALIDATOR",
+]);
 
 // ---------------------------------------------------------------------------
 // Argument parsing — consumes all remaining text after a --flag as its value
@@ -451,6 +464,27 @@ try {
 
     if (priorCheckpoints.length <= 1) {
       console.log(`\n  WARNING: Only ${priorCheckpoints.length} checkpoint(s) before close. Consider writing more insights/pre-task notes during sessions.`);
+    }
+
+    // RGF-251: judgment-bearing roles must capture at least one durable
+    // checkpoint per session. Silent OPEN/CLOSE-only runs are governance debt.
+    const sessionRole = String(session.role || "").trim().toUpperCase();
+    if (REPOMEM_DURABLE_REQUIRED_ROLES.has(sessionRole)) {
+      const hasDurable = priorCheckpoints.some((entry) =>
+        REPOMEM_DURABLE_CHECKPOINT_TYPES.includes(String(entry.checkpoint_type || "").trim().toUpperCase()),
+      );
+      if (!hasDurable) {
+        console.log(
+          `\n  REPOMEM_GOVERNANCE_DEBT: ${sessionRole} closed without any durable checkpoint`
+          + ` (INSIGHT/DECISION/ERROR/ABANDON/CONCERN/ESCALATION/RESEARCH_CLOSE).`,
+        );
+        console.log(
+          `  This silent OPEN/CLOSE run becomes governance debt at WP closeout — the`
+          + ` verdict reasoning, scope decision, or judgment call you made is now lost`
+          + ` to future sessions. Capture it next time with`
+          + ` 'just repomem decision|insight|concern' before closing.`,
+        );
+      }
     }
 
     clearSessionMarker();
