@@ -691,7 +691,130 @@ function loadRecentSnapshots(db, { wpId = "", maxPerType = 1, maxTotal = 3, toke
 }
 
 // RGF-125: Orchestrator memory injection — cross-WP, broader budget, different scoring
-const ORCHESTRATOR_MEMORY_TOKEN_BUDGET = 2000;
+// RGF-253: orchestrator startup memory injection budgets.
+// The legacy 2000-token budget was dominated by access-count-weighted entries,
+// which meant single-shot procedural failures (the very ones that should
+// preempt repeated mistakes) were outranked by repeated-hit semantic patterns
+// and never surfaced. Split the budget into dedicated slices that bypass the
+// access_count gate so recent failures, hygiene-report findings, and
+// prior-day decisions appear deterministically.
+const ORCHESTRATOR_MEMORY_TOKEN_BUDGET = 4000;
+const ORCHESTRATOR_RECENT_FAILURE_BUDGET = 700;
+const ORCHESTRATOR_RECENT_FAILURE_DAYS = 7;
+const ORCHESTRATOR_RECENT_FAILURE_LIMIT = 10;
+const ORCHESTRATOR_HYGIENE_REPORT_BUDGET = 400;
+const ORCHESTRATOR_HYGIENE_REPORT_BYTE_LIMIT = 1600;
+const ORCHESTRATOR_PRIOR_DAY_DECISIONS_BUDGET = 400;
+const ORCHESTRATOR_PRIOR_DAY_DECISIONS_HOURS = 30;
+const ORCHESTRATOR_PRIOR_DAY_DECISIONS_LIMIT = 8;
+
+export function loadRecentProceduralFailureLines(db, { now = Date.now() } = {}) {
+  // RGF-253 slice 1: surface every procedural memory created in the last 7
+  // days regardless of access_count. This is the dead-letter fix — single-shot
+  // tool failures and path mistakes get a guaranteed week of visibility before
+  // they need to compete with repeated patterns under the scored bundle.
+  const result = { lines: [], tokenCount: 0, count: 0 };
+  try {
+    const cutoffMs = now - ORCHESTRATOR_RECENT_FAILURE_DAYS * 24 * 60 * 60 * 1000;
+    const cutoffIso = new Date(cutoffMs).toISOString();
+    const rows = db.prepare(
+      `SELECT id, memory_type, topic, summary, wp_id, created_at
+       FROM memory_index
+       WHERE memory_type = 'procedural'
+         AND consolidated = 0
+         AND created_at >= ?
+       ORDER BY created_at DESC
+       LIMIT ?`
+    ).all(cutoffIso, ORCHESTRATOR_RECENT_FAILURE_LIMIT);
+    if (rows.length === 0) return result;
+    for (const row of rows) {
+      const ageHours = Math.max(0, Math.round((now - new Date(row.created_at).getTime()) / 3600000));
+      const ageLabel = ageHours < 1 ? "<1h ago" : ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`;
+      const wpTag = row.wp_id ? ` [${row.wp_id}]` : "";
+      const summary = String(row.summary || "").trim().slice(0, 200);
+      const line = `- (${ageLabel})${wpTag} ${row.topic}: ${summary}`;
+      const lineTokens = estimateTokens(line);
+      if (result.tokenCount + lineTokens > ORCHESTRATOR_RECENT_FAILURE_BUDGET) break;
+      result.lines.push(line);
+      result.tokenCount += lineTokens;
+      result.count += 1;
+    }
+  } catch { /* best-effort */ }
+  return result;
+}
+
+export function loadHygieneReportSummaryLines({ now = Date.now() } = {}) {
+  // RGF-253 slice 2: pull the top of MEMORY_HYGIENE_REPORT.md so the
+  // intelligent-review findings (contradictions resolved, RGF candidates,
+  // stale-entry analysis) are visible at orchestrator startup instead of
+  // sitting unread on disk.
+  const result = { lines: [], tokenCount: 0, present: false };
+  try {
+    const reportPath = path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", "MEMORY_HYGIENE_REPORT.md");
+    if (!fs.existsSync(reportPath)) return result;
+    const stat = fs.statSync(reportPath);
+    const ageHours = Math.max(0, Math.round((now - stat.mtimeMs) / 3600000));
+    const ageLabel = ageHours < 1 ? "<1h ago" : ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`;
+    const raw = fs.readFileSync(reportPath, "utf8");
+    const trimmed = raw.slice(0, ORCHESTRATOR_HYGIENE_REPORT_BYTE_LIMIT);
+    // Take only non-empty lines to keep the slice compact; cap the line count
+    // so a long report does not blow past the token budget.
+    const reportLines = trimmed
+      .split(/\r?\n/)
+      .map((line) => line.trimEnd())
+      .filter((line) => line.length > 0);
+    let tokenCount = 0;
+    const collected = [];
+    for (const line of reportLines) {
+      const lineTokens = estimateTokens(line);
+      if (tokenCount + lineTokens > ORCHESTRATOR_HYGIENE_REPORT_BUDGET) break;
+      collected.push(line.length > 240 ? `${line.slice(0, 237)}...` : line);
+      tokenCount += lineTokens;
+    }
+    if (collected.length === 0) return result;
+    result.present = true;
+    result.tokenCount = tokenCount;
+    result.lines = [`(${ageLabel}) ${reportPath.replace(/\\/g, "/")}`, ...collected];
+  } catch { /* best-effort */ }
+  return result;
+}
+
+export function loadPriorDaySessionCloseLines(db, { now = Date.now() } = {}) {
+  // RGF-253 slice 3: yesterday's SESSION_CLOSE decisions across roles. The
+  // PRIOR_SESSION_LOG already does this for ORCHESTRATOR-only at startup; lift
+  // it to the cross-role view so the orchestrator sees what IntVal/CODER/
+  // WP_VALIDATOR concluded yesterday without rereading conversation logs.
+  const result = { lines: [], tokenCount: 0, count: 0 };
+  try {
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_log'").get();
+    if (!tables) return result;
+    const cutoffMs = now - ORCHESTRATOR_PRIOR_DAY_DECISIONS_HOURS * 60 * 60 * 1000;
+    const cutoffIso = new Date(cutoffMs).toISOString();
+    const rows = db.prepare(
+      `SELECT role, wp_id, topic, content, decisions, timestamp_utc
+       FROM conversation_log
+       WHERE checkpoint_type = 'SESSION_CLOSE'
+         AND timestamp_utc >= ?
+       ORDER BY timestamp_utc DESC
+       LIMIT ?`
+    ).all(cutoffIso, ORCHESTRATOR_PRIOR_DAY_DECISIONS_LIMIT);
+    if (rows.length === 0) return result;
+    for (const row of rows) {
+      const ageHours = Math.max(0, Math.round((now - new Date(row.timestamp_utc).getTime()) / 3600000));
+      const ageLabel = ageHours < 1 ? "<1h ago" : ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`;
+      const wpTag = row.wp_id ? ` [${row.wp_id}]` : "";
+      const decisionsRaw = String(row.decisions || row.content || row.topic || "").trim();
+      const decisions = decisionsRaw.slice(0, 220);
+      const line = `- (${ageLabel}) [${row.role || "UNKNOWN"}]${wpTag} ${decisions}`;
+      const lineTokens = estimateTokens(line);
+      if (result.tokenCount + lineTokens > ORCHESTRATOR_PRIOR_DAY_DECISIONS_BUDGET) break;
+      result.lines.push(line);
+      result.tokenCount += lineTokens;
+      result.count += 1;
+    }
+  } catch { /* best-effort */ }
+  return result;
+}
 
 function loadOrchestratorMemoryLines() {
   try {
@@ -759,10 +882,42 @@ function loadOrchestratorMemoryLines() {
          WHERE id IN (${allEntries.map(() => "?").join(",")})`
       ).run(new Date().toISOString(), ...allEntries.map(s => s.id));
 
+      // RGF-253: compose dedicated bypass-scoring slices BEFORE the
+      // access-count-weighted bundle so single-shot fail captures and recent
+      // hygiene findings are guaranteed visibility at orchestrator startup.
+      const recentFailures = loadRecentProceduralFailureLines(db, { now });
+      const hygieneReport = loadHygieneReportSummaryLines({ now });
+      const priorDayDecisions = loadPriorDaySessionCloseLines(db, { now });
+
+      const totalTokenCount = tokenCount + snapshots.tokenCount + recentFailures.tokenCount + hygieneReport.tokenCount + priorDayDecisions.tokenCount;
+      const headerCounts = [
+        `${selected.length} patterns`,
+        `${snapshots.entries.length} snapshots`,
+        `${recentFailures.count} recent_failures`,
+        `${hygieneReport.present ? 1 : 0} hygiene_report`,
+        `${priorDayDecisions.count} prior_day_decisions`,
+      ].join(", ");
+
       const lines = [
-        `GOVERNANCE MEMORY (${selected.length} entries${snapshots.entries.length > 0 ? `, ${snapshots.entries.length} snapshots` : ""}, ${tokenCount} est. tokens, cross-WP):`,
-        ...selected.map(s => s._line),
+        `GOVERNANCE MEMORY (${headerCounts}, ${totalTokenCount} est. tokens, cross-WP):`,
       ];
+
+      if (recentFailures.lines.length > 0) {
+        lines.push(`RECENT FAILURES (last ${ORCHESTRATOR_RECENT_FAILURE_DAYS}d, all procedural — no access_count gate):`);
+        for (const line of recentFailures.lines) lines.push(line);
+      }
+      if (hygieneReport.present) {
+        lines.push(`HYGIENE REPORT SUMMARY:`);
+        for (const line of hygieneReport.lines) lines.push(line);
+      }
+      if (priorDayDecisions.lines.length > 0) {
+        lines.push(`PRIOR-DAY DECISIONS (SESSION_CLOSE, last ${ORCHESTRATOR_PRIOR_DAY_DECISIONS_HOURS}h, cross-role):`);
+        for (const line of priorDayDecisions.lines) lines.push(line);
+      }
+
+      lines.push(`PATTERNS (scored, cross-WP):`);
+      for (const s of selected) lines.push(s._line);
+
       if (snapshots.entries.length > 0) {
         lines.push("SNAPSHOTS:");
         for (const s of snapshots.entries) lines.push(s._line);
