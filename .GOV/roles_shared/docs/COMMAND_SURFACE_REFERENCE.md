@@ -100,7 +100,7 @@ These are safe starting points for orientation and health checks.
   - inspects the canonisation file set for governance drift and prints the mandatory review checklist; after running it, inspect every listed file and update applicable drift before closeout
 - `just artifact-hygiene-check`
   - `read-only`
-  - validates external artifact placement; repo-local `target/` directories and blocking non-canonical `Handshake_Artifacts` residue fail closed
+  - validates external artifact placement; repo-local `target/` directories, stale Cargo target-dir posture, and sibling artifact-root aliases such as `../Handshake Artifacts/` fail closed
   - retention policy authority: `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
