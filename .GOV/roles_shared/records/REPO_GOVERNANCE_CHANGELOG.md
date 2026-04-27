@@ -21,6 +21,40 @@
 
 ## Entries
 
+### 2026.04.27.07 / GOV-CHANGE-20260427-07
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-247 mechanical-track validator-as-tool-result
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including mechanical-track validator helpers.
+  - `RGF-247`
+- FOLLOW_ON_ITEMS:
+  - `RGF-249`
+- FILES_CHANGED:
+  - `.GOV/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs`
+  - `.GOV/roles/wp_validator/tests/wp-validator-mechanical-track.test.mjs`
+  - `.GOV/roles_shared/scripts/hooks/post-commit-mt-review-request.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-review-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/computed-policy-gate-lib.mjs`
+  - `.GOV/roles_shared/checks/computed-policy-gate-check.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/schemas/inter_role_verbs/MT_VERDICT.schema.json`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `justfile`
+- OUTCOME: Per-MT mechanical validation can now run inline via `wp-validator-mechanical-track`, producing typed `MT_VERDICT_MECHANICAL` receipts with boundary, scope, file-list, build-evidence, concerns, and helper invocation identity. The post-commit MT hook runs the helper before sending the judgment-track review request; mechanical FAIL routes coder remediation immediately and skips WP Validator ACP launch. Computed closeout policy now requires both mechanical and judgment MT PASS receipts for receipt-aware packet formats.
+- VERIFICATION:
+  - `node --check .GOV/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs`
+  - `node --check .GOV/roles_shared/scripts/hooks/post-commit-mt-review-request.mjs`
+  - `node --test .GOV/roles/wp_validator/tests/wp-validator-mechanical-track.test.mjs`
+  - `node --test .GOV/roles_shared/tests/inter-role-verb-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
+  - `just gov-check`
+
 ### 2026.04.27.06 / GOV-CHANGE-20260427-06
 
 - STATUS: APPLIED
