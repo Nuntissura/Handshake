@@ -14,7 +14,7 @@ import { deriveManualRelayEnvelope, preferredTargetSession } from "./lib/manual-
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
 
-const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
+const ACTIVE_ROLE_SET = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"]);
 
 registerFailCaptureHook("manual-relay-next.mjs", { role: "CLASSIC_ORCHESTRATOR" });
 
@@ -119,6 +119,11 @@ const envelope = deriveManualRelayEnvelope({
   notifications,
   dispatchAction,
 });
+const nextResumeCommand = nextActor === "VALIDATOR"
+  ? `just validator-next VALIDATOR ${wpId}`
+  : `just active-lane-brief ${nextActor} ${wpId}`;
+const dispatchContext = `relay ${nextActor} ${envelope.relayKind}`.replace(/"/g, "'");
+const dispatchCommand = `just manual-relay-dispatch ${wpId} "${dispatchContext}"${debugMode ? " PRIMARY --debug" : ""}`;
 
 console.log(`[MANUAL_RELAY_NEXT] wp_id=${wpId}`);
 console.log(`[MANUAL_RELAY_NEXT] workflow_lane=${workflowLane}`);
@@ -150,4 +155,4 @@ for (const line of envelope.operatorExplainer) {
   console.log(`- ${line}`);
 }
 console.log("");
-console.log(`[MANUAL_RELAY_NEXT] next_commands=just active-lane-brief ${nextActor} ${wpId} | just check-notifications ${wpId} ${nextActor} ${targetSession || "<your-session>"} | just manual-relay-dispatch ${wpId}${debugMode ? " --debug" : ""} | just session-registry-status ${wpId}`);
+console.log(`[MANUAL_RELAY_NEXT] next_commands=${nextResumeCommand} | just check-notifications ${wpId} ${nextActor} ${targetSession || "<your-session>"} | ${dispatchCommand} | just session-registry-status ${wpId}`);

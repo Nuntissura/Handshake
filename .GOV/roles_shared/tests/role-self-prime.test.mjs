@@ -43,7 +43,13 @@ function fixtureSessionEventsFile(fixture, sessionId) {
   );
 }
 
-function createFixture() {
+function createFixture({
+  workflowLane = "ORCHESTRATOR_MANAGED",
+  nextExpectedActor = "CODER",
+  nextExpectedSession = "CODER:WP-TEST-SELF-PRIME-v1",
+  waitingOn = "CODER_INTENT",
+  waitingOnSession = "CODER:WP-TEST-SELF-PRIME-v1",
+} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-role-self-prime-"));
   const govRoot = path.join(root, ".GOV");
   const govRuntimeRoot = path.join(root, "gov_runtime");
@@ -59,7 +65,7 @@ function createFixture() {
   writeText(packetPath, [
     `- WP_ID: ${wpId}`,
     "- **Status:** In Progress",
-    "- WORKFLOW_LANE: ORCHESTRATOR_MANAGED",
+    `- WORKFLOW_LANE: ${workflowLane}`,
     "- PACKET_FORMAT_VERSION: 2026-03-22",
     "- COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1",
     "- COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING",
@@ -87,15 +93,15 @@ function createFixture() {
     thread_file: normalizePath(path.join(commDir, "THREAD.md")),
     runtime_status_file: normalizePath(runtimeStatusPath),
     receipts_file: normalizePath(receiptsPath),
-    workflow_lane: "ORCHESTRATOR_MANAGED",
+    workflow_lane: workflowLane,
     runtime_status: "working",
     current_phase: "IMPLEMENTATION",
     current_task_board_status: "IN_PROGRESS",
     current_milestone: "MICROTASK",
-    next_expected_actor: "CODER",
-    next_expected_session: "CODER:WP-TEST-SELF-PRIME-v1",
-    waiting_on: "CODER_INTENT",
-    waiting_on_session: "CODER:WP-TEST-SELF-PRIME-v1",
+    next_expected_actor: nextExpectedActor,
+    next_expected_session: nextExpectedSession,
+    waiting_on: waitingOn,
+    waiting_on_session: waitingOnSession,
     active_role_sessions: [
       { role: "CODER", session_id: "CODER:WP-TEST-SELF-PRIME-v1", state: "working", last_heartbeat_at: "2099-01-01T10:00:00Z" },
     ],
@@ -147,6 +153,27 @@ test("role-self-prime builds effective prompts for governed implementation roles
   }
 });
 
+test("role-self-prime builds effective prompts for classic manual-relay roles", () => {
+  const fixture = createFixture({
+    workflowLane: "MANUAL_RELAY",
+    nextExpectedActor: "VALIDATOR",
+    nextExpectedSession: "VALIDATOR:WP-TEST-SELF-PRIME-v1",
+    waitingOn: "VALIDATOR_REVIEW",
+    waitingOnSession: "VALIDATOR:WP-TEST-SELF-PRIME-v1",
+  });
+  for (const role of ["CLASSIC_ORCHESTRATOR", "VALIDATOR"]) {
+    const result = runSelfPrime(fixture, role);
+    assert.equal(result.status, 0, `${role}\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`);
+    assert.match(result.stdout, /ROLE_SELF_PRIME \[RGF-246\]/);
+    assert.match(result.stdout, new RegExp(`- ROLE: ${role}`));
+    assert.match(result.stdout, /lane=MANUAL_RELAY/);
+    assert.match(result.stdout, /ROLE_SELF_PRIME_EFFECTIVE_PROMPT:/);
+    assert.match(result.stdout, new RegExp(`ROLE LOCK: You are the ${role}`));
+    assert.match(result.stdout, /SESSION_OPEN \(MANDATORY\): Before any governed mutation/i);
+    assert.doesNotMatch(result.stdout, new RegExp(`active-lane-brief ${role}`));
+  }
+});
+
 test("role-self-prime includes same-role predecessor summary when available", () => {
   const fixture = createFixture();
   const previousSessionId = `CODER:${fixture.wpId}:previous`;
@@ -187,6 +214,54 @@ test("role-self-prime includes same-role predecessor summary when available", ()
   assert.match(result.stdout, /<predecessor-summary/);
   assert.match(result.stdout, /PREDECESSOR_SESSION_ID: CODER:WP-TEST-SELF-PRIME-v1:previous/);
   assert.match(result.stdout, /prior_compile_check/);
+});
+
+test("role-self-prime includes predecessor summary for classical validator", () => {
+  const fixture = createFixture({
+    workflowLane: "MANUAL_RELAY",
+    nextExpectedActor: "VALIDATOR",
+    nextExpectedSession: "VALIDATOR:WP-TEST-SELF-PRIME-v1",
+    waitingOn: "VALIDATOR_REVIEW",
+    waitingOnSession: "VALIDATOR:WP-TEST-SELF-PRIME-v1",
+  });
+  const previousSessionId = `VALIDATOR:${fixture.wpId}:previous`;
+  const currentSessionId = `VALIDATOR:${fixture.wpId}`;
+  appendJsonl(fixtureSessionEventsFile(fixture, previousSessionId), {
+    schema_id: "hsk.session_event@1",
+    schema_version: "session_event_v1",
+    timestamp: "2026-04-27T10:00:00Z",
+    wp_id: fixture.wpId,
+    role: "VALIDATOR",
+    session_id: previousSessionId,
+    event_type: "tool_call",
+    tool_name: "prior_manual_validation_check",
+    result_class: "PASS",
+  });
+  writeText(fixture.registryPath, `${JSON.stringify({
+    sessions: [
+      {
+        session_key: previousSessionId,
+        session_id: previousSessionId,
+        wp_id: fixture.wpId,
+        role: "VALIDATOR",
+        last_command_completed_at: "2026-04-27T10:00:00Z",
+      },
+      {
+        session_key: currentSessionId,
+        session_id: currentSessionId,
+        wp_id: fixture.wpId,
+        role: "VALIDATOR",
+        last_event_at: "2026-04-27T11:00:00Z",
+      },
+    ],
+  }, null, 2)}\n`);
+
+  const result = runSelfPrime(fixture, "VALIDATOR");
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /<predecessor-summary/);
+  assert.match(result.stdout, /PREDECESSOR_SESSION_ID: VALIDATOR:WP-TEST-SELF-PRIME-v1:previous/);
+  assert.match(result.stdout, /prior_manual_validation_check/);
 });
 
 test("role-self-prime PreCompact writes a fresh prompt prefix to the summary file", () => {

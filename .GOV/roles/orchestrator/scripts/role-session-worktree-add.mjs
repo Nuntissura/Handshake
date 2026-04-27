@@ -27,7 +27,7 @@ function fail(message) {
 }
 
 if (!wpId || !wpId.startsWith("WP-")) {
-  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/role-session-worktree-add.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [branch] [dir]`);
+  fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/role-session-worktree-add.mjs <ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|MEMORY_MANAGER> <WP_ID> [branch] [dir]; manual-compatible roles also include CLASSIC_ORCHESTRATOR and VALIDATOR where resolveRoleConfig allows them.`);
 }
 
 function defaultsForRole(roleName, workPacketId) {

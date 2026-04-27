@@ -26,11 +26,14 @@ import {
 } from "../scripts/session/session-policy.mjs";
 
 test("session policy binds validator startup and resume commands to explicit roles", () => {
+  assert.equal(roleStartupCommand("CLASSIC_ORCHESTRATOR"), "just classic-orchestrator-startup");
   assert.equal(roleStartupCommand("WP_VALIDATOR"), "just validator-startup WP_VALIDATOR");
   assert.equal(roleStartupCommand("INTEGRATION_VALIDATOR"), "just validator-startup INTEGRATION_VALIDATOR");
   assert.equal(roleStartupCommand("VALIDATOR"), "just validator-startup VALIDATOR");
+  assert.equal(roleNextCommand("CLASSIC_ORCHESTRATOR", "WP-TEST-MANUAL-v1"), "just manual-relay-next WP-TEST-MANUAL-v1");
   assert.equal(roleNextCommand("WP_VALIDATOR", "WP-TEST-WPVAL-v1"), "just validator-next WP_VALIDATOR WP-TEST-WPVAL-v1");
   assert.equal(roleNextCommand("INTEGRATION_VALIDATOR", "WP-TEST-VALIDATOR-v1"), "just validator-next INTEGRATION_VALIDATOR WP-TEST-VALIDATOR-v1");
+  assert.equal(roleNextCommand("VALIDATOR", "WP-TEST-MANUAL-v1"), "just validator-next VALIDATOR WP-TEST-MANUAL-v1");
   assert.equal(roleNextCommand("VALIDATOR", ""), "just validator-next VALIDATOR");
 });
 
@@ -191,6 +194,71 @@ test("activation-manager startup and steering prompts enforce the workflow split
   assert.doesNotMatch(steerPrompt, /check-notifications/i);
 });
 
+test("classic orchestrator prompts carry manual-relay combined prelaunch authority", () => {
+  const wpId = "WP-TEST-CLASSIC-v1";
+  const roleConfig = resolveRoleConfig("CLASSIC_ORCHESTRATOR", wpId);
+  const prompt = buildInlineStartupPrompt({
+    role: "CLASSIC_ORCHESTRATOR",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [],
+    conversationContextLines: [],
+  });
+  const steerPrompt = buildSteeringPrompt({
+    role: "CLASSIC_ORCHESTRATOR",
+    wpId,
+    roleConfig,
+  });
+
+  assert.equal(roleConfig.branch, "gov_kernel");
+  assert.equal(roleConfig.worktreeDir, ".");
+  assert.match(prompt, /MANUAL-RELAY AUTHORITY \(HARD\): Operator remains the active relay/i);
+  assert.match(prompt, /COMBINED PRE-LAUNCH PARITY \(HARD\)/i);
+  assert.match(prompt, /just manual-relay-next WP-TEST-CLASSIC-v1/i);
+  assert.match(prompt, /just manual-relay-dispatch WP-TEST-CLASSIC-v1 "<context>"/i);
+  assert.match(prompt, /just role-self-prime CLASSIC_ORCHESTRATOR WP-TEST-CLASSIC-v1/i);
+  assert.match(prompt, /\.GOV\/roles\/classic_orchestrator\/CLASSIC_ORCHESTRATOR_PROTOCOL\.md/i);
+  assert.doesNotMatch(prompt, /just active-lane-brief CLASSIC_ORCHESTRATOR/i);
+
+  assert.match(steerPrompt, /RESUME MANUAL_RELAY CLASSIC_ORCHESTRATOR lane/i);
+  assert.match(steerPrompt, /Operator asked you to broker the hop/i);
+  assert.doesNotMatch(steerPrompt, /just active-lane-brief VALIDATOR/i);
+});
+
+test("classical validator prompts use manual-relay validator surfaces", () => {
+  const wpId = "WP-TEST-CLASSIC-VALIDATOR-v1";
+  const roleConfig = resolveRoleConfig("VALIDATOR", wpId);
+  const prompt = buildInlineStartupPrompt({
+    role: "VALIDATOR",
+    wpId,
+    roleConfig,
+    selectedModel: ROLE_SESSION_PRIMARY_MODEL,
+    startupMemoryLines: [],
+    conversationContextLines: [],
+  });
+  const steerPrompt = buildSteeringPrompt({
+    role: "VALIDATOR",
+    wpId,
+    roleConfig,
+  });
+
+  assert.equal(roleConfig.branch, "main");
+  assert.equal(roleConfig.worktreeDir, "../handshake_main");
+  assert.match(prompt, /COMBINED VALIDATOR PARITY \(HARD\)/i);
+  assert.match(prompt, /just validator-next VALIDATOR WP-TEST-CLASSIC-VALIDATOR-v1/i);
+  assert.match(prompt, /just external-validator-brief WP-TEST-CLASSIC-VALIDATOR-v1/i);
+  assert.match(prompt, /node "\$env:HANDSHAKE_GOV_ROOT\/roles_shared\/scripts\/session\/role-command-compat\.mjs" validator-startup VALIDATOR/i);
+  assert.match(prompt, /just role-self-prime VALIDATOR WP-TEST-CLASSIC-VALIDATOR-v1/i);
+  assert.match(prompt, /\.GOV\/roles\/validator\/VALIDATOR_PROTOCOL\.md/i);
+  assert.doesNotMatch(prompt, /just active-lane-brief VALIDATOR/i);
+
+  assert.match(steerPrompt, /RESUME MANUAL_RELAY VALIDATOR lane/i);
+  assert.match(steerPrompt, /Operator is the relay for this lane/i);
+  assert.match(steerPrompt, /just external-validator-brief WP-TEST-CLASSIC-VALIDATOR-v1/i);
+  assert.doesNotMatch(steerPrompt, /just active-lane-brief VALIDATOR/i);
+});
+
 test("activation-manager profile selection honors an explicit declared Claude Opus 4.7 profile", () => {
   const packetLikeText = [
     "- ACTIVATION_MANAGER_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH",
@@ -205,6 +273,19 @@ test("activation-manager profile selection honors an explicit declared Claude Op
   assert.equal(selection.profile?.launch_model, "claude-opus-4-7");
   assert.equal(selection.profile?.launch_reasoning_config_value, "xhigh");
   assert.equal(fallbackSelection.selected_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
+});
+
+test("classic role profile selection reuses orchestrator and integration validator packet fields", () => {
+  const packetLikeText = [
+    "- ORCHESTRATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH",
+    "- INTEGRATION_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX",
+  ].join("\n");
+
+  const classicSelection = resolveRoleModelProfileSelection("CLASSIC_ORCHESTRATOR", packetLikeText, "PRIMARY");
+  const validatorSelection = resolveRoleModelProfileSelection("VALIDATOR", packetLikeText, "PRIMARY");
+
+  assert.equal(classicSelection.primary_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH);
+  assert.equal(validatorSelection.primary_profile_id, ROLE_MODEL_PROFILE_CLAUDE_CODE_OPUS_4_6_THINKING_MAX);
 });
 
 test("memory-manager prompts advertise synthetic receipt emission instead of packet assumptions", () => {
@@ -390,6 +471,17 @@ test("integration-validator control requests carry kernel governance env overrid
   assert.equal(request.governed_action.rule_id, "SESSION_CONTROL_START_SESSION_EXTERNAL_EXECUTE");
   assert.equal(request.governed_action.command_id, request.command_id);
   assert.equal(request.busy_ingress_mode, "REJECT");
+});
+
+test("classical validator control requests also carry kernel governance env override", () => {
+  const env = buildRoleEnvironmentOverrides({
+    role: "VALIDATOR",
+    governanceRootAbs: "D:/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV",
+  });
+
+  assert.deepEqual(env, {
+    HANDSHAKE_GOV_ROOT: "D:/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV",
+  });
 });
 
 test("role self-prime environment carries launch hook context", () => {

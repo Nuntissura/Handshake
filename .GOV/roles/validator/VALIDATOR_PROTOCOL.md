@@ -113,6 +113,26 @@ Validator output (review verdicts, concerns, gate decisions, closeout judgments)
 - CLI escalation is hidden-process repair only. `CURRENT` and `VSCODE_PLUGIN` are disabled for governed role launches because they can focus or capture Operator input.
 - The historical add-on at `/.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md` remains on disk for legacy audit/reference only and is not the active rule for current runs.
 
+## Classical Validator Parity For MANUAL_RELAY
+
+When the active workflow is `WORKFLOW_LANE=MANUAL_RELAY`, the `VALIDATOR` role is the combined classical validator:
+
+- It combines WP Validator early-review duties and Integration Validator final-verdict duties.
+- The Operator remains the relay. The Validator must not assume autonomous Orchestrator-managed steering or bypass the structured manual relay envelope.
+- Startup/resume is `just validator-startup VALIDATOR` followed by `just validator-next VALIDATOR WP-{ID}` and `just external-validator-brief WP-{ID}` when a packet is active.
+- `VALIDATOR` may own final validation closure and merge-to-`main` authority only for manual/non-orchestrator-managed work. It must not stand in for `INTEGRATION_VALIDATOR` on split orchestrator-managed WPs.
+- Manual-relay role-to-role content must remain in typed receipts/envelopes. Operator narrative is explanation, not the routing wire.
+- The same anti-gaming, spec evidence, negative proof, heuristic-risk, strategy-escalation, validator gates, and merge-safety rules apply to the combined classical role.
+
+## Self-Prime And Predecessor Summary (RGF-249)
+
+- `VALIDATOR`, `WP_VALIDATOR`, and `INTEGRATION_VALIDATOR` are all eligible for deterministic self-prime.
+- For classical manual validation, after startup, compaction, or fresh recovery, run:
+  - `just role-self-prime VALIDATOR WP-{ID} --session-id VALIDATOR:WP-{ID}`
+- Self-prime assembles packet/runtime/task-board/memory context and includes a same-role predecessor summary when available.
+- Predecessor summaries are context only. They do not override packet truth, runtime projection, receipts, task-board state, validator reports, or explicit Operator instruction.
+- If self-prime and `just validator-next VALIDATOR WP-{ID}` disagree, reconcile against packet/runtime/receipts before validating or merging.
+
 ## Final Validator Authority (Current Law)
 
 - For orchestrator-managed WPs, `WP_VALIDATOR` is the active WP-scoped technical steering reviewer, but never the final merge authority.

@@ -151,6 +151,58 @@ test("manual-relay-next classifies role traffic separately from operator explana
   }
 });
 
+test("manual-relay-next accepts classical VALIDATOR and prints validator resume command", () => {
+  const wpId = "WP-TEST-MANUAL-RELAY-VALIDATOR";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-manual-relay-validator-"));
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(packetDir, "packet.md"),
+    [
+      `# Task Packet: ${wpId}`,
+      "",
+      "## METADATA",
+      `- WP_ID: ${wpId}`,
+      "- WORKFLOW_LANE: MANUAL_RELAY",
+      `- WP_RUNTIME_STATUS_FILE: ${runtimePath.replace(/\\/g, "/")}`,
+      `- WP_COMMUNICATION_DIR: ${commDir.replace(/\\/g, "/")}`,
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(path.join(commDir, "NOTIFICATIONS.jsonl"), "", "utf8");
+  fs.writeFileSync(
+    runtimePath,
+    JSON.stringify({
+      next_expected_actor: "VALIDATOR",
+      next_expected_session: "validator-test",
+      waiting_on: "VALIDATOR_REVIEW",
+      runtime_status: "working",
+      current_phase: "VALIDATION",
+      current_packet_status: "Ready for Dev",
+      current_task_board_status: "READY_FOR_DEV",
+    }, null, 2),
+    "utf8",
+  );
+
+  try {
+    const result = spawnSync(process.execPath, [scriptPath, wpId], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /\[MANUAL_RELAY_NEXT\] next_actor=VALIDATOR/);
+    assert.match(result.stdout, /next_commands=just validator-next VALIDATOR WP-TEST-MANUAL-RELAY-VALIDATOR/);
+    assert.doesNotMatch(result.stdout, /just active-lane-brief VALIDATOR/);
+    assert.match(result.stdout, /just manual-relay-dispatch WP-TEST-MANUAL-RELAY-VALIDATOR "relay VALIDATOR/);
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
 test("manual-relay-next uses the anchored notification and reports hidden residue counts", () => {
   const wpId = "WP-TEST-MANUAL-RELAY-ANCHOR";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
