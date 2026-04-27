@@ -19,6 +19,30 @@ function writeText(filePath, text = "") {
   fs.writeFileSync(filePath, text, "utf8");
 }
 
+function appendJsonl(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.appendFileSync(filePath, `${JSON.stringify(value)}\n`, "utf8");
+}
+
+function sanitizePathSegment(value = "") {
+  return String(value || "")
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    || "session";
+}
+
+function fixtureSessionEventsFile(fixture, sessionId) {
+  return path.join(
+    fixture.govRuntimeRoot,
+    "roles_shared",
+    "WP_SESSIONS",
+    sanitizePathSegment(fixture.wpId),
+    sanitizePathSegment(sessionId),
+    "events.jsonl",
+  );
+}
+
 function createFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-role-self-prime-"));
   const govRoot = path.join(root, ".GOV");
@@ -30,6 +54,7 @@ function createFixture() {
   const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
   const notificationsPath = path.join(commDir, "NOTIFICATIONS.jsonl");
   const cursorPath = path.join(commDir, "NOTIFICATION_CURSOR.json");
+  const registryPath = path.join(govRuntimeRoot, "roles_shared", "ROLE_SESSION_REGISTRY.json");
 
   writeText(packetPath, [
     `- WP_ID: ${wpId}`,
@@ -83,9 +108,9 @@ function createFixture() {
   writeText(notificationsPath, "");
   writeText(cursorPath, `${JSON.stringify({ schema_version: "wp_notification_cursor@1", cursors: {} }, null, 2)}\n`);
   writeText(path.join(commDir, "THREAD.md"), "# thread\n");
-  writeText(path.join(govRuntimeRoot, "roles_shared", "ROLE_SESSION_REGISTRY.json"), `${JSON.stringify({ sessions: [] }, null, 2)}\n`);
+  writeText(registryPath, `${JSON.stringify({ sessions: [] }, null, 2)}\n`);
 
-  return { root, govRoot, govRuntimeRoot, wpId };
+  return { root, govRoot, govRuntimeRoot, wpId, registryPath };
 }
 
 function runSelfPrime(fixture, role, extraArgs = []) {
@@ -122,9 +147,74 @@ test("role-self-prime builds effective prompts for governed implementation roles
   }
 });
 
+test("role-self-prime includes same-role predecessor summary when available", () => {
+  const fixture = createFixture();
+  const previousSessionId = `CODER:${fixture.wpId}:previous`;
+  const currentSessionId = `CODER:${fixture.wpId}`;
+  appendJsonl(fixtureSessionEventsFile(fixture, previousSessionId), {
+    schema_id: "hsk.session_event@1",
+    schema_version: "session_event_v1",
+    timestamp: "2026-04-27T10:00:00Z",
+    wp_id: fixture.wpId,
+    role: "CODER",
+    session_id: previousSessionId,
+    event_type: "tool_call",
+    tool_name: "prior_compile_check",
+    result_class: "PASS",
+  });
+  writeText(fixture.registryPath, `${JSON.stringify({
+    sessions: [
+      {
+        session_key: previousSessionId,
+        session_id: previousSessionId,
+        wp_id: fixture.wpId,
+        role: "CODER",
+        last_command_completed_at: "2026-04-27T10:00:00Z",
+      },
+      {
+        session_key: currentSessionId,
+        session_id: currentSessionId,
+        wp_id: fixture.wpId,
+        role: "CODER",
+        last_event_at: "2026-04-27T11:00:00Z",
+      },
+    ],
+  }, null, 2)}\n`);
+
+  const result = runSelfPrime(fixture, "CODER");
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /<predecessor-summary/);
+  assert.match(result.stdout, /PREDECESSOR_SESSION_ID: CODER:WP-TEST-SELF-PRIME-v1:previous/);
+  assert.match(result.stdout, /prior_compile_check/);
+});
+
 test("role-self-prime PreCompact writes a fresh prompt prefix to the summary file", () => {
   const fixture = createFixture();
   const summaryPath = path.join(fixture.root, "compact-summary.md");
+  const sessionId = `CODER:${fixture.wpId}`;
+  appendJsonl(fixtureSessionEventsFile(fixture, sessionId), {
+    schema_id: "hsk.session_event@1",
+    schema_version: "session_event_v1",
+    timestamp: "2026-04-27T10:00:00Z",
+    wp_id: fixture.wpId,
+    role: "CODER",
+    session_id: sessionId,
+    event_type: "steer_received",
+    source_role: "ORCHESTRATOR",
+    summary: "precompact state should be preserved",
+  });
+  writeText(fixture.registryPath, `${JSON.stringify({
+    sessions: [
+      {
+        session_key: sessionId,
+        session_id: sessionId,
+        wp_id: fixture.wpId,
+        role: "CODER",
+        last_event_at: "2026-04-27T10:00:00Z",
+      },
+    ],
+  }, null, 2)}\n`);
   const result = runSelfPrime(fixture, "CODER", [
     "--event", "PreCompact",
     "--write-summary", summaryPath,
@@ -137,5 +227,7 @@ test("role-self-prime PreCompact writes a fresh prompt prefix to the summary fil
   assert.match(payload.prompt, /ROLE_SELF_PRIME \[RGF-246\]/);
   const summary = fs.readFileSync(summaryPath, "utf8");
   assert.match(summary, /ROLE_SELF_PRIME_PRECOMPACT \[RGF-246\]/);
+  assert.match(summary, /<predecessor-summary/);
+  assert.match(summary, /precompact state should be preserved/);
   assert.match(summary, /ROLE_SELF_PRIME_EFFECTIVE_PROMPT:/);
 });

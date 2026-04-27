@@ -21,6 +21,35 @@
 
 ## Entries
 
+### 2026.04.27.08 / GOV-CHANGE-20260427-08
+
+- STATUS: APPLIED
+- SUMMARY: completed RGF-249 predecessor-session lookup for compaction and restart
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-26 Operator directive: implement the open harness-pattern items from the implementation brief, including predecessor-session lookup.
+  - `RGF-249`
+- FOLLOW_ON_ITEMS:
+  - `RGF-233`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/predecessor-lookup-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/role-self-prime.mjs`
+  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/tests/predecessor-lookup-lib.test.mjs`
+  - `.GOV/roles_shared/tests/role-self-prime.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: Governed sessions now write compact append-only event logs under the external governance runtime `roles_shared/WP_SESSIONS/<WP_ID>/<SESSION_ID>/events.jsonl`. `role-self-prime` injects a bounded same-role predecessor summary when available, omits it for first sessions, and treats the current session as predecessor during `PreCompact`. Receipt emission and ACP session-command/tool telemetry feed the event stream without crossing role boundaries.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/predecessor-lookup-lib.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/role-self-prime.mjs`
+  - `node --check .GOV/tools/handshake-acp-bridge/agent.mjs`
+  - `node --check .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `node --test .GOV/roles_shared/tests/predecessor-lookup-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/role-self-prime.test.mjs`
+  - `just gov-check`
+
 ### 2026.04.27.07 / GOV-CHANGE-20260427-07
 
 - STATUS: APPLIED

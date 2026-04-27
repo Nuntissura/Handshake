@@ -16,6 +16,10 @@ import {
   resolveRoleLaunchSelection,
 } from "./session-control-lib.mjs";
 import { buildActiveLaneBrief, formatActiveLaneBrief } from "./active-lane-brief-lib.mjs";
+import {
+  getPredecessorSummary,
+  tryAppendSessionEvent,
+} from "./predecessor-lookup-lib.mjs";
 
 const SELF_PRIME_SCHEMA_ID = "hsk.role_self_prime@1";
 const SELF_PRIME_SCHEMA_VERSION = "role_self_prime_v1";
@@ -231,6 +235,20 @@ export async function rolePrime({
 
   const roleConfig = resolveRoleConfig(normalizedRole, normalizedWpId);
   if (!roleConfig) throw new Error(`Unknown role: ${normalizedRole}`);
+  const normalizedEvent = normalizeText(event, "SessionStart");
+  const normalizedSessionId = String(sessionId || `${normalizedRole}:${normalizedWpId}`).trim();
+
+  tryAppendSessionEvent({
+    wpId: normalizedWpId,
+    role: normalizedRole,
+    sessionId: normalizedSessionId,
+    eventType: "role_self_prime",
+    event: {
+      event: normalizedEvent,
+      mt_id: String(mtId || "").trim(),
+      result_class: "PROMPT_ASSEMBLED",
+    },
+  });
 
   const selection = resolveRoleLaunchSelection({
     role: normalizedRole,
@@ -243,8 +261,15 @@ export async function rolePrime({
     role: normalizedRole,
     wpId: normalizedWpId,
     mtId,
-    sessionId,
-    event,
+    sessionId: normalizedSessionId,
+    event: normalizedEvent,
+  });
+  const predecessorSummary = await getPredecessorSummary({
+    wpId: normalizedWpId,
+    role: normalizedRole,
+    currentSessionId: normalizedSessionId,
+    tokenBudget: 500,
+    includeCurrent: String(normalizedEvent || "").trim().toUpperCase() === "PRECOMPACT",
   });
   const inlinePrompt = buildInlineStartupPrompt({
     role: normalizedRole,
@@ -257,10 +282,12 @@ export async function rolePrime({
 
   return [
     contextBlock,
+    predecessorSummary ? "" : null,
+    predecessorSummary,
     "",
     "ROLE_SELF_PRIME_EFFECTIVE_PROMPT:",
     inlinePrompt,
-  ].join("\n");
+  ].filter((line) => line !== null && line !== undefined).join("\n");
 }
 
 function parseArgs(argv = process.argv.slice(2)) {

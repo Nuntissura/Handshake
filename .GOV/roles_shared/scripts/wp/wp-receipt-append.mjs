@@ -62,6 +62,7 @@ import {
 } from "../lib/heuristic-risk-lib.mjs";
 import { renderInterRoleVerbReceipt, validateInterRoleVerbBody } from "../lib/inter-role-verb-lib.mjs";
 import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
+import { tryAppendSessionEvent } from "../session/predecessor-lookup-lib.mjs";
 import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
 import { reconcileWpCommunicationTruth, syncProjectedTaskBoardTruth } from "./ensure-wp-communications.mjs";
 import { openGovernanceMemoryDb, closeDb as closeMemDb, extractMemoryFromReceipt, HIGH_SIGNAL_RECEIPT_KINDS } from "../memory/governance-memory-lib.mjs";
@@ -1382,6 +1383,20 @@ function appendWpReceiptCore({
   }
 
   appendJsonlLine(context.receiptsAbsPath, entry);
+  tryAppendSessionEvent({
+    wpId: WP_ID,
+    role: entry.actor_role,
+    sessionId: entry.actor_session,
+    eventType: "receipt_emitted",
+    event: {
+      receipt_kind: entry.receipt_kind,
+      verb: entry.verb || "",
+      mt_id: String(entry.microtask_contract?.scope_ref || "").trim(),
+      correlation_id: entry.correlation_id || "",
+      summary: entry.summary || "",
+    },
+    timestamp: entry.timestamp_utc,
+  });
   if (reviewTrackedReceipt) {
     appendReviewNotifications({ wpId: WP_ID, workflowLane: context.workflowLane, entry, autoRoute });
   }
