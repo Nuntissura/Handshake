@@ -1,8 +1,11 @@
 use super::types::{
+    executor_eligibility_policy_ids_for_family, queue_automation_rule_ids_for_reason,
+    transition_rule_ids_for_family, validate_software_delivery_task_board_projection_against_canonical,
     MarkdownMirrorContractV1, MirrorSyncState, ProjectProfileKind,
-    StructuredCollaborationRecordFamily, StructuredCollaborationValidationCode,
-    StructuredCollaborationValidationResult, TaskBoardStatus, WorkflowQueueReasonCode,
-    WorkflowStateFamily,
+    StructuredCollaborationRecordFamily, StructuredCollaborationSummaryV1,
+    StructuredCollaborationValidationCode, StructuredCollaborationValidationResult, TaskBoardStatus,
+    WorkflowQueueReasonCode, WorkflowStateFamily, STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1,
+    STRUCTURED_COLLABORATION_SUMMARY_SCHEMA_ID_V1,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -25,6 +28,14 @@ pub struct TaskBoardSections {
     pub cancelled: Vec<TaskBoardEntry>,
 }
 
+/// Task board entry projection row.
+///
+/// For `project_profile_kind = software_delivery` (v02.181): the row's
+/// `mirror_state`, `lane_id`, and `status` text are advisory display state
+/// only. Authoritative work meaning (`workflow_state_family`,
+/// `queue_reason_code`, `allowed_action_ids`) MUST be lifted from the
+/// canonical `StructuredCollaborationSummaryV1`. See
+/// `derive_software_delivery_projection_surface` in `locus::types`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TaskBoardEntryRecordV1 {
     pub schema_id: String,
@@ -184,6 +195,56 @@ pub fn validate_task_board_entry_authoritative_fields(
     }
 
     result
+}
+
+/// MT-002 v02.181: Production wiring for the software-delivery overlay
+/// runtime-truth specialization.
+///
+/// Synthesizes a minimal `StructuredCollaborationSummaryV1` from the
+/// already-extracted authoritative truths produced by the runtime
+/// (`work_packet_workflow_state` + `allowed_action_ids`) and dispatches to
+/// `validate_software_delivery_task_board_projection_against_canonical`.
+/// Non-software_delivery entries return success with no issues so this
+/// helper is safe to call unconditionally inside the production task-board
+/// materialization loop.
+pub fn enforce_software_delivery_task_board_projection_authority(
+    entry: &TaskBoardEntryRecordV1,
+    expected_record_id: &str,
+    expected_workflow_state_family: WorkflowStateFamily,
+    expected_queue_reason_code: WorkflowQueueReasonCode,
+    expected_allowed_action_ids: Vec<String>,
+) -> StructuredCollaborationValidationResult {
+    if entry.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        return StructuredCollaborationValidationResult::success(
+            StructuredCollaborationRecordFamily::TaskBoardEntry,
+        );
+    }
+    let canonical_proxy = StructuredCollaborationSummaryV1 {
+        schema_id: STRUCTURED_COLLABORATION_SUMMARY_SCHEMA_ID_V1.to_string(),
+        schema_version: STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1.to_string(),
+        record_id: expected_record_id.to_string(),
+        record_kind: "work_packet".to_string(),
+        project_profile_kind: ProjectProfileKind::SoftwareDelivery,
+        updated_at: entry.updated_at.clone(),
+        mirror_state: MirrorSyncState::CanonicalOnly,
+        authority_refs: Vec::new(),
+        evidence_refs: Vec::new(),
+        mirror_contract: None,
+        workflow_state_family: expected_workflow_state_family,
+        queue_reason_code: expected_queue_reason_code,
+        allowed_action_ids: expected_allowed_action_ids,
+        transition_rule_ids: transition_rule_ids_for_family(expected_workflow_state_family),
+        queue_automation_rule_ids: queue_automation_rule_ids_for_reason(expected_queue_reason_code),
+        executor_eligibility_policy_ids: executor_eligibility_policy_ids_for_family(
+            expected_workflow_state_family,
+        ),
+        status: String::new(),
+        title_or_objective: String::new(),
+        blockers: Vec::new(),
+        next_action: None,
+        summary_ref: None,
+    };
+    validate_software_delivery_task_board_projection_against_canonical(entry, &canonical_proxy)
 }
 
 impl TaskBoardSections {

@@ -237,6 +237,11 @@ pub fn governed_action_descriptors_for_family(
                 title: "Prioritize".into(),
                 description: Some("Set or adjust priority level".into()),
             },
+            GovernedActionDescriptorV1 {
+                action_id: "refine_work_packet".into(),
+                title: "Refine Work Packet".into(),
+                description: Some("Refine a work packet before execution".into()),
+            },
         ],
         WorkflowStateFamily::Ready => vec![
             GovernedActionDescriptorV1 {
@@ -248,6 +253,16 @@ pub fn governed_action_descriptors_for_family(
                 action_id: "assign".into(),
                 title: "Assign".into(),
                 description: Some("Assign to an executor".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "assign_work_packet".into(),
+                title: "Assign Work Packet".into(),
+                description: Some("Assign a work packet to an executor".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "assign_micro_task".into(),
+                title: "Assign Micro-Task".into(),
+                description: Some("Assign a micro-task to an executor".into()),
             },
         ],
         WorkflowStateFamily::Active => vec![
@@ -265,6 +280,16 @@ pub fn governed_action_descriptors_for_family(
                 action_id: "pause".into(),
                 title: "Pause".into(),
                 description: Some("Pause active work".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "continue_work_packet".into(),
+                title: "Continue Work Packet".into(),
+                description: Some("Continue active work-packet execution".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "continue_micro_task".into(),
+                title: "Continue Micro-Task".into(),
+                description: Some("Continue active micro-task execution".into()),
             },
         ],
         WorkflowStateFamily::Waiting => vec![
@@ -302,6 +327,11 @@ pub fn governed_action_descriptors_for_family(
                 title: "Reject".into(),
                 description: Some("Reject the approval request".into()),
             },
+            GovernedActionDescriptorV1 {
+                action_id: "await_gate_review".into(),
+                title: "Await Gate Review".into(),
+                description: Some("Wait for a gate review before proceeding".into()),
+            },
         ],
         WorkflowStateFamily::Validation => vec![
             GovernedActionDescriptorV1 {
@@ -326,6 +356,21 @@ pub fn governed_action_descriptors_for_family(
                 title: "Escalate".into(),
                 description: Some("Escalate the blocker".into()),
             },
+            GovernedActionDescriptorV1 {
+                action_id: "resolve_blocker".into(),
+                title: "Resolve Blocker".into(),
+                description: Some("Resolve the blocking condition".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "retry_micro_task".into(),
+                title: "Retry Micro-Task".into(),
+                description: Some("Retry a blocked or failed micro-task".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "resolve_micro_task_blocker".into(),
+                title: "Resolve Micro-Task Blocker".into(),
+                description: Some("Resolve a micro-task blocker".into()),
+            },
         ],
         WorkflowStateFamily::Done => vec![
             GovernedActionDescriptorV1 {
@@ -338,6 +383,16 @@ pub fn governed_action_descriptors_for_family(
                 title: "Reopen".into(),
                 description: Some("Reopen for further work".into()),
             },
+            GovernedActionDescriptorV1 {
+                action_id: "archive_work_packet".into(),
+                title: "Archive Work Packet".into(),
+                description: Some("Archive a completed work packet".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "archive_micro_task".into(),
+                title: "Archive Micro-Task".into(),
+                description: Some("Archive a completed micro-task".into()),
+            },
         ],
         WorkflowStateFamily::Canceled => vec![
             GovernedActionDescriptorV1 {
@@ -349,6 +404,16 @@ pub fn governed_action_descriptors_for_family(
                 action_id: "reopen".into(),
                 title: "Reopen".into(),
                 description: Some("Reopen the cancelled record".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "close_work_packet".into(),
+                title: "Close Work Packet".into(),
+                description: Some("Close a canceled work packet".into()),
+            },
+            GovernedActionDescriptorV1 {
+                action_id: "review_skipped_micro_task".into(),
+                title: "Review Skipped Micro-Task".into(),
+                description: Some("Review a skipped micro-task before closure".into()),
             },
         ],
         WorkflowStateFamily::Archived => vec![],
@@ -1805,6 +1870,38 @@ pub fn validate_structured_collaboration_record(
             );
             require_string_array(obj.get("blockers"), "blockers", &mut result);
             require_non_empty_string(obj.get("next_action"), "next_action", &mut result);
+            if let Some(next_action_str) = obj.get("next_action").and_then(Value::as_str) {
+                if !next_action_str.is_empty() {
+                    if !is_registered_governed_action_id(next_action_str) {
+                        result.push_issue(
+                            StructuredCollaborationValidationCode::InvalidFieldValue,
+                            "next_action",
+                            None,
+                            Some(next_action_str.to_string()),
+                            "next_action must be a registered governed action id",
+                        );
+                    } else if let Some(family_str) =
+                        obj.get("workflow_state_family").and_then(Value::as_str)
+                    {
+                        if let Ok(family) = serde_json::from_value::<WorkflowStateFamily>(
+                            Value::String(family_str.to_string()),
+                        ) {
+                            if !is_governed_action_id_allowed_for_workflow_family(
+                                family,
+                                next_action_str,
+                            ) {
+                                result.push_issue(
+                                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                                    "next_action",
+                                    None,
+                                    Some(next_action_str.to_string()),
+                                    "next_action must be allowed for the workflow_state_family",
+                                );
+                            }
+                        }
+                    }
+                }
+            }
         }
         StructuredCollaborationRecordFamily::TaskBoardEntry => {
             require_non_empty_string(obj.get("task_board_id"), "task_board_id", &mut result);
@@ -2650,6 +2747,1514 @@ fn normalized_string_array(value: Option<&Value>) -> Vec<String> {
     values.sort();
     values.dedup();
     values
+}
+
+// ── MT-001: v02.181 software-delivery projection-surface discipline ──────────
+//
+// Projection-surface discipline forbids Dev Command Center, Task Board mirrors,
+// and Role Mailbox chronology from acting as authoritative work meaning for the
+// `software_delivery` profile. All authoritative fields MUST be lifted from the
+// canonical `StructuredCollaborationSummaryV1` (the runtime-backed record). The
+// surface MAY carry advisory display state (mirror sync, board lane, mailbox
+// thread refs) but those fields MUST NOT shadow the canonical fields used by
+// validators, queues, or governed-action eligibility.
+//
+// `SoftwareDeliveryProjectionSurfaceV1` is the compact projection record. It
+// is specialized for `ProjectProfileKind::SoftwareDelivery`; the derivation
+// function rejects other profiles to keep this surface profile-scoped.
+
+pub const SOFTWARE_DELIVERY_PROJECTION_SURFACE_SCHEMA_ID_V1: &str =
+    "hsk.ext.software_delivery.projection_surface@1";
+pub const SOFTWARE_DELIVERY_PROJECTION_SURFACE_SCHEMA_VERSION_V1: &str = "1";
+pub const SOFTWARE_DELIVERY_PROJECTION_SURFACE_RECORD_KIND: &str =
+    "software_delivery_projection_surface";
+
+pub const GOVERNED_ACTION_PREVIEW_SCHEMA_ID_V1: &str =
+    "hsk.ext.software_delivery.governed_action_preview@1";
+pub const GOVERNED_ACTION_PREVIEW_SCHEMA_VERSION_V1: &str = "1";
+pub const GOVERNED_ACTION_PREVIEW_RECORD_KIND: &str = "governed_action_preview";
+
+/// Eligibility verdict for a governed-action preview. UI surfaces (DCC quick
+/// actions, Task Board row actions, Role Mailbox escalation controls) MUST
+/// surface ineligibility reasons before allowing operator escalation, so a
+/// preview never silently gates around policy/approval/evidence checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GovernedActionEligibility {
+    /// Action belongs to the canonical workflow_state_family registry AND no
+    /// canonical blockers are present.
+    Eligible,
+    /// Action is not registered in `governed_action_ids_for_family` for the
+    /// canonical workflow_state_family. UI surfaces MUST refuse to escalate.
+    IneligibleOutOfFamily,
+    /// Action belongs to the canonical workflow_state_family registry but
+    /// canonical blockers exist; UI surfaces MUST surface the blockers and
+    /// require resolution before escalation.
+    IneligibleBlocked,
+}
+
+/// Read-only preview of a governed action that DCC quick actions, Task Board
+/// row actions, and Role Mailbox escalation controls inspect before requesting
+/// any mutation. Constructing a preview MUST NOT mutate canonical runtime
+/// state, evidence, or overlay records: it lifts authoritative refs verbatim
+/// from `StructuredCollaborationSummaryV1`.
+///
+/// Per Master Spec v02.181 projection-surface discipline (packet contract row
+/// "Governed action preview payload"): every actionable surface that may
+/// trigger a governed action SHOULD render with a preview payload carrying
+/// `action_request_id`, target record refs, eligibility, blockers, and
+/// required evidence refs so policy/approval/evidence gates remain explicit
+/// before any state mutation runs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GovernedActionPreviewV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_kind: String,
+    /// Stable correlation id callers reuse if they decide to escalate the
+    /// preview into a real governed action request. Deterministic from the
+    /// canonical record_id, workflow_state_family, and action_id so repeated
+    /// preview construction does not desync ids across surfaces.
+    pub action_request_id: String,
+    /// Stable id of the work item this preview targets. Mirrors
+    /// `StructuredCollaborationSummaryV1::record_id` for software_delivery.
+    pub work_packet_id: String,
+    /// Stable id of the canonical workflow run, when bound by the producer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_run_id: Option<String>,
+    /// Governed action id from `governed_action_ids_for_family` for the
+    /// canonical workflow_state_family.
+    pub action_id: String,
+    /// Workflow state family the preview was derived under (lifted from the
+    /// canonical summary).
+    pub workflow_state_family: WorkflowStateFamily,
+    /// Canonical record refs the action would touch on resolution; lifted
+    /// from `StructuredCollaborationSummaryV1::authority_refs` so previews
+    /// never invent fresh authority paths.
+    #[serde(default)]
+    pub target_record_refs: Vec<String>,
+    /// Eligibility verdict at preview-construction time. UI surfaces MUST
+    /// surface ineligibility reasons before allowing operator escalation.
+    pub eligibility: GovernedActionEligibility,
+    /// Canonical blockers that drive `IneligibleBlocked`; empty when
+    /// canonical reports no blockers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<String>,
+    /// Canonical evidence refs that the validator/approver gate would
+    /// require; lifted from `StructuredCollaborationSummaryV1::evidence_refs`
+    /// so previews stay aligned with the canonical evidence contract.
+    #[serde(default)]
+    pub evidence_refs: Vec<String>,
+}
+
+/// Compact projection-surface payload for one software-delivery work item.
+///
+/// The fields above the `// advisory display state` divider are the
+/// authoritative join surface; they MUST always reflect the canonical
+/// `StructuredCollaborationSummaryV1`. The fields below the divider are
+/// advisory display state borrowed from board mirrors and mailbox chronology;
+/// they MUST NOT be consumed as authority by validators, queue automation, or
+/// governed-action eligibility logic.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SoftwareDeliveryProjectionSurfaceV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub updated_at: String,
+    /// Stable identifier for the underlying work item (mirrors
+    /// `StructuredCollaborationSummaryV1::record_id` for software_delivery).
+    pub work_packet_id: String,
+    /// Stable identifier for the canonical workflow run, when bound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_run_id: Option<String>,
+    /// Stable identifier for the bound model session, when bound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_session_id: Option<String>,
+    /// Stable identifier for the linked task board, when projected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_board_id: Option<String>,
+    /// Authoritative workflow state family (lifted from canonical summary).
+    pub workflow_state_family: WorkflowStateFamily,
+    /// Authoritative queue reason code (lifted from canonical summary).
+    pub queue_reason_code: WorkflowQueueReasonCode,
+    /// Authoritative governed-action ids (lifted from canonical summary).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_action_ids: Vec<String>,
+    /// Authoritative human-readable status (lifted from canonical summary).
+    pub status: String,
+    /// Authoritative title or objective (lifted from canonical summary).
+    pub title_or_objective: String,
+    /// Authoritative blockers (lifted from canonical summary).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blockers: Vec<String>,
+    /// Authoritative next-action hint (lifted from canonical summary).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_action: Option<String>,
+    /// Authoritative summary ref (lifted from canonical summary).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary_ref: Option<String>,
+    /// Authoritative authority refs (lifted from canonical summary).
+    #[serde(default)]
+    pub authority_refs: Vec<String>,
+    /// Authoritative evidence refs (lifted from canonical summary).
+    #[serde(default)]
+    pub evidence_refs: Vec<String>,
+    /// Governed-action previews exposed to DCC quick actions, Task Board row
+    /// actions, and Role Mailbox escalation controls. One preview per entry
+    /// in `allowed_action_ids` (when registered for the canonical workflow
+    /// state family); each preview carries `action_request_id`, target record
+    /// refs, eligibility, blockers, and evidence refs so policy/approval/
+    /// evidence gates remain explicit before any mutation. Constructing
+    /// previews MUST NOT mutate canonical runtime state.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub governed_action_previews: Vec<GovernedActionPreviewV1>,
+    // ── MT-004: software-delivery overlay extension surfacing ────────────────
+    /// Stable id of the bound workflow binding (when one is bound).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_binding_id: Option<String>,
+    /// Derived workflow binding lifecycle state. Always lifted from canonical
+    /// runtime truth via
+    /// `derive_software_delivery_workflow_binding_state`; never edited from
+    /// packet prose, board lane, or mailbox chronology.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_binding_state: Option<SoftwareDeliveryWorkflowBindingState>,
+    /// Stable record id of the bound canonical claim/lease overlay record
+    /// (when ownership is held). MUST resolve to a canonical
+    /// `<gov_root>/claim_leases/<wp_id>/<claim_id>.json` path under
+    /// `claim_lease_record_ref`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_lease_record_id: Option<String>,
+    /// Canonical runtime path for the bound claim/lease overlay record.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_lease_record_ref: Option<String>,
+    /// Stable record ids of canonical queued-instruction overlay records
+    /// (deferred steering intent), sorted and deduped.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queued_instruction_record_ids: Vec<String>,
+    /// Canonical runtime paths for queued-instruction overlay records,
+    /// aligned 1:1 with `queued_instruction_record_ids`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queued_instruction_record_refs: Vec<String>,
+    // ── advisory display state (MUST NOT carry authority) ────────────────────
+    /// Sync state of the human-readable Markdown mirror, advisory only.
+    #[serde(default)]
+    pub advisory_mirror_state: MirrorSyncState,
+    /// Task-board lane the row currently sits in, advisory only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory_board_lane_id: Option<String>,
+    /// Task-board display token (e.g. status string), advisory only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory_board_status_text: Option<String>,
+    /// Stable thread ids linked to this work item, advisory only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub advisory_role_mailbox_thread_ids: Vec<String>,
+}
+
+/// True when a mirror sync state is advisory and MUST NOT be treated as
+/// authoritative for runtime decisions. Per v02.181: stale, advisory-edit, and
+/// normalization-required mirrors are advisory display state.
+pub fn mirror_state_is_advisory_only(state: MirrorSyncState) -> bool {
+    matches!(
+        state,
+        MirrorSyncState::Stale
+            | MirrorSyncState::AdvisoryEdit
+            | MirrorSyncState::NormalizationRequired
+    )
+}
+
+/// Build a deterministic `action_request_id` from canonical inputs so repeated
+/// preview construction across surfaces produces identical correlation ids.
+fn build_governed_action_request_id(
+    record_id: &str,
+    workflow_state_family: WorkflowStateFamily,
+    action_id: &str,
+) -> String {
+    let family_token = match workflow_state_family {
+        WorkflowStateFamily::Intake => "intake",
+        WorkflowStateFamily::Ready => "ready",
+        WorkflowStateFamily::Active => "active",
+        WorkflowStateFamily::Waiting => "waiting",
+        WorkflowStateFamily::Review => "review",
+        WorkflowStateFamily::Approval => "approval",
+        WorkflowStateFamily::Validation => "validation",
+        WorkflowStateFamily::Blocked => "blocked",
+        WorkflowStateFamily::Done => "done",
+        WorkflowStateFamily::Canceled => "canceled",
+        WorkflowStateFamily::Archived => "archived",
+    };
+    format!("preview:{record_id}:{family_token}:{action_id}")
+}
+
+/// Build a single governed-action preview for `action_id` against the canonical
+/// summary. Returns `None` when `canonical.project_profile_kind` is not
+/// `SoftwareDelivery` or when `action_id` is not registered in any
+/// workflow_state_family allowlist (`is_registered_governed_action_id`). The
+/// preview reads only canonical inputs and MUST NOT mutate them.
+///
+/// Eligibility resolves as:
+/// - `IneligibleOutOfFamily` when `action_id` is not allowed for
+///   `canonical.workflow_state_family` (UI surfaces MUST refuse to escalate).
+/// - `IneligibleBlocked` when canonical reports unresolved blockers.
+/// - `Eligible` otherwise.
+pub fn derive_governed_action_preview(
+    canonical: &StructuredCollaborationSummaryV1,
+    workflow_run_id: Option<&str>,
+    action_id: &str,
+) -> Option<GovernedActionPreviewV1> {
+    if canonical.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        return None;
+    }
+    if !is_registered_governed_action_id(action_id) {
+        return None;
+    }
+    let family_allowed = is_governed_action_id_allowed_for_workflow_family(
+        canonical.workflow_state_family,
+        action_id,
+    );
+    let eligibility = if !family_allowed {
+        GovernedActionEligibility::IneligibleOutOfFamily
+    } else if !canonical.blockers.is_empty() {
+        GovernedActionEligibility::IneligibleBlocked
+    } else {
+        GovernedActionEligibility::Eligible
+    };
+    Some(GovernedActionPreviewV1 {
+        schema_id: GOVERNED_ACTION_PREVIEW_SCHEMA_ID_V1.to_string(),
+        schema_version: GOVERNED_ACTION_PREVIEW_SCHEMA_VERSION_V1.to_string(),
+        record_kind: GOVERNED_ACTION_PREVIEW_RECORD_KIND.to_string(),
+        action_request_id: build_governed_action_request_id(
+            &canonical.record_id,
+            canonical.workflow_state_family,
+            action_id,
+        ),
+        work_packet_id: canonical.record_id.clone(),
+        workflow_run_id: workflow_run_id.map(|s| s.to_string()),
+        action_id: action_id.to_string(),
+        workflow_state_family: canonical.workflow_state_family,
+        target_record_refs: canonical.authority_refs.clone(),
+        eligibility,
+        blockers: canonical.blockers.clone(),
+        evidence_refs: canonical.evidence_refs.clone(),
+    })
+}
+
+/// Build the full set of governed-action previews for a canonical summary.
+/// Sources action ids from `canonical.allowed_action_ids` (the authoritative
+/// runtime allowlist) so previews never invent actions the canonical summary
+/// has not authorized. Unregistered ids are skipped (filtered through
+/// `derive_governed_action_preview`'s `is_registered_governed_action_id`
+/// guard) so a tampered canonical cannot smuggle an unregistered action into
+/// the preview list. Callers that need to preview a candidate action outside
+/// the canonical allowlist (e.g. UI exploring a transition) should use
+/// `derive_governed_action_preview` directly per id.
+pub fn derive_governed_action_previews(
+    canonical: &StructuredCollaborationSummaryV1,
+    workflow_run_id: Option<&str>,
+) -> Vec<GovernedActionPreviewV1> {
+    canonical
+        .allowed_action_ids
+        .iter()
+        .filter_map(|id| derive_governed_action_preview(canonical, workflow_run_id, id))
+        .collect()
+}
+
+/// Resolves `queue_reason_code` accounting for mailbox-linked wait state.
+/// Per Master Spec v02.171: when a linked Role Mailbox thread is awaiting a
+/// response, `queue_reason_code` MUST surface as `MailboxResponseWait`, but
+/// the mailbox thread MUST NOT become the authority for the linked record's
+/// state family — `workflow_state_family` is preserved by the caller.
+/// Derive the software-delivery projection surface from canonical runtime
+/// truth, with optional advisory display state from a Task Board row and
+/// linked Role Mailbox thread ids.
+///
+/// Authoritative fields (workflow_state_family, queue_reason_code,
+/// allowed_action_ids, status, title_or_objective, blockers, next_action,
+/// summary_ref, authority_refs, evidence_refs) are lifted from `canonical`.
+/// Board entry mirror_state, lane id, and status text are passed through as
+/// advisory only. Mailbox thread ids are advisory only.
+///
+/// Returns `None` when `canonical.project_profile_kind` is not
+/// `SoftwareDelivery`, or when the optional `task_board_entry` does not refer
+/// to the same canonical `record_id` (stable-id join must hold or we refuse
+/// to project a misaligned surface).
+pub fn derive_software_delivery_projection_surface(
+    canonical: &StructuredCollaborationSummaryV1,
+    workflow_run_id: Option<&str>,
+    model_session_id: Option<&str>,
+    task_board_entry: Option<&super::task_board::TaskBoardEntryRecordV1>,
+    mailbox_thread_ids: &[String],
+) -> Option<SoftwareDeliveryProjectionSurfaceV1> {
+    if canonical.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        return None;
+    }
+    if let Some(entry) = task_board_entry {
+        if entry.work_packet_id != canonical.record_id {
+            return None;
+        }
+        if entry.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+            return None;
+        }
+    }
+
+    let (advisory_mirror_state, advisory_board_lane_id, advisory_board_status_text, task_board_id) =
+        match task_board_entry {
+            Some(entry) => (
+                entry.mirror_state,
+                Some(entry.lane_id.clone()),
+                Some(entry.status.clone()),
+                Some(entry.task_board_id.clone()),
+            ),
+            None => (canonical.mirror_state, None, None, None),
+        };
+
+    let mut advisory_role_mailbox_thread_ids: Vec<String> = mailbox_thread_ids
+        .iter()
+        .filter(|id| !id.trim().is_empty())
+        .cloned()
+        .collect();
+    advisory_role_mailbox_thread_ids.sort();
+    advisory_role_mailbox_thread_ids.dedup();
+
+    let governed_action_previews =
+        derive_governed_action_previews(canonical, workflow_run_id);
+
+    Some(SoftwareDeliveryProjectionSurfaceV1 {
+        schema_id: SOFTWARE_DELIVERY_PROJECTION_SURFACE_SCHEMA_ID_V1.to_string(),
+        schema_version: SOFTWARE_DELIVERY_PROJECTION_SURFACE_SCHEMA_VERSION_V1.to_string(),
+        record_id: canonical.record_id.clone(),
+        record_kind: SOFTWARE_DELIVERY_PROJECTION_SURFACE_RECORD_KIND.to_string(),
+        project_profile_kind: ProjectProfileKind::SoftwareDelivery,
+        updated_at: canonical.updated_at.clone(),
+        work_packet_id: canonical.record_id.clone(),
+        workflow_run_id: workflow_run_id.map(|s| s.to_string()),
+        model_session_id: model_session_id.map(|s| s.to_string()),
+        task_board_id,
+        workflow_state_family: canonical.workflow_state_family,
+        queue_reason_code: canonical.queue_reason_code,
+        allowed_action_ids: canonical.allowed_action_ids.clone(),
+        status: canonical.status.clone(),
+        title_or_objective: canonical.title_or_objective.clone(),
+        blockers: canonical.blockers.clone(),
+        next_action: canonical.next_action.clone(),
+        summary_ref: canonical.summary_ref.clone(),
+        authority_refs: canonical.authority_refs.clone(),
+        evidence_refs: canonical.evidence_refs.clone(),
+        governed_action_previews,
+        workflow_binding_id: None,
+        workflow_binding_state: None,
+        claim_lease_record_id: None,
+        claim_lease_record_ref: None,
+        queued_instruction_record_ids: Vec::new(),
+        queued_instruction_record_refs: Vec::new(),
+        advisory_mirror_state,
+        advisory_board_lane_id,
+        advisory_board_status_text,
+        advisory_role_mailbox_thread_ids,
+    })
+}
+
+/// Validate that a projection surface keeps the canonical authority contract:
+/// authoritative fields MUST equal the canonical summary's; advisory display
+/// state MUST NOT mutate them. Returns issues that callers (validators,
+/// projection builders, board renderers) can surface to operators.
+pub fn validate_software_delivery_projection_surface_authority(
+    projection: &SoftwareDeliveryProjectionSurfaceV1,
+    canonical: &StructuredCollaborationSummaryV1,
+) -> StructuredCollaborationValidationResult {
+    let mut result = StructuredCollaborationValidationResult::success(
+        StructuredCollaborationRecordFamily::WorkPacketSummary,
+    );
+
+    if projection.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "project_profile_kind",
+            Some(ProjectProfileKind::SoftwareDelivery.as_str().to_string()),
+            Some(projection.project_profile_kind.as_str().to_string()),
+            "software-delivery projection surface only applies to software_delivery profiles",
+        );
+    }
+    if canonical.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "canonical.project_profile_kind",
+            Some(ProjectProfileKind::SoftwareDelivery.as_str().to_string()),
+            Some(canonical.project_profile_kind.as_str().to_string()),
+            "canonical summary must be software_delivery for this projection surface",
+        );
+    }
+
+    if projection.work_packet_id != canonical.record_id {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "work_packet_id",
+            Some(canonical.record_id.clone()),
+            Some(projection.work_packet_id.clone()),
+            "projection surface must join to canonical summary by stable record_id",
+        );
+    }
+
+    if projection.workflow_state_family != canonical.workflow_state_family {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "workflow_state_family",
+            serde_json::to_string(&canonical.workflow_state_family).ok(),
+            serde_json::to_string(&projection.workflow_state_family).ok(),
+            "projection workflow_state_family must equal canonical summary",
+        );
+    }
+    if projection.queue_reason_code != canonical.queue_reason_code {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "queue_reason_code",
+            serde_json::to_string(&canonical.queue_reason_code).ok(),
+            serde_json::to_string(&projection.queue_reason_code).ok(),
+            "projection queue_reason_code must equal canonical summary",
+        );
+    }
+    if projection.allowed_action_ids != canonical.allowed_action_ids {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "allowed_action_ids",
+            serde_json::to_string(&canonical.allowed_action_ids).ok(),
+            serde_json::to_string(&projection.allowed_action_ids).ok(),
+            "projection allowed_action_ids must equal canonical summary",
+        );
+    }
+    if projection.status != canonical.status {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "status",
+            Some(canonical.status.clone()),
+            Some(projection.status.clone()),
+            "projection status must equal canonical summary",
+        );
+    }
+    if projection.title_or_objective != canonical.title_or_objective {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "title_or_objective",
+            Some(canonical.title_or_objective.clone()),
+            Some(projection.title_or_objective.clone()),
+            "projection title_or_objective must equal canonical summary",
+        );
+    }
+    if projection.summary_ref != canonical.summary_ref {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "summary_ref",
+            canonical.summary_ref.clone(),
+            projection.summary_ref.clone(),
+            "projection summary_ref must equal canonical summary",
+        );
+    }
+    if projection.blockers != canonical.blockers {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "blockers",
+            serde_json::to_string(&canonical.blockers).ok(),
+            serde_json::to_string(&projection.blockers).ok(),
+            "projection blockers must equal canonical summary",
+        );
+    }
+    if projection.next_action != canonical.next_action {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "next_action",
+            canonical.next_action.clone(),
+            projection.next_action.clone(),
+            "projection next_action must equal canonical summary",
+        );
+    }
+    if projection.authority_refs != canonical.authority_refs {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "authority_refs",
+            serde_json::to_string(&canonical.authority_refs).ok(),
+            serde_json::to_string(&projection.authority_refs).ok(),
+            "projection authority_refs must equal canonical summary",
+        );
+    }
+    if projection.evidence_refs != canonical.evidence_refs {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "evidence_refs",
+            serde_json::to_string(&canonical.evidence_refs).ok(),
+            serde_json::to_string(&projection.evidence_refs).ok(),
+            "projection evidence_refs must equal canonical summary",
+        );
+    }
+
+    result
+}
+
+/// MT-002 v02.181: Software-delivery overlay runtime truth specialization.
+///
+/// Validate that a Task Board entry projection for a software_delivery work
+/// item cannot override canonical runtime authority. Authority-carrying
+/// fields (`workflow_state_family`, `queue_reason_code`, `allowed_action_ids`)
+/// MUST equal the canonical `StructuredCollaborationSummaryV1`. Advisory
+/// display state (`mirror_state`, `lane_id`, `status` text) is explicitly
+/// allowed to differ and is NOT flagged here -- it is acknowledged as
+/// advisory by the v02.181 projection-surface discipline.
+///
+/// The board entry must join the canonical summary by stable identifier
+/// (`board_entry.work_packet_id == canonical.record_id`); a join mismatch
+/// is itself an authority issue.
+pub fn validate_software_delivery_task_board_projection_against_canonical(
+    board_entry: &super::task_board::TaskBoardEntryRecordV1,
+    canonical: &StructuredCollaborationSummaryV1,
+) -> StructuredCollaborationValidationResult {
+    let mut result = StructuredCollaborationValidationResult::success(
+        StructuredCollaborationRecordFamily::TaskBoardEntry,
+    );
+
+    if board_entry.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "project_profile_kind",
+            Some(ProjectProfileKind::SoftwareDelivery.as_str().to_string()),
+            Some(board_entry.project_profile_kind.as_str().to_string()),
+            "this validator only applies to software_delivery board entries",
+        );
+    }
+    if canonical.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "canonical.project_profile_kind",
+            Some(ProjectProfileKind::SoftwareDelivery.as_str().to_string()),
+            Some(canonical.project_profile_kind.as_str().to_string()),
+            "canonical summary must be software_delivery for board projection check",
+        );
+    }
+
+    if board_entry.work_packet_id != canonical.record_id {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "work_packet_id",
+            Some(canonical.record_id.clone()),
+            Some(board_entry.work_packet_id.clone()),
+            "task-board entry must join canonical summary by stable record_id",
+        );
+    }
+
+    if board_entry.workflow_state_family != canonical.workflow_state_family {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "workflow_state_family",
+            serde_json::to_string(&canonical.workflow_state_family).ok(),
+            serde_json::to_string(&board_entry.workflow_state_family).ok(),
+            "task-board projection must preserve canonical workflow_state_family",
+        );
+    }
+    if board_entry.queue_reason_code != canonical.queue_reason_code {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "queue_reason_code",
+            serde_json::to_string(&canonical.queue_reason_code).ok(),
+            serde_json::to_string(&board_entry.queue_reason_code).ok(),
+            "task-board projection must preserve canonical queue_reason_code",
+        );
+    }
+    if board_entry.allowed_action_ids != canonical.allowed_action_ids {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "allowed_action_ids",
+            serde_json::to_string(&canonical.allowed_action_ids).ok(),
+            serde_json::to_string(&board_entry.allowed_action_ids).ok(),
+            "task-board projection must preserve canonical allowed_action_ids",
+        );
+    }
+
+    result
+}
+
+// ── MT-003: v02.181 software-delivery closeout derivation ────────────────────
+//
+// Per Master Spec v02.181 sec 2.6.8.8: for `project_profile_kind=software_delivery`,
+// authoritative closeout MUST be derived from canonical workflow state,
+// validator-gate posture, governed-action resolutions, owner authority, and
+// evidence references rather than from packet-local checklist surgery, board
+// reshuffling, or manual side-ledger convergence. The derive function below
+// REFUSES to produce a closeout posture when the canonical summary lacks
+// validator-gate evidence or owner authority -- this is the runtime tripwire
+// for "closeout requires gate evidence and owner truth".
+
+pub const SOFTWARE_DELIVERY_CLOSEOUT_POSTURE_SCHEMA_ID_V1: &str =
+    "hsk.ext.software_delivery.closeout_posture@1";
+pub const SOFTWARE_DELIVERY_CLOSEOUT_POSTURE_SCHEMA_VERSION_V1: &str = "1";
+pub const SOFTWARE_DELIVERY_CLOSEOUT_POSTURE_RECORD_KIND: &str =
+    "software_delivery_closeout_posture";
+
+/// Coarse closeout-eligibility classification derived from canonical truth.
+/// `NotEligible` covers profiles where the work item is not yet in a
+/// closeout-relevant family; `PendingGate` covers Validation/Approval/Review
+/// states where a validator-gate decision is still pending; `PendingBlockers`
+/// covers Done with unresolved blockers; `ReadyToClose` is the only state
+/// from which control-plane close transitions are legal.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SoftwareDeliveryCloseoutState {
+    NotEligible,
+    PendingGate,
+    PendingBlockers,
+    ReadyToClose,
+}
+
+/// Compact closeout-posture payload for one software-delivery work item.
+///
+/// All fields are derived from canonical runtime truth; nothing here is
+/// editable from packet prose, board lane, or mailbox chronology. The payload
+/// records the validator-gate evidence ref, owner-authority ref, optional
+/// checkpoint lineage, and governed-action resolution refs that the
+/// closeout/recovery contract requires (Master Spec v02.181 sec 2.6.8.8).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SoftwareDeliveryCloseoutPostureV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub work_packet_id: String,
+    pub workflow_state_family: WorkflowStateFamily,
+    pub queue_reason_code: WorkflowQueueReasonCode,
+    pub closeout_state: SoftwareDeliveryCloseoutState,
+    /// First canonical validator-gate evidence ref. Required for closeout
+    /// legality. Format: `<gov_root>/validator_gates/<wp_id>.json`.
+    pub gate_record_ref: String,
+    /// First canonical work-packet packet authority ref. Required for
+    /// closeout legality (owner-of-record). Format:
+    /// `<gov_root>/work_packets/<wp_id>/packet.json`.
+    pub owner_authority_ref: String,
+    /// Optional canonical checkpoint record ref propagated when the runtime
+    /// recovery posture has a bound checkpoint. Format:
+    /// `<gov_root>/checkpoints/<id>.json`. Spoofed paths are rejected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkpoint_record_ref: Option<String>,
+    /// Optional canonical checkpoint id (mirrors the trailing path segment
+    /// of `checkpoint_record_ref` minus the `.json` suffix).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checkpoint_id: Option<String>,
+    /// Governed-action resolution refs that contributed to closeout (e.g.
+    /// approve/validate/archive resolutions). Sorted + deduped on derive.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub governed_action_resolution_refs: Vec<String>,
+    pub evidence_refs: Vec<String>,
+    pub authority_refs: Vec<String>,
+    pub unresolved_blockers: Vec<String>,
+    pub updated_at: String,
+}
+
+fn first_canonical_validator_gate_ref(
+    refs: &[String],
+    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
+    expected_wp_id: &str,
+) -> Option<String> {
+    refs.iter()
+        .find(|reference| runtime_paths.is_canonical_validator_gate_ref(reference, expected_wp_id))
+        .cloned()
+}
+
+fn first_canonical_owner_packet_ref(
+    refs: &[String],
+    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
+    expected_wp_id: &str,
+) -> Option<String> {
+    refs.iter()
+        .find(|reference| {
+            runtime_paths.is_canonical_work_packet_packet_ref(reference, expected_wp_id)
+        })
+        .cloned()
+}
+
+fn first_canonical_checkpoint_ref(
+    candidate: Option<&str>,
+    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
+) -> Option<String> {
+    let value = candidate?;
+    if runtime_paths.is_canonical_checkpoint_record_ref(value) {
+        Some(value.to_string())
+    } else {
+        None
+    }
+}
+
+fn checkpoint_id_from_record_ref(
+    record_ref: &str,
+    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
+) -> Option<String> {
+    let prefix = runtime_paths.checkpoints_dir_display();
+    let normalized_prefix = prefix.trim_end_matches('/').to_string() + "/";
+    let normalized = record_ref.replace('\\', "/");
+    let after_prefix = normalized.strip_prefix(&normalized_prefix)?;
+    let id = after_prefix.strip_suffix(".json")?;
+    if id.is_empty() || id.contains('/') {
+        return None;
+    }
+    Some(id.to_string())
+}
+
+fn derive_closeout_state_from_canonical(
+    canonical: &StructuredCollaborationSummaryV1,
+) -> SoftwareDeliveryCloseoutState {
+    match canonical.workflow_state_family {
+        WorkflowStateFamily::Done => {
+            if canonical.blockers.is_empty() {
+                SoftwareDeliveryCloseoutState::ReadyToClose
+            } else {
+                SoftwareDeliveryCloseoutState::PendingBlockers
+            }
+        }
+        WorkflowStateFamily::Validation
+        | WorkflowStateFamily::Approval
+        | WorkflowStateFamily::Review => SoftwareDeliveryCloseoutState::PendingGate,
+        _ => SoftwareDeliveryCloseoutState::NotEligible,
+    }
+}
+
+/// Derive a software-delivery closeout posture from canonical runtime truth.
+///
+/// Returns `None` when:
+/// - `canonical.project_profile_kind` is not `SoftwareDelivery`, OR
+/// - `canonical.evidence_refs` does not include a CANONICAL validator-gate
+///   ref under `<gov_root>/validator_gates/<wp_id>.json` (substring spoofs
+///   such as `/notes/validator_gates/...` are rejected), OR
+/// - `canonical.authority_refs` does not include a CANONICAL work-packet
+///   `packet.json` ref under `<gov_root>/work_packets/<wp_id>/packet.json`.
+///
+/// `checkpoint_record_id_candidate` is the runtime's bound checkpoint id (if
+/// any). When supplied, the function builds a canonical checkpoint record
+/// ref via `RuntimeGovernancePaths::checkpoint_record_display` and stores it
+/// alongside the checkpoint id; non-canonical or empty candidates are
+/// dropped. `governed_action_resolution_refs` is the slice of governed-action
+/// records that contributed to closeout; the slice is sorted and deduped
+/// before storage.
+///
+/// All authority-carrying fields (workflow_state_family, queue_reason_code,
+/// blockers, evidence_refs, authority_refs, updated_at) are lifted verbatim
+/// from canonical; nothing here is editable from packet prose, board lane,
+/// or mailbox chronology.
+pub fn derive_software_delivery_closeout_posture(
+    canonical: &StructuredCollaborationSummaryV1,
+    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
+    checkpoint_record_id_candidate: Option<&str>,
+    governed_action_resolution_refs: &[String],
+) -> Option<SoftwareDeliveryCloseoutPostureV1> {
+    if canonical.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        return None;
+    }
+    if canonical.record_id.is_empty() {
+        return None;
+    }
+    // MT-003 stable-id binding: gate evidence and owner authority MUST refer
+    // to the SAME canonical record_id; foreign-WP refs (e.g. WP-A summary
+    // pointing at WP-B validator gate) cannot satisfy closeout truth.
+    let gate_record_ref = first_canonical_validator_gate_ref(
+        &canonical.evidence_refs,
+        runtime_paths,
+        &canonical.record_id,
+    )?;
+    let owner_authority_ref = first_canonical_owner_packet_ref(
+        &canonical.authority_refs,
+        runtime_paths,
+        &canonical.record_id,
+    )?;
+
+    let (checkpoint_record_ref, checkpoint_id) = match checkpoint_record_id_candidate
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        Some(checkpoint_id) => {
+            let display = runtime_paths.checkpoint_record_display(checkpoint_id);
+            let canonical_ref = first_canonical_checkpoint_ref(Some(&display), runtime_paths);
+            match canonical_ref {
+                Some(reference) => {
+                    let id = checkpoint_id_from_record_ref(&reference, runtime_paths)
+                        .unwrap_or_else(|| checkpoint_id.to_string());
+                    (Some(reference), Some(id))
+                }
+                None => (None, None),
+            }
+        }
+        None => (None, None),
+    };
+
+    let mut governed_actions: Vec<String> = governed_action_resolution_refs
+        .iter()
+        .filter(|value| !value.trim().is_empty())
+        .cloned()
+        .collect();
+    governed_actions.sort();
+    governed_actions.dedup();
+
+    Some(SoftwareDeliveryCloseoutPostureV1 {
+        schema_id: SOFTWARE_DELIVERY_CLOSEOUT_POSTURE_SCHEMA_ID_V1.to_string(),
+        schema_version: SOFTWARE_DELIVERY_CLOSEOUT_POSTURE_SCHEMA_VERSION_V1.to_string(),
+        record_id: canonical.record_id.clone(),
+        record_kind: SOFTWARE_DELIVERY_CLOSEOUT_POSTURE_RECORD_KIND.to_string(),
+        project_profile_kind: ProjectProfileKind::SoftwareDelivery,
+        work_packet_id: canonical.record_id.clone(),
+        workflow_state_family: canonical.workflow_state_family,
+        queue_reason_code: canonical.queue_reason_code,
+        closeout_state: derive_closeout_state_from_canonical(canonical),
+        gate_record_ref,
+        owner_authority_ref,
+        checkpoint_record_ref,
+        checkpoint_id,
+        governed_action_resolution_refs: governed_actions,
+        evidence_refs: canonical.evidence_refs.clone(),
+        authority_refs: canonical.authority_refs.clone(),
+        unresolved_blockers: canonical.blockers.clone(),
+        updated_at: canonical.updated_at.clone(),
+    })
+}
+
+// ── MT-004: v02.181 software-delivery overlay extension records ─────────────
+//
+// Per Master Spec v02.181 sec 2.6.8.8 "Software-delivery overlay extension
+// records and lifecycle semantics": canonical runtime state SHOULD expose
+// `GovernanceClaimLeaseRecord` and `GovernanceQueuedInstructionRecord` (or
+// equivalent stable overlay records) keyed by stable identifiers
+// (work_packet_id, workflow_run_id, workflow_binding_id, model_session_id).
+// The records carry bounded temporary ownership and queued steering intent so
+// the projection surface can expose them by stable id without falling back to
+// transcript reconstruction or mailbox chronology. Software-delivery workflow
+// bindings SHOULD preserve explicit lifecycle states (`created`, `queued`,
+// `claimed`, `node_active`, `approval_wait`, `validation_wait`,
+// `closeout_pending`, `settled`, `failed`, `canceled`).
+
+pub const SOFTWARE_DELIVERY_CLAIM_LEASE_SCHEMA_ID_V1: &str =
+    "hsk.ext.software_delivery.claim_lease@1";
+pub const SOFTWARE_DELIVERY_CLAIM_LEASE_SCHEMA_VERSION_V1: &str = "1";
+pub const SOFTWARE_DELIVERY_CLAIM_LEASE_RECORD_KIND: &str = "software_delivery_claim_lease";
+
+pub const SOFTWARE_DELIVERY_QUEUED_INSTRUCTION_SCHEMA_ID_V1: &str =
+    "hsk.ext.software_delivery.queued_instruction@1";
+pub const SOFTWARE_DELIVERY_QUEUED_INSTRUCTION_SCHEMA_VERSION_V1: &str = "1";
+pub const SOFTWARE_DELIVERY_QUEUED_INSTRUCTION_RECORD_KIND: &str =
+    "software_delivery_queued_instruction";
+
+/// Takeover policy for a bounded software-delivery claim/lease. Fixed enum so
+/// projection surfaces and validators can compare semantics rather than parse
+/// free-form prose.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SoftwareDeliveryClaimTakeoverPolicy {
+    /// Only the holder may release. No takeover is permitted.
+    HolderRelease,
+    /// Operator authority may take over even before the lease expires.
+    OperatorOverride,
+    /// Lease auto-expires; another actor may claim once expired.
+    AutoExpire,
+}
+
+impl SoftwareDeliveryClaimTakeoverPolicy {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::HolderRelease => "holder_release",
+            Self::OperatorOverride => "operator_override",
+            Self::AutoExpire => "auto_expire",
+        }
+    }
+}
+
+/// Stable overlay record describing bounded temporary ownership of a
+/// software-delivery work item. Keyed by stable identifiers (work_packet_id,
+/// workflow_run_id, workflow_binding_id, model_session_id) so projection
+/// surfaces and mailbox triage rows can refer to ownership by record_id
+/// without inferring it from comments or mailbox order.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GovernanceClaimLeaseRecordV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub work_packet_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_binding_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_session_id: Option<String>,
+    /// Stable id of the actor session that holds the claim/lease.
+    pub claim_actor_session_id: String,
+    /// RFC3339 timestamp when the claim/lease was opened.
+    pub claim_started_at: String,
+    /// Optional RFC3339 timestamp when the lease auto-expires (if any).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lease_expires_at: Option<String>,
+    pub takeover_policy: SoftwareDeliveryClaimTakeoverPolicy,
+    pub updated_at: String,
+}
+
+/// Bounded action vocabulary for queued steering instructions. Fixed enum so
+/// projections and validators do not parse free-form prose.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SoftwareDeliveryQueuedInstructionAction {
+    SteerNext,
+    Pause,
+    Resume,
+    RequestValidator,
+    RequestOperator,
+    Cancel,
+}
+
+impl SoftwareDeliveryQueuedInstructionAction {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::SteerNext => "steer_next",
+            Self::Pause => "pause",
+            Self::Resume => "resume",
+            Self::RequestValidator => "request_validator",
+            Self::RequestOperator => "request_operator",
+            Self::Cancel => "cancel",
+        }
+    }
+}
+
+/// Stable overlay record describing a queued steering instruction for a
+/// software-delivery work item. Keyed by stable identifiers so deferred
+/// steering intent stays inspectable without reading transcript order.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GovernanceQueuedInstructionRecordV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub work_packet_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_binding_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_model_session_id: Option<String>,
+    pub instruction_id: String,
+    pub requested_action: SoftwareDeliveryQueuedInstructionAction,
+    pub queued_at: String,
+    pub updated_at: String,
+}
+
+/// Software-delivery workflow binding lifecycle state. Mirrors Master Spec
+/// v02.181 sec 2.6.8.8: `approval_wait` requires unresolved governed actions,
+/// `validation_wait` requires active validator-gate records, `closeout_pending`
+/// is derived from canonical runtime truth (not packet prose).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SoftwareDeliveryWorkflowBindingState {
+    Created,
+    Queued,
+    Claimed,
+    NodeActive,
+    ApprovalWait,
+    ValidationWait,
+    CloseoutPending,
+    Settled,
+    Failed,
+    Canceled,
+}
+
+impl SoftwareDeliveryWorkflowBindingState {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Created => "created",
+            Self::Queued => "queued",
+            Self::Claimed => "claimed",
+            Self::NodeActive => "node_active",
+            Self::ApprovalWait => "approval_wait",
+            Self::ValidationWait => "validation_wait",
+            Self::CloseoutPending => "closeout_pending",
+            Self::Settled => "settled",
+            Self::Failed => "failed",
+            Self::Canceled => "canceled",
+        }
+    }
+}
+
+/// Inputs that describe the ApprovalWait/ValidationWait gate posture for the
+/// binding-state derivation. Callers populate these from canonical runtime
+/// authority (governed-action registry resolutions, validator-gate records);
+/// the derivation function then enforces the spec invariants.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SoftwareDeliveryBindingGatePosture {
+    /// True when at least one governed action targeting this work item is
+    /// unresolved. Required for `approval_wait`.
+    pub has_unresolved_governed_actions: bool,
+    /// True when the canonical validator-gate record exists for this work
+    /// item. Required for `validation_wait`.
+    pub has_active_validator_gate: bool,
+    /// True when canonical closeout-derivation produced a posture for this
+    /// work item (i.e. canonical gate evidence + owner authority truth holds
+    /// AND the work-state family is closeout-relevant). Required for
+    /// `closeout_pending`/`settled` outcomes.
+    pub has_closeout_posture: bool,
+    /// True when the underlying workflow run/binding has been marked failed.
+    pub workflow_failed: bool,
+    /// True when the underlying workflow run/binding has been canceled.
+    pub workflow_canceled: bool,
+    /// True when the canonical runtime has marked the binding as settled
+    /// (final post-close success).
+    pub workflow_settled: bool,
+}
+
+/// Derive the explicit software-delivery workflow binding lifecycle state
+/// from canonical runtime truth. Returns `None` for non-software_delivery
+/// profiles. Per Master Spec v02.181 sec 2.6.8.8:
+/// - `approval_wait` requires `has_unresolved_governed_actions`,
+/// - `validation_wait` requires `has_active_validator_gate`,
+/// - `closeout_pending` is derived from canonical runtime truth
+///   (`has_closeout_posture` + Done family).
+///
+/// `claim_lease_present` indicates whether a canonical claim/lease record is
+/// bound; in `Ready` family this disambiguates `Queued` vs `Claimed`.
+pub fn derive_software_delivery_workflow_binding_state(
+    canonical: &StructuredCollaborationSummaryV1,
+    gate_posture: SoftwareDeliveryBindingGatePosture,
+    claim_lease_present: bool,
+) -> Option<SoftwareDeliveryWorkflowBindingState> {
+    if canonical.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        return None;
+    }
+    if gate_posture.workflow_canceled {
+        return Some(SoftwareDeliveryWorkflowBindingState::Canceled);
+    }
+    if gate_posture.workflow_failed {
+        return Some(SoftwareDeliveryWorkflowBindingState::Failed);
+    }
+    Some(match canonical.workflow_state_family {
+        WorkflowStateFamily::Intake => SoftwareDeliveryWorkflowBindingState::Created,
+        WorkflowStateFamily::Ready => {
+            if claim_lease_present {
+                SoftwareDeliveryWorkflowBindingState::Claimed
+            } else {
+                SoftwareDeliveryWorkflowBindingState::Queued
+            }
+        }
+        WorkflowStateFamily::Active => SoftwareDeliveryWorkflowBindingState::NodeActive,
+        WorkflowStateFamily::Waiting => {
+            if gate_posture.has_active_validator_gate {
+                SoftwareDeliveryWorkflowBindingState::ValidationWait
+            } else if gate_posture.has_unresolved_governed_actions {
+                SoftwareDeliveryWorkflowBindingState::ApprovalWait
+            } else if claim_lease_present {
+                SoftwareDeliveryWorkflowBindingState::Claimed
+            } else {
+                SoftwareDeliveryWorkflowBindingState::Queued
+            }
+        }
+        WorkflowStateFamily::Review | WorkflowStateFamily::Validation => {
+            // Spec invariant: `validation_wait` requires an active validator
+            // gate record. Without one we cannot promote the binding into
+            // `validation_wait`; fall back to the active-node lifecycle so
+            // operators see "still working" rather than a phantom gate.
+            if gate_posture.has_active_validator_gate {
+                SoftwareDeliveryWorkflowBindingState::ValidationWait
+            } else {
+                SoftwareDeliveryWorkflowBindingState::NodeActive
+            }
+        }
+        WorkflowStateFamily::Approval => {
+            // Spec invariant: `approval_wait` requires unresolved governed
+            // actions. Without one we hold the binding at NodeActive rather
+            // than misrepresent the gate state.
+            if gate_posture.has_unresolved_governed_actions {
+                SoftwareDeliveryWorkflowBindingState::ApprovalWait
+            } else {
+                SoftwareDeliveryWorkflowBindingState::NodeActive
+            }
+        }
+        WorkflowStateFamily::Blocked => {
+            if gate_posture.has_active_validator_gate {
+                SoftwareDeliveryWorkflowBindingState::ValidationWait
+            } else if gate_posture.has_unresolved_governed_actions {
+                SoftwareDeliveryWorkflowBindingState::ApprovalWait
+            } else {
+                SoftwareDeliveryWorkflowBindingState::NodeActive
+            }
+        }
+        WorkflowStateFamily::Done => {
+            if gate_posture.workflow_settled {
+                SoftwareDeliveryWorkflowBindingState::Settled
+            } else if gate_posture.has_closeout_posture {
+                SoftwareDeliveryWorkflowBindingState::CloseoutPending
+            } else {
+                SoftwareDeliveryWorkflowBindingState::NodeActive
+            }
+        }
+        WorkflowStateFamily::Canceled => SoftwareDeliveryWorkflowBindingState::Canceled,
+        WorkflowStateFamily::Archived => {
+            if gate_posture.workflow_settled {
+                SoftwareDeliveryWorkflowBindingState::Settled
+            } else {
+                SoftwareDeliveryWorkflowBindingState::Canceled
+            }
+        }
+    })
+}
+
+// ── MT-004: v02.181 software-delivery workflow run lifecycle record ─────────
+//
+// Per Master Spec v02.181 sec 2.6.8.8 "Software-delivery overlay extension
+// records and lifecycle semantics": canonical runtime state SHOULD expose
+// the workflow run/binding lifecycle inputs (failed/canceled/settled posture
+// and unresolved governed-action posture) as a stable-id-keyed canonical
+// record. The projection surface lifecycle helper reads this record from
+// `<gov_root>/workflow_runs/<wp_id>.json` so the emitted projection can
+// surface explicit `approval_wait`, `failed`, and `settled` binding states
+// without falling back to packet prose, board lane, or mailbox chronology.
+
+pub const SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_SCHEMA_ID_V1: &str =
+    "hsk.ext.software_delivery.workflow_run_lifecycle@1";
+pub const SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_SCHEMA_VERSION_V1: &str = "1";
+pub const SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_RECORD_KIND: &str =
+    "software_delivery_workflow_run_lifecycle";
+
+/// Canonical workflow run lifecycle posture for one software-delivery work
+/// item. The record is keyed by `work_packet_id` and exposes the stable
+/// canonical identifiers (`workflow_run_id`, `workflow_binding_id`,
+/// `model_session_id`) plus the lifecycle inputs the binding-state derivation
+/// requires (`workflow_failed`, `workflow_canceled`, `workflow_settled`,
+/// `has_unresolved_governed_actions`).
+///
+/// Authority discipline: nothing here is editable from packet prose, board
+/// lane, or mailbox chronology; the runtime workflow engine writes this
+/// record when canonical lifecycle events fire and the production projection
+/// surface lifecycle helper reads it to derive the emitted binding state.
+/// Absence of the record is legal -- callers default the lifecycle inputs
+/// to `false` when the record is missing.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SoftwareDeliveryWorkflowRunLifecycleV1 {
+    pub schema_id: String,
+    pub schema_version: String,
+    pub record_id: String,
+    pub record_kind: String,
+    pub project_profile_kind: ProjectProfileKind,
+    pub work_packet_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_binding_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_session_id: Option<String>,
+    #[serde(default)]
+    pub workflow_failed: bool,
+    #[serde(default)]
+    pub workflow_canceled: bool,
+    #[serde(default)]
+    pub workflow_settled: bool,
+    #[serde(default)]
+    pub has_unresolved_governed_actions: bool,
+    pub updated_at: String,
+}
+
+/// Derive a software-delivery projection surface that ALSO exposes overlay
+/// extension records (claim/lease and queued steering instructions) and the
+/// derived workflow binding lifecycle state, keyed by stable identifiers.
+///
+/// The overlay parameters are advisory inputs into the projection surface;
+/// stable-id discipline is enforced. The function returns `None` when:
+/// - the canonical summary is not software_delivery,
+/// - the optional task-board entry breaks the stable-id join,
+/// - the supplied claim/lease record's `work_packet_id` does not match
+///   `canonical.record_id` (foreign-WP overlay refused), OR
+/// - any supplied queued-instruction record's `work_packet_id` does not
+///   match `canonical.record_id` (foreign-WP overlay refused).
+///
+/// The returned projection surface carries:
+/// - `claim_lease_record_id`/`claim_lease_record_ref` (canonical runtime path),
+/// - `queued_instruction_record_ids`/`queued_instruction_record_refs` sorted
+///   and deduped by stable id (canonical runtime paths), and
+/// - `workflow_binding_state`/`workflow_binding_id` derived from canonical
+///   runtime truth.
+#[allow(clippy::too_many_arguments)]
+pub fn derive_software_delivery_projection_surface_with_overlay(
+    canonical: &StructuredCollaborationSummaryV1,
+    workflow_run_id: Option<&str>,
+    workflow_binding_id: Option<&str>,
+    model_session_id: Option<&str>,
+    task_board_entry: Option<&super::task_board::TaskBoardEntryRecordV1>,
+    mailbox_thread_ids: &[String],
+    claim_lease: Option<&GovernanceClaimLeaseRecordV1>,
+    queued_instructions: &[GovernanceQueuedInstructionRecordV1],
+    gate_posture: SoftwareDeliveryBindingGatePosture,
+    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
+) -> Option<SoftwareDeliveryProjectionSurfaceV1> {
+    let mut projection = derive_software_delivery_projection_surface(
+        canonical,
+        workflow_run_id,
+        model_session_id,
+        task_board_entry,
+        mailbox_thread_ids,
+    )?;
+
+    if let Some(claim) = claim_lease {
+        if claim.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+            return None;
+        }
+        if claim.work_packet_id != canonical.record_id {
+            return None;
+        }
+        if claim.record_id.is_empty() || claim.record_id.contains('/') {
+            return None;
+        }
+    }
+
+    for instruction in queued_instructions {
+        if instruction.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+            return None;
+        }
+        if instruction.work_packet_id != canonical.record_id {
+            return None;
+        }
+        if instruction.record_id.is_empty() || instruction.record_id.contains('/') {
+            return None;
+        }
+    }
+
+    let mut queued_pairs: Vec<(String, String)> = queued_instructions
+        .iter()
+        .map(|instruction| {
+            let record_id = instruction.record_id.clone();
+            let record_ref = runtime_paths
+                .queued_instruction_record_display(&canonical.record_id, &record_id);
+            (record_id, record_ref)
+        })
+        .collect();
+    queued_pairs.sort_by(|a, b| a.0.cmp(&b.0));
+    queued_pairs.dedup_by(|a, b| a.0 == b.0);
+
+    let queued_instruction_record_ids: Vec<String> =
+        queued_pairs.iter().map(|(id, _)| id.clone()).collect();
+    let queued_instruction_record_refs: Vec<String> =
+        queued_pairs.into_iter().map(|(_, r)| r).collect();
+
+    let claim_lease_record_id = claim_lease.map(|c| c.record_id.clone());
+    let claim_lease_record_ref = claim_lease.map(|c| {
+        runtime_paths.claim_lease_record_display(&canonical.record_id, &c.record_id)
+    });
+
+    let claim_lease_present = claim_lease.is_some();
+    let workflow_binding_state =
+        derive_software_delivery_workflow_binding_state(canonical, gate_posture, claim_lease_present);
+
+    projection.workflow_binding_id = workflow_binding_id.map(|s| s.to_string());
+    projection.workflow_binding_state = workflow_binding_state;
+    projection.claim_lease_record_id = claim_lease_record_id;
+    projection.claim_lease_record_ref = claim_lease_record_ref;
+    projection.queued_instruction_record_ids = queued_instruction_record_ids;
+    projection.queued_instruction_record_refs = queued_instruction_record_refs;
+
+    Some(projection)
+}
+
+/// Validate that a software-delivery projection surface exposes overlay
+/// extension records (claim/lease, queued instructions) by canonical
+/// stable-id paths. The base authority validation
+/// (`validate_software_delivery_projection_surface_authority`) MUST also
+/// pass; this function adds overlay-specific checks:
+/// - claim/lease ref shape and stable-id join,
+/// - queued-instruction ref shape, stable-id join, and id/ref alignment,
+/// - workflow binding state consistency with canonical truth invariants.
+pub fn validate_software_delivery_projection_surface_overlay(
+    projection: &SoftwareDeliveryProjectionSurfaceV1,
+    canonical: &StructuredCollaborationSummaryV1,
+    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
+    gate_posture: SoftwareDeliveryBindingGatePosture,
+) -> StructuredCollaborationValidationResult {
+    let mut result = StructuredCollaborationValidationResult::success(
+        StructuredCollaborationRecordFamily::WorkPacketSummary,
+    );
+    if projection.project_profile_kind != ProjectProfileKind::SoftwareDelivery
+        || canonical.project_profile_kind != ProjectProfileKind::SoftwareDelivery
+    {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "project_profile_kind",
+            Some(ProjectProfileKind::SoftwareDelivery.as_str().to_string()),
+            Some(projection.project_profile_kind.as_str().to_string()),
+            "overlay validation only applies to software_delivery projection surfaces",
+        );
+        return result;
+    }
+
+    match (
+        projection.claim_lease_record_id.as_deref(),
+        projection.claim_lease_record_ref.as_deref(),
+    ) {
+        (Some(id), Some(reference)) => {
+            if !runtime_paths.is_canonical_claim_lease_record_ref(
+                reference,
+                &canonical.record_id,
+                id,
+            ) {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    "claim_lease_record_ref",
+                    Some(runtime_paths.claim_lease_record_display(&canonical.record_id, id)),
+                    Some(reference.to_string()),
+                    "claim/lease record ref must be a canonical \
+                     <gov_root>/claim_leases/<wp_id>/<claim_id>.json path \
+                     bound to the canonical record_id and claim record_id",
+                );
+            }
+        }
+        (Some(_), None) => {
+            result.push_issue(
+                StructuredCollaborationValidationCode::InvalidFieldValue,
+                "claim_lease_record_ref",
+                None,
+                None,
+                "claim/lease record id present but record ref is missing",
+            );
+        }
+        (None, Some(_)) => {
+            result.push_issue(
+                StructuredCollaborationValidationCode::InvalidFieldValue,
+                "claim_lease_record_id",
+                None,
+                None,
+                "claim/lease record ref present but record id is missing",
+            );
+        }
+        (None, None) => {}
+    }
+
+    if projection.queued_instruction_record_ids.len()
+        != projection.queued_instruction_record_refs.len()
+    {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "queued_instruction_record_refs",
+            Some(projection.queued_instruction_record_ids.len().to_string()),
+            Some(projection.queued_instruction_record_refs.len().to_string()),
+            "queued_instruction_record_ids and queued_instruction_record_refs \
+             must have equal length and aligned indices",
+        );
+    } else {
+        for (idx, id) in projection.queued_instruction_record_ids.iter().enumerate() {
+            let reference = &projection.queued_instruction_record_refs[idx];
+            if !runtime_paths.is_canonical_queued_instruction_record_ref(
+                reference,
+                &canonical.record_id,
+                id,
+            ) {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    "queued_instruction_record_refs",
+                    Some(
+                        runtime_paths
+                            .queued_instruction_record_display(&canonical.record_id, id),
+                    ),
+                    Some(reference.clone()),
+                    "queued-instruction record ref must be a canonical \
+                     <gov_root>/queued_instructions/<wp_id>/<instruction_id>.json path \
+                     bound to the canonical record_id and instruction record_id",
+                );
+            }
+        }
+        let mut sorted = projection.queued_instruction_record_ids.clone();
+        sorted.sort();
+        sorted.dedup();
+        if sorted != projection.queued_instruction_record_ids {
+            result.push_issue(
+                StructuredCollaborationValidationCode::InvalidFieldValue,
+                "queued_instruction_record_ids",
+                Some(serde_json::to_string(&sorted).unwrap_or_default()),
+                Some(
+                    serde_json::to_string(&projection.queued_instruction_record_ids)
+                        .unwrap_or_default(),
+                ),
+                "queued_instruction_record_ids must be sorted and deduped by stable id",
+            );
+        }
+    }
+
+    let claim_present = projection.claim_lease_record_id.is_some();
+    let expected_state =
+        derive_software_delivery_workflow_binding_state(canonical, gate_posture, claim_present);
+    if projection.workflow_binding_state != expected_state {
+        result.push_issue(
+            StructuredCollaborationValidationCode::SummaryJoinMismatch,
+            "workflow_binding_state",
+            expected_state.map(|s| s.as_str().to_string()),
+            projection
+                .workflow_binding_state
+                .map(|s| s.as_str().to_string()),
+            "workflow_binding_state must equal the value derived from canonical \
+             runtime truth and the supplied gate posture",
+        );
+    }
+
+    result
+}
+
+/// Validate that a canonical software-delivery summary carries the truth
+/// required for closeout derivation: a CANONICAL validator-gate evidence ref
+/// AND a CANONICAL owner-of-record packet authority ref under the product
+/// runtime governance root. Substring-only spoofs are rejected. For
+/// non-software_delivery profiles or for software_delivery WPs not yet in a
+/// closeout-relevant family (Validation/Approval/Review/Done), this returns
+/// success with no issues (the truth is only required when closeout becomes
+/// legal).
+pub fn validate_software_delivery_closeout_canonical_truth(
+    canonical: &StructuredCollaborationSummaryV1,
+    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
+) -> StructuredCollaborationValidationResult {
+    let mut result = StructuredCollaborationValidationResult::success(
+        StructuredCollaborationRecordFamily::WorkPacketSummary,
+    );
+    if canonical.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        return result;
+    }
+    let closeout_relevant = matches!(
+        canonical.workflow_state_family,
+        WorkflowStateFamily::Validation
+            | WorkflowStateFamily::Approval
+            | WorkflowStateFamily::Review
+            | WorkflowStateFamily::Done
+    );
+    if !closeout_relevant {
+        return result;
+    }
+    // Stable-id binding required: gate evidence and owner authority refs
+    // MUST refer to the SAME canonical record_id, not a foreign WP id.
+    let expected_wp_id = canonical.record_id.as_str();
+    if first_canonical_validator_gate_ref(
+        &canonical.evidence_refs,
+        runtime_paths,
+        expected_wp_id,
+    )
+    .is_none()
+    {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "evidence_refs",
+            Some(runtime_paths.validator_gate_record_display(expected_wp_id)),
+            Some(serde_json::to_string(&canonical.evidence_refs).unwrap_or_default()),
+            "software-delivery closeout requires a canonical validator-gate evidence ref \
+             bound to the canonical record_id",
+        );
+    }
+    if first_canonical_owner_packet_ref(
+        &canonical.authority_refs,
+        runtime_paths,
+        expected_wp_id,
+    )
+    .is_none()
+    {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "authority_refs",
+            Some(runtime_paths.work_packet_packet_display(expected_wp_id)),
+            Some(serde_json::to_string(&canonical.authority_refs).unwrap_or_default()),
+            "software-delivery closeout requires a canonical owner-of-record packet authority ref \
+             bound to the canonical record_id",
+        );
+    }
+    result
 }
 
 #[cfg(test)]

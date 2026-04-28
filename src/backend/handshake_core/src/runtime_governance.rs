@@ -22,6 +22,24 @@ pub const RUNTIME_VALIDATOR_GATES_DIR: &str = "validator_gates";
 pub const RUNTIME_ACTIVATION_TRACEABILITY_DIR: &str = "activation_traceability";
 pub const RUNTIME_GOVERNANCE_DECISIONS_DIR: &str = "governance_decisions";
 pub const RUNTIME_GOVERNANCE_AUTO_SIGNATURES_DIR: &str = "auto_signatures";
+// MT-003 v02.181: canonical lineage directory for software-delivery closeout
+// posture derivation. Checkpoint lineage MUST resolve to this
+// governance-root-relative segment so closeout derivation cannot be tricked
+// by spoofed evidence refs.
+pub const RUNTIME_CHECKPOINTS_DIR: &str = "checkpoints";
+// MT-004 v02.181: canonical overlay record directories for software-delivery
+// claim/lease and queued-instruction records. Overlay records MUST resolve
+// to these governance-root-relative segments so projection surfaces and
+// mailbox triage rows cannot be tricked into surfacing spoofed paths as
+// authoritative overlay state.
+pub const RUNTIME_CLAIM_LEASES_DIR: &str = "claim_leases";
+pub const RUNTIME_QUEUED_INSTRUCTIONS_DIR: &str = "queued_instructions";
+// MT-004 v02.181: canonical workflow run lifecycle record directory. Each
+// software-delivery work_packet_id has at most one record at
+// `<gov_root>/workflow_runs/<wp_id>.json` carrying workflow_failed,
+// workflow_canceled, workflow_settled, and has_unresolved_governed_actions
+// posture plus the stable workflow_run_id/workflow_binding_id/model_session_id.
+pub const RUNTIME_WORKFLOW_RUNS_DIR: &str = "workflow_runs";
 
 // DCC Control Plane projection constants
 pub const DCC_CONTROL_PLANE_SCHEMA_ID: &str = "hsk.dcc_control_plane_snapshot@1";
@@ -517,6 +535,30 @@ impl RuntimeGovernancePaths {
         display_path(&self.workspace_root, &self.work_packet_summary_path(wp_id))
     }
 
+    // MT-003 v02.181: software-delivery closeout posture artifact path.
+    pub fn work_packet_closeout_posture_path(&self, wp_id: &str) -> PathBuf {
+        self.work_packet_dir(wp_id).join("closeout_posture.json")
+    }
+
+    pub fn work_packet_closeout_posture_display(&self, wp_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.work_packet_closeout_posture_path(wp_id),
+        )
+    }
+
+    // MT-004 v02.181: software-delivery projection surface artifact path.
+    pub fn work_packet_projection_surface_path(&self, wp_id: &str) -> PathBuf {
+        self.work_packet_dir(wp_id).join("projection_surface.json")
+    }
+
+    pub fn work_packet_projection_surface_display(&self, wp_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.work_packet_projection_surface_path(wp_id),
+        )
+    }
+
     pub fn work_packet_notes_dir(&self, wp_id: &str) -> PathBuf {
         self.work_packet_dir(wp_id).join("notes")
     }
@@ -680,6 +722,276 @@ impl RuntimeGovernancePaths {
     pub fn auto_signature_path(&self, auto_signature_id: &str) -> PathBuf {
         self.auto_signatures_dir()
             .join(format!("{auto_signature_id}.json"))
+    }
+
+    // MT-003 v02.181: canonical software-delivery closeout lineage paths.
+    pub fn validator_gates_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.validator_gates_dir(),
+        ))
+    }
+
+    pub fn validator_gate_record_path(&self, wp_id: &str) -> PathBuf {
+        self.validator_gates_dir().join(format!("{wp_id}.json"))
+    }
+
+    pub fn validator_gate_record_display(&self, wp_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.validator_gate_record_path(wp_id),
+        )
+    }
+
+    pub fn checkpoints_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_CHECKPOINTS_DIR)
+    }
+
+    pub fn checkpoints_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.checkpoints_dir(),
+        ))
+    }
+
+    pub fn checkpoint_record_path(&self, checkpoint_id: &str) -> PathBuf {
+        self.checkpoints_dir()
+            .join(format!("{checkpoint_id}.json"))
+    }
+
+    pub fn checkpoint_record_display(&self, checkpoint_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.checkpoint_record_path(checkpoint_id),
+        )
+    }
+
+    /// True iff `value` is a canonical validator-gate evidence ref under the
+    /// product runtime governance root for the SAME stable id `expected_wp_id`:
+    /// `<gov_root>/validator_gates/<expected_wp_id>.json`. Substring spoofs
+    /// (e.g. `/notes/validator_gates/...`, no `.json` suffix) and same-record
+    /// spoofs (foreign WP ids) are rejected.
+    pub fn is_canonical_validator_gate_ref(&self, value: &str, expected_wp_id: &str) -> bool {
+        if expected_wp_id.is_empty() || expected_wp_id.contains('/') {
+            return false;
+        }
+        let normalized = normalize_display_like(value);
+        if normalized.is_empty() || !normalized.ends_with(".json") {
+            return false;
+        }
+        let prefix = normalize_display_like(&self.validator_gates_dir_display());
+        if !normalized.starts_with(&prefix) {
+            return false;
+        }
+        let after_prefix = &normalized[prefix.len()..];
+        let expected = format!("{expected_wp_id}.json");
+        after_prefix == expected
+    }
+
+    /// True iff `value` is a canonical work-packet `packet.json` authority ref
+    /// under the product runtime governance root for the SAME stable id
+    /// `expected_wp_id`: `<gov_root>/work_packets/<expected_wp_id>/packet.json`.
+    /// Substring spoofs and foreign WP ids are rejected.
+    pub fn is_canonical_work_packet_packet_ref(&self, value: &str, expected_wp_id: &str) -> bool {
+        if expected_wp_id.is_empty() || expected_wp_id.contains('/') {
+            return false;
+        }
+        let normalized = normalize_display_like(value);
+        if normalized.is_empty() || !normalized.ends_with("/packet.json") {
+            return false;
+        }
+        let prefix = normalize_display_like(&self.work_packets_dir_display());
+        if !normalized.starts_with(&prefix) {
+            return false;
+        }
+        let inner = &normalized[prefix.len()..];
+        let expected = format!("{expected_wp_id}/packet.json");
+        inner == expected
+    }
+
+    // ── MT-004 v02.181: claim/lease canonical paths ─────────────────────────
+
+    pub fn claim_leases_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_CLAIM_LEASES_DIR)
+    }
+
+    pub fn claim_leases_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.claim_leases_dir(),
+        ))
+    }
+
+    pub fn claim_lease_dir(&self, wp_id: &str) -> PathBuf {
+        self.claim_leases_dir().join(wp_id)
+    }
+
+    pub fn claim_lease_record_path(&self, wp_id: &str, claim_id: &str) -> PathBuf {
+        self.claim_lease_dir(wp_id).join(format!("{claim_id}.json"))
+    }
+
+    pub fn claim_lease_record_display(&self, wp_id: &str, claim_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.claim_lease_record_path(wp_id, claim_id),
+        )
+    }
+
+    /// True iff `value` is a canonical claim/lease record ref under the
+    /// product runtime governance root for the SAME stable ids
+    /// `expected_wp_id`/`expected_claim_id`:
+    /// `<gov_root>/claim_leases/<expected_wp_id>/<expected_claim_id>.json`.
+    /// Substring spoofs and foreign WP/claim ids are rejected.
+    pub fn is_canonical_claim_lease_record_ref(
+        &self,
+        value: &str,
+        expected_wp_id: &str,
+        expected_claim_id: &str,
+    ) -> bool {
+        if expected_wp_id.is_empty()
+            || expected_wp_id.contains('/')
+            || expected_claim_id.is_empty()
+            || expected_claim_id.contains('/')
+        {
+            return false;
+        }
+        let normalized = normalize_display_like(value);
+        if normalized.is_empty() || !normalized.ends_with(".json") {
+            return false;
+        }
+        let prefix = normalize_display_like(&self.claim_leases_dir_display());
+        if !normalized.starts_with(&prefix) {
+            return false;
+        }
+        let inner = &normalized[prefix.len()..];
+        let expected = format!("{expected_wp_id}/{expected_claim_id}.json");
+        inner == expected
+    }
+
+    // ── MT-004 v02.181: queued-instruction canonical paths ──────────────────
+
+    pub fn queued_instructions_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_QUEUED_INSTRUCTIONS_DIR)
+    }
+
+    pub fn queued_instructions_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.queued_instructions_dir(),
+        ))
+    }
+
+    pub fn queued_instruction_dir(&self, wp_id: &str) -> PathBuf {
+        self.queued_instructions_dir().join(wp_id)
+    }
+
+    pub fn queued_instruction_record_path(&self, wp_id: &str, instruction_id: &str) -> PathBuf {
+        self.queued_instruction_dir(wp_id)
+            .join(format!("{instruction_id}.json"))
+    }
+
+    pub fn queued_instruction_record_display(&self, wp_id: &str, instruction_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.queued_instruction_record_path(wp_id, instruction_id),
+        )
+    }
+
+    /// True iff `value` is a canonical queued-instruction record ref under the
+    /// product runtime governance root for the SAME stable ids
+    /// `expected_wp_id`/`expected_instruction_id`:
+    /// `<gov_root>/queued_instructions/<expected_wp_id>/<expected_instruction_id>.json`.
+    /// Substring spoofs and foreign WP/instruction ids are rejected.
+    pub fn is_canonical_queued_instruction_record_ref(
+        &self,
+        value: &str,
+        expected_wp_id: &str,
+        expected_instruction_id: &str,
+    ) -> bool {
+        if expected_wp_id.is_empty()
+            || expected_wp_id.contains('/')
+            || expected_instruction_id.is_empty()
+            || expected_instruction_id.contains('/')
+        {
+            return false;
+        }
+        let normalized = normalize_display_like(value);
+        if normalized.is_empty() || !normalized.ends_with(".json") {
+            return false;
+        }
+        let prefix = normalize_display_like(&self.queued_instructions_dir_display());
+        if !normalized.starts_with(&prefix) {
+            return false;
+        }
+        let inner = &normalized[prefix.len()..];
+        let expected = format!("{expected_wp_id}/{expected_instruction_id}.json");
+        inner == expected
+    }
+
+    // ── MT-004 v02.181: workflow run lifecycle canonical paths ──────────────
+
+    pub fn workflow_runs_dir(&self) -> PathBuf {
+        self.governance_root.join(RUNTIME_WORKFLOW_RUNS_DIR)
+    }
+
+    pub fn workflow_runs_dir_display(&self) -> String {
+        ensure_trailing_slash(display_path(
+            &self.workspace_root,
+            &self.workflow_runs_dir(),
+        ))
+    }
+
+    pub fn workflow_run_record_path(&self, wp_id: &str) -> PathBuf {
+        self.workflow_runs_dir().join(format!("{wp_id}.json"))
+    }
+
+    pub fn workflow_run_record_display(&self, wp_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.workflow_run_record_path(wp_id),
+        )
+    }
+
+    /// True iff `value` is a canonical workflow run lifecycle record ref
+    /// under the product runtime governance root for the SAME stable id
+    /// `expected_wp_id`: `<gov_root>/workflow_runs/<expected_wp_id>.json`.
+    /// Substring spoofs and foreign WP ids are rejected.
+    pub fn is_canonical_workflow_run_record_ref(
+        &self,
+        value: &str,
+        expected_wp_id: &str,
+    ) -> bool {
+        if expected_wp_id.is_empty() || expected_wp_id.contains('/') {
+            return false;
+        }
+        let normalized = normalize_display_like(value);
+        if normalized.is_empty() || !normalized.ends_with(".json") {
+            return false;
+        }
+        let prefix = normalize_display_like(&self.workflow_runs_dir_display());
+        if !normalized.starts_with(&prefix) {
+            return false;
+        }
+        let inner = &normalized[prefix.len()..];
+        let expected = format!("{expected_wp_id}.json");
+        inner == expected
+    }
+
+    /// True iff `value` is a canonical checkpoint record ref under the
+    /// product runtime governance root: `<gov_root>/checkpoints/<id>.json`.
+    /// Path-shape only (checkpoint id is governed by checkpoint lineage,
+    /// not by record_id binding).
+    pub fn is_canonical_checkpoint_record_ref(&self, value: &str) -> bool {
+        let normalized = normalize_display_like(value);
+        if normalized.is_empty() || !normalized.ends_with(".json") {
+            return false;
+        }
+        let prefix = normalize_display_like(&self.checkpoints_dir_display());
+        if !normalized.starts_with(&prefix) {
+            return false;
+        }
+        let after_prefix = &normalized[prefix.len()..];
+        !after_prefix.is_empty() && !after_prefix.contains('/')
     }
 
     pub fn is_runtime_artifact_display_path(&self, value: &str) -> bool {

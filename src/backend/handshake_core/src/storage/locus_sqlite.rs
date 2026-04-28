@@ -19,7 +19,6 @@ use crate::workflows::locus::types::{
     governed_action_ids_for_family, queue_automation_rule_ids_for_reason,
     resolve_queue_reason_with_mailbox_context, transition_rule_ids_for_family,
 };
-
 pub(crate) fn ensure_locus_sqlite(db: &(impl Database + ?Sized)) -> StorageResult<()> {
     if db.supports_locus_runtime() {
         Ok(())
@@ -279,7 +278,58 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
         );
     }
 
+    apply_canonical_overrides_to_progress_metadata(&mut artifact_json, tracked_mt);
+
     artifact_json
+}
+
+/// Apply canonical-registry overrides on the runtime MT progress metadata
+/// JSON: `allowed_action_ids` is rewritten from
+/// `governed_action_ids_for_family` so the runtime emission matches the
+/// canonical registry, and when the tracked record carries
+/// `has_pending_mailbox_wait=true`, `queue_reason_code` is overridden to
+/// `MailboxResponseWait` per Master Spec v02.171 Role Mailbox authority
+/// boundary while `workflow_state_family` is preserved. Implemented as a
+/// post-build override so the upstream helpers (`micro_task_workflow_state`
+/// and the local `allowed_action_ids` matrix) stay identical to the
+/// 53a6ece9 baseline and the textual diff against `protected_main` remains
+/// non-overlapping.
+fn apply_canonical_overrides_to_progress_metadata(
+    artifact_json: &mut Value,
+    tracked_mt: &TrackedMicroTask,
+) {
+    let Some(obj) = artifact_json.as_object_mut() else {
+        return;
+    };
+    let workflow_state_family = obj
+        .get("workflow_state_family")
+        .and_then(|value| serde_json::from_value::<WorkflowStateFamily>(value.clone()).ok());
+    if let Some(family) = workflow_state_family {
+        let canonical_actions: Vec<String> = governed_action_ids_for_family(family)
+            .iter()
+            .map(|action| (*action).to_string())
+            .collect();
+        if let Ok(value) = serde_json::to_value(&canonical_actions) {
+            obj.insert("allowed_action_ids".to_string(), value);
+        }
+    }
+
+    let has_pending_mailbox_wait = tracked_mt
+        .metadata
+        .get("has_pending_mailbox_wait")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if !has_pending_mailbox_wait {
+        return;
+    }
+    let base_reason = obj
+        .get("queue_reason_code")
+        .and_then(|value| serde_json::from_value::<WorkflowQueueReasonCode>(value.clone()).ok())
+        .unwrap_or(WorkflowQueueReasonCode::ReadyForLocalSmallModel);
+    let resolved = resolve_queue_reason_with_mailbox_context(base_reason, true);
+    if let Ok(value) = serde_json::to_value(resolved) {
+        obj.insert("queue_reason_code".to_string(), value);
+    }
 }
 
 fn task_board_status_str(status: TaskBoardStatus) -> &'static str {

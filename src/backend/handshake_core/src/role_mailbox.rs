@@ -17,6 +17,8 @@ use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
 use crate::runtime_governance::RuntimeGovernancePaths;
+use crate::workflows::locus::SoftwareDeliveryProjectionSurfaceV1;
+use crate::workflows::locus::SoftwareDeliveryWorkflowBindingState;
 use crate::workflows::locus::{
     validate_structured_collaboration_record, ProjectProfileKind,
     StructuredCollaborationRecordFamily, StructuredCollaborationValidationCode,
@@ -222,6 +224,13 @@ pub struct RoleMailboxContext {
     pub project_id: Option<String>,
 }
 
+/// Role mailbox thread record.
+///
+/// For `project_profile_kind = software_delivery` (v02.181): mailbox
+/// chronology (latest reply, message ordering, unread state) is advisory only
+/// and MUST NOT mutate authoritative work meaning. Linked work items derive
+/// authority from the canonical `StructuredCollaborationSummaryV1`; this
+/// thread contributes only its `thread_id` to the projection surface.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleMailboxThread {
     pub thread_id: String,
@@ -1933,6 +1942,64 @@ pub struct RoleMailboxExportSummary {
     pub export_manifest_sha256: String,
     pub thread_count: u64,
     pub message_count: u64,
+}
+
+// ── MT-004 v02.181: Role Mailbox software-delivery overlay triage row ───────
+//
+// Per Master Spec v02.173 "Role Mailbox message contract, thread lifecycle,
+// and authority boundary": replying to or rendering a mailbox thread MUST NOT
+// silently mutate Work Packet, Micro-Task, Task Board, or canonical overlay
+// state. The triage row below is the bounded ADVISORY surface that lets
+// Role Mailbox readers route to the linked canonical claim/lease and
+// queued-instruction overlay records by stable identifier; it carries no
+// authority of its own. The row is built from the projection surface that
+// already enforced canonical authority (DCC, Task Board, validators read the
+// same surface), so the mailbox can never silently re-derive ownership or
+// queued steering intent from chronology.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SoftwareDeliveryOverlayTriageRowV1 {
+    pub work_packet_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_binding_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_binding_state: Option<SoftwareDeliveryWorkflowBindingState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_lease_record_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_lease_record_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queued_instruction_record_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queued_instruction_record_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mailbox_thread_ids: Vec<String>,
+}
+
+/// Build an advisory mailbox triage row from a software-delivery projection
+/// surface. Returns `None` when `projection.project_profile_kind` is not
+/// `SoftwareDelivery`. The row is a STABLE-ID PROJECTION ONLY: the mailbox
+/// MUST NOT mutate the canonical claim/lease or queued-instruction record
+/// state from this surface; it surfaces ids and canonical record refs so
+/// operators can navigate to authoritative records.
+pub fn build_software_delivery_overlay_triage_row(
+    projection: &SoftwareDeliveryProjectionSurfaceV1,
+) -> Option<SoftwareDeliveryOverlayTriageRowV1> {
+    if projection.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
+        return None;
+    }
+    Some(SoftwareDeliveryOverlayTriageRowV1 {
+        work_packet_id: projection.work_packet_id.clone(),
+        workflow_run_id: projection.workflow_run_id.clone(),
+        workflow_binding_id: projection.workflow_binding_id.clone(),
+        workflow_binding_state: projection.workflow_binding_state,
+        claim_lease_record_id: projection.claim_lease_record_id.clone(),
+        claim_lease_record_ref: projection.claim_lease_record_ref.clone(),
+        queued_instruction_record_ids: projection.queued_instruction_record_ids.clone(),
+        queued_instruction_record_refs: projection.queued_instruction_record_refs.clone(),
+        mailbox_thread_ids: projection.advisory_role_mailbox_thread_ids.clone(),
+    })
 }
 
 fn validate_runtime_mailbox_record(

@@ -3466,6 +3466,10 @@ fn allowed_action_ids(family: locus::WorkflowStateFamily) -> Vec<String> {
     locus::governed_action_ids_for_family(family)
 }
 
+/// Returns whether the tracked record carries a `has_pending_mailbox_wait`
+/// flag in its metadata. Mailbox-linked waits are advisory inputs into the
+/// queue_reason_code resolver — they surface `MailboxResponseWait` without
+/// promoting the mailbox thread to authority over workflow_state_family.
 fn work_packet_blockers(work_packet: &locus::TrackedWorkPacket) -> Vec<String> {
     let mut blockers: Vec<String> = work_packet
         .notes
@@ -3847,7 +3851,8 @@ fn emit_micro_task_artifacts(
         &runtime_paths.micro_task_summary_path(&tracked_mt.wp_id, &tracked_mt.mt_id),
         &summary_value,
     )?;
-    let packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
+    let mut packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
+    apply_canonical_overrides_to_micro_task_packet(&mut packet, &tracked_mt);
     write_json_atomic(
         runtime_paths.workspace_root(),
         &runtime_paths.micro_task_packet_path(&tracked_mt.wp_id, &tracked_mt.mt_id),
@@ -4119,6 +4124,19 @@ async fn emit_task_board_projection_artifacts(
                 authoritative_truth.1,
                 authoritative_truth.2,
                 &authoritative_truth.3,
+            ),
+        );
+        // MT-002 v02.181: software-delivery overlay runtime truth specialization.
+        // For software_delivery entries, additionally enforce the canonical
+        // projection-surface authority contract; the helper is a no-op for
+        // non-software_delivery entries so it is safe to call unconditionally.
+        entry_validation.merge(
+            locus::task_board::enforce_software_delivery_task_board_projection_authority(
+                entry,
+                &authoritative_truth.0,
+                authoritative_truth.1,
+                authoritative_truth.2,
+                authoritative_truth.3.clone(),
             ),
         );
         validation.merge(entry_validation);
@@ -4942,19 +4960,634 @@ async fn emit_runtime_structured_work_packet_artifacts(
         );
     }
     validation.merge(summary_validation);
+
+    // MT-003 v02.181: software-delivery closeout truth check on the
+    // runtime work-packet emitter path so that a closeout-relevant
+    // software_delivery WP cannot be written to disk through
+    // execute_locus_work_packet_operation without canonical gate evidence
+    // and owner-of-record authority.
+    if let Ok(summary_struct) =
+        serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(summary_value.clone())
+    {
+        validation.merge(locus::validate_software_delivery_closeout_canonical_truth(
+            &summary_struct,
+            runtime_paths,
+        ));
+    }
+
     tracked_wp.metadata["structured_collaboration_validation"] =
         serde_json::to_value(&validation).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    detail_packet = build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs);
+    let detail_value =
+        serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+
+    finalize_runtime_structured_work_packet_writes(
+        runtime_paths,
+        &workspace_root,
+        wp_id,
+        &validation,
+        &summary_value,
+        &detail_value,
+    )?;
+
+    Ok(())
+}
+
+/// MT-003 v02.181: production wrapper for runtime structured work-packet
+/// artifact writes that keeps the closeout posture artifact consistent with
+/// the validation gate.
+///
+/// Validation FAILURE (`validation.ok == false`): the artifact batch is
+/// rejected. The wrapper unconditionally clears any pre-existing
+/// `<gov_root>/work_packets/<wp_id>/closeout_posture.json` before
+/// returning `WorkflowError::Terminal`. This guarantees:
+/// - no NEW closeout posture is written for an invalid/unpublished
+///   artifact batch (even when canonical gate/owner are still valid and
+///   `derive_software_delivery_closeout_posture` would have produced
+///   `Some`); and
+/// - any STALE closeout posture from a prior canonical state is removed
+///   even when the canonical loses record-id-bound gate/owner truth.
+/// Packet.json and summary.json writes are skipped.
+///
+/// Validation SUCCESS (`validation.ok == true`): the wrapper runs the
+/// normal write-or-remove `apply_software_delivery_closeout_posture_lifecycle`
+/// (so the on-disk posture matches canonical truth), then writes
+/// packet.json and summary.json via `write_json_atomic`.
+pub fn finalize_runtime_structured_work_packet_writes(
+    runtime_paths: &RuntimeGovernancePaths,
+    workspace_root: &Path,
+    wp_id: &str,
+    validation: &locus::StructuredCollaborationValidationResult,
+    summary_value: &Value,
+    detail_value: &Value,
+) -> Result<(), WorkflowError> {
     if !validation.ok {
+        let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
+        if posture_path.exists() {
+            fs::remove_file(&posture_path).map_err(|e| {
+                WorkflowError::Terminal(format!(
+                    "failed to remove closeout posture artifact at {} during validation failure: {e}",
+                    posture_path.display()
+                ))
+            })?;
+        }
+        let surface_path = runtime_paths.work_packet_projection_surface_path(wp_id);
+        if surface_path.exists() {
+            fs::remove_file(&surface_path).map_err(|e| {
+                WorkflowError::Terminal(format!(
+                    "failed to remove projection surface artifact at {} during validation failure: {e}",
+                    surface_path.display()
+                ))
+            })?;
+        }
+        let lifecycle_path = runtime_paths.workflow_run_record_path(wp_id);
+        if lifecycle_path.exists() {
+            fs::remove_file(&lifecycle_path).map_err(|e| {
+                WorkflowError::Terminal(format!(
+                    "failed to remove software-delivery workflow run lifecycle record at {} during validation failure: {e}",
+                    lifecycle_path.display()
+                ))
+            })?;
+        }
         return Err(WorkflowError::Terminal(
-            serde_json::to_string(&validation).unwrap_or_else(|_| {
+            serde_json::to_string(validation).unwrap_or_else(|_| {
                 "structured collaboration validation failed for work-packet registry".to_string()
             }),
         ));
     }
 
-    detail_packet = build_structured_work_packet_packet(runtime_paths, &tracked_wp, note_refs);
-    write_json_atomic(&workspace_root, &packet_path, &detail_packet)?;
-    write_json_atomic(&workspace_root, &summary_path, &summary_value)?;
+    apply_software_delivery_closeout_posture_lifecycle(
+        runtime_paths,
+        workspace_root,
+        wp_id,
+        summary_value,
+    )?;
+    apply_software_delivery_workflow_run_lifecycle(
+        runtime_paths,
+        workspace_root,
+        wp_id,
+        summary_value,
+    )?;
+    apply_software_delivery_projection_surface_lifecycle(
+        runtime_paths,
+        workspace_root,
+        wp_id,
+        summary_value,
+    )?;
+
+    let packet_path = runtime_paths.work_packet_packet_path(wp_id);
+    let summary_path = runtime_paths.work_packet_summary_path(wp_id);
+    write_json_atomic(workspace_root, &packet_path, detail_value)?;
+    write_json_atomic(workspace_root, &summary_path, summary_value)?;
+    Ok(())
+}
+
+/// MT-004 v02.181: build the software-delivery projection surface with
+/// canonical overlay extension records (claim/lease and queued
+/// instructions) and the derived workflow binding lifecycle state.
+///
+/// This is the production wrapper that DCC, Task Board, and Role Mailbox
+/// projection layers MUST call when building software-delivery projections.
+/// It enforces the spec invariants (`approval_wait` requires unresolved
+/// governed actions, `validation_wait` requires active validator-gate
+/// records, `closeout_pending` is derived from canonical truth) by
+/// delegating to `locus::derive_software_delivery_workflow_binding_state`.
+///
+/// Returns `None` for non-software_delivery profiles, broken stable-id
+/// joins on the optional task-board entry, or foreign-WP overlay records
+/// (claim/lease or queued-instruction `work_packet_id` not equal to the
+/// canonical `record_id`).
+#[allow(clippy::too_many_arguments)]
+pub fn build_software_delivery_projection_surface_with_overlay(
+    canonical: &locus::StructuredCollaborationSummaryV1,
+    workflow_run_id: Option<&str>,
+    workflow_binding_id: Option<&str>,
+    model_session_id: Option<&str>,
+    task_board_entry: Option<&locus::task_board::TaskBoardEntryRecordV1>,
+    mailbox_thread_ids: &[String],
+    claim_lease: Option<&locus::GovernanceClaimLeaseRecordV1>,
+    queued_instructions: &[locus::GovernanceQueuedInstructionRecordV1],
+    gate_posture: locus::SoftwareDeliveryBindingGatePosture,
+    runtime_paths: &RuntimeGovernancePaths,
+) -> Option<locus::SoftwareDeliveryProjectionSurfaceV1> {
+    locus::derive_software_delivery_projection_surface_with_overlay(
+        canonical,
+        workflow_run_id,
+        workflow_binding_id,
+        model_session_id,
+        task_board_entry,
+        mailbox_thread_ids,
+        claim_lease,
+        queued_instructions,
+        gate_posture,
+        runtime_paths,
+    )
+}
+
+/// MT-003 v02.181: software-delivery closeout posture artifact lifecycle.
+///
+/// Writes the derived closeout posture to
+/// `<gov_root>/work_packets/<wp_id>/closeout_posture.json` when the
+/// canonical summary supports derivation; removes any pre-existing
+/// posture artifact when derivation is not supported (non-software_delivery
+/// profile, missing canonical record-id-bound gate/owner refs, or summary
+/// JSON that fails to deserialize). This guarantees the closeout posture
+/// artifact never lingers on the runtime display surface after the
+/// canonical authority changes.
+///
+/// Both runtime work-packet artifact producers
+/// (`emit_runtime_structured_work_packet_artifacts` today; future producers
+/// MUST share this lifecycle helper) call this function so the artifact
+/// state is identical across paths.
+pub fn apply_software_delivery_closeout_posture_lifecycle(
+    runtime_paths: &RuntimeGovernancePaths,
+    workspace_root: &Path,
+    wp_id: &str,
+    summary_value: &Value,
+) -> Result<(), WorkflowError> {
+    let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
+    let derived = serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(
+        summary_value.clone(),
+    )
+    .ok()
+    .and_then(|summary_struct| {
+        locus::derive_software_delivery_closeout_posture(
+            &summary_struct,
+            runtime_paths,
+            None,
+            &[],
+        )
+    });
+
+    match derived {
+        Some(posture) => {
+            let posture_value = serde_json::to_value(&posture)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            write_json_atomic(workspace_root, &posture_path, &posture_value)?;
+        }
+        None => {
+            if posture_path.exists() {
+                fs::remove_file(&posture_path).map_err(|e| {
+                    WorkflowError::Terminal(format!(
+                        "failed to remove stale closeout posture artifact at {}: {e}",
+                        posture_path.display()
+                    ))
+                })?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// MT-004 v02.181: read canonical software-delivery overlay records for
+/// `wp_id` from the runtime governance root. Returns the most recent valid
+/// claim/lease record (when present) and all valid queued-instruction
+/// records under the `wp_id`-scoped overlay directories. Records with
+/// foreign `work_packet_id`, non-software_delivery profile, or unparsable
+/// JSON are silently skipped so a single corrupt sidecar cannot block
+/// projection emission.
+fn read_canonical_software_delivery_overlay_records(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+) -> (
+    Option<locus::GovernanceClaimLeaseRecordV1>,
+    Vec<locus::GovernanceQueuedInstructionRecordV1>,
+) {
+    let claim_lease = match fs::read_dir(runtime_paths.claim_lease_dir(wp_id)) {
+        Ok(iter) => {
+            let mut found: Option<locus::GovernanceClaimLeaseRecordV1> = None;
+            for entry in iter.flatten() {
+                if entry.path().extension().and_then(|s| s.to_str()) != Some("json") {
+                    continue;
+                }
+                let bytes = match fs::read(entry.path()) {
+                    Ok(b) => b,
+                    Err(_) => continue,
+                };
+                let parsed: locus::GovernanceClaimLeaseRecordV1 =
+                    match serde_json::from_slice(&bytes) {
+                        Ok(v) => v,
+                        Err(_) => continue,
+                    };
+                if parsed.project_profile_kind != locus::ProjectProfileKind::SoftwareDelivery {
+                    continue;
+                }
+                if parsed.work_packet_id != wp_id {
+                    continue;
+                }
+                match &found {
+                    Some(existing) if existing.updated_at >= parsed.updated_at => {}
+                    _ => found = Some(parsed),
+                }
+            }
+            found
+        }
+        Err(_) => None,
+    };
+
+    let mut queued: Vec<locus::GovernanceQueuedInstructionRecordV1> =
+        match fs::read_dir(runtime_paths.queued_instruction_dir(wp_id)) {
+            Ok(iter) => iter
+                .flatten()
+                .filter(|entry| {
+                    entry.path().extension().and_then(|s| s.to_str()) == Some("json")
+                })
+                .filter_map(|entry| fs::read(entry.path()).ok())
+                .filter_map(|bytes| {
+                    serde_json::from_slice::<locus::GovernanceQueuedInstructionRecordV1>(&bytes)
+                        .ok()
+                })
+                .filter(|record| {
+                    record.project_profile_kind
+                        == locus::ProjectProfileKind::SoftwareDelivery
+                        && record.work_packet_id == wp_id
+                })
+                .collect(),
+            Err(_) => Vec::new(),
+        };
+    queued.sort_by(|a, b| a.record_id.cmp(&b.record_id));
+    queued.dedup_by(|a, b| a.record_id == b.record_id);
+
+    (claim_lease, queued)
+}
+
+/// MT-004 v02.181: read the canonical software-delivery workflow run
+/// lifecycle record at `<gov_root>/workflow_runs/<wp_id>.json`. Returns
+/// `None` when the record is absent, fails to parse, or does not satisfy
+/// the stable-id binding (`work_packet_id` must equal `wp_id` and the
+/// project_profile_kind must be SoftwareDelivery). Foreign-WP records are
+/// silently skipped so a misplaced sidecar cannot promote phantom workflow
+/// lifecycle posture into the projection surface.
+fn read_canonical_software_delivery_workflow_run_lifecycle(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+) -> Option<locus::SoftwareDeliveryWorkflowRunLifecycleV1> {
+    let path = runtime_paths.workflow_run_record_path(wp_id);
+    let bytes = fs::read(&path).ok()?;
+    let parsed: locus::SoftwareDeliveryWorkflowRunLifecycleV1 =
+        serde_json::from_slice(&bytes).ok()?;
+    if parsed.project_profile_kind != locus::ProjectProfileKind::SoftwareDelivery {
+        return None;
+    }
+    if parsed.work_packet_id != wp_id {
+        return None;
+    }
+    Some(parsed)
+}
+
+/// MT-004 v02.181: derive the lifecycle gate posture inputs
+/// (`has_unresolved_governed_actions`, `workflow_failed`, `workflow_canceled`,
+/// `workflow_settled`) from the canonical structured collaboration summary
+/// the runtime production path already writes. This is the production source
+/// for binding-state derivation; the canonical summary is materialized by
+/// `emit_runtime_structured_work_packet_artifacts` on every governed work
+/// packet write, so projection emission reaches every spec-mandated binding
+/// state without requiring a separate runtime writer.
+///
+/// Mapping (per Master Spec v02.181 sec 2.6.8.8):
+/// - `workflow_canceled` ← canonical `workflow_state_family == Canceled`
+///   (terminal user/operator cancellation),
+/// - `workflow_settled` ← canonical `workflow_state_family == Archived`
+///   (post-close success state distinct from `Done`/`CloseoutPending`),
+/// - `workflow_failed` ← canonical
+///   `queue_reason_code == BlockedError`
+///   (the canonical signal that the work item failed; `BlockedPolicy` and
+///   `BlockedCapability` are blocked-but-recoverable and intentionally do
+///   not promote the binding to terminal `Failed`),
+/// - `has_unresolved_governed_actions` ← canonical `workflow_state_family ==
+///   Approval` AND `allowed_action_ids` contains at least one canonical
+///   Approval-family governed action (`approve`/`reject`/`await_gate_review`).
+fn derive_software_delivery_projection_lifecycle_flags_from_canonical(
+    canonical: &locus::StructuredCollaborationSummaryV1,
+) -> (bool, bool, bool, bool) {
+    let workflow_canceled = canonical.workflow_state_family == locus::WorkflowStateFamily::Canceled;
+    let workflow_settled = canonical.workflow_state_family == locus::WorkflowStateFamily::Archived;
+    let workflow_failed = matches!(
+        canonical.queue_reason_code,
+        locus::WorkflowQueueReasonCode::BlockedError
+    );
+    let has_unresolved_governed_actions =
+        canonical.workflow_state_family == locus::WorkflowStateFamily::Approval
+            && canonical.allowed_action_ids.iter().any(|id| {
+                locus::is_governed_action_id_allowed_for_workflow_family(
+                    locus::WorkflowStateFamily::Approval,
+                    id,
+                )
+            });
+    (
+        has_unresolved_governed_actions,
+        workflow_failed,
+        workflow_canceled,
+        workflow_settled,
+    )
+}
+
+/// MT-004 v02.181: build the projection surface gate posture from canonical
+/// runtime truth. Lifecycle inputs come from the production-written canonical
+/// summary by default (see
+/// `derive_software_delivery_projection_lifecycle_flags_from_canonical`).
+/// The optional `workflow_run_lifecycle` sidecar at
+/// `<gov_root>/workflow_runs/<wp_id>.json` can OVERRIDE individual flags
+/// when the runtime workflow engine has explicit lifecycle truth that the
+/// canonical summary cannot yet express; absence of the sidecar leaves the
+/// canonical-derived values in place. `has_active_validator_gate` is true
+/// iff a canonical validator gate record exists for `wp_id`;
+/// `has_closeout_posture` is true iff canonical closeout derivation
+/// produces a posture for the supplied summary.
+fn compute_software_delivery_projection_gate_posture_from_disk(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+    canonical: &locus::StructuredCollaborationSummaryV1,
+    workflow_run_lifecycle: Option<&locus::SoftwareDeliveryWorkflowRunLifecycleV1>,
+) -> locus::SoftwareDeliveryBindingGatePosture {
+    let has_active_validator_gate = runtime_paths
+        .validator_gate_record_path(wp_id)
+        .exists();
+    let has_closeout_posture = locus::derive_software_delivery_closeout_posture(
+        canonical,
+        runtime_paths,
+        None,
+        &[],
+    )
+    .is_some();
+    let (
+        canonical_unresolved,
+        canonical_failed,
+        canonical_canceled,
+        canonical_settled,
+    ) = derive_software_delivery_projection_lifecycle_flags_from_canonical(canonical);
+    locus::SoftwareDeliveryBindingGatePosture {
+        has_unresolved_governed_actions: workflow_run_lifecycle
+            .map(|r| r.has_unresolved_governed_actions)
+            .unwrap_or(canonical_unresolved),
+        has_active_validator_gate,
+        has_closeout_posture,
+        workflow_failed: workflow_run_lifecycle
+            .map(|r| r.workflow_failed)
+            .unwrap_or(canonical_failed),
+        workflow_canceled: workflow_run_lifecycle
+            .map(|r| r.workflow_canceled)
+            .unwrap_or(canonical_canceled),
+        workflow_settled: workflow_run_lifecycle
+            .map(|r| r.workflow_settled)
+            .unwrap_or(canonical_settled),
+    }
+}
+
+/// MT-004 v02.181: pick the canonical stable workflow identifiers for the
+/// production projection. Priority is: claim/lease record > first queued
+/// instruction (sorted by record_id, matching the deterministic projection
+/// emission order) > workflow run lifecycle record. Each identifier is
+/// resolved independently so a partial overlay state (e.g. claim/lease
+/// without `model_session_id`) can still surface the canonical id from a
+/// downstream record. Returns `(workflow_run_id, workflow_binding_id,
+/// model_session_id)`.
+fn select_software_delivery_projection_stable_ids(
+    claim_lease: Option<&locus::GovernanceClaimLeaseRecordV1>,
+    queued: &[locus::GovernanceQueuedInstructionRecordV1],
+    workflow_run_lifecycle: Option<&locus::SoftwareDeliveryWorkflowRunLifecycleV1>,
+) -> (Option<String>, Option<String>, Option<String>) {
+    let mut workflow_run_id: Option<String> = None;
+    let mut workflow_binding_id: Option<String> = None;
+    let mut model_session_id: Option<String> = None;
+    if let Some(claim) = claim_lease {
+        workflow_run_id = workflow_run_id.or_else(|| claim.workflow_run_id.clone());
+        workflow_binding_id = workflow_binding_id.or_else(|| claim.workflow_binding_id.clone());
+        model_session_id = model_session_id.or_else(|| claim.model_session_id.clone());
+    }
+    if workflow_run_id.is_none()
+        || workflow_binding_id.is_none()
+        || model_session_id.is_none()
+    {
+        if let Some(first) = queued.first() {
+            workflow_run_id = workflow_run_id.or_else(|| first.workflow_run_id.clone());
+            workflow_binding_id =
+                workflow_binding_id.or_else(|| first.workflow_binding_id.clone());
+            model_session_id =
+                model_session_id.or_else(|| first.target_model_session_id.clone());
+        }
+    }
+    if let Some(run) = workflow_run_lifecycle {
+        workflow_run_id = workflow_run_id.or_else(|| run.workflow_run_id.clone());
+        workflow_binding_id = workflow_binding_id.or_else(|| run.workflow_binding_id.clone());
+        model_session_id = model_session_id.or_else(|| run.model_session_id.clone());
+    }
+    (workflow_run_id, workflow_binding_id, model_session_id)
+}
+
+/// MT-004 v02.181: software-delivery workflow run lifecycle artifact
+/// lifecycle. Production writer for the canonical
+/// `<gov_root>/workflow_runs/<wp_id>.json` record consumed by
+/// `apply_software_delivery_projection_surface_lifecycle`. This is the
+/// runtime workflow/governed-action lifecycle source that materializes
+/// `SoftwareDeliveryWorkflowRunLifecycleV1` from the same canonical
+/// structured-collaboration summary `emit_runtime_structured_work_packet_artifacts`
+/// already produces, plus the canonical overlay extension records, so the
+/// projection surface reads a runtime-backed sidecar instead of a
+/// synthetic test fixture.
+///
+/// Lifecycle inputs (`workflow_failed`/`workflow_canceled`/`workflow_settled`/
+/// `has_unresolved_governed_actions`) are derived from canonical truth via
+/// `derive_software_delivery_projection_lifecycle_flags_from_canonical`.
+/// Stable ids (`workflow_run_id`/`workflow_binding_id`/`model_session_id`)
+/// are selected from canonical claim/lease and queued-instruction records
+/// via `select_software_delivery_projection_stable_ids` so the lifecycle
+/// record exposes the same stable-id discipline the projection surface
+/// emits.
+///
+/// Write or remove decision:
+/// - For a software_delivery summary whose `record_id` matches `wp_id`,
+///   the record is written atomically.
+/// - For non-software_delivery summaries, foreign-WP summaries, or
+///   summaries that fail to deserialize, any pre-existing canonical
+///   record is removed so a stale lifecycle posture cannot promote
+///   phantom binding states into the projection surface (artifact
+///   lifecycle parity with closeout posture and projection surface).
+pub fn apply_software_delivery_workflow_run_lifecycle(
+    runtime_paths: &RuntimeGovernancePaths,
+    workspace_root: &Path,
+    wp_id: &str,
+    summary_value: &Value,
+) -> Result<(), WorkflowError> {
+    let lifecycle_path = runtime_paths.workflow_run_record_path(wp_id);
+    let derived = serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(
+        summary_value.clone(),
+    )
+    .ok()
+    .filter(|canonical| {
+        canonical.project_profile_kind == locus::ProjectProfileKind::SoftwareDelivery
+            && canonical.record_id == wp_id
+    })
+    .map(|canonical| {
+        let (claim_lease, queued) =
+            read_canonical_software_delivery_overlay_records(runtime_paths, wp_id);
+        let (workflow_run_id, workflow_binding_id, model_session_id) =
+            select_software_delivery_projection_stable_ids(
+                claim_lease.as_ref(),
+                &queued,
+                None,
+            );
+        let (
+            has_unresolved_governed_actions,
+            workflow_failed,
+            workflow_canceled,
+            workflow_settled,
+        ) = derive_software_delivery_projection_lifecycle_flags_from_canonical(&canonical);
+        locus::SoftwareDeliveryWorkflowRunLifecycleV1 {
+            schema_id: locus::SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_SCHEMA_ID_V1.to_string(),
+            schema_version: locus::SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_SCHEMA_VERSION_V1
+                .to_string(),
+            record_id: wp_id.to_string(),
+            record_kind: locus::SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_RECORD_KIND.to_string(),
+            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+            work_packet_id: wp_id.to_string(),
+            workflow_run_id,
+            workflow_binding_id,
+            model_session_id,
+            workflow_failed,
+            workflow_canceled,
+            workflow_settled,
+            has_unresolved_governed_actions,
+            updated_at: canonical.updated_at.clone(),
+        }
+    });
+
+    match derived {
+        Some(record) => {
+            let record_value = serde_json::to_value(&record)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            write_json_atomic(workspace_root, &lifecycle_path, &record_value)?;
+        }
+        None => {
+            if lifecycle_path.exists() {
+                fs::remove_file(&lifecycle_path).map_err(|e| {
+                    WorkflowError::Terminal(format!(
+                        "failed to remove stale software-delivery workflow run lifecycle record at {}: {e}",
+                        lifecycle_path.display()
+                    ))
+                })?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// MT-004 v02.181: software-delivery projection surface artifact lifecycle.
+///
+/// Writes the derived overlay-aware projection surface to
+/// `<gov_root>/work_packets/<wp_id>/projection_surface.json` when canonical
+/// derivation succeeds; removes any pre-existing artifact when derivation
+/// returns `None` (non-software_delivery profile, foreign-WP overlay,
+/// stable-id mismatch, or summary JSON that fails to deserialize). This
+/// guarantees the projection surface artifact never lingers on the runtime
+/// display surface after canonical authority changes, mirroring the
+/// closeout posture artifact lifecycle.
+///
+/// The emitted projection carries canonical overlay extension records read
+/// from `<gov_root>/claim_leases/<wp_id>/*.json` and
+/// `<gov_root>/queued_instructions/<wp_id>/*.json`, plus the derived
+/// `workflow_binding_state`. Stable-id discipline is enforced by
+/// `derive_software_delivery_projection_surface_with_overlay`.
+pub fn apply_software_delivery_projection_surface_lifecycle(
+    runtime_paths: &RuntimeGovernancePaths,
+    workspace_root: &Path,
+    wp_id: &str,
+    summary_value: &Value,
+) -> Result<(), WorkflowError> {
+    let surface_path = runtime_paths.work_packet_projection_surface_path(wp_id);
+    let derived = serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(
+        summary_value.clone(),
+    )
+    .ok()
+    .and_then(|canonical| {
+        let (claim_lease, queued) =
+            read_canonical_software_delivery_overlay_records(runtime_paths, wp_id);
+        let workflow_run_lifecycle =
+            read_canonical_software_delivery_workflow_run_lifecycle(runtime_paths, wp_id);
+        let (workflow_run_id, workflow_binding_id, model_session_id) =
+            select_software_delivery_projection_stable_ids(
+                claim_lease.as_ref(),
+                &queued,
+                workflow_run_lifecycle.as_ref(),
+            );
+        let gate_posture = compute_software_delivery_projection_gate_posture_from_disk(
+            runtime_paths,
+            wp_id,
+            &canonical,
+            workflow_run_lifecycle.as_ref(),
+        );
+        locus::derive_software_delivery_projection_surface_with_overlay(
+            &canonical,
+            workflow_run_id.as_deref(),
+            workflow_binding_id.as_deref(),
+            model_session_id.as_deref(),
+            None,
+            &[],
+            claim_lease.as_ref(),
+            &queued,
+            gate_posture,
+            runtime_paths,
+        )
+    });
+
+    match derived {
+        Some(surface) => {
+            let surface_value = serde_json::to_value(&surface)
+                .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+            write_json_atomic(workspace_root, &surface_path, &surface_value)?;
+        }
+        None => {
+            if surface_path.exists() {
+                fs::remove_file(&surface_path).map_err(|e| {
+                    WorkflowError::Terminal(format!(
+                        "failed to remove stale projection surface artifact at {}: {e}",
+                        surface_path.display()
+                    ))
+                })?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -4975,6 +5608,7 @@ async fn emit_runtime_structured_micro_task_artifacts(
     tracked_mt.metadata["structured_collaboration_summary"] = summary_value.clone();
 
     let mut detail_packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
+    apply_canonical_overrides_to_micro_task_packet(&mut detail_packet, &tracked_mt);
     let detail_value =
         serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let mut validation = locus::validate_structured_collaboration_record(
@@ -5024,6 +5658,7 @@ async fn emit_runtime_structured_micro_task_artifacts(
     }
 
     detail_packet = build_structured_micro_task_packet(runtime_paths, &tracked_mt);
+    apply_canonical_overrides_to_micro_task_packet(&mut detail_packet, &tracked_mt);
     write_json_atomic(&workspace_root, &packet_path, &detail_packet)?;
     write_json_atomic(&workspace_root, &summary_path, &summary_value)?;
     Ok(())
@@ -5989,9 +6624,13 @@ fn structured_work_packet_status(status: locus::WorkPacketStatus) -> &'static st
 }
 
 fn structured_work_packet_next_action(status: locus::WorkPacketStatus) -> &'static str {
+    // v02.181 projection-surface discipline: status-specific transition triggers
+    // (`start_work_packet`, `start_micro_task`) are NOT registered governed action
+    // ids. Use `assign_work_packet` for Ready instead so the summary's
+    // next_action survives the family-allowed governed-action check.
     match status {
         locus::WorkPacketStatus::Unknown => "refine_work_packet",
-        locus::WorkPacketStatus::Ready => "start_work_packet",
+        locus::WorkPacketStatus::Ready => "assign_work_packet",
         locus::WorkPacketStatus::InProgress => "continue_work_packet",
         locus::WorkPacketStatus::Blocked => "resolve_blocker",
         locus::WorkPacketStatus::Gated => "await_gate_review",
@@ -14353,6 +14992,20 @@ fn apply_runtime_structured_work_packet_registry(
     }
     validation.merge(summary_validation);
 
+    // MT-003 v02.181: software-delivery closeout derivation requires gate
+    // evidence + owner-of-record authority. Enforce on the canonical summary
+    // before the work packet's structured-collaboration registry write so a
+    // closeout-eligible software_delivery WP cannot be persisted without the
+    // truth that gates a legal close transition.
+    if let Ok(summary_struct) =
+        serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(summary_value.clone())
+    {
+        validation.merge(locus::validate_software_delivery_closeout_canonical_truth(
+            &summary_struct,
+            runtime_paths,
+        ));
+    }
+
     tracked_wp.metadata["structured_collaboration_summary"] = summary_value;
     tracked_wp.metadata["structured_collaboration_validation"] =
         serde_json::to_value(&validation).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
@@ -14401,7 +15054,8 @@ fn apply_runtime_structured_micro_task_registry(
             build_structured_micro_task_summary_value(tracked_mt)?;
     }
 
-    let detail_packet = build_structured_micro_task_packet(runtime_paths, tracked_mt);
+    let mut detail_packet = build_structured_micro_task_packet(runtime_paths, tracked_mt);
+    apply_canonical_overrides_to_micro_task_packet(&mut detail_packet, tracked_mt);
     let mut detail_value =
         serde_json::to_value(&detail_packet).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     if let Some(profile_extension) = tracked_mt.profile_extension.clone() {
@@ -14471,6 +15125,28 @@ fn structured_collaboration_string_vec(value: Option<&Value>) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Apply Master Spec v02.171 canonical overrides to a TrackedMicroTaskArtifactV1
+/// in place, without disturbing the byte layout of `build_structured_micro_task_packet`.
+/// The `allowed_action_ids` field is rewritten from
+/// `locus::governed_action_ids_for_family` so the runtime emission matches
+/// the canonical registry, and `queue_reason_code` is overridden to
+/// `MailboxResponseWait` when the tracked metadata declares
+/// `has_pending_mailbox_wait=true` while `workflow_state_family` is
+/// preserved as the canonical authority.
+fn apply_canonical_overrides_to_micro_task_packet(
+    packet: &mut locus::TrackedMicroTaskArtifactV1,
+    tracked_mt: &locus::TrackedMicroTask,
+) {
+    packet.allowed_action_ids = locus::governed_action_ids_for_family(packet.workflow_state_family)
+        .iter()
+        .map(|action| (*action).to_string())
+        .collect();
+    packet.queue_reason_code = locus::resolve_queue_reason_with_mailbox_context(
+        packet.queue_reason_code,
+        metadata_has_pending_mailbox_wait(&tracked_mt.metadata),
+    );
+}
+
 fn structured_micro_task_status(status: locus::MicroTaskStatus) -> &'static str {
     match status {
         locus::MicroTaskStatus::Pending => "pending",
@@ -14483,8 +15159,12 @@ fn structured_micro_task_status(status: locus::MicroTaskStatus) -> &'static str 
 }
 
 fn structured_micro_task_next_action(status: locus::MicroTaskStatus) -> &'static str {
+    // v02.181 projection-surface discipline: `start_micro_task` is a transition
+    // trigger, not a governed current-state action. Use `assign_micro_task`
+    // for Pending so the summary's next_action survives the family-allowed
+    // governed-action check.
     match status {
-        locus::MicroTaskStatus::Pending => "start_micro_task",
+        locus::MicroTaskStatus::Pending => "assign_micro_task",
         locus::MicroTaskStatus::InProgress => "continue_micro_task",
         locus::MicroTaskStatus::Completed => "archive_micro_task",
         locus::MicroTaskStatus::Failed => "retry_micro_task",
