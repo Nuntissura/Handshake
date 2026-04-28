@@ -1545,6 +1545,15 @@ test("validator review outcome treats unhyphenated rehandoff guidance as repair 
   );
 });
 
+test("validator review outcome treats MT STEER summaries as repair required", () => {
+  assert.equal(
+    deriveValidatorReviewOutcome({
+      summary: "MT-002 STEER: helper is not wired into the production projection path. Repair by integrating it.",
+    }),
+    "REPAIR_REQUIRED",
+  );
+});
+
 test("latest validator assessment reports FAIL for repair-required validator review", () => {
   const assessment = deriveLatestValidatorAssessment([
     {
@@ -1804,6 +1813,119 @@ test("a newer coder re-handoff takes precedence over an older repaired review pa
   assert.equal(evaluation.correlations.handoff, "handoff-2");
   assert.equal(route.nextExpectedActor, "WP_VALIDATOR");
   assert.equal(route.waitingOn, "WP_VALIDATOR_REVIEW");
+});
+
+test("newer coder review request to WP validator supersedes an older repair-required handoff without closing remaining MTs", () => {
+  const wpId = "WP-TEST-AUTO-ROUTE-MT-REPAIR-REQUEST-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.md"), `- WP_ID: ${wpId}\n`, "utf8");
+  writeMicrotask(packetDir, wpId, "MT-001", "Repair-reviewed scope [CX-MT-301]", ["src/first.rs"]);
+  writeMicrotask(packetDir, wpId, "MT-002", "Still-declared scope [CX-MT-302]", ["src/second.rs"]);
+
+  try {
+    const input = baseInput({
+      wpId,
+      packetFormatVersion: "2026-04-06",
+      receipts: [
+      {
+        receipt_kind: "VALIDATOR_KICKOFF",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:01:00Z",
+      },
+      {
+        receipt_kind: "CODER_INTENT",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        timestamp_utc: "2026-03-22T10:02:00Z",
+      },
+      {
+        receipt_kind: "VALIDATOR_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        ack_for: "kickoff-1",
+        summary: "Bootstrap and skeleton cleared; proceed.",
+        timestamp_utc: "2026-03-22T10:02:30Z",
+      },
+      {
+        receipt_kind: "CODER_HANDOFF",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "handoff-1",
+        ack_for: null,
+        timestamp_utc: "2026-03-22T10:03:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "handoff-1",
+        ack_for: "handoff-1",
+        summary: "Repair required. Findings remain on the first handoff.",
+        microtask_contract: {
+          scope_ref: "MT-001",
+          review_outcome: "REPAIR_REQUIRED",
+        },
+        timestamp_utc: "2026-03-22T10:04:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_REQUEST",
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "repair-1",
+        ack_for: null,
+        summary: "MT-001 repair complete; please re-review.",
+        microtask_contract: {
+          scope_ref: "MT-001",
+          phase_gate: "MICROTASK",
+        },
+        timestamp_utc: "2026-03-22T10:05:00Z",
+      },
+      {
+        receipt_kind: "REVIEW_RESPONSE",
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "repair-1",
+        ack_for: "repair-1",
+        summary: "MT-001 PASS: approved for final review.",
+        microtask_contract: {
+          scope_ref: "MT-001",
+          review_outcome: "APPROVED_FOR_FINAL_REVIEW",
+        },
+        timestamp_utc: "2026-03-22T10:06:00Z",
+      },
+      ],
+    });
+
+    const evaluation = evaluateWpCommunicationHealth(input);
+
+    assert.equal(evaluation.state, "COMM_WAITING_FOR_HANDOFF");
+    assert.equal(evaluation.latestWpValidatorReviewOutcome, "APPROVED_FOR_FINAL_REVIEW");
+    assert.equal(evaluation.correlations.handoff, "repair-1");
+    assert.match(evaluation.details.join("\n"), /active_microtask_requires_handoff=MT-002:DECLARED/);
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
 });
 
 test("re-opened handoff on the same correlation binds to the latest validator review reply", () => {

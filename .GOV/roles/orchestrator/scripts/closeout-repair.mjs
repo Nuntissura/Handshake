@@ -380,7 +380,7 @@ export function applySignedScopePatchRepair({
 
   fs.mkdirSync(path.dirname(patchAbsPath), { recursive: true });
   const mainWorktree = path.resolve(repoRoot, "../handshake_main");
-  const diff = String(gitExec("git", ["-C", mainWorktree, "diff", `${mergeBaseSha}..${targetHeadSha}`], {
+  const diff = String(gitExec("git", ["-C", mainWorktree, "diff", "--unified=0", "--no-ext-diff", `${mergeBaseSha}..${targetHeadSha}`], {
     encoding: "utf8",
     maxBuffer: 10 * 1024 * 1024,
   }) || "");

@@ -109,7 +109,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Software-Delivery-Governance-Overlay-Boundary-v1]** - [STUB]
 - **[WP-1-Software-Delivery-Runtime-Truth-v1]** - [STUB]
 - **[WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1]** - [STUB]
-- **[WP-1-Software-Delivery-Projection-Surface-Discipline-v1]** - [STUB]
 - **[WP-1-Software-Delivery-Overlay-Coordination-Records-v1]** - [STUB]
 - **[WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]
@@ -1238,6 +1237,7 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 - **[WP-1-Distillation-v2]** - [VALIDATED]
 - **[WP-1-Calendar-Sync-Engine-v3]** - [VALIDATED]
+- **[WP-1-Software-Delivery-Projection-Surface-Discipline-v1]** - [VALIDATED]
 
 
 ## Blocked

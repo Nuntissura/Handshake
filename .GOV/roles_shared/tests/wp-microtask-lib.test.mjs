@@ -125,6 +125,137 @@ test("listDeclaredWpMicrotasks parses hydrated backtick lists for code surfaces"
   }
 });
 
+test("deriveWpMicrotaskPlan treats MT STEER review responses as repair required", () => {
+  const wpId = "WP-TEST-MICROTASK-STEER-SUMMARY-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.md"), `- WP_ID: ${wpId}\n`, "utf8");
+  writeMicrotask(packetDir, wpId, "MT-001", "Steer summary scope [CX-MT-STEER]", ["src/steer.rs"]);
+
+  try {
+    const microtasks = listDeclaredWpMicrotasks(wpId);
+    const plan = deriveWpMicrotaskPlan({
+      wpId,
+      microtasks,
+      receipts: [
+        {
+          timestamp_utc: "2026-04-05T10:00:00Z",
+          actor_role: "CODER",
+          receipt_kind: "REVIEW_REQUEST",
+          correlation_id: "mt-001-review",
+          microtask_contract: {
+            scope_ref: "MT-001",
+          },
+        },
+        {
+          timestamp_utc: "2026-04-05T10:05:00Z",
+          actor_role: "WP_VALIDATOR",
+          receipt_kind: "REVIEW_RESPONSE",
+          correlation_id: "mt-001-review",
+          ack_for: "mt-001-review",
+          summary: "MT-001 STEER: helper is not wired into production path. Repair by integrating it.",
+          microtask_contract: {
+            scope_ref: "MT-001",
+          },
+        },
+      ],
+    });
+
+    assert.equal(plan.active_microtask?.mt_id, "MT-001");
+    assert.equal(plan.active_microtask?.state, "REPAIR_REQUIRED");
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
+test("deriveWpMicrotaskPlan ignores status and thread prose when deriving microtask state", () => {
+  const wpId = "WP-TEST-MICROTASK-NON-REVIEW-PROSE-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(path.join(packetDir, "packet.md"), `- WP_ID: ${wpId}\n`, "utf8");
+  writeMicrotask(packetDir, wpId, "MT-001", "Earlier scope [CX-MT-401]", ["src/earlier.rs"]);
+  writeMicrotask(packetDir, wpId, "MT-002", "Final scope [CX-MT-402]", ["src/final.rs"]);
+
+  try {
+    const microtasks = listDeclaredWpMicrotasks(wpId);
+    const plan = deriveWpMicrotaskPlan({
+      wpId,
+      microtasks,
+      receipts: [
+        {
+          timestamp_utc: "2026-04-05T10:00:00Z",
+          actor_role: "CODER",
+          target_role: "WP_VALIDATOR",
+          receipt_kind: "REVIEW_REQUEST",
+          correlation_id: "mt-001-review",
+          microtask_contract: {
+            scope_ref: "MT-001",
+          },
+        },
+        {
+          timestamp_utc: "2026-04-05T10:05:00Z",
+          actor_role: "WP_VALIDATOR",
+          target_role: "CODER",
+          receipt_kind: "REVIEW_RESPONSE",
+          correlation_id: "mt-001-review",
+          ack_for: "mt-001-review",
+          summary: "MT-001 PASS: approved for final review.",
+          microtask_contract: {
+            scope_ref: "MT-001",
+            review_outcome: "APPROVED_FOR_FINAL_REVIEW",
+          },
+        },
+        {
+          timestamp_utc: "2026-04-05T10:10:00Z",
+          actor_role: "WP_VALIDATOR",
+          target_role: "ORCHESTRATOR",
+          receipt_kind: "THREAD_MESSAGE",
+          correlation_id: "final-candidate-fail",
+          summary: "FINAL_CANDIDATE_FAIL: MT-001..MT-002 were reviewed, but an integration-only issue remains.",
+        },
+        {
+          timestamp_utc: "2026-04-05T10:11:00Z",
+          actor_role: "CODER",
+          target_role: "ORCHESTRATOR",
+          receipt_kind: "STATUS",
+          summary: "Status update mentions MT-001 and MT-002 while repair work proceeds elsewhere.",
+        },
+        {
+          timestamp_utc: "2026-04-05T10:20:00Z",
+          actor_role: "CODER",
+          target_role: "WP_VALIDATOR",
+          receipt_kind: "REVIEW_REQUEST",
+          correlation_id: "mt-002-review",
+          microtask_contract: {
+            scope_ref: "MT-002",
+          },
+        },
+        {
+          timestamp_utc: "2026-04-05T10:25:00Z",
+          actor_role: "WP_VALIDATOR",
+          target_role: "CODER",
+          receipt_kind: "REVIEW_RESPONSE",
+          correlation_id: "mt-002-review",
+          ack_for: "mt-002-review",
+          summary: "MT-002 PASS: final candidate pass.",
+          microtask_contract: {
+            scope_ref: "MT-002",
+          },
+        },
+      ],
+    });
+
+    assert.equal(plan.active_microtask, null);
+    assert.equal(plan.previous_microtask?.mt_id, "MT-002");
+    assert.deepEqual(plan.items.map((entry) => [entry.mt_id, entry.state, entry.state_reason]), [
+      ["MT-001", "CLEARED", "receipt:REVIEW_RESPONSE"],
+      ["MT-002", "CLEARED", "receipt:REVIEW_RESPONSE"],
+    ]);
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
 test("deriveWpMicrotaskPlan advances execution to the next declared microtask after overlap review opens", () => {
   const wpId = "WP-TEST-MICROTASK-OVERLAP-v1";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);

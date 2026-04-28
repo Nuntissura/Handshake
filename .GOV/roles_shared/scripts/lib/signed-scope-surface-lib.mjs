@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { defaultIntegrationValidatorWorktreeDir } from "../session/session-policy.mjs";
-import { REPO_ROOT } from "./runtime-paths.mjs";
+import { GOV_ROOT_ABS, REPO_ROOT } from "./runtime-paths.mjs";
 import { parseExplicitCoderHandoffRange } from "./role-resume-utils.mjs";
 
 function parseSingleField(packetText, label) {
@@ -90,6 +90,24 @@ export function parseSignedScopePatchArtifacts(packetText) {
     }
   }
   return Array.from(artifacts);
+}
+
+function resolvePatchArtifactPath({
+  repoRoot = REPO_ROOT,
+  governanceRoot = GOV_ROOT_ABS,
+  artifactPath = "",
+} = {}) {
+  const normalized = normalizeRepoRelativePath(artifactPath);
+  const repoCandidate = path.resolve(repoRoot, normalized);
+  if (fs.existsSync(repoCandidate)) return repoCandidate;
+
+  if (/^\.GOV\//i.test(normalized)) {
+    const govRelative = normalized.replace(/^\.GOV\//i, "");
+    const govCandidate = path.resolve(governanceRoot || GOV_ROOT_ABS, govRelative);
+    if (fs.existsSync(govCandidate)) return govCandidate;
+  }
+
+  return repoCandidate;
 }
 
 export function parseUnifiedDiffSummary(diffText) {
@@ -477,6 +495,7 @@ function readCandidateTargetDiff({
 
 export function validateSignedScopeSurface(packetText, {
   repoRoot = REPO_ROOT,
+  governanceRoot = GOV_ROOT_ABS,
   artifactText = null,
 } = {}) {
   const errors = [];
@@ -494,7 +513,11 @@ export function validateSignedScopeSurface(packetText, {
     return { ok: false, errors, declaredEntries, patchArtifactPath: patchArtifacts[0] || "", artifactSummary: null };
   }
 
-  const patchArtifactPath = path.resolve(repoRoot, patchArtifacts[0]);
+  const patchArtifactPath = resolvePatchArtifactPath({
+    repoRoot,
+    governanceRoot,
+    artifactPath: patchArtifacts[0],
+  });
   if (artifactText == null && !fs.existsSync(patchArtifactPath)) {
     errors.push(`signed scope patch artifact is missing: ${patchArtifactPath.replace(/\\/g, "/")}`);
     return { ok: false, errors, declaredEntries, patchArtifactPath, artifactSummary: null };

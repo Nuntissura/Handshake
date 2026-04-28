@@ -173,11 +173,11 @@ function looksPlaceholder(value) {
 
 function extractIndentedListAfterLabel(text, label, { stopLabels = [] } = {}) {
   const lines = text.split(/\r?\n/);
-  const idx = lines.findIndex((l) => new RegExp(`^\\s*-\\s*${label}\\s*:\\s*$`, 'i').test(l));
+  const idx = lines.findIndex((l) => new RegExp(`^\\s*-\\s*${escapeRegex(label)}\\s*:\\s*$`, 'i').test(l));
   if (idx === -1) return [];
 
-  const stopRes = stopLabels.map((s) => new RegExp(`^\\s*-\\s*${s}\\s*:\\s*$`, 'i'));
-  const topLevelLabelRe = /^-\s*(?:\*\*)?[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*$/;
+  const stopRes = stopLabels.map((s) => new RegExp(`^\\s*-\\s*${escapeRegex(s)}\\s*:\\s*$`, 'i'));
+  const topLevelLabelRe = /^-\s*(?:\*\*)?[^:\r\n]+(?:\*\*)?\s*:\s*$/;
   const items = [];
 
   for (let i = idx + 1; i < lines.length; i += 1) {
@@ -279,7 +279,7 @@ function extractBulletListAfterHeading(text, heading) {
   }
 
   const items = [];
-  const topLevelLabelRe = /^-\s*(?:\*\*)?[A-Z][A-Z0-9_ ()/.-]*(?:\*\*)?\s*:\s*$/;
+  const topLevelLabelRe = /^-\s*(?:\*\*)?[^:\r\n]+(?:\*\*)?\s*:\s*$/;
   for (let i = sectionStart; i < sectionEnd; i += 1) {
     if (topLevelLabelRe.test(lines[i])) break;
     const m = lines[i].match(/^\s*-\s+(.+)\s*$/);
