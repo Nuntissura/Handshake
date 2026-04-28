@@ -48,6 +48,7 @@ export {
 };
 
 const TEXT_ARTIFACT_KINDS = new Set(["packet", "validator_report", "dossier", "receipt_text"]);
+const BULLET_FIELD_ARTIFACT_KINDS = new Set(["validator_report", "dossier", "receipt_text"]);
 const JSON_ARTIFACT_KINDS = new Set(["receipt", "receipt_args", "json"]);
 
 const ABSORBERS = [
@@ -55,7 +56,7 @@ const ABSORBERS = [
   { name: "normalizeSmartQuotes", fn: normalizeSmartQuotes, appliesTo: "all" },
   { name: "normalizeDashes", fn: normalizeDashes, appliesTo: TEXT_ARTIFACT_KINDS },
   { name: "normalizeJsonStringVsArray", fn: normalizeJsonStringVsArray, appliesTo: JSON_ARTIFACT_KINDS },
-  { name: "normalizeBulletPrefixedFields", fn: normalizeBulletPrefixedFields, appliesTo: TEXT_ARTIFACT_KINDS },
+  { name: "normalizeBulletPrefixedFields", fn: normalizeBulletPrefixedFields, appliesTo: BULLET_FIELD_ARTIFACT_KINDS },
   { name: "normalizeHeadingPrefix", fn: normalizeHeadingPrefix, appliesTo: TEXT_ARTIFACT_KINDS },
   { name: "normalizeFieldValueWhitespace", fn: normalizeFieldValueWhitespace, appliesTo: TEXT_ARTIFACT_KINDS },
   { name: "normalizeWindowsPathEscapes", fn: normalizeWindowsPathEscapes, appliesTo: JSON_ARTIFACT_KINDS },

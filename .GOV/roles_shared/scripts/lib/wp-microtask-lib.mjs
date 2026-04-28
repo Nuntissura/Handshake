@@ -19,6 +19,18 @@ function normalizeReceiptKind(value) {
   return String(value || "").trim().toUpperCase();
 }
 
+const MICROTASK_STATE_RECEIPT_KINDS = new Set([
+  "CODER_INTENT",
+  "REVIEW_REQUEST",
+  "CODER_HANDOFF",
+  "REPAIR",
+  "VALIDATOR_QUERY",
+  "VALIDATOR_RESPONSE",
+  "VALIDATOR_REVIEW",
+  "REVIEW_RESPONSE",
+  "SPEC_CONFIRMATION",
+]);
+
 function normalizeReviewOutcome(value) {
   const normalized = String(value || "").trim().toUpperCase();
   if (normalized === "REPAIR_REQUIRED") return "REPAIR_REQUIRED";
@@ -149,7 +161,13 @@ export function summarizeMicrotaskFileTargetBudget(fileTargets, microtaskDefinit
 function reviewOutcomeFromSummary(summary = "") {
   const text = String(summary || "").trim();
   if (!text) return "UNKNOWN";
-  if (/\brepair required\b/i.test(text) || /\bremediation required\b/i.test(text) || /\bfix required\b/i.test(text)) {
+  if (
+    /^MT-\d{3}\s+STEER\s*:/i.test(text)
+    || /\brepair required\b/i.test(text)
+    || /\bremediation required\b/i.test(text)
+    || /\brepair by\b/i.test(text)
+    || /\bfix required\b/i.test(text)
+  ) {
     return "REPAIR_REQUIRED";
   }
   if (/\bapproved for final review\b/i.test(text) || /\bready for final review\b/i.test(text) || /\bcleared\b/i.test(text)) {
@@ -215,6 +233,10 @@ function reviewModeFromEntry(entry = {}) {
     return "OVERLAP";
   }
   return null;
+}
+
+function receiptCanAdvanceMicrotaskState(receipt = {}) {
+  return MICROTASK_STATE_RECEIPT_KINDS.has(normalizeReceiptKind(receipt?.receipt_kind));
 }
 
 function stateFromReceipt(receipt = {}) {
@@ -314,6 +336,7 @@ export function deriveWpMicrotaskPlan({
   const correlationScopeRefs = new Map();
 
   for (const receipt of orderedReceipts) {
+    if (!receiptCanAdvanceMicrotaskState(receipt)) continue;
     const scopeRef = scopeRefFromEntry(receipt, correlationScopeRefs);
     if (!scopeRef) continue;
     const correlationId = String(receipt?.correlation_id || "").trim();

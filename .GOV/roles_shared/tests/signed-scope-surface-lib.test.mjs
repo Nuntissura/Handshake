@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  validateSignedScopeSurface,
   validateCandidateTargetAgainstSignedScope,
   validateContainedMainCommitAgainstSignedScope,
 } from "../scripts/lib/signed-scope-surface-lib.mjs";
@@ -61,6 +62,32 @@ test("validateCandidateTargetAgainstSignedScope passes when candidate diff match
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.errors, []);
+});
+
+test("validateSignedScopeSurface resolves .GOV patch artifacts from live governance root when validator repo differs", () => {
+  const validatorRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-validator-root-"));
+  const governanceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-gov-root-"));
+  const patchRel = ".GOV/task_packets/WP-TEST-SIGNED-SCOPE-v1/signed-scope.patch";
+  writeFile(path.join(governanceRoot, "task_packets", "WP-TEST-SIGNED-SCOPE-v1", "signed-scope.patch"), matchingDiff);
+
+  const packetText = [
+    "# Task Packet: WP-TEST-SIGNED-SCOPE-v1",
+    "",
+    "## VALIDATION",
+    "- **Target File**: `src/demo.rs`",
+    "- **Start**: 10",
+    "- **End**: 20",
+    "- **Line Delta**: 3",
+    `- **Artifacts**: \`${patchRel}\``,
+  ].join("\n");
+
+  const result = validateSignedScopeSurface(packetText, {
+    repoRoot: validatorRepoRoot,
+    governanceRoot,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.patchArtifactPath, path.join(governanceRoot, "task_packets", "WP-TEST-SIGNED-SCOPE-v1", "signed-scope.patch"));
 });
 
 test("validateCandidateTargetAgainstSignedScope fails when the candidate diff widens beyond the declared file surface", () => {

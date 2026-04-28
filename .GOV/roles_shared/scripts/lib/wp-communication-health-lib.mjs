@@ -554,9 +554,11 @@ function reviewRoundForReceipt(roundByLane, entry = null) {
 function summarySuggestsRepairRequired(summary) {
   const normalized = String(summary || "").trim();
   if (!normalized) return false;
-  return /\brepair required\b/i.test(normalized)
+  return /^MT-\d{3}\s+STEER\s*:/i.test(normalized)
+    || /\brepair required\b/i.test(normalized)
     || /\bremediation required\b/i.test(normalized)
     || /\bplease repair\b/i.test(normalized)
+    || /\brepair by\b/i.test(normalized)
     || /\brework required\b/i.test(normalized)
     || /\bfix required\b/i.test(normalized)
     || /\bre[-\s]?handoff\b/i.test(normalized);
@@ -806,6 +808,8 @@ function buildBaseDetails({
   validatorKickoffs = [],
   coderIntents = [],
   coderHandoffs = [],
+  coderReviewOpenReceipts = [],
+  coderBlockingReviewOpenReceipts = [],
   validatorReviews = [],
   integrationFinalOpenReceipts = [],
   integrationFinalResolutionReceipts = [],
@@ -823,6 +827,12 @@ function buildBaseDetails({
     `kickoffs=${validatorKickoffs.length}`,
     `coder_intents=${coderIntents.length}`,
     `coder_handoffs=${coderHandoffs.length}`,
+    ...(coderReviewOpenReceipts.length !== coderHandoffs.length
+      ? [`coder_review_open_receipts=${coderReviewOpenReceipts.length}`]
+      : []),
+    ...(coderBlockingReviewOpenReceipts.length !== coderReviewOpenReceipts.length
+      ? [`coder_blocking_review_open_receipts=${coderBlockingReviewOpenReceipts.length}`]
+      : []),
     `validator_reviews=${validatorReviews.length}`,
     `integration_final_open=${integrationFinalOpenReceipts.length}`,
     `integration_final_resolution=${integrationFinalResolutionReceipts.length}`,
@@ -943,6 +953,15 @@ export function evaluateWpCommunicationHealth({
     actorRole: "CODER",
     targetRole: "WP_VALIDATOR",
   });
+  const coderReviewOpenReceipts = receiptKindsFilter(receipts, {
+    receiptKinds: ["CODER_HANDOFF", "REVIEW_REQUEST"],
+    actorRole: "CODER",
+    targetRole: "WP_VALIDATOR",
+  });
+  const coderBlockingReviewOpenReceipts = coderReviewOpenReceipts.filter((entry) =>
+    normalizeReceiptKind(entry?.receipt_kind) === "CODER_HANDOFF"
+    || inferMicrotaskReviewMode(entry) !== "OVERLAP"
+  );
   const validatorReviews = receiptKindsFilter(receipts, {
     receiptKinds: ["VALIDATOR_REVIEW", "REVIEW_RESPONSE"],
     actorRole: "WP_VALIDATOR",
@@ -961,6 +980,9 @@ export function evaluateWpCommunicationHealth({
     && activeMicrotask.mt_id !== previousMicrotask?.mt_id
     && String(previousMicrotask?.state || "").trim().toUpperCase() === "REPAIR_REQUIRED"
     && normalizeMicrotaskReviewMode(previousMicrotask?.review_mode) === "OVERLAP";
+  const activeMicrotaskNeedsCoderHandoff =
+    Boolean(activeMicrotask?.mt_id)
+    && ["ACTIVE", "DECLARED"].includes(String(activeMicrotask?.state || "").trim().toUpperCase());
 
   const kickoffIntentPair = latestOpenReceiptStatus(validatorKickoffs, coderIntents);
   const intentCheckpoint = summarizeIntentCheckpointRequirement({
@@ -968,7 +990,7 @@ export function evaluateWpCommunicationHealth({
     intentReceipt: kickoffIntentPair.reply,
   });
   const intentCheckpointClearance = latestIntentCheckpointClearance(receipts, kickoffIntentPair.reply);
-  const handoffReviewPair = latestOpenReceiptStatus(coderHandoffs, validatorReviews);
+  const handoffReviewPair = latestOpenReceiptStatus(coderBlockingReviewOpenReceipts, validatorReviews);
   const latestWpValidatorReviewOutcome = deriveValidatorReviewOutcome(handoffReviewPair.reply);
   const latestValidatorAssessment = deriveLatestValidatorAssessment(receipts);
   const integrationFinalOpenReceipts = [
@@ -1004,6 +1026,8 @@ export function evaluateWpCommunicationHealth({
     validatorKickoffs,
     coderIntents,
     coderHandoffs,
+    coderReviewOpenReceipts,
+    coderBlockingReviewOpenReceipts,
     validatorReviews,
     integrationFinalOpenReceipts,
     integrationFinalResolutionReceipts,
@@ -1027,6 +1051,8 @@ export function evaluateWpCommunicationHealth({
     coderIntents: coderIntents.length,
     coderHandoffs: coderHandoffs.length,
     validatorReviews: validatorReviews.length,
+    coderReviewOpenReceipts: coderReviewOpenReceipts.length,
+    coderBlockingReviewOpenReceipts: coderBlockingReviewOpenReceipts.length,
     integrationFinalOpenReceipts: integrationFinalOpenReceipts.length,
     integrationFinalResolutionReceipts: integrationFinalResolutionReceipts.length,
     openReviewItems: openReviewItems.length,
@@ -1254,7 +1280,7 @@ export function evaluateWpCommunicationHealth({
         latestWpValidatorReviewOutcome,
       });
     }
-    if (coderHandoffs.length === 0) {
+    if (coderBlockingReviewOpenReceipts.length === 0) {
       return result({
         applicable: true,
         ok: false,
@@ -1287,6 +1313,22 @@ export function evaluateWpCommunicationHealth({
         details: [
           ...details,
           `wp_validator_review_outcome=${latestWpValidatorReviewOutcome}`,
+        ],
+        counts,
+        correlations,
+        latestValidatorAssessment,
+        latestWpValidatorReviewOutcome,
+      });
+    }
+    if (activeMicrotaskNeedsCoderHandoff) {
+      return result({
+        applicable: true,
+        ok: false,
+        state: "COMM_WAITING_FOR_HANDOFF",
+        message: "Waiting on coder handoff for the active microtask",
+        details: [
+          ...details,
+          `active_microtask_requires_handoff=${activeMicrotask?.mt_id || "<missing>"}:${activeMicrotask?.state || "<missing>"}`,
         ],
         counts,
         correlations,
@@ -1405,7 +1447,7 @@ export function evaluateWpCommunicationHealth({
     });
   }
 
-  if (coderHandoffs.length === 0) {
+  if (coderBlockingReviewOpenReceipts.length === 0) {
     return result({
       applicable: true,
       ok: false,
@@ -1455,6 +1497,22 @@ export function evaluateWpCommunicationHealth({
       ],
       counts,
       correlations,
+      latestWpValidatorReviewOutcome,
+    });
+  }
+  if (activeMicrotaskNeedsCoderHandoff) {
+    return result({
+      applicable: true,
+      ok: false,
+      state: "COMM_WAITING_FOR_HANDOFF",
+      message: "Waiting on coder handoff for the active microtask",
+      details: [
+        ...details,
+        `active_microtask_requires_handoff=${activeMicrotask?.mt_id || "<missing>"}:${activeMicrotask?.state || "<missing>"}`,
+      ],
+      counts,
+      correlations,
+      latestValidatorAssessment,
       latestWpValidatorReviewOutcome,
     });
   }

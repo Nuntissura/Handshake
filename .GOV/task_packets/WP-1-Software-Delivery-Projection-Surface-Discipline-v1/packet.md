@@ -2,7 +2,7 @@
 
 Copy this into each new task packet and fill all fields.
 
-Requirements:
+- Requirements:
 - Keep packets ASCII-only (required by deterministic gates).
 - Use SPEC_BASELINE for provenance (spec at creation time).
 - Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually .GOV/spec/SPEC_CURRENT.md).
@@ -125,21 +125,21 @@ Requirements:
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01. Allowed: NONE | LLM_FIRST_DATA_V1 -->
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** Validated (PASS)
 <!-- Allowed: Ready for Dev | In Progress | Blocked | Done | Validated (PASS) | Validated (FAIL) | Validated (OUTDATED_ONLY) | Validated (ABANDONED) -->
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
 <!-- Allowed: NOT_STARTED | MERGE_PENDING | CONTAINED_IN_MAIN | NOT_REQUIRED -->
-- MERGED_MAIN_COMMIT: NONE
+- MERGED_MAIN_COMMIT: 4a5534925af14bf994344182fb5c863cacba6741
 <!-- Use NONE until the approved closure commit is actually contained in local `main`. -->
-- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-28T20:58:30.736Z
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-25: `Done` means merge-pending PASS only; `Validated (PASS)` is reserved for closures already contained in local `main`. -->
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NOT_RUN | COMPATIBLE | ADJACENT_SCOPE_REQUIRED | BLOCKED -->
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: 4a5534925af14bf994344182fb5c863cacba6741
 <!-- Full local `main` HEAD sha inspected by the Integration Validator when current-main compatibility is checked. -->
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-04-28T20:58:30.736Z
 <!-- RFC3339 UTC; required when CURRENT_MAIN_COMPATIBILITY_STATUS is not NOT_RUN. -->
-- PACKET_WIDENING_DECISION: NONE
+- PACKET_WIDENING_DECISION: NOT_REQUIRED
 <!-- For PACKET_FORMAT_VERSION >= 2026-03-26. Allowed: NONE | NOT_REQUIRED | FOLLOW_ON_WP_REQUIRED | SUPERSEDING_PACKET_REQUIRED -->
 - PACKET_WIDENING_EVIDENCE: N/A
 <!-- Use follow-on/superseding WP id, audit id, or short rationale when widening is required. -->
@@ -182,8 +182,8 @@ Requirements:
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: <unassigned>
-- INTEGRATION_VALIDATOR_OF_RECORD: <unassigned>
+- WP_VALIDATOR_OF_RECORD: WP_VALIDATOR:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- INTEGRATION_VALIDATOR_OF_RECORD: integration_validator:wp-1-software-delivery-projection-surface-discipline-v1
 - SECONDARY_VALIDATOR_SESSIONS: NONE
 - COMMUNICATION_AUTHORITY: WP_COMMUNICATION_DIR
 <!-- All roles MUST use the packet-declared WP communication directory. Role-local worktrees are never the communication authority. -->
@@ -195,18 +195,17 @@ Requirements:
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
+Verdict: PASS
 Blockers: NONE
-Next: N/A
-
+Next: NONE
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: v02.181 Projection-surface discipline | CODE_SURFACES: workflows.rs, locus/types.rs, locus/task_board.rs, role_mailbox.rs, runtime_governance.rs | TESTS: dcc_software_delivery_projection_surface_keeps_runtime_authority | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Software-delivery overlay runtime truth specialization | CODE_SURFACES: locus/types.rs, locus/task_board.rs, workflows.rs | TESTS: task_board_software_delivery_projection_cannot_override_runtime_truth | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Software-delivery closeout derivation | CODE_SURFACES: workflows.rs, runtime_governance.rs, locus/types.rs | TESTS: closeout_projection_requires_gate_evidence_and_owner_truth | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Software-delivery overlay extension records and lifecycle semantics | CODE_SURFACES: workflows.rs, locus/types.rs, role_mailbox.rs | TESTS: projection_surface_exposes_claim_and_queued_instruction_ids | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: Role Mailbox authority boundary | CODE_SURFACES: role_mailbox.rs, api/role_mailbox.rs, workflows.rs | TESTS: role_mailbox_software_delivery_triage_remains_advisory | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: v02.181 Projection-surface discipline | CODE_SURFACES: workflows.rs, locus/types.rs, locus/task_board.rs, role_mailbox.rs, runtime_governance.rs | TESTS: dcc_software_delivery_projection_surface_keeps_runtime_authority | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Software-delivery overlay runtime truth specialization | CODE_SURFACES: locus/types.rs, locus/task_board.rs, workflows.rs | TESTS: task_board_software_delivery_projection_cannot_override_runtime_truth | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Software-delivery closeout derivation | CODE_SURFACES: workflows.rs, runtime_governance.rs, locus/types.rs | TESTS: closeout_projection_requires_gate_evidence_and_owner_truth | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Software-delivery overlay extension records and lifecycle semantics | CODE_SURFACES: workflows.rs, locus/types.rs, role_mailbox.rs | TESTS: projection_surface_exposes_claim_and_queued_instruction_ids | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: Role Mailbox authority boundary | CODE_SURFACES: role_mailbox.rs, api/role_mailbox.rs, workflows.rs | TESTS: role_mailbox_software_delivery_triage_remains_advisory | EXAMPLES: Example software-delivery projection summary for one work_packet_id showing DCC, Task Board, and Role Mailbox values plus canonical runtime truth., Example Task Board row with stale mirror state but runtime validator-gate blocker winning., Example Role Mailbox thread where latest reply is advisory and linked closeout remains blocked until governed action resolution., Example queued steer-next instruction showing queued, injected, expired, and rejected lifecycle states by queued_instruction_id., Example recovery posture row linking checkpoint_id, parent checkpoint lineage, stale binding state, and legal recover action. | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
 - BLOCKING_SPEC_DEBT: NO
@@ -651,7 +650,9 @@ Next: N/A
 - (Record explicit user waivers here per [CX-573F]. Prefer pipe records so the computed policy gate can classify them deterministically.)
 - (Format: `- WAIVER_ID: CX-... | STATUS: ACTIVE | COVERS: SCOPE, PROOF, TEST, ENVIRONMENT, PROTECTED_SURFACE, HEURISTIC, GOVERNANCE | SCOPE: <WP/local scope> | JUSTIFICATION: <why> | APPROVER: <user/operator> | EXPIRES: <date or condition>`.)
 - (Do not use `## WAIVERS GRANTED` to continue after token-cost overrun. Token budget and token-ledger drift are diagnostic-only cost telemetry and must be surfaced mechanically in audits/dossiers instead of requiring a continuation waiver.)
-- NONE
+- WAIVER_ID: CX-573F-20260427-WP1-FLIGHT-RECORDER-BASELINE-BRACE | STATUS: ACTIVE | COVERS: SCOPE, ENVIRONMENT, PROOF | SCOPE: WP-1-Software-Delivery-Projection-Surface-Discipline-v1 MT-001 may include the minimal `src/backend/handshake_core/src/flight_recorder/mod.rs` brace repair around `FlightRecorderEventType::SessionCascadeCancel` needed to restore baseline compile/test proof | JUSTIFICATION: Operator explicitly granted waiver after Coder proved the baseline compile failure blocks MT-001 proof and the file is outside signed scope; continuing inside the orchestrator-managed WP avoids a separate unblocker while keeping the exception narrow and auditable | APPROVER: Operator (chat: "waiver granted, continue with orchestrator managed wp.", 2026-04-27) | EXPIRES: when MT-001 proof and WP Validator review complete or this WP reaches terminal closeout
+- WAIVER_ID: CX-573F-20260427-WP1-WORKFLOWS-BASELINE-BRACE | STATUS: ACTIVE | COVERS: SCOPE, ENVIRONMENT, PROOF | SCOPE: WP-1-Software-Delivery-Projection-Surface-Discipline-v1 MT-001 may include the minimal `src/backend/handshake_core/src/workflows.rs` brace repair after `task_board_projection_preserves_updated_at_then_wp_id_order` around line 25229 needed to restore baseline compile/test proof | JUSTIFICATION: Operator explicitly granted waiver after Coder proved the clean baseline workflows.rs compile failure blocks MT-001 proof and is outside the first flight_recorder waiver; continuing inside the orchestrator-managed WP keeps the exception narrow and auditable | APPROVER: Operator (chat: "waiver granted for WP-1 workflows.rs clean-baseline brace repair; continue orchestrator-managed WP", 2026-04-27) | EXPIRES: when MT-001 proof and WP Validator review complete or this WP reaches terminal closeout
+- WAIVER_ID: CX-573F-20260427-WP1-WORKFLOWS-CHECKPOINT-COMPILE | STATUS: ACTIVE | COVERS: SCOPE, ENVIRONMENT, PROOF | SCOPE: WP-1-Software-Delivery-Projection-Surface-Discipline-v1 MT-001 may include only the minimal `src/backend/handshake_core/src/workflows.rs` compile restoration around `create_session_checkpoint` lines 5293, 5303, and 5305: bring `SessionCheckpoint` into scope and map JSON serialization failures into the existing `WorkflowError`/`StorageError` path without changing checkpoint semantics, runtime authority, projection surfaces, or unrelated workflow behavior | JUSTIFICATION: Operator granted a conditional waiver only if Orchestrator judged the repair good code and Master Spec compliant; Orchestrator judged it compliant because Master Spec v02.181 requires checkpoint-backed recovery posture and immutable checkpoint lineage, and this repair restores the existing session-checkpoint path rather than introducing a new authority source | APPROVER: Operator (chat: "waiver granted for this wp but only if you judge this to be correct vs master spec. continue orchestrator managed wp and use my waiver only if its good code and complies with master spec.", 2026-04-27) plus Orchestrator judgment checkpoint #1027 | EXPIRES: when MT-001 proof and WP Validator review complete or this WP reaches terminal closeout
 
 ## QUALITY_GATE
 ### TEST_PLAN
@@ -783,51 +784,257 @@ rg -n "build_dcc_control_plane_snapshot|DccCompactSummaryV1|TaskBoardEntryRecord
 - (Mechanical manifest for audit. Fill real values to enable `just phase-check HANDOFF <WP_ID> CODER`. This section records the 'What' (hashes/lines) for the Validator's 'How/Why' audit. It is NOT a claim of official Validation.)
 - If the WP changes multiple non-`.GOV/` files, repeat the manifest block once per changed file (multiple `**Target File**` entries are supported).
 - SHA1 hint: stage your changes and run `just cor701-sha <changed file>` to get deterministic `Pre-SHA1` / `Post-SHA1` values.
-- **Target File**: `N/A (fill after implementation)`
-- **Start**: N/A
-- **End**: N/A
-- **Line Delta**: N/A
-- **Pre-SHA1**: `N/A`
-- **Post-SHA1**: `N/A`
+- Whole-WP closeout range regenerated by Orchestrator mechanical handoff repair: `45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4`.
+- **MERGE_BASE_SHA**: `45afc8867f08f7c2f8edfe71ab750fe92ab28866`
+- **COMMITTED_TARGET_HEAD_SHA**: `eb59e9819c7cc2729c169c723dab3932d5d7b9d4`
+- **Artifacts**: `.GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/signed-scope.patch`
+
+- **Target File**: `src/backend/handshake_core/src/flight_recorder/mod.rs`
+- **Start**: 1
+- **End**: 6185
+- **Line Delta**: 5
+- **Pre-SHA1**: `6a4c6aedddd68fdb1cf78ec56acab3e4b81906c0`
+- **Post-SHA1**: `65adb506e1377d9e0b77611111131f498f04a9da`
 - **Gates Passed**:
-  - [ ] anchors_present
-  - [ ] window_matches_plan
-  - [ ] rails_untouched_outside_window
-  - [ ] filename_canonical_and_openable
-  - [ ] pre_sha1_captured
-  - [ ] post_sha1_captured
-  - [ ] line_delta_equals_expected
-  - [ ] all_links_resolvable
-  - [ ] manifest_written_and_path_returned
-  - [ ] current_file_matches_preimage
-- **Lint Results**:
-- **Artifacts**:
-- **Timestamp**:
-- **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
-- **Notes**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: regenerated mechanical whole-WP range evidence for current candidate `4dee21bd`; validator performs judgment separately.
+- **Artifacts**: src/backend/handshake_core/src/flight_recorder/mod.rs
+- **Timestamp**: 2026-04-28T10:32:00Z
+- **Operator**: ORCHESTRATOR:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
+- **Notes**: Whole-WP committed candidate manifest regenerated mechanically from evaluated git range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd.
+
+- **Target File**: `src/backend/handshake_core/src/locus/mod.rs`
+- **Start**: 1
+- **End**: 6
+- **Line Delta**: 1
+- **Pre-SHA1**: `e3a47c5cea8bba4bdb60865fe229a2ddcd7da9eb`
+- **Post-SHA1**: `9bc4663719c8e2062f9bbe5da286a6f6c0a2e75b`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: regenerated mechanical whole-WP range evidence for current candidate `4dee21bd`; validator performs judgment separately.
+- **Artifacts**: src/backend/handshake_core/src/locus/mod.rs
+- **Timestamp**: 2026-04-28T10:32:00Z
+- **Operator**: ORCHESTRATOR:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
+- **Notes**: Whole-WP committed candidate manifest regenerated mechanically from evaluated git range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd.
+
+- **Target File**: `src/backend/handshake_core/src/locus/task_board.rs`
+- **Start**: 1
+- **End**: 435
+- **Line Delta**: 55
+- **Pre-SHA1**: `94420cf97740ebc3df0bf2a1fda05b8d0a40e634`
+- **Post-SHA1**: `c88148fe2c885efcc1af12a02a7da5a638b18927`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: regenerated mechanical whole-WP range evidence for current candidate `4dee21bd`; validator performs judgment separately.
+- **Artifacts**: src/backend/handshake_core/src/locus/task_board.rs
+- **Timestamp**: 2026-04-28T10:32:00Z
+- **Operator**: ORCHESTRATOR:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
+- **Notes**: Whole-WP committed candidate manifest regenerated mechanically from evaluated git range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd.
+
+- **Target File**: `src/backend/handshake_core/src/locus/types.rs`
+- **Start**: 1
+- **End**: 3515
+- **Line Delta**: 1632
+- **Pre-SHA1**: `20426e53c50e4fa53a5840aea0132ab045590a86`
+- **Post-SHA1**: `1235e07c536796decb348e3141957ef701c93d72`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: regenerated mechanical whole-WP range evidence for IntVal-FAIL remediation candidate `eb59e981`; adds `GovernedActionPreviewV1` + `GovernedActionEligibility` + `derive_governed_action_preview(s)` helpers and the `governed_action_previews` field on `SoftwareDeliveryProjectionSurfaceV1`; validator performs judgment separately.
+- **Artifacts**: src/backend/handshake_core/src/locus/types.rs
+- **Timestamp**: 2026-04-28T18:08:00Z
+- **Operator**: CODER:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
+- **Notes**: Whole-WP committed candidate manifest regenerated mechanically from evaluated git range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4 after Integration Validator FAIL on candidate 2d6c40193cbf28ef244198e9b09ccbe855a2dd54 flagged the missing governed-action preview payload contract.
+
+- **Target File**: `src/backend/handshake_core/src/role_mailbox.rs`
+- **Start**: 1
+- **End**: 1882
+- **Line Delta**: 67
+- **Pre-SHA1**: `90e05dd16ffaad51b0388bb230a8265c471c0593`
+- **Post-SHA1**: `b408a045264945c04ce425e75d5c53f3281c0e2f`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: regenerated mechanical whole-WP range evidence for current candidate `4dee21bd`; validator performs judgment separately.
+- **Artifacts**: src/backend/handshake_core/src/role_mailbox.rs
+- **Timestamp**: 2026-04-28T10:32:00Z
+- **Operator**: ORCHESTRATOR:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
+- **Notes**: Whole-WP committed candidate manifest regenerated mechanically from evaluated git range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd.
+
+- **Target File**: `src/backend/handshake_core/src/runtime_governance.rs`
+- **Start**: 1
+- **End**: 785
+- **Line Delta**: 318
+- **Pre-SHA1**: `b0d6defd4569ee504af2930fe7264427d258af4e`
+- **Post-SHA1**: `d8bf5ced710b779ad03bdf57c5ac8df54fd540ef`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: regenerated mechanical whole-WP range evidence for current candidate `4dee21bd`; validator performs judgment separately.
+- **Artifacts**: src/backend/handshake_core/src/runtime_governance.rs
+- **Timestamp**: 2026-04-28T10:32:00Z
+- **Operator**: ORCHESTRATOR:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
+- **Notes**: Whole-WP committed candidate manifest regenerated mechanically from evaluated git range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd.
+
+- **Target File**: `src/backend/handshake_core/src/storage/locus_sqlite.rs`
+- **Start**: 1
+- **End**: 1277
+- **Line Delta**: 54
+- **Pre-SHA1**: `e8b673477c97e800f09b9d469276969d48b0be08`
+- **Post-SHA1**: `f7833c5efbeaa08a8c1f6bdb834361d1cb4fb1d5`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: regenerated mechanical whole-WP range evidence for current candidate `4dee21bd`; validator performs judgment separately.
+- **Artifacts**: src/backend/handshake_core/src/storage/locus_sqlite.rs
+- **Timestamp**: 2026-04-28T10:32:00Z
+- **Operator**: ORCHESTRATOR:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
+- **Notes**: Whole-WP committed candidate manifest regenerated mechanically from evaluated git range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd.
+
+- **Target File**: `src/backend/handshake_core/src/workflows.rs`
+- **Start**: 1
+- **End**: 27048
+- **Line Delta**: 691
+- **Pre-SHA1**: `292b63d2c0da2ccd5dfd1505461575223096d6d5`
+- **Post-SHA1**: `2ad9e7ff1ff78efd6649fe99c44d52da5fc8d7e9`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: regenerated mechanical whole-WP range evidence for current candidate `4dee21bd`; validator performs judgment separately.
+- **Artifacts**: src/backend/handshake_core/src/workflows.rs
+- **Timestamp**: 2026-04-28T10:32:00Z
+- **Operator**: ORCHESTRATOR:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
+- **Notes**: Whole-WP committed candidate manifest regenerated mechanically from evaluated git range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd.
+
+- **Target File**: `src/backend/handshake_core/tests/micro_task_executor_tests.rs`
+- **Start**: 1
+- **End**: 6493
+- **Line Delta**: 3323
+- **Pre-SHA1**: `d0d8c79a208ac5f9152ff28769f02f04d5dd0af7`
+- **Post-SHA1**: `b2492a10aecfd753708aebeb6f3bb602ea43b338`
+- **Gates Passed**:
+  - [x] anchors_present
+  - [x] window_matches_plan
+  - [x] rails_untouched_outside_window
+  - [x] filename_canonical_and_openable
+  - [x] pre_sha1_captured
+  - [x] post_sha1_captured
+  - [x] line_delta_equals_expected
+  - [x] all_links_resolvable
+  - [x] manifest_written_and_path_returned
+  - [x] current_file_matches_preimage
+- **Lint Results**: regenerated mechanical whole-WP range evidence for IntVal-FAIL remediation candidate `eb59e981`; adds the exact tripwire test `projection_surface_previews_governed_action_before_mutation` covering the packet's governed-action preview contract row; validator performs judgment separately.
+- **Artifacts**: src/backend/handshake_core/tests/micro_task_executor_tests.rs
+- **Timestamp**: 2026-04-28T18:08:00Z
+- **Operator**: CODER:WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_v02.181.md
+- **Notes**: Whole-WP committed candidate manifest regenerated mechanically from evaluated git range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4 after Integration Validator FAIL on candidate 2d6c40193cbf28ef244198e9b09ccbe855a2dd54 flagged the missing `projection_surface_previews_governed_action_before_mutation` exact tripwire.
+
 ## STATUS_HANDOFF
 - (Use this to list touched files and summarize work done without claiming a validation verdict. Mirror freeform discussion and liveness into the WP communication folder when present.)
 - Rule for `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`: do not write a generic "ready for validation" note. Include both the standard handoff core and the rubric-proof fields below with the strongest self-critique you can defend.
-- Current WP_STATUS:
+- Current WP_STATUS: DONE_VALIDATED
 - What changed in this update:
-- Requirements / clauses self-audited:
-- Checks actually run:
-- Known gaps / weak spots:
-- Heuristic risks / maintainability concerns:
-- Validator focus request:
-- Rubric contract understanding proof:
-- Rubric scope discipline proof:
-- Rubric baseline comparison:
-- Rubric end-to-end proof:
-- Rubric architecture fit self-review:
-- Rubric heuristic quality self-review:
-- Rubric anti-gaming / counterfactual check:
+  - locus/types.rs: SoftwareDeliveryProjectionSurfaceV1 schema, derive_software_delivery_projection_surface, validate_software_delivery_projection_surface_authority, mirror_state_is_advisory_only, plus two new pure predicates is_governed_action_id_allowed_for_workflow_family and is_registered_governed_action_id mirroring the canonical workflow-family action matrix.
+  - locus/task_board.rs: TaskBoardEntryRecordV1 docstring declaring mirror_state/lane_id/status as advisory display state for software_delivery profile.
+  - role_mailbox.rs: RoleMailboxThread docstring declaring mailbox chronology advisory-only; only thread_id reaches the projection surface.
+  - tests/micro_task_executor_tests.rs: dcc_software_delivery_projection_surface_keeps_runtime_authority tripwire test plus import path move for validate_task_board_entry_authoritative_fields into locus::task_board::{}.
+  - flight_recorder/mod.rs: WAIVER CX-573F-20260427-WP1-FLIGHT-RECORDER-BASELINE-BRACE -- mechanical brace repair around SessionCascadeCancel arms.
+  - workflows.rs: WAIVER CX-573F-20260427-WP1-WORKFLOWS-BASELINE-BRACE -- closing brace after task_board_projection_preserves_updated_at_then_wp_id_order; WAIVER CX-573F-20260427-WP1-WORKFLOWS-CHECKPOINT-COMPILE -- narrow create_session_checkpoint compile restoration (SessionCheckpoint import + serde_json error mapping via WorkflowError::Storage(StorageError::Serialization(format!(...)))).
+- Requirements / clauses self-audited: v02.181 Projection-surface discipline (MT-001 clause); see EVIDENCE_MAPPING for per-bullet file:line evidence.
+- Checks actually run: `cargo check --lib` PASS (39 pre-existing dead-code warnings, 0 errors); `cargo test --test micro_task_executor_tests dcc_software_delivery_projection_surface_keeps_runtime_authority -- --exact` 1 passed 0 failed.
+- Known gaps / weak spots: see WEAK_SPOTS below.
+- Heuristic risks / maintainability concerns: action matrix is now duplicated 3x (workflows.rs:3376, storage/locus_sqlite.rs:203, locus/types.rs governed_action_ids_for_family). Consolidation is out of MT-001 scope but is a maintainability risk if action sets drift. Validator should confirm the duplicates remain identical or recommend a follow-on consolidation.
+- Validator focus request: confirm (a) projection surface authority validator rejects every advisory mutation; (b) status-specific actions stay unregistered; (c) waiver-scoped repairs do not change checkpoint semantics or Flight Recorder payload schemas; (d) the four MTs that remain DECLARED (MT-002..MT-005) are not implicitly closed by MT-001.
+- Rubric contract understanding proof: MT-001 contract is a tripwire that proves canonical runtime truth wins over Task Board / Role Mailbox / packet-prose / GOV-mirror display state for one software-delivery work item. The new SoftwareDeliveryProjectionSurfaceV1 lifts authoritative fields verbatim from StructuredCollaborationSummaryV1 and demotes board mirror_state/lane_id/status_text and mailbox thread ids to advisory pass-through. The targeted test exercises the conflict case explicitly.
+- Rubric scope discipline proof: signed scope was locus/types.rs, locus/task_board.rs, role_mailbox.rs, tests/micro_task_executor_tests.rs (plus runtime_governance.rs and workflows.rs per CODE_SURFACES). All other product edits are confined to the three packet-recorded waivers (flight_recorder brace repair, workflows.rs:25229 brace repair, workflows.rs create_session_checkpoint compile restoration). No edit touched checkpoint fields, ids, registry update, Flight Recorder payload, recovery semantics, runtime authority, or projection surfaces beyond what MT-001 added.
+- Rubric baseline comparison: pre-edit baseline failed cargo check --lib with three errors (E0422 SessionCheckpoint missing import; two E0277 serde_json::to_string conversions) plus a baseline missing brace in workflows.rs and a flight_recorder baseline missing brace. Post-edit baseline passes cargo check --lib and the targeted test runs. The three baseline blockers are the basis for the three Operator waivers.
+- Rubric end-to-end proof: targeted test dcc_software_delivery_projection_surface_keeps_runtime_authority runs derive_software_delivery_projection_surface against a canonical Validation/ValidationWait summary plus a stale_advisory_board_entry (mirror_state=Stale, lane_id=done, workflow_state_family=Done, status="Done (mirror)") and a mixed mailbox thread id list (with empty + duplicates). Asserts the projection surface lifts canonical Validation/ValidationWait/allowed_action_ids/status/blockers/next_action/summary_ref/authority_refs/evidence_refs verbatim, deduplicates and trims advisory mailbox thread ids, and refuses to project a misaligned board (different work_packet_id) or non-software_delivery profile.
+- Rubric architecture fit self-review: predicates are pure functions with no state, no I/O, and no allocation beyond a static slice; live next to existing structured-collaboration helpers in locus/types.rs. The module re-export at locus/mod.rs:5 (`pub use types::*`) carries them to `workflows::locus::*` automatically -- no mod.rs edit was required. Test import for validate_task_board_entry_authoritative_fields was moved into the locus::task_board::{} group rather than re-exported through mod.rs (per orchestrator decision).
+- Rubric heuristic quality self-review: action matrix duplication noted above is the main heuristic risk. The exclusion of status-specific actions (start_work_packet, start_micro_task) is documented in the predicate docstrings and matches the orchestrator constraint. No fuzzy thresholds, ML, or natural-language classification -- predicates are exact-string membership tests against finite static slices.
+- Rubric anti-gaming / counterfactual check: if the mirror_state branch were removed from validate_software_delivery_projection_surface_authority, the dcc_software_delivery_projection_surface_keeps_runtime_authority test would still pass because its mirror_state assertion runs on derive output, not validate output. Validator should add a focused counterfactual probe of the validate path. If is_registered_governed_action_id were widened to accept "start_work_packet", the test wouldn't catch it because that string is not in the test corpus -- Validator should boundary-probe with both registered and unregistered ids.
 <!-- For PACKET_FORMAT_VERSION >= 2026-04-01 and CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2, also include: -->
-- Rubric anti-vibe / substance self-check:
+- Rubric anti-vibe / substance self-check: every diff line is either a public predicate, a struct field exposing a canonical posture, an authority validator branch, an advisory-pass-through field, a test assertion, a docstring declaring authority discipline, or a packet-recorded waiver repair. No drive-by refactors, no renames, no test "improvements" outside MT-001 scope.
 - Signed-scope debt ledger:
-- Data contract self-check:
-- Next step / handoff hint:
+  - DEBT: Action matrix is duplicated 3x. Consolidation is out of MT-001 scope; recommend a follow-on RGF for matrix unification.
+  - DEBT: MT-002..MT-005 remain DECLARED. MT-001 only proves the projection-surface tripwire; the closeout, claim/lease, queued-instruction, and mailbox-authority clauses still need their own MTs.
+- Data contract self-check: SoftwareDeliveryProjectionSurfaceV1 carries canonical schema_id `hsk.software_delivery_projection_surface@1` and SOFTWARE_DELIVERY_PROJECTION_SURFACE_RECORD_KIND constant; advisory fields are explicitly named `advisory_*` to make their non-authoritative status self-evident at every call site. SHA1s and line ranges are recorded in VALIDATION manifest above.
+- Next step / handoff hint: Validator should run `cargo test --test micro_task_executor_tests dcc_software_delivery_projection_surface_keeps_runtime_authority -- --exact` independently, audit the three waiver repairs against the recorded waiver scopes, and confirm canonical/advisory boundaries in derive_software_delivery_projection_surface and validate_software_delivery_projection_surface_authority. WP_VALIDATOR session is the next actor; integration validator gates remain ahead.
 
 ## MERGE_PROGRESSION_TRUTH
 - For `PACKET_FORMAT_VERSION >= 2026-03-25`, PASS closure is two-step and must stay explicit:
@@ -870,17 +1077,36 @@ rg -n "build_dcc_control_plane_snapshot|DccCompactSummaryV1|TaskBoardEntryRecord
 
 ## EVIDENCE_MAPPING
 - (Coder appends proof that DONE_MEANS + SPEC_ANCHOR requirements exist in code/tests. No verdicts.)
-- Format (repeat as needed):
-  - REQUIREMENT: "<quote DONE_MEANS bullet or SPEC_ANCHOR requirement>"
-  - EVIDENCE: `N/A (fill during implementation)`
+- REQUIREMENT: "DCC, Task Board, and Role Mailbox projections for one software-delivery work item expose the same runtime truth by stable identifiers."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1979` (derive_software_delivery_projection_surface joins canonical summary, board entry, and mailbox thread ids by `record_id`/`work_packet_id`)
+  - EVIDENCE: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3247` (dcc_software_delivery_projection_surface_keeps_runtime_authority asserts a single projection surface drives DCC + board + mailbox views)
+- REQUIREMENT: "Projection rows expose validator-gate, governed-action, claim/lease, queued-instruction, checkpoint/recovery, evidence, stale, and closeout posture from canonical runtime records."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1835` (SoftwareDeliveryProjectionSurfaceV1 struct exposes workflow_state_family, queue_reason_code, allowed_action_ids, status, blockers, next_action, summary_ref, authority_refs, evidence_refs from canonical summary)
+- REQUIREMENT: "Board lane, unread mailbox state, transcript order, packet prose, and repo /.GOV mirrors cannot authorize validation, ownership, recovery, queued steering, or closeout."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:2049` (validate_software_delivery_projection_surface_authority asserts authoritative fields equal canonical summary; advisory fields cannot mutate them)
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1898` (mirror_state_is_advisory_only marks Stale/AdvisoryEdit/NormalizationRequired as advisory)
+  - EVIDENCE: `src/backend/handshake_core/src/locus/task_board.rs:25` (TaskBoardEntryRecordV1 docstring declares mirror_state/lane_id/status as advisory display state)
+  - EVIDENCE: `src/backend/handshake_core/src/role_mailbox.rs:223` (RoleMailboxThread docstring declares mailbox chronology advisory-only; only thread_id reaches projection)
+- REQUIREMENT: "Governed action previews name target records and action ids before mutation."
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1946` (is_governed_action_id_allowed_for_workflow_family validates a next_action against the family allowlist)
+  - EVIDENCE: `src/backend/handshake_core/src/locus/types.rs:1959` (is_registered_governed_action_id rejects status-specific actions like start_work_packet/start_micro_task that are not part of any family allowlist)
+  - EVIDENCE: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:965` and `:974` (next_action assertions exercise both predicates against canonical workflow_state_family)
+- REQUIREMENT: "Tests include a conflict case where DCC, Task Board, and Role Mailbox advisory states disagree and runtime truth wins."
+  - EVIDENCE: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3247` (dcc_software_delivery_projection_surface_keeps_runtime_authority builds a stale_advisory_board_entry with mirror_state=Stale and workflow_state_family=Done and asserts canonical Validation/ValidationWait wins)
 ## EVIDENCE
 - (Coder appends logs, test outputs, and proof of work here. No verdicts.)
-- Recommended evidence format (prevents chat truncation; enables audit):
-  - COMMAND: `<paste>`
-  - EXIT_CODE: `<int>`
-  - LOG_PATH: `.handshake/logs/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/<name>.log` (recommended; not committed)
-  - LOG_SHA256: `<hash>`
-  - PROOF_LINES: `<copy/paste 1-10 critical lines (e.g., "0 failed", "PASS")>`
+- COMMAND: `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib`
+  - EXIT_CODE: `0`
+  - PROOF_LINES: `Finished \`dev\` profile [unoptimized + debuginfo] target(s) in 23.08s` ; `warning: \`handshake_core\` (lib) generated 39 warnings` (all pre-existing dead-code lints)
+- COMMAND: `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests dcc_software_delivery_projection_surface_keeps_runtime_authority -- --exact`
+  - EXIT_CODE: `0`
+  - PROOF_LINES: `running 1 test` ; `test dcc_software_delivery_projection_surface_keeps_runtime_authority ... ok` ; `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.00s`
+- COMMAND: `just phase-check HANDOFF WP-1-Software-Delivery-Projection-Surface-Discipline-v1 CODER --range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..2d6c40193cbf28ef244198e9b09ccbe855a2dd54`
+  - EXIT_CODE: `0`
+  - PROOF_LINES: `OK | gate-check passed` ; `OK | post-work-check passed` ; `OK | role-mailbox-export-check passed` ; `OK | wp-communication-health-check passed` ; `OK | phase-check HANDOFF passed for WP-1-Software-Delivery-Projection-Surface-Discipline-v1`
+- COMMAND: `git rev-parse HEAD`
+  - EXIT_CODE: `0`
+  - PROOF_LINES: `2d6c40193cbf28ef244198e9b09ccbe855a2dd54` (current WP-1 final candidate on feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1)
 
 ## VALIDATION_REPORTS
 - (Validator appends official audits and verdicts here. Append-only.)
@@ -1003,3 +1229,793 @@ rg -n "build_dcc_control_plane_snapshot|DccCompactSummaryV1|TaskBoardEntryRecord
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+
+### INTEGRATION_VALIDATOR_REPORT - 2026-04-28T20:50:12Z
+ACTOR_ROLE: INTEGRATION_VALIDATOR
+ACTOR_SESSION: integration_validator:wp-1-software-delivery-projection-surface-discipline-v1
+REPOMEM_SESSION: INTEGRATION_VALIDATOR-20260428-201125
+CANDIDATE_BRANCH: feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+CANDIDATE_WORKTREE: ../wtc-surface-discipline-v1
+CANDIDATE_HEAD: eb59e9819c7cc2729c169c723dab3932d5d7b9d4
+HANDOFF_RANGE: 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4
+MAIN_MERGE_COMMIT: 4a5534925af14bf994344182fb5c863cacba6741
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+MECHANICAL_TRACK_VERDICT: PASS
+SPEC_RETENTION_TRACK_VERDICT: PASS
+MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
+MERGED_MAIN_COMMIT: 4a5534925af14bf994344182fb5c863cacba6741
+MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-28T20:50:12Z
+VALIDATOR_RISK_TIER: HIGH
+CLAUSES_REVIEWED:
+- v02.181 Projection-surface discipline.
+- Software-delivery overlay runtime truth specialization.
+- Software-delivery closeout derivation.
+- Software-delivery overlay extension records and lifecycle semantics.
+- Role Mailbox authority boundary.
+- Governed action preview payload.
+NOT_PROVEN:
+- NONE
+MAIN_BODY_GAPS:
+- NONE
+QUALITY_RISKS:
+- NONE
+SPEC_CLAUSE_MAP:
+- v02.181 Projection-surface discipline (`Handshake_Master_Spec_v02.181.md:48046`, `Handshake_Master_Spec_v02.181.md:6917`): implemented by `src/backend/handshake_core/src/locus/types.rs:1944`, `src/backend/handshake_core/src/locus/types.rs:1997`, `src/backend/handshake_core/src/locus/types.rs:2259`, `src/backend/handshake_core/src/locus/types.rs:2297`, and `src/backend/handshake_core/src/workflows.rs:4682`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3240`.
+- Software-delivery overlay runtime truth specialization (`Handshake_Master_Spec_v02.181.md:6917`-`Handshake_Master_Spec_v02.181.md:6920`): implemented by `src/backend/handshake_core/src/locus/task_board.rs:30`, `src/backend/handshake_core/src/locus/task_board.rs:203`, and `src/backend/handshake_core/src/locus/types.rs:2339`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3751` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3850`.
+- Software-delivery closeout derivation (`Handshake_Master_Spec_v02.181.md:7032`-`Handshake_Master_Spec_v02.181.md:7036`): implemented by `src/backend/handshake_core/src/runtime_governance.rs:319`, `src/backend/handshake_core/src/runtime_governance.rs:369`, `src/backend/handshake_core/src/locus/types.rs:2568`, and `src/backend/handshake_core/src/locus/types.rs:2716`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3961`.
+- Software-delivery overlay extension records and lifecycle semantics (`Handshake_Master_Spec_v02.181.md:7038`-`Handshake_Master_Spec_v02.181.md:7048`): implemented by `src/backend/handshake_core/src/runtime_governance.rs:409`, `src/backend/handshake_core/src/runtime_governance.rs:440`, `src/backend/handshake_core/src/runtime_governance.rs:468`, `src/backend/handshake_core/src/runtime_governance.rs:500`, `src/backend/handshake_core/src/locus/types.rs:3151`, `src/backend/handshake_core/src/locus/types.rs:3239`, and `src/backend/handshake_core/src/workflows.rs:5101`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:4765`.
+- Role Mailbox authority boundary (`Handshake_Master_Spec_v02.181.md:10661`): implemented by `src/backend/handshake_core/src/role_mailbox.rs:227`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, and `src/backend/handshake_core/src/role_mailbox.rs:1707`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:6081`.
+- Governed action preview payload (`packet.md:459`, `Handshake_Master_Spec_v02.181.md:6993`-`Handshake_Master_Spec_v02.181.md:6999`): implemented by `src/backend/handshake_core/src/locus/types.rs:1858`, `src/backend/handshake_core/src/locus/types.rs:1895`, `src/backend/handshake_core/src/locus/types.rs:2167`, `src/backend/handshake_core/src/locus/types.rs:2218`, and `src/backend/handshake_core/src/locus/types.rs:2297`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3489`.
+NEGATIVE_PROOF:
+- No signed packet product requirement remained unimplemented in candidate `eb59e9819c7cc2729c169c723dab3932d5d7b9d4`.
+- v02.181 also describes broader software-delivery control-plane health/backpressure and push-oriented operator alerts (`Handshake_Master_Spec_v02.181.md:7058`-`Handshake_Master_Spec_v02.181.md:7059`); this signed product delta does not add those broader alert/backpressure semantics, and the reviewed product-code evidence remains limited to projection/authority surfaces such as `src/backend/handshake_core/src/locus/types.rs:1944`, `src/backend/handshake_core/src/locus/types.rs:2259`, and `src/backend/handshake_core/src/workflows.rs:5101`.
+DIFF_ATTACK_SURFACES:
+- Producer/consumer drift between `SoftwareDeliveryProjectionSurfaceV1` producers and DCC, Task Board, Role Mailbox consumers.
+- Serialized `GovernedActionPreviewV1` payload drift before mutation.
+- Authority inversion risk where stale board lane/status or mailbox chronology overrides canonical runtime fields.
+- Closeout spoofing through noncanonical validator-gate, claim/lease, queued-instruction, owner packet, or checkpoint refs.
+- Current-main containment risk if the feature branch is merged outside signed range discipline.
+INDEPENDENT_CHECKS_RUN:
+- `just check-notifications WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` and `just ack-notifications ...` returned no pending notifications before verdict and before merge commit.
+- `just phase-check STARTUP WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` passed.
+- `just -f ../wt-gov-kernel/justfile artifact-hygiene-check` passed.
+- `just validator-git-hygiene` passed.
+- `git merge-tree --write-tree HEAD eb59e9819c7cc2729c169c723dab3932d5d7b9d4` produced clean tree `56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc`, and `git diff --check HEAD 56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` passed.
+- `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib` passed on candidate and committed local `main`.
+- Exact tests passed on candidate and committed local `main`: `projection_surface_previews_governed_action_before_mutation`, `dcc_software_delivery_projection_surface_keeps_runtime_authority`, `task_board_software_delivery_projection_cannot_override_runtime_truth`, `closeout_projection_requires_gate_evidence_and_owner_truth`, `projection_surface_exposes_claim_and_queued_instruction_ids`, `role_mailbox_software_delivery_triage_remains_advisory`, `locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait`, `locus_sync_task_board_validation_reports_authority_scope_drift`, and `production_clears_workflow_run_lifecycle_record_for_non_software_delivery_summary`.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests --no-run` passed on candidate and committed local `main`.
+- `just phase-check VERDICT WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR` passed.
+COUNTERFACTUAL_CHECKS:
+- If `derive_governed_action_previews()` stopped sourcing canonical allowed action ids, DCC/Task Board/mailbox consumers could preview actions not authorized by runtime truth.
+- If `derive_software_delivery_projection_surface()` stopped embedding `governed_action_previews`, downstream software-delivery surfaces would not receive the packet-required preview payload before mutation.
+- If `enforce_software_delivery_task_board_projection_authority()` did not compare canonical state/queue/action/status fields, stale mirrors could override runtime truth.
+- If `build_software_delivery_overlay_triage_row()` wrote back to runtime records, mailbox chronology could become hidden authority.
+- If `RuntimeGovernancePaths::is_canonical_validator_gate_ref` accepted substring matches, spoofed validator-gate, claim/lease, or queued-instruction refs could satisfy authority checks.
+BOUNDARY_PROBES:
+- Producer/consumer boundary: `src/backend/handshake_core/src/workflows.rs:4682` delegates to the same projection derivation consumed by DCC, Task Board, and Role Mailbox projection paths.
+- Authority boundary: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3403` builds a tampered projection from board mirror fields and proves validator rejection.
+- Profile boundary: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3441`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3674`, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:6240` prove non-software-delivery summaries/projections do not retain software-delivery surfaces.
+- Mailbox boundary: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:6081` snapshots canonical overlay files before mutating advisory triage and proves no on-disk authority drift.
+- Current-main boundary: contained local main commit is `4a5534925af14bf994344182fb5c863cacba6741`.
+NEGATIVE_PATH_CHECKS:
+- `fabricated_action` returns no preview (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3670`).
+- Registered but out-of-family `approve` yields `IneligibleOutOfFamily` for a Validation-family canonical summary (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3649`).
+- Non-software-delivery canonical summaries yield no preview and no projection surface (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3674`).
+- Stale Task Board authority fields are rejected while advisory mirror/lane/status fields remain non-authoritative (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3751`).
+- Non-software-delivery lifecycle emission clears stale workflow-run lifecycle records (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:6240`).
+INDEPENDENT_FINDINGS:
+- NONE
+ANTI_VIBE_FINDINGS:
+- NONE
+SIGNED_SCOPE_DEBT:
+- NONE
+PRIMITIVE_RETENTION_PROOF:
+- `SoftwareDeliveryProjectionSurfaceV1` remains the shared projection primitive at `src/backend/handshake_core/src/locus/types.rs:1944`.
+- `GovernedActionPreviewV1` remains the preview payload primitive at `src/backend/handshake_core/src/locus/types.rs:1895`.
+- Closeout reference validation remains rooted in `RuntimeGovernancePaths` helpers at `src/backend/handshake_core/src/runtime_governance.rs:319`.
+PRIMITIVE_RETENTION_GAPS:
+- NONE
+SHARED_SURFACE_INTERACTION_CHECKS:
+- `src/backend/handshake_core/src/locus/types.rs:2259` derives one software-delivery projection from canonical summary plus advisory board/mailbox inputs.
+- `src/backend/handshake_core/src/workflows.rs:5101` materializes `projection_surface.json` from canonical summary, claim/lease records, queued-instruction records, workflow lifecycle, and gate posture.
+- `src/backend/handshake_core/src/locus/task_board.rs:203` enforces Task Board projection authority against canonical state.
+- `src/backend/handshake_core/src/role_mailbox.rs:1707` builds mailbox triage from the already-derived projection surface instead of mailbox chronology.
+- `src/backend/handshake_core/src/storage/locus_sqlite.rs:285` applies canonical action/queue overrides to SQLite progress metadata.
+CURRENT_MAIN_INTERACTION_CHECKS:
+- Current local `main` contains the signed product surface at `4a5534925af14bf994344182fb5c863cacba6741`.
+- Candidate worktree was clean at `eb59e9819c7cc2729c169c723dab3932d5d7b9d4`.
+- Contained merge tree `56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` was limited to the signed product/test paths before harmonization.
+- Post-harmonization committed main exact tests and `cargo check --lib` passed.
+DATA_CONTRACT_PROOF:
+- `GovernedActionPreviewV1` serializes `action_request_id`, target record refs, eligibility, blockers, and evidence refs (`src/backend/handshake_core/src/locus/types.rs:1895`) and is embedded into `SoftwareDeliveryProjectionSurfaceV1` (`src/backend/handshake_core/src/locus/types.rs:1997`).
+- The preview tripwire round-trips the projection payload and proves direct preview derivation is read-only (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3489`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3716`).
+- `SoftwareDeliveryProjectionSurfaceV1` carries stable ids for workflow, model session, Task Board, claim/lease, queued-instruction, authority, and evidence refs (`src/backend/handshake_core/src/locus/types.rs:1944`).
+DATA_CONTRACT_GAPS:
+- NONE
+
+### INTEGRATION_VALIDATOR_REPORT - 2026-04-28T16:05:17Z
+- ACTOR_ROLE: INTEGRATION_VALIDATOR
+- ACTOR_SESSION: integration_validator:wp-1-software-delivery-projection-surface-discipline-v1
+- REPOMEM_SESSION: INTEGRATION_VALIDATOR-20260428-160034
+- CANDIDATE_BRANCH: feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- CANDIDATE_WORKTREE: ../wtc-surface-discipline-v1
+- CANDIDATE_HEAD: 4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd
+- HANDOFF_RANGE: 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd
+- Verdict: FAIL
+- VALIDATION_CONTEXT: OK
+- GOVERNANCE_VERDICT: FAIL
+- TEST_VERDICT: NOT_RUN
+- CODE_REVIEW_VERDICT: FAIL
+- HEURISTIC_REVIEW_VERDICT: FAIL
+- SPEC_ALIGNMENT_VERDICT: PARTIAL
+- ENVIRONMENT_VERDICT: FAIL
+- DISPOSITION: NONE
+- LEGAL_VERDICT: FAIL
+- SPEC_CONFIDENCE: PARTIAL_DIFF_SCOPED
+- WORKFLOW_VALIDITY: INVALID
+- SCOPE_VALIDITY: OUT_OF_SCOPE
+- PROOF_COMPLETENESS: NOT_PROVEN
+- INTEGRATION_READINESS: NOT_READY
+- DOMAIN_GOAL_COMPLETION: PARTIAL
+- MECHANICAL_TRACK_VERDICT: FAIL
+- SPEC_RETENTION_TRACK_VERDICT: PARTIAL
+- MAIN_CONTAINMENT_STATUS: NOT_REQUIRED
+- MERGED_MAIN_COMMIT: NONE
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+- VALIDATOR_RISK_TIER: HIGH
+- FAILURE_SUMMARY:
+  - Candidate `.cargo/config.toml:4` sets `target-dir = "../Handshake Artifacts/handshake-cargo-target"`.
+  - `AGENTS.md:56` requires all build/test/tool outputs to live under `../Handshake_Artifacts/` with the `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, and `handshake-tool/` subfolders.
+  - This is a blocking governance/environment violation in the merge candidate. Running Cargo tests from this candidate would write proof outputs into the wrong artifact root, so Integration Validator stopped before test execution and did not merge.
+- REMEDIATION_REQUIRED:
+  - Restore `.cargo/config.toml:4` to `target-dir = "../Handshake_Artifacts/handshake-cargo-target"`.
+  - Re-run the final candidate proof from the repaired branch using the corrected artifact root: `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib`, the exact WP regression tests named in this packet, and `just phase-check VERDICT WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR`.
+  - Do not delete any `../Handshake Artifacts/` directory or other output directory unless the Operator explicitly authorizes cleanup under the repo destructive-cleanup rules.
+- CLAUSES_REVIEWED:
+  - v02.181 Projection-surface discipline: master spec requires DCC, Task Board, and Role Mailbox projections to explain the same runtime truth without mailbox chronology or Markdown mirrors becoming authority (`Handshake_Master_Spec_v02.181.md:48046`). Candidate implements the core projection surface in `src/backend/handshake_core/src/locus/types.rs:1867`, derives it from canonical summary plus advisory board/mailbox inputs at `src/backend/handshake_core/src/locus/types.rs:2077`, validates canonical equality at `src/backend/handshake_core/src/locus/types.rs:2153`, and covers the conflict case at `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3237`.
+  - Software-delivery overlay runtime truth specialization: master spec requires authoritative work meaning to resolve through canonical structured records instead of packet prose, board ordering, mailbox chronology, or side ledgers (`Handshake_Master_Spec_v02.181.md:6917`). Candidate declares Task Board row authority boundaries at `src/backend/handshake_core/src/locus/task_board.rs:35` and enforces software-delivery row authority against canonical state at `src/backend/handshake_core/src/locus/task_board.rs:203`.
+  - Software-delivery closeout derivation: master spec requires closeout from canonical workflow state, validator-gate posture, governed action resolutions, and evidence refs rather than packet checklist surgery (`Handshake_Master_Spec_v02.181.md:7034`). Candidate adds canonical validator-gate and owner-packet path checks at `src/backend/handshake_core/src/runtime_governance.rs:319`, `src/backend/handshake_core/src/runtime_governance.rs:369`, and `src/backend/handshake_core/src/locus/types.rs:3194`.
+  - Software-delivery overlay extension records and lifecycle semantics: master spec requires stable-id claim/lease and queued-instruction records (`Handshake_Master_Spec_v02.181.md:7040`, `Handshake_Master_Spec_v02.181.md:7042`). Candidate adds claim/lease and queued-instruction canonical refs at `src/backend/handshake_core/src/runtime_governance.rs:409`, `src/backend/handshake_core/src/runtime_governance.rs:440`, `src/backend/handshake_core/src/runtime_governance.rs:468`, and `src/backend/handshake_core/src/runtime_governance.rs:500`; overlay projection derivation/validation lives at `src/backend/handshake_core/src/locus/types.rs:2965` and `src/backend/handshake_core/src/locus/types.rs:3053`.
+  - Role Mailbox authority boundary: master spec requires mailbox summaries/threads to remain evidence and projection only, not direct mutation of validator posture, claim/lease posture, queued follow-up state, or closeout state (`Handshake_Master_Spec_v02.181.md:10661`). Candidate declares mailbox chronology advisory at `src/backend/handshake_core/src/role_mailbox.rs:230` and builds a stable-id advisory overlay triage row at `src/backend/handshake_core/src/role_mailbox.rs:1681` and `src/backend/handshake_core/src/role_mailbox.rs:1707`.
+- NOT_PROVEN:
+  - v02.181 Projection-surface discipline: candidate not cleared because blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+  - Software-delivery overlay runtime truth specialization: candidate not cleared because blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+  - Software-delivery closeout derivation: candidate not cleared because blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+  - Software-delivery overlay extension records and lifecycle semantics: candidate not cleared because blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+  - Role Mailbox authority boundary: candidate not cleared because blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+  - PASS readiness is not proven because the candidate's Cargo target directory violates the required artifact root before Integration Validator can run test proof.
+  - The product clauses above were reviewed at line level but were not cleared for PASS because the merge candidate includes a blocking out-of-scope root tooling change.
+- MAIN_BODY_GAPS:
+  - `.cargo/config.toml:4` must use `../Handshake_Artifacts/handshake-cargo-target`, not `../Handshake Artifacts/handshake-cargo-target`.
+- QUALITY_RISKS:
+  - A wrong artifact root can fragment build/test proof and make future validator evidence non-comparable across worktrees.
+- DIFF_ATTACK_SURFACES:
+  - Root build-output routing via `.cargo/config.toml`.
+  - Projection-surface authority joins across `locus/types.rs`, `locus/task_board.rs`, `workflows.rs`, and `role_mailbox.rs`.
+  - Runtime canonical path validation in `runtime_governance.rs`.
+  - Micro-task packet/progress parity between workflow artifact emission and SQLite progress metadata.
+- INDEPENDENT_CHECKS_RUN:
+  - `just integration-validator-context-brief WP-1-Software-Delivery-Projection-Surface-Discipline-v1` => `CONTEXT_STATUS: OK`, `CLOSEOUT_READINESS: READY`, candidate branch/worktree/head/range matched the Orchestrator instruction.
+  - `git status --short --branch` and `git rev-parse HEAD` in `../wtc-surface-discipline-v1` => feature branch clean at `4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd`.
+  - `git diff --name-status 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd` => `.cargo/config.toml` is in the candidate range.
+  - `rg -n "target-dir" -- .cargo/config.toml` in candidate worktree => line 4 points at `../Handshake Artifacts/handshake-cargo-target`.
+  - `rg -n "Build/test/tool outputs MUST live|Handshake_Artifacts" -- AGENTS.md` in `handshake_main` => line 56 requires `../Handshake_Artifacts/`.
+  - `just check-notifications ... INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` before verdict => no pending notifications.
+- COUNTERFACTUAL_CHECKS:
+  - If `.cargo/config.toml:4` remains pointed at `../Handshake Artifacts/handshake-cargo-target`, any Cargo proof generated after merge bypasses the repo-mandated `../Handshake_Artifacts/handshake-cargo-target` root and violates the build/test/tool-output guardrail even if product tests pass.
+  - If Integration Validator runs tests before repairing `.cargo/config.toml:4`, the validation evidence itself is produced through the wrong artifact root and cannot support a legal PASS verdict.
+  - If the candidate's product code were merged with the wrong target root, future worktrees would inherit divergent artifact placement and validator reruns would no longer share the repo's canonical external artifact root.
+- BOUNDARY_PROBES:
+  - Repo-control boundary: root `.cargo/config.toml` affects every Cargo proof path and is not one of the packet's product code surfaces.
+  - Product/runtime boundary: candidate uses product-owned `.handshake/gov` runtime paths for projection artifacts while repo `/.GOV/**` remains evidence/projection input only.
+  - Mailbox boundary: candidate exposes `SoftwareDeliveryOverlayTriageRowV1` as advisory stable-id navigation and does not give mailbox chronology direct mutation authority.
+- NEGATIVE_PATH_CHECKS:
+  - Candidate artifact root mismatch checked directly against `AGENTS.md:56`; result is a blocking FAIL.
+  - Cargo tests intentionally not run from the unrepaired candidate because doing so would write outputs to the wrong artifact root.
+  - Notification queue checked before verdict; no newer instruction superseded this FAIL finding.
+- INDEPENDENT_FINDINGS:
+  - The software-delivery product code appears to address the main projection-surface authority model at line level, but the candidate cannot be accepted because it carries a root Cargo output-path regression.
+  - The WP Validator PASS did not catch the `.cargo/config.toml` artifact-root regression.
+- RESIDUAL_UNCERTAINTY:
+  - After `.cargo/config.toml` is repaired, Integration Validator still needs to run the required Cargo proof and exact WP regression tests from the corrected artifact root before any PASS can be considered.
+  - I did not finish a whole-WP PASS-grade runtime test sweep because the environment/root-output violation must be fixed first.
+- SPEC_CLAUSE_MAP:
+  - v02.181 Projection-surface discipline => `src/backend/handshake_core/src/locus/types.rs:1867`, `src/backend/handshake_core/src/locus/types.rs:2077`, `src/backend/handshake_core/src/locus/types.rs:2153`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3237`.
+  - Software-delivery overlay runtime truth specialization => `src/backend/handshake_core/src/locus/task_board.rs:35`, `src/backend/handshake_core/src/locus/task_board.rs:203`.
+  - Software-delivery closeout derivation => `src/backend/handshake_core/src/runtime_governance.rs:319`, `src/backend/handshake_core/src/runtime_governance.rs:369`, `src/backend/handshake_core/src/locus/types.rs:3194`.
+  - Software-delivery overlay extension records and lifecycle semantics => `src/backend/handshake_core/src/runtime_governance.rs:409`, `src/backend/handshake_core/src/runtime_governance.rs:440`, `src/backend/handshake_core/src/runtime_governance.rs:468`, `src/backend/handshake_core/src/runtime_governance.rs:500`, `src/backend/handshake_core/src/locus/types.rs:2965`, `src/backend/handshake_core/src/locus/types.rs:3053`.
+  - Role Mailbox authority boundary => `src/backend/handshake_core/src/role_mailbox.rs:230`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, `src/backend/handshake_core/src/role_mailbox.rs:1707`.
+- NEGATIVE_PROOF:
+  - The broader repo output-root requirement is not implemented in this candidate: `.cargo/config.toml:4` points at `../Handshake Artifacts/handshake-cargo-target` while `AGENTS.md:56` requires `../Handshake_Artifacts/handshake-cargo-target`.
+- ANTI_VIBE_FINDINGS:
+  - Blocking: the candidate contains a root tooling change that contradicts repo guardrails and is not justified by the packet's product-code scope.
+- SIGNED_SCOPE_DEBT:
+  - `.cargo/config.toml` artifact-root mutation is outside the packet's listed product code surfaces and must be reverted or explicitly governed before revalidation.
+- PRIMITIVE_RETENTION_PROOF:
+  - `SoftwareDeliveryProjectionSurfaceV1` remains present at `src/backend/handshake_core/src/locus/types.rs:1867`.
+  - Canonical governed action family registry remains present at `src/backend/handshake_core/src/locus/types.rs:1975`.
+  - Role Mailbox advisory triage row remains present at `src/backend/handshake_core/src/role_mailbox.rs:1681`.
+- PRIMITIVE_RETENTION_GAPS:
+  - Not fully proven because Integration Validator stopped before running the runtime test suite from a compliant artifact root.
+- SHARED_SURFACE_INTERACTION_CHECKS:
+  - `workflows.rs` applies micro-task packet canonical overrides before artifact write at `src/backend/handshake_core/src/workflows.rs:3643` and before structured registry validation at `src/backend/handshake_core/src/workflows.rs:13401`.
+  - `storage/locus_sqlite.rs` applies progress metadata canonical overrides at `src/backend/handshake_core/src/storage/locus_sqlite.rs:288` and defines the override helper at `src/backend/handshake_core/src/storage/locus_sqlite.rs:304`.
+  - `role_mailbox.rs` consumes the projection surface type instead of deriving authority from mailbox chronology at `src/backend/handshake_core/src/role_mailbox.rs:1707`.
+- CURRENT_MAIN_INTERACTION_CHECKS:
+  - Current local main baseline in the context brief was `660a1d5befa8ca083864730f8622e664b9c3eeef`; no merge was attempted.
+  - Candidate `.cargo/config.toml` diverges from current main's expected artifact root and must be repaired before merge-tree or runtime proof can support PASS.
+- DATA_CONTRACT_PROOF:
+  - Candidate code exposes stable-id, JSON-serializable projection records in `src/backend/handshake_core/src/locus/types.rs:1867`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, and runtime path helpers in `src/backend/handshake_core/src/runtime_governance.rs:178`.
+- DATA_CONTRACT_GAPS:
+  - The LLM-first data contract was not fully revalidated through runtime tests because the candidate's Cargo artifact root is noncompliant.
+
+### INTEGRATION_VALIDATOR_REPORT - 2026-04-28T16:14:30Z
+ACTOR_ROLE: INTEGRATION_VALIDATOR
+ACTOR_SESSION: integration_validator:wp-1-software-delivery-projection-surface-discipline-v1
+REPOMEM_SESSION: INTEGRATION_VALIDATOR-20260428-160034
+CANDIDATE_BRANCH: feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+CANDIDATE_WORKTREE: ../wtc-surface-discipline-v1
+CANDIDATE_HEAD: 4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd
+HANDOFF_RANGE: 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd
+Verdict: FAIL
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: FAIL
+TEST_VERDICT: NOT_RUN
+CODE_REVIEW_VERDICT: FAIL
+HEURISTIC_REVIEW_VERDICT: FAIL
+SPEC_ALIGNMENT_VERDICT: PARTIAL
+ENVIRONMENT_VERDICT: FAIL
+DISPOSITION: NONE
+LEGAL_VERDICT: FAIL
+SPEC_CONFIDENCE: PARTIAL_DIFF_SCOPED
+WORKFLOW_VALIDITY: INVALID
+SCOPE_VALIDITY: OUT_OF_SCOPE
+PROOF_COMPLETENESS: NOT_PROVEN
+INTEGRATION_READINESS: NOT_READY
+DOMAIN_GOAL_COMPLETION: PARTIAL
+MECHANICAL_TRACK_VERDICT: FAIL
+SPEC_RETENTION_TRACK_VERDICT: PARTIAL
+MAIN_CONTAINMENT_STATUS: NOT_REQUIRED
+MERGED_MAIN_COMMIT: NONE
+MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+VALIDATOR_RISK_TIER: HIGH
+FAILURE_SUMMARY:
+- Candidate `.cargo/config.toml:4` sets `target-dir = "../Handshake Artifacts/handshake-cargo-target"`.
+- `AGENTS.md:56` requires all build/test/tool outputs to live under `../Handshake_Artifacts/`, including `handshake-cargo-target/`.
+- This is a blocking governance/environment violation; Integration Validator stopped before Cargo proof and did not merge.
+REMEDIATION_REQUIRED:
+- Restore `.cargo/config.toml:4` to `target-dir = "../Handshake_Artifacts/handshake-cargo-target"`.
+- Re-run final proof from the repaired branch using the corrected artifact root, including `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib`, the exact WP regression tests named in this packet, and `just phase-check VERDICT WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR`.
+- Do not delete `../Handshake Artifacts/` or any other output directory unless the Operator explicitly authorizes cleanup under repo destructive-cleanup rules.
+CLAUSES_REVIEWED:
+- v02.181 Projection-surface discipline: reviewed `src/backend/handshake_core/src/locus/types.rs:1867`, `src/backend/handshake_core/src/locus/types.rs:2077`, `src/backend/handshake_core/src/locus/types.rs:2153`, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3237`.
+- Software-delivery overlay runtime truth specialization: reviewed `src/backend/handshake_core/src/locus/task_board.rs:35` and `src/backend/handshake_core/src/locus/task_board.rs:203`.
+- Software-delivery closeout derivation: reviewed `src/backend/handshake_core/src/runtime_governance.rs:319`, `src/backend/handshake_core/src/runtime_governance.rs:369`, and `src/backend/handshake_core/src/locus/types.rs:3194`.
+- Software-delivery overlay extension records and lifecycle semantics: reviewed `src/backend/handshake_core/src/runtime_governance.rs:409`, `src/backend/handshake_core/src/runtime_governance.rs:440`, `src/backend/handshake_core/src/runtime_governance.rs:468`, `src/backend/handshake_core/src/runtime_governance.rs:500`, `src/backend/handshake_core/src/locus/types.rs:2965`, and `src/backend/handshake_core/src/locus/types.rs:3053`.
+- Role Mailbox authority boundary: reviewed `src/backend/handshake_core/src/role_mailbox.rs:230`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, and `src/backend/handshake_core/src/role_mailbox.rs:1707`.
+NOT_PROVEN:
+- v02.181 Projection-surface discipline: not cleared because the blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+- Software-delivery overlay runtime truth specialization: not cleared because the blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+- Software-delivery closeout derivation: not cleared because the blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+- Software-delivery overlay extension records and lifecycle semantics: not cleared because the blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+- Role Mailbox authority boundary: not cleared because the blocking `.cargo/config.toml` artifact-root violation prevents legal Integration Validator test proof.
+MAIN_BODY_GAPS:
+- `.cargo/config.toml:4` must use `../Handshake_Artifacts/handshake-cargo-target`, not `../Handshake Artifacts/handshake-cargo-target`.
+QUALITY_RISKS:
+- Wrong Cargo artifact routing fragments validation proof and makes future validator evidence non-comparable across worktrees.
+DIFF_ATTACK_SURFACES:
+- Root build-output routing via `.cargo/config.toml`.
+- Projection-surface authority joins across `locus/types.rs`, `locus/task_board.rs`, `workflows.rs`, and `role_mailbox.rs`.
+- Runtime canonical path validation in `runtime_governance.rs`.
+- Micro-task packet/progress parity between workflow artifact emission and SQLite progress metadata.
+INDEPENDENT_CHECKS_RUN:
+- `just integration-validator-context-brief WP-1-Software-Delivery-Projection-Surface-Discipline-v1` => context OK and candidate branch/worktree/head/range matched assignment.
+- `git status --short --branch` and `git rev-parse HEAD` in `../wtc-surface-discipline-v1` => feature branch clean at `4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd`.
+- `git diff --name-status 45afc8867f08f7c2f8edfe71ab750fe92ab28866..4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd` => `.cargo/config.toml` is in the candidate range.
+- `rg -n "target-dir" -- .cargo/config.toml` => candidate line 4 points at `../Handshake Artifacts/handshake-cargo-target`.
+- `rg -n "Build/test/tool outputs MUST live|Handshake_Artifacts" -- AGENTS.md` => line 56 requires `../Handshake_Artifacts/`.
+- `just check-notifications ... INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` => no pending notifications before verdict.
+COUNTERFACTUAL_CHECKS:
+- If `.cargo/config.toml:4` remains pointed at `../Handshake Artifacts/handshake-cargo-target`, Cargo proof bypasses the repo-mandated artifact root even if tests pass.
+- If Integration Validator runs tests before repairing `.cargo/config.toml:4`, the validation evidence itself is produced through the wrong artifact root and cannot support PASS.
+- If the candidate is merged with the wrong target root, future worktrees inherit divergent artifact placement and validator reruns cannot use the canonical external artifact root.
+BOUNDARY_PROBES:
+- Repo-control boundary: root `.cargo/config.toml` affects every Cargo proof path and is outside the packet product-code surfaces.
+- Product/runtime boundary: candidate uses product-owned `.handshake/gov` runtime paths for projection artifacts while repo `/.GOV/**` remains evidence/projection input only.
+- Mailbox boundary: candidate exposes `SoftwareDeliveryOverlayTriageRowV1` as advisory stable-id navigation and does not give mailbox chronology direct mutation authority.
+NEGATIVE_PATH_CHECKS:
+- Candidate artifact-root mismatch checked directly against `AGENTS.md:56`; result is blocking FAIL.
+- Cargo tests intentionally not run from the unrepaired candidate because doing so would write outputs to the wrong artifact root.
+- Notification queue checked before verdict; no newer instruction superseded this FAIL finding.
+INDEPENDENT_FINDINGS:
+- Product code appears to address the main projection-surface authority model at line level, but the candidate cannot be accepted while carrying the root Cargo output-path regression.
+- The WP Validator PASS did not catch the `.cargo/config.toml` artifact-root regression.
+RESIDUAL_UNCERTAINTY:
+- After `.cargo/config.toml` is repaired, Integration Validator still needs to run Cargo proof and exact WP regression tests from the corrected artifact root before any PASS can be considered.
+- I did not finish a whole-WP PASS-grade runtime test sweep because the environment/root-output violation must be fixed first.
+SPEC_CLAUSE_MAP:
+- v02.181 Projection-surface discipline => `src/backend/handshake_core/src/locus/types.rs:1867`, `src/backend/handshake_core/src/locus/types.rs:2077`, `src/backend/handshake_core/src/locus/types.rs:2153`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3237`.
+- Software-delivery overlay runtime truth specialization => `src/backend/handshake_core/src/locus/task_board.rs:35`, `src/backend/handshake_core/src/locus/task_board.rs:203`.
+- Software-delivery closeout derivation => `src/backend/handshake_core/src/runtime_governance.rs:319`, `src/backend/handshake_core/src/runtime_governance.rs:369`, `src/backend/handshake_core/src/locus/types.rs:3194`.
+- Software-delivery overlay extension records and lifecycle semantics => `src/backend/handshake_core/src/runtime_governance.rs:409`, `src/backend/handshake_core/src/runtime_governance.rs:440`, `src/backend/handshake_core/src/runtime_governance.rs:468`, `src/backend/handshake_core/src/runtime_governance.rs:500`, `src/backend/handshake_core/src/locus/types.rs:2965`, `src/backend/handshake_core/src/locus/types.rs:3053`.
+- Role Mailbox authority boundary => `src/backend/handshake_core/src/role_mailbox.rs:230`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, `src/backend/handshake_core/src/role_mailbox.rs:1707`.
+NEGATIVE_PROOF:
+- The broader repo output-root requirement is not implemented in this candidate: `.cargo/config.toml:4` points at `../Handshake Artifacts/handshake-cargo-target` while `AGENTS.md:56` requires `../Handshake_Artifacts/handshake-cargo-target`.
+ANTI_VIBE_FINDINGS:
+- Blocking: the candidate contains a root tooling change that contradicts repo guardrails and is not justified by packet product-code scope.
+SIGNED_SCOPE_DEBT:
+- `.cargo/config.toml` artifact-root mutation is outside the packet's listed product code surfaces and must be reverted or explicitly governed before revalidation.
+PRIMITIVE_RETENTION_PROOF:
+- `SoftwareDeliveryProjectionSurfaceV1` remains present at `src/backend/handshake_core/src/locus/types.rs:1867`.
+- Canonical governed action family registry remains present at `src/backend/handshake_core/src/locus/types.rs:1975`.
+- Role Mailbox advisory triage row remains present at `src/backend/handshake_core/src/role_mailbox.rs:1681`.
+PRIMITIVE_RETENTION_GAPS:
+- Not fully proven because Integration Validator stopped before running the runtime test suite from a compliant artifact root.
+SHARED_SURFACE_INTERACTION_CHECKS:
+- `workflows.rs` applies micro-task packet canonical overrides before artifact write at `src/backend/handshake_core/src/workflows.rs:3643` and before structured registry validation at `src/backend/handshake_core/src/workflows.rs:13401`.
+- `storage/locus_sqlite.rs` applies progress metadata canonical overrides at `src/backend/handshake_core/src/storage/locus_sqlite.rs:288` and defines the override helper at `src/backend/handshake_core/src/storage/locus_sqlite.rs:304`.
+- `role_mailbox.rs` consumes the projection surface type instead of deriving authority from mailbox chronology at `src/backend/handshake_core/src/role_mailbox.rs:1707`.
+CURRENT_MAIN_INTERACTION_CHECKS:
+- Current local main baseline in the context brief was `660a1d5befa8ca083864730f8622e664b9c3eeef`; no merge was attempted.
+- Candidate `.cargo/config.toml` diverges from current main's expected artifact root and must be repaired before merge-tree or runtime proof can support PASS.
+DATA_CONTRACT_PROOF:
+- Candidate code exposes stable-id, JSON-serializable projection records in `src/backend/handshake_core/src/locus/types.rs:1867`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, and runtime path helpers in `src/backend/handshake_core/src/runtime_governance.rs:178`.
+DATA_CONTRACT_GAPS:
+- The LLM-first data contract was not fully revalidated through runtime tests because the candidate's Cargo artifact root is noncompliant.
+
+### INTEGRATION_VALIDATOR_REPORT - 2026-04-28T20:48:12Z
+ACTOR_ROLE: INTEGRATION_VALIDATOR
+ACTOR_SESSION: integration_validator:wp-1-software-delivery-projection-surface-discipline-v1
+REPOMEM_SESSION: INTEGRATION_VALIDATOR-20260428-201125
+CANDIDATE_BRANCH: feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+CANDIDATE_WORKTREE: ../wtc-surface-discipline-v1
+CANDIDATE_HEAD: eb59e9819c7cc2729c169c723dab3932d5d7b9d4
+HANDOFF_RANGE: 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4
+MAIN_MERGE_COMMIT: 4a5534925af14bf994344182fb5c863cacba6741
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+MECHANICAL_TRACK_VERDICT: PASS
+SPEC_RETENTION_TRACK_VERDICT: PASS
+MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
+MERGED_MAIN_COMMIT: 4a5534925af14bf994344182fb5c863cacba6741
+MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-28T20:48:12Z
+VALIDATOR_RISK_TIER: HIGH
+CLAUSES_REVIEWED:
+- v02.181 Projection-surface discipline.
+- Software-delivery overlay runtime truth specialization.
+- Software-delivery closeout derivation.
+- Software-delivery overlay extension records and lifecycle semantics.
+- Role Mailbox authority boundary.
+- Governed action preview payload.
+NOT_PROVEN:
+- NONE
+MAIN_BODY_GAPS:
+- NONE
+QUALITY_RISKS:
+- Existing Rust warnings remain outside this diff-scoped proof; they did not block `cargo check --lib`, the exact packet tripwires, or the integration-test compile target.
+SPEC_CLAUSE_MAP:
+- v02.181 Projection-surface discipline (`Handshake_Master_Spec_v02.181.md:48046`, `Handshake_Master_Spec_v02.181.md:6917`): implemented by `src/backend/handshake_core/src/locus/types.rs:1944`, `src/backend/handshake_core/src/locus/types.rs:1997`, `src/backend/handshake_core/src/locus/types.rs:2259`, `src/backend/handshake_core/src/locus/types.rs:2297`, and `src/backend/handshake_core/src/workflows.rs:4682`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3240`.
+- Software-delivery overlay runtime truth specialization (`Handshake_Master_Spec_v02.181.md:6917`-`Handshake_Master_Spec_v02.181.md:6920`): implemented by `src/backend/handshake_core/src/locus/task_board.rs:30`, `src/backend/handshake_core/src/locus/task_board.rs:203`, and `src/backend/handshake_core/src/locus/types.rs:2339`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3751` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3850`.
+- Software-delivery closeout derivation (`Handshake_Master_Spec_v02.181.md:7032`-`Handshake_Master_Spec_v02.181.md:7036`): implemented by `src/backend/handshake_core/src/runtime_governance.rs:319`, `src/backend/handshake_core/src/runtime_governance.rs:369`, `src/backend/handshake_core/src/locus/types.rs:2568`, and `src/backend/handshake_core/src/locus/types.rs:2716`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3961`.
+- Software-delivery overlay extension records and lifecycle semantics (`Handshake_Master_Spec_v02.181.md:7038`-`Handshake_Master_Spec_v02.181.md:7048`): implemented by `src/backend/handshake_core/src/runtime_governance.rs:409`, `src/backend/handshake_core/src/runtime_governance.rs:440`, `src/backend/handshake_core/src/runtime_governance.rs:468`, `src/backend/handshake_core/src/runtime_governance.rs:500`, `src/backend/handshake_core/src/locus/types.rs:3151`, `src/backend/handshake_core/src/locus/types.rs:3239`, and `src/backend/handshake_core/src/workflows.rs:5101`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:4765`.
+- Role Mailbox authority boundary (`Handshake_Master_Spec_v02.181.md:10661`): implemented by `src/backend/handshake_core/src/role_mailbox.rs:227`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, and `src/backend/handshake_core/src/role_mailbox.rs:1707`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:6081`.
+- Governed action preview payload (`packet.md:459`, `Handshake_Master_Spec_v02.181.md:6993`-`Handshake_Master_Spec_v02.181.md:6999`): implemented by `src/backend/handshake_core/src/locus/types.rs:1858`, `src/backend/handshake_core/src/locus/types.rs:1895`, `src/backend/handshake_core/src/locus/types.rs:2167`, `src/backend/handshake_core/src/locus/types.rs:2218`, and `src/backend/handshake_core/src/locus/types.rs:2297`; proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3489`.
+NEGATIVE_PROOF:
+- No signed packet product requirement remained unimplemented in candidate `eb59e9819c7cc2729c169c723dab3932d5d7b9d4`.
+- v02.181 also describes broader software-delivery control-plane health/backpressure and push-oriented operator alerts (`Handshake_Master_Spec_v02.181.md:7058`-`Handshake_Master_Spec_v02.181.md:7059`); this candidate does not implement those broader alerting/backpressure surfaces, which are outside the signed packet scope.
+- The signed backend range does not add frontend widgets; it exposes backend projection/control fields for later UI consumers.
+INDEPENDENT_CHECKS_RUN:
+- `just check-notifications WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` and `just ack-notifications ...` returned no pending notifications before verdict and before merge commit.
+- `just phase-check STARTUP WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` passed.
+- `just -f ../wt-gov-kernel/justfile artifact-hygiene-check` passed.
+- `just validator-git-hygiene` passed.
+- `git merge-tree --write-tree HEAD eb59e9819c7cc2729c169c723dab3932d5d7b9d4` produced clean tree `56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc`, and `git diff --check HEAD 56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` passed.
+- `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib` passed on candidate and committed local `main`.
+- Exact tests passed on candidate and committed local `main`: `projection_surface_previews_governed_action_before_mutation`, `dcc_software_delivery_projection_surface_keeps_runtime_authority`, `task_board_software_delivery_projection_cannot_override_runtime_truth`, `closeout_projection_requires_gate_evidence_and_owner_truth`, `projection_surface_exposes_claim_and_queued_instruction_ids`, `role_mailbox_software_delivery_triage_remains_advisory`, `locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait`, `locus_sync_task_board_validation_reports_authority_scope_drift`, and `production_clears_workflow_run_lifecycle_record_for_non_software_delivery_summary`.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests --no-run` passed on candidate and committed local `main`.
+- `just phase-check VERDICT WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR` passed.
+COUNTERFACTUAL_CHECKS:
+- If governed-action previews stopped sourcing canonical allowed action ids, DCC/Task Board/mailbox consumers could preview actions not authorized by runtime truth.
+- If projection derivation stopped embedding `governed_action_previews`, downstream software-delivery surfaces would not receive the packet-required preview payload before mutation.
+- If Task Board validation did not compare canonical state/queue/action/status fields, stale mirrors could override runtime truth.
+- If Role Mailbox triage wrote back to runtime records, mailbox chronology could become hidden authority.
+- If closeout reference checks accepted substring matches, spoofed validator-gate, claim/lease, or queued-instruction refs could satisfy authority checks.
+ANTI_VIBE_FINDINGS:
+- NONE
+SIGNED_SCOPE_DEBT:
+- NONE
+PRIMITIVE_RETENTION_GAPS:
+- NONE
+DATA_CONTRACT_GAPS:
+- NONE
+
+## ORCHESTRATOR_REMEDIATION_EVIDENCE
+- Scope: post-Integration-Validator artifact-root remediation after terminal FAIL on candidate `4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd`.
+- Candidate head now under review: `2d6c40193cbf28ef244198e9b09ccbe855a2dd54`.
+- Command: `just phase-check HANDOFF WP-1-Software-Delivery-Projection-Surface-Discipline-v1 CODER --range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..2d6c40193cbf28ef244198e9b09ccbe855a2dd54`
+  - Exit code: `0`
+  - Artifact: `../gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-handoff/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/2026-04-28T17-02-53-129Z.log`
+- Signed-scope note: `.cargo/config.toml` is recorded as `Containment-Only: YES` because `2d6c4019` restores the file to the baseline artifact root; it is absent from the final `45afc886..2d6c4019` candidate diff but present in the signed patch artifact as remediation containment evidence from `4dee21bd..2d6c4019`.
+
+## INTEGRATION_VALIDATOR_FINAL_REVIEW_2026-04-28T17-35Z
+ACTOR_ROLE: INTEGRATION_VALIDATOR
+ACTOR_SESSION: integration_validator:wp-1-software-delivery-projection-surface-discipline-v1
+REPOMEM_SESSION: INTEGRATION_VALIDATOR-20260428-172625
+CANDIDATE_BRANCH: feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+CANDIDATE_WORKTREE: ../wtc-surface-discipline-v1
+CANDIDATE_HEAD: 2d6c40193cbf28ef244198e9b09ccbe855a2dd54
+HANDOFF_RANGE: 45afc8867f08f7c2f8edfe71ab750fe92ab28866..2d6c40193cbf28ef244198e9b09ccbe855a2dd54
+Verdict: FAIL
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: FAIL
+CODE_REVIEW_VERDICT: FAIL
+HEURISTIC_REVIEW_VERDICT: FAIL
+SPEC_ALIGNMENT_VERDICT: PARTIAL
+ENVIRONMENT_VERDICT: PARTIAL
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: INCOMPLETE
+PROOF_COMPLETENESS: NOT_PROVEN
+INTEGRATION_READINESS: NOT_READY
+VALIDATOR_RISK_TIER: HIGH
+FAILURE_SUMMARY:
+- The artifact-root remediation is present: `.cargo/config.toml:4` now routes Cargo output to `../Handshake_Artifacts/handshake-cargo-target`, and `.cargo/config.toml` is absent from the final `45afc886..2d6c4019` candidate diff.
+- The packet-required tripwire `projection_surface_previews_governed_action_before_mutation` is not implemented in the candidate code or tests. `rg` finds the name only in the packet, and the targeted integration-test invocation runs `0 tests`.
+- The packet data contract still requires a governed action preview payload with `action_request_id`, target record refs, eligibility, blockers, and evidence refs before mutation. I found no corresponding preview payload type, builder, or test in the reviewed product surfaces.
+- Therefore the candidate does not fully satisfy the signed packet contract and must not be merged.
+REMEDIATION_REQUIRED:
+- Implement the governed-action preview payload required by the packet contract row: include `action_request_id`, target record refs, eligibility, blockers, and evidence refs; expose it before any mutation path used by DCC quick actions, Task Board row actions, or mailbox escalation controls.
+- Add and run the packet-required exact tripwire `projection_surface_previews_governed_action_before_mutation`; it must fail if preview construction mutates canonical runtime state or skips policy/evidence gates.
+- Keep `.cargo/config.toml:4` at `target-dir = "../Handshake_Artifacts/handshake-cargo-target"` and rerun final proof from the corrected artifact root.
+- Re-run `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib`, the WP integration-test target regressions, and `just phase-check VERDICT WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR`.
+CLAUSES_REVIEWED:
+- v02.181 Projection-surface discipline: `src/backend/handshake_core/src/locus/types.rs:1867`, `src/backend/handshake_core/src/locus/types.rs:2077`, `src/backend/handshake_core/src/locus/types.rs:2153`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3237`.
+- Software-delivery overlay runtime truth specialization: `src/backend/handshake_core/src/locus/task_board.rs:35`, `src/backend/handshake_core/src/locus/task_board.rs:203`, `src/backend/handshake_core/src/locus/types.rs:2297`.
+- Software-delivery closeout derivation: `src/backend/handshake_core/src/runtime_governance.rs:330`, `src/backend/handshake_core/src/runtime_governance.rs:369`, `src/backend/handshake_core/src/locus/types.rs:3194`.
+- Software-delivery overlay extension records and lifecycle semantics: `src/backend/handshake_core/src/runtime_governance.rs:440`, `src/backend/handshake_core/src/runtime_governance.rs:500`, `src/backend/handshake_core/src/locus/types.rs:2965`, `src/backend/handshake_core/src/locus/types.rs:3053`, `src/backend/handshake_core/src/workflows.rs:5101`.
+- Role Mailbox authority boundary: `src/backend/handshake_core/src/role_mailbox.rs:230`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, `src/backend/handshake_core/src/role_mailbox.rs:1707`.
+- Governed action preview payload: NOT IMPLEMENTED / NOT PROVEN; packet references at lines 228, 237, and 459 remain unmatched by candidate code.
+NOT_PROVEN:
+- Governed action preview payload before mutation is not proven because the required test is absent and the searched product surfaces contain no preview payload implementation.
+- Full packet semantic proof is not proven because the packet-required tripwire suite includes a zero-test target.
+DIFF_ATTACK_SURFACES:
+- Contract row drift between packet-required governed-action preview payload and implemented projection surfaces.
+- False positive test proof when a named `--exact` tripwire runs zero tests.
+- Producer/consumer mismatch between DCC/Task Board/mailbox action controls and the runtime projection payload they are required to inspect before mutation.
+- Runtime canonical path and stable-id checks across projection, closeout, claim/lease, queued-instruction, and mailbox triage surfaces.
+INDEPENDENT_CHECKS_RUN:
+- `just integration-validator-context-brief WP-1-Software-Delivery-Projection-Surface-Discipline-v1` => context OK, candidate head `2d6c4019`, range `45afc886..2d6c4019`, main compatibility compatible.
+- `just check-notifications ... INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` and `just ack-notifications ...` => no pending notifications before verdict.
+- `just phase-check STARTUP ...`, `just phase-check VERDICT ...`, and `just phase-check CLOSEOUT ...` => all PASS; CLOSEOUT artifact `../gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-closeout/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/2026-04-28T17-35-02-766Z.log`.
+- `rg -n "target-dir|Handshake_Artifacts|Handshake Artifacts" -- .cargo/config.toml AGENTS.md` in candidate => `.cargo/config.toml:4` uses `../Handshake_Artifacts/handshake-cargo-target`.
+- `git diff --name-status 4dee21bd97b35e4b7591dd0a39e2d3e34dd706cd..2d6c40193cbf28ef244198e9b09ccbe855a2dd54` => `.cargo/config.toml` remediation only.
+- `git diff --check 45afc8867f08f7c2f8edfe71ab750fe92ab28866..2d6c40193cbf28ef244198e9b09ccbe855a2dd54` => PASS.
+- `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib` => PASS with warnings.
+- Raw `cargo test --manifest-path src/backend/handshake_core/Cargo.toml dcc_software_delivery_projection_surface_keeps_runtime_authority -- --exact` => FAIL while compiling unrelated lib-test targets (`FlightRecorderEvent::with_activity_span_id` and `ModelSession` fixture fields), before the integration test ran.
+- Targeted integration-test invocations with `--test micro_task_executor_tests` passed for the implemented packet tests and independent probes, but `projection_surface_previews_governed_action_before_mutation` ran `0 tests`.
+- `rg -n "projection_surface_previews_governed_action_before_mutation|previews_governed|governed_action_before_mutation|preview.*governed"` over candidate `src/` and `tests/` => no candidate code/test hit.
+- `rg -n "preview|Preview|action_request_id|eligibility|required evidence|required_evidence|governed_action"` over reviewed product surfaces => no governed-action preview payload matching the packet contract.
+COUNTERFACTUAL_CHECKS:
+- If `projection_surface_previews_governed_action_before_mutation` remains absent, a future candidate can claim packet proof while the named exact tripwire executes zero tests.
+- If DCC/Task Board/mailbox actions do not consume a preview payload with target refs, eligibility, blockers, and evidence refs before mutation, UI action controls can skip the policy/evidence gate the packet explicitly requires.
+- If `derive_software_delivery_projection_surface_with_overlay` stopped rejecting foreign-WP claim/lease or queued-instruction records, stable-id overlay posture could be projected for the wrong work item.
+- If `build_software_delivery_overlay_triage_row` wrote back to canonical records, mailbox chronology could become hidden authority; the candidate tests currently protect this boundary.
+BOUNDARY_PROBES:
+- Producer/consumer: packet contract requires a governed-action preview payload for DCC/Task Board/mailbox consumers; searched candidate producer surfaces do not define it.
+- Writer/reader: `apply_software_delivery_projection_surface_lifecycle` writes canonical projection artifacts from runtime summaries and overlay records; mailbox triage reads a clone-only advisory row.
+- Authority boundary: Task Board row validation flags authority-field drift while allowing advisory mirror/lane/status drift.
+NEGATIVE_PATH_CHECKS:
+- Missing-test negative path: exact candidate invocation for `projection_surface_previews_governed_action_before_mutation` in the integration-test target returned zero tests.
+- Preview-payload negative path: searched for `action_request_id`, preview eligibility, blockers, and evidence refs in the reviewed product surfaces; no implementation was present.
+- Raw Cargo exact-command negative path: the packet's command form currently compiles unrelated lib-test targets and fails before reaching the WP integration test.
+INDEPENDENT_FINDINGS:
+- Blocking: packet-required governed-action preview test and payload are absent.
+- Non-blocking for this verdict but residual: raw `cargo test <name> -- --exact` remains unsafe as packet proof because unrelated lib-test compilation fails; the WP integration-test target is the only runnable narrow proof observed in this review.
+SPEC_CLAUSE_MAP:
+- PASS-PARTIAL: v02.181 projection-surface discipline is implemented for canonical field lifting and advisory board/mailbox state at `locus/types.rs:1867`, `locus/types.rs:2077`, and `locus/types.rs:2153`.
+- PASS-PARTIAL: Task Board stale mirror authority rejection is implemented at `locus/types.rs:2297` and production helper wiring at `locus/task_board.rs:203`.
+- PASS-PARTIAL: Closeout canonical gate/owner proof is implemented at `runtime_governance.rs:369`, `runtime_governance.rs:390`, and `locus/types.rs:3194`.
+- PASS-PARTIAL: Claim/lease and queued-instruction stable-id overlay projection is implemented at `locus/types.rs:2965` and `locus/types.rs:3053`.
+- PASS-PARTIAL: Role Mailbox triage remains advisory at `role_mailbox.rs:1707`.
+- FAIL: Governed action preview payload before mutation from packet line 459 is not implemented/proven.
+NEGATIVE_PROOF:
+- At least one signed requirement is not fully implemented: `projection_surface_previews_governed_action_before_mutation` is required by packet lines 224-238 and the governed action preview payload contract at line 459, but no matching test or implementation exists in candidate product code.
+RESIDUAL_UNCERTAINTY:
+- I did not merge or run post-merge spotchecks because the missing preview contract is a merge blocker.
+- The targeted WP tests that exist pass, but they do not cover the absent governed-action preview contract.
+
+## CODER_REMEDIATION_EVIDENCE_2026-04-28T18-10Z
+- Scope: post-Integration-Validator preview-contract remediation after terminal FAIL on candidate `2d6c40193cbf28ef244198e9b09ccbe855a2dd54`. Adds the missing governed-action preview payload type plus the packet-required exact tripwire `projection_surface_previews_governed_action_before_mutation`.
+- Candidate head now under review: `eb59e9819c7cc2729c169c723dab3932d5d7b9d4`.
+- Command: `just phase-check HANDOFF WP-1-Software-Delivery-Projection-Surface-Discipline-v1 CODER --range 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4`
+  - Exit code: `0`
+  - Artifact: `../gov_runtime/roles_shared/GATE_OUTPUTS/phase-check-handoff/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/2026-04-28T18-10-17-878Z.log`
+- Verification: cargo check --lib PASS; the new tripwire `projection_surface_previews_governed_action_before_mutation` PASS via `cargo test --test micro_task_executor_tests ... -- --exact`; all 4 prior packet-required tripwires PASS; full projection regression set (15 tests including production_finalize_emits_software_delivery_projection_surface_with_overlay) PASS; integration target `--no-run` compiles; merge-tree vs origin/main reports 0 conflict markers.
+- Signed-scope note: only `src/backend/handshake_core/src/locus/types.rs` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs` are touched in the `45afc886..eb59e981` candidate diff; `.cargo/config.toml` is preserved at the IntVal-required `../Handshake_Artifacts/handshake-cargo-target` artifact root.
+
+### INTEGRATION_VALIDATOR_REPORT - 2026-04-28T19:36:00Z
+ACTOR_ROLE: INTEGRATION_VALIDATOR
+ACTOR_SESSION: integration_validator:wp-1-software-delivery-projection-surface-discipline-v1
+REPOMEM_SESSION: INTEGRATION_VALIDATOR-20260428-191829
+CANDIDATE_BRANCH: feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+CANDIDATE_WORKTREE: ../wtc-surface-discipline-v1
+CANDIDATE_HEAD: eb59e9819c7cc2729c169c723dab3932d5d7b9d4
+HANDOFF_RANGE: 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4
+Verdict: FAIL
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: FAIL
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PARTIAL
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: FAIL
+DISPOSITION: NONE
+LEGAL_VERDICT: FAIL
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: BLOCKED
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: NOT_READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+MECHANICAL_TRACK_VERDICT: FAIL
+SPEC_RETENTION_TRACK_VERDICT: PASS
+MAIN_CONTAINMENT_STATUS: NOT_REQUIRED
+MERGED_MAIN_COMMIT: NONE
+MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
+VALIDATOR_RISK_TIER: HIGH
+FAILURE_SUMMARY:
+- Candidate `eb59e9819c7cc2729c169c723dab3932d5d7b9d4` satisfies the signed product-code projection-surface contract under independent review: the prior missing governed-action preview payload and exact tripwire are now present and passing.
+- The hard pre-merge artifact hygiene gate fails in `handshake_main`: `just validator-git-hygiene` reports `Handshake Artifacts: noncanonical sibling artifact root; use Handshake_Artifacts and remove or quarantine this root after review (D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake Artifacts)`.
+- Per Integration Validator protocol section "Artifact Hygiene Pre-Merge Check (HARD)", I did not merge or sync main while that gate was failing.
+- This is not a Coder remediation item. It is a repo-governance/environment cleanup blocker for the Orchestrator: quarantine or remove the noncanonical sibling artifact root, rerun `just validator-git-hygiene`, then resume Integration Validator containment.
+REMEDIATION_REQUIRED:
+- Orchestrator should review `../Handshake Artifacts/handshake-cargo-target` and either quarantine it outside the active worktree sibling root or remove it through an approved/sanctioned cleanup path.
+- After cleanup, rerun `just validator-git-hygiene`, `just phase-check VERDICT WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR`, and `just phase-check CLOSEOUT WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1`.
+- If hygiene remains clean, apply the contained current-main merge tree proven by `git merge-tree --write-tree --merge-base 45afc8867f08f7c2f8edfe71ab750fe92ab28866 --name-only main eb59e9819c7cc2729c169c723dab3932d5d7b9d4`, which produced tree `56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` with a diff limited to signed product/test files and `git diff --check main 56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` PASS.
+CLAUSES_REVIEWED:
+- v02.181 Projection-surface discipline.
+- Software-delivery overlay runtime truth specialization.
+- Software-delivery closeout derivation.
+- Software-delivery overlay extension records and lifecycle semantics.
+- Role Mailbox authority boundary.
+- Governed action preview payload.
+NOT_PROVEN:
+- NONE
+MAIN_BODY_GAPS:
+- NONE
+QUALITY_RISKS:
+- Artifact hygiene blocks merge readiness, but no product-code quality risk was found inside the signed range.
+SPEC_CLAUSE_MAP:
+- v02.181 Projection-surface discipline: `src/backend/handshake_core/src/locus/types.rs:1944`, `src/backend/handshake_core/src/locus/types.rs:1997`, `src/backend/handshake_core/src/locus/types.rs:2265`, `src/backend/handshake_core/src/workflows.rs:4682`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3240`.
+- Software-delivery overlay runtime truth specialization: `src/backend/handshake_core/src/locus/task_board.rs:37`, `src/backend/handshake_core/src/locus/types.rs:2340`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3751`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3850`.
+- Software-delivery closeout derivation: `src/backend/handshake_core/src/runtime_governance.rs:369`, `src/backend/handshake_core/src/locus/types.rs:2568`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3961`.
+- Software-delivery overlay extension records and lifecycle semantics: `src/backend/handshake_core/src/locus/types.rs:3162`, `src/backend/handshake_core/src/locus/types.rs:3240`, `src/backend/handshake_core/src/workflows.rs:5100`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:4765`.
+- Role Mailbox authority boundary: `src/backend/handshake_core/src/role_mailbox.rs:1676`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, `src/backend/handshake_core/src/role_mailbox.rs:1707`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:6081`.
+- Governed action preview payload: `src/backend/handshake_core/src/locus/types.rs:1859`, `src/backend/handshake_core/src/locus/types.rs:1895`, `src/backend/handshake_core/src/locus/types.rs:2167`, `src/backend/handshake_core/src/locus/types.rs:2218`, `src/backend/handshake_core/src/locus/types.rs:2297`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3489`.
+NEGATIVE_PROOF:
+- Product-code negative proof: no signed product requirement remained unimplemented in candidate `eb59e981` after the preview remediation review.
+- Merge-readiness negative proof: the hard artifact hygiene requirement is not satisfied because `../Handshake Artifacts/` exists as a noncanonical sibling artifact root while canonical output must use `../Handshake_Artifacts/`.
+DIFF_ATTACK_SURFACES:
+- Producer/consumer drift between the runtime projection producer and DCC, Task Board, and Role Mailbox consumers.
+- Serialized payload drift for `SoftwareDeliveryProjectionSurfaceV1` and the new `GovernedActionPreviewV1` field.
+- False positive exact-test proof if `projection_surface_previews_governed_action_before_mutation` ran zero tests.
+- Current-main containment risk because the assigned candidate worktree is in the kernel-backed repo and direct branch merge would include unrelated governance/root diffs; only the signed range may be contained.
+- Artifact-root hygiene regression risk from the prior `Handshake Artifacts` vs `Handshake_Artifacts` split.
+INDEPENDENT_CHECKS_RUN:
+- `git -C ../wtc-surface-discipline-v1 rev-parse HEAD` => `eb59e9819c7cc2729c169c723dab3932d5d7b9d4`.
+- `git -C ../wtc-surface-discipline-v1 diff --name-status 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4` => nine signed Rust/test files; no `.GOV/**`, `AGENTS.md`, `justfile`, or `.cargo/config.toml` in the signed range.
+- `rg -n "projection_surface_previews_governed_action_before_mutation|GovernedActionPreview|action_request_id|eligibility" -- src/backend/handshake_core/src/locus/types.rs src/backend/handshake_core/tests/micro_task_executor_tests.rs` => preview type, builder, embedded projection list, and exact tripwire present.
+- `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib` => PASS with existing warnings.
+- Exact packet tripwires all PASS with one test each: `projection_surface_previews_governed_action_before_mutation`, `dcc_software_delivery_projection_surface_keeps_runtime_authority`, `task_board_software_delivery_projection_cannot_override_runtime_truth`, `closeout_projection_requires_gate_evidence_and_owner_truth`, `projection_surface_exposes_claim_and_queued_instruction_ids`, and `role_mailbox_software_delivery_triage_remains_advisory`.
+- Independent probes not required by the coder handoff PASS: `locus_sync_task_board_validation_reports_authority_scope_drift` and `production_clears_workflow_run_lifecycle_record_for_non_software_delivery_summary`.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests --no-run` => PASS.
+- `git merge-tree --write-tree --merge-base 45afc8867f08f7c2f8edfe71ab750fe92ab28866 --name-only main eb59e9819c7cc2729c169c723dab3932d5d7b9d4` => clean contained tree `56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc`.
+- `git diff --name-status main 56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` => seven signed product/test files only; `git diff --check main 56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` => PASS.
+- `just check-notifications ... INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` and `just ack-notifications ...` => no pending notifications before verdict.
+- `just phase-check STARTUP ...`, `just phase-check VERDICT ...`, and `just phase-check CLOSEOUT ...` => PASS.
+- `just validator-git-hygiene` => FAIL on the noncanonical sibling artifact root `../Handshake Artifacts`.
+COUNTERFACTUAL_CHECKS:
+- If `GovernedActionPreviewV1` were removed from `locus/types.rs`, the projection payload would no longer carry `action_request_id`, target refs, eligibility, blockers, and evidence refs before mutation.
+- If `derive_governed_action_previews` stopped sourcing `canonical.allowed_action_ids`, DCC/Task Board/mailbox consumers could see actions not authorized by canonical runtime truth.
+- If `derive_software_delivery_projection_surface` stopped embedding `governed_action_previews`, the remediated preview payload would exist as an orphan helper rather than as the shared projection record.
+- If `build_software_delivery_overlay_triage_row` wrote back to canonical records instead of cloning advisory stable ids, mailbox chronology could become hidden authority.
+- If containment used direct branch merge instead of the explicit signed-range merge base, unrelated `.GOV/**`, root, and historical product diffs from the kernel-backed candidate repo could enter `main`.
+BOUNDARY_PROBES:
+- Producer/consumer boundary: verified `SoftwareDeliveryProjectionSurfaceV1` now embeds preview rows and the production wrapper consumes the same projection surface.
+- Writer/reader boundary: verified the preview tripwire snapshots canonical bytes before/after derivation and requires serde round-trip retention.
+- Profile boundary: independent negative test `production_clears_workflow_run_lifecycle_record_for_non_software_delivery_summary` passed.
+- Authority boundary: independent test `locus_sync_task_board_validation_reports_authority_scope_drift` passed, and Role Mailbox triage remains advisory.
+- Repo-governance boundary: direct branch diff from kernel-backed candidate to `main` was rejected as unsafe; explicit signed merge-base containment produced a clean signed-surface tree.
+NEGATIVE_PATH_CHECKS:
+- Unregistered governed action `fabricated_action` returns `None` in the preview tripwire.
+- Out-of-family registered action `approve` yields `IneligibleOutOfFamily` for a Validation-family canonical summary.
+- Non-software-delivery canonical summary yields no preview and no projection surface.
+- Forged preview target refs diverge from canonical authority refs in the tripwire.
+- Artifact hygiene negative path failed as expected on stale/noncanonical `../Handshake Artifacts`.
+INDEPENDENT_FINDINGS:
+- Blocking: pre-merge artifact hygiene is not clean because `../Handshake Artifacts` exists beside the canonical `../Handshake_Artifacts`.
+- Non-blocking for product code: candidate `eb59e981` satisfies the product-code and test contract I reviewed.
+- Non-blocking containment note: current-main containment is possible through the explicit signed merge base and stays inside the signed product/test file surface, but I did not apply it because hygiene failed first.
+ANTI_VIBE_FINDINGS:
+- NONE
+SIGNED_SCOPE_DEBT:
+- NONE
+PRIMITIVE_RETENTION_PROOF:
+- `SoftwareDeliveryProjectionSurfaceV1` remains present at `src/backend/handshake_core/src/locus/types.rs:1944`.
+- `GovernedActionPreviewV1` remains present at `src/backend/handshake_core/src/locus/types.rs:1895`.
+- Role Mailbox advisory triage remains present at `src/backend/handshake_core/src/role_mailbox.rs:1681`.
+PRIMITIVE_RETENTION_GAPS:
+- NONE
+SHARED_SURFACE_INTERACTION_CHECKS:
+- `src/backend/handshake_core/src/workflows.rs:4682` calls the shared projection derivation wrapper for DCC, Task Board, and Role Mailbox projection consumers.
+- `src/backend/handshake_core/src/role_mailbox.rs:1707` builds mailbox triage from the already-derived projection surface rather than mailbox chronology.
+- `src/backend/handshake_core/src/locus/types.rs:2297` embeds governed-action previews in the same projection surface consumed by downstream projection readers.
+CURRENT_MAIN_INTERACTION_CHECKS:
+- Explicit signed merge-base containment against current `main` produced tree `56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc`.
+- `git diff --name-status main 56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` stayed inside signed product/test files.
+- `git diff --check main 56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` passed.
+DATA_CONTRACT_PROOF:
+- `GovernedActionPreviewV1` is JSON-serializable and round-tripped by the exact tripwire; required fields include `action_request_id`, `target_record_refs`, `eligibility`, `blockers`, and `evidence_refs`.
+- `SoftwareDeliveryProjectionSurfaceV1` embeds `governed_action_previews` so downstream projection readers receive the preview payload before mutation.
+DATA_CONTRACT_GAPS:
+- No product-code data contract gap found for this candidate. The remaining gap is environment/governance hygiene.
+RESIDUAL_UNCERTAINTY:
+- I did not run post-merge tests because no merge was performed after the hard hygiene gate failed.
+- I did not quarantine or delete `../Handshake Artifacts` because destructive cleanup of a noncanonical sibling artifact root requires Orchestrator/Operator-directed cleanup policy outside this validator verdict.
+
+### INTEGRATION_VALIDATOR_REPORT - 2026-04-28T20:18:48Z
+ACTOR_ROLE: INTEGRATION_VALIDATOR
+ACTOR_SESSION: integration_validator:wp-1-software-delivery-projection-surface-discipline-v1
+REPOMEM_SESSION: INTEGRATION_VALIDATOR-20260428-201125
+CANDIDATE_BRANCH: feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+CANDIDATE_WORKTREE: ../wtc-surface-discipline-v1
+CANDIDATE_HEAD: eb59e9819c7cc2729c169c723dab3932d5d7b9d4
+HANDOFF_RANGE: 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4
+Verdict: PASS
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+MECHANICAL_TRACK_VERDICT: PASS
+SPEC_RETENTION_TRACK_VERDICT: PASS
+MAIN_CONTAINMENT_STATUS: MERGE_PENDING
+MERGED_MAIN_COMMIT: NONE
+MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-04-28T20:18:31Z
+VALIDATOR_RISK_TIER: HIGH
+CLAUSES_REVIEWED:
+- v02.181 Projection-surface discipline.
+- Software-delivery overlay runtime truth specialization.
+- Software-delivery closeout derivation.
+- Software-delivery overlay extension records and lifecycle semantics.
+- Role Mailbox authority boundary.
+- Governed action preview payload.
+NOT_PROVEN:
+- NONE
+MAIN_BODY_GAPS:
+- NONE
+QUALITY_RISKS:
+- Existing Rust warnings remain, including unused variables in `src/backend/handshake_core/src/workflows.rs:4479` and `src/backend/handshake_core/src/workflows.rs:4480`; they are not introduced as blocking runtime behavior in this diff-scoped review.
+SPEC_CLAUSE_MAP:
+- v02.181 Projection-surface discipline (`Handshake_Master_Spec_v02.181.md:48046`, `Handshake_Master_Spec_v02.181.md:6917`): implemented by `src/backend/handshake_core/src/locus/types.rs:1944`, `src/backend/handshake_core/src/locus/types.rs:1997`, `src/backend/handshake_core/src/locus/types.rs:2259`, `src/backend/handshake_core/src/locus/types.rs:2297`, `src/backend/handshake_core/src/workflows.rs:4682`, and proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3240`.
+- Software-delivery overlay runtime truth specialization (`Handshake_Master_Spec_v02.181.md:6917`-`Handshake_Master_Spec_v02.181.md:6920`): implemented by `src/backend/handshake_core/src/locus/task_board.rs:30`, `src/backend/handshake_core/src/locus/task_board.rs:203`, `src/backend/handshake_core/src/locus/types.rs:2339`, and proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3751` and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3850`.
+- Software-delivery closeout derivation (`Handshake_Master_Spec_v02.181.md:7032`-`Handshake_Master_Spec_v02.181.md:7036`): implemented by `src/backend/handshake_core/src/runtime_governance.rs:319`, `src/backend/handshake_core/src/runtime_governance.rs:369`, `src/backend/handshake_core/src/locus/types.rs:2568`, `src/backend/handshake_core/src/locus/types.rs:2716`, and proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3961`.
+- Software-delivery overlay extension records and lifecycle semantics (`Handshake_Master_Spec_v02.181.md:7038`-`Handshake_Master_Spec_v02.181.md:7048`): implemented by `src/backend/handshake_core/src/runtime_governance.rs:409`, `src/backend/handshake_core/src/runtime_governance.rs:440`, `src/backend/handshake_core/src/runtime_governance.rs:468`, `src/backend/handshake_core/src/runtime_governance.rs:500`, `src/backend/handshake_core/src/locus/types.rs:3151`, `src/backend/handshake_core/src/locus/types.rs:3239`, `src/backend/handshake_core/src/workflows.rs:5101`, and proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:4765`.
+- Role Mailbox authority boundary (`Handshake_Master_Spec_v02.181.md:10661`): implemented by `src/backend/handshake_core/src/role_mailbox.rs:227`, `src/backend/handshake_core/src/role_mailbox.rs:1681`, `src/backend/handshake_core/src/role_mailbox.rs:1707`, and proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:6081`.
+- Governed action preview payload (`packet.md:459`, `Handshake_Master_Spec_v02.181.md:6993`-`Handshake_Master_Spec_v02.181.md:6999`): implemented by `src/backend/handshake_core/src/locus/types.rs:1858`, `src/backend/handshake_core/src/locus/types.rs:1895`, `src/backend/handshake_core/src/locus/types.rs:2167`, `src/backend/handshake_core/src/locus/types.rs:2218`, `src/backend/handshake_core/src/locus/types.rs:2297`, and proven by `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3489`.
+NEGATIVE_PROOF:
+- Product-code negative proof: no signed packet product requirement remained unimplemented in candidate `eb59e9819c7cc2729c169c723dab3932d5d7b9d4`.
+- Required broader-scope negative proof: v02.181 also describes software-delivery control-plane health/backpressure and push-oriented operator alerts (`Handshake_Master_Spec_v02.181.md:7058`-`Handshake_Master_Spec_v02.181.md:7059`); this candidate does not implement those broader alerting/backpressure surfaces. That is outside the signed CLAUSE_PROOF_PLAN/DONE_MEANS for this WP and is not a blocker for this diff-scoped PASS.
+- UI rendering negative proof: `UI_UX_SPEC` names DCC/Task Board/Role Mailbox controls, but this signed backend range does not add frontend widgets; it exposes the required backend projection fields and preview payload for later UI consumers.
+DIFF_ATTACK_SURFACES:
+- Producer/consumer drift between `SoftwareDeliveryProjectionSurfaceV1` producers and DCC, Task Board, Role Mailbox consumers.
+- Serialized preview payload drift for `GovernedActionPreviewV1` fields before mutation.
+- Authority inversion risk where stale board lane/status or mailbox chronology could override canonical runtime fields.
+- Closeout spoofing risk via noncanonical validator-gate, owner packet, checkpoint, claim/lease, or queued-instruction refs.
+- Current-main containment risk if the feature branch is merged outside the signed range discipline.
+INDEPENDENT_CHECKS_RUN:
+- `just check-notifications WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` and `just ack-notifications ...` returned no pending notifications before verdict.
+- `just phase-check STARTUP WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR integration_validator:wp-1-software-delivery-projection-surface-discipline-v1` passed.
+- `just -f ../wt-gov-kernel/justfile artifact-hygiene-check` passed, reporting canonical artifact root `../Handshake_Artifacts` and no reclaimable external dirs.
+- `just validator-git-hygiene` passed.
+- `git fetch origin main`; `git rev-parse HEAD origin/main FETCH_HEAD` all returned `660a1d5befa8ca083864730f8622e664b9c3eeef`.
+- `git -C ../wtc-surface-discipline-v1 rev-parse HEAD` returned `eb59e9819c7cc2729c169c723dab3932d5d7b9d4`.
+- `git -C ../wtc-surface-discipline-v1 diff --name-status 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4` showed nine Rust/test files and no `.GOV/**`, `AGENTS.md`, `justfile`, or `.cargo/config.toml`.
+- `git -C ../wtc-surface-discipline-v1 diff --check 45afc8867f08f7c2f8edfe71ab750fe92ab28866..eb59e9819c7cc2729c169c723dab3932d5d7b9d4` passed.
+- `git merge-tree --write-tree HEAD eb59e9819c7cc2729c169c723dab3932d5d7b9d4` returned clean tree `56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc`.
+- `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib` passed in `../wtc-surface-discipline-v1` with existing warnings.
+- Exact tests passed: `projection_surface_previews_governed_action_before_mutation`, `dcc_software_delivery_projection_surface_keeps_runtime_authority`, `task_board_software_delivery_projection_cannot_override_runtime_truth`, `closeout_projection_requires_gate_evidence_and_owner_truth`, `projection_surface_exposes_claim_and_queued_instruction_ids`, `role_mailbox_software_delivery_triage_remains_advisory`, `locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait`, `locus_sync_task_board_validation_reports_authority_scope_drift`, and `production_clears_workflow_run_lifecycle_record_for_non_software_delivery_summary`.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test micro_task_executor_tests --no-run` passed.
+- `just phase-check VERDICT WP-1-Software-Delivery-Projection-Surface-Discipline-v1 INTEGRATION_VALIDATOR` passed.
+- `just phase-check CLOSEOUT WP-1-Software-Delivery-Projection-Surface-Discipline-v1` passed.
+COUNTERFACTUAL_CHECKS:
+- If `derive_governed_action_previews` stopped sourcing `canonical.allowed_action_ids`, DCC/Task Board/mailbox consumers could preview actions not authorized by runtime truth.
+- If `derive_software_delivery_projection_surface` stopped embedding `governed_action_previews`, the preview payload would exist as an orphan helper and downstream projection surfaces would not see it before mutation.
+- If `validate_software_delivery_projection_surface_authority` did not compare canonical state/queue/action/status fields, stale Task Board mirrors could silently override runtime truth.
+- If `build_software_delivery_overlay_triage_row` wrote back to runtime records, Role Mailbox chronology could become a hidden authority path.
+- If `RuntimeGovernancePaths::is_canonical_validator_gate_ref`, `is_canonical_claim_lease_record_ref`, or `is_canonical_queued_instruction_record_ref` accepted substring matches, spoofed closeout/overlay refs could satisfy authority checks.
+BOUNDARY_PROBES:
+- Producer/consumer boundary: `src/backend/handshake_core/src/workflows.rs:4682` delegates to the same projection derivation used by DCC, Task Board, and Role Mailbox projection consumers.
+- Authority boundary: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3403` builds a tampered projection from board mirror fields and proves validator rejection.
+- Profile boundary: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3441`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3674`, and `src/backend/handshake_core/tests/micro_task_executor_tests.rs:6240` prove non-software-delivery summaries/projections do not retain software-delivery surfaces.
+- Mailbox boundary: `src/backend/handshake_core/tests/micro_task_executor_tests.rs:6081` snapshots canonical overlay files before mutating the advisory triage row and proves no on-disk authority drift.
+- Current-main boundary: merge-tree against current `main` produced tree `56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc` without conflicts.
+NEGATIVE_PATH_CHECKS:
+- `fabricated_action` returns no preview (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3670`).
+- Registered but out-of-family `approve` yields `IneligibleOutOfFamily` for a Validation-family canonical summary (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3649`).
+- Non-software-delivery canonical summaries yield no preview and no projection surface (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3674`).
+- Stale Task Board authority fields are rejected while advisory mirror/lane/status fields remain non-authoritative (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3751`).
+- Non-software-delivery lifecycle emission clears stale workflow-run lifecycle records (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:6240`).
+INDEPENDENT_FINDINGS:
+- NONE
+ANTI_VIBE_FINDINGS:
+- NONE
+SIGNED_SCOPE_DEBT:
+- NONE
+PRIMITIVE_RETENTION_PROOF:
+- `SoftwareDeliveryProjectionSurfaceV1` remains the shared projection primitive at `src/backend/handshake_core/src/locus/types.rs:1944`.
+- `GovernedActionPreviewV1` remains the preview payload primitive at `src/backend/handshake_core/src/locus/types.rs:1895`.
+- Closeout posture remains the derived runtime primitive at `src/backend/handshake_core/src/locus/types.rs:2583`.
+- Role Mailbox advisory triage remains projection-only at `src/backend/handshake_core/src/role_mailbox.rs:1681`.
+PRIMITIVE_RETENTION_GAPS:
+- NONE
+SHARED_SURFACE_INTERACTION_CHECKS:
+- `src/backend/handshake_core/src/locus/types.rs:2259` derives one software-delivery projection from canonical summary plus advisory board/mailbox inputs.
+- `src/backend/handshake_core/src/workflows.rs:5101` materializes `projection_surface.json` from canonical summary, claim/lease records, queued-instruction records, workflow lifecycle, and gate posture.
+- `src/backend/handshake_core/src/locus/task_board.rs:203` enforces Task Board projection authority against canonical state.
+- `src/backend/handshake_core/src/role_mailbox.rs:1707` builds mailbox triage from the already-derived projection surface instead of mailbox chronology.
+- `src/backend/handshake_core/src/storage/locus_sqlite.rs:285` applies canonical action/queue overrides to SQLite progress metadata.
+CURRENT_MAIN_INTERACTION_CHECKS:
+- Current `main`, `origin/main`, and `FETCH_HEAD` all resolved to `660a1d5befa8ca083864730f8622e664b9c3eeef` before verdict.
+- `git merge-tree --write-tree HEAD eb59e9819c7cc2729c169c723dab3932d5d7b9d4` produced clean tree `56e52e7058fbf4e3b39df5feb9b4fa9b6e77ebcc`.
+- Candidate worktree was clean at `eb59e9819c7cc2729c169c723dab3932d5d7b9d4`.
+- `git diff --check` on the signed handoff range passed.
+DATA_CONTRACT_PROOF:
+- `GovernedActionPreviewV1` serializes `action_request_id`, target record refs, eligibility, blockers, and evidence refs (`src/backend/handshake_core/src/locus/types.rs:1895`) and is embedded into `SoftwareDeliveryProjectionSurfaceV1` (`src/backend/handshake_core/src/locus/types.rs:1997`).
+- The exact preview tripwire round-trips the projection payload and proves direct preview derivation is read-only (`src/backend/handshake_core/tests/micro_task_executor_tests.rs:3489`, `src/backend/handshake_core/tests/micro_task_executor_tests.rs:3716`).
+- `SoftwareDeliveryProjectionSurfaceV1` carries stable ids for workflow, model session, Task Board, claim/lease, queued-instruction, authority, and evidence refs (`src/backend/handshake_core/src/locus/types.rs:1944`).
+DATA_CONTRACT_GAPS:
+- NONE
+RESIDUAL_UNCERTAINTY:
+- Rust warnings remain pre-existing or outside this WP's runtime proof; I did not convert them to hard failures.
+- I did not run full `micro_task_executor_tests` runtime because the packet/thread record identifies unrelated pre-existing failures; I ran exact packet tripwires plus `--no-run`.
+- I did not exercise a frontend renderer for the UI_UX_SPEC controls; the reviewed candidate exposes backend projection/control fields for those surfaces.
