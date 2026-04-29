@@ -32,3 +32,13 @@ Use this brief after `just memory-manager-startup`. It is operational memory for
 - DO_NOT: directly mutate protocol law, task boards, product code, or WP execution truth
 - VERIFY: receipt exists in the synthetic WP communication lane and backup file matches the receipt summary
 - SOURCE: MEMORY_MANAGER_PROTOCOL
+
+### RAM-MEMORY_MANAGER-MEMORY_ORDERING-001
+
+- ACTION: MEMORY_ORDERING
+- TRIGGER: reviewing hygiene report candidates, operator-reported repeated friction, or recent procedural captures
+- FAILURE_PATTERN: dumping unordered memory summaries that do not tell Orchestrator or Classic Orchestrator what action to consider next
+- DO: rank evidence by current operator correction, repeated procedural failure, live-code verification, typed receipts, and access/recency; label each output as `STARTUP_BRIEF`, `TOOLING_REPAIR`, `RGF_CANDIDATE`, or `NO_ACTION`
+- DO_NOT: treat high volume, old access counts, or vague similarity as enough to mutate governance without coordinator review
+- VERIFY: every proposal names recommended surface, owning workflow authority, evidence ids/files, and whether Memory Manager already updated a verified startup brief
+- SOURCE: STARTUP_BRIEF_SCHEMA, MEMORY_MANAGER_PROTOCOL, Operator correction 2026-04-30

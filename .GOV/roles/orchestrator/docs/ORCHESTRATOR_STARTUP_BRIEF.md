@@ -42,3 +42,13 @@ Use this brief after `just orchestrator-startup` and before governed mutation. I
 - DO_NOT: launch Integration Validator while mechanical truth is broken
 - VERIFY: closeout repair and closeout phase check both pass or a single manual remediation/escalation is recorded
 - SOURCE: GOV-CHANGE-20260429-03
+
+### RAM-ORCHESTRATOR-MEMORY_PROPOSAL_REVIEW-001
+
+- ACTION: MEMORY_PROPOSAL_REVIEW
+- TRIGGER: Memory Manager emits `MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`, or an Actionable Failure Candidate during `ORCHESTRATOR_MANAGED` work
+- FAILURE_PATTERN: treating Memory Manager output as self-executing governance authority or leaving repeated-memory proposals unactioned
+- DO: inspect the typed receipt plus backup proposal, decide whether the change is a startup brief update, deterministic tooling repair, or governance refactor, then make approved governance edits directly as Orchestrator
+- DO_NOT: ask Memory Manager to edit protocols, task boards, Codex law, packets, product code, or validator verdicts
+- VERIFY: the chosen outcome is recorded as an Orchestrator decision, implemented by the active authority when accepted, or explicitly rejected/deferred with reason
+- SOURCE: STARTUP_BRIEF_SCHEMA, MEMORY_MANAGER_PROTOCOL, Operator correction 2026-04-30

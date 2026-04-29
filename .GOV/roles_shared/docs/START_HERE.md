@@ -32,7 +32,7 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 3. **Activation Manager** - mandatory governed pre-launch governance authoring for `ORCHESTRATOR_MANAGED`; owns refinement, approved spec enrichment, packet hydration, worktree/backup-branch preparation, and activation readiness
 4. **Coder/Debugger** - Implements work per work packet scope
 5. **Validators** - `WP_VALIDATOR` for WP-scoped technical steering and `INTEGRATION_VALIDATOR` for final technical verdict / merge authority
-6. **Memory Manager** - bounded memory-hygiene role for governance-memory maintenance
+6. **Memory Manager** - bounded memory-hygiene role that orders governance-memory evidence, maintains verified startup brief cards, and proposes broader governance changes for coordinator review
 
 **Mandatory protocols:**
 - **Orchestrators (`ORCHESTRATOR_MANAGED`):** Read `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` before delegating

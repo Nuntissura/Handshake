@@ -78,7 +78,7 @@ Rule:
 - `just repomem-gate` - internal/session guard used by mutation recipes to require an open repomem session
 - `just repomem-soft-gate` - non-blocking guard used by read/status helpers; warns without preventing inspection
 - `just launch-memory-manager-session [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` - force-launch a governed memory hygiene lane
-- `just memory-manager-proposal|memory-manager-flag-receipt|memory-manager-rgf-candidate WP-{ID} ...` - packetless Memory Manager receipts back to Orchestrator
+- `just memory-manager-proposal|memory-manager-flag-receipt|memory-manager-rgf-candidate WP-{ID} ...` - packetless Memory Manager receipts for Orchestrator or Classic Orchestrator review; Memory Manager proposes broader changes, the coordinator decides
 
 Pre-task snapshots are captured automatically at: WP delegation, steering, relay dispatch, packet creation, closeout, board status change.
 

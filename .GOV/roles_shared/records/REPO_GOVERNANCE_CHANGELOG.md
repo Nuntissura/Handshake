@@ -21,6 +21,37 @@
 
 ## Entries
 
+### 2026.04.30.02 / GOV-CHANGE-20260430-02
+
+- STATUS: APPLIED
+- SUMMARY: clarified Memory Manager proposal routing and coordinator authority for startup brief and governance refactor changes
+- CHANGE_TYPE: GOVERNANCE_DOCUMENTATION_HARDENING
+- DRIVER_EVIDENCE:
+  - 2026-04-30 Operator correction: Memory Manager is not a standalone authority; it should order memory, propose startup brief or governance refactor items, and leave broader governance changes to Orchestrator or Classic Orchestrator review.
+  - Follow-up ambiguity after adding startup briefs: "repomem misuse" needed clearer distinction between passive memory capture, startup-brief updates, tooling repair, and governance refactor proposals.
+- FOLLOW_ON_ITEMS:
+  - Launch intelligent Memory Manager and verify new proposal classifications appear in real hygiene output before the next major refactor tranche.
+- FILES_CHANGED:
+  - `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`
+  - `.GOV/roles/orchestrator/docs/ORCHESTRATOR_STARTUP_BRIEF.md`
+  - `.GOV/roles/classic_orchestrator/docs/CLASSIC_ORCHESTRATOR_STARTUP_BRIEF.md`
+  - `.GOV/roles/memory_manager/docs/MEMORY_MANAGER_STARTUP_BRIEF.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/roles_shared/docs/START_HERE.md`
+  - `.GOV/roles_shared/tests/role-startup-brief.test.mjs`
+- OUTCOME: Memory Manager now has explicit evidence-ordering and proposal-surface guidance; Orchestrator and Classic Orchestrator startup briefs now name their proposal-review authority; shared docs now state that Memory Manager can update verified startup briefs but broader governance changes require coordinator review and implementation.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/role-startup-brief.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
 ### 2026.04.30.01 / GOV-CHANGE-20260430-01
 
 - STATUS: APPLIED

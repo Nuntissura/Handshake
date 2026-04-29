@@ -24,6 +24,20 @@ test("startup brief formatter includes shared and role-specific operational memo
   assert.match(output, /STARTUP_BRIEF_END role=ORCHESTRATOR/);
 });
 
+test("coordinator and memory manager briefs encode proposal authority workflow", () => {
+  const orchestrator = formatStartupBriefForRole("ORCHESTRATOR");
+  assert.match(orchestrator, /RAM-ORCHESTRATOR-MEMORY_PROPOSAL_REVIEW-001/);
+  assert.match(orchestrator, /Memory Manager output as self-executing governance authority/);
+
+  const classic = formatStartupBriefForRole("CLASSIC_ORCHESTRATOR");
+  assert.match(classic, /RAM-CLASSIC_ORCHESTRATOR-MEMORY_PROPOSAL_REVIEW-001/);
+  assert.match(classic, /manual-lane governance edit as Classic Orchestrator/);
+
+  const memoryManager = formatStartupBriefForRole("MEMORY_MANAGER");
+  assert.match(memoryManager, /RAM-MEMORY_MANAGER-MEMORY_ORDERING-001/);
+  assert.match(memoryManager, /STARTUP_BRIEF`, `TOOLING_REPAIR`, `RGF_CANDIDATE`, or `NO_ACTION/);
+});
+
 test("startup brief shape rejects missing action card fields", () => {
   const errors = validateStartupBriefShape({
     role: "CODER",

@@ -254,7 +254,7 @@ These are safe starting points for orientation and health checks.
 - `just memory-manager-flag-receipt WP-{ID} <actor-session> "<summary>" [backup_ref] [correlation_id]`
 - `just memory-manager-rgf-candidate WP-{ID} <actor-session> "<summary>" [backup_ref] [correlation_id]`
   - `runtime-write`
-  - append packetless `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` receipts from Memory Manager back to Orchestrator
+  - append packetless `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` receipts from Memory Manager back to the active coordinator; Orchestrator or Classic Orchestrator reviews and implements accepted governance changes
 - `just shell-with-memory <ROLE> <command-family> "<command>" [--wp WP-{ID}] [--shell powershell|bash|cmd] [--action COMMAND] [--scope "files"] [--on-fail "<insight>"] [--on-success "<insight>"]`
   - `runtime-write`
   - command-family wrapper for ad hoc shell work: injects trigger-aware memory before execution, records optional repomem context, executes the command in the selected shell, and can capture structured `shell-command` procedural memory for later command-specific recall

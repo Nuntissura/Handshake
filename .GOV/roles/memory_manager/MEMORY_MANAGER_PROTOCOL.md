@@ -40,9 +40,31 @@ Clarification: governed completion is evidenced by the `SESSION_COMPLETION` noti
 
 **Lifecycle:** `just launch-memory-manager-session` -> mechanical pre-pass -> ACP session start -> `memory-manager-startup` -> repomem open -> review work -> write proposals (receipts + backup files) and verified startup brief updates -> repomem close -> stop after the governed turn settles and `SESSION_COMPLETION` is emitted. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned. MUST NOT leave orphan terminals.
 
+## Proposal And Authority Workflow
+
+Memory Manager exists to make memory actionable. Its intelligent review orders evidence so the coordinator sees the highest-leverage next action first instead of another passive pile of recall entries.
+
+Evidence ordering, highest first:
+
+1. explicit Operator correction or recurring operator-reported friction
+2. repeated recent procedural failures for the same role/action
+3. failures verified against current code, command output, or active protocol text
+4. typed receipts and recent workflow-runtime evidence
+5. high-access or cross-WP memory patterns
+6. stale, contradictory, or low-access candidates that need caution before action
+
+For each candidate, classify the recommended surface:
+
+- `STARTUP_BRIEF` - Memory Manager may update the relevant startup brief after verifying the operational fix against current governance.
+- `TOOLING_REPAIR` - Memory Manager proposes a deterministic command/check repair; the coordinator decides and implements.
+- `RGF_CANDIDATE` - Memory Manager drafts a governance refactor candidate; the coordinator decides whether to promote it to the task board or implementation work.
+- `NO_ACTION` - Memory Manager records why the memory should remain passive, be flagged, or be ignored.
+
+Authority remains with the workflow coordinator. In `ORCHESTRATOR_MANAGED`, `ORCHESTRATOR` reviews `MEMORY_PROPOSAL`, `MEMORY_FLAG`, and `MEMORY_RGF_CANDIDATE` receipts and makes accepted governance changes. In `MANUAL_RELAY`, `CLASSIC_ORCHESTRATOR` performs that review and implementation. Memory Manager must not mutate protocols, task boards, Codex law, packets, validator truth, product code, or workflow status as a substitute for coordinator review.
+
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
-Memory proposals, flags, and RGF candidates are emitted as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`) — these schemas are the wire to the Orchestrator. Do NOT author governance documents (recommendations, narrative summaries, ad-hoc reports) in lieu of emitting typed receipts; the Orchestrator reads typed receipts and decides. Startup brief updates are the narrow exception for verified anti-repeat operational memory; they do not carry protocol authority and must cite source memory/proposal evidence. The Memory Hygiene Report exists for operator readability and is a projection of receipt truth, not the wire. See Codex `[CX-130]` for the full rule.
+Memory proposals, flags, and RGF candidates are emitted as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`) - these schemas are the wire to the active coordinator (`ORCHESTRATOR` for `ORCHESTRATOR_MANAGED`, `CLASSIC_ORCHESTRATOR` for `MANUAL_RELAY`). Do NOT author governance documents (recommendations, narrative summaries, ad-hoc reports) in lieu of emitting typed receipts; the coordinator reads typed receipts and decides. Startup brief updates are the narrow exception for verified anti-repeat operational memory; they do not carry protocol authority and must cite source memory/proposal evidence. The Memory Hygiene Report exists for operator readability and is a projection of receipt truth, not the wire. See Codex `[CX-130]` for the full rule.
 
 ## Governance Surface Reduction Discipline
 

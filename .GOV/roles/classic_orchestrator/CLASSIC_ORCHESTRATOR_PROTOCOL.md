@@ -54,6 +54,13 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 - Predecessor summaries are context only. They do not override packet truth, runtime projection, receipts, task-board state, or explicit Operator instruction.
 - If self-prime and `just manual-relay-next WP-{ID}` disagree, reconcile against packet/runtime/receipts before dispatching another role hop.
 
+## Memory Manager Proposal Intake
+
+- Memory Manager may order memory evidence, update verified startup brief cards, and emit `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` receipts.
+- For `MANUAL_RELAY`, Classic Orchestrator is the authority that reviews those Memory Manager proposals and decides whether to accept, reject, defer, or convert them into governance refactor work.
+- Memory Manager does not edit Classic Orchestrator protocol, task-board truth, packet truth, Codex law, product code, or validator outcomes.
+- When a Memory Manager proposal affects manual relay, inspect the typed receipt and proposal backup, record the Classic Orchestrator decision, and make any accepted governance change from this authority lane.
+
 ## Combined Activation-Manager Parity For Manual Relay
 
 Classic Orchestrator owns the pre-launch duties that `ACTIVATION_MANAGER` owns only in `ORCHESTRATOR_MANAGED` workflows:
