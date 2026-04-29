@@ -37,7 +37,7 @@ Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate sch
 When the Integration Validator launches, the Orchestrator has already:
 1. Verified all MTs are complete (WP_VALIDATOR PASS on each)
 2. Run `just closeout-repair WP-{ID}` to fix all mechanical closeout issues
-3. Verified `just phase-check CLOSEOUT WP-{ID}` passes mechanically
+3. Verified `just phase-check CLOSEOUT WP-{ID}` passes mechanically, including artifact-root preflight and Workflow Dossier judgment diagnostics
 4. Prepared the signed scope artifact and compatibility truth
 
 The Integration Validator receives:
@@ -54,6 +54,7 @@ The primary job. Read the master spec clauses that the WP claims to satisfy, the
 
 **Method:**
 - Read each clause in the packet's `CLAUSE_CLOSURE_MATRIX`
+- Read the packet's `PACKET_ACCEPTANCE_MATRIX`; every required row must be `PROVED`, `CONFIRMED`, or `NOT_APPLICABLE` with concrete evidence or reason before PASS
 - For each clause, verify the coder's code implements the requirement
 - Check that proof commands actually exercise the claimed functionality
 - Verify test coverage matches the packet's `TEST_PLAN`
@@ -108,9 +109,10 @@ After judgment, write the verdict:
 ### 5. Artifact Hygiene Pre-Merge Check (HARD)
 
 Before merge, verify no build/test/tool artifacts have leaked into the repo:
+- Run `just artifact-root-preflight WP-{ID}` or confirm the current `phase-check VERDICT/CLOSEOUT` artifact already ran it. If it fails, classify the result as `ENVIRONMENT_BLOCKER`, preserve product proof, and do not route coder revalidation unless the blocker proves an actual product boundary violation.
 - Run `just validator-git-hygiene` — FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
 - All build/test/tool outputs MUST live at `../Handshake_Artifacts/` [CX-205F], not inside the repo tree.
-- If artifact contamination is found: do NOT merge. Record the violation and FAIL the verdict.
+- If artifact contamination is found: do NOT merge. Record the violation with the failure class. `PRODUCT_BLOCKER` requires product remediation/revalidation; `ENVIRONMENT_BLOCKER` routes to artifact-root repair; `GOVERNANCE_BLOCKER` routes to Orchestrator closeout repair.
 
 ### 6. Merge to Main on PASS
 
@@ -161,6 +163,7 @@ After verdict and merge:
 - The Integration Validator launches with a **fresh context window** every time.
 - It should complete its judgment in **1-2 ACP commands** (launch + optional follow-up).
 - If more than 2 commands are needed, something is wrong — likely mechanical truth wasn't prepared properly.
+- If mechanical truth breaks after a verdict, do not repair it in the Integration Validator lane. Report the failure class (`PRODUCT_BLOCKER`, `ENVIRONMENT_BLOCKER`, or `GOVERNANCE_BLOCKER`) and route back to Orchestrator for the minimal deterministic command.
 - Do NOT accumulate session history across multiple WPs or launches.
 
 ## Session Policy

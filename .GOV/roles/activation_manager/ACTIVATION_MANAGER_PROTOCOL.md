@@ -130,8 +130,9 @@ Cross-session conversational memory captures what was refined, decided, and flag
 4. Hand the written refinement/spec-enrichment file back to the Orchestrator with one bounded `REFINEMENT_HANDOFF_SUMMARY` block for review and signature collection. Do not paste the full text unless excerpts are explicitly requested.
 5. Record signature evidence after the Orchestrator returns operator approval evidence, one-time signature, workflow lane, and execution owner.
 6. Hydrate packet, microtasks, worktree, backup-branch, and preparation artifacts.
-7. Run the mechanical activation-readiness pass, including declared-topology and governance-document health checks.
-8. Emit `ACTIVATION_READINESS` for the Orchestrator and stop.
+7. Confirm new executable packets contain `PACKET_ACCEPTANCE_MATRIX` rows generated from the packet closure requirements; do not hand back a packet that relies on prose-only acceptance criteria.
+8. Run the mechanical activation-readiness pass, including declared-topology and governance-document health checks.
+9. Emit `ACTIVATION_READINESS` for the Orchestrator and stop.
 
 ## Refinement Handoff Summary Contract
 
@@ -197,6 +198,7 @@ ACTIVATION_READINESS
   - `just activation-manager task-board-set WP-{ID} <STATUS> [reason]`
   - `just activation-manager wp-traceability-set <BASE_WP_ID> <ACTIVE_PACKET_WP_ID> "<context>"`
   - `just activation-manager prepare-and-packet WP-{ID} [workflow_lane] [execution_lane] [label]`
+- Packet hydration note: `create-task-packet` now emits `PACKET_ACCEPTANCE_MATRIX` alongside `CLAUSE_CLOSURE_MATRIX`; Activation Manager must preserve those stable row IDs during readiness repair.
 - Those role-local actions dispatch into the canonical Orchestrator / shared implementation surfaces so Activation Manager keeps one public recipe instead of a parallel family of activation-prefixed wrapper recipes.
 - Until the command surface is properly split, the Orchestrator may invoke shared or orchestrator-owned refinement / packet-preparation mechanics on behalf of this role, and Activation Manager may invoke those same implementation surfaces through its dispatcher actions.
 - That temporary command reuse does not change the authority split defined here.

@@ -106,7 +106,7 @@ The memory DB has 3 memory types, 1 snapshot type, 1 conversation log, and 6 tab
 **Read paths (who consumes what you curate):**
 - Coder sessions: procedural only (FAIL LOG), 1500 tokens, WP-scoped + file-scope boosted [RGF-120/124/128]
 - Validator sessions: procedural + semantic (FAIL LOG + CONTEXT), 1500 tokens, WP-scoped [RGF-120/124]
-- Orchestrator sessions: all types (GOVERNANCE MEMORY), 2000 tokens, cross-WP, systemic boost [RGF-125]
+- Orchestrator sessions: all types (GOVERNANCE MEMORY), up to a 15000-token envelope, cross-WP, with dedicated recent-failure, hygiene-report, prior-day-decision, scored-pattern, and snapshot slices [RGF-125/RGF-253]
 - All sessions: up to 3 recent SNAPSHOTS (mechanical + intent), most recent per type [RGF-147]
 
 **Scoring formula at injection time:**

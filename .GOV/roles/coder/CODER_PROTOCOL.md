@@ -532,6 +532,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
   7. Notify Validator with the PASS output and commit SHA
 - To fill `Pre-SHA1` / `Post-SHA1` deterministically, stage your changes and run `just cor701-sha path/to/file` (use the recommended values it prints).
 - If the handoff phase check fails, fix the manifest or code until it passes; no commit/Done state without a passing `phase-check HANDOFF` gate.
+- Baseline compile/scope waivers are ledger-backed, not prose-backed. If the baseline or environment is already broken and the Orchestrator/Operator authorizes a path-limited exception, it must be recorded with `just wp-waiver-record WP-{ID} --blocker-command <cmd> --allowed-edit-paths <paths> --operator-authority-ref <ref> ...`. `post-work-check` consumes that ledger and only relaxes scope checks for the recorded paths/kinds. Do not treat an informal packet note, chat summary, or old `WAIVERS GRANTED` prose as authority to edit outside signed scope.
 
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.

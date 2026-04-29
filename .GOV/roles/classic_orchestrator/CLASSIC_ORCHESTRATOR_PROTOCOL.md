@@ -43,6 +43,7 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 - `just manual-relay-next WP-{ID}` reads the runtime-projected next actor
 - `just manual-relay-dispatch WP-{ID} "<context>"` brokers one governed role hop mechanically and may start the projected governed target session when needed
 - Manual-relay implementation currently lives under `.GOV/roles/orchestrator/scripts/manual-relay-*.mjs` for compatibility, but those helpers are Classic-Orchestrator-owned surfaces by lane authority
+- New manual-relay packets still carry `PACKET_ACCEPTANCE_MATRIX`; Classic Orchestrator must preserve stable acceptance row IDs during combined pre-launch/packet repair and must not replace unresolved rows with prose-only acceptance claims.
 
 ## Self-Prime And Predecessor Summary (RGF-249)
 

@@ -175,3 +175,15 @@ Rules:
   - The dossier is allowed to be partial or malformed so it can preserve diagnostic evidence during live WP pressure without blocking the workflow it is observing.
 - Context:
   - Recurring on closeout flows where support-surface debt was mistaken for validator authority or where ACP EOF appends conflicted with manually maintained live sections.
+
+### TG-016
+- Do:
+  - Treat public `justfile` recipes with default arguments (`arg=""`) as user-facing command-surface entries that still require docs.
+  - After adding or changing a recipe, run `just canonise-gov` and inspect recipe coverage warnings plus the structured review brief.
+- Don't:
+  - Do not rely on regexes that only match recipes without `=` in their argument list.
+  - Do not assume a missing canonise warning proves a recipe is documented unless the parser covers default-arg recipes.
+- Why:
+  - Default-argument recipes are common for optional WP ids and flags; parser blind spots let live commands drift out of `COMMAND_SURFACE_REFERENCE.md` and `ROLE_WORKFLOW_QUICKREF.md`.
+- Context:
+  - Found when `artifact-root-preflight wp-id=""` was undocumented but did not appear in the original canonise warning set.

@@ -26,6 +26,7 @@ import {
   buildClauseClosureRows,
   deriveSharedSurfaceMonitoring,
   formatClauseClosureMatrixSection,
+  formatPacketAcceptanceMatrixSection,
   formatSharedSurfaceMonitoringSection,
   formatSpecDebtStatusSection,
 } from '../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs';
@@ -1066,6 +1067,7 @@ if (isHydratedProfile) {
   template = replaceSingleField(template, 'SEMANTIC_PROOF_PROFILE', 'DIFF_SCOPED_SEMANTIC_V1');
   template = replaceSingleField(template, 'DATA_CONTRACT_PROFILE', dataContractProfile);
   template = replaceSection(template, 'CLAUSE_CLOSURE_MATRIX', formatClauseClosureMatrixSection(clauseClosureRows));
+  template = replaceSection(template, 'PACKET_ACCEPTANCE_MATRIX', formatPacketAcceptanceMatrixSection(clauseClosureRows));
   template = replaceSection(template, 'SPEC_DEBT_STATUS', formatSpecDebtStatusSection());
   template = replaceSection(template, 'SHARED_SURFACE_MONITORING', formatSharedSurfaceMonitoringSection(sharedSurfaceMonitoring));
   template = replaceSection(template, 'SEMANTIC_PROOF_ASSETS', formatSemanticProofAssetsSection(semanticProofAssets));

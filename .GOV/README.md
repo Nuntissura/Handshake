@@ -49,6 +49,9 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
 - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
 - `.GOV/roles/coder/CODER_PROTOCOL.md`
 - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+- `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+- `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+- `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
 - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
 
 ## Navigation Entry Points

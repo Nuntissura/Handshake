@@ -21,6 +21,36 @@
 
 ## Entries
 
+### 2026.04.29.02 / GOV-CHANGE-20260429-02
+
+- STATUS: APPLIED
+- SUMMARY: canonised RGF-255 through RGF-264 command/protocol drift and raised Orchestrator startup memory envelope to 15000 tokens
+- CHANGE_TYPE: GOVERNANCE_CANONISATION
+- DRIVER_EVIDENCE:
+  - 2026-04-29 Operator directive: address the post-refactor drift inspection findings and allow 15000-token Orchestrator memory injection.
+  - `GOV-CHANGE-20260429-01`
+- FOLLOW_ON_ITEMS:
+  - NONE
+- FILES_CHANGED:
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles/*/*PROTOCOL.md`
+  - `.GOV/roles_shared/docs/*`
+  - `.GOV/roles_shared/scripts/checks/canonise-gov.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-closure-monitor-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles_shared/tests/packet-closure-monitor-lib.test.mjs`
+- OUTCOME: Command-surface docs now cover the new RGF-255 through RGF-264 helpers, `canonise-gov` sees default-argument recipes, new packets emit `PACKET_ACCEPTANCE_MATRIX`, role protocols document cost-governor/failure-class/dossier/waiver behavior, and Orchestrator startup memory uses a 15000-token envelope.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/packet-closure-monitor-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/orchestrator-startup-memory-slices.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-token-budget-lib.test.mjs`
+  - `node --test .GOV/roles/activation_manager/tests/activation-manager.test.mjs .GOV/roles_shared/tests/repo-governance-board-lib.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
 ### 2026.04.29.01 / GOV-CHANGE-20260429-01
 
 - STATUS: APPLIED

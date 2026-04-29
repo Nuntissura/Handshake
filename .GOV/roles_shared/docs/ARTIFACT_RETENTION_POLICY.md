@@ -55,7 +55,7 @@ The manifest records:
 
 ## Operational rule
 
-- `just artifact-hygiene-check` proves the artifact surface is acceptable.
+- `just artifact-root-preflight [WP-{ID}]` proves the canonical artifact root exists and no blocking repo-local build residue is present before final review/merge; `just artifact-hygiene-check` remains the deeper cleanup diagnosis when preflight fails.
 - `just worktree-add` runs an artifact hygiene preflight against the prepared worktree so stale branch `.cargo/config.toml` values cannot launch a coder into a noncanonical artifact root.
 - `just artifact-cleanup [--dry-run]` removes only reclaimable residue and writes a retention manifest.
 - integration-validator closeout must write a retention manifest as part of terminal cleanup before promoting final truth.

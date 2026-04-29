@@ -189,6 +189,38 @@ export function formatClauseClosureMatrixSection(clauseRows) {
 ${formatList(clauseRows)}`;
 }
 
+export function buildPacketAcceptanceRowsFromClauses(clauseRows = []) {
+  return (clauseRows || []).map((row, index) => {
+    const record = parsePipeRecord(row);
+    const id = `AC-${String(index + 1).padStart(3, '0')}`;
+    const clause = String(record.CLAUSE || `Clause row ${index + 1}`).trim();
+    const tests = String(record.TESTS || '').trim();
+    const examples = String(record.EXAMPLES || '').trim();
+    const codeSurfaces = String(record.CODE_SURFACES || '').trim();
+    const coderStatus = canonicalizeCoderStatus(record.CODER_STATUS);
+    const validatorStatus = canonicalizeValidatorStatus(record.VALIDATOR_STATUS);
+    const notApplicable = coderStatus === 'NOT_APPLICABLE' || validatorStatus === 'NOT_APPLICABLE';
+    const status = notApplicable
+      ? 'NOT_APPLICABLE'
+      : (coderStatus === 'PROVED' && validatorStatus === 'CONFIRMED')
+        ? 'CONFIRMED'
+        : 'PENDING';
+    const evidence = [tests, examples, codeSurfaces]
+      .find((value) => value && !/^(NONE|N\/A|TBD|PENDING|<.*>)$/i.test(value))
+      || 'CLAUSE_CLOSURE_MATRIX';
+    const reason = notApplicable ? 'Inherited NOT_APPLICABLE from clause closure row' : 'NONE';
+    return `ID: ${id} | REQUIREMENT: ${clause} | REQUIRED: YES | EVIDENCE_KIND: CLAUSE_CLOSURE_MATRIX | OWNER: WP_VALIDATOR | STATUS: ${status} | EVIDENCE: ${evidence} | REASON: ${reason}`;
+  });
+}
+
+export function formatPacketAcceptanceMatrixSection(clauseRows = []) {
+  return `## PACKET_ACCEPTANCE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
+- Rule: this is the executable acceptance contract for packet closure. New packets must keep stable row IDs and move each required row to PROVED, CONFIRMED, or NOT_APPLICABLE with evidence before PASS.
+- Rule: use STEER or BLOCKED for unresolved required rows instead of narrative closure.
+- ACCEPTANCE_ROWS:
+${formatList(buildPacketAcceptanceRowsFromClauses(clauseRows))}`;
+}
+
 function canonicalizeCoderStatus(rawValue) {
   const normalized = String(rawValue || '').trim().toUpperCase();
   if (!normalized) return 'UNPROVEN';

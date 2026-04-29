@@ -205,6 +205,12 @@ Next: N/A
 - CLAUSE_ROWS:
   - CLAUSE: <spec clause / anchor summary> | CODE_SURFACES: <paths/symbols> | TESTS: <tests/commands or NONE> | EXAMPLES: <fixtures/examples or NONE> | DEBT_IDS: <SPECDEBT-... or NONE> | CODER_STATUS: <UNPROVEN|PROVED|PARTIAL|DEFERRED|NOT_APPLICABLE> | VALIDATOR_STATUS: <PENDING|CONFIRMED|PARTIAL|REJECTED|NOT_APPLICABLE>
 
+## PACKET_ACCEPTANCE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
+- Rule: this is the executable acceptance contract for packet closure. New packets must keep stable row IDs and move each required row to `PROVED`, `CONFIRMED`, or `NOT_APPLICABLE` with evidence before PASS.
+- Rule: use `STEER` or `BLOCKED` for unresolved required rows instead of narrative closure.
+- ACCEPTANCE_ROWS:
+  - ID: AC-001 | REQUIREMENT: <reviewable acceptance requirement> | REQUIRED: YES | EVIDENCE_KIND: <COMMAND|TEST|CLAUSE_CLOSURE_MATRIX|ARTIFACT|MANUAL_REVIEW> | OWNER: <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> | STATUS: <PENDING|PROVED|CONFIRMED|STEER|BLOCKED|NOT_APPLICABLE> | EVIDENCE: <concrete command/artifact/row or NONE> | REASON: <reason when NOT_APPLICABLE or NONE>
+
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: <YES|NO>
 - BLOCKING_SPEC_DEBT: <YES|NO>

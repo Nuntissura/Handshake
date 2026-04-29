@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  formatPacketAcceptanceMatrixSection,
   normalizeActiveClauseClosureMatrix,
   validatePacketAcceptanceMatrix,
   validatePacketClosureMonitoring,
@@ -89,6 +90,20 @@ test('explicit packet acceptance matrix blocks PASS closure with steered require
 
   const result = validatePacketClosureMonitoring(packetText, { requireRows: true, requirePassConsistency: true });
   assert.match(result.errors.join('\n'), /PACKET_ACCEPTANCE_MATRIX row AC-001/i);
+});
+
+test('packet acceptance matrix formatter emits stable executable rows from clause rows', () => {
+  const section = formatPacketAcceptanceMatrixSection([
+    'CLAUSE: Demo clause | CODE_SURFACES: src/demo.rs | TESTS: cargo test demo | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING',
+  ]);
+
+  assert.match(section, /## PACKET_ACCEPTANCE_MATRIX/);
+  assert.match(section, /ID: AC-001 \| REQUIREMENT: Demo clause/);
+  assert.match(section, /STATUS: PENDING/);
+  const result = validatePacketAcceptanceMatrix(section);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.parsed.explicit, true);
+  assert.equal(result.parsed.rows[0].id, 'AC-001');
 });
 
 test('explicit packet acceptance matrix requires evidence for proved rows and reason for not applicable rows', () => {

@@ -58,6 +58,8 @@ just create-task-packet WP-{phase}-{name}
 # For PACKET_FORMAT_VERSION >= 2026-04-01, inspect the packet law bundle immediately:
 # DATA_CONTRACT_PROFILE, CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2,
 # and GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4.
+# New executable packets also carry PACKET_ACCEPTANCE_MATRIX rows. PASS closure
+# requires every required row to be PROVED, CONFIRMED, or NOT_APPLICABLE with evidence.
 # On this packet family, shallow handoff is illegal: coder must provide anti-vibe
 # + signed-scope-debt self-audit, and validator PASS requires both lists to be exactly "- NONE".
 # If DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1, keep DATA_CONTRACT_MONITORING honest now and

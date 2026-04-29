@@ -506,6 +506,7 @@ When multiple Coders work in separate WP branches/worktrees, branch-local Task B
 - Packet must remain ASCII-only; missing/placeholder hashes or unchecked gates = FAIL.
 - Require evidence that `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` ran and passed before PASS handoff or PASS commit clearance. This composite gate includes packet completeness, committed PREPARE-source handoff validation, and the governed handoff communication proof. If absent or failing, verdict = FAIL until fixed.
 - Require evidence that `just phase-check CLOSEOUT WP-{ID}` ran and passed before PASS commit clearance. This composite gate includes packet completeness, the final review communication proof, the integration-validator context bundle, and the governed closeout preflight. If absent or failing, verdict = FAIL until fixed.
+- For packets with `PACKET_ACCEPTANCE_MATRIX`, require every required acceptance row to be `PROVED`, `CONFIRMED`, or `NOT_APPLICABLE` with concrete evidence/reason before PASS. `PENDING`, `STEER`, or `BLOCKED` rows mean `NOT_PROVEN` / FAIL until resolved.
 - `integration-validator-context-brief`, `integration-validator-closeout-check`, and `phase-check CLOSEOUT` now honor canonical `execution_state.authority` first during final-lane closeout. Do not waive a stale packet/task-board mismatch by hand if runtime authority already proves the effective terminal state or containment mode.
 - Those closeout surfaces now also distinguish `product_outcome_blockers` from `governance_debt`. Only `product_outcome_blockers` may block product outcome once the Integration Validator has established a verdict of record; `governance_debt` must remain visible for settlement/repair but does not reopen judgment on its own.
 - When `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."` is used to write terminal truth, it also makes a best-effort append of the closeout trace plus terminal WP-bound repomem snapshot into the active Workflow Dossier. Dossier import or formatting debt is diagnostic only and must not block product outcome; append the human post-mortem/review and closeout rubric after terminal truth is recorded.
@@ -574,7 +575,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 2. **Validator rubric check**: Apply the governed validator report profile (SPLIT_DIFF_SCOPED_RIGOR_V3/V4). All rubric sections must be filled with concrete evidence.
 3. **Red team assessment**: Check for security failure modes, capability escalation paths, race conditions, and input validation gaps across the full diff.
 4. **Master Spec alignment (wide scope)**: Verify the implementation against the spec anchors from the refinement. Check that the implementation satisfies the spec's MUST/SHOULD clauses, not just the packet's acceptance criteria.
-5. **Artifact hygiene**: Run `just artifact-hygiene-check` from the coder worktree. Flag any repo-local `target/` directories or wrongly-placed build artifacts.
+5. **Artifact hygiene**: Run `just artifact-root-preflight WP-{ID}` or confirm the phase-check artifact already ran it, then use `just artifact-hygiene-check` for deeper cleanup diagnosis. Flag repo-local `target/` directories or wrongly-placed build artifacts as `ENVIRONMENT_BLOCKER` unless they prove a product boundary failure.
 6. **Write validation verdict**: If all checks pass, write `Verdict: PASS` in the validation report. If any check fails, write `Verdict: FAIL` with specific remediation instructions and send them to the coder via `just wp-review-response`.
 7. **If PASS**: Notify the orchestrator (via `wp-notification` with target ORCHESTRATOR) that the WP is ready for integration validation and merge.
 
@@ -722,7 +723,8 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 
 ## Standard Command Set (run when applicable)
 - `just cargo-clean` (cleans external Cargo target dir at `../Handshake_Artifacts/handshake-cargo-target` before validation/commit; fail validation if skipped)
-- `just artifact-hygiene-check` (fails if repo-local `target/` exists or blocking non-canonical external artifact residue remains)
+- `just artifact-root-preflight [WP-{ID}]` (environment preflight; reports `ENVIRONMENT_BLOCKER` without invalidating product proof)
+- `just artifact-hygiene-check` (deeper artifact placement cleanup diagnosis; fails if repo-local `target/` exists or blocking non-canonical external artifact residue remains)
 - `just artifact-cleanup [--dry-run]` (mechanically removes reclaimable stale external artifact folders plus repo-local `target/` residue)
 - `just external-validator-brief WP-{ID}` (prints the canonical external/classical validator target contract: code target, governance target, committed handoff command, split report fields, and legal verdict vocabulary)
 - `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` (preferred required boundary gate before PASS commit clearance for orchestrator-managed WPs; validates packet completeness, committed PREPARE handoff state, and governed handoff routing in one pass)
