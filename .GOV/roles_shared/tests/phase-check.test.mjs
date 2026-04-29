@@ -282,12 +282,14 @@ test("closeout phase plan includes verdict proof, context bundle, closeout prefl
   });
 
   assert.deepEqual(plan.map((step) => step.label), [
+    "artifact-root-preflight-check",
     "active-lane-brief",
     "validator-packet-complete",
     "wp-communication-health-check",
     "integration-validator-context-brief",
     "integration-validator-closeout-check",
     "launch-memory-manager",
+    "intelligent-review-cadence-check",
   ]);
 });
 
@@ -303,7 +305,7 @@ test("closeout phase plan forwards governed sync args into the closeout prefligh
     ],
   });
 
-  assert.deepEqual(plan[4]?.args, [
+  assert.deepEqual(plan[5]?.args, [
     "WP-TEST-PHASE-v1",
     "--sync-mode",
     "MERGE_PENDING",

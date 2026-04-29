@@ -13,8 +13,8 @@
 - DATE_UTC: 2026-04-27
 - OPENED_AT_LOCAL: 2026-04-27 18:46:30 Europe/Brussels
 - OPENED_AT_UTC: 2026-04-27T16:46:30.268Z
-- LAST_UPDATED_LOCAL: 2026-04-28 22:25:58 Europe/Brussels
-- LAST_UPDATED_UTC: 2026-04-28T20:25:58Z
+- LAST_UPDATED_LOCAL: 2026-04-29 03:18:19 Europe/Brussels
+- LAST_UPDATED_UTC: 2026-04-29T01:18:19Z
 - SESSION_INTENTION: Continue WP-1-Software-Delivery-Projection-Surface-Discipline-v1 after Operator refinement approval, execution-owner selection, role-model profile selection, and one-time signature for orchestrator-ma
 - AUTHOR: Codex acting as ORCHESTRATOR
 - HISTORICAL_BASELINE_PACKET: NONE
@@ -535,9 +535,113 @@ Assessment:
 
 - Fill at closeout using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.
 
+### Workflow Smoothness
+
+- TREND: REGRESSED
+- CURRENT_STATE: HIGH
+- NUMERIC_SCORE: 2
+- Evidence:
+  - `phase-check STARTUP` initially failed because startup communication mesh was not ready: missing WP Validator active session and missing Coder peer readiness.
+  - Multiple `phase-check CLOSEOUT` attempts failed after product proof was already green, including `validator-packet-complete` failures, closeout context mismatch, stale runtime route, malformed candidate/signed-scope truth, and repomem/session debt.
+  - Runtime/packet truth repeatedly required manual Orchestrator repair after terminal events: `CODER_HANDOFF`, `VERDICT_PROGRESSION`, Integration Validator FAIL reopen, final PASS containment, and terminal session close.
+  - Mechanical telemetry reached roughly `control=130/129`, `receipts=77`, `commands=130`, with stale/failed terminal role states still visible at closeout sync.
+- What improved:
+  - The core per-MT implementation and WP Validator loop eventually produced durable PASS evidence for all five MTs.
+  - Direct deterministic gates (`phase-check`, `closeout-repair`, `validator-gate`, `gov-check`) exposed incorrect lifecycle truth instead of silently accepting the run.
+- What still hurts:
+  - The workflow was not atomic. Correct product work did not imply closeout readiness because runtime, packet, candidate target, scope, validator report, session, and repomem surfaces diverged.
+  - Orchestrator became the lifecycle repair engine rather than a thin router and exception handler.
+  - Mandatory probe families present: silent failures/false greens, task/path/worktree ambiguity, wrong command-family risk, and read amplification/governance-document churn.
+- Next structural fix:
+  - Add one authoritative closeout-state projector that derives packet status, runtime status, active microtask, waiting_on, validator gate, candidate target, signed-scope surface, and session-bundle state from a single terminal event. `closeout-repair` should call that projector and fail with one exact repair command, not a list of divergent surfaces.
+
+### Master Spec Gap Reduction
+
+- TREND: IMPROVED
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 6
+- Evidence:
+  - Product candidate closed the signed WP surface after MT-001 through MT-005, including projection-surface discipline, software-delivery overlay runtime truth, closeout derivation, extension records/lifecycle semantics, and Role Mailbox authority boundary.
+  - WP Validator final PASS covered `cargo check --manifest-path src/backend/handshake_core/Cargo.toml --lib`, targeted parity/projection tests, Role Mailbox advisory-boundary test, `micro_task_executor_tests --no-run`, and merge-tree checks against protected_main and main.
+  - Integration Validator later required missing governed-action preview payload and exact tripwire proof before terminal PASS, which exposed a real acceptance gap not caught by earlier per-MT review.
+- What improved:
+  - The final implementation was materially stronger than early candidates because validators forced negative proof and exact tripwires instead of accepting broad green compile evidence.
+- What still hurts:
+  - Acceptance proof was discovered too late. The governed-action preview payload and tripwire should have been a WP Validator hard blocker before Integration Validator.
+  - Baseline compile failures and waiver repairs blurred product gap closure with environmental unblock work.
+- Next structural fix:
+  - Convert each packet acceptance row into an executable checklist that both Coder and WP Validator must close before a microtask can move to PASS. Integration Validator should be confirming the completed checklist, not discovering packet-required proof late.
+
+### Token Cost Pressure
+
+- TREND: REGRESSED
+- CURRENT_STATE: HIGH
+- NUMERIC_SCORE: 1
+- Evidence:
+  - Closeout telemetry reports `gross_in=457.6M`, `fresh_in=19.7M`, `cached_in=437.8M`, `out=1.4M`, `turns=34`, and `commands=130` under `ORCHESTRATOR_MANAGED_V3_DIAGNOSTIC_COST`.
+  - Operator observed more than 203M tokens in the first Orchestrator context and more than 107M tokens in the second Orchestrator context for one WP.
+  - The run required repeated Orchestrator steering, repeated session open/close/cancel cycles, multiple closeout repairs, and repeated status sync after product work was already green.
+- What improved:
+  - The dossier, repomem import, telemetry, and final gate history now make the cost visible enough to audit.
+- What still hurts:
+  - Most incremental cost after final product proof was governance overhead: rediscovering current truth, repairing stale projections, closing sessions, replaying closeout gates, and re-reading large governance/runtime surfaces.
+  - The Operator carried too much sustainability burden because mechanical state could not be trusted without repeated Orchestrator interpretation.
+- Next structural fix:
+  - Introduce hard token and elapsed-time tripwires for Orchestrator-managed WPs: after a threshold, force a compact mechanical state bundle, block broad rereads, and require one explicit root-cause repair path before more role steering.
+
+### Communication Maturity
+
+- TREND: FLAT
+- CURRENT_STATE: MEDIUM
+- NUMERIC_SCORE: 5
+- Evidence:
+  - Governed receipts existed and were auditable: kickoff, Coder intent, Coder handoffs, WP Validator reviews, Integration Validator verdicts, notifications, and repomem closeout import.
+  - Communication still depended on Orchestrator re-wakes and route repairs: queued validator dispatches, duplicate/queued Coder prompts, stale `CODER_HANDOFF`, and AUTHORITY_OVERRIDE_REQUIRED after prior Integration Validator FAIL.
+- What improved:
+  - Role outputs were mostly durable and importable into the dossier.
+- What still hurts:
+  - The roles did not reliably self-progress from receipts and notifications. Orchestrator had to notice pending/stale work and re-drive lanes through ACP.
+  - Direct role-to-role communication was governed but not sufficiently autonomous.
+- Next structural fix:
+  - Receipt creation should atomically enqueue the next role's runnable command when topology and gates are satisfied, with a no-op if that role is already active. This removes repeated Orchestrator wake prompts and duplicate queue hazards.
+
+### Terminal and Session Hygiene
+
+- TREND: REGRESSED
+- CURRENT_STATE: HIGH
+- NUMERIC_SCORE: 2
+- Evidence:
+  - Closeout telemetry still showed stale or degraded terminal/session state: Activation Manager stale close request, WP Validator heartbeat degraded, Coder `SESSION_RUNTIME_FAILED`, and Integration Validator active run while WP was already terminal.
+  - Repomem coverage reported debt: `ACTIVATION_MANAGER:NO_SESSION_CLOSE`, `CODER:NO_SESSION_CLOSE`, and `WP_VALIDATOR:FRAGMENTED_SESSION_PROOF`.
+  - `gov-check` required a deterministic Integration Validator session close after terminal validation.
+- What improved:
+  - Final deterministic cleanup brought `gov-check` to PASS.
+- What still hurts:
+  - Session cleanup was not automatic at terminal PASS. Terminal state remained visible as debt and blocked the final flush path.
+- Next structural fix:
+  - Terminal verdict publication must close or quarantine role sessions atomically, then write session-close repomem proof before `phase-check CLOSEOUT` can pass.
+
 ## 17. Silent Failures, Command Surface Misuse, and Ambiguity Scan
 
 - Fill at closeout using `.GOV/roles_shared/docs/WORKFLOW_DOSSIER_RUBRIC.md`.
+
+- Silent failures or false greens:
+  - Product proof and WP Validator PASS were not enough to make closeout true. Runtime still projected stale active/waiting state in earlier closeout attempts, and closeout gates later found missing/malformed candidate, scope, validator report, and session truth.
+  - Integration Validator candidate `eb59e981` product proof passed, but the pre-merge artifact hygiene check failed on noncanonical sibling artifact root `../Handshake Artifacts`; the system had to preserve FAIL history, repair environment hygiene, then revalidate.
+- Wrong tool or command-family usage:
+  - Mechanical governance was correctly kept on direct `just`/node calls during closeout, but the run still exposed too many near-miss command surfaces: ACP prompts used for role wakeups that should have been mechanical receipt progression, and closeout repair loops that required manual command selection.
+  - The current session also exposed a repomem quality-gate failure when a session-open description was too short; procedural memory #5842 records the fix.
+- Task, path, or worktree ambiguity:
+  - Early Coder work risked sibling-worktree mutation and was cancelled.
+  - Artifact paths diverged between `Handshake_Artifacts` and `Handshake Artifacts`, producing an Integration Validator FAIL despite green product proof.
+  - Candidate target / signed-scope truth previously read stale packet evidence, including stale target diff entries and missing unique patch artifact reference.
+- Read amplification and governance-document churn:
+  - Repeated Orchestrator context refresh, repeated closeout log inspection, repeated packet/runtime/session reads, and repeated command-surface checks drove high token cost after the product result was already known.
+  - Dossier mechanical logs were large and useful for audit, but they made the judgment layer expensive when no compact closeout summary was available.
+- Drift lens:
+  - Context drift was visible: initial dossier sections still described MT-004 as blocked even after all MTs were validated and contained. Mechanical closeout imports captured the terminal truth, but the narrative layer lagged until this appendix.
+  - Cognitive drift was visible: Orchestrator repeatedly had to reconcile "product green" with "governance not closeout-ready." That distinction was correct, but the workflow made it too expensive to prove.
+  - Weakly supported final claims are marked as Operator-observed where they come from Operator token/time telemetry rather than the mechanical dossier ledger.
 
 ## 18. What Should Change Before The Next Run
 
@@ -1636,3 +1740,139 @@ Format: `- [TIMESTAMP] [ORCHESTRATOR] [ACP_UPDATE|ACP_SESSION_CONTROL] <route> <
 - [2026-04-28 22:58:27 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE_TASK] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260428-202344] wp=WP-1-Software-Delivery-Projection-Surface-Discipline-v1 id=1361 :: [ctx] Integration Validator PASS contained in local main commit 4a5534925af14bf994344182fb5c863cacba6741 and termina :: Integration Validator PASS contained in local main commit 4a5534925af14bf994344182fb5c863cacba6741 and terminal closeout truth is being published as contained in main
 - [2026-04-28 23:07:25 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE_TASK] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260428-202344] wp=WP-1-Software-Delivery-Projection-Surface-Discipline-v1 id=1362 :: [ctx] Integration Validator PASS product commit 4a5534925af14bf994344182fb5c863cacba6741 is contained in local main :: Integration Validator PASS product commit 4a5534925af14bf994344182fb5c863cacba6741 is contained in local main head 1d874cda0c384d7484f0cc792f63617ff062dd29 after governance sync
 - [2026-04-28 23:14:54 Europe/Brussels] [ORCHESTRATOR] [REPOMEM_PRE_TASK] [GOVERNANCE_MEMORY] [ORCHESTRATOR-20260428-202344] wp=WP-1-Software-Delivery-Projection-Surface-Discipline-v1 id=1364 :: [ctx] Integration Validator PASS product commit 4a5534925af14bf994344182fb5c863cacba6741 is contained in current loc :: Integration Validator PASS product commit 4a5534925af14bf994344182fb5c863cacba6741 is contained in current local main head 875ad794092ee3193ca11c179d64b4be5846b39c after final governance sync
+
+## OPERATOR_POSTMORTEM_FAILURE_APPENDIX
+
+This appendix is the Operator-facing failure rollup for WP-1. It uses the Workflow Dossier rubric targets above as the judgment layer and the structured failure-ledger shape for each owner.
+
+### Governance Failures
+
+- FINDING_ID: WP1-POSTMORTEM-GOV-001
+- CATEGORY: ACP_RUNTIME_DISCIPLINE
+- ROLE_OWNER: GOVERNANCE
+- SYSTEM_SCOPE: CONTROL_PLANE
+- FAILURE_CLASS: STALE_PROJECTION_AND_CLOSEOUT_TRUTH_DIVERGENCE
+- SEVERITY: CRITICAL
+- STATUS: CLOSED_WITH_DEBT
+- Evidence:
+  - Startup communication mesh failed before being repaired.
+  - Closeout repeatedly failed after product proof was green, including stale active microtask/waiting_on projection, malformed candidate target / signed-scope truth, validator report completeness failures, and session-bundle debt.
+  - Final telemetry still showed repomem/session debt and terminal session cleanup debt before deterministic repair.
+- What went wrong:
+  - Governance had multiple sources of truth for the same WP lifecycle fact. Packet status, runtime status, validator gate, candidate target, scope surface, repomem coverage, and session registry could disagree.
+- Impact:
+  - The Operator and Orchestrator could not treat a product PASS as a workflow PASS. Closeout became a separate debugging project.
+- Mechanical fix direction:
+  - Build a single terminal-state projector and make all closeout gates read from it. Forbid partial closeout mutations that update one surface without updating all derived surfaces.
+
+### Workflow Failures
+
+- FINDING_ID: WP1-POSTMORTEM-WF-001
+- CATEGORY: WORKFLOW_DISCIPLINE
+- ROLE_OWNER: WORKFLOW
+- SYSTEM_SCOPE: ORCHESTRATOR_MANAGED_LANE
+- FAILURE_CLASS: NON_ATOMIC_MICROTASK_AND_CLOSEOUT_LIFECYCLE
+- SEVERITY: HIGH
+- STATUS: CLOSED_WITH_DEBT
+- Evidence:
+  - Five MTs eventually passed, but MT-003 required five repair cycles.
+  - Integration Validator later found missing governed-action preview payload and exact tripwire proof that should have been forced earlier.
+  - Environment/artifact hygiene caused a terminal FAIL after product proof passed.
+- What went wrong:
+  - The per-MT loop worked as an implementation/review loop, but it did not guarantee final packet acceptance completeness or final-lane containment readiness.
+- Impact:
+  - Work was technically correct in stages, but each stage left enough unresolved governance truth for later roles to rediscover and re-open.
+- Mechanical fix direction:
+  - Make every MT exit require packet-row closure proof, negative-path proof, artifact-root proof, and merge/containment readiness where applicable. Integration Validator should not be the first role to discover required packet proof.
+
+### Orchestrator Failures
+
+- FINDING_ID: WP1-POSTMORTEM-ORCH-001
+- CATEGORY: TOKEN_COST_PRESSURE
+- ROLE_OWNER: ORCHESTRATOR
+- SYSTEM_SCOPE: CONTROL_PLANE
+- FAILURE_CLASS: OVER_STEERING_AND_READ_AMPLIFICATION
+- SEVERITY: CRITICAL
+- STATUS: CLOSED_WITH_DEBT
+- Evidence:
+  - Operator observed more than 203M tokens in the first Orchestrator context and more than 107M tokens in the second Orchestrator context for one WP.
+  - Mechanical telemetry reports `gross_in=457.6M`, `fresh_in=19.7M`, `cached_in=437.8M`, `out=1.4M`, `turns=34`, and `commands=130`.
+  - Orchestrator repeatedly re-woke roles, repaired stale routes, ran closeout repair loops, inspected large governance outputs, and reconciled runtime/packet/session truth.
+- What went wrong:
+  - Orchestrator correctly protected authority boundaries, but it absorbed too much lifecycle work that should have been mechanical. The role became the runtime synchronizer, session janitor, and closeout projector debugger.
+- Impact:
+  - Cost and elapsed time became unsustainable even though the product work ultimately validated.
+- Mechanical fix direction:
+  - Add Orchestrator budget gates: token ceiling, command ceiling, elapsed-time ceiling, and reread ceiling. Crossing a ceiling should force a compact state bundle and one selected repair action before more steering.
+
+### Coder Failures
+
+- FINDING_ID: WP1-POSTMORTEM-CODER-001
+- CATEGORY: PRODUCT_REMEDIATION
+- ROLE_OWNER: CODER
+- SYSTEM_SCOPE: PRODUCT_WORKTREE
+- FAILURE_CLASS: SCOPE_AND_PROOF_DRIFT
+- SEVERITY: HIGH
+- STATUS: CLOSED
+- Evidence:
+  - Early Coder work risked sibling-worktree mutation and required cancellation.
+  - MT-001 encountered multiple clean-baseline compile blockers and waiver-scoped repairs before productive proof could proceed.
+  - MT-003 required repeated repair cycles before WP Validator PASS.
+  - Later Coder remediation completed implementation at `eb59e981`, but formal handoff was blocked by runtime authority state after prior Integration Validator FAIL.
+- What went wrong:
+  - Coder did not always stay inside the smallest executable proof path. Some failures were environmental or governance-route blockers, but the implementation lane still paid the cost.
+- Impact:
+  - Rework and handoff friction increased Orchestrator steering and validator load.
+- Mechanical fix direction:
+  - Coder packets need a compact allowed-edit map, a mandatory current-worktree assertion, and a proof checklist generated from packet acceptance rows before implementation starts.
+
+### WP Validator Failures
+
+- FINDING_ID: WP1-POSTMORTEM-WPV-001
+- CATEGORY: MASTER_SPEC_AUDIT
+- ROLE_OWNER: WP_VALIDATOR
+- SYSTEM_SCOPE: PRODUCT_REVIEW
+- FAILURE_CLASS: LATE_ACCEPTANCE_GAP_DISCOVERY
+- SEVERITY: HIGH
+- STATUS: CLOSED_WITH_DEBT
+- Evidence:
+  - WP Validator ultimately passed final candidate evidence, but Integration Validator still found missing governed-action preview payload and exact tripwire proof on an earlier final-lane attempt.
+  - Closeout telemetry reported WP Validator repomem coverage debt as `FRAGMENTED_SESSION_PROOF`.
+  - Validator route required Orchestrator re-wakes when pending handoff/review progression became stale.
+- What went wrong:
+  - WP Validator caught many real issues, but did not consistently turn every signed packet row into a hard proof requirement before final-lane handoff.
+- Impact:
+  - Integration Validator became both final judge and late packet-proof discoverer, which expanded the run after the MT loop appeared complete.
+- Mechanical fix direction:
+  - WP Validator should receive an auto-generated acceptance matrix and must mark each row `CONFIRMED`, `NOT_APPLICABLE`, or `STEER` before PASS can be published.
+
+### Integration Validator Failures
+
+- FINDING_ID: WP1-POSTMORTEM-INTVAL-001
+- CATEGORY: MERGE_PROGRESSION
+- ROLE_OWNER: INTEGRATION_VALIDATOR
+- SYSTEM_SCOPE: FINAL_LANE_CONTAINMENT
+- FAILURE_CLASS: ENVIRONMENT_FAIL_AND_SESSION_CLOSEOUT_FRICTION
+- SEVERITY: HIGH
+- STATUS: CLOSED_WITH_DEBT
+- Evidence:
+  - Integration Validator correctly blocked merge when artifact hygiene failed on noncanonical sibling artifact root `../Handshake Artifacts`.
+  - After hygiene repair, the same WP required reopen/revalidation and final PASS containment into main.
+  - Final `gov-check` later required deterministic close of a stale terminal Integration Validator session.
+- What went wrong:
+  - Integration Validator performed the right hard stop, but the workflow lacked a cheap environment-only remediation path and automatic terminal session cleanup after PASS.
+- Impact:
+  - A valid product candidate became a governance/time sink because final-lane environment hygiene and session lifecycle were not settled mechanically.
+- Mechanical fix direction:
+  - Split Integration Validator failures into product-blocking, environment-blocking, and governance-blocking classes with explicit recovery paths. Environment-only FAIL should preserve proof and route a minimal hygiene repair without resetting broad lifecycle state.
+
+### Causes For High Token Cost And Time Sink
+
+- Multi-source lifecycle truth: packet, runtime, validator gate, candidate target, signed-scope, closeout provenance, repomem, and session registry could disagree, so every phase transition required rereading and reconciliation.
+- Closeout was not atomic: product PASS, WP Validator PASS, Integration Validator PASS, main containment, session closure, repomem import, and dossier sync each had separate failure modes.
+- Role progression was not self-driving: receipts and notifications did not reliably advance the next role, so Orchestrator issued repeated wakeups, retries, cancellations, and route repairs.
+- Acceptance criteria were not executable early enough: packet-required proof escaped the WP Validator loop and surfaced late in Integration Validator.
+- Environmental blockers were mixed with product blockers: baseline compile failures and artifact-root hygiene consumed the same workflow budget as product implementation.
+- Session lifecycle cleanup lagged terminal verdicts: stale/failed/heartbeat-degraded role states remained visible after terminal outcomes and blocked flush/gov-check until deterministic cleanup.
+- Dossier and runtime evidence were too large for efficient judgment: mechanical logs preserved auditability but forced high-context inspection because no compact terminal summary was sufficient.
+- Operator-observed cost was unsustainable: more than 203M tokens in the first Orchestrator context, more than 107M tokens in the second Orchestrator context, and more than 14 hours elapsed for one WP cannot be treated as acceptable orchestration overhead.

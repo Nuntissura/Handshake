@@ -9,6 +9,12 @@ import { buildEphemeralContextBlock } from "../../../roles_shared/scripts/sessio
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { enqueueNudge } from "../../../roles_shared/scripts/session/nudge-queue-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
+import {
+  costGovernorSteerDecision,
+  evaluateOrchestratorCostGovernor,
+  recordOrchestratorCostOverride,
+} from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
+import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import {
   normalizeRelayEscalationPolicy,
@@ -47,6 +53,17 @@ const explicitTargetSession = (() => {
     const value = String(candidate || "").trim();
     if (!value.startsWith("--target-session=")) continue;
     return String(value.slice("--target-session=".length) || "").trim();
+  }
+  return "";
+})();
+const overrideRecoveryReason = (() => {
+  for (const candidate of process.argv.slice(3)) {
+    const value = String(candidate || "").trim();
+    if (value === "--override-recovery") {
+      fail("--override-recovery requires an inline reason: --override-recovery=<reason>");
+    }
+    if (!value.startsWith("--override-recovery=")) continue;
+    return String(value.slice("--override-recovery=".length) || "").trim();
   }
   return "";
 })();
@@ -230,6 +247,34 @@ if (nextActor !== "ACTIVATION_MANAGER" && action === "SEND_PROMPT" && queuedCont
   console.log("[ORCHESTRATOR_STEER_NEXT] state=queue-backed follow-up already exists for this governed session; wait for broker drain instead of sending another prompt");
   process.exit(0);
 }
+
+const tokenLedger = readWpTokenUsageLedger(repoRoot, wpId).ledger;
+const costGovernor = evaluateOrchestratorCostGovernor({ ledger: tokenLedger });
+const costDecision = costGovernorSteerDecision({
+  governor: costGovernor,
+  explicitTargetRole,
+  nextActor,
+  defaultNextActor,
+  overrideReason: overrideRecoveryReason,
+});
+if (!costDecision.ok) {
+  fail("Orchestrator cost governor blocked steering", [
+    `state=${costDecision.state}`,
+    `reason=${costDecision.reason}`,
+    `next_actor=${nextActor}`,
+    `default_next_actor=${defaultNextActor}`,
+    `override_flag=${overrideRecoveryReason ? "present" : "missing"}`,
+    ...costDecision.failures,
+    `permitted_commands=${(costGovernor.permitted_commands || []).join(" | ")}`,
+  ]);
+}
+if (costDecision.override_recorded) {
+  recordOrchestratorCostOverride({
+    wpId,
+    reason: overrideRecoveryReason,
+  });
+}
+
 let envelope = null;
 let prompt = "";
 if (nextActor === "ACTIVATION_MANAGER") {
@@ -287,6 +332,11 @@ if (explicitTargetRole) {
 }
 console.log(`[ORCHESTRATOR_STEER_NEXT] waiting_on=${runtimeStatus.waiting_on || "<missing>"}`);
 console.log(`[ORCHESTRATOR_STEER_NEXT] relay_status=${relayEscalation.status}`);
+console.log(`[ORCHESTRATOR_STEER_NEXT] cost_governor_state=${costGovernor.state}`);
+console.log(`[ORCHESTRATOR_STEER_NEXT] cost_governor_summary=${costGovernor.summary}`);
+if (costDecision.override_recorded) {
+  console.log("[ORCHESTRATOR_STEER_NEXT] cost_governor_override=RECORDED");
+}
 if (relayEscalation.status !== "NOT_APPLICABLE") {
   console.log(`[ORCHESTRATOR_STEER_NEXT] relay_summary=${relayEscalation.summary}`);
   if (relayPolicy) {

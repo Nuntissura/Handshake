@@ -23,6 +23,10 @@ import {
   scopeDisciplineRequiresEnforcement,
 } from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
 import { validatePacketClosureMonitoring } from '../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs';
+import {
+  activeBaselineCompileWaiversForWp,
+  evaluateWaiverCoverage,
+} from '../../../roles_shared/scripts/lib/baseline-waiver-ledger-lib.mjs';
 import { resolveCommittedCoderHandoffRange } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
 import { resolveGitBaselineMergeBase } from '../scripts/lib/coder-governance-lib.mjs';
 
@@ -443,6 +447,25 @@ const hasGitWaiver = parseWaivers(packetContent);
 if (hasGitWaiver) {
   console.log('NOTE: Git hygiene waiver detected [CX-573F]. Strict git checks relaxed.');
 }
+const baselineCompileWaivers = activeBaselineCompileWaiversForWp(WP_ID);
+if (baselineCompileWaivers.length > 0) {
+  console.log(`NOTE: ${baselineCompileWaivers.length} active baseline compile waiver(s) detected. Scope relaxation is path-limited to waiver allowed_edit_paths.`);
+}
+
+const pathFromScopeViolation = (value) => {
+  const text = String(value || '').trim();
+  const idx = text.indexOf(':');
+  return normalizeRepoPath(idx >= 0 ? text.slice(idx + 1).trim() : text);
+};
+
+const waiverCoverageForScopeViolations = (violations) => evaluateWaiverCoverage({
+  paths: (violations || []).map((entry) => pathFromScopeViolation(entry)).filter(Boolean),
+  waivers: baselineCompileWaivers,
+});
+
+const formatWaiverIds = (coverage) => Array.from(new Set(
+  (coverage?.covered || []).flatMap((entry) => entry.waiver_ids || []),
+)).join(',') || 'none';
 
 const manifests = parseValidationManifests(packetContent);
 if (!manifests) {
@@ -769,16 +792,23 @@ if (manifests) {
   const uniqueGovernanceNoiseWarnings = Array.from(new Set(governanceNoiseWarnings));
   const uniqueTransientArtifactWarnings = Array.from(new Set(transientArtifactWarnings));
 
-  if (uniqueEvaluatedViolations.length > 0 && !hasGitWaiver) {
+  const evaluatedWaiverCoverage = waiverCoverageForScopeViolations(uniqueEvaluatedViolations);
+  const branchLocalWaiverCoverage = waiverCoverageForScopeViolations(uniqueBranchLocalViolations);
+
+  if (uniqueEvaluatedViolations.length > 0 && !hasGitWaiver && !evaluatedWaiverCoverage.ok) {
     errors.push(`Out-of-scope files in the evaluated diff: ${formatBoundedItemList(uniqueEvaluatedViolations, { noun: 'entry' })}`);
   } else if (uniqueEvaluatedViolations.length > 0 && hasGitWaiver) {
     warnings.push(`Out-of-scope files in the evaluated diff but waiver present [CX-573F]: ${formatBoundedItemList(uniqueEvaluatedViolations, { noun: 'entry' })}`);
+  } else if (uniqueEvaluatedViolations.length > 0 && evaluatedWaiverCoverage.ok) {
+    warnings.push(`Out-of-scope files in the evaluated diff covered by active baseline compile waiver(s) ${formatWaiverIds(evaluatedWaiverCoverage)}: ${formatBoundedItemList(uniqueEvaluatedViolations, { noun: 'entry' })}`);
   }
 
-  if (uniqueBranchLocalViolations.length > 0 && !hasGitWaiver) {
+  if (uniqueBranchLocalViolations.length > 0 && !hasGitWaiver && !branchLocalWaiverCoverage.ok) {
     errors.push(`Branch-local scope drift detected outside the evaluated diff: ${formatBoundedItemList(uniqueBranchLocalViolations, { noun: 'entry' })}`);
   } else if (uniqueBranchLocalViolations.length > 0 && hasGitWaiver) {
     warnings.push(`Branch-local scope drift detected but waiver present [CX-573F]: ${formatBoundedItemList(uniqueBranchLocalViolations, { noun: 'entry' })}`);
+  } else if (uniqueBranchLocalViolations.length > 0 && branchLocalWaiverCoverage.ok) {
+    warnings.push(`Branch-local scope drift covered by active baseline compile waiver(s) ${formatWaiverIds(branchLocalWaiverCoverage)}: ${formatBoundedItemList(uniqueBranchLocalViolations, { noun: 'entry' })}`);
   }
 
   if (uniqueGovernanceNoiseWarnings.length > 0) {
@@ -795,18 +825,24 @@ if (manifests) {
     } else {
       const evaluatedBudgetFiles = collectBudgetCountedFiles(changedFiles, scopeContract);
       const branchLocalBudgetFiles = collectBudgetCountedFiles(branchLocalChangedFiles, scopeContract);
-      if (evaluatedBudgetFiles.length > scopeDiscipline.touchedFileBudget && !hasGitWaiver) {
+      const evaluatedBudgetWaiverCoverage = evaluateWaiverCoverage({ paths: evaluatedBudgetFiles, waivers: baselineCompileWaivers });
+      const branchLocalBudgetWaiverCoverage = evaluateWaiverCoverage({ paths: branchLocalBudgetFiles, waivers: baselineCompileWaivers });
+      if (evaluatedBudgetFiles.length > scopeDiscipline.touchedFileBudget && !hasGitWaiver && !evaluatedBudgetWaiverCoverage.ok) {
         errors.push(`Touched file budget exceeded in evaluated diff: ${evaluatedBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${formatBoundedItemList(evaluatedBudgetFiles, { noun: 'path' })})`);
       } else if (evaluatedBudgetFiles.length > scopeDiscipline.touchedFileBudget && hasGitWaiver) {
         warnings.push(`Touched file budget exceeded in evaluated diff but waiver present [CX-573F]: ${evaluatedBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${formatBoundedItemList(evaluatedBudgetFiles, { noun: 'path' })})`);
+      } else if (evaluatedBudgetFiles.length > scopeDiscipline.touchedFileBudget && evaluatedBudgetWaiverCoverage.ok) {
+        warnings.push(`Touched file budget exceeded in evaluated diff but covered by active baseline compile waiver(s) ${formatWaiverIds(evaluatedBudgetWaiverCoverage)}: ${evaluatedBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${formatBoundedItemList(evaluatedBudgetFiles, { noun: 'path' })})`);
       } else {
         console.log(`PASS: touched file budget respected in evaluated diff (${evaluatedBudgetFiles.length}/${scopeDiscipline.touchedFileBudget})`);
       }
 
-      if (branchLocalBudgetFiles.length > scopeDiscipline.touchedFileBudget && !hasGitWaiver) {
+      if (branchLocalBudgetFiles.length > scopeDiscipline.touchedFileBudget && !hasGitWaiver && !branchLocalBudgetWaiverCoverage.ok) {
         errors.push(`Touched file budget exceeded by branch-local scope drift: ${branchLocalBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${formatBoundedItemList(branchLocalBudgetFiles, { noun: 'path' })})`);
       } else if (branchLocalBudgetFiles.length > scopeDiscipline.touchedFileBudget && hasGitWaiver) {
         warnings.push(`Touched file budget exceeded by branch-local scope drift but waiver present [CX-573F]: ${branchLocalBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${formatBoundedItemList(branchLocalBudgetFiles, { noun: 'path' })})`);
+      } else if (branchLocalBudgetFiles.length > scopeDiscipline.touchedFileBudget && branchLocalBudgetWaiverCoverage.ok) {
+        warnings.push(`Touched file budget exceeded by branch-local scope drift but covered by active baseline compile waiver(s) ${formatWaiverIds(branchLocalBudgetWaiverCoverage)}: ${branchLocalBudgetFiles.length} > ${scopeDiscipline.touchedFileBudget} (${formatBoundedItemList(branchLocalBudgetFiles, { noun: 'path' })})`);
       }
     }
     if (!scopeDiscipline.broadToolAllowlistValid) {

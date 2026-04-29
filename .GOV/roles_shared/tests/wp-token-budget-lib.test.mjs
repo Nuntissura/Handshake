@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateWpTokenBudget } from "../scripts/session/wp-token-budget-lib.mjs";
+import {
+  costGovernorSteerDecision,
+  evaluateOrchestratorCostGovernor,
+  evaluateWpTokenBudget,
+} from "../scripts/session/wp-token-budget-lib.mjs";
 
 function ledgerWith(summary, roleTotals = {}) {
   return {
@@ -115,4 +119,62 @@ test("evaluateWpTokenBudget keeps cached-heavy replay visible without blocking t
   assert.equal(budget.total.fresh_input_tokens, 6390815);
   assert.match(budget.summary, /cached replay/i);
   assert.match(budget.warnings.join("\n"), /gross_input_tokens/i);
+});
+
+test("evaluateOrchestratorCostGovernor enters recovery mode on command budget failure", () => {
+  const governor = evaluateOrchestratorCostGovernor({
+    ledger: ledgerWith({ command_count: 31, turn_count: 2, input_tokens: 1000 }),
+  });
+
+  assert.equal(governor.state, "RECOVERY_MODE");
+  assert.match(governor.failures.join("\n"), /command_count 31 exceeded fail budget/);
+  assert.ok(governor.permitted_commands.includes("just wp-truth-bundle WP-{ID}"));
+});
+
+test("costGovernorSteerDecision permits projected recovery steer but blocks broad target steer", () => {
+  const governor = evaluateOrchestratorCostGovernor({
+    ledger: ledgerWith({ command_count: 31, turn_count: 2, input_tokens: 1000 }),
+  });
+
+  const projected = costGovernorSteerDecision({
+    governor,
+    nextActor: "CODER",
+    defaultNextActor: "CODER",
+  });
+  assert.equal(projected.ok, true);
+  assert.equal(projected.reason, "projected-next-legal-action");
+
+  const broad = costGovernorSteerDecision({
+    governor,
+    explicitTargetRole: "WP_VALIDATOR",
+    nextActor: "WP_VALIDATOR",
+    defaultNextActor: "CODER",
+  });
+  assert.equal(broad.ok, false);
+  assert.equal(broad.reason, "broad-steer-blocked-in-recovery-mode");
+});
+
+test("costGovernorSteerDecision requires override after repeated recovery loop attempts", () => {
+  const governor = evaluateOrchestratorCostGovernor({
+    ledger: ledgerWith({ command_count: 4, turn_count: 2, input_tokens: 1000 }),
+    commandTelemetry: { full_surface_rereads: 4 },
+  });
+
+  assert.equal(governor.state, "OVERRIDE_REQUIRED");
+  const blocked = costGovernorSteerDecision({
+    governor,
+    nextActor: "CODER",
+    defaultNextActor: "CODER",
+  });
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.reason, "operator-override-required");
+
+  const overridden = costGovernorSteerDecision({
+    governor,
+    nextActor: "CODER",
+    defaultNextActor: "CODER",
+    overrideReason: "Operator reviewed the loop budget and authorized one final targeted recovery action.",
+  });
+  assert.equal(overridden.ok, true);
+  assert.equal(overridden.override_recorded, true);
 });

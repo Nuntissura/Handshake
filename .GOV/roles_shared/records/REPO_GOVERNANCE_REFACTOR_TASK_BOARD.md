@@ -1,6 +1,6 @@
 ﻿# Repo Governance Refactor Task Board
 
-**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the closeout canonicalization tranche has `RGF-233` through `RGF-241` queued for implementation, `RGF-242` through `RGF-250` are implemented and verified, and the memory-system follow-on tranche `RGF-251` through `RGF-254` is implemented and verified.
+**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the closeout canonicalization tranche has `RGF-233` through `RGF-241` queued for implementation, `RGF-242` through `RGF-250` are implemented and verified, the memory-system follow-on tranche `RGF-251` through `RGF-254` is implemented and verified, and the WP-1 postmortem cost/truth tranche `RGF-255` through `RGF-264` is implemented and verified.
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
@@ -317,6 +317,16 @@
 | RGF-252 | DONE | VALIDATOR Protocol Repomem Parity | RGF-214 | `roles/validator/VALIDATOR_PROTOCOL.md` repomem section, `protocol-alignment-check` | the `VALIDATOR` role's repomem section now declares the full clause set (SESSION_OPEN, PRE_TASK, INSIGHT, DECISION, ERROR, ABANDON, CONCERN, ESCALATION, SESSION_CLOSE) in parity with ORCHESTRATOR/CODER, and `protocol-alignment-check` enforces the seven required clauses across all three governed-role protocols |
 | RGF-253 | DONE | Orchestrator-Startup Memory Injection Redesign | RGF-214, RGF-242, RGF-246 | `roles_shared/scripts/session/session-control-lib.mjs` (`loadOrchestratorMemoryLines`, three new bypass-scoring slices), `orchestrator-startup-memory-slices.test.mjs` | orchestrator startup memory now composes a recent-procedural-failure slice (last 7d, no access_count gate), a hygiene-report-summary slice, and a prior-day SESSION_CLOSE cross-role decisions slice BEFORE the access-count-weighted PATTERNS bundle; `ORCHESTRATOR_MEMORY_TOKEN_BUDGET` raised 2000 → 4000 to fit the new slices while preserving the existing scored bundle |
 | RGF-254 | DONE | Memory Manager Intelligent-Review Cadence | RGF-214, RGF-222 | `roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`, `roles/memory_manager/scripts/memory-manager-policy.mjs`, `roles/memory_manager/scripts/intelligent-review-status-lib.mjs`, `roles/memory_manager/checks/intelligent-review-cadence-check.mjs`, `roles_shared/checks/phase-check-lib.mjs`, `roles_shared/scripts/memory/repomem.mjs` (MEMORY_MANAGER close marker write) | `repomem close` for `MEMORY_MANAGER` writes `INTELLIGENT_REVIEW_LAST_RUN.json`; new `intelligent-review-cadence-check` (governance-support, exit 0) reports FRESH/DEBT against a 7-day staleness gate; phase-check CLOSEOUT runs the cadence check after the mechanical pass so missing or stale intelligent-review runs surface in IntVal context brief and operator output, breaking the dead-letter loop where one-off captures never cross the startup access-count threshold |
+| RGF-255 | DONE | Compact WP Truth Bundle | RGF-233, RGF-234, RGF-237 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `roles/orchestrator/scripts/orchestrator-next.mjs`, `roles_shared/scripts/lib/wp-closeout-dependency-lib.mjs`, `roles_shared/scripts/session/*`, `roles_shared/scripts/audit/workflow-dossier-lib.mjs` | one command emits a bounded current-truth bundle for a WP without rereading packet/runtime/session/dossier surfaces separately |
+| RGF-256 | DONE | Executable Packet Acceptance Matrix | RGF-248, RGF-250 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `packet-closure-monitor-lib.mjs`, `validator-report-profile-lib.mjs`, packet template, Coder/WP Validator protocols | WP Validator PASS is mechanically blocked unless every packet acceptance row is PROVED/CONFIRMED or NOT_APPLICABLE with evidence |
+| RGF-257 | DONE | Receipt-Driven Auto-Progression | RGF-245, RGF-248, RGF-247 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `wp-receipt-append.mjs`, `wp-notification-append.mjs`, `nudge-queue-lib.mjs`, `orchestrator-next.mjs`, `session-control-lib.mjs` | Coder handoff, WP Validator verdict, and Integration Validator verdict enqueue the next legal actor exactly once without Orchestrator relay |
+| RGF-258 | DONE | Orchestrator Cost Governor and Recovery Mode | RGF-18, RGF-22, RGF-253 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `wp-token-budget-lib.mjs`, `wp-token-usage-lib.mjs`, `orchestrator-next.mjs`, `orchestrator-steer-next.mjs`, operator monitor | token/command/time overruns constrain wasteful Orchestrator rediscovery while allowing productive governed role work to continue |
+| RGF-259 | DONE | Failure-Class Recovery Router | RGF-233, RGF-234, RGF-237, RGF-244 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | Integration Validator closeout libs, validator gate scripts, artifact hygiene libs, runtime invalidity helpers | Integration Validator failures classify as PRODUCT_BLOCKER, ENVIRONMENT_BLOCKER, or GOVERNANCE_BLOCKER with distinct recovery paths |
+| RGF-260 | DONE | Terminal Verdict Session Finalizer | RGF-236, RGF-240, RGF-251 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | session registry, broker result ledger, `repomem.mjs`, `integration-validator-closeout-sync.mjs` | terminal PASS/FAIL closes or quarantines stale role sessions and records session-close proof before final gov-check |
+| RGF-261 | DONE | Dossier Closeout Judgment Auto-Fill | RGF-222, RGF-223, RGF-224, RGF-243, RGF-254 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `workflow-dossier.mjs`, `workflow-dossier-lib.mjs`, dossier template, phase-check CLOSEOUT | closeout fails if rubric placeholders or stale narrative claims remain after terminal metrics and repomem import |
+| RGF-262 | DONE | Artifact Root Preflight Before Final Lane | RGF-235, RGF-244 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `artifact-hygiene-lib.mjs`, validator git hygiene, coder post-work check, handoff phase check | noncanonical artifact roots such as `Handshake Artifacts` fail before Integration Validator final review starts |
+| RGF-263 | DONE | Baseline Compile Waiver Ledger | RGF-09, RGF-12, RGF-250 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | workflow invalidity helpers, packet scope metadata, Coder pre/post checks, waiver evidence ledger | out-of-scope baseline blockers require one bounded waiver/unblocker record and cannot create repeated informal Operator interruptions |
+| RGF-264 | DONE | Governance Refactor Board Integrity Check | RGF-254 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, changelog, gov-check bundle | board summary, row table, execution briefs, and follow-on sequence cannot disagree about implemented or queued RGF IDs |
 
 ## Active / Recent Hardening State (2026-04-22)
 
@@ -363,6 +373,10 @@
 - `RGF-233` through `RGF-241`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426.md`.
 - `RGF-242` through `RGF-249`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426_HARNESS_RGFS.md` and companion addendum `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426_HARNESS_ADDENDUM.md`.
 - `RGF-250`: see the operator's 2026-04-26 MT-008 heuristic-loop review note captured in this session; implement as an additive harness-pattern follow-on using the existing retry/stall budget surfaces plus the harness brief's strategy-escalation direction.
+
+## Implementation Guide (2026-04-29)
+
+- WP-1 postmortem tranche `RGF-255` through `RGF-264`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_GUIDE_20260429_WP1_POSTMORTEM.md`. The ID range was verified free, promoted to formal board rows, implemented, and verified on 2026-04-29.
 
 ## Refactor Sequence (Historical)
 
@@ -456,6 +470,16 @@
 79. `RGF-248`
 80. `RGF-247`
 81. `RGF-249`
+82. `RGF-264`
+83. `RGF-255`
+84. `RGF-258`
+85. `RGF-256`
+86. `RGF-262`
+87. `RGF-257`
+88. `RGF-259`
+89. `RGF-260`
+90. `RGF-261`
+91. `RGF-263`
 
 ## Proposed Next Sequence
 
@@ -468,6 +492,19 @@
 7. `RGF-239`
 8. `RGF-240`
 9. `RGF-241`
+
+## Implemented WP-1 Postmortem Sequence
+
+1. `RGF-264`
+2. `RGF-255`
+3. `RGF-258`
+4. `RGF-256`
+5. `RGF-262`
+6. `RGF-257`
+7. `RGF-259`
+8. `RGF-260`
+9. `RGF-261`
+10. `RGF-263`
 
 ## Explicit Holds
 

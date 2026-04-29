@@ -13,6 +13,7 @@ import {
   evaluateArtifactHygiene,
   writeArtifactRetentionManifest,
 } from "../scripts/lib/artifact-hygiene-lib.mjs";
+import { buildArtifactRootPreflightResult } from "../checks/artifact-root-preflight-check.mjs";
 
 function makeTempRoot(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -204,6 +205,29 @@ test("artifact retention manifests record retained policy surfaces and write und
       true,
     );
     assert.equal(fs.existsSync(written.manifestAbsPath), true);
+  } finally {
+    removeTree(workspaceRoot);
+  }
+});
+
+test("artifact root preflight reports environment blockers without cleanup", () => {
+  const workspaceRoot = makeTempRoot("handshake-artifact-preflight-");
+  const repoRoot = path.join(workspaceRoot, "repo");
+  fs.mkdirSync(path.join(repoRoot, "crate", "target"), { recursive: true });
+
+  try {
+    const artifactRootAbs = ensureArtifactRootStructure(repoRoot);
+    const result = buildArtifactRootPreflightResult({
+      repoRoot,
+      artifactRootOverride: artifactRootAbs,
+      repoRoots: [repoRoot],
+      wpId: "WP-TEST-ARTIFACTS-v1",
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.failure_class, "ENVIRONMENT_BLOCKER");
+    assert.equal(result.revalidation_required, false);
+    assert.equal(fs.existsSync(path.join(repoRoot, "crate", "target")), true);
   } finally {
     removeTree(workspaceRoot);
   }

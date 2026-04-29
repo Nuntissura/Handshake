@@ -34,6 +34,7 @@ import {
 import { validateSignedScopeCompatibilityTruth } from "../../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
 import { validateCandidateTargetAgainstSignedScope } from "../../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
 import { buildCloseoutDependencyView } from "../../../../roles_shared/scripts/lib/wp-closeout-dependency-lib.mjs";
+import { classifyFailureRecovery } from "../../../../roles_shared/scripts/lib/failure-class-recovery-lib.mjs";
 import {
   committedEvidenceForCloseout,
   livePrepareWorktreeHealthEvidence,
@@ -922,6 +923,11 @@ export function buildIntegrationValidatorCloseoutCheckResult({
   });
 
   if (!evaluation.ok) {
+    const recovery = classifyFailureRecovery({
+      wpId: normalizedWpId,
+      dependencyView: closeoutDependencyView,
+      issues: evaluation.issues,
+    });
     return integrationValidatorCloseoutFailure("Integration-validator topology or closeout bundle is not ready", [
       `dependency_summary=${closeoutDependencyView.summary}`,
       `verdict_of_record=${closeoutDependencyView.publication.verdict_of_record}`,
@@ -929,6 +935,10 @@ export function buildIntegrationValidatorCloseoutCheckResult({
       `settlement_blockers=${closeoutDependencyView.settlement.blockers.join(",") || "none"}`,
       `product_outcome_blockers=${closeoutDependencyView.product_outcome_blocking_keys.join(",") || "none"}`,
       `governance_debt=${closeoutDependencyView.governance_debt_keys.join(",") || "none"}`,
+      `failure_class=${recovery.failure_class}`,
+      `revalidation_required=${recovery.revalidation_required ? "YES" : "NO"}`,
+      `product_proof_preserved=${recovery.product_proof_preserved ? "YES" : "NO"}`,
+      `next_command=${recovery.next_command}`,
       ...closeoutDependencyView.blocking_keys.map((key) =>
         `blocking_dependency.${key}=${closeoutDependencyView.dependencies[key]?.summary || "UNKNOWN"}`
       ),
