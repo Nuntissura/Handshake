@@ -202,6 +202,9 @@ These are safe starting points for orientation and health checks.
 - `just memory-recall <RESUME|CODER_RESUME|VALIDATOR_RESUME|STEERING|RELAY|REFINEMENT|PACKET_CREATE|COMMAND> [--wp WP-{ID}] [--budget N] [--role ROLE] [--trigger "<command>"] [--script "<script>"]`
   - `read-only`
   - render trigger-aware memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED` plus grouped `TRIGGER PITFALLS`, `ROLE HABITS`, `GENERAL FINDINGS`, and `TRIGGER CONTEXT`
+- `just role-startup-brief <ROLE>`
+  - `read-only`
+  - print `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md` plus the Memory-Manager-curated startup brief for the requested role; startup briefs are operational anti-repeat guidance and do not override protocols, packets, or runtime truth
 - `just memory-stats`
   - `read-only`
   - database size, entry counts by type, schema version, last compaction, oldest active entry

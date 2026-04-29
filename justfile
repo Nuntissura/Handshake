@@ -283,6 +283,7 @@ coder-preflight:
 
 orchestrator-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
+	@just role-startup-brief ORCHESTRATOR
 	@just backup-status
 	@just role-startup-topology-check --audit-permanent
 	@just orchestrator-preflight
@@ -300,6 +301,7 @@ orchestrator-startup:
 
 classic-orchestrator-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md"
+	@just role-startup-brief CLASSIC_ORCHESTRATOR
 	@just backup-status
 	@just role-startup-topology-check --audit-permanent
 	@just orchestrator-preflight
@@ -318,6 +320,7 @@ classic-orchestrator-startup:
 
 validator-startup role:
 	@switch ("{{role}}".Trim().ToUpper()) { "WP_VALIDATOR" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md"; break } "INTEGRATION_VALIDATOR" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md"; break } "VALIDATOR" { just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/validator/VALIDATOR_PROTOCOL.md"; break } default { Write-Error 'Usage: just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR'; exit 1 } }
+	@just role-startup-brief {{role}}
 	@just backup-status
 	@just role-startup-topology-check
 	@just validator-preflight
@@ -333,6 +336,7 @@ validator-startup role:
 
 coder-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/coder/CODER_PROTOCOL.md"
+	@just role-startup-brief CODER
 	@just backup-status
 	@just role-startup-topology-check
 	@just coder-preflight
@@ -574,6 +578,9 @@ memory-intent-snapshot intent *FLAGS:
 memory-recall action *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/memory-recall.mjs" {{action}} --raw-flags "{{FLAGS}}"
 
+role-startup-brief role:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/role-startup-brief.mjs" {{role}}
+
 shell-with-memory role command_family command *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/shell-with-memory.mjs" {{role}} {{command_family}} "{{command}}" --raw-flags "{{FLAGS}}"
 
@@ -625,6 +632,7 @@ memory-manager-rgf-candidate wp-id actor-session summary backup_ref="" correlati
 
 memory-manager-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md"
+	@just role-startup-brief MEMORY_MANAGER
 	@just backup-status
 	@just role-startup-topology-check
 	@just launch-memory-manager --force
@@ -642,7 +650,7 @@ launch-memory-manager-session host="AUTO" model="PRIMARY":
 	@node -e "const ts = new Date().toISOString().replace(/[:.]/g,'').slice(0,15)+'Z'; const {spawnSync}=require('child_process'); spawnSync('node', ['{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs','MEMORY_MANAGER','WP-MEMORY-HYGIENE_'+ts,'{{host}}','{{model}}'], {stdio:'inherit'});"
 
 activation-manager action wp-id="" *FLAGS:
-	@if ("{{action}}" -eq "startup") { just --quiet protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"; just --quiet backup-status; just --quiet role-startup-topology-check; just --quiet gov-check; just --quiet memory-refresh; just --quiet memory-recall RESUME --role ACTIVATION_MANAGER }
+	@if ("{{action}}" -eq "startup") { just --quiet protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md"; just --quiet role-startup-brief ACTIVATION_MANAGER; just --quiet backup-status; just --quiet role-startup-topology-check; just --quiet gov-check; just --quiet memory-refresh; just --quiet memory-recall RESUME --role ACTIVATION_MANAGER }
 	@node "{{GOV_ROOT}}/roles/activation_manager/scripts/activation-manager.mjs" {{action}} {{wp-id}} {{FLAGS}}; if ("{{action}}" -eq "readiness" -and $LASTEXITCODE -eq 2) { exit 0 } else { exit $LASTEXITCODE }
 
 session-stall-scan role wp-id:

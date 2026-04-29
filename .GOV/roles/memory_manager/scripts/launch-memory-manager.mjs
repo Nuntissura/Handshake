@@ -44,6 +44,7 @@ import {
   MECHANICAL_ACTIVITY_THRESHOLD,
   MECHANICAL_DECAY_OPTIONS,
   MECHANICAL_STALENESS_HOURS,
+  buildActionableFailureCandidates,
   isAgeConsolidationCandidate,
   isStaleFileScopeCandidate,
   shouldRunMechanicalPass,
@@ -103,6 +104,7 @@ try {
   const calibration = [];
   const candidates = [];
   const recommendations = [];
+  const actionableFailureCandidateLines = [];
   const sessionRegistry = loadSessionRegistry(REPO_ROOT).registry || { sessions: [] };
   const sessionControlRequests = loadSessionControlRequests(REPO_ROOT).requests || [];
   const sessionControlResults = loadSessionControlResults(REPO_ROOT).results || [];
@@ -532,7 +534,41 @@ try {
     }
   } catch {}
 
-  // 3f. RGF candidates from cross-WP patterns
+  // 3f. Actionable failure candidates for startup brief / tooling repair
+  try {
+    const recentProceduralFailures = db.prepare(
+      `SELECT
+         mi.id,
+         mi.memory_type,
+         mi.topic,
+         mi.summary,
+         mi.created_at,
+         me.content,
+         me.source_artifact,
+         me.source_role
+       FROM memory_index mi
+       JOIN memory_entries me ON me.index_id = mi.id
+       WHERE mi.consolidated = 0
+         AND mi.memory_type = 'procedural'
+         AND mi.created_at > ?
+         AND me.source_artifact IN ('memory-capture', 'fail-capture', 'shell-command')
+       ORDER BY mi.created_at DESC
+       LIMIT 200`
+    ).all(sevenDaysAgo);
+    const actionableCandidates = buildActionableFailureCandidates(recentProceduralFailures);
+    for (const candidate of actionableCandidates) {
+      actionableFailureCandidateLines.push(
+        `- ${candidate.role}/${candidate.action}: count=${candidate.count} | recommended_surface=${candidate.recommended_surface} | pattern=${candidate.pattern} | evidence=${candidate.ids.map((id) => `#${id}`).join(",") || candidate.topics.slice(0, 2).join(" | ")}`,
+      );
+    }
+    if (actionableCandidates.length > 0) {
+      recommendations.push("Repeated procedural failures need Memory Manager intelligent review for startup brief cards or deterministic tooling repair.");
+    }
+    calibration.push(`- Actionable failure candidates (7d): ${actionableCandidates.length}`);
+    actions.push(`Actionable failure candidates: ${actionableCandidates.length} (report-only)`);
+  } catch {}
+
+  // 3g. RGF candidates from cross-WP patterns
   try {
     const crossWpPatterns = db.prepare(
       `SELECT topic, COUNT(DISTINCT wp_id) as wp_count, SUM(access_count) as total_access
@@ -600,6 +636,10 @@ try {
 
   if (wpRepomemCoverageDebtLines.length > 0) {
     reportLines.push("## WP Repomem Coverage Debt", ...wpRepomemCoverageDebtLines, "");
+  }
+
+  if (actionableFailureCandidateLines.length > 0) {
+    reportLines.push("## Actionable Failure Candidates", ...actionableFailureCandidateLines, "");
   }
 
   if (candidates.length > 0) {

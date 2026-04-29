@@ -66,6 +66,7 @@ Rule:
 - `just memory-stats` - health overview (active/consolidated counts, schema version)
 - `just memory-search "<query>"` - FTS5 keyword search
 - `just memory-recall <ACTION> [--wp WP-{ID}]` - visible memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED`
+- `just role-startup-brief <ROLE>` - startup-operational anti-repeat cards from shared and role-specific Memory Manager briefs
 - `just memory-intent-snapshot "<intent>" --wp WP-{ID} --role ROLE` - context+intent capture before complex reasoning (judgment-based, SHOULD)
 - `just memory-debug-snapshot [WP-{ID}]` - inspect pre-task + intent snapshots
 - `just memory-capture <type> "<insight>" --wp WP-{ID}` - mid-session memory capture

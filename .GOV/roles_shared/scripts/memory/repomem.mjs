@@ -119,12 +119,40 @@ function parseFlags(args) {
 
 const MIN_CONTENT_LENGTH = 80;
 const MIN_PRE_CONTENT_LENGTH = 40;
+const WP_BOUND_OPEN_ROLES = new Set(["ACTIVATION_MANAGER", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR", "VALIDATOR"]);
 
-function enforceContentLength(content, command, minLength = MIN_CONTENT_LENGTH) {
+function sanitizeSuggestionText(value = "") {
+  return String(value || "")
+    .replace(/["`]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildRepomemOpenSuggestion(content = "", flags = {}) {
+  const role = String(flags.role || process.env.HANDSHAKE_VALIDATOR_ROLE || "ORCHESTRATOR").trim().toUpperCase() || "ORCHESTRATOR";
+  const wpId = String(flags.wp || "").trim();
+  const intent = sanitizeSuggestionText(content) || "perform the requested governed action";
+  let suggestedContent = `Start governed ${role} session${wpId ? ` for ${wpId}` : ""} to ${intent}; capture decisions, failures, concerns, and the final outcome before closing.`;
+  if (suggestedContent.length < MIN_CONTENT_LENGTH) {
+    suggestedContent += " This purpose is intentionally substantive enough for cross-session memory.";
+  }
+  const wpArg = wpId
+    ? ` --wp ${wpId}`
+    : WP_BOUND_OPEN_ROLES.has(role)
+      ? " --wp WP-ID"
+      : "";
+  return `just repomem open "${suggestedContent}" --role ${role}${wpArg}`;
+}
+
+function enforceContentLength(content, command, minLength = MIN_CONTENT_LENGTH, { flags = {} } = {}) {
   if (!content || content.length < minLength) {
     console.error(`REPOMEM_QUALITY_GATE_FAIL: "${command}" content must be at least ${minLength} characters.`);
     console.error(`  Received ${content ? content.length : 0} characters: "${(content || "").slice(0, 60)}"`);
     console.error(`  Write something substantive — this becomes cross-session memory.`);
+    if (command === "open") {
+      console.error("  Suggested command:");
+      console.error(`    ${buildRepomemOpenSuggestion(content, flags)}`);
+    }
     process.exit(1);
   }
 }
@@ -192,7 +220,7 @@ try {
       console.error('Usage: repomem open "<what this session is about>" [--role ROLE] [--wp WP-ID]');
       process.exit(1);
     }
-    enforceContentLength(content, "open");
+    enforceContentLength(content, "open", MIN_CONTENT_LENGTH, { flags });
     const roleFlagProvided = Object.prototype.hasOwnProperty.call(flags, "role");
     let role = "ORCHESTRATOR";
     let wpId = "";

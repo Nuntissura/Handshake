@@ -198,3 +198,14 @@ Rules:
   - PowerShell and Node can re-encode malformed glyphs into bare `?` regex tokens or parse punctuation as shell syntax, causing the scan itself to fail.
 - Context:
   - Found during role-folder governance audit while normalizing active protocol/check diagnostics after the WP-1 governance refactor tranche.
+
+### TG-018
+- Do:
+  - When sampling long governance output, redirect to a temporary file or add a purpose-built summary flag.
+  - If using PowerShell pipelines, expect the upstream process may see a closed pipe when the downstream command stops early.
+- Don't:
+  - Do not pipe long Node/just startup output into `Select-Object -First` and treat a nonzero upstream exit as command failure.
+- Why:
+  - Truncating a live pipe can close stdout before the producer finishes, which makes a healthy producer look like it failed.
+- Context:
+  - Found while smoke-checking `just role-startup-brief ORCHESTRATOR` output after adding startup briefs.

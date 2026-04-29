@@ -21,6 +21,39 @@
 
 ## Entries
 
+### 2026.04.30.01 / GOV-CHANGE-20260430-01
+
+- STATUS: APPLIED
+- SUMMARY: added Memory-Manager-curated startup briefs and actionable repeated-failure surfacing
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-30 Operator directive: make repomem actionable per role because repeated procedural captures were not preventing repeated mistakes.
+  - Memory capture pattern for repeated under-80-character `repomem open` failures.
+- FOLLOW_ON_ITEMS:
+  - Launch intelligent Memory Manager periodically so repeated procedural-failure candidates become verified startup brief updates or deterministic tooling proposals.
+- FILES_CHANGED:
+  - `.GOV/roles/*/docs/*_STARTUP_BRIEF.md`
+  - `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`
+  - `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`
+  - `.GOV/roles_shared/scripts/memory/role-startup-brief*.mjs`
+  - `.GOV/roles_shared/scripts/memory/repomem.mjs`
+  - `.GOV/roles/memory_manager/scripts/launch-memory-manager.mjs`
+  - `.GOV/roles/memory_manager/scripts/memory-manager-policy.mjs`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `justfile`
+- OUTCOME: Role startup now prints shared and role-specific operational anti-repeat cards, Memory Manager has a narrow startup-brief maintenance authority, mechanical hygiene reports repeated procedural-failure candidates for intelligent review, and `repomem open` quality-gate failures now print a role-aware corrected command.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/role-startup-brief.test.mjs`
+  - `node --test .GOV/roles_shared/tests/repomem-quality-gate-cli.test.mjs`
+  - `node --test .GOV/roles/memory_manager/tests/memory-manager-policy.test.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs .GOV/roles_shared/tests/governance-command-contract.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
 ### 2026.04.29.03 / GOV-CHANGE-20260429-03
 
 - STATUS: APPLIED

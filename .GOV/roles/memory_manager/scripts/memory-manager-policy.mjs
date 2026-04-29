@@ -13,6 +13,7 @@ export const MECHANICAL_DECAY_OPTIONS = Object.freeze({
 // of dead-lettering behind the access-count startup-injection gate.
 export const INTELLIGENT_REVIEW_STALENESS_DAYS = 7;
 export const INTELLIGENT_REVIEW_STALENESS_MS = INTELLIGENT_REVIEW_STALENESS_DAYS * 24 * 60 * 60 * 1000;
+export const ACTIONABLE_FAILURE_THRESHOLD = 2;
 
 export function evaluateIntelligentReviewStaleness({
   lastRunIso = "",
@@ -107,4 +108,85 @@ export function isAgeConsolidationCandidate({
   const cutoffMs = isoToMs(cutoffIso);
   if (!Number.isFinite(createdMs) || !Number.isFinite(cutoffMs)) return false;
   return createdMs < cutoffMs && Number(accessCount) < 2 && Number(importance) < 0.4;
+}
+
+function normalizeText(value = "") {
+  return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+export function inferActionableFailureAction(entry = {}) {
+  const text = normalizeText([
+    entry.topic,
+    entry.summary,
+    entry.content,
+  ].filter(Boolean).join(" "));
+  if (/repomem.*open|session[-_ ]?open|quality gate/.test(text)) return "SESSION_OPEN";
+  if (/powershell|regex|rg |ripgrep|quot|mojibake|unicode/.test(text)) return "TOOLCALLING";
+  if (/path|worktree|topology|junction|handshake_main|wt-gov-kernel/.test(text)) return "PATHING";
+  if (/fail[-_ ]?capture|process\.exit|failwithmemory/.test(text)) return "GOVERNANCE_SCRIPTING";
+  return "PROCEDURAL_FAILURE";
+}
+
+export function normalizeActionableFailurePattern(entry = {}) {
+  const text = normalizeText([
+    entry.topic,
+    entry.summary,
+    entry.content,
+  ].filter(Boolean).join(" "));
+  if (/repomem.*open/.test(text) && /80|quality gate|under/.test(text)) {
+    return "repomem open content below quality gate";
+  }
+  if (/powershell/.test(text) && /regex|mojibake|unicode|glyph/.test(text)) {
+    return "PowerShell malformed Unicode or regex quoting failure";
+  }
+  if (/failwithmemory/.test(text) || /fail[-_ ]?capture/.test(text)) {
+    return "governance fail-capture wiring or signature failure";
+  }
+  return text
+    .replace(/#\d+/g, "#N")
+    .replace(/\bwp-[a-z0-9._-]+/gi, "WP-X")
+    .replace(/\b\d{4}-\d{2}-\d{2}[t ][^\s]+/g, "TIMESTAMP")
+    .slice(0, 120);
+}
+
+export function recommendedSurfaceForActionableFailure({ action = "", pattern = "" } = {}) {
+  const normalizedAction = String(action || "").trim().toUpperCase();
+  const normalizedPattern = normalizeText(pattern);
+  if (normalizedAction === "SESSION_OPEN" && /repomem open/.test(normalizedPattern)) return "BOTH";
+  if (["TOOLCALLING", "PATHING", "GOVERNANCE_SCRIPTING"].includes(normalizedAction)) return "STARTUP_BRIEF";
+  return "STARTUP_BRIEF";
+}
+
+export function buildActionableFailureCandidates(entries = [], { threshold = ACTIONABLE_FAILURE_THRESHOLD } = {}) {
+  const groups = new Map();
+  for (const entry of entries) {
+    const memoryType = String(entry.memory_type || "").toLowerCase();
+    if (memoryType && memoryType !== "procedural") continue;
+    const action = inferActionableFailureAction(entry);
+    const pattern = normalizeActionableFailurePattern(entry);
+    if (!pattern) continue;
+    const role = String(entry.source_role || entry.role || "UNKNOWN").trim().toUpperCase() || "UNKNOWN";
+    const key = `${role}|${action}|${pattern}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        role,
+        action,
+        pattern,
+        count: 0,
+        ids: [],
+        topics: [],
+        recommended_surface: recommendedSurfaceForActionableFailure({ action, pattern }),
+      });
+    }
+    const group = groups.get(key);
+    group.count += 1;
+    if (entry.id !== undefined && entry.id !== null) group.ids.push(entry.id);
+    if (entry.topic) group.topics.push(String(entry.topic));
+  }
+  return [...groups.values()]
+    .filter((group) => group.count >= threshold)
+    .sort((left, right) => {
+      if (right.count !== left.count) return right.count - left.count;
+      return `${left.role}/${left.action}`.localeCompare(`${right.role}/${right.action}`);
+    });
 }

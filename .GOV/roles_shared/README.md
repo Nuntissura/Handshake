@@ -8,6 +8,7 @@ Authoritative folder law lives in `.GOV/codex/Handshake_Codex_v1.4.md` plus the 
 
 - `docs/`
   - active shared guidance such as onboarding, architecture, debug, workflow, and quality-gate docs
+  - includes Memory-Manager-curated startup brief schema/shared cards used by role startup commands
 - `records/`
   - authoritative shared ledgers, registries, and pointers
 - `runtime/`
