@@ -63,15 +63,15 @@ Rule:
 
 ## Governance Memory Quick Commands
 
-- `just memory-stats` â€” health overview (active/consolidated counts, schema version)
-- `just memory-search "<query>"` â€” FTS5 keyword search
-- `just memory-recall <ACTION> [--wp WP-{ID}]` â€” visible memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED`
-- `just memory-intent-snapshot "<intent>" --wp WP-{ID} --role ROLE` â€” context+intent capture before complex reasoning (judgment-based, SHOULD)
-- `just memory-debug-snapshot [WP-{ID}]` â€” inspect pre-task + intent snapshots
-- `just memory-capture <type> "<insight>" --wp WP-{ID}` â€” mid-session memory capture
-- `just memory-flag <id> "<reason>"` â€” suppress bad memory (importance â†’ 0.1)
-- `just memory-patterns` â€” cross-WP pattern synthesis â†’ governance improvement candidates
-- `just memory-refresh --force-compact` â€” force extraction + compaction cycle
+- `just memory-stats` - health overview (active/consolidated counts, schema version)
+- `just memory-search "<query>"` - FTS5 keyword search
+- `just memory-recall <ACTION> [--wp WP-{ID}]` - visible memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED`
+- `just memory-intent-snapshot "<intent>" --wp WP-{ID} --role ROLE` - context+intent capture before complex reasoning (judgment-based, SHOULD)
+- `just memory-debug-snapshot [WP-{ID}]` - inspect pre-task + intent snapshots
+- `just memory-capture <type> "<insight>" --wp WP-{ID}` - mid-session memory capture
+- `just memory-flag <id> "<reason>"` - suppress bad memory (importance -> 0.1)
+- `just memory-patterns` - cross-WP pattern synthesis -> governance improvement candidates
+- `just memory-refresh --force-compact` - force extraction + compaction cycle
 
 - `just repomem open "<session purpose>" --role ROLE --wp WP-{ID}` - required SESSION_OPEN for WP-bound roles before governed mutation
 - `just repomem-gate` - internal/session guard used by mutation recipes to require an open repomem session
@@ -87,7 +87,7 @@ Governance-only (does not scan `src/` or `app/`):
 - `just gov-check`
 - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs` - gov-check subcheck for RGF board row/mirror/sequence drift
 - `just artifact-root-preflight [WP-{ID}]` - environment preflight for canonical external artifact-root posture; `ENVIRONMENT_BLOCKER` does not invalidate product proof
-- `just canonise-gov` â€” inspect every listed governance file and update drift across intent, rules, and instructions; run after any governance change and do not stop at the green summary
+- `just canonise-gov` - inspect every listed governance file and update drift across intent, rules, and instructions; run after any governance change and do not stop at the green summary
 - Governance-only maintenance does not require a Work Packet or USER_SIGNATURE (Codex [CX-111]).
 - Shared repo tooling notes live in `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`; use it as short append-only shared tooling memory, not as a second LAW surface.
 

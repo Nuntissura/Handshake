@@ -14,7 +14,7 @@
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import { runBundledChecks } from "./bundled-check-runner-lib.mjs";
 
-registerFailCaptureHook("session-bundle-check");
+registerFailCaptureHook("session-bundle-check.mjs", { role: "SHARED" });
 
 const failures = runBundledChecks(import.meta.url, [
   "session-policy-check.mjs",
@@ -24,7 +24,7 @@ const failures = runBundledChecks(import.meta.url, [
 ]);
 
 if (failures.length > 0) {
-  failWithMemory(`session-bundle: ${failures.length} sub-check(s) failed`, {
+  failWithMemory("session-bundle-check.mjs", `session-bundle: ${failures.length} sub-check(s) failed`, {
     role: "SHARED",
     details: failures,
   });

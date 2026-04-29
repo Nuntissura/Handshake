@@ -187,3 +187,14 @@ Rules:
   - Default-argument recipes are common for optional WP ids and flags; parser blind spots let live commands drift out of `COMMAND_SURFACE_REFERENCE.md` and `ROLE_WORKFLOW_QUICKREF.md`.
 - Context:
   - Found when `artifact-root-preflight wp-id=""` was undocumented but did not appear in the original canonise warning set.
+
+### TG-017
+- Do:
+  - In PowerShell, scan malformed Unicode/mojibake with char-code predicates or `Select-String` variables instead of embedding broken glyphs directly in regex alternation.
+  - For mechanical cleanup, normalize by known ASCII context or escaped code points, then re-scan with a char-code based script.
+- Don't:
+  - Do not paste malformed glyphs such as mojibake arrows, emoji fragments, or replacement characters into inline `rg`/Node regexes.
+- Why:
+  - PowerShell and Node can re-encode malformed glyphs into bare `?` regex tokens or parse punctuation as shell syntax, causing the scan itself to fail.
+- Context:
+  - Found during role-folder governance audit while normalizing active protocol/check diagnostics after the WP-1 governance refactor tranche.

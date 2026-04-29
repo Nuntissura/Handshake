@@ -14,7 +14,7 @@
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import { runBundledChecks } from "./bundled-check-runner-lib.mjs";
 
-registerFailCaptureHook("governance-structure-bundle-check");
+registerFailCaptureHook("governance-structure-bundle-check.mjs", { role: "SHARED" });
 
 const failures = runBundledChecks(import.meta.url, [
   "protocol-alignment-check.mjs",
@@ -24,7 +24,7 @@ const failures = runBundledChecks(import.meta.url, [
 ]);
 
 if (failures.length > 0) {
-  failWithMemory(`governance-structure-bundle: ${failures.length} sub-check(s) failed`, {
+  failWithMemory("governance-structure-bundle-check.mjs", `governance-structure-bundle: ${failures.length} sub-check(s) failed`, {
     role: "SHARED",
     details: failures,
   });

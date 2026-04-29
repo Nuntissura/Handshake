@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { execSync } from 'child_process';
+import { registerFailCaptureHook } from '../../../roles_shared/scripts/lib/fail-capture-lib.mjs';
 import { GOV_ROOT_REPO_REL, resolveRefinementPath, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import {
   collectBudgetCountedFiles,
@@ -29,6 +30,8 @@ import {
 } from '../../../roles_shared/scripts/lib/baseline-waiver-ledger-lib.mjs';
 import { resolveCommittedCoderHandoffRange } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
 import { resolveGitBaselineMergeBase } from '../scripts/lib/coder-governance-lib.mjs';
+
+registerFailCaptureHook('post-work-check.mjs', { role: 'CODER' });
 
 const usage = () => [
   'Usage: node post-work-check.mjs WP-{ID} [options]',

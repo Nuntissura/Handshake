@@ -21,6 +21,42 @@
 
 ## Entries
 
+### 2026.04.29.03 / GOV-CHANGE-20260429-03
+
+- STATUS: APPLIED
+- SUMMARY: repaired role-folder audit findings in final-lane fail-capture, closeout, and active protocol drift surfaces
+- CHANGE_TYPE: GOVERNANCE_REPAIR
+- DRIVER_EVIDENCE:
+  - 2026-04-29 Operator directive: inspect all role folders by problem density, start with the worst lifecycle phase, then inspect remaining role folders and `roles_shared` last.
+  - `GOV-CHANGE-20260429-01`
+  - `GOV-CHANGE-20260429-02`
+- FOLLOW_ON_ITEMS:
+  - NONE
+- FILES_CHANGED:
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs`
+  - `.GOV/roles/coder/checks/*`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/coder/docs/CODER_RUBRIC.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/checks/*-bundle-check.mjs`
+  - `.GOV/roles_shared/checks/wp-activation-traceability-check.mjs`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`
+  - `.GOV/roles_shared/scripts/lib/fail-capture-lib.mjs`
+  - `.GOV/roles_shared/tests/fail-capture-lib.test.mjs`
+- OUTCOME: The highest-density problem cluster was final-lane closeout and terminal publication. `fail-capture-lib` now captures default `exit(1)` failures, shared bundle checks and `closeout-repair` use role-bound hooks plus the full `failWithMemory` signature, coder and WP Validator live checks register fail-capture hooks, and active role docs/check diagnostics no longer contain the repaired mojibake artifacts.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/fail-capture-lib.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/closeout-repair.test.mjs`
+  - `node --test .GOV/roles/wp_validator/tests/wp-validator-mechanical-track.test.mjs`
+  - `node --test .GOV/roles/coder/tests/coder-command-surface.test.mjs .GOV/roles/coder/tests/coder-doc-command-surface.test.mjs .GOV/roles/coder/tests/coder-entrypoint-path-safety.test.mjs`
+  - `node --test .GOV/roles_shared/tests/check-details-log.test.mjs .GOV/roles_shared/tests/cwd-agnostic-shared-checks.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
 ### 2026.04.29.02 / GOV-CHANGE-20260429-02
 
 - STATUS: APPLIED

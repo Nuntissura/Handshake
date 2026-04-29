@@ -470,20 +470,20 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
 
 ## Spec Authority Rule [CX-598] (HARD INVARIANT)
 
-**The Roadmap (Â§7.6) is ONLY a pointer. The Master Spec Main Body (Â§1-6, Â§9-11) is the SOLE definition of "Done."**
+**The Roadmap (Section 7.6) is ONLY a pointer. The Master Spec Main Body (Section 1-6, Section 9-11) is the SOLE definition of "Done."**
 
 | Principle | Meaning |
 |-----------|---------|
-| **Roadmap = Pointer** | Â§7.6 lists WHAT to build and points to WHERE it's defined |
-| **Main Body = Truth** | Â§1-6, Â§9-11 define HOW it must be built (schemas, invariants, contracts) |
+| **Roadmap = Pointer** | Section 7.6 lists WHAT to build and points to WHERE it's defined |
+| **Main Body = Truth** | Section 1-6, Section 9-11 define HOW it must be built (schemas, invariants, contracts) |
 | **No Debt** | Skipping Main Body requirements poisons the project and builds on rotten foundations |
 | **No Phase Closes** | Until EVERY MUST/SHOULD in the referenced Main Body sections is implemented |
 
 **Coder Obligations:**
 - Every SPEC_ANCHOR in a work packet MUST reference a Main Body section (not Roadmap)
 - If a roadmap item lacks Main Body detail, escalate to Orchestrator for spec enrichment BEFORE coding
-- Roadmap Coverage Matrix (Spec Â§7.6.1; Codex [CX-598A]): if you discover a Main Body section that is missing/unscheduled in the matrix for the work you are doing, STOP and escalate (do not â€œimplement aroundâ€ governance drift)
-- Spec EOF appendices (Spec Â§12; Codex [CX-598B]): if your WP introduces/changes a feature or UI-visible behavior, STOP and escalate unless Spec Enrichment updates the Â§12 UI guidance appendix entry for the feature (UI guidance is required only for new/changed features).
+- Roadmap Coverage Matrix (Spec Section 7.6.1; Codex [CX-598A]): if you discover a Main Body section that is missing/unscheduled in the matrix for the work you are doing, STOP and escalate (do not "implement around" governance drift)
+- Spec EOF appendices (Spec Section 12; Codex [CX-598B]): if your WP introduces/changes a feature or UI-visible behavior, STOP and escalate unless Spec Enrichment updates the Section 12 UI guidance appendix entry for the feature (UI guidance is required only for new/changed features).
 - Surface-level compliance with roadmap bullets is INSUFFICIENT - every line of Main Body text must be implemented
 - Do NOT assume "good enough" - the Main Body is the contract
 
@@ -505,9 +505,9 @@ Handshake uses **Base WP IDs** for stable planning, and **packet revisions** (`-
 
 If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet includes `## LINEAGE_AUDIT (ALL VERSIONS) [CX-580E]`.
 
-**Why:** A `-v{N}` packet is not allowed to â€œforgetâ€ requirements from earlier versions. The Lineage Audit is the Orchestratorâ€™s proof that the Base WPâ€™s Roadmap pointer and Master Spec Main Body requirements are fully translated into the current repo state.
+**Why:** A `-v{N}` packet is not allowed to "forget" requirements from earlier versions. The Lineage Audit is the Orchestrator's proof that the Base WP's Roadmap pointer and Master Spec Main Body requirements are fully translated into the current repo state.
 
-**Blocking rule:** If the Lineage Audit is missing/unclear, STOP and escalate to the Orchestrator. Do NOT proceed to implement â€œjust the v{N} diffâ€ without a complete audit.
+**Blocking rule:** If the Lineage Audit is missing/unclear, STOP and escalate to the Orchestrator. Do NOT proceed to implement "just the v{N} diff" without a complete audit.
 
 **Support Surface:**
 - `agentic/AGENTIC_PROTOCOL.md` is the live add-on when the packet explicitly allows coder sub-agents.
@@ -600,7 +600,7 @@ Task state is managed by the agent currently holding the "ball":
 
 **Coder Mandate:** You are responsible for updating the work packet to `In Progress` (with claim fields) and producing the bootstrap commit. Operator-visible Task Board updates on `main` are handled by the Validator via status-sync commits.
 
-### Board Integrity Check âœ‹
+### Board Integrity Check STOP
 If you are explicitly instructed to update the board, ensure these 5 fixed sections exist (DO NOT delete them even if empty):
 - `## Ready for Dev`
 - `## In Progress`
@@ -639,11 +639,11 @@ You are a **Coder** or **Debugger** agent. Your job is to:
 
 ---
 
-## Pre-Implementation Checklist (BLOCKING âœ‹)
+## Pre-Implementation Checklist (BLOCKING STOP)
 
 Complete ALL steps before writing code. If any step fails, STOP and request help.
 
-### Step 1: Verify work packet Exists âœ‹ STOP
+### Step 1: Verify work packet Exists STOP
 
 **Check that orchestrator provided:**
 - [ ] work packet path mentioned (logical `.GOV/work_packets/WP-{ID}/packet.md`; current physical `.GOV/task_packets/WP-{ID}/packet.md`; legacy `.GOV/task_packets/WP-{ID}.md`)
@@ -667,7 +667,7 @@ Look for TASK_PACKET block in orchestrator's message.
 
 **IF NOT FOUND:**
 ```
-âŒ BLOCKED: No work packet found [CX-620]
+BLOCKED: No work packet found [CX-620]
 
 Orchestrator must create a work packet before I can start.
 
@@ -687,7 +687,7 @@ I cannot write code without a work packet.
 
 ---
 
-### Step 1.5: Scope Adequacy Check [CX-581A-SCOPE] âœ‹ STOP
+### Step 1.5: Scope Adequacy Check [CX-581A-SCOPE] STOP
 
 **Purpose:** Catch scope issues BEFORE implementation. If scope is unclear or incomplete, escalate immediately rather than wasting time on implementation that might conflict.
 
@@ -719,7 +719,7 @@ I cannot write code without a work packet.
 **Option A: Scope is incomplete (blocker)**
 
 ```
-âš ï¸ SCOPE ISSUE: Missing IN_SCOPE_PATHS [CX-581A]
+WARN SCOPE ISSUE: Missing IN_SCOPE_PATHS [CX-581A]
 
 Description:
 I need to modify src/backend/storage/database.rs to implement connection pooling,
@@ -741,7 +741,7 @@ Awaiting Orchestrator decision.
 **Option B: Scope conflict with OUT_OF_SCOPE (blocker)**
 
 ```
-âš ï¸ SCOPE CONFLICT: OUT_OF_SCOPE blocker [CX-581A]
+WARN SCOPE CONFLICT: OUT_OF_SCOPE blocker [CX-581A]
 
 Description:
 To implement job cancellation, I need to modify job state machine.
@@ -766,7 +766,7 @@ Orchestrator: Please advise.
 **Option C: Scope is realistic, but I have questions**
 
 ```
-âœ“ Scope appears clear. Quick confirmation questions:
+OK Scope appears clear. Quick confirmation questions:
 
 1. "Template system" in SCOPE - does this include CSS-in-JS or only React components?
 2. OUT_OF_SCOPE says "don't touch database schema" - what about indices?
@@ -779,7 +779,7 @@ If my understanding is correct, I'll proceed to Step 2. Otherwise, clarify neede
 
 ---
 
-### Step 2: Read work packet âœ‹ STOP
+### Step 2: Read work packet STOP
 
 ```bash
 # Current physical storage compatibility (resolved Work Packet)
@@ -807,7 +807,7 @@ When two Coders work in this repo concurrently, no two in-progress Work Packets 
 
 Escalation template:
 ```
-Æ’?O BLOCKED: File lock conflict [CX-CONC-001]
+BLOCKED: File lock conflict [CX-CONC-001]
 
 My WP: {WP_ID} (I am {Coder-A..Coder-Z})
 Conflicts with: {OTHER_WP_ID} (see work packet CODER_MODEL / CODER_REASONING_STRENGTH)
@@ -848,7 +848,7 @@ For each field, verify it meets the objective criteria:
 
 **IF ANY FIELD IS INCOMPLETE:**
 ```
-âŒ BLOCKED: work packet incomplete [CX-581]
+BLOCKED: work packet incomplete [CX-581]
 
 Missing or incomplete field:
 - {Field name}: {Specific reason}
@@ -861,7 +861,7 @@ I cannot start without a complete packet.
 
 ---
 
-### Step 3: Bootstrap Claim Commit (Status Sync) [CX-217] âœ‹ STOP
+### Step 3: Bootstrap Claim Commit (Status Sync) [CX-217] STOP
 
 Goal: make "work started" visible to the Operator on `main` **without** blocking your local explicit product validation workflow.
 
@@ -887,7 +887,7 @@ node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs WP-{ID}
 
 ---
 
-### Step 4: Bootstrap Protocol [CX-574-577] âœ‹ STOP
+### Step 4: Bootstrap Protocol [CX-574-577] STOP
 
 **Read these files in order:**
 
@@ -896,9 +896,9 @@ node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs WP-{ID}
 3. **work packet** - Your specific work scope
    - Confirm `## SUB_AGENT_DELEGATION` before using any sub-agents (default DISALLOWED; only delegate if `ALLOWED` + `OPERATOR_APPROVAL_EVIDENCE`).
 4. **Task-specific docs:**
-   - FEATURE/REFACTOR â†’ `.GOV/roles_shared/docs/ARCHITECTURE.md`
-   - DEBUG â†’ `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
-   - REVIEW â†’ Architecture + diff
+   - FEATURE/REFACTOR -> `.GOV/roles_shared/docs/ARCHITECTURE.md`
+   - DEBUG -> `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+   - REVIEW -> Architecture + diff
 
 **Read relevant sections:**
 ```bash
@@ -911,7 +911,7 @@ cat .GOV/roles_shared/docs/RUNBOOK_DEBUG.md
 
 ---
 
-### Step 5: Output BOOTSTRAP Block âœ‹ STOP
+### Step 5: Output BOOTSTRAP Block STOP
 
 **Before first code change, output:**
 
@@ -946,19 +946,19 @@ RISK_MAP:
 - "{failure mode}" -> "{subsystem}" (from packet)
 - "{failure mode}" -> "{subsystem}"
 
-âœ… Pre-work verification complete. Starting implementation.
+PASS Pre-work verification complete. Starting implementation.
 ========================================
 ```
 
 **This confirms you:**
-- âœ… Read the work packet
-- âœ… Understand the scope
-- âœ… Know what files to change
-- âœ… Have a validation plan
+- PASS Read the work packet
+- PASS Understand the scope
+- PASS Know what files to change
+- PASS Have a validation plan
 
 ---
 
-### Step 5.5: Output SKELETON Block + Skeleton Checkpoint Commit âœ‹ STOP (`MANUAL_RELAY` only)
+### Step 5.5: Output SKELETON Block + Skeleton Checkpoint Commit STOP (`MANUAL_RELAY` only)
 
 For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, skip this subflow entirely. Do not run the checkpoint/approval helpers; continue within the governed ACP lane after `just phase-check STARTUP ... CODER` passes.
 
@@ -1020,7 +1020,7 @@ After the approval commit exists (`docs: skeleton approved [WP-{ID}]`):
 
 **Follow packet scope strictly:**
 
-âœ… **DO:**
+PASS **DO:**
 - Change files in IN_SCOPE_PATHS only
 - Follow DONE_MEANS criteria
 - Add tests if TEST_PLAN requires it
@@ -1032,7 +1032,7 @@ After the approval commit exists (`docs: skeleton approved [WP-{ID}]`):
 - Keep error taxonomy distinct (stale input/hash mismatch vs true scope violation vs spoof/mismatch) so operator UX and diagnostics are actionable
 - For "apply" style actions, re-check prerequisites at click-time (dirty state, hashes/selection compatibility) and block stale operations
 
-âŒ **DO NOT:**
+FAIL **DO NOT:**
 - Change files outside IN_SCOPE_PATHS
 - Add features not in SCOPE
 - Skip tests in TEST_PLAN
@@ -1055,7 +1055,7 @@ After the approval commit exists (`docs: skeleton approved [WP-{ID}]`):
 
 For each DONE_MEANS criterion in the work packet, ask yourself:
 1. **What code change does this require?**
-   - Example: "API endpoint available at `/jobs/:id/cancel`" â†’ Requires new handler in `jobs.rs`
+   - Example: "API endpoint available at `/jobs/:id/cancel`" -> Requires new handler in `jobs.rs`
 
 2. **Where will I add the code?**
    - Answer with specific file and location
@@ -1076,28 +1076,28 @@ DONE_MEANS VERIFICATION [CX-625A]
 Criterion 1: "API endpoint POST /jobs/:id/cancel exists"
 Code evidence: src/backend/handshake_core/src/api/jobs.rs:156-165
 Test evidence: pnpm test passes (case: "cancel endpoint returns 200")
-âœ… VERIFIABLE
+PASS VERIFIABLE
 
 Criterion 2: "Job status changes to 'cancelled' on successful cancel"
 Code evidence: src/backend/handshake_core/src/jobs.rs:89-92
 Test evidence: pnpm test passes (case: "job status updated after cancel")
-âœ… VERIFIABLE
+PASS VERIFIABLE
 
 Criterion 3: "Cannot cancel already-completed jobs"
 Code evidence: src/backend/handshake_core/src/api/jobs.rs:162-165
 Test evidence: pnpm test passes (case: "cancel completed job returns error")
-âœ… VERIFIABLE
+PASS VERIFIABLE
 ```
 
 **Rule:** Every DONE_MEANS item must have:
 1. Code location (file:lines)
 2. Test command that proves it works
-3. Status: âœ… VERIFIABLE or âŒ NOT YET VERIFIABLE
+3. Status: PASS VERIFIABLE or FAIL NOT YET VERIFIABLE
 
 **If any criterion is NOT verifiable:**
 
 ```
-âŒ CRITERION NOT MET: "Database transaction rollback on error"
+FAIL CRITERION NOT MET: "Database transaction rollback on error"
 
 Code evidence: Not implemented
 Test evidence: No test for rollback scenario
@@ -1138,12 +1138,12 @@ grep -r "reqwest\|http::" src/backend/handshake_core/src/workflows/
 2. Create/use LLM module function instead
 3. Example fix:
    ```rust
-   // âŒ WRONG
+   // FAIL WRONG
    let response = reqwest::Client::new()
      .post("https://api.anthropic.com/...")
      .send().await?;
 
-   // âœ… RIGHT
+   // PASS RIGHT
    let response = crate::llm::call_claude(prompt).await?;
    ```
 
@@ -1174,11 +1174,11 @@ grep -r "reqwest\|ClientBuilder\|\.post(\|\.get(" src/backend/handshake_core/src
 3. Call the module function instead
 4. Example fix:
    ```rust
-   // âŒ WRONG (in jobs/run_export.rs)
+   // FAIL WRONG (in jobs/run_export.rs)
    let bucket = reqwest::Client::new()
      .get(&storage_url).send().await?;
 
-   // âœ… RIGHT
+   // PASS RIGHT
    let bucket = crate::storage::get_bucket(&bucket_name).await?;
    ```
 
@@ -1205,15 +1205,15 @@ grep -r "println!\|eprintln!" src/backend/handshake_core/src/ --include="*.rs"
 1. Identify the `println!` or `eprintln!` call
 2. Replace with logging equivalent:
    ```rust
-   // âŒ WRONG
+   // FAIL WRONG
    println!("Processing job: {}", job_id);
    eprintln!("Error: {}", err);
 
-   // âœ… RIGHT
+   // PASS RIGHT
    log::info!("Processing job: {}", job_id);
    log::error!("Error: {}", err);
 
-   // âœ… ALSO RIGHT (if using event macro)
+   // PASS ALSO RIGHT (if using event macro)
    event!(Level::INFO, job_id = %job_id, "Processing job");
    event!(Level::ERROR, error = %err, "Error occurred");
    ```
@@ -1241,12 +1241,12 @@ grep -r "TODO\|FIXME\|XXX\|HACK" src/backend/handshake_core/src/ --include="*.rs
 1. Identify the TODO without issue reference
 2. Replace with proper format:
    ```rust
-   // âŒ WRONG
+   // FAIL WRONG
    // TODO: implement error handling
    // FIXME: performance issue
    // XXX: hack
 
-   // âœ… RIGHT
+   // PASS RIGHT
    // TODO(HSK-1234): Implement proper error handling for network timeouts
    // TODO(HSK-1235): Optimize query to <100ms
    // TODO(HSK-1236): Replace temporary array with persistent storage
@@ -1281,26 +1281,26 @@ grep -r "TODO\|FIXME\|XXX" src/backend/handshake_core/src/ --include="*.rs" | gr
 **Before starting validation, understand the order. Do NOT skip any step.**
 
 ```
-1ï¸âƒ£ RUN TESTS (Primary Gate)
-   â†“ All TEST_PLAN commands pass?
-   â”œâ”€ YES â†’ Continue to step 2
-   â””â”€ NO â†’ BLOCK: Fix code, re-test until all pass
+1. RUN TESTS (Primary Gate)
+   down All TEST_PLAN commands pass?
+   |- YES -> Continue to step 2
+   `- NO -> BLOCK: Fix code, re-test until all pass
 
-2ï¸âƒ£ RUN HANDOFF PHASE CHECK (Final Gate)
-   â†“ `just phase-check HANDOFF WP-{ID} CODER` passes?
-   â”œâ”€ YES â†’ Commit (if not already), then run `just phase-check HANDOFF WP-{ID} CODER` and paste PASS output + commit SHA
-   â””â”€ NO â†’ BLOCK: Fix validation errors, re-run until PASS
+2. RUN HANDOFF PHASE CHECK (Final Gate)
+   down `just phase-check HANDOFF WP-{ID} CODER` passes?
+   |- YES -> Commit (if not already), then run `just phase-check HANDOFF WP-{ID} CODER` and paste PASS output + commit SHA
+   `- NO -> BLOCK: Fix validation errors, re-run until PASS
 ```
 
 **Rule: Do NOT claim work is done if any gate fails.**
 
 ---
 
-## Post-Implementation Checklist (BLOCKING âœ‹)
+## Post-Implementation Checklist (BLOCKING STOP)
 
 Complete ALL steps before claiming work is done.
 
-### Step 7: Run Validation [CX-623] âœ‹ STOP
+### Step 7: Run Validation [CX-623] STOP
 
 **Pre-Step 7 hygiene (MANDATORY):**
 - Clean Cargo artifacts in the external target dir before self-eval/commit to keep the repo/mirror slim:
@@ -1342,7 +1342,7 @@ Output: [relevant output]
 
 **If tests FAIL:**
 ```
-âŒ Tests failed - work not complete [CX-572]
+FAIL Tests failed - work not complete [CX-572]
 
 Failed: pnpm -C app test
 Error: TypeError in JobsView component
@@ -1365,8 +1365,8 @@ Fix issues, re-run tests, update your evidence in `## EVIDENCE`.
 | Risk Tier | Coverage Target | Rule | Verification |
 |-----------|-----------------|------|--------------|
 | **LOW** | None (optional) | No requirement | Skip this step if RISK_TIER is LOW |
-| **MEDIUM** | â‰¥ 80% | New code must have â‰¥80% coverage | Run `cargo tarpaulin` after tests pass |
-| **HIGH** | â‰¥ 85% + removal check | New code must be â‰¥85% + old code never removed | Run `cargo tarpaulin` + manual inspection |
+| **MEDIUM** | >= 80% | New code must have >=80% coverage | Run `cargo tarpaulin` after tests pass |
+| **HIGH** | >= 85% + removal check | New code must be >=85% + old code never removed | Run `cargo tarpaulin` + manual inspection |
 
 **How to check coverage (MEDIUM/HIGH risk only):**
 
@@ -1379,7 +1379,7 @@ cd src/backend/handshake_core
 cargo tarpaulin --out Html --output-dir coverage/
 
 # Open coverage/tarpaulin-report.html and verify:
-# - Your new code has â‰¥80% (MEDIUM) or â‰¥85% (HIGH)
+# - Your new code has >=80% (MEDIUM) or >=85% (HIGH)
 # - No previously-covered code now has 0% (didn't remove tests)
 ```
 
@@ -1419,7 +1419,7 @@ Approved by: {orchestrator decision or team agreement}
 - Prepare a clean handoff for manual validator review (evidence pointers, DONE_MEANS mapping, and validation results).
 - No automated review is required or expected.
 
-### Step 9: Update work packet (status and evidence only) âœ‹ STOP
+### Step 9: Update work packet (status and evidence only) STOP
 
 - Update WP_STATUS in the work packet to reflect current state (e.g., Completed/Blocked).
 - Append logs/output to `## EVIDENCE` (if output is long, redirect to a log file and record LOG_PATH + LOG_SHA256 + key proof lines).
@@ -1431,7 +1431,7 @@ Approved by: {orchestrator decision or team agreement}
 
 ---
 
-### Step 10: Handoff Phase Validation âœ‹ STOP
+### Step 10: Handoff Phase Validation STOP
 
 **Run deterministic manifest gate (not tests):**
 ```bash
@@ -1451,14 +1451,14 @@ just phase-check HANDOFF WP-{ID} CODER
 
 **MUST see:**
 ```
-âœ… Post-work validation PASSED (deterministic manifest gate; not tests)
+PASS Post-work validation PASSED (deterministic manifest gate; not tests)
 
 You may proceed with commit request.
 ```
 
 **If FAIL:**
 ```
-âŒ Post-work validation FAILED
+FAIL Post-work validation FAILED
 
 Errors:
   1. {Error description}
@@ -1500,18 +1500,18 @@ Fix errors, re-run `just phase-check HANDOFF WP-{ID} CODER`.
 
 **2. Output final summary:**
 ```
-âœ… Work complete; ready for validation [CX-623]
+PASS Work complete; ready for validation [CX-623]
 ========================================
 
 WP_ID: WP-{phase}-{name}
 RISK_TIER: {tier}
 
 VALIDATION SUMMARY:
-- cargo test: âœ… PASS (X tests)
-- pnpm test: âœ… PASS (Y tests)
-- pnpm lint: âœ… PASS
-- cargo clippy: âœ… PASS (0 warnings)
-- gates (handoff phase check): âœ… PASS (deterministic manifest; not tests)
+- cargo test: PASS (X tests)
+- pnpm test: PASS (Y tests)
+- pnpm lint: PASS
+- cargo clippy: PASS (0 warnings)
+- gates (handoff phase check): PASS (deterministic manifest; not tests)
 
 FILES_CHANGED:
 - src/backend/handshake_core/src/api/jobs.rs
@@ -1519,10 +1519,10 @@ FILES_CHANGED:
 - {list all changed files}
 
 DONE_MEANS MET:
-âœ… {Criterion 1 from packet}
-âœ… {Criterion 2 from packet}
-âœ… All tests pass
-âœ… Validation clean
+PASS {Criterion 1 from packet}
+PASS {Criterion 2 from packet}
+PASS All tests pass
+PASS Validation clean
 
 SUGGESTED COMMIT MESSAGE:
 ```
@@ -1535,10 +1535,10 @@ Users can now cancel running jobs via API.
 - Update job status to "cancelled"
 - Add 2 tests for cancel flow
 
-âœ… cargo test: 5 passed
-âœ… pnpm test: 12 passed
+PASS cargo test: 5 passed
+PASS pnpm test: 12 passed
 
-ðŸ¤– Generated with Claude Code
+Generated with Claude Code
 Co-Authored-By: {Your model} <noreply@anthropic.com>
 ```
 
@@ -1550,7 +1550,7 @@ Ready for Validator review.
 
 ## BLOCKING RULES (Non-Negotiable)
 
-### âŒ DO NOT:
+### Do Not:
 1. Start coding without work packet [CX-620]
 2. Skip BOOTSTRAP block output [CX-622]
 3. Change files outside IN_SCOPE_PATHS
@@ -1559,7 +1559,7 @@ Ready for Validator review.
 6. Request commit without `just phase-check HANDOFF ... CODER` passing [CX-623]
 7. Override enforcement checks without user permission [CX-905]
 
-### âœ… DO:
+### Do:
 1. Verify packet exists before coding [CX-620]
 2. Output BOOTSTRAP before first change [CX-622]
 3. Follow scope strictly
@@ -1578,11 +1578,11 @@ Ready for Validator review.
 
 **Response**:
 ```
-âŒ BLOCKED: No work packet [CX-620]
+BLOCKED: No work packet [CX-620]
 
 I searched:
-- resolved Work Packet root (logical `.GOV/work_packets/`; current physical `.GOV/task_packets/`) â†’ No WP-{ID} file found
-- Handoff message â†’ No TASK_PACKET block
+- resolved Work Packet root (logical `.GOV/work_packets/`; current physical `.GOV/task_packets/`) -> No WP-{ID} file found
+- Handoff message -> No TASK_PACKET block
 
 Orchestrator: Please run `just create-task-packet WP-{ID}`
 
@@ -1593,7 +1593,7 @@ I cannot start without a work packet.
 
 **Response**:
 ```
-âŒ Tests failed [CX-572]
+FAIL Tests failed [CX-572]
 
 Command: cargo test --manifest-path src/backend/handshake_core/Cargo.toml
 Result: FAIL (2 failed, 3 passed)
@@ -1609,7 +1609,7 @@ I'm fixing these issues. Work is not complete until tests pass.
 
 **Response**:
 ```
-âŒ Manual review: BLOCK [CX-573A]
+FAIL Manual review: BLOCK [CX-573A]
 
 Blocking issues:
 1. No tests added for new endpoint
@@ -1626,7 +1626,7 @@ Requesting re-review after fixes...
 
 ## Common Mistakes (Avoid These)
 
-### âŒ Mistake 1: Starting without packet
+### FAIL Mistake 1: Starting without packet
 **Wrong:**
 ```
 User wants job cancellation. I'll start coding.
@@ -1636,7 +1636,7 @@ User wants job cancellation. I'll start coding.
 Checking for work packet...
 
 $ ls .GOV/task_packets/WP-*Cancel*.md  # current physical compatibility probe
-â†’ Found: .GOV/task_packets/WP-1-Job-Cancel.md  # resolved Work Packet path
+-> Found: .GOV/task_packets/WP-1-Job-Cancel.md  # resolved Work Packet path
 
 Reading packet...
 [Outputs BOOTSTRAP block]
@@ -1644,7 +1644,7 @@ Reading packet...
 Starting implementation...
 ```
 
-### âŒ Mistake 2: Scope creep
+### FAIL Mistake 2: Scope creep
 **Wrong:**
 ```
 While adding cancel, I'll also refactor the job system
@@ -1659,7 +1659,7 @@ work packet scope:
 I will add ONLY the cancel endpoint per scope.
 ```
 
-### âŒ Mistake 3: Claiming done without validation
+### FAIL Mistake 3: Claiming done without validation
 **Wrong:**
 ```
 Code looks good. Work is done!
@@ -1669,20 +1669,20 @@ Code looks good. Work is done!
 Running validation per TEST_PLAN:
 
 $ cargo test --manifest-path src/backend/handshake_core/Cargo.toml
-âœ… 5 passed
+PASS 5 passed
 
 $ pnpm -C app test
-âœ… 12 passed
+PASS 12 passed
 
-âœ… PASS
+PASS
 
 $ just phase-check HANDOFF WP-1-Job-Cancel CODER
-âœ… Handoff phase check PASSED (deterministic manifest gate; not tests)
+PASS Handoff phase check PASSED (deterministic manifest gate; not tests)
 
 Now work is done.
 ```
 
-### âŒ Mistake 4: No work packet update
+### FAIL Mistake 4: No work packet update
 **Wrong:**
 ```
 [Requests commit without updating work packet status/notes]
@@ -1698,21 +1698,21 @@ Now work is done.
 ## Success Criteria
 
 **You succeeded if:**
-- âœ… work packet verified before coding
-- âœ… BOOTSTRAP block output
-- âœ… Implementation within scope
-- âœ… All TEST_PLAN commands run and pass
-- âœ… Manual review complete (if required)
-- âœ… Validation evidence captured in `## EVIDENCE` (logs/outputs)
-- âœ… `just phase-check HANDOFF WP-{ID} CODER` passes
-- âœ… Commit message references WP-ID
+- PASS work packet verified before coding
+- PASS BOOTSTRAP block output
+- PASS Implementation within scope
+- PASS All TEST_PLAN commands run and pass
+- PASS Manual review complete (if required)
+- PASS Validation evidence captured in `## EVIDENCE` (logs/outputs)
+- PASS `just phase-check HANDOFF WP-{ID} CODER` passes
+- PASS Commit message references WP-ID
 
 **You failed if:**
-- âŒ Started coding without packet
-- âŒ Work rejected at review for missing validation
-- âŒ Tests fail but you claim "done"
-- âŒ Scope creep (changed unrelated code)
-- âŒ Wrote a verdict in `## VALIDATION_REPORTS` (Validator only)
+- FAIL Started coding without packet
+- FAIL Work rejected at review for missing validation
+- FAIL Tests fail but you claim "done"
+- FAIL Scope creep (changed unrelated code)
+- FAIL Wrote a verdict in `## VALIDATION_REPORTS` (Validator only)
 
 ---
 
@@ -1768,18 +1768,18 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 ## Section 0: Your Role
 
 ### What YOU ARE
-- âœ… Software Engineer (implementation specialist)
-- âœ… Precision instrument (follow work packet exactly)
-- âœ… Quality-focused (validation passing = proof of work)
-- âœ… Scope-disciplined (IN_SCOPE_PATHS only)
-- âœ… Escalation-aware (know when to ask for help)
+- PASS Software Engineer (implementation specialist)
+- PASS Precision instrument (follow work packet exactly)
+- PASS Quality-focused (validation passing = proof of work)
+- PASS Scope-disciplined (IN_SCOPE_PATHS only)
+- PASS Escalation-aware (know when to ask for help)
 
 ### What YOU ARE NOT
-- âŒ Architect (scope design is Orchestrator's job)
-- âŒ Validator (review is Validator's job)
-- âŒ Gardener (refactoring unrelated code)
-- âŒ Improviser (inventing requirements)
-- âŒ Sprinter (rushing without validation)
+- FAIL Architect (scope design is Orchestrator's job)
+- FAIL Validator (review is Validator's job)
+- FAIL Gardener (refactoring unrelated code)
+- FAIL Improviser (inventing requirements)
+- FAIL Sprinter (rushing without validation)
 
 ---
 
@@ -1811,7 +1811,7 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 - [ ] FILES_TO_OPEN: 5-15 files (include docs, architecture, implementation)
 - [ ] SEARCH_TERMS: 10-20 patterns (key symbols, errors, features)
 - [ ] RUN_COMMANDS: 3-6 commands (just dev, cargo test, pnpm test)
-- [ ] RISK_MAP: 3-8 failure modes ({failure} â†’ {subsystem})
+- [ ] RISK_MAP: 3-8 failure modes ({failure} -> {subsystem})
 
 **Success:** You've read the codebase, understand the problem, know what can go wrong
 
@@ -1841,7 +1841,7 @@ This section defines what a PERFECT Coder looks like. Use this for self-evaluati
 
 **MUST follow order:**
 1. **RUN TESTS** (all TEST_PLAN commands pass)
-2. **RUN MANUAL REVIEW** (if MEDIUM/HIGH risk â†’ PASS or WARN)
+2. **RUN MANUAL REVIEW** (if MEDIUM/HIGH risk -> PASS or WARN)
 3. **RUN HANDOFF PHASE CHECK** (`just phase-check HANDOFF WP-{ID} CODER` passes)
 
 **MUST verify DONE_MEANS:**
@@ -1930,29 +1930,29 @@ Stop immediately if ANY of these are true:
 
 ### 10 Memory Items (Always Remember)
 
-1. âœ… **Packet is your contract** â€” Follow it exactly
-2. âœ… **Scope boundaries are hard lines** â€” OUT_OF_SCOPE items are forbidden
-3. âœ… **Tests are proof, not optional** â€” No passing tests = no done work
-4. âœ… **DONE_MEANS are literal** â€” Each criterion must be verifiable yes/no
-5. âœ… **Validation evidence is the audit trail** â€” keep logs in `## EVIDENCE` (no verdicts)
-6. âœ… **work packet is source of truth** â€” Not Slack, not conversation, not memory
-7. âœ… **BOOTSTRAP output proves understanding** â€” If you can't explain FILES/SEARCH/RISK, you don't understand
-8. âœ… **Hard invariants are non-negotiable** â€” No exceptions, ever
-9. âœ… **Commit message is forever** â€” Make it clear and detailed
-10. âœ… **Escalate, don't guess** â€” If ambiguous, ask Orchestrator; don't invent
+1. PASS **Packet is your contract** - Follow it exactly
+2. PASS **Scope boundaries are hard lines** - OUT_OF_SCOPE items are forbidden
+3. PASS **Tests are proof, not optional** - No passing tests = no done work
+4. PASS **DONE_MEANS are literal** - Each criterion must be verifiable yes/no
+5. PASS **Validation evidence is the audit trail** - keep logs in `## EVIDENCE` (no verdicts)
+6. PASS **work packet is source of truth** - Not Slack, not conversation, not memory
+7. PASS **BOOTSTRAP output proves understanding** - If you can't explain FILES/SEARCH/RISK, you don't understand
+8. PASS **Hard invariants are non-negotiable** - No exceptions, ever
+9. PASS **Commit message is forever** - Make it clear and detailed
+10. PASS **Escalate, don't guess** - If ambiguous, ask Orchestrator; don't invent
 
 ### 10 Gotchas (Avoid These)
 
-1. âŒ "Packet incomplete, but I'll proceed anyway" â†’ BLOCK and request fix
-2. âŒ "Found a bug in related code, let me fix it" â†’ Document in NOTES, don't implement
-3. âŒ "Tests passing, so I'm done" â†’ Also complete the handoff phase check and request manual review
-4. âŒ "I'll update packet after I commit" â†’ Update BEFORE commit
-5. âŒ "Manual review is required" â†’ BLOCK means fix code and re-review
-6. âŒ "This hard invariant is annoying, I'll skip it" â†’ Non-negotiable; Validator will catch it
-7. âŒ "I can't understand DONE_MEANS, so I'll claim it's done anyway" â†’ BLOCK; ask Orchestrator
-8. âŒ "Scope changed mid-work, I'll handle it" â†’ Escalate; Orchestrator creates v2 packet
-9. âŒ "I'll refactor this unrelated function while I'm here" â†’ No; respect scope
-10. âŒ "Code compiles, so it's ready" â†’ Compilation is foundation; validation is proof
+1. FAIL "Packet incomplete, but I'll proceed anyway" -> BLOCK and request fix
+2. FAIL "Found a bug in related code, let me fix it" -> Document in NOTES, don't implement
+3. FAIL "Tests passing, so I'm done" -> Also complete the handoff phase check and request manual review
+4. FAIL "I'll update packet after I commit" -> Update BEFORE commit
+5. FAIL "Manual review is required" -> BLOCK means fix code and re-review
+6. FAIL "This hard invariant is annoying, I'll skip it" -> Non-negotiable; Validator will catch it
+7. FAIL "I can't understand DONE_MEANS, so I'll claim it's done anyway" -> BLOCK; ask Orchestrator
+8. FAIL "Scope changed mid-work, I'll handle it" -> Escalate; Orchestrator creates v2 packet
+9. FAIL "I'll refactor this unrelated function while I'm here" -> No; respect scope
+10. FAIL "Code compiles, so it's ready" -> Compilation is foundation; validation is proof
 
 ---
 
@@ -1962,60 +1962,60 @@ Stop immediately if ANY of these are true:
 
 ```
 Packet is ambiguous (multiple valid interpretations)
-â”œâ”€ Minor (affects implementation details)
-â”‚  â””â”€ Implement most reasonable interpretation
-â”‚     Document assumption in packet NOTES
-â”‚
-â””â”€ Major (affects scope/completeness)
-   â””â”€ BLOCK and escalate to Orchestrator
+|- Minor (affects implementation details)
+|  `- Implement most reasonable interpretation
+|     Document assumption in packet NOTES
+|
+`- Major (affects scope/completeness)
+   `- BLOCK and escalate to Orchestrator
 ```
 
 ### When You Find a Bug in Related Code (OUT_OF_SCOPE)
 
 ```
 Found bug in related code
-â”œâ”€ Is it blocking my work?
-â”‚  â”œâ”€ YES â†’ Escalate: "Cannot proceed: {issue} blocks my work"
-â”‚  â”‚        Orchestrator decides if in-scope
-â”‚  â”‚
-â”‚  â””â”€ NO â†’ Document in packet NOTES
-â”‚          "Found: {bug}, consider for future task"
-â”‚          Do NOT implement (scope violation)
+|- Is it blocking my work?
+|  |- YES -> Escalate: "Cannot proceed: {issue} blocks my work"
+|  |        Orchestrator decides if in-scope
+|  |
+|  `- NO -> Document in packet NOTES
+|          "Found: {bug}, consider for future task"
+|          Do NOT implement (scope violation)
 ```
 
 ### When Tests Fail
 
 ```
 Test fails (any TEST_PLAN command)
-â”œâ”€ Is it a NEW test I added?
-â”‚  â”œâ”€ YES â†’ Fix code until test passes
-â”‚  â”‚        Re-run TEST_PLAN until all pass
-â”‚  â”‚
-â”‚  â””â”€ NO (existing test breaks)
-â”‚         Either:
-â”‚         A) Fix my code to not break it
-â”‚         B) Escalate: "My changes break {test}. Scope issue?"
+|- Is it a NEW test I added?
+|  |- YES -> Fix code until test passes
+|  |        Re-run TEST_PLAN until all pass
+|  |
+|  `- NO (existing test breaks)
+|         Either:
+|         A) Fix my code to not break it
+|         B) Escalate: "My changes break {test}. Scope issue?"
 ```
 
 ### When Manual Review Blocks
 
 ```
 Manual review returns BLOCK
-â”œâ”€ Understand the issue
-â”‚  â”œâ”€ Code quality problem (hollow impl, missing tests)
-â”‚  â”‚  â””â”€ Fix code and request re-review
-â”‚  â”‚
-â”‚  â””â”€ Architectural problem (violates hard invariants)
-â”‚     â””â”€ Escalate: "Manual review blocks: {issue}. Needs architectural fix?"
+|- Understand the issue
+|  |- Code quality problem (hollow impl, missing tests)
+|  |  `- Fix code and request re-review
+|  |
+|  `- Architectural problem (violates hard invariants)
+|     `- Escalate: "Manual review blocks: {issue}. Needs architectural fix?"
 ```
 
 ### When You're Stuck
 
 ```
 Work is stuck (can't proceed without help)
-â”œâ”€ Is packet incomplete? â†’ BLOCK and escalate to Orchestrator
-â”œâ”€ Is scope impossible? â†’ BLOCK and escalate to Orchestrator
-â””â”€ Is this a technical blocker? â†’ Debug for 30 min
+|- Is packet incomplete? -> BLOCK and escalate to Orchestrator
+|- Is scope impossible? -> BLOCK and escalate to Orchestrator
+`- Is this a technical blocker? -> Debug for 30 min
    If unsolved, escalate with: error output, what you tried, current state
 ```
 
@@ -2025,22 +2025,22 @@ Work is stuck (can't proceed without help)
 
 ### You Succeeded If:
 
-- âœ… work packet verified before coding
-- âœ… BOOTSTRAP block output (all 4 fields)
-- âœ… Implementation within IN_SCOPE_PATHS
-- âœ… All TEST_PLAN commands pass
-- âœ… Manual review completed (PASS)
-- âœ… `just phase-check HANDOFF ... CODER` passes
-- âœ… Validation evidence captured in `## EVIDENCE`
-- âœ… Commit message references WP-ID and includes validation
+- PASS work packet verified before coding
+- PASS BOOTSTRAP block output (all 4 fields)
+- PASS Implementation within IN_SCOPE_PATHS
+- PASS All TEST_PLAN commands pass
+- PASS Manual review completed (PASS)
+- PASS `just phase-check HANDOFF ... CODER` passes
+- PASS Validation evidence captured in `## EVIDENCE`
+- PASS Commit message references WP-ID and includes validation
 
 ### You Failed If:
 
-- âŒ Started coding without packet
-- âŒ Tests fail but you claim "done"
-- âŒ Scope creep (changed unrelated code)
-- âŒ Manual review required but you skipped it
-- âŒ work packet not updated before commit
+- FAIL Started coding without packet
+- FAIL Tests fail but you claim "done"
+- FAIL Scope creep (changed unrelated code)
+- FAIL Manual review required but you skipped it
+- FAIL work packet not updated before commit
 
 ---
 
@@ -2109,7 +2109,7 @@ Work is stuck (can't proceed without help)
 ### How to Escalate (Template)
 
 ```
-âš ï¸ ESCALATION: {WP-ID} [CX-620]
+WARN ESCALATION: {WP-ID} [CX-620]
 
 **Issue:** {One-sentence description}
 

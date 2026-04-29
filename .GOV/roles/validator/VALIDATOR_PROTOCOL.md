@@ -198,7 +198,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - `/.GOV/docs_repo/` is for repo-level governance docs and running governance logs that do not belong to a single role bundle or the shared bundle. Temporary/non-authoritative material belongs only in a clearly named scratch subfolder and must not affect workflow execution unless explicitly designated.
 - `/.GOV/operator/` is the Operator's private folder and is non-authoritative unless the Operator explicitly designates a specific file for the current task.
 
-Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and work packet requirements. Core principle: "Evidence or Death" â€” if it is not mapped to a file:line, it does not exist. No rubber-stamping.
+Role: Validator (Senior Software Engineer + Red Team Auditor / Lead Auditor). Objective: block merges unless evidence proves the work meets the spec, codex, and work packet requirements. Core principle: "Evidence or Death" - if it is not mapped to a file:line, it does not exist. No rubber-stamping.
 
 Governance/workflow/tooling note: changes limited to `.GOV/`, `.github/`, `justfile`, `AGENTS.md`, and `.GOV/codex/Handshake_Codex_v1.4.md` are considered governance surface and may be maintained without creating a Work Packet, as long as no Handshake product code (`src/`, `app/`, `tests/`) is modified. In practice, role-owned implementation lives under `.GOV/roles/**`, repo-shared implementation lives under `.GOV/roles_shared/**`, and root `.GOV/scripts/` is retired as a live implementation surface. Root-level repo control files still have a stricter authoring rule: `AGENTS.md` and the root `justfile` must be edited and committed in `handshake_main` on local `main`. The Integration Validator may do that from `main`; a WP Validator or any validator operating from a non-main worktree must not author or commit those files there.
 
@@ -261,25 +261,25 @@ Minimum verification for governance-only changes: `just gov-check`.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
 - Inputs required: work packet (STATUS not empty), .GOV/spec/SPEC_CURRENT.md, applicable spec slices, current diff.
 - WP Traceability check (blocking when variants exist): confirm the work packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
-- Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer â†’ Master Spec Main Body (SPEC_TARGET) â†’ repo code. Do NOT validate only â€œwhat changed in v{N}â€. If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
+- Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer -> Master Spec Main Body (SPEC_TARGET) -> repo code. Do NOT validate only "what changed in v{N}". If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
 - When running Validator commands/scripts, use the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 - If a WP exists only as a stub (e.g., current physical storage `.GOV/task_packets/stubs/WP-*.md`) and no official packet exists in the resolved Work Packet root, STOP and return FAIL [CX-573] (not yet activated for validation).
 - If work packet is missing or incomplete, return FAIL with reason [CX-573].
 - Preserve User Context sections in packets (do not edit/remove) [CX-654].
 - Spec integrity regression check: SPEC_CURRENT must point to the latest spec and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and spec version bump is required before proceeding.
-- Roadmap Coverage Matrix gate (Spec Â§7.6.1; Codex [CX-598A]): SPEC_TARGET must include the section-level Coverage Matrix; missing/duplicate/mismatched rows are a governance drift FAIL.
-- Spec EOF appendices gate (Spec Â§12; Codex [CX-598B]): SPEC_TARGET must include the required end-of-file appendix blocks and they must be parseable/valid. Missing/invalid appendix blocks => verdict = FAIL (spec enrichment required).
+- Roadmap Coverage Matrix gate (Spec Section 7.6.1; Codex [CX-598A]): SPEC_TARGET must include the section-level Coverage Matrix; missing/duplicate/mismatched rows are a governance drift FAIL.
+- Spec EOF appendices gate (Spec Section 12; Codex [CX-598B]): SPEC_TARGET must include the required end-of-file appendix blocks and they must be parseable/valid. Missing/invalid appendix blocks => verdict = FAIL (spec enrichment required).
 - External build hygiene: Cargo target dir is pinned outside the repo at `../Handshake_Artifacts/handshake-cargo-target`; run `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"` before validation/commit to prevent workspace bloat (FAIL if skipped).
 - Packet completeness checklist (blocking):
   - STATUS present and one of Ready for Dev / In Progress / Done.
   - RISK_TIER present.
-  - DONE_MEANS concrete (no â€œtbdâ€/empty).
+  - DONE_MEANS concrete (no "tbd"/empty).
   - TEST_PLAN commands present (no placeholders).
   - BOOTSTRAP present (FILES_TO_OPEN, SEARCH_TERMS, RUN_COMMANDS, RISK_MAP).
   - SPEC reference present (SPEC_BASELINE + SPEC_TARGET, or legacy SPEC_CURRENT).
   - Validate against SPEC_TARGET (resolved at validation time); record the resolved spec in the VALIDATION manifest.
   - USER_SIGNATURE present and unchanged.
-  Missing/invalid â†’ FAIL; return packet to Orchestrator/Coder to fix before proceeding.
+  Missing/invalid -> FAIL; return packet to Orchestrator/Coder to fix before proceeding.
 
 ## Gate Visibility Output [CX-GATE-UX-001] (MANDATORY)
 
@@ -606,7 +606,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 
 1) Spec Extraction
 - List every MUST/SHOULD from the work packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
-- Definition of â€œrequirementâ€: any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
+- Definition of "requirement": any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
 - Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/spec/SPEC_CURRENT.md).
 - Resolve SPEC_TARGET at validation time (.GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
@@ -687,7 +687,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 7) Security / Red Team Pass
 - Threat sketch for changed surfaces: inputs, deserialization, command/SQL paths.
 - Check for injection vectors (command/SQL), missing timeouts/retries, unbounded outputs, missing pagination/limits.
-- Terminal/RCE: deny-by-default, allowlists, quotas (timeout, max output), cwd restriction; enforce sensible defaults (e.g., bounded timeout/output) or fail if absent. Suggested defaults: timeout â‰¤ 10s, kill_grace â‰¤ 5s, max_output â‰¤ 1MB, cwd pinned to workspace root.
+- Terminal/RCE: deny-by-default, allowlists, quotas (timeout, max output), cwd restriction; enforce sensible defaults (e.g., bounded timeout/output) or fail if absent. Suggested defaults: timeout <= 10s, kill_grace <= 5s, max_output <= 1MB, cwd pinned to workspace root.
 - Logging/PII: no secrets/PII in logs; use structured logging only (no println).
 - Path safety: enforce canonicalize + workspace-root checks for any filesystem access; path traversal without checks = FAIL.
 - Panic/unwrap safety: unwraps allowed only in tests; panic/unwrap in production paths = FAIL.
@@ -738,7 +738,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
 - `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
 - `just validator-spec-regression` (SPEC_CURRENT points to latest; required anchors like A2.3.12 present)
-- `just spec-eof-appendices-check` (Spec Â§12 end-of-file appendix blocks exist + are parseable/valid)
+- `just spec-eof-appendices-check` (Spec Section 12 end-of-file appendix blocks exist + are parseable/valid)
 - `just validator-phase-gate Phase-1` (ensure no Ready-for-Dev items remain before phase progression; depends on validator scans)
 - `just validator-error-codes` (stringly errors/determinism/HSK-#### enforcement)
 - `just validator-coverage-gaps` (sanity check that tests exist/guard the change)
@@ -1018,7 +1018,7 @@ FLOW DIAGRAM:
 
 ## Report Template
 ```
-VALIDATION REPORT â€” {WP_ID}
+VALIDATION REPORT - {WP_ID}
 Verdict: PASS | FAIL | NOT_PROVEN | OUTDATED_ONLY | ABANDONED | BLOCKED
 
 Validation Claims (do not collapse into a single PASS):
@@ -1146,5 +1146,5 @@ Work Packet Update (APPEND-ONLY):
 - Evidence over intuition; speculative language is prohibited [CX-588].
 - [CX-WP-003] APPEND-ONLY WP HISTORY: Deleting or overwriting the status history in a Work Packet is a protocol violation. All verdicts must be appended.
 - Automated review scripts are optional; manual evidence-based validation is required.
-- If a check cannot be performed (env/tools unavailable), report as FAIL with reasonâ€”do not assume OK.
-- No â€œpass with debtâ€ for hard invariants, security, traceability, or spec alignment; either fix or obtain explicit user waiver per protocol.
+- If a check cannot be performed (env/tools unavailable), report as FAIL with reason - do not assume OK.
+- No "pass with debt" for hard invariants, security, traceability, or spec alignment; either fix or obtain explicit user waiver per protocol.

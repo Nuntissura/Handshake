@@ -55,7 +55,7 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 2. Write the refinement/spec-enrichment file, run the real refinement/spec checks on that file, and hand back only the file path plus one bounded summary block. File-first handoff is the default. Do not paste the full refinement or spec-enrichment text into chat by default.
 3. The summary block MUST be compact and review-oriented. Include at least:
    - `REFINEMENT_PATH`
-- `REFINEMENT_CHECK` (`PASS` or `FAIL`) from the real refinement checker, not from placeholder-scan or ASCII-only sanity checks
+   - `REFINEMENT_CHECK` (`PASS` or `FAIL`) from the real refinement checker, not from placeholder-scan or ASCII-only sanity checks
    - `ENRICHMENT_NEEDED` (`YES` or `NO`)
    - `NEW_STUBS_CREATED_OR_UPDATED`
    - `NEW_FEATURES_OR_CAPABILITIES_DISCOVERED`
@@ -84,19 +84,19 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 - If a candidate script shares the same owner, inputs, primary readiness artifact, and usual invocation path as the canonical activation path, extend that path instead of adding a sibling.
 - Keep separate public activation scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live activation surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is retired or intentionally kept distinct.
-- **Fail capture wiring (HARD — CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
+- **Fail capture wiring (HARD - CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
 
-## Conversation Memory (MUST — `just repomem`)
+## Conversation Memory (MUST - `just repomem`)
 
 Cross-session conversational memory captures what was refined, decided, and flagged during activation. All Activation Manager sessions MUST use repomem:
 - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this activation session covers>" --role ACTIVATION_MANAGER --wp WP-{ID}`. Blocked from mutation commands until done.
 - **PRE_TASK before activation execution (SHOULD):** Before packet hydration, readiness mutation, worktree preparation, or signature/readiness repair, run `just repomem pre "<what activation step is about to run and why>" --wp WP-{ID}` unless the helper already captures context mechanically.
-- **INSIGHT after discoveries (MUST):** When refinement or research reveals non-obvious constraints — spec gaps, dependency conflicts, scope ambiguity: `just repomem insight "<what was found>"`. Min 80 chars.
-- **DECISION when making activation choices (MUST):** Every meaningful activation choice — MT breakdown, scope boundaries, build order, spec enrichment strategy, signature/readiness repair direction — MUST be paired with `just repomem decision "<what was chosen and why>" --wp WP-{ID}` before the choice is committed to the packet or runtime. Min 80 chars. A session that closes after activation work without a paired DECISION (or other durable checkpoint) is governance debt and emits `REPOMEM_GOVERNANCE_DEBT` at close.
+- **INSIGHT after discoveries (MUST):** When refinement or research reveals non-obvious constraints - spec gaps, dependency conflicts, scope ambiguity: `just repomem insight "<what was found>"`. Min 80 chars.
+- **DECISION when making activation choices (MUST):** Every meaningful activation choice - MT breakdown, scope boundaries, build order, spec enrichment strategy, signature/readiness repair direction - MUST be paired with `just repomem decision "<what was chosen and why>" --wp WP-{ID}` before the choice is committed to the packet or runtime. Min 80 chars. A session that closes after activation work without a paired DECISION (or other durable checkpoint) is governance debt and emits `REPOMEM_GOVERNANCE_DEBT` at close.
 - **ERROR when activation tooling breaks (SHOULD):** When phase-check fails, signature validation breaks, or readiness checks return unexpected results: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
-- **ABANDON when dropping a refinement path (SHOULD):** When a refinement direction is abandoned — scope too large, dependencies missing, operator redirect: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
+- **ABANDON when dropping a refinement path (SHOULD):** When a refinement direction is abandoned - scope too large, dependencies missing, operator redirect: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
 - **CONCERN when flagging activation risks (SHOULD):** When you spot a scope risk, missing prerequisite, or spec ambiguity that may affect downstream work: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars.
-- **ESCALATION when needing operator/orchestrator input (SHOULD):** When activation decisions exceed your authority — scope questions, spec conflicts, build-order ambiguity: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
+- **ESCALATION when needing operator/orchestrator input (SHOULD):** When activation decisions exceed your authority - scope questions, spec conflicts, build-order ambiguity: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
 - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what was activated, outcome>" --decisions "<key choices made>"`.
 - WP-bound repomem checkpoints are appended to the Workflow Dossier as a terminal diagnostic snapshot during closeout; import debt is diagnostic only, so do not maintain a parallel live dossier narrative for the same findings.
 

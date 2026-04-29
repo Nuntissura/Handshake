@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { isInvokedAsMain } from "../../../roles_shared/scripts/lib/invocation-path-lib.mjs";
+import { registerFailCaptureHook } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 import {
   normalizeRepoPath,
   matchesAnyScopeEntry,
@@ -32,6 +33,8 @@ import { applyMechanicalTrackRouteAnchorProjection } from "../../../roles_shared
 import { appendWpReceipt } from "../../../roles_shared/scripts/wp/wp-receipt-append.mjs";
 import { appendWpNotification } from "../../../roles_shared/scripts/wp/wp-notification-append.mjs";
 import { writeJsonFile } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
+
+registerFailCaptureHook("wp-validator-mechanical-track.mjs", { role: "WP_VALIDATOR" });
 
 const RESULT_SCHEMA_VERSION = "mechanical_track_result@1";
 const RECEIPT_KIND = "MT_VERDICT_MECHANICAL";

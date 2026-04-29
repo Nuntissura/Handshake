@@ -38,7 +38,7 @@ import {
 } from "../../../roles_shared/scripts/lib/signed-scope-surface-lib.mjs";
 import { validateClauseReportConsistency } from "../../../roles_shared/scripts/lib/packet-closure-monitor-lib.mjs";
 
-registerFailCaptureHook("closeout-repair");
+registerFailCaptureHook("closeout-repair.mjs", { role: "ORCHESTRATOR" });
 
 const CLOSEOUT_FAILURE_MESSAGES = {
   BASELINE_SHA_MISMATCH: "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA mismatch",
@@ -518,6 +518,7 @@ export function runCloseoutRepairCli(argv = process.argv.slice(2)) {
 
   if (!wpId) {
     failWithMemory(
+      "closeout-repair.mjs",
       `Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/closeout-repair.mjs <WP_ID> [--dry-run] [--debug]`,
       { role: "ORCHESTRATOR" },
     );
@@ -558,7 +559,7 @@ export function runCloseoutRepairCli(argv = process.argv.slice(2)) {
   const diagnostics = buildCloseoutRepairDiagnostics(wpId);
   const { failures } = diagnostics;
   if (failures.length === 0) {
-    failWithMemory("closeout-repair could not classify failures from direct closeout truth", {
+    failWithMemory("closeout-repair.mjs", "closeout-repair could not classify failures from direct closeout truth", {
       wpId,
       role: "ORCHESTRATOR",
       details: [
