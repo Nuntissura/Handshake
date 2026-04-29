@@ -364,6 +364,10 @@
 - `RGF-242` through `RGF-249`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426_HARNESS_RGFS.md` and companion addendum `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426_HARNESS_ADDENDUM.md`.
 - `RGF-250`: see the operator's 2026-04-26 MT-008 heuristic-loop review note captured in this session; implement as an additive harness-pattern follow-on using the existing retry/stall budget surfaces plus the harness brief's strategy-escalation direction.
 
+## Implementation Guide (2026-04-29)
+
+- Proposed WP-1 postmortem tranche `RGF-255` through `RGF-264`: see `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_GUIDE_20260429_WP1_POSTMORTEM.md`. These items are proposal-ready but are not accepted board rows until the next implementer verifies the ID range is still free and adds rows to the Post-Refactor Follow-On Board.
+
 ## Refactor Sequence (Historical)
 
 1. `RGR-01`
