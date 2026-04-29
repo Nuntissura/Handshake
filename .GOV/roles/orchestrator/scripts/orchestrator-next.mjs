@@ -33,7 +33,10 @@ import {
 import { EXECUTION_OWNER_RANGE_HELP } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { buildPhaseCheckCommand } from "../../../roles_shared/checks/phase-check-lib.mjs";
 import { loadSessionRegistry, registrySessionSummary } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
-import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
+import {
+  evaluateOrchestratorCostGovernor,
+  evaluateWpTokenBudget,
+} from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
 import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveOrchestratorGatesPath, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import { evaluatePacketRuntimeProjectionDrift } from "../../../roles_shared/scripts/lib/packet-runtime-projection-lib.mjs";
@@ -616,6 +619,7 @@ function main() {
       `Current worktree: ${displayPathForOperator(gitContext.topLevel)}`,
     ]);
     printNextCommands([
+      `just wp-truth-bundle ${wpId}`,
       `cat ${packetPath}`,
       `just orchestrator-next WP-{ACTIVE_ID}`,
     ]);
@@ -774,6 +778,7 @@ function main() {
   );
   const tokenLedger = readWpTokenUsageLedger(repoRoot, wpId).ledger;
   const tokenBudget = evaluateWpTokenBudget(tokenLedger);
+  const costGovernor = evaluateOrchestratorCostGovernor({ ledger: tokenLedger, tokenBudget });
   const tokenPolicyContinuation = tokenPolicyContinuationDecision({
     workflowLane,
     boardStatus,
@@ -798,6 +803,7 @@ function main() {
     printState("A red alert reports stale Orchestrator/control-plane progress; inspect health before governed mutation and use visible rescue if the rescue threshold was reached.");
     printFindings([
       ...tokenPolicyContinuation.findings,
+      `Cost governor: ${costGovernor.state} - ${costGovernor.summary}`,
       `Alert summary: ${downtimeRedAlert.summary || "<missing>"}`,
       `Alert correlation: ${downtimeRedAlert.correlation_id || "<missing>"}`,
       `Packet: ${packetPath}`,
@@ -819,6 +825,7 @@ function main() {
     printState("Relay watchdog has suppressed duplicate automatic re-wakes for the current failure class; route repair must change the lane state before another governed wake is attempted.");
     printFindings([
       ...tokenPolicyContinuation.findings,
+      `Cost governor: ${costGovernor.state} - ${costGovernor.summary}`,
       ...relayEscalationPolicyFindings(packetRuntimeState?.runtimeStatus?.relay_escalation_policy),
       `Repair summary: ${relayWatchdogRepair.summary || "<missing>"}`,
       `Repair correlation: ${relayWatchdogRepair.correlation_id || "<missing>"}`,
@@ -841,6 +848,7 @@ function main() {
     printState("ACP/session health alert is blocking reliable governed dispatch until session-control health is repaired.");
     printFindings([
       ...tokenPolicyContinuation.findings,
+      `Cost governor: ${costGovernor.state} - ${costGovernor.summary}`,
       `Alert summary: ${acpHealthAlert.summary || "<missing>"}`,
       `Alert correlation: ${acpHealthAlert.correlation_id || "<missing>"}`,
       `Packet: ${packetPath}`,
@@ -876,6 +884,7 @@ function main() {
     printState("Packet/runtime closeout projection drift is blocking further delegation until status truth is reconciled.");
     printFindings([
       ...tokenPolicyContinuation.findings,
+      `Cost governor: ${costGovernor.state} - ${costGovernor.summary}`,
       ...(packetRuntimeState.drift.owner_summary ? [packetRuntimeState.drift.owner_summary] : []),
       ...(driftOwners.length > 0 ? [`Repair order: ${driftOwners.join(" -> ")}`] : []),
       `Packet: ${packetPath}`,
@@ -909,6 +918,7 @@ function main() {
     printState(`Queue-backed governed follow-up is already accepted for ${queueWaitState.target}; wait for broker drain instead of resending another steer.`);
     printFindings([
       ...tokenPolicyContinuation.findings,
+      `Cost governor: ${costGovernor.state} - ${costGovernor.summary}`,
       `Target: ${queueWaitState.target}`,
       `Queue depth: ${queueWaitState.queueCount}`,
       `Queued command: ${queueWaitState.queuedRequest?.command_kind || "<unknown>"}`,
@@ -936,6 +946,7 @@ function main() {
     );
     printFindings([
       ...tokenPolicyContinuation.findings,
+      `Cost governor: ${costGovernor.state} - ${costGovernor.summary}`,
       ...(assessmentState?.findings || []),
       ...relayEscalationPolicyFindings(packetRuntimeState?.runtimeStatus?.relay_escalation_policy),
       `Target: ${relayEscalation.target_role}${relayEscalation.target_session ? `:${relayEscalation.target_session}` : ""}`,
@@ -961,6 +972,7 @@ function main() {
     printState("Work packet exists, but the assigned WP worktree is stale and coder handoff is blocked.");
     printFindings([
       ...tokenPolicyContinuation.findings,
+      `Cost governor: ${costGovernor.state} - ${costGovernor.summary}`,
       `Assigned worktree: ${syncState.worktreeDisplay || "<missing>"}`,
       `Expected branch: ${syncState.expectedBranch || "<missing>"}`,
       ...(syncState.actualBranch ? [`Actual branch: ${syncState.actualBranch}`] : []),
@@ -980,6 +992,7 @@ function main() {
     printState(assessmentState.state);
     printFindings([
       ...tokenPolicyContinuation.findings,
+      `Cost governor: ${costGovernor.state} - ${costGovernor.summary}`,
       `Resume source: ${inferred.source}`,
       `Current branch: ${gitContext.branch || "<unknown>"}`,
       `Current worktree: ${displayPathForOperator(gitContext.topLevel)}`,
@@ -1021,6 +1034,7 @@ function main() {
 
   printFindings([
     ...tokenPolicyContinuation.findings,
+    `Cost governor: ${costGovernor.state} - ${costGovernor.summary}`,
     `Resume source: ${inferred.source}`,
     `Current branch: ${gitContext.branch || "<unknown>"}`,
     `Current worktree: ${displayPathForOperator(gitContext.topLevel)}`,
@@ -1046,6 +1060,9 @@ function main() {
   ]);
   const runtimeRelayCommand = relayCommandForRuntime(wpId, workflowLane, packetRuntimeState?.runtimeStatus || {});
   const cmds = [`cat ${packetPath}`];
+  if (["WARN", "RECOVERY_MODE", "OVERRIDE_REQUIRED"].includes(String(costGovernor?.state || "").trim().toUpperCase())) {
+    cmds.unshift(`just wp-truth-bundle ${wpId}`);
+  }
   if (runtimeRelayCommand) {
     cmds.push(runtimeRelayCommand);
     cmds.push(`just session-registry-status ${wpId}`);

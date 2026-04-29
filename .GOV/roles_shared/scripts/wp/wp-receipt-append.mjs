@@ -18,6 +18,7 @@ import {
   validateRuntimeStatus,
   WORKFLOW_INVALIDITY_RECEIPT_KIND,
 } from "../lib/wp-communications-lib.mjs";
+import { deriveNextActionFromReceipt } from "../lib/receipt-auto-progression-lib.mjs";
 import {
   classifyWpChangedPath,
   deriveWpScopeContract,
@@ -61,7 +62,7 @@ import {
   summarizeHeuristicRiskContract,
 } from "../lib/heuristic-risk-lib.mjs";
 import { renderInterRoleVerbReceipt, validateInterRoleVerbBody } from "../lib/inter-role-verb-lib.mjs";
-import { appendJsonlLine, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
+import { appendJsonlLine, loadSessionRegistry, registrySessionSummary, withFileLockSync, writeJsonFile } from "../session/session-registry-lib.mjs";
 import { tryAppendSessionEvent } from "../session/predecessor-lookup-lib.mjs";
 import { appendWpNotification, appendWpNotificationCore } from "./wp-notification-append.mjs";
 import { reconcileWpCommunicationTruth, syncProjectedTaskBoardTruth } from "./ensure-wp-communications.mjs";
@@ -1165,19 +1166,34 @@ function syncReviewGovernanceTruth({
 }
 
 function attemptOrchestratorAutoRelay({ wpId, context, entry, autoRoute }) {
-  if (String(context?.workflowLane || "").trim().toUpperCase() !== "ORCHESTRATOR_MANAGED") {
-    return { status: "NOT_APPLICABLE", reason: "NON_ORCHESTRATOR_MANAGED" };
+  const registrySessions = (() => {
+    try {
+      const { registry } = loadSessionRegistry(REPO_ROOT);
+      return (registry.sessions || []).map((session) => registrySessionSummary(session));
+    } catch {
+      return [];
+    }
+  })();
+  const decision = deriveNextActionFromReceipt({
+    wpId,
+    workflowLane: context?.workflowLane,
+    receiptEntry: entry,
+    autoRoute,
+    registrySessions,
+  });
+  if (decision.action !== "DISPATCH") {
+    return decision.status === "NOT_APPLICABLE"
+      ? { status: "NOT_APPLICABLE", reason: decision.reason, next_actor: decision.next_actor }
+      : {
+          status: "SKIPPED",
+          reason: decision.reason,
+          next_actor: decision.next_actor,
+          queue_depth: decision.queue_depth,
+          runtime_state: decision.runtime_state,
+          session_key: decision.session_key,
+        };
   }
-  if (!autoRoute?.applicable) {
-    return { status: "NOT_APPLICABLE", reason: "NO_AUTO_ROUTE" };
-  }
-  const nextActor = normalizeRole(autoRoute.nextExpectedActor);
-  if (!ACTIVE_AUTO_RELAY_ROLE_VALUES.has(nextActor)) {
-    return { status: "NOT_APPLICABLE", reason: "NO_GOVERNED_NEXT_ACTOR" };
-  }
-  if (nextActor === normalizeRole(entry?.actor_role)) {
-    return { status: "SKIPPED", reason: "NEXT_ACTOR_IS_CURRENT_ACTOR", next_actor: nextActor };
-  }
+  const nextActor = normalizeRole(decision.next_actor);
 
   try {
     const output = execFileSync(process.execPath, [ORCHESTRATOR_STEER_SCRIPT_PATH, wpId, "PRIMARY"], {

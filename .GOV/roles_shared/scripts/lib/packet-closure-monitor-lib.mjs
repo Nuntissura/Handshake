@@ -208,6 +208,142 @@ function validatorAllowsCoderProof(validatorStatus) {
   return ['CONFIRMED', 'NOT_APPLICABLE'].includes(String(validatorStatus || '').trim().toUpperCase());
 }
 
+function normalizeAcceptanceStatus(rawValue) {
+  const normalized = String(rawValue || '').trim().toUpperCase();
+  if (!normalized) return 'PENDING';
+  if (normalized === 'PROVEN') return 'PROVED';
+  if (normalized === 'PASS') return 'CONFIRMED';
+  if (normalized === 'N/A') return 'NOT_APPLICABLE';
+  return normalized;
+}
+
+function hasConcreteEvidence(value) {
+  const normalized = String(value || '').trim();
+  return Boolean(normalized && !/^(NONE|N\/A|TBD|PENDING|<.*>)$/i.test(normalized));
+}
+
+function hasConcreteReason(value) {
+  const normalized = String(value || '').trim();
+  return Boolean(normalized && !/^(NONE|N\/A|TBD|PENDING|<.*>)$/i.test(normalized));
+}
+
+function buildLegacyAcceptanceRowsFromClauses(clauseRows = []) {
+  return (clauseRows || []).map((row, index) => {
+    const validatorConfirmed = ['CONFIRMED', 'NOT_APPLICABLE'].includes(String(row.validatorStatus || '').trim().toUpperCase());
+    const coderProved = ['PROVED', 'NOT_APPLICABLE'].includes(String(row.coderStatus || '').trim().toUpperCase());
+    const notApplicable = row.validatorStatus === 'NOT_APPLICABLE' || row.coderStatus === 'NOT_APPLICABLE';
+    const status = notApplicable
+      ? 'NOT_APPLICABLE'
+      : validatorConfirmed && coderProved
+        ? 'CONFIRMED'
+        : 'PENDING';
+    return {
+      id: `LEGACY-CLAUSE-${String(index + 1).padStart(3, '0')}`,
+      requirement: row.clause,
+      required: 'YES',
+      evidenceKind: 'CLAUSE_CLOSURE_MATRIX',
+      owner: 'VALIDATOR',
+      status,
+      evidence: row.tests || row.examples || row.codeSurfaces || 'CLAUSE_CLOSURE_MATRIX',
+      reason: notApplicable ? 'Inherited NOT_APPLICABLE from CLAUSE_CLOSURE_MATRIX' : '',
+      raw: row.clause,
+      legacyDerived: true,
+    };
+  });
+}
+
+export function validatePacketAcceptanceMatrix(packetText, {
+  requirePassClosure = false,
+  legacyClauseRows = null,
+} = {}) {
+  const errors = [];
+  const section = extractSectionAfterHeading(packetText, 'PACKET_ACCEPTANCE_MATRIX');
+  if (!section) {
+    return {
+      errors,
+      parsed: {
+        explicit: false,
+        rows: Array.isArray(legacyClauseRows) ? buildLegacyAcceptanceRowsFromClauses(legacyClauseRows) : [],
+      },
+    };
+  }
+
+  const rawRows = extractListItemsAfterLabel(section, 'ACCEPTANCE_ROWS')
+    .filter((item) => !/^NONE$/i.test(item || ''));
+  const rows = [];
+  const seenIds = new Set();
+  for (const item of rawRows) {
+    const record = parsePipeRecord(item);
+    const id = String(record.ID || '').trim();
+    const requirement = String(record.REQUIREMENT || '').trim();
+    const required = String(record.REQUIRED || 'YES').trim().toUpperCase();
+    const evidenceKind = String(record.EVIDENCE_KIND || '').trim().toUpperCase();
+    const owner = String(record.OWNER || '').trim().toUpperCase();
+    const status = normalizeAcceptanceStatus(record.STATUS);
+    const evidence = String(record.EVIDENCE || '').trim();
+    const reason = String(record.REASON || '').trim();
+
+    if (!id || !requirement || !/^(YES|NO)$/.test(required) || !evidenceKind || !owner) {
+      errors.push(`PACKET_ACCEPTANCE_MATRIX malformed row: ${item}`);
+      continue;
+    }
+    if (seenIds.has(id)) {
+      errors.push(`PACKET_ACCEPTANCE_MATRIX duplicate ID: ${id}`);
+      continue;
+    }
+    seenIds.add(id);
+    if (!/^(PROVED|CONFIRMED|NOT_APPLICABLE|PENDING|STEER|BLOCKED)$/.test(status)) {
+      errors.push(`PACKET_ACCEPTANCE_MATRIX row has invalid STATUS=${status}: ${id}`);
+      continue;
+    }
+    if (status === 'NOT_APPLICABLE' && !hasConcreteReason(reason)) {
+      errors.push(`PACKET_ACCEPTANCE_MATRIX NOT_APPLICABLE row requires REASON: ${id}`);
+      continue;
+    }
+    if (['PROVED', 'CONFIRMED'].includes(status) && !hasConcreteEvidence(evidence)) {
+      errors.push(`PACKET_ACCEPTANCE_MATRIX ${status} row requires concrete EVIDENCE: ${id}`);
+      continue;
+    }
+
+    rows.push({
+      id,
+      requirement,
+      required,
+      evidenceKind,
+      owner,
+      status,
+      evidence,
+      reason,
+      raw: item,
+      legacyDerived: false,
+    });
+  }
+
+  if (rawRows.length === 0) {
+    errors.push('PACKET_ACCEPTANCE_MATRIX must list one or more ACCEPTANCE_ROWS when the section is present');
+  }
+
+  if (requirePassClosure) {
+    for (const row of rows) {
+      if (row.required !== 'YES') continue;
+      if (!['PROVED', 'CONFIRMED', 'NOT_APPLICABLE'].includes(row.status)) {
+        errors.push(`SPEC pass closure requires required PACKET_ACCEPTANCE_MATRIX row ${row.id} to be PROVED, CONFIRMED, or NOT_APPLICABLE`);
+      }
+      if (['STEER', 'BLOCKED'].includes(row.status)) {
+        errors.push(`SPEC pass closure cannot leave PACKET_ACCEPTANCE_MATRIX row ${row.id} at STATUS=${row.status}`);
+      }
+    }
+  }
+
+  return {
+    errors,
+    parsed: {
+      explicit: true,
+      rows,
+    },
+  };
+}
+
 export function normalizeActiveClauseClosureMatrix(packetText) {
   const clauseSection = extractSectionAfterHeading(packetText, 'CLAUSE_CLOSURE_MATRIX');
   if (!clauseSection) {
@@ -376,6 +512,11 @@ export function validatePacketClosureMonitoring(packetText, {
     errors.push('CLAUSE_CLOSURE_MATRIX must list one or more concrete CLAUSE_ROWS');
   }
 
+  const acceptanceMatrixValidation = validatePacketAcceptanceMatrix(packetText, {
+    legacyClauseRows: clauseRows,
+  });
+  for (const error of acceptanceMatrixValidation.errors) errors.push(error);
+
   const openSpecDebt = parseSingleField(specDebtSection, 'OPEN_SPEC_DEBT').toUpperCase();
   const blockingSpecDebt = parseSingleField(specDebtSection, 'BLOCKING_SPEC_DEBT').toUpperCase();
   const debtIdsRaw = parseSingleField(specDebtSection, 'DEBT_IDS');
@@ -461,6 +602,14 @@ export function validatePacketClosureMonitoring(packetText, {
   }
 
   if (requirePassConsistency) {
+    const passAcceptanceMatrix = validatePacketAcceptanceMatrix(packetText, {
+      requirePassClosure: true,
+      legacyClauseRows: clauseRows,
+    });
+    for (const error of passAcceptanceMatrix.errors) {
+      if (!errors.includes(error)) errors.push(error);
+    }
+
     if (clauseRows.some((row) => !['PROVED', 'NOT_APPLICABLE'].includes(row.coderStatus))) {
       errors.push('SPEC pass closure requires every CLAUSE_CLOSURE_MATRIX row to use CODER_STATUS=PROVED or NOT_APPLICABLE');
     }
@@ -484,6 +633,7 @@ export function validatePacketClosureMonitoring(packetText, {
       hotFiles,
       requiredTripwireTests,
       postMergeSpotcheckRequired,
+      acceptanceMatrix: acceptanceMatrixValidation.parsed,
     },
   };
 }

@@ -62,6 +62,7 @@ const checkSteps = [
   ["computed-policy-gate-check", "./computed-policy-gate-check.mjs"],
   ["historical-smoketest-lineage-check", "./historical-smoketest-lineage-check.mjs"],
   ["build-order-check", "./build-order-check.mjs"],
+  ["repo-governance-board-check", "./repo-governance-board-check.mjs"],
   ["wp-comm-bundle-check", "./wp-comm-bundle-check.mjs"],
   ["session-bundle-check", "./session-bundle-check.mjs"],
   ["cache-stability-check", "./cache-stability-check.mjs"],

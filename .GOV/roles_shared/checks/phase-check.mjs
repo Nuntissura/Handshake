@@ -14,6 +14,7 @@ import { ensureWpCommunications } from "../scripts/wp/ensure-wp-communications.m
 import { captureCheckFindings } from "../scripts/memory/memory-capture-from-check.mjs";
 import { buildActiveLaneBrief, formatActiveLaneBrief } from "../scripts/session/active-lane-brief-lib.mjs";
 import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
+import { finalizeTerminalSessions } from "../scripts/session/terminal-verdict-session-finalizer-lib.mjs";
 import {
   defaultCoderWorktreeDir,
   defaultIntegrationValidatorWorktreeDir,
@@ -446,10 +447,13 @@ export function resolveTerminalReadySessionsForWp({
   registrySessions = [],
 } = {}) {
   const normalizedWpId = String(wpId || "").trim();
-  return (Array.isArray(registrySessions) ? registrySessions : [])
-    .filter((session) => String(session?.wp_id || "").trim() === normalizedWpId)
-    .filter((session) => TERMINAL_READY_SESSION_CLOSE_ROLE_VALUES.has(String(session?.role || "").trim().toUpperCase()))
-    .filter((session) => String(session?.runtime_state || "").trim().toUpperCase() === "READY");
+  const finalizer = finalizeTerminalSessions({
+    wpId: normalizedWpId,
+    terminalRecord: { wp_id: normalizedWpId, verdict: "PASS" },
+    sessions: (Array.isArray(registrySessions) ? registrySessions : [])
+      .filter((session) => TERMINAL_READY_SESSION_CLOSE_ROLE_VALUES.has(String(session?.role || "").trim().toUpperCase())),
+  });
+  return finalizer.staleReadySessions;
 }
 
 function runTerminalReadySessionCloseStep({ wpId = "" } = {}) {
@@ -466,16 +470,22 @@ function runTerminalReadySessionCloseStep({ wpId = "" } = {}) {
     wpId: normalizedWpId,
     registrySessions,
   });
+  const finalizer = finalizeTerminalSessions({
+    wpId: normalizedWpId,
+    terminalRecord: { wp_id: normalizedWpId, verdict: "PASS" },
+    sessions: registrySessions,
+  });
   if (sessionsToClose.length === 0) {
     return {
       ok: true,
-      output: "[TERMINAL_SESSION_CLEANUP] PASS: no stale READY governed sessions remain.\n",
+      output: `[TERMINAL_SESSION_CLEANUP] PASS: ${finalizer.summary}.\n`,
     };
   }
 
   const closeScript = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/session-control-command.mjs`);
   const lines = [
     `[TERMINAL_SESSION_CLEANUP] ${sessionsToClose.length} terminal READY session(s) will be closed.`,
+    `[TERMINAL_SESSION_CLEANUP] finalizer_status=${finalizer.status}`,
   ];
 
   for (const session of sessionsToClose) {
@@ -677,8 +687,28 @@ function runWorkflowDossierCloseoutStep({
     outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] metrics=SKIP (extraction error)`);
   }
 
+  const judgmentResult = spawnSync(process.execPath, [
+    workflowDossierScript,
+    "judgment-check",
+    normalizedWpId,
+    "--terminal-verdict",
+    ok ? "PASS" : "FAIL",
+    "--file",
+    existingDossierPath,
+  ], {
+    cwd: phaseCheckCwd,
+    encoding: "utf8",
+    env: process.env,
+  });
+  const judgmentResultOk = judgmentResult.status === 0;
+  outputLines.push(`[WORKFLOW_DOSSIER_CLOSEOUT] judgment=${judgmentResultOk ? "PASS" : "DIAGNOSTIC_DEBT"}`);
+  const renderedJudgmentOutput = ensureTrailingNewline(`${judgmentResult.stdout || ""}${judgmentResult.stderr || ""}`.trimEnd());
+  for (const line of renderedJudgmentOutput.trimEnd().split("\n")) {
+    if (line.trim()) outputLines.push(`  ${line}`);
+  }
+
   return {
-    ok: true,
+    ok: judgmentResultOk,
     output: `${outputLines.join("\n")}\n`,
   };
 }

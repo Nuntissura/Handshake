@@ -88,6 +88,9 @@ workflow-dossier-inject-repomem wp-id *FLAGS:
 workflow-dossier-autofill-costs wp-id *FLAGS:
 	node "{{GOV_ROOT}}/roles_shared/scripts/audit/workflow-dossier.mjs" autofill-costs {{wp-id}} {{FLAGS}}
 
+workflow-dossier-judgment-check wp-id *FLAGS:
+	node "{{GOV_ROOT}}/roles_shared/scripts/audit/workflow-dossier.mjs" judgment-check {{wp-id}} {{FLAGS}}
+
 launch-coder-session wp-id host="AUTO" model="PRIMARY" *FLAGS:
 	node "{{GOV_ROOT}}/roles/orchestrator/scripts/launch-cli-session.mjs" CODER {{wp-id}} {{host}} {{model}} {{FLAGS}}
 
@@ -187,6 +190,15 @@ role-self-prime role wp-id *FLAGS:
 
 wp-token-usage wp-id:
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-token-usage-report.mjs" {{wp-id}}
+
+wp-truth-bundle wp-id *FLAGS:
+	node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-truth-bundle.mjs" {{wp-id}} {{FLAGS}}
+
+artifact-root-preflight wp-id="" *FLAGS:
+	node "{{GOV_ROOT}}/roles_shared/checks/artifact-root-preflight-check.mjs" {{wp-id}} {{FLAGS}}
+
+wp-waiver-record wp-id *FLAGS:
+	node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-waiver-record.mjs" {{wp-id}} {{FLAGS}}
 
 wp-timeline wp-id json="":
 	node "{{GOV_ROOT}}/roles_shared/scripts/session/wp-timeline-report.mjs" {{wp-id}} {{json}}

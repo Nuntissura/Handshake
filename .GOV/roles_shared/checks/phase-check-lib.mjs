@@ -141,6 +141,7 @@ export function buildPhaseCheckPlan({
       throw new Error("VERDICT phase role must be WP_VALIDATOR or INTEGRATION_VALIDATOR");
     }
     return [
+      step("artifact-root-preflight-check", "roles_shared/checks/artifact-root-preflight-check.mjs", [normalizedWpId]),
       step("active-lane-brief", "roles_shared/scripts/session/active-lane-brief-lib.mjs", [verdictRole, normalizedWpId, "--json"]),
       step("validator-packet-complete", "roles/validator/scripts/lib/validator-governance-lib.mjs", [normalizedWpId]),
       step("wp-communication-health-check", "roles_shared/checks/wp-communication-health-check.mjs", [normalizedWpId, "VERDICT"]),

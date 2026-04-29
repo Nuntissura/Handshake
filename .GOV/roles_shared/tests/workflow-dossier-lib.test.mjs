@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   appendWorkflowDossierEntry,
+  evaluateWorkflowDossierJudgment,
   formatRepomemDossierEntry,
   formatRepomemDossierSnapshotEntry,
   selectRepomemEntriesForWorkflowDossier,
@@ -276,4 +277,63 @@ test("formatRepomemDossierSnapshotEntry keeps full terminal memory payload", () 
   assert.match(formatted.line, /\[INTEGRATION_VALIDATOR\] \[REPOMEM_DECISION\] \[GOVERNANCE_MEMORY\]/);
   assert.match(formatted.line, /wp=WP-TEST-DOSSIER-v1 id=42/);
   assert(formatted.line.includes(longContent));
+});
+
+test("evaluateWorkflowDossierJudgment fails terminal dossiers with unresolved placeholders", () => {
+  const content = [
+    "# Dossier",
+    "",
+    "## LIVE_EXECUTION_LOG",
+    "- MT-001 not started",
+    "",
+    "## LIVE_IDLE_LEDGER",
+    "- NONE yet",
+    "",
+    "## LIVE_GOVERNANCE_CHANGE_LOG",
+    "",
+    "## LIVE_CONCERNS_LOG",
+    "",
+    "## LIVE_FINDINGS_LOG",
+    "- <SET_AT_CLOSEOUT>",
+    "",
+  ].join("\n");
+
+  const result = evaluateWorkflowDossierJudgment({
+    content,
+    terminalTruth: { terminal: true, verdict: "PASS" },
+  });
+
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some((diagnostic) => diagnostic.code === "PLACEHOLDER_NONE_YET"));
+  assert(result.diagnostics.some((diagnostic) => diagnostic.code === "TERMINAL_MT_NOT_STARTED"));
+});
+
+test("evaluateWorkflowDossierJudgment passes filled terminal live dossier sections", () => {
+  const content = [
+    "# Dossier",
+    "",
+    "## LIVE_EXECUTION_LOG",
+    "- Closeout run completed.",
+    "",
+    "## LIVE_IDLE_LEDGER",
+    "- Idle metrics imported.",
+    "",
+    "## LIVE_GOVERNANCE_CHANGE_LOG",
+    "- No governance changes.",
+    "",
+    "## LIVE_CONCERNS_LOG",
+    "- No open concerns.",
+    "",
+    "## LIVE_FINDINGS_LOG",
+    "- Final finding recorded.",
+    "",
+  ].join("\n");
+
+  const result = evaluateWorkflowDossierJudgment({
+    content,
+    terminalTruth: { terminal: true, verdict: "PASS" },
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.diagnostics, []);
 });

@@ -21,6 +21,61 @@
 
 ## Entries
 
+### 2026.04.29.01 / GOV-CHANGE-20260429-01
+
+- STATUS: APPLIED
+- SUMMARY: completed WP-1 postmortem governance refactor tranche RGF-255 through RGF-264
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-29 Operator directive: implement formal board rows `RGF-255` through `RGF-264` from `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_GUIDE_20260429_WP1_POSTMORTEM.md`.
+  - `AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW`
+  - `SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE`
+  - `RGF-255`, `RGF-256`, `RGF-257`, `RGF-258`, `RGF-259`, `RGF-260`, `RGF-261`, `RGF-262`, `RGF-263`, `RGF-264`
+- FOLLOW_ON_ITEMS:
+  - `RGF-233` through `RGF-241` (closeout canonicalization tranche remains queued)
+- FILES_CHANGED:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/coder/checks/post-work-check.mjs`
+  - `.GOV/roles_shared/checks/artifact-root-preflight-check.mjs`
+  - `.GOV/roles_shared/checks/gov-check.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles_shared/scripts/lib/baseline-waiver-ledger-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/failure-class-recovery-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-closure-monitor-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/receipt-auto-progression-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/repo-governance-board-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/terminal-verdict-session-finalizer-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-token-budget-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-truth-bundle.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-waiver-record.mjs`
+  - `.GOV/roles_shared/tests/*`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_GUIDE_20260429_WP1_POSTMORTEM.md`
+  - `justfile`
+- OUTCOME: The tranche adds compact WP truth bundles, an executable packet acceptance matrix, receipt-driven next-action duplicate suppression, Orchestrator cost recovery gates, failure-class closeout routing, terminal session finalization, dossier judgment checks, artifact-root preflight, bounded baseline compile waivers, and a repo governance board integrity check wired into `gov-check`.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/repo-governance-board-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-truth-bundle-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-token-budget-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/packet-closure-monitor-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/receipt-auto-progression-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/failure-class-recovery-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/terminal-verdict-session-finalizer-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/workflow-dossier-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/artifact-hygiene-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/baseline-waiver-ledger-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/phase-check.test.mjs`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `just gov-check`
+
 ### 2026.04.27.09 / GOV-CHANGE-20260427-09
 
 - STATUS: APPLIED

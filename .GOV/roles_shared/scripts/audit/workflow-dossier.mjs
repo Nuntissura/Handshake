@@ -39,6 +39,7 @@ import {
 } from "../session/session-telemetry-lib.mjs";
 import {
   appendWorkflowDossierEntry,
+  evaluateWorkflowDossierJudgment,
   formatRepomemDossierEntry,
   formatRepomemDossierSnapshotEntry,
   formatWorkflowDossierTimestamp,
@@ -224,7 +225,7 @@ function latestCheckDetailDossierLines({ wpId = "", limit = 5 } = {}) {
 }
 
 function usage() {
-  fail("Usage: node .GOV/roles_shared/scripts/audit/workflow-dossier.mjs <init|note|sync|inject-repomem|autofill-costs> WP-{ID} [args]");
+  fail("Usage: node .GOV/roles_shared/scripts/audit/workflow-dossier.mjs <init|note|sync|inject-repomem|autofill-costs|judgment-check> WP-{ID} [args]");
 }
 
 function parseArgs(argv) {
@@ -250,6 +251,7 @@ function parseArgs(argv) {
     surface: "",
     file: "",
     time: "",
+    terminalVerdict: "",
   };
 
   if (command === "note") {
@@ -291,8 +293,12 @@ function parseArgs(argv) {
       options.surface = String(args.shift() || "").trim();
       continue;
     }
-    if ((command === "note" || command === "sync" || command === "inject-repomem" || command === "autofill-costs") && token === "--file") {
+    if ((command === "note" || command === "sync" || command === "inject-repomem" || command === "autofill-costs" || command === "judgment-check") && token === "--file") {
       options.file = String(args.shift() || "").trim();
+      continue;
+    }
+    if (command === "judgment-check" && token === "--terminal-verdict") {
+      options.terminalVerdict = String(args.shift() || "").trim().toUpperCase();
       continue;
     }
     // RGF-186: scope classification for findings/concerns
@@ -307,7 +313,7 @@ function parseArgs(argv) {
     fail(`Unknown argument: ${token}`);
   }
 
-  if (!["init", "note", "sync", "inject-repomem", "autofill-costs"].includes(command)) {
+  if (!["init", "note", "sync", "inject-repomem", "autofill-costs", "judgment-check"].includes(command)) {
     usage();
   }
   if (command === "init" && options.output && options.autoOutput) {
@@ -947,6 +953,28 @@ function runAutofillCosts(rootDir, options) {
   }
 }
 
+function runJudgmentCheck(rootDir, options) {
+  const dossierPath = resolveWorkflowDossierPath(rootDir, { wpId: options.wpId, filePath: options.file });
+  if (!dossierPath) {
+    fail(`No workflow dossier found for ${options.wpId}. Pass --file for closed dossiers.`);
+  }
+  const content = fs.readFileSync(dossierPath, "utf8");
+  const terminalVerdict = String(options.terminalVerdict || "").trim().toUpperCase();
+  const result = evaluateWorkflowDossierJudgment({
+    content,
+    terminalTruth: {
+      terminal: Boolean(terminalVerdict),
+      verdict: terminalVerdict || "UNKNOWN",
+    },
+  });
+  console.log(`[workflow-dossier judgment-check] ${result.ok ? "PASS" : "FAIL"}: ${result.summary}`);
+  console.log(`[workflow-dossier judgment-check] file=${normalizePath(path.relative(rootDir, dossierPath)) || normalizePath(dossierPath)}`);
+  for (const diagnostic of result.diagnostics || []) {
+    console.log(`  - ${diagnostic.code}: line=${diagnostic.line} ${diagnostic.message}${diagnostic.evidence ? ` | ${diagnostic.evidence}` : ""}`);
+  }
+  if (!result.ok) process.exit(1);
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const rootDir = repoRoot();
@@ -964,6 +992,10 @@ function main() {
   }
   if (options.command === "autofill-costs") {
     runAutofillCosts(rootDir, options);
+    return;
+  }
+  if (options.command === "judgment-check") {
+    runJudgmentCheck(rootDir, options);
     return;
   }
   runSync(rootDir, options);

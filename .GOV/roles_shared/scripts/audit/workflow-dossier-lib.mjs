@@ -370,3 +370,93 @@ export function appendWorkflowDossierEntry({
   fs.writeFileSync(dossierPath, `${lines.join("\n").replace(/\n*$/, "\n")}`, "utf8");
   return dossierPath;
 }
+
+function lineNumberForOffset(text = "", offset = 0) {
+  return String(text || "").slice(0, Math.max(0, offset)).split(/\r?\n/).length;
+}
+
+function collectPatternDiagnostics(content = "", patterns = []) {
+  const diagnostics = [];
+  for (const { pattern, code, message } of patterns) {
+    for (const match of String(content || "").matchAll(pattern)) {
+      diagnostics.push({
+        code,
+        line: lineNumberForOffset(content, match.index || 0),
+        message,
+        evidence: String(match[0] || "").trim().slice(0, 160),
+      });
+    }
+  }
+  return diagnostics;
+}
+
+export function evaluateWorkflowDossierJudgment({
+  content = "",
+  terminalTruth = {},
+} = {}) {
+  const terminal = Boolean(terminalTruth?.terminal)
+    || /^(PASS|FAIL|OUTDATED_ONLY|ABANDONED|SUPERSEDED)$/i.test(String(terminalTruth?.verdict || "").trim());
+  const verdict = String(terminalTruth?.verdict || (terminal ? "TERMINAL" : "UNKNOWN")).trim().toUpperCase();
+  const diagnostics = [];
+
+  if (!terminal) {
+    return {
+      ok: true,
+      terminal: false,
+      verdict,
+      diagnostics,
+      summary: "Workflow Dossier judgment check skipped because terminal verdict truth is not asserted.",
+    };
+  }
+
+  diagnostics.push(...collectPatternDiagnostics(content, [
+    {
+      pattern: /\bNONE\s+yet\b/gi,
+      code: "PLACEHOLDER_NONE_YET",
+      message: "Closeout judgment still contains NONE yet placeholder text.",
+    },
+    {
+      pattern: /<SET_AT_CLOSEOUT>|<[^>\n]{1,80}>/gi,
+      code: "PLACEHOLDER_ANGLE_BRACKET",
+      message: "Closeout judgment still contains angle-bracket placeholder text.",
+    },
+    {
+      pattern: /\b(?:TBD|TODO|PENDING JUDGMENT)\b/gi,
+      code: "PLACEHOLDER_TBD",
+      message: "Closeout judgment still contains unresolved TBD/TODO/PENDING text.",
+    },
+    {
+      pattern: /\bMT-[A-Za-z0-9._-]+\s+not\s+started\b/gi,
+      code: "TERMINAL_MT_NOT_STARTED",
+      message: "Terminal dossier cannot claim a microtask was not started after final verdict.",
+    },
+  ]));
+
+  const rubricHeadings = [
+    /##\s+LIVE_EXECUTION_LOG\b/i,
+    /##\s+LIVE_IDLE_LEDGER\b/i,
+    /##\s+LIVE_GOVERNANCE_CHANGE_LOG\b/i,
+    /##\s+LIVE_CONCERNS_LOG\b/i,
+    /##\s+LIVE_FINDINGS_LOG\b/i,
+  ];
+  for (const heading of rubricHeadings) {
+    if (!heading.test(String(content || ""))) {
+      diagnostics.push({
+        code: "MISSING_LIVE_DOSSIER_SECTION",
+        line: 1,
+        message: `Required live dossier section is missing: ${heading.source.replace(/\\s\+/g, " ").replace(/\\b|\^|##/g, "").trim()}`,
+        evidence: "",
+      });
+    }
+  }
+
+  return {
+    ok: diagnostics.length === 0,
+    terminal: true,
+    verdict,
+    diagnostics,
+    summary: diagnostics.length === 0
+      ? "Workflow Dossier terminal judgment has no unresolved placeholders in required live sections."
+      : `Workflow Dossier terminal judgment has ${diagnostics.length} unresolved closeout judgment issue(s).`,
+  };
+}

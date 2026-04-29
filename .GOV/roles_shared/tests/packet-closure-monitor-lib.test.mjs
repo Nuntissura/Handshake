@@ -3,10 +3,11 @@ import test from 'node:test';
 
 import {
   normalizeActiveClauseClosureMatrix,
+  validatePacketAcceptanceMatrix,
   validatePacketClosureMonitoring,
 } from '../scripts/lib/packet-closure-monitor-lib.mjs';
 
-function buildPacket(clauseRows) {
+function buildPacket(clauseRows, { acceptanceRows = null } = {}) {
   return [
     '# Task Packet: WP-TEST-CLOSURE-MONITOR-v1',
     '',
@@ -35,6 +36,14 @@ function buildPacket(clauseRows) {
     '  - NONE',
     '- POST_MERGE_SPOTCHECK_REQUIRED: NO',
     '',
+    ...(acceptanceRows
+      ? [
+          '## PACKET_ACCEPTANCE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)',
+          '- ACCEPTANCE_ROWS:',
+          ...acceptanceRows.map((row) => `  - ${row}`),
+          '',
+        ]
+      : []),
   ].join('\n');
 }
 
@@ -67,4 +76,44 @@ test('active clause normalization canonicalizes legacy validator PASS verdicts',
   const normalized = normalizeActiveClauseClosureMatrix(packetText);
   assert.equal(normalized.changed, true);
   assert.match(normalized.packetText, /Legacy clause .*CODER_STATUS: UNPROVEN \| VALIDATOR_STATUS: CONFIRMED/i);
+});
+
+test('explicit packet acceptance matrix blocks PASS closure with steered required rows', () => {
+  const packetText = buildPacket([
+    'CLAUSE: Demo clause | CODE_SURFACES: src/demo.rs | TESTS: cargo test demo | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED',
+  ], {
+    acceptanceRows: [
+      'ID: AC-001 | REQUIREMENT: Run focused test | REQUIRED: YES | EVIDENCE_KIND: COMMAND | OWNER: CODER | STATUS: STEER | EVIDENCE: NONE | REASON: waiting for coder',
+    ],
+  });
+
+  const result = validatePacketClosureMonitoring(packetText, { requireRows: true, requirePassConsistency: true });
+  assert.match(result.errors.join('\n'), /PACKET_ACCEPTANCE_MATRIX row AC-001/i);
+});
+
+test('explicit packet acceptance matrix requires evidence for proved rows and reason for not applicable rows', () => {
+  const packetText = buildPacket([
+    'CLAUSE: Demo clause | CODE_SURFACES: src/demo.rs | TESTS: cargo test demo | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING',
+  ], {
+    acceptanceRows: [
+      'ID: AC-001 | REQUIREMENT: Run focused test | REQUIRED: YES | EVIDENCE_KIND: COMMAND | OWNER: CODER | STATUS: PROVED | EVIDENCE: NONE | REASON: NONE',
+      'ID: AC-002 | REQUIREMENT: Browser smoke | REQUIRED: YES | EVIDENCE_KIND: COMMAND | OWNER: VALIDATOR | STATUS: NOT_APPLICABLE | EVIDENCE: NONE | REASON: NONE',
+    ],
+  });
+
+  const result = validatePacketAcceptanceMatrix(packetText);
+  assert.match(result.errors.join('\n'), /PROVED row requires concrete EVIDENCE: AC-001/i);
+  assert.match(result.errors.join('\n'), /NOT_APPLICABLE row requires REASON: AC-002/i);
+});
+
+test('packets without explicit acceptance matrix expose legacy clause-derived rows', () => {
+  const packetText = buildPacket([
+    'CLAUSE: Confirmed clause | CODE_SURFACES: src/ok.rs | TESTS: cargo test ok | EXAMPLES: NONE | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED',
+  ]);
+
+  const result = validatePacketClosureMonitoring(packetText, { requireRows: true, requirePassConsistency: true });
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.parsed.acceptanceMatrix.explicit, false);
+  assert.equal(result.parsed.acceptanceMatrix.rows[0].id, 'LEGACY-CLAUSE-001');
+  assert.equal(result.parsed.acceptanceMatrix.rows[0].status, 'CONFIRMED');
 });
