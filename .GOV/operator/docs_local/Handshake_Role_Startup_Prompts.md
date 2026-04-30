@@ -42,6 +42,20 @@ Prefer repo-relative or workspace-relative forms on governance surfaces:
 
 Do not paste host absolute paths into packets, diagnostics, workflow dossiers, monitor output, or startup guidance. If a governed surface emits an absolute host path, treat it as governance drift and repair the emitting surface.
 
+## Recent Governance Delta (2026-04-25 to 2026-04-30)
+
+Checked from git history and repomem session-close decisions. Operator-facing changes:
+
+- Startup now includes Memory-Manager-curated startup briefs. Run `just role-startup-brief <ROLE>` to print the shared and role-specific action cards; briefs are operational memory only and lose to protocols, packets, and live runtime truth.
+- Repomem role coverage is hardened. Every governed mutation needs a substantive `repomem open` with role, and WP-bound lanes also need `--wp`. `repomem close` needs `--decisions`. Tool failures and workarounds must immediately use `memory-capture procedural`.
+- Workflow Dossier is diagnostic by design: raw ACP/session telemetry and Orchestrator postmortem can coexist. Durable role notes belong in repomem and are imported at closeout; do not over-normalize dossier raw output.
+- `ORCHESTRATOR_MANAGED` pre-launch is split: Activation Manager owns refinement/spec/packet/worktree/MT prep; Orchestrator owns workflow authority, launches, mechanical checks, stall detection, and status sync. Classic Orchestrator remains the combined `MANUAL_RELAY` lane.
+- Compact recovery surfaces now exist. Prefer startup output, `just active-lane-brief`, `just wp-truth-bundle`, notifications, and terminal records before broad packet/runtime/dossier rereads.
+- Closeout authority now has canonical terminal record `terminal_closeout_record@1` at `../gov_runtime/roles_shared/WP_COMMUNICATIONS/<WP_ID>/TERMINAL_CLOSEOUT_RECORD.json`. Packet, task-board, dossier, build-order, and truth-bundle rows are projections; stale projections are settlement debt unless they reveal a product correctness blocker.
+- Terminal closeout writes are monotonic. Stale or downgrade writers are rejected, and projection sync must not weaken a verdict of record or contained-main product outcome.
+- Recovery/troubleshooting surfaces added or hardened: `orchestrator-health`, `orchestrator-rescue`, downtime red alerts, artifact-root preflight, failure-class routing, baseline waiver ledger, cost governor, and terminal session finalizer.
+- Closeout refactor scope was narrowed: `RGF-233`, `RGF-240`, and `RGF-241` are implemented as the closeout spine; `RGF-234` through `RGF-239` are HOLD unless fresh live evidence reactivates a narrow piece.
+
 ## Claude Code
 
 Permission skip on startup: claude --dangerously-skip-permissions
@@ -69,7 +83,7 @@ CLOSEOUT_PREP: before launching Integration Validator, run `just closeout-repair
 CLOSEOUT_AUTHORITY: once an authoritative validator verdict exists, only product-correctness blockers may block product outcome. Route projections, dossier lag, repomem/provenance gaps, and terminal non-PASS active-topology artifact-hygiene drift are settlement debt to repair, not reasons to reopen product judgment by themselves.
 HOST_LOAD_STANCE: assume the host PC is under heavy load at all times. Shell/plugin timeouts are advisory unless receipts, runtime truth, or session ledgers confirm a real failure.
 REMINDER: use `just orchestrator-next` to inspect or resume, `just orchestrator-steer-next` to re-wake governed lanes, and `just orchestrator-prepare-and-packet` only after signature and role-model profiles are recorded.
-WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the Workflow Dossier under `.GOV/Audits/smoketest/` mechanically current. Prefer structured sync ledgers and sparse governance-change/finding entries; do not spend tokens on mid-run narrative prose. Telemetry (metrics, idle-ledger, token cost) is mechanical and diagnostic-only; rubric scores are orchestrator judgment at closeout — operator cross-checks both.
+WORKFLOW_DOSSIER: after `just orchestrator-prepare-and-packet WP-{ID}`, keep the Workflow Dossier under `.GOV/Audits/smoketest/` mechanically current as mixed raw diagnostic telemetry plus Orchestrator postmortem. Capture durable decisions, failures, concerns, and findings in repomem; closeout imports WP-bound memory. Telemetry (metrics, idle-ledger, token cost) is mechanical and diagnostic-only; rubric scores are orchestrator judgment at closeout.
 WORKTREE: operate from `wt-gov-kernel` on branch `gov_kernel`.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --role ORCHESTRATOR`. These are auto-surfaced before future actions via memory-recall.
 ```
@@ -168,6 +182,7 @@ V4_RULE: for new medium/high-risk packets, closure is not PASS-ready without exp
 REMINDER: you own final merge authority. Clean ../Handshake_Artifacts/ before push [CX-212E].
 ARTIFACTS: repo-local `target/` is invalid; prefer `just artifact-hygiene-check` and `just artifact-cleanup` over manual cleanup.
 CLOSEOUT_AUTHORITY: use the closeout surfaces that report `product_outcome_blockers` and `governance_debt`. Only correctness blockers may withhold product outcome once your verdict of record exists. After a real non-PASS terminal sync, preserve that verdict and report remaining governance debt instead of rerunning whole-WP judgment unless the debt proves a correctness failure.
+TERMINAL_RECORD: product outcome authority is `terminal_closeout_record@1`; packet/task-board/dossier/truth-bundle/build-order rows are projections. Preserve monotonic terminal state and report governance debt separately from product blockers.
 ROOT FILES: if `AGENTS.md` or the root `justfile` must change, edit and commit them on `handshake_main` only.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --scope "<file(s)>" --wp WP-{ID} --role INTEGRATION_VALIDATOR`. These are auto-surfaced to future sessions via memory-recall.
 ```
@@ -206,7 +221,7 @@ just launch-memory-manager-session "AUTO" "PRIMARY"
 just launch-memory-manager-session "PRINT" "FALLBACK"
 ```
 
-The session launcher runs the mechanical pre-pass first, then launches a governed ACP session with synthetic WP-ID `WP-MEMORY-HYGIENE_<timestamp>`. The memory manager communicates proposals back to the orchestrator via `MEMORY_PROPOSAL`, `MEMORY_FLAG`, and `MEMORY_RGF_CANDIDATE` receipts. Proposals are also backed up to `.GOV/roles/memory_manager/proposals/`.
+The session launcher runs the mechanical pre-pass first, then launches a governed ACP session with synthetic WP-ID `WP-MEMORY-HYGIENE_<timestamp>`. The memory manager communicates proposals back to the orchestrator via `MEMORY_PROPOSAL`, `MEMORY_FLAG`, and `MEMORY_RGF_CANDIDATE` receipts. Proposals are also backed up to `.GOV/roles/memory_manager/proposals/`. Verified startup brief card updates are the narrow Memory Manager edit exception; broader governance changes go to Orchestrator or Classic Orchestrator for review and implementation.
 
 ### Startup Prompt (auto-injected by launcher, or paste manually)
 
@@ -215,7 +230,7 @@ ROLE LOCK: You are the MEMORY MANAGER. Do not change roles unless explicitly rea
 FIRST COMMAND: just memory-manager-startup
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role MEMORY_MANAGER`.
 AUTHORITY: .GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md + .GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md + startup output
-WIRE_DISCIPLINE [CX-130]: memory proposals/flags/RGF candidates emit as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`). Do NOT author governance documents in lieu of typed receipts; the Orchestrator reads receipts and decides.
+WIRE_DISCIPLINE [CX-130]: memory proposals/flags/RGF candidates emit as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`). Do NOT author governance documents in lieu of typed receipts; the Orchestrator reads receipts and decides. Startup brief updates are the narrow verified anti-repeat exception.
 WORKTREE: wt-gov-kernel on branch gov_kernel.
 
 The mechanical pre-pass has already run. The report is at: ../gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md
@@ -230,7 +245,7 @@ YOUR JOB: Intelligent maintenance that the script cannot do. Read the protocol a
 6. REVIEW operator-reported and memory-capture entries -> these are high-value. Verify they are still accurate and well-worded. Do NOT flag or prune them unless factually wrong.
 7. DRAFT RGF candidates with real reasoning -> explain WHY a pattern should be codified, what evidence supports it, and what the governance rule should say.
 8. CHECK conversation log insights -> are they being promoted correctly? Are there insights that should be promoted but weren't caught by the FTS similarity?
-9. WRITE proposals: for each actionable finding, do BOTH:
+9. WRITE proposals or startup brief cards: if the fix is a verified narrow anti-repeat behavior, update the affected startup brief and cite the source; otherwise, for each actionable finding, do BOTH:
    a. Write the appropriate packetless receipt wrapper:
       - `just memory-manager-proposal <WP-ID> <session> "<summary>" "<backup_ref>" [correlation_id]`
       - `just memory-manager-flag-receipt <WP-ID> <session> "<summary>" "<backup_ref>" [correlation_id]`
@@ -239,8 +254,8 @@ YOUR JOB: Intelligent maintenance that the script cannot do. Read the protocol a
 10. APPEND an `## Intelligent Review` section to MEMORY_HYGIENE_REPORT.md (do not overwrite the mechanical results).
 11. When done, run `just repomem close "<session summary>" --decisions "<key decisions>"` and stop.
 
-COMMANDS: `just memory-stats`, `just memory-search`, `just memory-recall <ACTION>`, `just memory-flag <id> "<reason>"`, `just memory-capture`, `just memory-prime`, `just memory-debug-snapshot`, `just memory-patterns`, `just memory-manager-proposal`, `just memory-manager-flag-receipt`, `just memory-manager-rgf-candidate`, `just repomem open/pre/insight/decision/error/abandon/concern/escalation/research-close/close/log`.
-CONSTRAINT: Do NOT edit protocols, codex, AGENTS.md, or product code. Memory DB, report, and proposals only.
+COMMANDS: `just memory-stats`, `just memory-search`, `just memory-recall <ACTION>`, `just role-startup-brief <ROLE>`, `just memory-flag <id> "<reason>"`, `just memory-capture`, `just memory-prime`, `just memory-debug-snapshot`, `just memory-patterns`, `just memory-manager-proposal`, `just memory-manager-flag-receipt`, `just memory-manager-rgf-candidate`, `just repomem open/pre/insight/decision/error/abandon/concern/escalation/research-close/close/log`.
+CONSTRAINT: Do NOT edit protocols, codex, AGENTS.md, task boards, packets, or product code. Allowed writes are Memory DB/report, proposal backups/receipts, and verified startup brief files only.
 CONSTRAINT: Do NOT invent your own session-retirement mechanism. After `just repomem close ...`, stop and let governed `SESSION_COMPLETION` prove completion.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --role MEMORY_MANAGER`. These are auto-surfaced to future sessions via memory-recall.
 ```
@@ -312,6 +327,8 @@ From `D:\Projects\LLM projects\NotebookLM_gpt_bridge\product`:
 .GOV/roles/<role>/                  - role-specific protocol + scripts
 .GOV/roles_shared/                  - cross-role shared surfaces
 .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md - full command reference (authoritative)
+.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md - shared Memory-Manager-curated anti-repeat startup cards
+.GOV/roles/*/docs/*_STARTUP_BRIEF.md - role-specific startup cards printed by startup and `just role-startup-brief`
 .GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md - memory system operational guide (canonical)
 .GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md - memory hygiene review rubric
 .GOV/task_packets/WP-{ID}/          - current physical work packet folder (packet.md + MT-*.md)
@@ -323,6 +340,9 @@ From `D:\Projects\LLM projects\NotebookLM_gpt_bridge\product`:
 .GOV/templates/SMOKETEST_REVIEW_TEMPLATE.md - compatibility alias during migration; use the Workflow Dossier concept and naming for new runs
 ../handshake_main/AGENTS.md         - canonical AGENTS authority file used by startup
 ../gov_runtime/roles_shared/        - external runtime (sessions, WP communications, ACP, memory DB)
+../gov_runtime/roles_shared/GOVERNANCE_MEMORY.db - repomem/governance memory database (inspect via `just memory-*` / `just repomem log`)
+../gov_runtime/roles_shared/validator_gates/WP-{ID}.json - validator verdict/gate ledger
+../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/TERMINAL_CLOSEOUT_RECORD.json - canonical terminal closeout record source
 ../Handshake_Artifacts/             - external build/test/tool artifacts [CX-212E]
 ```
 
@@ -333,6 +353,7 @@ From `D:\Projects\LLM projects\NotebookLM_gpt_bridge\product`:
 - Product code -> coder commits on `feat/WP-*` -> Integration Validator performs contained-main reconciliation into `main` -> push `main`
 - `gov_kernel` is a governance source branch, not an integration branch. Governance reaches `main` through `just sync-gov-to-main`, not by merging `gov_kernel` into `main` directly.
 - `just gov-flush` is the governed maintenance publish path for repo-governance work; it now preflights artifact-root drift before any push path.
+- Terminal WP closeout truth writes to the external runtime terminal record first. `.GOV/` packet rows, task-board rows, build-order state, and dossier text are projection surfaces that may need settlement repair after terminal truth is set.
 
 ## Model Profile Catalog
 
@@ -366,6 +387,7 @@ just memory-manager-startup
 just activation-manager startup
 just activation-manager next WP-{ID}
 just activation-manager readiness WP-{ID} --write
+just role-startup-brief <ROLE>          - print shared + role-specific startup brief action cards
 just repomem open "<what this session is about>" --role ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR --wp WP-{ID}
 just repomem open "<what this session is about>" --role ORCHESTRATOR|CLASSIC_ORCHESTRATOR [--wp WP-{ID}]
 just repomem open "<what this session is about>" --role MEMORY_MANAGER
@@ -379,6 +401,8 @@ just repomem close "<session summary>" --decisions "key decisions made" [--wp WP
 just role-startup-topology-check [--audit-permanent]
 just orchestrator-next [WP-{ID}]
 just orchestrator-steer-next WP-{ID} "<context>" [PRIMARY|FALLBACK]
+just orchestrator-health [WP-{ID}]      - read-only health bundle for stuck control-plane diagnosis
+just orchestrator-rescue [WP-{ID}] [--dry-run] [--print-prompt] [--force-takeover]
 just coder-next [WP-{ID}]
 just validator-next WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR [WP-{ID}]
 just active-lane-brief <ROLE> <WP-{ID}>   - canonical context digest when things feel fragmented
@@ -398,6 +422,7 @@ just memory-patterns [--min-wps N]        - cross-WP pattern synthesis -> govern
 just memory-refresh [--force-compact]     - extract + maintenance (runs at every role startup + gov-check)
 just memory-compact [--dry-run]           - manual dedup + consolidation + decay + budget pruning
 just memory-prime <WP-{ID}> [--budget N]  - preview what a session would receive
+just role-startup-brief <ROLE>            - startup anti-repeat cards maintained by Memory Manager
 just launch-memory-manager [--force]      - mechanical memory hygiene (extraction, soft decay, recall audit, report-first candidate detection)
 just launch-memory-manager-session [host] [model]  - intelligent model session for quality review
 just shell-with-memory <ROLE> <command-family> "<command>" [--wp WP-{ID}] [--shell powershell|bash|cmd]  - ad hoc shell command with command-family memory injection
@@ -442,6 +467,9 @@ just wp-receipt-append WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <RECEIPT_KIND> "<sum
 just wp-heartbeat WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <PHASE> <STATUS> <NEXT_ACTOR> "<WAITING_ON>" [VALIDATOR_TRIGGER] [LAST_EVENT] [WORKTREE_DIR]
 just check-notifications WP-{ID} <ROLE>
 just ack-notifications WP-{ID} <ROLE> <SESSION>
+just wp-review-request WP-{ID} <ACTOR_ROLE> <SESSION> <TARGET_ROLE> <TARGET_SESSION> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [microtask_json]
+just wp-review-response WP-{ID} <ACTOR_ROLE> <SESSION> <TARGET_ROLE> <TARGET_SESSION> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]
+just heuristic-risk-check WP-{ID} [--json]
 ```
 
 ### Operator Monitor
@@ -472,6 +500,8 @@ just workflow-dossier-sync WP-{ID} [--role ROLE] [--tag ACP_SYNC] [--surface MEC
   - append a fresh mechanical ACP/runtime/receipt snapshot into `LIVE_EXECUTION_LOG`; also auto-injects repomem entries
 just workflow-dossier-inject-repomem WP-{ID}
   - manually inject repomem conversation_log entries into the dossier (auto-runs inside sync; idempotent)
+just workflow-dossier-autofill-costs WP-{ID} [--debug]
+  - backfill token/cost rollups from runtime and session telemetry
 just manual-relay-next WP-{ID}
   - Read-only operator helper for MANUAL_RELAY; prints RELAY_ENVELOPE, ROLE_TO_ROLE_MESSAGE, and OPERATOR_EXPLAINER.
 just manual-relay-dispatch WP-{ID} "<context>"
@@ -489,6 +519,8 @@ just session-registry-status [WP-{ID}]
 just session-reclaim-terminals WP-{ID} [ROLE]
 just session-stall-scan <ROLE> <WP-{ID}>   - detect stuck sessions
 just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]
+just nudge-depth <SESSION_ID>
+just nudge-drain <SESSION_ID>
 ```
 
 Convenience wrappers:
@@ -529,6 +561,7 @@ just sync-gov-to-main
 just gov-flush
   - governed repo-governance publish path; preflights artifact-root drift before any push path and then runs memory hygiene, artifact cleanup, and backup snapshotting
 just closeout-repair WP-{ID} [--dry-run] [--debug]  - mechanical closeout pre-repair (run before IntVal launch); classifies `product_outcome_blockers` vs `governance_debt`
+just wp-waiver-record WP-{ID} --blocker-command <cmd> --allowed-edit-paths <paths> --operator-authority-ref <ref> [--failing-files <paths>] [--proof-command <cmd>]
 just gov-check
 just canonise-gov                          - audit protocol/doc consistency after governance refactors
 just artifact-hygiene-check
@@ -543,6 +576,10 @@ just wp-communication-health-check WP-{ID} <stage>
 just wp-timeline WP-{ID} [--json]
 just wp-closeout-format WP-{ID} <merged-main-commit> - automated closeout formatting helper
 just wp-token-usage WP-{ID}
+just wp-token-usage-settle WP-{ID} [REASON] [SETTLED_BY]
+just wp-truth-bundle WP-{ID} [--json] [--no-write] - compact truth bundle; use before broad rereads
+just wp-metrics WP-{ID} [flags]
+just wp-metrics-compare WP-A WP-B [flags]
 just wp-declared-topology-check WP-{ID}
 just task-board-set WP-{ID} <status> "<context>" ["reason"]
 just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID "<context>"
@@ -563,6 +600,11 @@ just external-validator-brief WP-{ID}
 ```
 
 Closeout readers now surface `product_outcome_blockers` separately from `governance_debt`. Use that split before deciding whether a lane needs new judgment or only settlement repair.
+
+Terminal closeout record reminder:
+- `phase-check CLOSEOUT --sync-mode ...` publishes `terminal_closeout_record@1` and rejects stale/downgrade writers.
+- `NO_VERDICT -> VERDICT_OF_RECORD -> MERGED or SETTLEMENT_DEBT -> TERMINAL_SETTLED` is the expected progression.
+- Projection drift alone should be repaired as governance debt; it should not erase or weaken the validator verdict of record.
 
 ### Shortest Practical Set
 
