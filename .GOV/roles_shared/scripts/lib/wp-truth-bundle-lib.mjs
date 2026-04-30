@@ -19,6 +19,7 @@ import { evaluateWpTokenBudget } from "../session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../session/wp-token-usage-lib.mjs";
 import { evaluateWpRepomemCoverage } from "../memory/repomem-coverage-lib.mjs";
 import { resolveValidatorGatePath } from "./validator-gate-paths.mjs";
+import { readTerminalCloseoutRecord } from "./terminal-closeout-record-lib.mjs";
 
 export const WP_TRUTH_BUNDLE_SCHEMA_ID = "hsk.wp_truth_bundle@1";
 export const WP_TRUTH_BUNDLE_SCHEMA_VERSION = "wp_truth_bundle_v1";
@@ -242,10 +243,13 @@ export function buildWpTruthBundle({
   const tokenBudget = evaluateWpTokenBudget(tokenLedgerResult.ledger);
   const validatorGatePath = resolveValidatorGatePath(normalizedWpId);
   const validatorGate = safeReadJson(validatorGatePath, {});
+  const terminalCloseoutRecord = readTerminalCloseoutRecord({ wpId: normalizedWpId });
   const latestReceipt = latestByTimestamp(resolvedReceipts);
   const latestNotification = latestByTimestamp(resolvedNotifications);
   const mergeTruth = parseMergeProgressionTruth(text);
-  const finalVerdict = deriveFinalVerdict({ packetText: text, runtimeStatus: runtime, taskBoard: boardStatus });
+  const finalVerdict = terminalCloseoutRecord.record?.verdict && terminalCloseoutRecord.record.verdict !== "UNKNOWN"
+    ? terminalCloseoutRecord.record.verdict
+    : deriveFinalVerdict({ packetText: text, runtimeStatus: runtime, taskBoard: boardStatus });
   const projection = parseRuntimeProjectionFromPacket(text);
   const blockerSummary = deriveBlockers({
     signedScopeValidation,
@@ -271,6 +275,15 @@ export function buildWpTruthBundle({
       status: validatorGate?.state || validatorGate?.status || (Object.keys(validatorGate).length > 0 ? "RECORDED" : "MISSING"),
       verdict: validatorGate?.verdict || validatorGate?.latest_verdict || null,
     },
+    terminal_closeout_record: {
+      path: terminalCloseoutRecord.path || "",
+      status: terminalCloseoutRecord.status,
+      terminal_state: terminalCloseoutRecord.record?.terminal_state || "NO_VERDICT",
+      verdict: terminalCloseoutRecord.record?.verdict || "UNKNOWN",
+      updated_at_utc: terminalCloseoutRecord.record?.updated_at_utc || null,
+      governance_debt_keys: terminalCloseoutRecord.record?.governance_debt_keys || [],
+      projection_debt_keys: terminalCloseoutRecord.record?.projection_debt_keys || [],
+    },
     final_verdict: finalVerdict,
     candidate_commit: candidateCommitFromRuntime(runtime, resolvedReceipts),
     candidate_branch: normalizeText(runtime?.candidate_branch || parseSingleField(text, "LOCAL_BRANCH") || ""),
@@ -278,9 +291,13 @@ export function buildWpTruthBundle({
     signed_scope: signedScope,
     signed_scope_errors: signedScopeValidation.errors || [],
     product_main_containment_status: mergeTruth.mainContainmentStatus || projection.main_containment_status || "UNKNOWN",
-    closeout_dependency_summary: runtimeProjection
-      ? `runtime_projection=${runtimeProjection.ok ? "PASS" : "DRIFT"} | issues=${runtimeProjection.issues?.length || 0}`
-      : "runtime_projection=UNASSESSED",
+    closeout_dependency_summary: [
+      `terminal_record=${terminalCloseoutRecord.status}`,
+      `terminal_state=${terminalCloseoutRecord.record?.terminal_state || "NO_VERDICT"}`,
+      runtimeProjection
+        ? `runtime_projection=${runtimeProjection.ok ? "PASS" : "DRIFT"} | issues=${runtimeProjection.issues?.length || 0}`
+        : "runtime_projection=UNASSESSED",
+    ].join(" | "),
     session_summary: sessionSummary,
     repomem_coverage_status: sessionCoverageStatus(repomemCoverage),
     repomem_coverage: repomemCoverage,
@@ -300,6 +317,14 @@ export function buildWpTruthBundle({
     artifact_path: "",
     exact_next_command: "",
   };
+  bundle.governance_debt_keys = [
+    ...new Set([
+      ...(bundle.governance_debt_keys || []),
+      ...(terminalCloseoutRecord.status === "INVALID" ? ["TERMINAL_CLOSEOUT_RECORD_INVALID"] : []),
+      ...(terminalCloseoutRecord.record?.governance_debt_keys || []),
+      ...(terminalCloseoutRecord.record?.projection_debt_keys || []),
+    ]),
+  ];
   bundle.exact_next_command = deriveExactNextCommand(bundle);
 
   if (writeDetail) {
@@ -328,6 +353,7 @@ export function formatWpTruthBundleCompact(bundle = {}) {
     `- next_actor: ${bundle.next_actor || "UNKNOWN"}`,
     `- waiting_on: ${bundle.waiting_on || "UNKNOWN"}`,
     `- validator_gate_state: ${bundle.validator_gate_state?.status || "UNKNOWN"}`,
+    `- terminal_closeout_record: ${bundle.terminal_closeout_record?.status || "UNKNOWN"} | state=${bundle.terminal_closeout_record?.terminal_state || "UNKNOWN"}`,
     `- final_verdict: ${bundle.final_verdict || "UNKNOWN"}`,
     `- candidate_commit: ${bundle.candidate_commit || "UNKNOWN"}`,
     `- candidate_branch: ${bundle.candidate_branch || "UNKNOWN"}`,
@@ -344,4 +370,3 @@ export function formatWpTruthBundleCompact(bundle = {}) {
   ];
   return `${lines.slice(0, WP_TRUTH_BUNDLE_MAX_COMPACT_LINES).join("\n")}\n`;
 }
-

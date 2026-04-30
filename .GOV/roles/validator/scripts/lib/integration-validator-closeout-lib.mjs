@@ -43,6 +43,7 @@ import { GOV_ROOT_ABS, GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../../.
 import { settleRecoverableSessionControlResults } from "../../../../roles_shared/scripts/session/session-control-self-settle-lib.mjs";
 import { parseJsonFile } from "../../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { readExecutionPublicationView } from "../../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
+import { readTerminalCloseoutRecord } from "../../../../roles_shared/scripts/lib/terminal-closeout-record-lib.mjs";
 import { evaluateWpRepomemCoverage } from "../../../../roles_shared/scripts/memory/repomem-coverage-lib.mjs";
 import {
   buildGovernedActionResult,
@@ -684,6 +685,7 @@ export function evaluateIntegrationValidatorCloseoutState({
   results = null,
   brokerState = null,
   repomemCoverage = null,
+  terminalCloseoutRecord = null,
 } = {}) {
   const resolvedRequests = Array.isArray(requests)
     ? requests
@@ -755,6 +757,7 @@ export function evaluateIntegrationValidatorCloseoutState({
     scopeCompatibility,
     candidateSignedScope,
     repomemCoverage: resolvedRepomemCoverage,
+    terminalCloseoutRecord,
   });
 
   return {
@@ -873,6 +876,7 @@ export function buildIntegrationValidatorCloseoutCheckResult({
 
   const gateState = loadIntegrationValidatorGateState(normalizedWpId);
   const closeoutSyncGovernance = summarizeCloseoutSyncGovernance(gateState, normalizedWpId);
+  const terminalCloseoutRecord = readTerminalCloseoutRecord({ wpId: normalizedWpId });
   const committedEvidence = gateState?.committed_validation_evidence?.[normalizedWpId] || null;
   const actorContext = resolveValidatorActorContext({
     repoRoot,
@@ -909,6 +913,7 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     brokerState,
     requireReadyForPass: closeoutRequirements.requireReadyForPass,
     requireRecordedScopeCompatibility: closeoutRequirements.requireRecordedScopeCompatibility,
+    terminalCloseoutRecord,
   });
   const closeoutDependencyView = buildCloseoutDependencyView({
     packetContent,
@@ -920,6 +925,7 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     candidateSignedScope: evaluation.candidateSignedScope,
     closeoutSyncGovernance,
     repomemCoverage: evaluation.repomemCoverage,
+    terminalCloseoutRecord,
   });
 
   if (!evaluation.ok) {
@@ -931,6 +937,8 @@ export function buildIntegrationValidatorCloseoutCheckResult({
     return integrationValidatorCloseoutFailure("Integration-validator topology or closeout bundle is not ready", [
       `dependency_summary=${closeoutDependencyView.summary}`,
       `verdict_of_record=${closeoutDependencyView.publication.verdict_of_record}`,
+      `terminal_record_status=${closeoutDependencyView.terminal_closeout_record.status}`,
+      `terminal_state=${closeoutDependencyView.terminal_closeout_record.terminal_state}`,
       `settlement_state=${closeoutDependencyView.settlement.state}`,
       `settlement_blockers=${closeoutDependencyView.settlement.blockers.join(",") || "none"}`,
       `product_outcome_blockers=${closeoutDependencyView.product_outcome_blocking_keys.join(",") || "none"}`,
@@ -956,6 +964,8 @@ export function buildIntegrationValidatorCloseoutCheckResult({
       `dependency_summary=${closeoutDependencyView.summary}`,
       `publication_mode=${closeoutDependencyView.publication.closeout_mode}`,
       `publication_verdict=${closeoutDependencyView.publication.verdict_of_record}`,
+      `terminal_record_status=${closeoutDependencyView.terminal_closeout_record.status}`,
+      `terminal_state=${closeoutDependencyView.terminal_closeout_record.terminal_state}`,
       `settlement_state=${closeoutDependencyView.settlement.state}`,
       `settlement_blockers=${closeoutDependencyView.settlement.blockers.join(",") || "none"}`,
       `product_outcome_blockers=${closeoutDependencyView.product_outcome_blocking_keys.join(",") || "none"}`,
@@ -967,6 +977,7 @@ export function buildIntegrationValidatorCloseoutCheckResult({
       `dependency.closeout_bundle=${closeoutDependencyView.dependencies.closeout_bundle.status}:${closeoutDependencyView.dependencies.closeout_bundle.summary}`,
       `dependency.scope_compatibility=${closeoutDependencyView.dependencies.scope_compatibility.status}:${closeoutDependencyView.dependencies.scope_compatibility.summary}`,
       `dependency.candidate_target=${closeoutDependencyView.dependencies.candidate_target.status}:${closeoutDependencyView.dependencies.candidate_target.summary}`,
+      `dependency.terminal_record=${closeoutDependencyView.dependencies.terminal_record.status}:${closeoutDependencyView.dependencies.terminal_record.summary}`,
       `dependency.sync_provenance=${closeoutDependencyView.dependencies.sync_provenance.status}:${closeoutDependencyView.dependencies.sync_provenance.summary}`,
       `dependency.repomem_coverage=${closeoutDependencyView.dependencies.repomem_coverage.status}:${closeoutDependencyView.dependencies.repomem_coverage.summary}`,
       `sync_repair_mode=${allowSyncRepair ? "ENABLED" : "DISABLED"}`,

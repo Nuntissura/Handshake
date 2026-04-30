@@ -18,8 +18,18 @@ import { parseJsonFile, validateRuntimeStatus } from "../lib/wp-communications-l
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
 import { readExecutionPublicationView } from "../lib/wp-execution-state-lib.mjs";
 import { buildCloseoutDependencyView } from "../lib/wp-closeout-dependency-lib.mjs";
+import { parseValidationVerdictRecord } from "../lib/merge-progression-truth-lib.mjs";
+import {
+  buildTerminalCloseoutRecordFromCloseoutSync,
+  publishTerminalCloseoutRecord,
+  readTerminalCloseoutRecord,
+  resolveTerminalCloseoutPublication,
+} from "../lib/terminal-closeout-record-lib.mjs";
+import { registerFailCaptureHook } from "../lib/fail-capture-lib.mjs";
 import { writeJsonFile } from "../session/session-registry-lib.mjs";
 import { evaluateWpRepomemCoverage } from "../memory/repomem-coverage-lib.mjs";
+
+registerFailCaptureHook("wp-closeout-format.mjs", { role: "ORCHESTRATOR" });
 
 const wpId = String(process.argv[2] || "").trim();
 const mergedMainCommit = String(process.argv[3] || "").trim();
@@ -48,6 +58,11 @@ const runtimeStatusAbsPath = runtimeStatusFile ? repoPathAbs(runtimeStatusFile) 
 const runtimeStatus = runtimeStatusAbsPath && fs.existsSync(runtimeStatusAbsPath)
   ? parseJsonFile(runtimeStatusAbsPath)
   : null;
+const terminalCloseoutRecord = readTerminalCloseoutRecord({ wpId });
+if (terminalCloseoutRecord.status === "INVALID") {
+  console.error(`[WP_CLOSEOUT_FORMAT] Terminal closeout record is invalid: ${terminalCloseoutRecord.errors.join("; ")}`);
+  process.exit(1);
+}
 const runtimePublication = readExecutionPublicationView({
   runtimeStatus: runtimeStatus || {},
   packetStatus: packetStatusBefore,
@@ -70,6 +85,7 @@ const closeoutDependencyView = buildCloseoutDependencyView({
   scopeCompatibility: { errors: [] },
   candidateSignedScope: { errors: [] },
   repomemCoverage,
+  terminalCloseoutRecord,
 });
 
 if (
@@ -91,6 +107,36 @@ if (
   process.exit(1);
 }
 
+const closeoutTimestamp = new Date().toISOString();
+const validationVerdictRecord = parseValidationVerdictRecord(content);
+const nextTerminalCloseoutRecord = buildTerminalCloseoutRecordFromCloseoutSync({
+  wpId,
+  mode: "CONTAINED_IN_MAIN",
+  packetStatus: "Validated (PASS)",
+  taskBoardStatus: "DONE_VALIDATED",
+  mainContainmentStatus: "CONTAINED_IN_MAIN",
+  mergedMainCommit,
+  verdict: "PASS",
+  verdictRecordedAtUtc: validationVerdictRecord.timestampUtc || "",
+  verdictActorRole: validationVerdictRecord.actorRole || "INTEGRATION_VALIDATOR",
+  verdictActorSession: validationVerdictRecord.actorSession || "",
+  verdictEvidencePointer: validationVerdictRecord.evidencePointer || "",
+  terminalPublicationRecorded: true,
+  actorRole: "ORCHESTRATOR",
+  actorSession: "wp-closeout-format",
+  source: "WP_CLOSEOUT_FORMAT",
+  recordedAtUtc: closeoutTimestamp,
+  previousRecord: terminalCloseoutRecord.record,
+});
+const terminalPublicationDecision = resolveTerminalCloseoutPublication({
+  currentRecord: terminalCloseoutRecord.record,
+  nextRecord: nextTerminalCloseoutRecord,
+});
+if (!terminalPublicationDecision.ok) {
+  console.error(`[WP_CLOSEOUT_FORMAT] Terminal closeout record publication rejected: ${terminalPublicationDecision.message}`);
+  process.exit(1);
+}
+
 // 1. Update Status
 content = content.replace(
   /^- \*\*Status:\*\* .+$/m,
@@ -109,7 +155,7 @@ content = content.replace(
 );
 content = content.replace(
   /^- MAIN_CONTAINMENT_VERIFIED_AT_UTC: .+$/m,
-  `- MAIN_CONTAINMENT_VERIFIED_AT_UTC: ${new Date().toISOString()}`
+  `- MAIN_CONTAINMENT_VERIFIED_AT_UTC: ${closeoutTimestamp}`
 );
 content = content.replace(
   /^- CURRENT_MAIN_COMPATIBILITY_STATUS: .+$/m,
@@ -135,6 +181,7 @@ if (closureCount > 0) {
 
 fs.writeFileSync(packetAbsPath, content, "utf8");
 let runtimeSynced = "";
+let terminalRecordPath = "";
 if (runtimeStatusAbsPath && runtimeStatus) {
   const syncedRuntime = syncRuntimeProjectionFromPacket(runtimeStatus, content, {
     eventName: "wp_closeout_format",
@@ -150,9 +197,15 @@ if (runtimeStatusAbsPath && runtimeStatus) {
   writeJsonFile(runtimeStatusAbsPath, syncedRuntime);
   runtimeSynced = runtimeStatusFile;
 }
+const terminalPublication = publishTerminalCloseoutRecord({
+  wpId,
+  record: nextTerminalCloseoutRecord,
+});
+terminalRecordPath = terminalPublication.path;
 console.log(`[WP_CLOSEOUT_FORMAT] Packet updated: ${resolved.packetPath || resolved}`);
 console.log(`[WP_CLOSEOUT_FORMAT] Changes: ${changes}`);
 if (runtimeSynced) console.log(`[WP_CLOSEOUT_FORMAT] Runtime synced: ${runtimeSynced}`);
+if (terminalRecordPath) console.log(`[WP_CLOSEOUT_FORMAT] Terminal closeout record: ${terminalRecordPath}`);
 console.log(`[WP_CLOSEOUT_FORMAT] Next: just task-board-set ${wpId} DONE_VALIDATED`);
 console.log(`[WP_CLOSEOUT_FORMAT] Next: just build-order-sync`);
 console.log(`[WP_CLOSEOUT_FORMAT] Next: just gov-check`);

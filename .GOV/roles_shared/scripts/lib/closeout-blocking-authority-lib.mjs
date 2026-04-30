@@ -6,6 +6,7 @@ const CLOSEOUT_DEPENDENCY_AUTHORITIES = Object.freeze({
   closeout_bundle: GOVERNANCE_SUPPORT,
   scope_compatibility: PRODUCT_CORRECTNESS,
   candidate_target: PRODUCT_CORRECTNESS,
+  terminal_record: GOVERNANCE_SUPPORT,
   sync_provenance: GOVERNANCE_SUPPORT,
   repomem_coverage: GOVERNANCE_SUPPORT,
 });

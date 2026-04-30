@@ -248,6 +248,7 @@ Primary commands (per WP validation):
 - `just closeout-repair WP-... [--dry-run] [--debug]` before whole-WP closeout when packet/runtime/SHA/artifact truth needs mechanical repair
 - `just phase-check CLOSEOUT WP-...`
 - governed closeout write through the same phase surface: `just phase-check CLOSEOUT WP-... --sync-mode <MODE> --context "<why this truth is being written>"`
+- governed closeout write also publishes `WP_COMMUNICATIONS/<WP_ID>/TERMINAL_CLOSEOUT_RECORD.json`; packet, task-board, dossier, and truth-bundle rows are projections of that terminal record plus runtime authority
 - `phase-check CLOSEOUT --sync-mode ...` also makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot; dossier debt is diagnostic only, and the human post-mortem/review plus rubric can be appended after terminal truth is recorded
 - `just validator-dal-audit`
 - `just validator-git-hygiene`

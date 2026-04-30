@@ -21,6 +21,46 @@
 
 ## Entries
 
+### 2026.04.30.04 / GOV-CHANGE-20260430-04
+
+- STATUS: APPLIED
+- SUMMARY: implemented the narrowed closeout canonicalization spine with a terminal closeout record, monotonic publication, and breakpoint fixtures
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-30 Operator handoff: implement only `RGF-233`, `RGF-240`, and `RGF-241` after the closeout tranche was reduced to avoid governance bloat.
+  - Prior closeout repair and WP-1 postmortem evidence showed terminal truth still needed one schema-versioned closeout record plus stale-writer protection, while `RGF-234` through `RGF-239` should remain held.
+- FOLLOW_ON_ITEMS:
+  - Keep `RGF-234` through `RGF-239` on `HOLD` unless a fresh live closeout failure proves a narrow missing behavior.
+  - Use the terminal closeout record as the first closeout truth source in future status and rescue surfaces.
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/terminal-closeout-record-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-closeout-dependency-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-closeout-format.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/validator/checks/validator_gates.mjs`
+  - `.GOV/roles_shared/tests/terminal-closeout-record-lib.test.mjs`
+  - `.GOV/roles_shared/tests/closeout-breakpoint-scenarios.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/roles_shared/README.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: closeout publication now writes `terminal_closeout_record@1` through an atomic monotonic writer, final-lane/context/truth-bundle readers surface terminal state and projection debt from that record, stale/downgrade/conflicting writers are rejected, and the breakpoint harness covers the live failure classes that motivated the reduced closeout spine.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/terminal-closeout-record-lib.test.mjs .GOV/roles_shared/tests/closeout-breakpoint-scenarios.test.mjs .GOV/roles_shared/tests/wp-closeout-dependency-lib.test.mjs .GOV/roles/validator/tests/integration-validator-context-brief-lib.test.mjs .GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-execution-state-lib.test.mjs .GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs .GOV/roles_shared/tests/wp-truth-bundle-lib.test.mjs .GOV/roles_shared/tests/role-self-prime.test.mjs .GOV/roles/orchestrator/tests/closeout-repair.test.mjs .GOV/roles_shared/tests/phase-check.test.mjs .GOV/roles/validator/tests/validator-command-surface.test.mjs`
+  - `node --test .GOV/roles_shared/tests/repo-governance-board-lib.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
 ### 2026.04.30.03 / GOV-CHANGE-20260430-03
 
 - STATUS: APPLIED
