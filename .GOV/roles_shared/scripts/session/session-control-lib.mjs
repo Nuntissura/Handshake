@@ -712,14 +712,14 @@ function loadRecentSnapshots(db, { wpId = "", maxPerType = 1, maxTotal = 3, toke
 }
 
 // RGF-125: Orchestrator memory injection — cross-WP, broader budget, different scoring
-// RGF-253: orchestrator startup memory injection budgets.
-// The legacy 2000-token budget was dominated by access-count-weighted entries,
+// RGF-253 + 2026-04-29 operator update: orchestrator startup memory injection budgets.
+// The legacy narrow budget was dominated by access-count-weighted entries,
 // which meant single-shot procedural failures (the very ones that should
 // preempt repeated mistakes) were outranked by repeated-hit semantic patterns
 // and never surfaced. Split the budget into dedicated slices that bypass the
 // access_count gate so recent failures, hygiene-report findings, and
 // prior-day decisions appear deterministically.
-const ORCHESTRATOR_MEMORY_TOKEN_BUDGET = 4000;
+const ORCHESTRATOR_MEMORY_TOKEN_BUDGET = 15000;
 const ORCHESTRATOR_RECENT_FAILURE_BUDGET = 700;
 const ORCHESTRATOR_RECENT_FAILURE_DAYS = 7;
 const ORCHESTRATOR_RECENT_FAILURE_LIMIT = 10;
@@ -728,6 +728,13 @@ const ORCHESTRATOR_HYGIENE_REPORT_BYTE_LIMIT = 1600;
 const ORCHESTRATOR_PRIOR_DAY_DECISIONS_BUDGET = 400;
 const ORCHESTRATOR_PRIOR_DAY_DECISIONS_HOURS = 30;
 const ORCHESTRATOR_PRIOR_DAY_DECISIONS_LIMIT = 8;
+const ORCHESTRATOR_SCORED_MEMORY_TOKEN_BUDGET = Math.max(
+  0,
+  ORCHESTRATOR_MEMORY_TOKEN_BUDGET
+    - ORCHESTRATOR_RECENT_FAILURE_BUDGET
+    - ORCHESTRATOR_HYGIENE_REPORT_BUDGET
+    - ORCHESTRATOR_PRIOR_DAY_DECISIONS_BUDGET,
+);
 
 export function loadRecentProceduralFailureLines(db, { now = Date.now() } = {}) {
   // RGF-253 slice 1: surface every procedural memory created in the last 7
@@ -874,13 +881,13 @@ function loadOrchestratorMemoryLines() {
         const wpTag = c.wp_id ? ` [${c.wp_id}]` : "";
         const line = `- [${c.memory_type}]${wpTag} ${c.topic}: ${c.summary}`;
         const lineTokens = estimateTokens(line);
-        if (tokenCount + lineTokens > ORCHESTRATOR_MEMORY_TOKEN_BUDGET) break;
+        if (tokenCount + lineTokens > ORCHESTRATOR_SCORED_MEMORY_TOKEN_BUDGET) break;
         tokenCount += lineTokens;
         selected.push({ ...c, _line: line });
       }
       if (selected.length === 0 && tokenCount === 0) {
         // RGF-147: even if no regular memories, try to load snapshots
-        const snapshotsOnly = loadRecentSnapshots(db, { wpId: "", maxPerType: 1, maxTotal: 3, tokenBudget: ORCHESTRATOR_MEMORY_TOKEN_BUDGET });
+        const snapshotsOnly = loadRecentSnapshots(db, { wpId: "", maxPerType: 1, maxTotal: 3, tokenBudget: ORCHESTRATOR_SCORED_MEMORY_TOKEN_BUDGET });
         if (snapshotsOnly.entries.length === 0) return [];
         db.prepare(
           `UPDATE memory_index SET access_count = access_count + 1, last_accessed_at = ?
@@ -894,7 +901,7 @@ function loadOrchestratorMemoryLines() {
       }
 
       // RGF-147: load recent pre-task snapshots (cross-WP for orchestrator)
-      const snapshots = loadRecentSnapshots(db, { wpId: "", maxPerType: 1, maxTotal: 3, tokenBudget: ORCHESTRATOR_MEMORY_TOKEN_BUDGET - tokenCount });
+      const snapshots = loadRecentSnapshots(db, { wpId: "", maxPerType: 1, maxTotal: 3, tokenBudget: ORCHESTRATOR_SCORED_MEMORY_TOKEN_BUDGET - tokenCount });
       tokenCount += snapshots.tokenCount;
       const allEntries = [...selected, ...snapshots.entries];
 
@@ -910,7 +917,7 @@ function loadOrchestratorMemoryLines() {
       const hygieneReport = loadHygieneReportSummaryLines({ now });
       const priorDayDecisions = loadPriorDaySessionCloseLines(db, { now });
 
-      const totalTokenCount = tokenCount + snapshots.tokenCount + recentFailures.tokenCount + hygieneReport.tokenCount + priorDayDecisions.tokenCount;
+      const totalTokenCount = tokenCount + recentFailures.tokenCount + hygieneReport.tokenCount + priorDayDecisions.tokenCount;
       const headerCounts = [
         `${selected.length} patterns`,
         `${snapshots.entries.length} snapshots`,
@@ -1194,6 +1201,7 @@ export function buildInlineStartupPrompt({
       : [`SESSION ISOLATION: do not spawn or use helper agents/subagents inside this governed role lane.`]
     ),
     `MINIMAL LIVE READ SET (MANDATORY): After startup and assignment, work from startup output + active packet + active WP thread/notifications + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md when command choice is unclear.`,
+    `STARTUP BRIEF (OPERATIONAL MEMORY): each role startup prints .GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md plus the role-specific STARTUP_BRIEF under that role's docs folder. Treat those cards as Memory-Manager-curated anti-repeat guidance, not protocol authority.`,
     `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${contextDigestCommand} instead of rereading ${contextDigestSurface} surfaces separately.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
     `INTER_ROLE_VERB_RULE (RGF-248): Routine role traffic should use named verbs where available via \`wp-receipt-append --verb <NAME> --verb-body '<JSON>'\`. Readers prefer \`verb\` / \`verb_body\` fields and fall back to legacy prose receipts only for compatibility.`,

@@ -166,7 +166,7 @@ if (fs.existsSync(justfileAbs)) {
   const justfileContent = fs.readFileSync(justfileAbs, "utf8");
   const seen = new Set();
   for (const line of justfileContent.split("\n")) {
-    const m = line.match(/^([a-z][\w-]*)\s*[^:=]*:/);
+    const m = line.match(/^([a-z][\w-]*)\b.*:\s*$/);
     if (!m) continue;
     const recipe = m[1];
     if (seen.has(recipe)) continue;

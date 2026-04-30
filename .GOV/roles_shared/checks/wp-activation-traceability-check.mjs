@@ -96,7 +96,7 @@ for (const [baseWpId, wpIds] of baseToRevisionPackets.entries()) {
       .map((id) => resolveWorkPacketPath(id)?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${id}.md`)
       .slice(0, 3);
     violations.push(
-      `${TRACE_REGISTRY_PATH}: missing Baseâ†’Active mapping for ${baseWpId} (examples: ${examples.join(", ")})`
+      `${TRACE_REGISTRY_PATH}: missing Base->Active mapping for ${baseWpId} (examples: ${examples.join(", ")})`
     );
     continue;
   }

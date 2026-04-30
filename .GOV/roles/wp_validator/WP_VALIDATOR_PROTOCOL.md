@@ -129,13 +129,20 @@ WP Validator AI review:
 The Coder and WP Validator share a worktree and take turns. Coordination is **receipt-driven**, not manual:
 
 1. **Coder stops:** Emits `CODER_HANDOFF` or `REVIEW_REQUEST` receipt. This automatically updates `RUNTIME_STATUS.json` via `deriveWpCommunicationAutoRoute()`, setting `next_expected_actor=WP_VALIDATOR`.
-2. **WP Validator starts:** Orchestrator detects updated `next_expected_actor` via `orchestrator-steer-next` and dispatches a `SEND_PROMPT` to the WP Validator session with the review envelope.
-3. **WP Validator stops:** Emits `REVIEW_RESPONSE` or `VALIDATOR_REVIEW` receipt. Runtime status updates `next_expected_actor=CODER`.
-4. **Coder resumes:** Orchestrator dispatches next steer to Coder. Coder checks inbox (`just check-notifications`) before starting the next MT.
+2. **WP Validator starts:** Receipt append may auto-dispatch the projected governed hop exactly once when the target session is not already active or queued; otherwise the Orchestrator uses `orchestrator-steer-next` to dispatch the review envelope.
+3. **WP Validator stops:** Emits `REVIEW_RESPONSE`, `VALIDATOR_REVIEW`, or named-verb `MT_VERDICT` / `MT_REMEDIATION_REQUIRED`. Runtime status updates `next_expected_actor=CODER` when coder repair or next-MT implementation is legal.
+4. **Coder resumes:** Receipt auto-progression or Orchestrator steering wakes Coder. Coder checks inbox (`just check-notifications`) before starting repair or the next MT.
 
 **Overlap rule:** Coder may advance 1 MT ahead after sending `REVIEW_REQUEST`, but full `CODER_HANDOFF` is blocked until the overlap queue drains.
 
 No explicit pause/resume commands are needed — the receipt system and runtime projection handle all signaling mechanically.
+
+## Executable Acceptance Matrix [CX-503B1]
+
+- New packets carry `PACKET_ACCEPTANCE_MATRIX` with stable `AC-NNN` rows derived from packet closure requirements.
+- WP Validator review must update or require updates to the relevant acceptance rows instead of relying on narrative PASS language.
+- PASS for the WP Validator layer is not credible if any required row that the WP Validator owns or confirms remains `PENDING`, `STEER`, or `BLOCKED`.
+- Legal resolved statuses are `PROVED`, `CONFIRMED`, or `NOT_APPLICABLE`; `NOT_APPLICABLE` requires a concrete reason and proof rows require concrete evidence.
 
 ## All-MTs-Complete Signal
 

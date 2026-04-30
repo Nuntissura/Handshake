@@ -99,6 +99,7 @@ test("governance command contract keeps the orchestrator ACP/session-control rec
     "operator-viewport-admin",
     "operator-monitor",
     "operator-admin",
+    "role-startup-brief",
   ];
 
   for (const recipeName of requiredRecipes) {

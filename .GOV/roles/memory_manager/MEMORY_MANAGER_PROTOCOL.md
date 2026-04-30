@@ -4,13 +4,13 @@
 
 The Memory Manager has two modes: a mechanical pre-pass (script) and an intelligent review (model session). The script handles deterministic maintenance cheaply. The model session handles judgment-based work that requires understanding content.
 
-**Authority:** Memory DB read/write only. No product code, no protocol edits, no codex changes, no WP management.
+**Authority:** Memory DB read/write plus Memory-Manager-curated startup brief maintenance only. Allowed startup brief writes are limited to `.GOV/roles/*/docs/*_STARTUP_BRIEF.md`, `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`, and `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`. No product code, no protocol edits, no Codex changes, no WP management.
 
 **Worktree:** `wt-gov-kernel` on branch `gov_kernel`.
 
 ### Mechanical Pre-Pass (`just launch-memory-manager`)
 
-A Node.js script that runs deterministically, no tokens consumed. It is intentionally conservative: extraction, soft decay, embedding refresh, recall effectiveness audit, stats collection, and report-first candidate detection for stale / contradictory / old low-value entries. It must avoid destructive judgment calls during automatic startup/closeout runs. Outputs `MEMORY_HYGIENE_REPORT.md`. Runs automatically at orchestrator startup (staleness-gated: >24h AND >10 new entries).
+A Node.js script that runs deterministically, no tokens consumed. It is intentionally conservative: extraction, soft decay, embedding refresh, recall effectiveness audit, stats collection, report-first candidate detection for stale / contradictory / old low-value entries, and repeated procedural-failure candidates that may need startup brief cards or deterministic tooling repair. It must avoid destructive judgment calls during automatic startup/closeout runs. Outputs `MEMORY_HYGIENE_REPORT.md`. Runs automatically at orchestrator startup (staleness-gated: >24h AND >10 new entries).
 
 ### Intelligent Review Session (`just launch-memory-manager-session`)
 
@@ -23,7 +23,9 @@ A model session (default profile: `OPENAI_GPT_5_5_XHIGH`) launched after the mec
 - **Conversation insight review** — find insights the FTS similarity missed, promote manually
 - **Operator-reported entry audit** — verify high-value entries are still accurate and well-worded
 
-The model appends an `## Intelligent Review` section to the report, writes proposals to `.GOV/roles/memory_manager/proposals/`, records `just repomem close ...`, and then stops after the governed turn completes.
+- **Startup brief maintenance** - verify repeated procedural failures against current code, then update the relevant role startup brief or draft a deterministic tooling proposal
+
+The model appends an `## Intelligent Review` section to the report, writes proposals to `.GOV/roles/memory_manager/proposals/`, updates startup brief files when a repeated failure has a verified role/action fix, records `just repomem close ...`, and then stops after the governed turn completes.
 
 **Preferred profile:** `OPENAI_GPT_5_5_XHIGH` with `model_reasoning_effort=xhigh`. Claude profiles remain available by explicit override when the quality/rate-limit tradeoff is acceptable.
 
@@ -36,16 +38,38 @@ The model appends an `## Intelligent Review` section to the report, writes propo
 Because this lane is packetless, the synthetic communication files under `gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-MEMORY-HYGIENE_<timestamp>/` become the authoritative receipt and notification surface for Memory Manager findings.
 Clarification: governed completion is evidenced by the `SESSION_COMPLETION` notification after the Memory Manager stops its turn. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned when the steerable thread itself should be retired.
 
-**Lifecycle:** `just launch-memory-manager-session` → mechanical pre-pass → ACP session start → `memory-manager-startup` → repomem open → review work → write proposals (receipts + backup files) → repomem close → stop after the governed turn settles and `SESSION_COMPLETION` is emitted. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned. MUST NOT leave orphan terminals.
+**Lifecycle:** `just launch-memory-manager-session` -> mechanical pre-pass -> ACP session start -> `memory-manager-startup` -> repomem open -> review work -> write proposals (receipts + backup files) and verified startup brief updates -> repomem close -> stop after the governed turn settles and `SESSION_COMPLETION` is emitted. Explicit ACP `CLOSE_SESSION` remains orchestrator-owned. MUST NOT leave orphan terminals.
+
+## Proposal And Authority Workflow
+
+Memory Manager exists to make memory actionable. Its intelligent review orders evidence so the coordinator sees the highest-leverage next action first instead of another passive pile of recall entries.
+
+Evidence ordering, highest first:
+
+1. explicit Operator correction or recurring operator-reported friction
+2. repeated recent procedural failures for the same role/action
+3. failures verified against current code, command output, or active protocol text
+4. typed receipts and recent workflow-runtime evidence
+5. high-access or cross-WP memory patterns
+6. stale, contradictory, or low-access candidates that need caution before action
+
+For each candidate, classify the recommended surface:
+
+- `STARTUP_BRIEF` - Memory Manager may update the relevant startup brief after verifying the operational fix against current governance.
+- `TOOLING_REPAIR` - Memory Manager proposes a deterministic command/check repair; the coordinator decides and implements.
+- `RGF_CANDIDATE` - Memory Manager drafts a governance refactor candidate; the coordinator decides whether to promote it to the task board or implementation work.
+- `NO_ACTION` - Memory Manager records why the memory should remain passive, be flagged, or be ignored.
+
+Authority remains with the workflow coordinator. In `ORCHESTRATOR_MANAGED`, `ORCHESTRATOR` reviews `MEMORY_PROPOSAL`, `MEMORY_FLAG`, and `MEMORY_RGF_CANDIDATE` receipts and makes accepted governance changes. In `MANUAL_RELAY`, `CLASSIC_ORCHESTRATOR` performs that review and implementation. Memory Manager must not mutate protocols, task boards, Codex law, packets, validator truth, product code, or workflow status as a substitute for coordinator review.
 
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
-Memory proposals, flags, and RGF candidates are emitted as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`) — these schemas are the wire to the Orchestrator. Do NOT author governance documents (recommendations, narrative summaries, ad-hoc reports) in lieu of emitting typed receipts; the Orchestrator reads typed receipts and decides. The Memory Hygiene Report exists for operator readability and is a projection of receipt truth, not the wire. See Codex `[CX-130]` for the full rule.
+Memory proposals, flags, and RGF candidates are emitted as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`) - these schemas are the wire to the active coordinator (`ORCHESTRATOR` for `ORCHESTRATOR_MANAGED`, `CLASSIC_ORCHESTRATOR` for `MANUAL_RELAY`). Do NOT author governance documents (recommendations, narrative summaries, ad-hoc reports) in lieu of emitting typed receipts; the coordinator reads typed receipts and decides. Startup brief updates are the narrow exception for verified anti-repeat operational memory; they do not carry protocol authority and must cite source memory/proposal evidence. The Memory Hygiene Report exists for operator readability and is a projection of receipt truth, not the wire. See Codex `[CX-130]` for the full rule.
 
 ## Governance Surface Reduction Discipline
 
 - Memory hygiene should remain centered on the existing `just memory-*` command family plus one primary output artifact: `MEMORY_HYGIENE_REPORT.md`.
-- Do not normalize extra public memory-maintenance wrappers, duplicate reports, or side-channel command surfaces when the existing memory command family and report can absorb the work.
+- Do not normalize extra public memory-maintenance wrappers, duplicate reports, or side-channel command surfaces when the existing memory command family, startup brief files, and report can absorb the work.
 - For scripts and recipes specifically, prefer expanding the canonical `memory-*` surfaces rather than adding sibling public scripts that would normally run in the same hygiene pass.
 - When multiple deterministic hygiene checks or repairs belong to the same memory-maintenance pass, fold them into the existing `memory-*` bundle and `MEMORY_HYGIENE_REPORT.md` instead of exposing more leaf commands.
 - Keep a separate public memory script only when owner boundary, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
@@ -106,7 +130,7 @@ The memory DB has 3 memory types, 1 snapshot type, 1 conversation log, and 6 tab
 **Read paths (who consumes what you curate):**
 - Coder sessions: procedural only (FAIL LOG), 1500 tokens, WP-scoped + file-scope boosted [RGF-120/124/128]
 - Validator sessions: procedural + semantic (FAIL LOG + CONTEXT), 1500 tokens, WP-scoped [RGF-120/124]
-- Orchestrator sessions: all types (GOVERNANCE MEMORY), 2000 tokens, cross-WP, systemic boost [RGF-125]
+- Orchestrator sessions: all types (GOVERNANCE MEMORY), up to a 15000-token envelope, cross-WP, with dedicated recent-failure, hygiene-report, prior-day-decision, scored-pattern, and snapshot slices [RGF-125/RGF-253]
 - All sessions: up to 3 recent SNAPSHOTS (mechanical + intent), most recent per type [RGF-147]
 
 **Scoring formula at injection time:**
@@ -143,15 +167,16 @@ Your job is to ensure the data that flows through this formula is clean, relevan
 17. **Session diversity** — flag sessions contributing >5 memories to the active pool
 18. **Intent snapshot compliance** — report intent count over 7 days (concern if 0 or >20)
 19. **Conversation checkpoint compliance** — report all 10 checkpoint type counts (OPEN/CLOSE/INSIGHT/DECISION/ERROR/ABANDON/CONCERN/ESCALATION/PRE_TASK/RESEARCH_CLOSE) for 7 days; flag unclosed sessions, zero insights, or zero decisions (roles should be recording choices), and surface recent per-WP repomem coverage debt when materially active roles lack OPEN/CLOSE/WP-durable proof
-20. **RGF candidate drafting** — cross-WP procedural patterns (3+ WPs) + high-access memories (10+ accesses) → draft governance improvement candidates
+20. **Actionable failure candidate detection** - group repeated recent procedural failures by role/action. If the same failure appears repeatedly, report whether it should become a startup brief card, a deterministic command repair, or both.
+21. **RGF candidate drafting** — cross-WP procedural patterns (3+ WPs) + high-access memories (10+ accesses) → draft governance improvement candidates
 
 ### Phase 4: Report
 
-21. **Write report** — `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md` (see Output Format below)
+22. **Write report** — `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md` (see Output Format below)
 
 ## What It Does NOT Do
 
-- Edit protocols, codex, AGENTS.md, or any `.GOV/` documentation
+- Edit protocols, Codex law, AGENTS.md, task boards, packets, or `.GOV/` documentation outside the startup brief files named above
 - Touch product code (`src/`, `app/`, `tests/`)
 - Directly modify the governance task board (drafts candidates only)
 - Launch or manage other sessions
@@ -170,6 +195,7 @@ just memory-patterns [--min-wps N] [--min-access N]
 just memory-compact --dry-run
 just memory-debug-snapshot [WP-{ID}|INTENT]
 just memory-recall <ACTION> [--wp WP-{ID}]
+just role-startup-brief <ROLE>
 
 # Write
 just memory-compact [--older-than 30d]
@@ -233,6 +259,9 @@ Write `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`:
 
 ## WP Repomem Coverage Debt
 - <WP-{ID}>: active_roles=<roles> | debt_keys=<ROLE:DEBT_KEY,...>
+
+## Actionable Failure Candidates
+- <ROLE/ACTION>: count=<N> | recommended_surface=<STARTUP_BRIEF|TOOLING_REPAIR|BOTH> | evidence=<memory ids/topics>
 
 ## RGF Candidates (for orchestrator review)
 - CANDIDATE: <title> — <evidence summary>

@@ -15,7 +15,7 @@
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import { runBundledChecks } from "./bundled-check-runner-lib.mjs";
 
-registerFailCaptureHook("packet-truth-bundle-check");
+registerFailCaptureHook("packet-truth-bundle-check.mjs", { role: "SHARED" });
 
 const failures = runBundledChecks(import.meta.url, [
   "task-board-check.mjs",
@@ -26,7 +26,7 @@ const failures = runBundledChecks(import.meta.url, [
 ]);
 
 if (failures.length > 0) {
-  failWithMemory(`packet-truth-bundle: ${failures.length} sub-check(s) failed`, {
+  failWithMemory("packet-truth-bundle-check.mjs", `packet-truth-bundle: ${failures.length} sub-check(s) failed`, {
     role: "SHARED",
     details: failures,
   });

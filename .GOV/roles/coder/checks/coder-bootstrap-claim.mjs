@@ -11,7 +11,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import { registerFailCaptureHook } from '../../../roles_shared/scripts/lib/fail-capture-lib.mjs';
 import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
+
+registerFailCaptureHook('coder-bootstrap-claim.mjs', { role: 'CODER' });
 
 const wpId = process.argv[2];
 if (!wpId) {

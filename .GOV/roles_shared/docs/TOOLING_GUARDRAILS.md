@@ -175,3 +175,37 @@ Rules:
   - The dossier is allowed to be partial or malformed so it can preserve diagnostic evidence during live WP pressure without blocking the workflow it is observing.
 - Context:
   - Recurring on closeout flows where support-surface debt was mistaken for validator authority or where ACP EOF appends conflicted with manually maintained live sections.
+
+### TG-016
+- Do:
+  - Treat public `justfile` recipes with default arguments (`arg=""`) as user-facing command-surface entries that still require docs.
+  - After adding or changing a recipe, run `just canonise-gov` and inspect recipe coverage warnings plus the structured review brief.
+- Don't:
+  - Do not rely on regexes that only match recipes without `=` in their argument list.
+  - Do not assume a missing canonise warning proves a recipe is documented unless the parser covers default-arg recipes.
+- Why:
+  - Default-argument recipes are common for optional WP ids and flags; parser blind spots let live commands drift out of `COMMAND_SURFACE_REFERENCE.md` and `ROLE_WORKFLOW_QUICKREF.md`.
+- Context:
+  - Found when `artifact-root-preflight wp-id=""` was undocumented but did not appear in the original canonise warning set.
+
+### TG-017
+- Do:
+  - In PowerShell, scan malformed Unicode/mojibake with char-code predicates or `Select-String` variables instead of embedding broken glyphs directly in regex alternation.
+  - For mechanical cleanup, normalize by known ASCII context or escaped code points, then re-scan with a char-code based script.
+- Don't:
+  - Do not paste malformed glyphs such as mojibake arrows, emoji fragments, or replacement characters into inline `rg`/Node regexes.
+- Why:
+  - PowerShell and Node can re-encode malformed glyphs into bare `?` regex tokens or parse punctuation as shell syntax, causing the scan itself to fail.
+- Context:
+  - Found during role-folder governance audit while normalizing active protocol/check diagnostics after the WP-1 governance refactor tranche.
+
+### TG-018
+- Do:
+  - When sampling long governance output, redirect to a temporary file or add a purpose-built summary flag.
+  - If using PowerShell pipelines, expect the upstream process may see a closed pipe when the downstream command stops early.
+- Don't:
+  - Do not pipe long Node/just startup output into `Select-Object -First` and treat a nonzero upstream exit as command failure.
+- Why:
+  - Truncating a live pipe can close stdout before the producer finishes, which makes a healthy producer look like it failed.
+- Context:
+  - Found while smoke-checking `just role-startup-brief ORCHESTRATOR` output after adding startup briefs.

@@ -53,6 +53,7 @@ test("coder startup prompt carries orchestrator-managed relapse guard and lane-a
   });
 
   assert.match(prompt, /MODEL PROFILE: OPENAI_GPT_5_5_XHIGH/i);
+  assert.match(prompt, /STARTUP BRIEF \(OPERATIONAL MEMORY\):/i);
   assert.match(prompt, /POST-SIGNATURE RELAPSE GUARD \(MANDATORY\):/i);
   assert.match(prompt, /POLICY_CONFLICT, AUTHORITY_OVERRIDE_REQUIRED, OPERATOR_ARTIFACT_REQUIRED, ENVIRONMENT_FAILURE/i);
   assert.match(prompt, /`MANUAL_RELAY` = .*skeleton approval when required/i);

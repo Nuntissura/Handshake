@@ -12,6 +12,7 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 - **WP Traceability:** `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet mapping; resolves `-vN` revisions without putting WP IDs into the Master Spec).
 - **Governance guardrails:** `Handshake Codex v1.4` (repo root) + `.GOV/roles_shared/records/TASK_BOARD.md` + work packets. Handshake logger is for milestones/hard bugs when requested.
 - **Shared tooling guardrails:** `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (shared tooling memory: short append-only `Do` / `Don't` / `Why` / `Context` notes for all roles).
+- **Startup briefs:** `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`, `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`, and each role's `docs/*_STARTUP_BRIEF.md` (Memory-Manager-curated operational memory; not protocol authority).
 - **Architecture & debug:** `.GOV/roles_shared/docs/ARCHITECTURE.md` and `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`.
 - **Root governance docs/logs:** `.GOV/docs_repo/` — repo-level governance docs, bridge notes, restart notes, and the running consolidation log.
 - **Current consolidation log:** `.GOV/docs_repo/GOVERNANCE_PHASE_CONSOLIDATION_LOG_2026-04-08.md`
@@ -31,7 +32,7 @@ Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active r
 3. **Activation Manager** - mandatory governed pre-launch governance authoring for `ORCHESTRATOR_MANAGED`; owns refinement, approved spec enrichment, packet hydration, worktree/backup-branch preparation, and activation readiness
 4. **Coder/Debugger** - Implements work per work packet scope
 5. **Validators** - `WP_VALIDATOR` for WP-scoped technical steering and `INTEGRATION_VALIDATOR` for final technical verdict / merge authority
-6. **Memory Manager** - bounded memory-hygiene role for governance-memory maintenance
+6. **Memory Manager** - bounded memory-hygiene role that orders governance-memory evidence, maintains verified startup brief cards, and proposes broader governance changes for coordinator review
 
 **Mandatory protocols:**
 - **Orchestrators (`ORCHESTRATOR_MANAGED`):** Read `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` before delegating
@@ -58,6 +59,8 @@ just create-task-packet WP-{phase}-{name}
 # For PACKET_FORMAT_VERSION >= 2026-04-01, inspect the packet law bundle immediately:
 # DATA_CONTRACT_PROFILE, CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2,
 # and GOVERNED_VALIDATOR_REPORT_PROFILE=SPLIT_DIFF_SCOPED_RIGOR_V4.
+# New executable packets also carry PACKET_ACCEPTANCE_MATRIX rows. PASS closure
+# requires every required row to be PROVED, CONFIRMED, or NOT_APPLICABLE with evidence.
 # On this packet family, shallow handoff is illegal: coder must provide anti-vibe
 # + signed-scope-debt self-audit, and validator PASS requires both lists to be exactly "- NONE".
 # If DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1, keep DATA_CONTRACT_MONITORING honest now and
@@ -114,7 +117,7 @@ Quick reference:
 - `tests/` - top-level test harness placeholder.
 - `.GOV/roles_shared/scripts/` - shared session, topology, WP, proof, debt, and dev-helper scripts.
 - `.GOV/roles_shared/checks/` - shared governance and repo checks.
-- `.GOV/roles/<role>/{scripts,checks}/` - role-owned execution helpers and role-specific checks.
+- `.GOV/roles/<role>/{docs,scripts,checks}/` - role-owned startup briefs, execution helpers, and role-specific checks.
 - `.GOV/roles_shared/scripts/hooks/` - git hook plumbing only.
 - `justfile` - operator-facing governance entrypoints that wrap the live role/shared scripts and checks.
 - `data/` - runtime artifacts; backend logs are written to `data/logs/handshake_core.log`.

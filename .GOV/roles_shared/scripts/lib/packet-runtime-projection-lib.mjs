@@ -185,6 +185,7 @@ function buildDriftOwnerSummary(ownerClasses) {
 export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus = {}, {
   communicationEvaluation = null,
 } = {}) {
+  const rawRuntimeStatus = runtimeStatus || {};
   const publication = readExecutionPublicationView({
     runtimeStatus,
     packetStatus: parsePacketStatus(packetText),
@@ -195,8 +196,8 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
   const issueDetails = [];
   const ownerClasses = new Set();
   const canonicalAuthorityOwnsPublication = publication.has_canonical_authority;
-  const runtimePhase = String(runtimeStatus?.current_phase || "").trim().toUpperCase();
-  const runtimeStatusValue = String(runtimeStatus?.runtime_status || "").trim().toLowerCase();
+  const runtimePhase = String(rawRuntimeStatus?.current_phase ?? runtimeStatus?.current_phase ?? "").trim().toUpperCase();
+  const runtimeStatusValue = String(rawRuntimeStatus?.runtime_status ?? rawRuntimeStatus?.status ?? runtimeStatus?.runtime_status ?? "").trim().toLowerCase();
   const effectivePacketStatus = String(publication.packet_status || projection.current_packet_status || "").trim();
 
   if (
@@ -255,7 +256,7 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
 
   if (effectivePacketStatus === "Done" || /^Validated \(/i.test(effectivePacketStatus)) {
     if (runtimePhase !== "STATUS_SYNC") {
-      const message = `runtime.current_phase (${runtimeStatus?.current_phase || "<missing>"}) should be STATUS_SYNC once packet status is ${effectivePacketStatus}`;
+      const message = `runtime.current_phase (${rawRuntimeStatus?.current_phase ?? runtimeStatus?.current_phase ?? "<missing>"}) should be STATUS_SYNC once packet status is ${effectivePacketStatus}`;
       issues.push(message);
       ownerClasses.add("RUNTIME_PROJECTION");
       issueDetails.push(
@@ -267,7 +268,7 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
       );
     }
     if (runtimeStatusValue !== "completed") {
-      const message = `runtime.runtime_status (${runtimeStatus?.runtime_status || "<missing>"}) should be completed once packet status is ${effectivePacketStatus}`;
+      const message = `runtime.runtime_status (${rawRuntimeStatus?.runtime_status ?? rawRuntimeStatus?.status ?? runtimeStatus?.runtime_status ?? "<missing>"}) should be completed once packet status is ${effectivePacketStatus}`;
       issues.push(message);
       ownerClasses.add("RUNTIME_PROJECTION");
       issueDetails.push(

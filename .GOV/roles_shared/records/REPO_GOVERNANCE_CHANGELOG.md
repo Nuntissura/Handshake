@@ -21,6 +21,197 @@
 
 ## Entries
 
+### 2026.04.30.04 / GOV-CHANGE-20260430-04
+
+- STATUS: APPLIED
+- SUMMARY: implemented the narrowed closeout canonicalization spine with a terminal closeout record, monotonic publication, and breakpoint fixtures
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-30 Operator handoff: implement only `RGF-233`, `RGF-240`, and `RGF-241` after the closeout tranche was reduced to avoid governance bloat.
+  - Prior closeout repair and WP-1 postmortem evidence showed terminal truth still needed one schema-versioned closeout record plus stale-writer protection, while `RGF-234` through `RGF-239` should remain held.
+- FOLLOW_ON_ITEMS:
+  - Keep `RGF-234` through `RGF-239` on `HOLD` unless a fresh live closeout failure proves a narrow missing behavior.
+  - Use the terminal closeout record as the first closeout truth source in future status and rescue surfaces.
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/terminal-closeout-record-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-closeout-dependency-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-closeout-format.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs`
+  - `.GOV/roles/validator/checks/validator_gates.mjs`
+  - `.GOV/roles_shared/tests/terminal-closeout-record-lib.test.mjs`
+  - `.GOV/roles_shared/tests/closeout-breakpoint-scenarios.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/roles_shared/README.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: closeout publication now writes `terminal_closeout_record@1` through an atomic monotonic writer, final-lane/context/truth-bundle readers surface terminal state and projection debt from that record, stale/downgrade/conflicting writers are rejected, and the breakpoint harness covers the live failure classes that motivated the reduced closeout spine.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/terminal-closeout-record-lib.test.mjs .GOV/roles_shared/tests/closeout-breakpoint-scenarios.test.mjs .GOV/roles_shared/tests/wp-closeout-dependency-lib.test.mjs .GOV/roles/validator/tests/integration-validator-context-brief-lib.test.mjs .GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-execution-state-lib.test.mjs .GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs .GOV/roles_shared/tests/wp-truth-bundle-lib.test.mjs .GOV/roles_shared/tests/role-self-prime.test.mjs .GOV/roles/orchestrator/tests/closeout-repair.test.mjs .GOV/roles_shared/tests/phase-check.test.mjs .GOV/roles/validator/tests/validator-command-surface.test.mjs`
+  - `node --test .GOV/roles_shared/tests/repo-governance-board-lib.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
+### 2026.04.30.03 / GOV-CHANGE-20260430-03
+
+- STATUS: APPLIED
+- SUMMARY: triaged queued closeout canonicalization rows to prevent governance bloat before implementation
+- CHANGE_TYPE: GOVERNANCE_PLANNING_REDUCTION
+- DRIVER_EVIDENCE:
+  - 2026-04-30 Operator directive: inspect older governance refactor items and decide whether they are still useful implementation work or governance/workflow bloat.
+  - Post-`RGF-255` through `RGF-264` inspection found product-outcome/governance-debt split, failure-class routing, terminal session finalization, artifact-root preflight, and compact truth recovery already implemented.
+- FOLLOW_ON_ITEMS:
+  - Implement only the narrowed closeout spine: `RGF-233`, `RGF-240`, then `RGF-241`.
+  - Keep `RGF-234` through `RGF-239` on `HOLD` unless fresh live evidence reactivates a narrow piece.
+- FILES_CHANGED:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426.md`
+- OUTCOME: the board no longer presents `RGF-233` through `RGF-241` as a literal nine-item implementation tranche. Only the canonical terminal record, monotonic atomic publication, and breakpoint harness remain queued; the intervening rows are held as folded, superseded, or evidence-gated design context.
+- VERIFICATION:
+  - `git diff --check`
+  - `node --test .GOV/roles_shared/tests/repo-governance-board-lib.test.mjs`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs` (legacy dependency warnings only: `RGF-95` and `RGF-104` still reference historical `RGF-93`)
+  - `just canonise-gov` plus inspection of the surfaced authority-doc review brief; no protocol, command, topology, or quickref drift applied because this is a planning reduction only.
+
+### 2026.04.30.02 / GOV-CHANGE-20260430-02
+
+- STATUS: APPLIED
+- SUMMARY: clarified Memory Manager proposal routing and coordinator authority for startup brief and governance refactor changes
+- CHANGE_TYPE: GOVERNANCE_DOCUMENTATION_HARDENING
+- DRIVER_EVIDENCE:
+  - 2026-04-30 Operator correction: Memory Manager is not a standalone authority; it should order memory, propose startup brief or governance refactor items, and leave broader governance changes to Orchestrator or Classic Orchestrator review.
+  - Follow-up ambiguity after adding startup briefs: "repomem misuse" needed clearer distinction between passive memory capture, startup-brief updates, tooling repair, and governance refactor proposals.
+- FOLLOW_ON_ITEMS:
+  - Launch intelligent Memory Manager and verify new proposal classifications appear in real hygiene output before the next major refactor tranche.
+- FILES_CHANGED:
+  - `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`
+  - `.GOV/roles/orchestrator/docs/ORCHESTRATOR_STARTUP_BRIEF.md`
+  - `.GOV/roles/classic_orchestrator/docs/CLASSIC_ORCHESTRATOR_STARTUP_BRIEF.md`
+  - `.GOV/roles/memory_manager/docs/MEMORY_MANAGER_STARTUP_BRIEF.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/roles_shared/docs/START_HERE.md`
+  - `.GOV/roles_shared/tests/role-startup-brief.test.mjs`
+- OUTCOME: Memory Manager now has explicit evidence-ordering and proposal-surface guidance; Orchestrator and Classic Orchestrator startup briefs now name their proposal-review authority; shared docs now state that Memory Manager can update verified startup briefs but broader governance changes require coordinator review and implementation.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/role-startup-brief.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
+### 2026.04.30.01 / GOV-CHANGE-20260430-01
+
+- STATUS: APPLIED
+- SUMMARY: added Memory-Manager-curated startup briefs and actionable repeated-failure surfacing
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - 2026-04-30 Operator directive: make repomem actionable per role because repeated procedural captures were not preventing repeated mistakes.
+  - Memory capture pattern for repeated under-80-character `repomem open` failures.
+- FOLLOW_ON_ITEMS:
+  - Launch intelligent Memory Manager periodically so repeated procedural-failure candidates become verified startup brief updates or deterministic tooling proposals.
+- FILES_CHANGED:
+  - `.GOV/roles/*/docs/*_STARTUP_BRIEF.md`
+  - `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`
+  - `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`
+  - `.GOV/roles_shared/docs/ARCHITECTURE.md`
+  - `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md`
+  - `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`
+  - `.GOV/roles_shared/scripts/memory/role-startup-brief*.mjs`
+  - `.GOV/roles_shared/scripts/memory/repomem.mjs`
+  - `.GOV/roles/memory_manager/scripts/launch-memory-manager.mjs`
+  - `.GOV/roles/memory_manager/scripts/memory-manager-policy.mjs`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `justfile`
+- OUTCOME: Role startup now prints shared and role-specific operational anti-repeat cards, Memory Manager has a narrow startup-brief maintenance authority, mechanical hygiene reports repeated procedural-failure candidates for intelligent review, and `repomem open` quality-gate failures now print a role-aware corrected command.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/role-startup-brief.test.mjs`
+  - `node --test .GOV/roles_shared/tests/repomem-quality-gate-cli.test.mjs`
+  - `node --test .GOV/roles/memory_manager/tests/memory-manager-policy.test.mjs`
+  - `node --test .GOV/roles_shared/tests/session-control-lib.test.mjs .GOV/roles_shared/tests/governance-command-contract.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
+### 2026.04.29.03 / GOV-CHANGE-20260429-03
+
+- STATUS: APPLIED
+- SUMMARY: repaired role-folder audit findings in final-lane fail-capture, closeout, and active protocol drift surfaces
+- CHANGE_TYPE: GOVERNANCE_REPAIR
+- DRIVER_EVIDENCE:
+  - 2026-04-29 Operator directive: inspect all role folders by problem density, start with the worst lifecycle phase, then inspect remaining role folders and `roles_shared` last.
+  - `GOV-CHANGE-20260429-01`
+  - `GOV-CHANGE-20260429-02`
+- FOLLOW_ON_ITEMS:
+  - NONE
+- FILES_CHANGED:
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs`
+  - `.GOV/roles/coder/checks/*`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/coder/docs/CODER_RUBRIC.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/checks/*-bundle-check.mjs`
+  - `.GOV/roles_shared/checks/wp-activation-traceability-check.mjs`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`
+  - `.GOV/roles_shared/scripts/lib/fail-capture-lib.mjs`
+  - `.GOV/roles_shared/tests/fail-capture-lib.test.mjs`
+- OUTCOME: The highest-density problem cluster was final-lane closeout and terminal publication. `fail-capture-lib` now captures default `exit(1)` failures, shared bundle checks and `closeout-repair` use role-bound hooks plus the full `failWithMemory` signature, coder and WP Validator live checks register fail-capture hooks, and active role docs/check diagnostics no longer contain the repaired mojibake artifacts.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/fail-capture-lib.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/closeout-repair.test.mjs`
+  - `node --test .GOV/roles/wp_validator/tests/wp-validator-mechanical-track.test.mjs`
+  - `node --test .GOV/roles/coder/tests/coder-command-surface.test.mjs .GOV/roles/coder/tests/coder-doc-command-surface.test.mjs .GOV/roles/coder/tests/coder-entrypoint-path-safety.test.mjs`
+  - `node --test .GOV/roles_shared/tests/check-details-log.test.mjs .GOV/roles_shared/tests/cwd-agnostic-shared-checks.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
+### 2026.04.29.02 / GOV-CHANGE-20260429-02
+
+- STATUS: APPLIED
+- SUMMARY: canonised RGF-255 through RGF-264 command/protocol drift and raised Orchestrator startup memory envelope to 15000 tokens
+- CHANGE_TYPE: GOVERNANCE_CANONISATION
+- DRIVER_EVIDENCE:
+  - 2026-04-29 Operator directive: address the post-refactor drift inspection findings and allow 15000-token Orchestrator memory injection.
+  - `GOV-CHANGE-20260429-01`
+- FOLLOW_ON_ITEMS:
+  - NONE
+- FILES_CHANGED:
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/roles/*/*PROTOCOL.md`
+  - `.GOV/roles_shared/docs/*`
+  - `.GOV/roles_shared/scripts/checks/canonise-gov.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-closure-monitor-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles_shared/tests/packet-closure-monitor-lib.test.mjs`
+- OUTCOME: Command-surface docs now cover the new RGF-255 through RGF-264 helpers, `canonise-gov` sees default-argument recipes, new packets emit `PACKET_ACCEPTANCE_MATRIX`, role protocols document cost-governor/failure-class/dossier/waiver behavior, and Orchestrator startup memory uses a 15000-token envelope.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/packet-closure-monitor-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/orchestrator-startup-memory-slices.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-token-budget-lib.test.mjs`
+  - `node --test .GOV/roles/activation_manager/tests/activation-manager.test.mjs .GOV/roles_shared/tests/repo-governance-board-lib.test.mjs`
+  - `git diff --check`
+  - `just canonise-gov`
+  - `just gov-check`
+
 ### 2026.04.29.01 / GOV-CHANGE-20260429-01
 
 - STATUS: APPLIED

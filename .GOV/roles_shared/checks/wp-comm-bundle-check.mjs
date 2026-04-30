@@ -12,7 +12,7 @@
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import { runBundledChecks } from "./bundled-check-runner-lib.mjs";
 
-registerFailCaptureHook("wp-comm-bundle-check");
+registerFailCaptureHook("wp-comm-bundle-check.mjs", { role: "SHARED" });
 
 const failures = runBundledChecks(import.meta.url, [
   "wp-communications-check.mjs",
@@ -20,7 +20,7 @@ const failures = runBundledChecks(import.meta.url, [
 ]);
 
 if (failures.length > 0) {
-  failWithMemory(`wp-comm-bundle: ${failures.length} sub-check(s) failed`, {
+  failWithMemory("wp-comm-bundle-check.mjs", `wp-comm-bundle: ${failures.length} sub-check(s) failed`, {
     role: "SHARED",
     details: failures,
   });

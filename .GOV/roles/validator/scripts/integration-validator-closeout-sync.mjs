@@ -26,6 +26,11 @@ import {
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { parseExecutionCloseoutMode } from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
 import {
+  buildTerminalCloseoutRecordFromCloseoutSync,
+  publishTerminalCloseoutRecord,
+  readTerminalCloseoutRecord,
+} from "../../../roles_shared/scripts/lib/terminal-closeout-record-lib.mjs";
+import {
   buildValidatorPacketCompleteResult,
   evaluateValidatorPacketGovernanceState,
   resolveValidatorActorContext,
@@ -358,6 +363,7 @@ const originalRuntimeStatusText = runtimeStatusPath && fs.existsSync(runtimeStat
 const originalRuntimeStatusData = originalRuntimeStatusText ? JSON.parse(originalRuntimeStatusText) : null;
 const gateStatePath = repoPathAbs(resolveValidatorGatePath(wpId));
 const originalGateStateText = fs.existsSync(gateStatePath) ? readText(gateStatePath) : null;
+const originalTerminalCloseoutRecord = readTerminalCloseoutRecord({ wpId });
 const governanceState = evaluateValidatorPacketGovernanceState({
   wpId,
   packetPath: packetAbsPath,
@@ -571,6 +577,7 @@ if (mergeValidation.errors.length > 0) {
   fail("Closeout sync would produce invalid merge-progression truth", mergeValidation.errors);
 }
 
+let terminalPublicationPath = "";
 writeText(packetAbsPath, nextPacketText);
 if (nextRuntimeStatusData && runtimeStatusPath) {
   writeText(runtimeStatusPath, `${JSON.stringify(nextRuntimeStatusData, null, 2)}\n`);
@@ -663,6 +670,34 @@ try {
     specAnchor: "CX-573B",
     packetRowRef: "MAIN_CONTAINMENT_STATUS",
   });
+  const terminalRecord = buildTerminalCloseoutRecordFromCloseoutSync({
+    wpId,
+    mode: requestedMode.mode,
+    packetStatus: requestedMode.packetStatus,
+    taskBoardStatus: requestedMode.boardStatus,
+    mainContainmentStatus: requestedMode.mainContainmentStatus,
+    mergedMainCommit: requestedMode.requireMergedMainCommit ? mergedMainCommit : "NONE",
+    verdict: requestedMode.requiredValidationVerdict,
+    verdictRecordedAtUtc: parsedTruth.validationVerdictRecord?.timestampUtc || "",
+    verdictActorRole: parsedTruth.validationVerdictRecord?.actorRole || "INTEGRATION_VALIDATOR",
+    verdictActorSession: parsedTruth.validationVerdictRecord?.actorSession || "",
+    verdictEvidencePointer: parsedTruth.validationVerdictRecord?.evidencePointer || "",
+    governanceDebtKeys: settlementDebtKeys,
+    governanceDebtSummaries: settlementDebtSummaries,
+    terminalPublicationRecorded: true,
+    targetHeadSha: evaluation.topology.targetHeadSha || "",
+    currentMainHeadSha: baselineSha,
+    actorRole: actorContext.actorRole || "INTEGRATION_VALIDATOR",
+    actorSession: actorContext.actorSessionId || actorContext.actorSessionKey || "integration-validator-closeout-sync",
+    source: "INTEGRATION_VALIDATOR_CLOSEOUT_SYNC",
+    recordedAtUtc: timestamp,
+    previousRecord: originalTerminalCloseoutRecord.record,
+  });
+  const terminalPublication = publishTerminalCloseoutRecord({
+    wpId,
+    record: terminalRecord,
+  });
+  terminalPublicationPath = terminalPublication.path;
 } catch (error) {
   writeText(packetAbsPath, originalPacketText);
   if (originalTaskBoardText) writeText(taskBoardPath, originalTaskBoardText);
@@ -687,6 +722,9 @@ console.log(`  self_settled_count=${settlement.settled.length}`);
 console.log(`  artifact_cleanup_removed_repo_local_dirs=${artifactCleanup.removedRepoLocalDirs.map((entry) => normalizePath(entry)).join(", ") || "<none>"}`);
 console.log(`  artifact_cleanup_removed_external_dirs=${artifactCleanup.removedExternalDirs.map((entry) => normalizePath(entry)).join(", ") || "<none>"}`);
 console.log(`  artifact_retention_manifest=${normalizePath(artifactRetentionManifestWrite.manifestAbsPath)}`);
+if (terminalPublicationPath) {
+  console.log(`  terminal_closeout_record=${normalizePath(terminalPublicationPath)}`);
+}
 if (requestedMode.requireMergedMainCommit) {
   console.log(`  merged_main_commit=${mergedMainCommit}`);
 }

@@ -63,18 +63,22 @@ Rule:
 
 ## Governance Memory Quick Commands
 
-- `just memory-stats` â€” health overview (active/consolidated counts, schema version)
-- `just memory-search "<query>"` â€” FTS5 keyword search
-- `just memory-recall <ACTION> [--wp WP-{ID}]` â€” visible memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED`
-- `just memory-intent-snapshot "<intent>" --wp WP-{ID} --role ROLE` â€” context+intent capture before complex reasoning (judgment-based, SHOULD)
-- `just memory-debug-snapshot [WP-{ID}]` â€” inspect pre-task + intent snapshots
-- `just memory-capture <type> "<insight>" --wp WP-{ID}` â€” mid-session memory capture
-- `just memory-flag <id> "<reason>"` â€” suppress bad memory (importance â†’ 0.1)
-- `just memory-patterns` â€” cross-WP pattern synthesis â†’ governance improvement candidates
-- `just memory-refresh --force-compact` â€” force extraction + compaction cycle
+- `just memory-stats` - health overview (active/consolidated counts, schema version)
+- `just memory-search "<query>"` - FTS5 keyword search
+- `just memory-recall <ACTION> [--wp WP-{ID}]` - visible memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED`
+- `just role-startup-brief <ROLE>` - startup-operational anti-repeat cards from shared and role-specific Memory Manager briefs
+- `just memory-intent-snapshot "<intent>" --wp WP-{ID} --role ROLE` - context+intent capture before complex reasoning (judgment-based, SHOULD)
+- `just memory-debug-snapshot [WP-{ID}]` - inspect pre-task + intent snapshots
+- `just memory-capture <type> "<insight>" --wp WP-{ID}` - mid-session memory capture
+- `just memory-flag <id> "<reason>"` - suppress bad memory (importance -> 0.1)
+- `just memory-patterns` - cross-WP pattern synthesis -> governance improvement candidates
+- `just memory-refresh --force-compact` - force extraction + compaction cycle
 
 - `just repomem open "<session purpose>" --role ROLE --wp WP-{ID}` - required SESSION_OPEN for WP-bound roles before governed mutation
 - `just repomem-gate` - internal/session guard used by mutation recipes to require an open repomem session
+- `just repomem-soft-gate` - non-blocking guard used by read/status helpers; warns without preventing inspection
+- `just launch-memory-manager-session [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` - force-launch a governed memory hygiene lane
+- `just memory-manager-proposal|memory-manager-flag-receipt|memory-manager-rgf-candidate WP-{ID} ...` - packetless Memory Manager receipts for Orchestrator or Classic Orchestrator review; Memory Manager proposes broader changes, the coordinator decides
 
 Pre-task snapshots are captured automatically at: WP delegation, steering, relay dispatch, packet creation, closeout, board status change.
 
@@ -82,7 +86,9 @@ Pre-task snapshots are captured automatically at: WP delegation, steering, relay
 
 Governance-only (does not scan `src/` or `app/`):
 - `just gov-check`
-- `just canonise-gov` â€” inspect every listed governance file and update drift across intent, rules, and instructions; run after any governance change and do not stop at the green summary
+- `node .GOV/roles_shared/checks/repo-governance-board-check.mjs` - gov-check subcheck for RGF board row/mirror/sequence drift
+- `just artifact-root-preflight [WP-{ID}]` - environment preflight for canonical external artifact-root posture; `ENVIRONMENT_BLOCKER` does not invalidate product proof
+- `just canonise-gov` - inspect every listed governance file and update drift across intent, rules, and instructions; run after any governance change and do not stop at the green summary
 - Governance-only maintenance does not require a Work Packet or USER_SIGNATURE (Codex [CX-111]).
 - Shared repo tooling notes live in `.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md`; use it as short append-only shared tooling memory, not as a second LAW surface.
 
@@ -149,6 +155,7 @@ Primary commands:
 - `just workflow-dossier-sync WP-... [--role ROLE] [--tag ACP_SYNC] [--surface MECHANICAL]`
 - `just workflow-dossier-inject-repomem WP-... [--debug]`
 - `just workflow-dossier-autofill-costs WP-... [--debug]`
+- `just workflow-dossier-judgment-check WP-... [--terminal-verdict PASS|FAIL] [--file <path>]`
 - dossier writes are diagnostic-only: Orchestrator notes prepend near the top, ACP/session-control traces append at EOF, and terminal repomem imports append at EOF after ACP lanes settle
 - `just orchestrator-prepare-and-packet` now seeds the live workflow dossier automatically; use `workflow-dossier-init` only for repair or manual re-seeding
 - `just coder-worktree-add WP-...`
@@ -185,6 +192,10 @@ Primary commands:
 - `just session-cancel <ROLE> WP-...`
 - `just session-registry-status [WP-...]`
 - `just active-lane-brief <ROLE> WP-... [--json]`
+- `just session-scan-orphan-terminals [args]`
+- `just wp-truth-bundle WP-... [--json] [--no-write]`
+- `just wp-metrics WP-... [flags]`
+- `just wp-metrics-compare WP-A WP-B [flags]`
 - `just orchestrator-steer-next WP-... "<context>" [PRIMARY|FALLBACK]`
 - `just manual-relay-next WP-... [--debug]`
 - `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK] [--debug]`
@@ -237,6 +248,7 @@ Primary commands (per WP validation):
 - `just closeout-repair WP-... [--dry-run] [--debug]` before whole-WP closeout when packet/runtime/SHA/artifact truth needs mechanical repair
 - `just phase-check CLOSEOUT WP-...`
 - governed closeout write through the same phase surface: `just phase-check CLOSEOUT WP-... --sync-mode <MODE> --context "<why this truth is being written>"`
+- governed closeout write also publishes `WP_COMMUNICATIONS/<WP_ID>/TERMINAL_CLOSEOUT_RECORD.json`; packet, task-board, dossier, and truth-bundle rows are projections of that terminal record plus runtime authority
 - `phase-check CLOSEOUT --sync-mode ...` also makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot; dossier debt is diagnostic only, and the human post-mortem/review plus rubric can be appended after terminal truth is recorded
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
@@ -251,9 +263,14 @@ Primary commands (per WP validation):
 - The same brief now surfaces declared active/next MT truth so validator overlap review can target the correct microtask without re-deriving it from raw receipts.
 - Use `just check-notifications WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <your-session>` so you only consume notifications targeted to your governed session.
 - `just wp-review-exchange VALIDATOR_QUERY WP-... CODER <session> WP_VALIDATOR <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
+- `just wp-validator-query WP-... <ACTOR_ROLE> <session> <WP_VALIDATOR_SESSION> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [microtask_json]`
 - `just wp-validator-response WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <coder_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
 - `just wp-review-exchange REVIEW_REQUEST WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
+- `just wp-review-request WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [microtask_json]`
 - `just wp-review-response WP-... <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]`
+- `just send-mt WP-... MT-NNN "<description>" [PRIMARY|FALLBACK]`
+- `just spec-debt-open WP-... "<clause>" "<notes>" [YES|NO]`
+- `just wp-waiver-record WP-... --blocker-command <cmd> --allowed-edit-paths <paths> --operator-authority-ref <ref>`
 - optional final `microtask_json` may carry `{ "scope_ref": "...", "file_targets": ["..."], "proof_commands": ["..."], "risk_focus": "...", "expected_receipt_kind": "..." }`
 - When a composite phase gate fails, inspect the `PHASE_CHECK_STATUS` artifact/output first before dropping into adjacent support helpers.
 

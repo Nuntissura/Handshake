@@ -76,6 +76,10 @@ function normalizeState(raw) {
         raw?.closeout_sync_events && typeof raw.closeout_sync_events === 'object'
             ? raw.closeout_sync_events
             : {};
+    const terminal_closeout_records =
+        raw?.terminal_closeout_records && typeof raw.terminal_closeout_records === 'object'
+            ? raw.terminal_closeout_records
+            : {};
 
     return {
         validation_sessions,
@@ -84,6 +88,7 @@ function normalizeState(raw) {
             : [],
         committed_validation_evidence,
         closeout_sync_events,
+        terminal_closeout_records,
     };
 }
 
@@ -111,12 +116,14 @@ function saveWpState(wpId, state) {
     const closeoutSyncEvents = Array.isArray(state?.closeout_sync_events?.[wpId])
         ? state.closeout_sync_events[wpId]
         : [];
+    const terminalCloseoutRecord = state?.terminal_closeout_records?.[wpId] || null;
 
     const toWrite = normalizeState({
         validation_sessions: session ? { [wpId]: session } : {},
         archived_sessions: archived,
         committed_validation_evidence: committedEvidence ? { [wpId]: committedEvidence } : {},
         closeout_sync_events: closeoutSyncEvents.length > 0 ? { [wpId]: closeoutSyncEvents } : {},
+        terminal_closeout_records: terminalCloseoutRecord ? { [wpId]: terminalCloseoutRecord } : {},
     });
 
     fs.writeFileSync(perFile, `${JSON.stringify(toWrite, null, 2)}\n`);

@@ -102,6 +102,9 @@ These are safe starting points for orientation and health checks.
   - `read-only`
   - validates external artifact placement; repo-local `target/` directories, stale Cargo target-dir posture, and sibling artifact-root aliases such as `../Handshake Artifacts/` fail closed
   - retention policy authority: `.GOV/roles_shared/docs/ARTIFACT_RETENTION_POLICY.md`
+- `just artifact-root-preflight [WP-{ID}]`
+  - `environment-preflight`
+  - ensures the canonical external artifact root exists and fails on repo-local target/build residue; failures are `ENVIRONMENT_BLOCKER`, preserve product proof, and do not imply coder revalidation by themselves
 - `just session-registry-status [WP-{ID}]`
   - `read-only`
   - inspect governed session state; when a WP filter is supplied, this now also prints the governed WP token-usage rollup by role, derived stalled-relay status, the runtime-native relay escalation policy (`failure_class`, `policy_state`, `next_strategy`, strategy budget), the active terminal batch id, and owned-terminal metadata/reclaim status
@@ -126,6 +129,9 @@ These are safe starting points for orientation and health checks.
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
   - `read-only`
   - print the compact authority/context digest for one governed role lane, including runtime route, notifications, relay health, declared microtask plan (`active` / `next`), and next commands
+- `just session-scan-orphan-terminals [args]`
+  - `read-only`
+  - inspect hidden governed terminal/helper processes and report orphaned session-control residue before launch or closeout repair
 - `just manual-relay-next WP-{ID} [--debug]`
   - `read-only`
   - Classic-Orchestrator-owned next-step helper for `WORKFLOW_LANE=MANUAL_RELAY`; prints the runtime-projected next actor, target session, a structured relay envelope (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`), and exact governed follow-up commands without auto-steering
@@ -136,6 +142,13 @@ These are safe starting points for orientation and health checks.
 - `just wp-token-usage WP-{ID}`
   - `read-only`
   - print the governed per-WP token ledger aggregated from settled ACP session outputs
+- `just wp-truth-bundle WP-{ID} [--json] [--no-write]`
+  - `runtime-write` by default because it writes a full detail bundle under `../gov_runtime/roles_shared/WP_COMMUNICATIONS/<WP_ID>/truth_bundle/`; use `--no-write` for read-only inspection
+  - compact current-truth bundle for Orchestrator recovery and cost-governor mode; consume this before rereading packet/runtime/session/dossier surfaces separately
+- `just wp-metrics WP-{ID} [flags]`
+- `just wp-metrics-compare WP-A WP-B [flags]`
+  - `read-only`
+  - render WP runtime/session/receipt/token metrics or compare two WPs; used by dossier telemetry and cost diagnosis
 - `just wp-timeline WP-{ID} [--json]`
   - `read-only`
   - print one merged WP timeline plus structured span rows for control commands, token-command windows, review exchanges, and microtask execution windows, together with stage counts, token totals, and budget health
@@ -167,6 +180,7 @@ These are safe starting points for orientation and health checks.
   - route context is fenced as `<governance-context>` user-message context; it must not rebuild or mutate the active role session's cached system prompt
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
   - before dispatch, the helper now echoes the runtime-native relay escalation policy for the lane (`failure_class`, `policy_state`, `next_strategy`, strategy budget) so repairs are based on canonical runtime truth rather than local transcript interpretation
+  - under cost-governor `RECOVERY_MODE`, broad explicit-target steering is blocked unless it matches the projected next legal actor; `OVERRIDE_REQUIRED` requires `--override-recovery=<operator reason>`
 - `just manual-relay-next WP-{ID} [--debug]`
   - `read-only`
   - for `WORKFLOW_LANE=MANUAL_RELAY`, inspect runtime next-actor truth without dispatching any prompt; this surface belongs to `CLASSIC_ORCHESTRATOR`
@@ -188,6 +202,9 @@ These are safe starting points for orientation and health checks.
 - `just memory-recall <RESUME|CODER_RESUME|VALIDATOR_RESUME|STEERING|RELAY|REFINEMENT|PACKET_CREATE|COMMAND> [--wp WP-{ID}] [--budget N] [--role ROLE] [--trigger "<command>"] [--script "<script>"]`
   - `read-only`
   - render trigger-aware memory injection for the next governed action; prints `MEMORY_INJECTION_APPLIED` plus grouped `TRIGGER PITFALLS`, `ROLE HABITS`, `GENERAL FINDINGS`, and `TRIGGER CONTEXT`
+- `just role-startup-brief <ROLE>`
+  - `read-only`
+  - print `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md` plus the Memory-Manager-curated startup brief for the requested role; startup briefs are operational anti-repeat guidance and do not override protocols, packets, or runtime truth
 - `just memory-stats`
   - `read-only`
   - database size, entry counts by type, schema version, last compaction, oldest active entry
@@ -230,6 +247,14 @@ These are safe starting points for orientation and health checks.
 - `just memory-refresh [--force-compact]`
   - `runtime-write`
   - extract new memories from receipts + smoketests, then run compaction if stale (>24h with dual-gate); called automatically at every role startup + gov-check; `--force-compact` bypasses staleness check
+- `just launch-memory-manager-session [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
+  - `runtime-write`
+  - force the memory hygiene launcher, then start a governed `MEMORY_MANAGER` ACP session under a synthetic hygiene WP id
+- `just memory-manager-proposal WP-{ID} <actor-session> "<summary>" [backup_ref] [correlation_id]`
+- `just memory-manager-flag-receipt WP-{ID} <actor-session> "<summary>" [backup_ref] [correlation_id]`
+- `just memory-manager-rgf-candidate WP-{ID} <actor-session> "<summary>" [backup_ref] [correlation_id]`
+  - `runtime-write`
+  - append packetless `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` receipts from Memory Manager back to the active coordinator; Orchestrator or Classic Orchestrator reviews and implements accepted governance changes
 - `just shell-with-memory <ROLE> <command-family> "<command>" [--wp WP-{ID}] [--shell powershell|bash|cmd] [--action COMMAND] [--scope "files"] [--on-fail "<insight>"] [--on-success "<insight>"]`
   - `runtime-write`
   - command-family wrapper for ad hoc shell work: injects trigger-aware memory before execution, records optional repomem context, executes the command in the selected shell, and can capture structured `shell-command` procedural memory for later command-specific recall
@@ -269,6 +294,9 @@ These are safe starting points for orientation and health checks.
 - `just repomem-gate`
   - `read-only`
   - thin recipe wrapper around `just repomem gate`; used internally by mutation recipes before state-changing commands
+- `just repomem-soft-gate`
+  - `read-only`
+  - non-blocking session-open guard used by read/status helpers; it warns when no repomem session is open without preventing inspection
 
 ### Mutation commands requiring `context` parameter
 
@@ -409,7 +437,7 @@ For orchestrator-managed lanes after signature/prepare:
 - routine Operator asks such as "proceed", checkpoint approval, or generic approval relapse are invalid
 - real escalations must name one `BLOCKER_CLASS`: `POLICY_CONFLICT`, `AUTHORITY_OVERRIDE_REQUIRED`, `OPERATOR_ARTIFACT_REQUIRED`, or `ENVIRONMENT_FAILURE`
 - legacy pre-launch repair may still surface `LEGACY_SIGNATURE_TUPLE_REPAIR` from `just orchestrator-next`
-- token budget and token-ledger drift remain visible in `just orchestrator-next`, `just session-registry-status`, and `just wp-token-usage`, but they are diagnostic-only cost telemetry and do not require a continuation waiver to keep the WP moving
+- token budget and token-ledger drift remain visible in `just orchestrator-next`, `just session-registry-status`, `just wp-token-usage`, and `just wp-truth-bundle`; legacy continuation waivers are diagnostic-only, but the Orchestrator cost governor may enter `WARN`, `RECOVERY_MODE`, or `OVERRIDE_REQUIRED` and constrain broad rereads/steering until compact truth or an explicit override is used
 
 If a role keeps needing those rereads:
 
@@ -503,6 +531,9 @@ These mutate packet, board, traceability, or related governed surfaces.
 - `just task-board-set WP-{ID} <STATUS> ["reason"]`
   - use `DONE_MERGE_PENDING` after validator PASS append but before merge-to-main containment
   - use `DONE_VALIDATED` only after the approved closure commit is actually contained in local `main`
+- `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `read-only`
+  - gov-check subcheck for the governance refactor board: validates duplicate RGF rows, implementation-guide mirror drift, status summary consistency, and follow-on sequence references
 - `just build-order-sync`
   - `governance-write`
   - projection updates
@@ -525,6 +556,9 @@ These mutate packet, board, traceability, or related governed surfaces.
 - `just workflow-dossier-autofill-costs WP-{ID} [--debug]`
   - `governance-write`
   - backfill cost and token rollups into the active workflow dossier from the authoritative runtime and session telemetry surfaces
+- `just workflow-dossier-judgment-check WP-{ID} [--terminal-verdict PASS|FAIL] [--file <path>] [--debug]`
+  - `read-only`
+  - checks the live Workflow Dossier judgment/rubric sections for unresolved closeout placeholders or narrative contradictions; `phase-check CLOSEOUT` runs this as diagnostic governance debt
 - `just live-smoketest-review-init WP-{ID} [output]`
   - `governance-write`
   - compatibility alias for `just workflow-dossier-init`
@@ -630,6 +664,8 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
 - `just wp-coder-intent ...`
 - `just wp-coder-handoff ...`
 - `just wp-validator-review ...`
+- `just wp-validator-query WP-{ID} <actor_role> <actor_session> <wp_validator_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [microtask_json]`
+- `just wp-review-request WP-{ID} <actor_role> <actor_session> <target_role> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [microtask_json]`
 - `just wp-validator-response ...`
 - `just wp-review-response ...`
 - `just wp-validator-mechanical-review WP-{ID} MT-NNN [range] [--json] [--no-receipt]`
@@ -645,13 +681,22 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - when the resolved Work Packet folder contains `MT-*.md` files (current physical storage: `.GOV/task_packets/WP-{ID}/MT-*.md`) on an orchestrator-managed lane, governed coder `wp-coder-intent` and overlap `REVIEW_REQUEST` receipts now fail closed unless `microtask_json.scope_ref` resolves to one declared MT (`MT-001` or `CLAUSE_CLOSURE_MATRIX/CX-...`), `file_targets` are concrete, and those targets stay inside that MT's `CODE_SURFACES`
   - use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` when the receipt is part of that mandatory early validator gate
   - rolling microtask overlap: on orchestrator-managed lanes with declared MT files, after each completed MT the coder must use `wp-review-exchange REVIEW_REQUEST ...` with `review_mode=OVERLAP` bound to that MT before treating it as done; the coder may then advance one next declared MT while the WP validator reviews the previous one, the unresolved overlap queue is bounded to 1, disapproved MTs become queued loop-back repair after the current active MT closes, and full `wp-coder-handoff` is blocked until those overlap review items are drained
+- `just send-mt WP-{ID} MT-NNN "<description>" [PRIMARY|FALLBACK] [FLAGS]`
+  - `runtime-write`
+  - targeted MT prompt sender for governed microtask sessions; use only when the packet/MT board identifies the active MT and target lane
+- `just spec-debt-open WP-{ID} "<clause>" "<notes>" [YES|NO]`
+  - `governance-write`
+  - opens a structured spec-debt registry item linked to a packet clause; closure monitors require referenced debt to stay reflected in `SPEC_DEBT_STATUS`
+- `just wp-waiver-record WP-{ID} --blocker-command <cmd> --allowed-edit-paths <paths> --operator-authority-ref <ref> [--failing-files <paths>] [--proof-command <cmd>] [--expiry-condition <text>] [--allowed-edit-kind <kind>]`
+  - `runtime-write`
+  - records a path-limited baseline compile/scope waiver in the WP waiver ledger; post-work checks consume this ledger and do not treat informal prose as waiver authority
 - `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} [ROLE] [session]`
   - `read-only` by default; `CLOSEOUT` becomes `governance-write` when `--sync-mode ... --context ...` is supplied
   - canonical phase-boundary gate entrypoint
   - `STARTUP`: is the canonical startup/bootstrapping gate; for `CODER` it owns the packet/startup proof that used to live behind `pre-work`, and for validator roles it proves the startup communication mesh before productive work starts
   - `HANDOFF`: proves coder closure or validator handoff readiness from one phase artifact, depending on role
-  - `VERDICT`: proves the final review communication boundary from one phase artifact
-  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot. Dossier debt is diagnostic only.
+  - `VERDICT`: proves the final review communication boundary from one phase artifact and includes `artifact-root-preflight-check` so artifact-root/environment drift is classified before final review or merge
+  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, runs dossier judgment validation, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot. Dossier debt is diagnostic only.
 - `just closeout-repair WP-{ID} [--dry-run] [--debug]`
   - `governance-write`
   - mechanical closeout pre-repair surface owned by the Orchestrator

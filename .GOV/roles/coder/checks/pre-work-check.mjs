@@ -8,6 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { registerFailCaptureHook } from '../../../roles_shared/scripts/lib/fail-capture-lib.mjs';
 import {
   defaultRefinementPath,
   resolveSpecCurrent,
@@ -96,6 +97,8 @@ import {
   scopeDisciplineRequiresEnforcement,
 } from '../../../roles_shared/scripts/lib/scope-surface-lib.mjs';
 import { evaluateCoderPacketGovernanceState } from '../scripts/lib/coder-governance-lib.mjs';
+
+registerFailCaptureHook('pre-work-check.mjs', { role: 'CODER' });
 
 const WP_ID = process.argv[2];
 

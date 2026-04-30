@@ -15,7 +15,7 @@
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import { runBundledChecks } from "./bundled-check-runner-lib.mjs";
 
-registerFailCaptureHook("topology-bundle-check");
+registerFailCaptureHook("topology-bundle-check.mjs", { role: "SHARED" });
 
 const failures = runBundledChecks(import.meta.url, [
   "worktree-concurrency-check.mjs",
@@ -26,7 +26,7 @@ const failures = runBundledChecks(import.meta.url, [
 ]);
 
 if (failures.length > 0) {
-  failWithMemory(`topology-bundle: ${failures.length} sub-check(s) failed`, {
+  failWithMemory("topology-bundle-check.mjs", `topology-bundle: ${failures.length} sub-check(s) failed`, {
     role: "SHARED",
     details: failures,
   });

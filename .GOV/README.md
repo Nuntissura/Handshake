@@ -8,14 +8,14 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
 ## Ownership Model
 
 - `roles/`
-  - role-owned protocols, role-local state, and role-scoped implementation surfaces
+  - role-owned protocols, Memory-Manager-curated startup briefs, role-local state, and role-scoped implementation surfaces
   - `roles/orchestrator/`
   - `roles/activation_manager/`
   - `roles/coder/`
   - `roles/validator/`
   - `roles/memory_manager/`
 - `roles_shared/`
-  - shared truth, shared runtime state, shared ledgers, shared checks, and shared scripts
+  - shared truth, shared startup brief schema/cards, shared runtime state, shared ledgers, shared checks, and shared scripts
   - `roles_shared/checks/`
   - `roles_shared/scripts/`
   - `roles_shared/exports/`
@@ -49,6 +49,9 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
 - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
 - `.GOV/roles/coder/CODER_PROTOCOL.md`
 - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+- `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+- `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+- `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
 - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
 
 ## Navigation Entry Points

@@ -43,6 +43,7 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 - `just manual-relay-next WP-{ID}` reads the runtime-projected next actor
 - `just manual-relay-dispatch WP-{ID} "<context>"` brokers one governed role hop mechanically and may start the projected governed target session when needed
 - Manual-relay implementation currently lives under `.GOV/roles/orchestrator/scripts/manual-relay-*.mjs` for compatibility, but those helpers are Classic-Orchestrator-owned surfaces by lane authority
+- New manual-relay packets still carry `PACKET_ACCEPTANCE_MATRIX`; Classic Orchestrator must preserve stable acceptance row IDs during combined pre-launch/packet repair and must not replace unresolved rows with prose-only acceptance claims.
 
 ## Self-Prime And Predecessor Summary (RGF-249)
 
@@ -52,6 +53,13 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 - The self-prime output assembles packet/runtime/task-board/memory context and includes a same-role predecessor summary when available.
 - Predecessor summaries are context only. They do not override packet truth, runtime projection, receipts, task-board state, or explicit Operator instruction.
 - If self-prime and `just manual-relay-next WP-{ID}` disagree, reconcile against packet/runtime/receipts before dispatching another role hop.
+
+## Memory Manager Proposal Intake
+
+- Memory Manager may order memory evidence, update verified startup brief cards, and emit `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` receipts.
+- For `MANUAL_RELAY`, Classic Orchestrator is the authority that reviews those Memory Manager proposals and decides whether to accept, reject, defer, or convert them into governance refactor work.
+- Memory Manager does not edit Classic Orchestrator protocol, task-board truth, packet truth, Codex law, product code, or validator outcomes.
+- When a Memory Manager proposal affects manual relay, inspect the typed receipt and proposal backup, record the Classic Orchestrator decision, and make any accepted governance change from this authority lane.
 
 ## Combined Activation-Manager Parity For Manual Relay
 

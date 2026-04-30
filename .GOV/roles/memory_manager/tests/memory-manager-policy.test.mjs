@@ -5,6 +5,7 @@ import {
   INTELLIGENT_REVIEW_STALENESS_DAYS,
   INTELLIGENT_REVIEW_STALENESS_MS,
   MECHANICAL_DECAY_OPTIONS,
+  buildActionableFailureCandidates,
   evaluateIntelligentReviewStaleness,
   isAgeConsolidationCandidate,
   isStaleFileScopeCandidate,
@@ -119,4 +120,36 @@ test("intelligent review staleness: MALFORMED when timestamp is unparseable", ()
 
 test("intelligent review staleness: gate equals INTELLIGENT_REVIEW_STALENESS_MS / day", () => {
   assert.equal(INTELLIGENT_REVIEW_STALENESS_MS, INTELLIGENT_REVIEW_STALENESS_DAYS * 24 * 60 * 60 * 1000);
+});
+
+test("actionable failure candidates group repeated role/action failures", () => {
+  const candidates = buildActionableFailureCandidates([
+    {
+      id: 101,
+      memory_type: "procedural",
+      source_role: "ORCHESTRATOR",
+      topic: "repomem open failed under quality gate",
+      content: "repomem open failed because the session purpose was under the 80-character quality gate",
+    },
+    {
+      id: 102,
+      memory_type: "procedural",
+      source_role: "ORCHESTRATOR",
+      topic: "SESSION_OPEN quality gate failure",
+      content: "repomem open content below 80 chars; use a substantive purpose",
+    },
+    {
+      id: 103,
+      memory_type: "procedural",
+      source_role: "CODER",
+      topic: "unrelated compile failure",
+      content: "missing import in product test",
+    },
+  ]);
+
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].role, "ORCHESTRATOR");
+  assert.equal(candidates[0].action, "SESSION_OPEN");
+  assert.equal(candidates[0].recommended_surface, "BOTH");
+  assert.deepEqual(candidates[0].ids, [101, 102]);
 });
