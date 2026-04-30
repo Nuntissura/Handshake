@@ -7,6 +7,27 @@
 
 ---
 
+## 2026-04-30 Triage Update
+
+Do not implement this brief literally. Later governance tranches, especially `RGF-255` through `RGF-264`, already absorbed much of the original closeout canonicalization scope through compact WP truth, failure-class routing, terminal verdict session finalization, artifact-root preflight, baseline waiver ledgers, and dossier closeout checks.
+
+Current board authority narrows this brief to three queued spine items:
+
+- `RGF-233`: canonical terminal closeout record contract
+- `RGF-240`: monotonic state machine and atomic publication for that record
+- `RGF-241`: focused breakpoint fixture harness after the record/write model exists
+
+The following rows are intentionally on `HOLD` unless fresh live evidence reactivates them:
+
+- `RGF-234`: fold projection-sync requirements into `RGF-233`; no standalone proof/projection subsystem.
+- `RGF-235`: fold product-main head capture into `RGF-233`; no second topology resolver.
+- `RGF-236`: superseded by `RGF-260` unless stale terminal residue still reopens verdicts.
+- `RGF-237`: fold compact debt formatting into `RGF-233`/`RGF-241`; no separate debt-report system.
+- `RGF-238`: hold repair-loop budget work until current closeout repair shows non-convergence after `RGF-255` and `RGF-259`.
+- `RGF-239`: no bulk legacy migration; add only lazy enough-evidence fallback inside a terminal-record reader if needed.
+
+---
+
 ## Shared Closeout Failure Model
 
 These items assume the following split. Implementers must preserve it in code and user-facing status:
@@ -333,14 +354,10 @@ If there is any doubt, fail closed only for product outcome proof. Everything el
 ## Suggested Implementation Order
 
 1. `RGF-233`: introduce the terminal record reader/writer contract.
-2. `RGF-239`: add legacy migration so current and historical WPs still read coherently.
-3. `RGF-240`: make terminal writes monotonic and atomic before more writers consume the record.
-4. `RGF-235`: wire product-only compatibility into the terminal record.
-5. `RGF-234`: split proof from projection sync using the terminal record.
-6. `RGF-236`: classify stale terminal sessions using the terminal record.
-7. `RGF-237`: publish compact debt reports from the shared blocker/debt model.
-8. `RGF-238`: enforce the repair budget and escalation packet.
-9. `RGF-241`: lock the full breakpoint matrix into fixtures and tests.
+2. `RGF-240`: make terminal writes monotonic and atomic before more writers consume the record.
+3. `RGF-241`: lock the narrowed breakpoint matrix into fixtures and tests.
+
+The earlier standalone order for `RGF-234` through `RGF-239` is retained in the sections above as historical design context only. Those rows are no longer standalone implementation targets after the 2026-04-30 triage.
 
 ## Fresh-Model Starting Points
 

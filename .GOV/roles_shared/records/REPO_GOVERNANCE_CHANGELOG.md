@@ -21,6 +21,27 @@
 
 ## Entries
 
+### 2026.04.30.03 / GOV-CHANGE-20260430-03
+
+- STATUS: APPLIED
+- SUMMARY: triaged queued closeout canonicalization rows to prevent governance bloat before implementation
+- CHANGE_TYPE: GOVERNANCE_PLANNING_REDUCTION
+- DRIVER_EVIDENCE:
+  - 2026-04-30 Operator directive: inspect older governance refactor items and decide whether they are still useful implementation work or governance/workflow bloat.
+  - Post-`RGF-255` through `RGF-264` inspection found product-outcome/governance-debt split, failure-class routing, terminal session finalization, artifact-root preflight, and compact truth recovery already implemented.
+- FOLLOW_ON_ITEMS:
+  - Implement only the narrowed closeout spine: `RGF-233`, `RGF-240`, then `RGF-241`.
+  - Keep `RGF-234` through `RGF-239` on `HOLD` unless fresh live evidence reactivates a narrow piece.
+- FILES_CHANGED:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_IMPLEMENTATION_BRIEFS_20260426.md`
+- OUTCOME: the board no longer presents `RGF-233` through `RGF-241` as a literal nine-item implementation tranche. Only the canonical terminal record, monotonic atomic publication, and breakpoint harness remain queued; the intervening rows are held as folded, superseded, or evidence-gated design context.
+- VERIFICATION:
+  - `git diff --check`
+  - `node --test .GOV/roles_shared/tests/repo-governance-board-lib.test.mjs`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs` (legacy dependency warnings only: `RGF-95` and `RGF-104` still reference historical `RGF-93`)
+  - `just canonise-gov` plus inspection of the surfaced authority-doc review brief; no protocol, command, topology, or quickref drift applied because this is a planning reduction only.
+
 ### 2026.04.30.02 / GOV-CHANGE-20260430-02
 
 - STATUS: APPLIED
