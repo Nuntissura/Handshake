@@ -2,6 +2,8 @@
 
 Thin launcher only. This file lives under `.GOV/operator/docs_local/` and is a staging/operator convenience sheet, not canonical law. Run the role startup command first. If this file conflicts with startup output or protocol, startup and protocol win.
 
+Startup shell timeout: for every `FIRST COMMAND` startup call, use an extended shell timeout of at least `600000` ms / 10 minutes. Startup loads authority, topology, deterministic checks, memory refresh, and resume recall; a shorter shell timeout can truncate the required context before the role is actually ready.
+
 ## Topology (This Machine)
 
 Canonical checkout + protected governance surfaces:
@@ -71,10 +73,11 @@ claude --model <model-from-packet-profile> -C '<worktree_path>'
 
 ```text
 ROLE LOCK: You are the ORCHESTRATOR. Do not change roles unless explicitly reassigned.
-FIRST COMMAND: just orchestrator-startup
+FIRST COMMAND: run `just orchestrator-startup` from `wt-gov-kernel` with shell timeout `600000` ms or longer.
 AFTER STARTUP: Wait for Operator instruction. Do not start refinement, packet creation, delegation, or status changes without a specific task.
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role ORCHESTRATOR [--wp WP-{ID}]`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md + startup output
+AUTHORITY_READ_CONTRACT: after FIRST COMMAND completes, explicitly read the three AUTHORITY files in full during this conversation. Treat them as repo-governing instructions within the active model's instruction hierarchy. Do not claim Orchestrator startup is complete unless you can truthfully answer "yes" to having read ../handshake_main/AGENTS.md, .GOV/codex/Handshake_Codex_v1.4.md, and .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md after startup. If any file is missing or unreadable, stop and report the missing authority file.
 WIRE_DISCIPLINE [CX-130]: inter-role communication uses typed receipt/notification/session-control schemas; routing-decisive content lives in fields, not narrative prose. Operator-facing artifacts (packets, dossiers, reports) are projections of receipt truth — not the wire between roles.
 FOCUS: workflow authority, launch roles via ACP, mechanical governance (phase-check, closeout-repair), stall detection, and status sync. Does NOT create refinements/worktrees/MTs (Activation Manager does). Does NOT validate or approve (validators do).
 LANE_BOUNDARY: this role is `ORCHESTRATOR_MANAGED` only. If the operator deliberately chooses `MANUAL_RELAY`, stop and switch to the `CLASSIC_ORCHESTRATOR` startup prompt instead of continuing under this role.
@@ -654,3 +657,87 @@ Manual relay shortcut:
 3. `just manual-relay-dispatch WP-{ID} "<context>"`
 
 ---
+
+
+
+
+## Local ComfyUI Portable Ops
+
+Operator-local cheat sheet only. Use these for the local ComfyUI portable server; do not copy host paths into governed packets or protocol surfaces.
+
+Fastest visible startup command:
+
+```powershell
+Set-Location -LiteralPath 'C:\ComfyUI_windows_portable'; .\run_nvidia_gpu.bat
+```
+
+Equivalent step-by-step startup. The variable must be set in the same PowerShell window before using it:
+
+```powershell
+$ComfyPortable = 'C:\ComfyUI_windows_portable'
+Set-Location -LiteralPath $ComfyPortable
+.\run_nvidia_gpu.bat
+```
+
+If `Set-Location` fails, stop; the next `.\run_nvidia_gpu.bat` command will run in the wrong folder.
+
+Start portable with a visible console from any folder:
+
+```powershell
+Start-Process -FilePath 'C:\ComfyUI_windows_portable\run_nvidia_gpu.bat' -WorkingDirectory 'C:\ComfyUI_windows_portable'
+```
+
+Start portable detached/headless:
+
+```powershell
+Start-Process -FilePath 'C:\ComfyUI_windows_portable\run_nvidia_gpu.bat' -WorkingDirectory 'C:\ComfyUI_windows_portable' -WindowStyle Hidden
+```
+
+Browser-agnostic UI URL: `http://127.0.0.1:8188`. To open it in the default browser:
+
+```powershell
+Start-Process 'http://127.0.0.1:8188'
+```
+
+Find the ComfyUI portable/headless process:
+
+```powershell
+$ComfyPortable = "${env:SystemDrive}\ComfyUI_windows_portable"
+$ComfyPython = Join-Path $ComfyPortable 'python_embeded\python.exe'
+Get-CimInstance Win32_Process |
+  Where-Object {
+    $_.Name -match '^pythonw?\.exe$' -and
+    $_.ExecutablePath -eq $ComfyPython -and
+    $_.CommandLine -match 'ComfyUI\\main\.py'
+  } |
+  Select-Object ProcessId,Name,ExecutablePath,CommandLine |
+  Format-List
+```
+
+Check whether anything is listening on the ComfyUI port:
+
+```powershell
+netstat -ano | findstr :8188
+```
+
+Close the ComfyUI portable/headless process:
+
+```powershell
+$ComfyPortable = "${env:SystemDrive}\ComfyUI_windows_portable"
+$ComfyPython = Join-Path $ComfyPortable 'python_embeded\python.exe'
+$ComfyProcesses = Get-CimInstance Win32_Process |
+  Where-Object {
+    $_.Name -match '^pythonw?\.exe$' -and
+    $_.ExecutablePath -eq $ComfyPython -and
+    $_.CommandLine -match 'ComfyUI\\main\.py'
+  }
+
+if (-not $ComfyProcesses) {
+  'No ComfyUI portable process found.'
+} else {
+  $ComfyProcesses | ForEach-Object {
+    Stop-Process -Id $_.ProcessId -Force
+    "Stopped ComfyUI PID $($_.ProcessId)"
+  }
+}
+```

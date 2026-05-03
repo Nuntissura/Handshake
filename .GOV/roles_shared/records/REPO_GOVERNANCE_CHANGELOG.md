@@ -21,6 +21,30 @@
 
 ## Entries
 
+### 2026.05.04.01 / GOV-CHANGE-20260504-01
+
+- STATUS: APPLIED
+- SUMMARY: hardened the operator-local `orcstart` launcher with a model-agnostic authority-read contract and required authority-file injection
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-ORCSTART-AUTHORITY-CONTRACT`
+  - Operator request on 2026-05-04: make `orcstart.cmd` inject the cheat-sheet prompt as a repo-governing rule set and make the assistant read Codex, `AGENTS.md`, and Orchestrator protocol as a contract.
+- FOLLOW_ON_ITEMS:
+  - `RGF-265`
+- FILES_CHANGED:
+  - `.GOV/operator/scripts/orcstart.ps1`
+  - `.GOV/operator/scripts/orcstart.prompt.txt`
+  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
+  - `.GOV/Audits/audits/AUDIT-20260504-ORCSTART-AUTHORITY-CONTRACT.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `orcstart.cmd` now prints a `REPO GOVERNING RULE SET`, keeps launch behavior model/provider agnostic, runs `just orchestrator-startup`, and then injects the three required authority files so the Orchestrator cannot truthfully claim startup without that context.
+- VERIFICATION:
+  - `.\orcstart.cmd --no-startup --no-authority-files`
+  - `.\orcstart.cmd --no-startup` marker check for all three authority file begin/end pairs and no `[orcstart] MISSING` authority-file errors
+  - `git diff --check`
+  - `just gov-check`
+
 ### 2026.04.30.04 / GOV-CHANGE-20260430-04
 
 - STATUS: APPLIED

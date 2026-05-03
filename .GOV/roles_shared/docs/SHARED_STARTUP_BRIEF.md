@@ -52,3 +52,13 @@ Read this as operational memory at startup. It shortens the path from repeated f
 - DO_NOT: pay repeated read amplification silently; report ambiguity when the compact digest conflicts with live truth
 - VERIFY: the selected digest command prints the active route/context without needing broad `just --list` rediscovery
 - SOURCE: RGF-255, RGF-253
+
+### RAM-SHARED-STARTUP_TIMEOUT-001
+
+- ACTION: TOOLCALLING
+- TRIGGER: running a role `*-startup` command from Codex shell tooling
+- FAILURE_PATTERN: using the default shell timeout for startup and truncating authority, checks, memory refresh, or resume recall before the role is ready
+- DO: set the shell timeout to at least `600000` ms / 10 minutes for role startup commands; if startup still times out under host load, capture the timeout as procedural memory and rerun with an increased timeout before acting on partial context
+- DO_NOT: treat a shell timeout during startup as completed startup or begin governed work from incomplete startup output
+- VERIFY: startup reaches its normal checkpoint/resume hint output and any required hard gates have completed or produced explicit failures
+- SOURCE: memory-capture #5897, Operator correction 2026-05-03

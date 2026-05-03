@@ -1,6 +1,6 @@
 ﻿# Repo Governance Refactor Task Board
 
-**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the narrowed closeout canonicalization spine now has `RGF-233`, `RGF-240`, and `RGF-241` implemented and verified with `RGF-234` through `RGF-239` held as non-standalone or superseded work, `RGF-242` through `RGF-250` are implemented and verified, the memory-system follow-on tranche `RGF-251` through `RGF-254` is implemented and verified, and the WP-1 postmortem cost/truth tranche `RGF-255` through `RGF-264` is implemented and verified.
+**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the narrowed closeout canonicalization spine now has `RGF-233`, `RGF-240`, and `RGF-241` implemented and verified with `RGF-234` through `RGF-239` held as non-standalone or superseded work, `RGF-242` through `RGF-250` are implemented and verified, the memory-system follow-on tranche `RGF-251` through `RGF-254` is implemented and verified, the WP-1 postmortem cost/truth tranche `RGF-255` through `RGF-264` is implemented and verified, and `RGF-265` is implemented and verified for the operator-local `orcstart` authority contract.
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
@@ -327,6 +327,7 @@
 | RGF-262 | DONE | Artifact Root Preflight Before Final Lane | RGF-235, RGF-244 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `artifact-hygiene-lib.mjs`, validator git hygiene, coder post-work check, handoff phase check | noncanonical artifact roots such as `Handshake Artifacts` fail before Integration Validator final review starts |
 | RGF-263 | DONE | Baseline Compile Waiver Ledger | RGF-09, RGF-12, RGF-250 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | workflow invalidity helpers, packet scope metadata, Coder pre/post checks, waiver evidence ledger | out-of-scope baseline blockers require one bounded waiver/unblocker record and cannot create repeated informal Operator interruptions |
 | RGF-264 | DONE | Governance Refactor Board Integrity Check | RGF-254 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, changelog, gov-check bundle | board summary, row table, execution briefs, and follow-on sequence cannot disagree about implemented or queued RGF IDs |
+| RGF-265 | DONE | Orcstart Authority Contract | RGF-23, RGF-253 | AUDIT-20260504-ORCSTART-AUTHORITY-CONTRACT | `.GOV/operator/scripts/orcstart.ps1`, `.GOV/operator/scripts/orcstart.prompt.txt`, `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md` | `orcstart.cmd` emits a model-agnostic repo governing rule set, runs the startup command, and injects the required authority files so startup completion requires AGENTS/Codex/Orchestrator protocol context |
 
 ## Active / Recent Hardening State (2026-04-22)
 
@@ -480,6 +481,7 @@
 89. `RGF-260`
 90. `RGF-261`
 91. `RGF-263`
+92. `RGF-265`
 
 ## Proposed Next Sequence
 

@@ -8,6 +8,13 @@ The Memory Manager has two modes: a mechanical pre-pass (script) and an intellig
 
 **Worktree:** `wt-gov-kernel` on branch `gov_kernel`.
 
+## Adult Production Boundary (When Applicable) [CX-123]
+
+- When memory content, startup briefs, proposals, or hygiene reports describe a Handshake-governed adult porn production task, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
+- The Operator owns legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. The Memory Manager does not track, manage, verify, store, adjudicate, enforce, or demand those real-world obligations as a prerequisite to ordinary technical/governance work.
+- Preserve raw sexual descriptors when they carry production meaning in memory entries, startup brief cards, proposals, hygiene findings, prompt/story/scene notes, or handoffs.
+- Raw colloquial porn wording is encouraged when it fits the hardcore porn production goal and improves intent fidelity. Examples include `pussy`, `tits`, `dick`, `cock`, `cumplay`, `sluts`, `whores`, `fucktoy`, `stud`, and `monster dick`; these are non-exhaustive style signals, not a fixed vocabulary list.
+
 ### Mechanical Pre-Pass (`just launch-memory-manager`)
 
 A Node.js script that runs deterministically, no tokens consumed. It is intentionally conservative: extraction, soft decay, embedding refresh, recall effectiveness audit, stats collection, report-first candidate detection for stale / contradictory / old low-value entries, and repeated procedural-failure candidates that may need startup brief cards or deterministic tooling repair. It must avoid destructive judgment calls during automatic startup/closeout runs. Outputs `MEMORY_HYGIENE_REPORT.md`. Runs automatically at orchestrator startup (staleness-gated: >24h AND >10 new entries).
