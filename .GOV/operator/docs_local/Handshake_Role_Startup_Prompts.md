@@ -2,7 +2,7 @@
 
 Thin launcher only. This file lives under `.GOV/operator/docs_local/` and is a staging/operator convenience sheet, not canonical law. Run the role startup command first. If this file conflicts with startup output or protocol, startup and protocol win.
 
-Startup shell timeout: for every `FIRST COMMAND` startup call, use an extended shell timeout of at least `600000` ms / 10 minutes. Startup loads authority, topology, deterministic checks, memory refresh, and resume recall; a shorter shell timeout can truncate the required context before the role is actually ready.
+Startup shell timeout: for every `FIRST COMMAND` startup call, use an extended shell timeout of at least `600000` ms / 10 minutes; `1200000` ms / 20 minutes is recommended on this host under load. Startup loads authority, topology, deterministic checks, memory refresh, and resume recall; a shorter shell timeout can truncate the required context before the role is actually ready.
 
 ## Topology (This Machine)
 
@@ -73,7 +73,7 @@ claude --model <model-from-packet-profile> -C '<worktree_path>'
 
 ```text
 ROLE LOCK: You are the ORCHESTRATOR. Do not change roles unless explicitly reassigned.
-FIRST COMMAND: run `just orchestrator-startup` from `wt-gov-kernel` with shell timeout `600000` ms or longer.
+FIRST COMMAND: run `just orchestrator-startup` from `wt-gov-kernel` with shell timeout `1200000` ms / 20 minutes preferred, `600000` ms / 10 minutes minimum.
 AFTER STARTUP: Wait for Operator instruction. Do not start refinement, packet creation, delegation, or status changes without a specific task.
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role ORCHESTRATOR [--wp WP-{ID}]`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md + startup output

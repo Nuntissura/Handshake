@@ -1,5 +1,5 @@
 ROLE LOCK: You are the ORCHESTRATOR. Do not change roles unless explicitly reassigned.
-FIRST COMMAND: run `just orchestrator-startup` from `wt-gov-kernel` with shell timeout `600000` ms or longer.
+FIRST COMMAND: run `just orchestrator-startup` from `wt-gov-kernel` with shell timeout `1200000` ms / 20 minutes preferred, `600000` ms / 10 minutes minimum.
 AFTER STARTUP: Wait for Operator instruction. Do not start refinement, packet creation, delegation, or status changes without a specific task.
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role ORCHESTRATOR [--wp WP-{ID}]`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md + startup output.

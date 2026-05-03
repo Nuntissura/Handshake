@@ -21,6 +21,30 @@
 
 ## Entries
 
+### 2026.05.04.02 / GOV-CHANGE-20260504-02
+
+- STATUS: APPLIED
+- SUMMARY: raised `orcstart` startup timeout guidance to recommend 20 minutes under host load while keeping 10 minutes as the minimum
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-ORCSTART-STARTUP-TIMEOUT-GUIDANCE`
+  - Operator request on 2026-05-04: startup hit a timeout; make the launcher say boot can take a while and use a 10-minute or longer timeout.
+- FOLLOW_ON_ITEMS:
+  - `RGF-266`
+- FILES_CHANGED:
+  - `.GOV/operator/scripts/orcstart.ps1`
+  - `.GOV/operator/scripts/orcstart.prompt.txt`
+  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
+  - `.GOV/Audits/audits/AUDIT-20260504-ORCSTART-STARTUP-TIMEOUT-GUIDANCE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `orcstart.cmd` now prints visible timeout guidance before the long startup phase and the Orchestrator startup prompt source now prefers a `1200000` ms / 20-minute shell timeout with `600000` ms / 10 minutes as the floor.
+- VERIFICATION:
+  - `.\orcstart.cmd --help`
+  - `.\orcstart.cmd --print`
+  - `git diff --check`
+  - `just gov-check`
+
 ### 2026.05.04.01 / GOV-CHANGE-20260504-01
 
 - STATUS: APPLIED

@@ -12,6 +12,9 @@ $promptDoc = Join-Path $scriptRoot "..\docs_local\Handshake_Role_Startup_Prompts
 $role = if ($env:ORCSTART_ROLE) { $env:ORCSTART_ROLE } else { "ORCHESTRATOR" }
 $repoDisplay = "../" + (Split-Path -Leaf $repoRoot)
 $promptDocDisplay = ".GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md"
+$minimumStartupTimeoutMs = 600000
+$recommendedStartupTimeoutMs = 1200000
+$startupTimeoutGuidance = "Startup can take several minutes. Use shell timeout >= $minimumStartupTimeoutMs ms / 10 minutes; $recommendedStartupTimeoutMs ms / 20 minutes is recommended on this host under load."
 $authorityFiles = @(
   [pscustomobject]@{
     Key = "AGENTS"
@@ -50,6 +53,7 @@ function Show-Help {
   Write-Output ""
   Write-Output "Prints the live Handshake Orchestrator startup prompt, startup context, and authority-read contract."
   Write-Output "This is model/provider agnostic: it does not launch a model process."
+  Write-Output $startupTimeoutGuidance
   Write-Output ""
   Write-Output "Prompt source:"
   Write-Output "  $promptDocDisplay"
@@ -93,6 +97,7 @@ function Invoke-StartupCommand {
   Write-Section "FIRST COMMAND OUTPUT: just orchestrator-startup"
   Write-Output "Command: just orchestrator-startup"
   Write-Output "Working directory: $repoDisplay"
+  Write-Output $startupTimeoutGuidance
   Write-Output ""
 
   $previousErrorActionPreference = $ErrorActionPreference
@@ -186,6 +191,7 @@ Write-Output "Repo: $repoDisplay"
 Write-Output "Prompt source: $promptDocDisplay"
 Write-Output "Role: $role"
 Write-Output "Run from wt-gov-kernel with: .\orcstart.cmd"
+Write-Output $startupTimeoutGuidance
 Write-Output "Assistant instruction: treat the REPO GOVERNING RULE SET and ROLE STARTUP PROMPT below as the active repo-governed startup contract."
 
 if (-not $brief) {
