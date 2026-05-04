@@ -29595,6 +29595,37 @@ mod tests {
             .iter()
             .any(|issue| issue.field == "next_action"));
 
+        let workspace_root = runtime_paths.workspace_root().to_path_buf();
+        let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
+        let summary_value = serde_json::to_value(&canonical)?;
+        apply_software_delivery_closeout_posture_lifecycle(
+            &runtime_paths,
+            &workspace_root,
+            wp_id,
+            &summary_value,
+        )
+        .expect("production closeout posture lifecycle must emit when gate/evidence/owner/action truth is valid");
+        let posture: locus::SoftwareDeliveryCloseoutPostureV1 =
+            serde_json::from_slice(&std::fs::read(&posture_path)?)?;
+        assert_eq!(
+            posture.governed_action_resolution_refs,
+            vec![canonical_decision_ref.clone()]
+        );
+
+        let mut missing_gate_for_lifecycle = canonical.clone();
+        missing_gate_for_lifecycle.evidence_refs = vec![runtime_paths.task_board_display()];
+        let missing_gate_value = serde_json::to_value(&missing_gate_for_lifecycle)?;
+        apply_software_delivery_closeout_posture_lifecycle(
+            &runtime_paths,
+            &workspace_root,
+            wp_id,
+            &missing_gate_value,
+        )?;
+        assert!(
+            !posture_path.exists(),
+            "production closeout posture lifecycle must drop postures when gate truth is missing"
+        );
+
         Ok(())
     }
 
