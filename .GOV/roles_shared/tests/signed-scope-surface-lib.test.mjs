@@ -158,6 +158,44 @@ test("validateCandidateTargetAgainstSignedScope allows declared containment-only
   assert.deepEqual(result.errors, []);
 });
 
+test("historical target files count as optional signed-scope surface declarations", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-historical-target-"));
+  const patchRel = ".GOV/task_packets/WP-TEST-SIGNED-SCOPE-v1/signed-scope.patch";
+  const packetText = [
+    "# Task Packet: WP-TEST-SIGNED-SCOPE-v1",
+    "",
+    "## METADATA",
+    "- WP_ID: WP-TEST-SIGNED-SCOPE-v1",
+    "- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main",
+    "",
+    "## VALIDATION",
+    "- **Historical Target File**: `src/old.rs`",
+    "- **Start**: 1",
+    "- **End**: 5",
+    "- **Line Delta**: 2",
+    "- **Target File**: `src/demo.rs`",
+    "- **Start**: 10",
+    "- **End**: 20",
+    "- **Line Delta**: 3",
+    `- **Artifacts**: \`${patchRel}\``,
+  ].join("\n");
+
+  writeFile(path.join(tempRoot, patchRel), matchingDiff);
+  const result = validateSignedScopeSurface(packetText, {
+    repoRoot: tempRoot,
+    governanceRoot: path.join(tempRoot, ".GOV"),
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(
+    result.declaredEntries.map((entry) => [entry.filePath, entry.containmentOnly]),
+    [
+      ["src/old.rs", true],
+      ["src/demo.rs", false],
+    ],
+  );
+});
+
 test("validateContainedMainCommitAgainstSignedScope fails when merged main diff drifts from the signed patch artifact", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-contained-fail-"));
   writeFile(path.join(tempRoot, "artifacts", "signed.patch"), matchingDiff);
@@ -317,6 +355,42 @@ test("validateCandidateTargetAgainstSignedScope prefers the explicit committed h
           return { code: 0, output: matchingDiff };
         }
         return { code: 1, output: "unexpected git call" };
+      },
+    },
+  );
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.mergeBaseSha, committedBaseSha);
+});
+
+test("validateCandidateTargetAgainstSignedScope prefers durable committed validation target over post-merge containment", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "signed-scope-surface-durable-range-"));
+  writeFile(path.join(tempRoot, "artifacts", "signed.patch"), matchingDiff);
+  const staleMergeBaseSha = "1111111111111111111111111111111111111111";
+  const committedBaseSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const targetHeadSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+  const result = validateCandidateTargetAgainstSignedScope(
+    packetFixture({ mergeBaseSha: staleMergeBaseSha }),
+    {
+      repoRoot: tempRoot,
+      targetHeadSha,
+      currentMainHeadSha: targetHeadSha,
+      committedValidationTarget: `${committedBaseSha}..${targetHeadSha}`,
+      gitRunner: (args) => {
+        if (
+          args[0] === "merge-base"
+          && args[1] === "--is-ancestor"
+          && args[2] === committedBaseSha
+          && args[3] === targetHeadSha
+        ) {
+          return { code: 0, output: "" };
+        }
+        if (args[0] === "diff" && args[3] === committedBaseSha && args[4] === targetHeadSha) {
+          return { code: 0, output: matchingDiff };
+        }
+        return { code: 1, output: `unexpected git call: ${args.join(" ")}` };
       },
     },
   );

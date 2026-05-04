@@ -198,6 +198,45 @@ test("getOrCreateSessionRecord preserves original authority fields for existing 
   assert.equal(reopened.requested_model, "gpt-5.4");
 });
 
+test("getOrCreateSessionRecord refreshes launch profile after explicit session close", () => {
+  const registry = defaultRegistry();
+  const session = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "WP_VALIDATOR",
+    local_branch: "feat/WP-TEST",
+    local_worktree_dir: "../wtc-test",
+    terminal_title: "WP_VALIDATOR WP-TEST",
+    requested_model: "claude-opus-4-7",
+    requested_profile_id: "CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH",
+    reasoning_config_key: "thinking",
+    reasoning_config_value: "max",
+  });
+  session.runtime_state = "CLOSED";
+  session.startup_proof_state = "READY";
+  session.session_thread_id = "claude-thread";
+  session.session_thread_started_at = "2026-05-04T00:00:00Z";
+
+  const restarted = getOrCreateSessionRecord(registry, {
+    wp_id: "WP-TEST",
+    role: "WP_VALIDATOR",
+    local_branch: "feat/WP-TEST",
+    local_worktree_dir: "../wtc-test",
+    terminal_title: "WP_VALIDATOR WP-TEST",
+    requested_model: "gpt-5.5",
+    requested_profile_id: "OPENAI_GPT_5_5_XHIGH",
+    reasoning_config_key: "model_reasoning_effort",
+    reasoning_config_value: "xhigh",
+  });
+
+  assert.equal(restarted, session);
+  assert.equal(restarted.requested_model, "gpt-5.5");
+  assert.equal(restarted.requested_profile_id, "OPENAI_GPT_5_5_XHIGH");
+  assert.equal(restarted.reasoning_config_key, "model_reasoning_effort");
+  assert.equal(restarted.reasoning_config_value, "xhigh");
+  assert.equal(restarted.session_thread_id, "");
+  assert.equal(restarted.session_thread_started_at, "");
+});
+
 test("CLI escalation keeps governance path context and marks startup as requested", () => {
   const registry = defaultRegistry();
   const session = getOrCreateSessionRecord(registry, {

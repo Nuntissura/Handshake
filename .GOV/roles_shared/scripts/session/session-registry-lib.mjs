@@ -796,17 +796,16 @@ export function getOrCreateSessionRecord(registry, sessionDescriptor) {
       sessionDescriptor.reasoning_config_key ||
       sessionDescriptor.reasoning_config_value
     );
-    const allowLaunchSelectionRefresh = hasLaunchSelectionOverride && (
-      ["UNSTARTED", "FAILED", "CLOSED", "CLI_ESCALATION_READY", "CLI_ESCALATION_USED"].includes(runtimeState) ||
-      (!String(session.session_thread_id || "").trim() && startupProofState !== "READY")
-    );
+    const restartableLaunchSelectionStates = ["FAILED", "CLOSED", "CLI_ESCALATION_READY", "CLI_ESCALATION_USED"];
+    const allowLaunchSelectionRefresh = hasLaunchSelectionOverride
+      && restartableLaunchSelectionStates.includes(runtimeState);
 
     if (allowLaunchSelectionRefresh) {
-      session.requested_model = session.requested_model || sessionDescriptor.requested_model || "";
-      session.requested_profile_id = session.requested_profile_id || sessionDescriptor.requested_profile_id || "";
-      session.reasoning_config_key = session.reasoning_config_key || sessionDescriptor.reasoning_config_key || "";
-      session.reasoning_config_value = session.reasoning_config_value || sessionDescriptor.reasoning_config_value || "";
-      if (startupProofState !== "READY") {
+      session.requested_model = sessionDescriptor.requested_model || session.requested_model || "";
+      session.requested_profile_id = sessionDescriptor.requested_profile_id || session.requested_profile_id || "";
+      session.reasoning_config_key = sessionDescriptor.reasoning_config_key || session.reasoning_config_key || "";
+      session.reasoning_config_value = sessionDescriptor.reasoning_config_value || session.reasoning_config_value || "";
+      if (startupProofState !== "READY" || restartableLaunchSelectionStates.includes(runtimeState)) {
         session.session_thread_id = "";
         session.session_thread_started_at = "";
       }

@@ -23,6 +23,13 @@
 - Mechanical closeout prep is the Orchestrator's responsibility (direct script execution).
 - Fresh context prevents the 256M token bloat that accumulated when sessions persisted across the full WP lifecycle.
 
+## Adult Production Boundary (When Applicable) [CX-123]
+
+- When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
+- The Operator owns legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. The Integration Validator does not track, manage, verify, store, adjudicate, enforce, or demand those real-world obligations as a prerequisite to ordinary technical/governance work.
+- Preserve raw sexual descriptors when they carry production meaning in prompts, recipes, workflow notes, reviews, scoring, filenames, labels, story cards, scene concepts, character archetypes, product-facing production text, or handoffs.
+- Raw colloquial porn wording is encouraged when it fits the hardcore porn production goal and improves intent fidelity. Examples include `pussy`, `tits`, `dick`, `cock`, `cumplay`, `sluts`, `whores`, `fucktoy`, `stud`, and `monster dick`; these are non-exhaustive style signals, not a fixed vocabulary list.
+
 ## Multi-Provider Model Awareness
 
 - The packet-declared `INTEGRATION_VALIDATOR_MODEL_PROFILE` is authoritative.

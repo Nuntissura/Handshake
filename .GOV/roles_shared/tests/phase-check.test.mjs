@@ -9,6 +9,7 @@ import {
   buildPhaseCheckPlan,
   parseCloseoutSyncOptions,
   parseCommittedTargetArgs,
+  isCloseoutSyncKernelRoot,
   resolveCloseoutSyncCwd,
   resolveTerminalReadySessionsForWp,
   resolvePhaseCheckCwd,
@@ -168,6 +169,11 @@ test("closeout sync falls back to the default integration-validator worktree wit
   });
 
   assert.equal(resolved, path.resolve(REPO_ROOT, "../handshake_main"));
+});
+
+test("closeout sync kernel guard distinguishes product main from live kernel root", () => {
+  assert.equal(isCloseoutSyncKernelRoot(REPO_ROOT), true);
+  assert.equal(isCloseoutSyncKernelRoot(path.resolve(REPO_ROOT, "../handshake_main")), false);
 });
 
 test("committed target args preserve validator handoff range selection", () => {

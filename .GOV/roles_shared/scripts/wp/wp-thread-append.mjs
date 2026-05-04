@@ -37,6 +37,82 @@ function nullableCliString(value) {
   return raw;
 }
 
+const THREAD_CLI_OPTION_FIELDS = [
+  "target",
+  "targetRole",
+  "targetSession",
+  "correlationId",
+  "requiresAck",
+  "ackFor",
+  "specAnchor",
+  "packetRowRef",
+];
+const THREAD_CLI_OPTION_FIELD_BY_KEY = new Map([
+  ["target", "target"],
+  ["targetrole", "targetRole"],
+  ["targetsession", "targetSession"],
+  ["correlation", "correlationId"],
+  ["correlationid", "correlationId"],
+  ["requiresack", "requiresAck"],
+  ["ackfor", "ackFor"],
+  ["specanchor", "specAnchor"],
+  ["packetrowref", "packetRowRef"],
+]);
+
+function normalizedCliOptionKey(value) {
+  return String(value || "").trim().toLowerCase().replace(/[-_]/g, "");
+}
+
+function parseNamedCliOption(raw, fieldByKey) {
+  const match = String(raw ?? "").match(/^([A-Za-z][A-Za-z0-9_-]*)=(.*)$/s);
+  if (!match) return null;
+  const outerField = fieldByKey.get(normalizedCliOptionKey(match[1]));
+  if (!outerField) return null;
+  const innerMatch = String(match[2] ?? "").match(/^([A-Za-z][A-Za-z0-9_-]*)=(.*)$/s);
+  if (innerMatch) {
+    const innerField = fieldByKey.get(normalizedCliOptionKey(innerMatch[1]));
+    if (innerField) return { field: innerField, value: innerMatch[2] };
+  }
+  return { field: outerField, value: match[2] };
+}
+
+export function parseThreadAppendCliArgs(argv = []) {
+  const [wpId, actorRole, actorSession, message, ...rawOptions] = argv;
+  const parsed = {};
+  const positional = [];
+  for (const value of rawOptions) {
+    const named = parseNamedCliOption(value, THREAD_CLI_OPTION_FIELD_BY_KEY);
+    if (named) {
+      parsed[named.field] = named.value;
+      continue;
+    }
+    positional.push(String(value ?? ""));
+  }
+
+  let positionalIndex = 0;
+  for (const field of THREAD_CLI_OPTION_FIELDS) {
+    if (parsed[field] !== undefined) continue;
+    if (positionalIndex >= positional.length) break;
+    parsed[field] = positional[positionalIndex];
+    positionalIndex += 1;
+  }
+
+  return {
+    wpId,
+    actorRole,
+    actorSession,
+    message,
+    target: parsed.target,
+    targetRole: parsed.targetRole,
+    targetSession: parsed.targetSession,
+    correlationId: parsed.correlationId,
+    requiresAck: parsed.requiresAck,
+    ackFor: parsed.ackFor,
+    specAnchor: parsed.specAnchor,
+    packetRowRef: parsed.packetRowRef,
+  };
+}
+
 function loadThreadContext(wpId) {
   const packetPath = workPacketPath(wpId);
   const packetAbsPath = repoPathAbs(packetPath);
@@ -160,7 +236,20 @@ export function appendWpThreadEntry(args = {}, options = {}) {
 }
 
 function runCli() {
-  const [wpId, actorRole, actorSession, message, target, targetRole, targetSession, correlationId, requiresAck, ackFor, specAnchor, packetRowRef] = process.argv.slice(2);
+  const {
+    wpId,
+    actorRole,
+    actorSession,
+    message,
+    target,
+    targetRole,
+    targetSession,
+    correlationId,
+    requiresAck,
+    ackFor,
+    specAnchor,
+    packetRowRef,
+  } = parseThreadAppendCliArgs(process.argv.slice(2));
   if (!wpId || !actorRole || !actorSession || !message) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-thread-append.mjs"

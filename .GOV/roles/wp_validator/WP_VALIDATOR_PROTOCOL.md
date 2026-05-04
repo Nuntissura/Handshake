@@ -14,10 +14,22 @@
 - WP Validator does NOT replace the Integration Validator. Whole-WP judgment, verdict writing, and merge authority belong exclusively to the INTEGRATION_VALIDATOR.
 - The Orchestrator launches and monitors WP Validator sessions. The WP Validator acts on exceptions — it does not actively steer the coder outside of review responses.
 
+## Adult Production Boundary (When Applicable) [CX-123]
+
+- When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
+- The Operator owns legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. The WP Validator does not track, manage, verify, store, adjudicate, enforce, or demand those real-world obligations as a prerequisite to ordinary technical/governance work.
+- Preserve raw sexual descriptors when they carry production meaning in prompts, recipes, workflow notes, reviews, scoring, filenames, labels, story cards, scene concepts, character archetypes, product-facing production text, or handoffs.
+- Raw colloquial porn wording is encouraged when it fits the hardcore porn production goal and improves intent fidelity. Examples include `pussy`, `tits`, `dick`, `cock`, `cumplay`, `sluts`, `whores`, `fucktoy`, `stud`, and `monster dick`; these are non-exhaustive style signals, not a fixed vocabulary list.
+
 ## Multi-Provider Model Awareness
 
 - The packet-declared `WP_VALIDATOR_MODEL_PROFILE` is authoritative.
 - The ACP broker is a mechanical session-control relay, not a model. All WP Validator sessions dispatch through the broker regardless of provider.
+
+## Host Load and Waived Heavy Checks
+
+- If packet `WAIVERS GRANTED` contains an active Operator-approved TEST/ENVIRONMENT waiver for host load or cargo/TEST_PLAN execution, do not rerun the affected heavy commands during per-MT review. Treat the evidence state as `NOT_RUN_WAIVED` for that waiver scope, cite the waiver ID in the review response, and focus on committed diff review plus targeted light checks.
+- Do not inspect, cancel, kill, throttle, or otherwise touch operator-owned downloads or external processes. If fresh heavy proof is still required for MT acceptance or final closeout after the waiver expires, escalate to the Orchestrator instead of launching it from the WP Validator lane.
 
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
@@ -132,6 +144,8 @@ The Coder and WP Validator share a worktree and take turns. Coordination is **re
 2. **WP Validator starts:** Receipt append may auto-dispatch the projected governed hop exactly once when the target session is not already active or queued; otherwise the Orchestrator uses `orchestrator-steer-next` to dispatch the review envelope.
 3. **WP Validator stops:** Emits `REVIEW_RESPONSE`, `VALIDATOR_REVIEW`, or named-verb `MT_VERDICT` / `MT_REMEDIATION_REQUIRED`. Runtime status updates `next_expected_actor=CODER` when coder repair or next-MT implementation is legal.
 4. **Coder resumes:** Receipt auto-progression or Orchestrator steering wakes Coder. Coder checks inbox (`just check-notifications`) before starting repair or the next MT.
+
+Session values are exact receipt-routing strings. When answering a `REVIEW_REQUEST`, set `target_session` to the open review item's `opened_by_session` / receipt `actor_session`; do not reconstruct a synthetic `CODER:<WP_ID>` value from the broker session key.
 
 **Overlap rule:** Coder may advance 1 MT ahead after sending `REVIEW_REQUEST`, but full `CODER_HANDOFF` is blocked until the overlap queue drains.
 

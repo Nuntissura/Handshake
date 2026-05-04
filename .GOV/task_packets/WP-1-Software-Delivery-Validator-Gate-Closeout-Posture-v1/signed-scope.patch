@@ -1,0 +1,1991 @@
+diff --git a/src/backend/handshake_core/src/locus/task_board.rs b/src/backend/handshake_core/src/locus/task_board.rs
+index 509313c1..97dd4864 100644
+--- a/src/backend/handshake_core/src/locus/task_board.rs
++++ b/src/backend/handshake_core/src/locus/task_board.rs
+@@ -5 +5,3 @@ use super::types::{
+-    StructuredCollaborationRecordFamily, StructuredCollaborationSummaryV1,
++    SoftwareDeliveryCloseoutPostureV1, SoftwareDeliveryCloseoutState,
++    SoftwareDeliveryWorkflowBindingState, StructuredCollaborationRecordFamily,
++    StructuredCollaborationSummaryV1,
+@@ -19,0 +22,72 @@ pub struct TaskBoardEntry {
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct SoftwareDeliveryCloseoutProjectionBadgeV1 {
++    pub work_packet_id: String,
++    pub label: String,
++    pub advisory_only: bool,
++    pub projection_surface_ref: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub closeout_posture_ref: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub closeout_state: Option<SoftwareDeliveryCloseoutState>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub workflow_binding_state: Option<SoftwareDeliveryWorkflowBindingState>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub gate_record_ref: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub owner_authority_ref: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub next_action: Option<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub source_record_refs: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub evidence_refs: Vec<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub authority_refs: Vec<String>,
++}
++
++fn closeout_badge_label(closeout_state: Option<SoftwareDeliveryCloseoutState>) -> &'static str {
++    match closeout_state {
++        Some(SoftwareDeliveryCloseoutState::ReadyToClose) => "ready_to_close",
++        Some(SoftwareDeliveryCloseoutState::PendingBlockers) => "closeout_blocked",
++        Some(SoftwareDeliveryCloseoutState::PendingGate) => "closeout_blocked_gate",
++        Some(SoftwareDeliveryCloseoutState::NotEligible) => "not_closeout_ready",
++        None => "closeout_blocked_no_posture",
++    }
++}
++
++pub fn build_software_delivery_closeout_projection_badge(
++    work_packet_id: &str,
++    projection_surface_ref: String,
++    closeout_posture_ref: Option<String>,
++    closeout_posture: Option<&SoftwareDeliveryCloseoutPostureV1>,
++    workflow_binding_state: Option<SoftwareDeliveryWorkflowBindingState>,
++) -> SoftwareDeliveryCloseoutProjectionBadgeV1 {
++    let closeout_state = closeout_posture.map(|posture| posture.closeout_state);
++    let mut source_record_refs = vec![projection_surface_ref.clone()];
++    if let Some(reference) = closeout_posture_ref.as_ref() {
++        source_record_refs.push(reference.clone());
++    }
++    source_record_refs.sort();
++    source_record_refs.dedup();
++
++    SoftwareDeliveryCloseoutProjectionBadgeV1 {
++        work_packet_id: work_packet_id.to_string(),
++        label: closeout_badge_label(closeout_state).to_string(),
++        advisory_only: true,
++        projection_surface_ref,
++        closeout_posture_ref,
++        closeout_state,
++        workflow_binding_state,
++        gate_record_ref: closeout_posture.map(|posture| posture.gate_record_ref.clone()),
++        owner_authority_ref: closeout_posture.map(|posture| posture.owner_authority_ref.clone()),
++        next_action: closeout_posture.and_then(|posture| posture.next_action.clone()),
++        source_record_refs,
++        evidence_refs: closeout_posture
++            .map(|posture| posture.evidence_refs.clone())
++            .unwrap_or_default(),
++        authority_refs: closeout_posture
++            .map(|posture| posture.authority_refs.clone())
++            .unwrap_or_default(),
++    }
++}
++
+@@ -74,0 +149,2 @@ pub struct TaskBoardEntryRecordV1 {
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub closeout_badge: Option<SoftwareDeliveryCloseoutProjectionBadgeV1>,
+diff --git a/src/backend/handshake_core/src/locus/types.rs b/src/backend/handshake_core/src/locus/types.rs
+index 91746ff2..1c1fae6e 100644
+--- a/src/backend/handshake_core/src/locus/types.rs
++++ b/src/backend/handshake_core/src/locus/types.rs
+@@ -4,0 +5 @@ use std::collections::BTreeMap;
++use std::fs;
+@@ -1041,0 +1043,2 @@ pub struct WorkflowMirrorGateSummary {
++    #[serde(default, skip_serializing_if = "String::is_empty")]
++    pub gate_record_id: String,
+@@ -1051,0 +1055,21 @@ pub struct WorkflowMirrorGateSummary {
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub check_evidence: Vec<WorkflowMirrorGateCheckEvidenceV1>,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
++pub struct WorkflowMirrorGateCheckEvidenceV1 {
++    pub gate_phase: String,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub check_result_status: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub descriptor_ref: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub descriptor_provenance: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub role_proof: Option<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub session_proof: Option<String>,
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub evidence_refs: Vec<String>,
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub validation_report_ref: Option<Value>,
+@@ -3442,0 +3467,8 @@ pub struct SoftwareDeliveryCloseoutPostureV1 {
++    /// Canonical governed actions legal from the current runtime state.
++    /// Packet text, task-board lane actions, and mailbox chronology do not
++    /// write this field.
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub allowed_action_ids: Vec<String>,
++    /// Canonical next governed action for the closeout posture.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub next_action: Option<String>,
+@@ -3482,0 +3515,187 @@ fn first_canonical_checkpoint_ref(
++fn gate_field_string(candidate_fields: &[(&Value, &[&str])]) -> Option<String> {
++    candidate_fields
++        .iter()
++        .filter_map(|(value, fields)| {
++            fields.iter().find_map(|field| value.get(field).and_then(Value::as_str))
++        })
++        .map(str::trim)
++        .find(|value| !value.is_empty())
++        .map(ToString::to_string)
++}
++
++fn normalize_gate_phase(phase: &str) -> Option<String> {
++    let normalized = phase.trim().to_ascii_lowercase();
++    match normalized.as_str() {
++        "" => None,
++        _ => Some(normalized),
++    }
++}
++
++fn gate_phase_authorizes_final_pass(phase: &str) -> bool {
++    matches!(
++        normalize_gate_phase(phase).as_deref(),
++        Some("committable" | "committed")
++    )
++}
++
++fn gate_authority_role(value: String) -> Option<String> {
++    let trimmed = value.trim();
++    let role = trimmed
++        .split_once(':')
++        .map(|(left, _)| left.trim())
++        .unwrap_or(trimmed);
++    if role.is_empty() {
++        None
++    } else {
++        Some(role.to_string())
++    }
++}
++
++fn gate_authority_session(value: String) -> Option<String> {
++    let trimmed = value.trim();
++    let session = trimmed
++        .split_once(':')
++        .map(|(_, right)| right.trim())
++        .unwrap_or(trimmed);
++    if session.is_empty() {
++        None
++    } else {
++        Some(session.to_string())
++    }
++}
++
++fn gate_role_proof_from_value(value: &Value) -> Option<String> {
++    let actor = value
++        .get("actor")
++        .or_else(|| value.get("validator"))
++        .unwrap_or(&Value::Null);
++    gate_field_string(&[
++        (value, &["role_proof", "role", "actor_role", "validator_role"]),
++        (actor, &["role"]),
++    ])
++    .and_then(gate_authority_role)
++}
++
++fn gate_session_proof_from_value(value: &Value) -> Option<String> {
++    let actor = value
++        .get("actor")
++        .or_else(|| value.get("validator"))
++        .unwrap_or(&Value::Null);
++    gate_field_string(&[
++        (
++            value,
++            &["session_proof", "session", "session_id", "actor_session"],
++        ),
++        (actor, &["session", "session_id"]),
++    ])
++    .and_then(gate_authority_session)
++}
++
++fn gate_check_status_from_contexts(contexts: &[&Value]) -> Option<String> {
++    contexts.iter().find_map(|value| {
++        let check_result = value.get("check_result").unwrap_or(&Value::Null);
++        let result = value.get("result").unwrap_or(&Value::Null);
++        gate_field_string(&[
++            (
++                value,
++                &["check_result_status", "status", "result_status", "result"],
++            ),
++            (check_result, &["status", "result_status", "result"]),
++            (result, &["status", "result_status"]),
++        ])
++    })
++}
++
++fn gate_phase_from_contexts(contexts: &[&Value]) -> Option<String> {
++    contexts
++        .iter()
++        .find_map(|value| gate_field_string(&[(value, &["gate_phase", "phase"])]))
++}
++
++fn gate_contexts_have_evidence_refs(contexts: &[&Value]) -> bool {
++    contexts.iter().any(|value| {
++        value
++            .get("evidence_refs")
++            .and_then(Value::as_array)
++            .is_some_and(|refs| !refs.is_empty())
++    })
++}
++
++fn gate_contexts_have_authority_proof(contexts: &[&Value]) -> bool {
++    let role = contexts
++        .iter()
++        .find_map(|value| gate_role_proof_from_value(value));
++    let session = contexts
++        .iter()
++        .find_map(|value| gate_session_proof_from_value(value));
++    match (role, session) {
++        (Some(role), Some(session)) => !role.eq_ignore_ascii_case(&session),
++        _ => false,
++    }
++}
++
++fn gate_entry_authorizes_final_pass(entry: &Value, record: &Value) -> bool {
++    let report = entry.get("validation_report_ref").unwrap_or(&Value::Null);
++    let report_check_result = report.get("check_result").unwrap_or(&Value::Null);
++    let gate_summary = record.get("gate_summary").unwrap_or(&Value::Null);
++    let gate_state = record.get("gate_state").unwrap_or(&Value::Null);
++    let contexts = [
++        entry,
++        report,
++        report_check_result,
++        gate_summary,
++        record,
++        gate_state,
++    ];
++    let status_is_pass = gate_check_status_from_contexts(&contexts)
++        .is_some_and(|status| status.eq_ignore_ascii_case("pass"));
++    let phase_authorizes = gate_phase_from_contexts(&contexts)
++        .is_some_and(|phase| gate_phase_authorizes_final_pass(&phase));
++
++    status_is_pass
++        && phase_authorizes
++        && gate_contexts_have_authority_proof(&contexts)
++        && gate_contexts_have_evidence_refs(&contexts)
++}
++
++fn gate_record_is_committable_gate(record: &Value) -> bool {
++    let gate_summary = record.get("gate_summary").unwrap_or(&Value::Null);
++    if gate_summary
++        .get("check_evidence")
++        .and_then(Value::as_array)
++        .is_some_and(|entries| {
++            entries
++                .iter()
++                .any(|entry| gate_entry_authorizes_final_pass(entry, record))
++        })
++    {
++        return true;
++    }
++
++    [
++        gate_summary.get("check_result"),
++        record.get("check_result"),
++        gate_summary.get("validation_report_ref"),
++        record.get("validation_report_ref"),
++    ]
++    .into_iter()
++    .flatten()
++    .any(|entry| gate_entry_authorizes_final_pass(entry, record))
++}
++
++fn validator_gate_record_authorizes_final_pass(
++    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
++    canonical_wp_id: &str,
++) -> bool {
++    let gate_record_path = runtime_paths.validator_gate_record_path(canonical_wp_id);
++    let bytes = match fs::read(&gate_record_path) {
++        Ok(value) => value,
++        Err(_) => return false,
++    };
++    let gate_record: Value = match serde_json::from_slice(&bytes) {
++        Ok(value) => value,
++        Err(_) => return false,
++    };
++    gate_record_is_committable_gate(&gate_record)
++}
++
+@@ -3522,0 +3742,4 @@ fn derive_closeout_state_from_canonical(
++/// - the canonical validator-gate artifact is not materialized under
++///   `<gov_root>/validator_gates/<wp_id>.json`, OR
++/// - the materialized validator-gate artifact does not carry a final
++///   committable/committed PASS with evidence refs plus role/session proof, OR
+@@ -3557,0 +3781,9 @@ pub fn derive_software_delivery_closeout_posture(
++    if !runtime_paths
++        .validator_gate_record_path(&canonical.record_id)
++        .exists()
++    {
++        return None;
++    }
++    if !validator_gate_record_authorizes_final_pass(runtime_paths, &canonical.record_id) {
++        return None;
++    }
+@@ -3562,0 +3795,29 @@ pub fn derive_software_delivery_closeout_posture(
++    let next_action = canonical
++        .next_action
++        .as_deref()
++        .map(str::trim)
++        .filter(|value| {
++            !value.is_empty()
++                && is_governed_action_id_allowed_for_workflow_family(
++                    canonical.workflow_state_family,
++                    value,
++                )
++                && canonical
++                    .allowed_action_ids
++                    .iter()
++                    .any(|id| id.as_str() == *value)
++        })
++        .map(str::to_string)?;
++    let mut allowed_action_ids: Vec<String> = canonical
++        .allowed_action_ids
++        .iter()
++        .filter(|action_id| {
++            is_governed_action_id_allowed_for_workflow_family(
++                canonical.workflow_state_family,
++                action_id,
++            )
++        })
++        .cloned()
++        .collect();
++    allowed_action_ids.sort();
++    allowed_action_ids.dedup();
+@@ -3585 +3846 @@ pub fn derive_software_delivery_closeout_posture(
+-        .filter(|value| !value.trim().is_empty())
++        .filter(|value| runtime_paths.is_canonical_governance_decision_ref(value))
+@@ -3605,0 +3867,2 @@ pub fn derive_software_delivery_closeout_posture(
++        allowed_action_ids,
++        next_action: Some(next_action),
+@@ -4256,0 +4520,24 @@ pub fn validate_software_delivery_closeout_canonical_truth(
++    let next_action_is_canonical = canonical
++        .next_action
++        .as_deref()
++        .map(str::trim)
++        .filter(|value| !value.is_empty())
++        .is_some_and(|value| {
++            is_governed_action_id_allowed_for_workflow_family(
++                canonical.workflow_state_family,
++                value,
++            ) && canonical
++                .allowed_action_ids
++                .iter()
++                .any(|id| id.as_str() == value)
++        });
++    if !next_action_is_canonical {
++        result.push_issue(
++            StructuredCollaborationValidationCode::InvalidFieldValue,
++            "next_action",
++            Some("canonical governed action allowed for workflow_state_family".to_string()),
++            canonical.next_action.clone(),
++            "software-delivery closeout requires canonical governed-action truth \
++             from runtime allowed_action_ids/next_action",
++        );
++    }
+diff --git a/src/backend/handshake_core/src/role_mailbox.rs b/src/backend/handshake_core/src/role_mailbox.rs
+index c9ba287a..4b7a5ab8 100644
+--- a/src/backend/handshake_core/src/role_mailbox.rs
++++ b/src/backend/handshake_core/src/role_mailbox.rs
+@@ -19,0 +20 @@ use crate::runtime_governance::RuntimeGovernancePaths;
++use crate::workflows::locus::task_board::SoftwareDeliveryCloseoutProjectionBadgeV1;
+@@ -1977,0 +1979,2 @@ pub struct SoftwareDeliveryOverlayTriageRowV1 {
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub closeout_badge: Option<SoftwareDeliveryCloseoutProjectionBadgeV1>,
+@@ -1981,5 +1984,7 @@ pub struct SoftwareDeliveryOverlayTriageRowV1 {
+-/// surface. Returns `None` when `projection.project_profile_kind` is not
+-/// `SoftwareDelivery`. The row is a STABLE-ID PROJECTION ONLY: the mailbox
+-/// MUST NOT mutate the canonical claim/lease or queued-instruction record
+-/// state from this surface; it surfaces ids and canonical record refs so
+-/// operators can navigate to authoritative records.
++/// surface plus a runtime-backed closeout badge. Returns `None` when the
++/// projection is not `SoftwareDelivery` or the badge is not advisory and
++/// scoped to the same work packet. The row is a STABLE-ID PROJECTION ONLY:
++/// the mailbox MUST NOT mutate the canonical claim/lease, queued-instruction,
++/// validator-gate, or closeout-posture state from this surface; it surfaces
++/// ids and canonical record refs so operators can navigate to authoritative
++/// records.
+@@ -1987,0 +1993,11 @@ pub fn build_software_delivery_overlay_triage_row(
++    closeout_badge: SoftwareDeliveryCloseoutProjectionBadgeV1,
++) -> Option<SoftwareDeliveryOverlayTriageRowV1> {
++    build_software_delivery_overlay_triage_row_with_closeout_badge(
++        projection,
++        Some(closeout_badge),
++    )
++}
++
++fn build_software_delivery_overlay_triage_row_with_closeout_badge(
++    projection: &SoftwareDeliveryProjectionSurfaceV1,
++    closeout_badge: Option<SoftwareDeliveryCloseoutProjectionBadgeV1>,
+@@ -1991,0 +2008,5 @@ pub fn build_software_delivery_overlay_triage_row(
++    if let Some(badge) = closeout_badge.as_ref() {
++        if !badge.advisory_only || badge.work_packet_id != projection.work_packet_id {
++            return None;
++        }
++    }
+@@ -2001,0 +2023 @@ pub fn build_software_delivery_overlay_triage_row(
++        closeout_badge,
+diff --git a/src/backend/handshake_core/src/runtime_governance.rs b/src/backend/handshake_core/src/runtime_governance.rs
+index 69b923a5..9ce6a5b5 100644
+--- a/src/backend/handshake_core/src/runtime_governance.rs
++++ b/src/backend/handshake_core/src/runtime_governance.rs
+@@ -8 +8,4 @@ use serde::{Deserialize, Serialize};
+-use crate::workflows::locus::{self, task_board::TaskBoardEntryRecordV1};
++use crate::workflows::locus::{
++    self,
++    task_board::{SoftwareDeliveryCloseoutProjectionBadgeV1, TaskBoardEntryRecordV1},
++};
+@@ -91,0 +95,2 @@ pub struct DccWorkflowSummary {
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub closeout_badge: Option<SoftwareDeliveryCloseoutProjectionBadgeV1>,
+@@ -673,0 +679,7 @@ impl RuntimeGovernancePaths {
++    pub fn governance_decision_display(&self, decision_id: &str) -> String {
++        display_path(
++            &self.workspace_root,
++            &self.governance_decision_path(decision_id),
++        )
++    }
++
+@@ -813,0 +826,18 @@ impl RuntimeGovernancePaths {
++    /// True iff `value` is a canonical governed-action decision/ref under the
++    /// product runtime governance root: `<gov_root>/governance_decisions/<id>.json`.
++    /// Substring spoofs and nested paths are rejected.
++    pub fn is_canonical_governance_decision_ref(&self, value: &str) -> bool {
++        let normalized = normalize_display_like(value);
++        if normalized.is_empty() || !normalized.ends_with(".json") {
++            return false;
++        }
++        let prefix = normalize_display_like(&self.governance_decisions_dir_display());
++        if !normalized.starts_with(&prefix) {
++            return false;
++        }
++        let inner = &normalized[prefix.len()..];
++        inner
++            .strip_suffix(".json")
++            .is_some_and(|decision_id| !decision_id.is_empty() && !decision_id.contains('/'))
++    }
++
+@@ -1561,0 +1592 @@ mod tests {
++                    closeout_badge: None,
+diff --git a/src/backend/handshake_core/src/workflows.rs b/src/backend/handshake_core/src/workflows.rs
+index 468c163e..1adf903a 100644
+--- a/src/backend/handshake_core/src/workflows.rs
++++ b/src/backend/handshake_core/src/workflows.rs
+@@ -3138,0 +3139,3 @@ fn append_ref_strings_from_value(refs: &mut Vec<String>, value: &Value) {
++                "descriptor_ref",
++                "descriptor_hash",
++                "evidence_artifact_id",
+@@ -3156,0 +3160,5 @@ fn append_ref_strings_from_value(refs: &mut Vec<String>, value: &Value) {
++            for key in ["evidence_refs", "check_refs", "refs", "linked_artifacts"] {
++                if let Some(child) = map.get(key) {
++                    append_ref_strings_from_value(refs, child);
++                }
++            }
+@@ -3591,0 +3600,147 @@ fn gate_check_refs(gates: &locus::GateStatuses) -> Vec<String> {
++fn object_string_field(value: &Value, key: &str) -> Option<String> {
++    value
++        .as_object()
++        .and_then(|map| map.get(key))
++        .and_then(Value::as_str)
++        .map(str::trim)
++        .filter(|text| !text.is_empty())
++        .map(str::to_string)
++}
++
++fn nested_object_string_field(value: &Value, object_key: &str, field_key: &str) -> Option<String> {
++    value
++        .as_object()
++        .and_then(|map| map.get(object_key))
++        .and_then(|nested| object_string_field(nested, field_key))
++}
++
++fn first_gate_report_string(value: &Value, fields: &[(&str, Option<&str>)]) -> Option<String> {
++    fields.iter().find_map(|(field, nested)| match nested {
++        Some(nested_key) => nested_object_string_field(value, nested_key, field),
++        None => object_string_field(value, field),
++    })
++}
++
++fn gate_status_role_proof(gate_status: &locus::GateStatus, report: Option<&Value>) -> Option<String> {
++    report
++        .and_then(|value| {
++            first_gate_report_string(
++                value,
++                &[
++                    ("role", None),
++                    ("actor_role", None),
++                    ("validator_role", None),
++                    ("role", Some("actor")),
++                ],
++            )
++        })
++        .or_else(|| {
++            gate_status
++                .validated_by
++                .as_deref()
++                .and_then(|value| value.split_once(':').map(|(role, _)| role.trim().to_string()))
++        })
++        .filter(|value| !value.is_empty())
++}
++
++fn gate_status_session_proof(
++    gate_status: &locus::GateStatus,
++    report: Option<&Value>,
++) -> Option<String> {
++    report
++        .and_then(|value| {
++            first_gate_report_string(
++                value,
++                &[
++                    ("session", None),
++                    ("session_id", None),
++                    ("actor_session", None),
++                    ("session", Some("actor")),
++                ],
++            )
++        })
++        .or_else(|| {
++            gate_status
++                .validated_by
++                .as_deref()
++                .and_then(|value| value.split_once(':').map(|(_, session)| session.trim().to_string()))
++        })
++        .filter(|value| !value.is_empty())
++}
++
++fn workflow_mirror_gate_check_evidence(
++    gate_phase: &str,
++    gate_status: &locus::GateStatus,
++) -> Option<locus::WorkflowMirrorGateCheckEvidenceV1> {
++    let report = gate_status.validation_report_ref.as_ref();
++    let evidence_refs = report
++        .map(|value| {
++            let mut refs = Vec::new();
++            append_ref_strings_from_value(&mut refs, value);
++            dedupe_sort_strings(refs)
++        })
++        .unwrap_or_default();
++    let check_result_status = report.and_then(|value| {
++        first_gate_report_string(
++            value,
++            &[
++                ("result_status", None),
++                ("status", Some("check_result")),
++                ("status", Some("result")),
++                ("status", None),
++            ],
++        )
++    });
++    let descriptor_ref = report.and_then(|value| {
++        first_gate_report_string(
++            value,
++            &[
++                ("descriptor_ref", None),
++                ("ref", Some("descriptor")),
++                ("path", Some("descriptor")),
++                ("descriptor_id", Some("descriptor")),
++                ("name", Some("descriptor")),
++            ],
++        )
++    });
++    let descriptor_provenance = report.and_then(|value| {
++        first_gate_report_string(
++            value,
++            &[
++                ("descriptor_provenance", None),
++                ("provenance", Some("descriptor")),
++                ("source", Some("descriptor")),
++            ],
++        )
++    });
++    let has_report = report.is_some();
++    let role_proof = gate_status_role_proof(gate_status, report);
++    let session_proof = gate_status_session_proof(gate_status, report);
++    if !has_report && role_proof.is_none() && session_proof.is_none() {
++        return None;
++    }
++    Some(locus::WorkflowMirrorGateCheckEvidenceV1 {
++        gate_phase: gate_phase.to_string(),
++        check_result_status,
++        descriptor_ref,
++        descriptor_provenance,
++        role_proof,
++        session_proof,
++        evidence_refs,
++        validation_report_ref: report.cloned(),
++    })
++}
++
++fn gate_check_evidence(
++    gates: &locus::GateStatuses,
++) -> Vec<locus::WorkflowMirrorGateCheckEvidenceV1> {
++    let mut evidence = Vec::new();
++    if let Some(entry) = workflow_mirror_gate_check_evidence("pre_work", &gates.pre_work) {
++        evidence.push(entry);
++    }
++    if let Some(entry) = workflow_mirror_gate_check_evidence("post_work", &gates.post_work) {
++        evidence.push(entry);
++    }
++    evidence
++}
++
+@@ -3610 +3765,2 @@ fn build_workflow_mirror_gate_summary(
+-    let mut evidence_refs = vec![runtime_paths.task_board_display()];
++    let check_evidence = gate_check_evidence(&work_packet.governance.gates);
++    let mut evidence_refs = vec![runtime_paths.task_board_display(), gate_state_ref.clone()];
+@@ -3611,0 +3768,3 @@ fn build_workflow_mirror_gate_summary(
++    for entry in &check_evidence {
++        evidence_refs.extend(entry.evidence_refs.iter().cloned());
++    }
+@@ -3613,0 +3773 @@ fn build_workflow_mirror_gate_summary(
++        gate_record_id: format!("validator_gate:{}", work_packet.wp_id),
+@@ -3620,0 +3781 @@ fn build_workflow_mirror_gate_summary(
++        check_evidence,
+@@ -4034,0 +4196,7 @@ async fn emit_task_board_projection_artifacts(
++            closeout_badge: if boundary.project_profile_kind
++                == locus::ProjectProfileKind::SoftwareDelivery
++            {
++                build_software_delivery_closeout_badge_from_disk(runtime_paths, &row.wp_id)
++            } else {
++                None
++            },
+@@ -5154,0 +5323,2 @@ pub fn apply_software_delivery_closeout_posture_lifecycle(
++        let governed_action_resolution_refs =
++            gather_software_delivery_governed_action_resolution_refs(&summary_struct, runtime_paths);
+@@ -5159 +5329 @@ pub fn apply_software_delivery_closeout_posture_lifecycle(
+-            &[],
++            &governed_action_resolution_refs,
+@@ -5182,0 +5353,85 @@ pub fn apply_software_delivery_closeout_posture_lifecycle(
++fn gather_software_delivery_governed_action_resolution_refs(
++    summary: &locus::StructuredCollaborationSummaryV1,
++    runtime_paths: &RuntimeGovernancePaths,
++) -> Vec<String> {
++    let mut governed_action_resolution_refs: Vec<String> = summary
++        .authority_refs
++        .iter()
++        .chain(summary.evidence_refs.iter())
++        .filter_map(|reference| {
++            let normalized = reference.trim();
++            if normalized.is_empty() {
++                None
++            } else if runtime_paths.is_canonical_governance_decision_ref(normalized) {
++                Some(normalized.to_string())
++            } else {
++                None
++            }
++        })
++        .collect();
++    governed_action_resolution_refs.sort();
++    governed_action_resolution_refs.dedup();
++    governed_action_resolution_refs
++}
++
++fn read_software_delivery_projection_surface(
++    runtime_paths: &RuntimeGovernancePaths,
++    wp_id: &str,
++) -> Option<locus::SoftwareDeliveryProjectionSurfaceV1> {
++    let bytes = fs::read(runtime_paths.work_packet_projection_surface_path(wp_id)).ok()?;
++    let projection: locus::SoftwareDeliveryProjectionSurfaceV1 =
++        serde_json::from_slice(&bytes).ok()?;
++    if projection.project_profile_kind != locus::ProjectProfileKind::SoftwareDelivery {
++        return None;
++    }
++    if projection.work_packet_id != wp_id {
++        return None;
++    }
++    Some(projection)
++}
++
++fn read_software_delivery_closeout_posture(
++    runtime_paths: &RuntimeGovernancePaths,
++    wp_id: &str,
++) -> Option<locus::SoftwareDeliveryCloseoutPostureV1> {
++    let bytes = fs::read(runtime_paths.work_packet_closeout_posture_path(wp_id)).ok()?;
++    let posture: locus::SoftwareDeliveryCloseoutPostureV1 =
++        serde_json::from_slice(&bytes).ok()?;
++    if posture.project_profile_kind != locus::ProjectProfileKind::SoftwareDelivery {
++        return None;
++    }
++    if posture.work_packet_id != wp_id {
++        return None;
++    }
++    Some(posture)
++}
++
++fn build_software_delivery_closeout_badge_from_disk(
++    runtime_paths: &RuntimeGovernancePaths,
++    wp_id: &str,
++) -> Option<locus::task_board::SoftwareDeliveryCloseoutProjectionBadgeV1> {
++    let projection = read_software_delivery_projection_surface(runtime_paths, wp_id)?;
++    let posture = read_software_delivery_closeout_posture(runtime_paths, wp_id);
++    Some(locus::task_board::build_software_delivery_closeout_projection_badge(
++        wp_id,
++        runtime_paths.work_packet_projection_surface_display(wp_id),
++        posture
++            .as_ref()
++            .map(|_| runtime_paths.work_packet_closeout_posture_display(wp_id)),
++        posture.as_ref(),
++        projection.workflow_binding_state,
++    ))
++}
++
++fn build_software_delivery_mailbox_triage_row_from_disk(
++    runtime_paths: &RuntimeGovernancePaths,
++    wp_id: &str,
++) -> Option<crate::role_mailbox::SoftwareDeliveryOverlayTriageRowV1> {
++    let projection = read_software_delivery_projection_surface(runtime_paths, wp_id)?;
++    let closeout_badge = build_software_delivery_closeout_badge_from_disk(runtime_paths, wp_id)?;
++    crate::role_mailbox::build_software_delivery_overlay_triage_row(
++        &projection,
++        closeout_badge,
++    )
++}
++
+@@ -5346,0 +5602,2 @@ fn compute_software_delivery_projection_gate_posture_from_disk(
++    let governed_action_resolution_refs =
++        gather_software_delivery_governed_action_resolution_refs(canonical, runtime_paths);
+@@ -5351 +5608 @@ fn compute_software_delivery_projection_gate_posture_from_disk(
+-        &[],
++        &governed_action_resolution_refs,
+@@ -5968,0 +6226,5 @@ fn build_structured_work_packet_summary_value(
++    summary_object.insert(
++        "queue_reason_code".to_string(),
++        serde_json::to_value(queue_reason_code)
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
++    );
+@@ -5978,0 +6241,5 @@ fn build_structured_work_packet_summary_value(
++    summary_object.insert(
++        "allowed_action_ids".to_string(),
++        serde_json::to_value(allowed_action_ids(workflow_state_family))
++            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
++    );
+@@ -6204,2 +6471,2 @@ pub async fn build_dcc_control_plane_snapshot(
+-            DccWorkflowSummary {
+-                work_packet_id: entry.work_packet_id.clone(),
++            build_dcc_workflow_summary_from_task_board_entry(
++                entry,
+@@ -6207,3 +6473,0 @@ pub async fn build_dcc_control_plane_snapshot(
+-                state_family: entry.workflow_state_family,
+-                queue_reason_code: entry.queue_reason_code,
+-                allowed_action_ids: entry.allowed_action_ids.clone(),
+@@ -6211 +6474,0 @@ pub async fn build_dcc_control_plane_snapshot(
+-                summary_ref: Some(entry.summary_ref.clone()),
+@@ -6214,3 +6477 @@ pub async fn build_dcc_control_plane_snapshot(
+-                authority_refs: entry.authority_refs.clone(),
+-                evidence_refs: entry.evidence_refs.clone(),
+-            }
++            )
+@@ -6271,0 +6533,29 @@ pub async fn build_dcc_control_plane_snapshot(
++fn build_dcc_workflow_summary_from_task_board_entry(
++    entry: &locus::task_board::TaskBoardEntryRecordV1,
++    workflow_run_id: Option<String>,
++    model_session_id: Option<String>,
++    micro_task_summary: Option<crate::runtime_governance::DccMicroTaskSummary>,
++    gate_state: Option<crate::runtime_governance::DccGateState>,
++) -> crate::runtime_governance::DccWorkflowSummary {
++    use crate::runtime_governance::DccWorkflowSummary;
++
++    let closeout_badge = entry.closeout_badge.clone().filter(|badge| {
++        badge.advisory_only && badge.work_packet_id == entry.work_packet_id
++    });
++
++    DccWorkflowSummary {
++        work_packet_id: entry.work_packet_id.clone(),
++        workflow_run_id,
++        state_family: entry.workflow_state_family,
++        queue_reason_code: entry.queue_reason_code,
++        allowed_action_ids: entry.allowed_action_ids.clone(),
++        model_session_id,
++        summary_ref: Some(entry.summary_ref.clone()),
++        micro_task_summary,
++        gate_state,
++        closeout_badge,
++        authority_refs: entry.authority_refs.clone(),
++        evidence_refs: entry.evidence_refs.clone(),
++    }
++}
++
+@@ -27306,0 +27597,33 @@ mod tests {
++    fn write_committable_validator_gate_record(
++        runtime_paths: &RuntimeGovernancePaths,
++        wp_id: &str,
++        evidence_refs: Vec<String>,
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let gate_record_path = runtime_paths.validator_gate_record_path(wp_id);
++        std::fs::create_dir_all(
++            gate_record_path
++                .parent()
++                .expect("validator gate parent directory must exist"),
++        )?;
++        let evidence_refs_for_summary = evidence_refs.clone();
++        std::fs::write(
++            &gate_record_path,
++            serde_json::to_vec(&json!({
++                "gate_summary": {
++                    "gate_state_ref": runtime_paths.validator_gate_display(wp_id),
++                    "gate_record_id": format!("validator_gate:{wp_id}"),
++                    "phase": "committable",
++                    "check_evidence": [{
++                        "gate_phase": "committable",
++                        "check_result_status": "pass",
++                        "role_proof": "WP_VALIDATOR",
++                        "session_proof": "wp_validator:gate-session-1",
++                        "evidence_refs": evidence_refs,
++                    }],
++                    "evidence_refs": evidence_refs_for_summary,
++                }
++            }))?,
++        )?;
++        Ok(())
++    }
++
+@@ -28785,0 +29109 @@ mod tests {
++                    closeout_badge: None,
+@@ -28812,0 +29137 @@ mod tests {
++                    closeout_badge: None,
+@@ -29052,0 +29378 @@ mod tests {
++                closeout_badge: None,
+@@ -29126 +29452 @@ mod tests {
+-    // ── MT-003 backend-backed DCC collaboration projection tests ────────
++    // MT-001 validator-gate closeout posture proof tests.
+@@ -29129 +29455 @@ mod tests {
+-    async fn governance_workflow_mirror_gate_transition_emits_fr_event(
++    async fn validator_gate_runtime_summary_links_check_evidence(
+@@ -29143,3 +29469,20 @@ mod tests {
+-        let canonical_task_board_id = canonical_task_board_id();
+-        assert_ne!(canonical_task_board_id, runtime_paths.task_board_display());
+-        let wp_id = "WP-FR-1";
++        let wp_id = "WP-GATE-EVIDENCE-1";
++        let gate_decision_ref = runtime_paths.governance_decision_display("gate-check-pass-1");
++        let gate_state_ref = runtime_paths.validator_gate_display(wp_id);
++        let validation_report_ref = json!({
++            "check_result": { "status": "pass" },
++            "descriptor": {
++                "ref": "Handshake_Master_Spec_v02.181.md#phase-1-validator-gate",
++                "provenance": "master_spec"
++            },
++            "actor": {
++                "role": "WP_VALIDATOR",
++                "session": "wp_validator:gate-session-1"
++            },
++            "evidence_refs": [
++                gate_decision_ref.clone(),
++                gate_state_ref.clone(),
++                "gate-check-pass-1"
++            ]
++        });
++
+@@ -29148,2 +29491,2 @@ mod tests {
+-            title: "Workflow mirror activation".to_string(),
+-            description: "Prove Workflow-Mirror activation emits FR-EVT-GOV-WP-001".to_string(),
++            title: "Validator gate evidence".to_string(),
++            description: "Prove runtime gate summaries link check evidence".to_string(),
+@@ -29156,2 +29499,2 @@ mod tests {
+-            labels: Some(vec!["workflow-mirror".to_string()]),
+-            spec_session_id: Some("spec-session-1".to_string()),
++            labels: Some(vec!["validator-gate".to_string()]),
++            spec_session_id: Some("Handshake_Master_Spec_v02.181.md".to_string()),
+@@ -29177,3 +29520,3 @@ mod tests {
+-                validated_by: Some("validator".to_string()),
+-                notes: Some("activation gate passed".to_string()),
+-                validation_report_ref: None,
++                validated_by: Some("WP_VALIDATOR:wp_validator:gate-session-1".to_string()),
++                notes: Some("validator gate passed with check evidence".to_string()),
++                validation_report_ref: Some(validation_report_ref.clone()),
+@@ -29195,9 +29537,0 @@ mod tests {
+-        assert_eq!(gate_artifact.wp_id, wp_id);
+-        assert_eq!(
+-            gate_artifact.task_board_id,
+-            canonical_task_board_id.as_str()
+-        );
+-        assert_eq!(
+-            gate_artifact.gate_summary.task_board_id,
+-            canonical_task_board_id.as_str()
+-        );
+@@ -29205,2 +29539,2 @@ mod tests {
+-            gate_artifact.gate_state_ref,
+-            runtime_paths.validator_gate_display(wp_id)
++            gate_artifact.gate_summary.gate_record_id,
++            format!("validator_gate:{wp_id}")
+@@ -29207,0 +29542,2 @@ mod tests {
++        assert_eq!(gate_artifact.gate_state_ref, gate_state_ref);
++        assert_eq!(gate_artifact.gate_summary.gate_state_ref, gate_state_ref);
+@@ -29211 +29547,5 @@ mod tests {
+-            .contains(&runtime_paths.task_board_display()));
++            .contains(&gate_state_ref));
++        assert!(gate_artifact
++            .gate_summary
++            .evidence_refs
++            .contains(&gate_decision_ref));
+@@ -29213,10 +29553,6 @@ mod tests {
+-        let activation_artifact: locus::WorkflowMirrorActivationArtifactV1 =
+-            serde_json::from_slice(&std::fs::read(
+-                runtime_paths.activation_traceability_path(wp_id),
+-            )?)?;
+-        assert_eq!(activation_artifact.base_wp_id, wp_id);
+-        assert_eq!(activation_artifact.work_packet_id, wp_id);
+-        assert_eq!(
+-            activation_artifact.task_board_id,
+-            canonical_task_board_id.as_str()
+-        );
++        let pre_work_evidence = gate_artifact
++            .gate_summary
++            .check_evidence
++            .iter()
++            .find(|entry| entry.gate_phase == "pre_work")
++            .expect("pre_work check evidence must be present");
+@@ -29224,2 +29560,2 @@ mod tests {
+-            activation_artifact.traceability_ref,
+-            runtime_paths.activation_traceability_display(wp_id)
++            pre_work_evidence.check_result_status.as_deref(),
++            Some("pass")
+@@ -29228,2 +29564,2 @@ mod tests {
+-            activation_artifact.active_packet_ref,
+-            format!(".GOV/task_packets/{wp_id}/packet.md")
++            pre_work_evidence.descriptor_ref.as_deref(),
++            Some("Handshake_Master_Spec_v02.181.md#phase-1-validator-gate")
+@@ -29231,4 +29566,0 @@ mod tests {
+-
+-        let tracked_packet: locus::TrackedWorkPacketArtifactV1 = serde_json::from_slice(
+-            &std::fs::read(runtime_paths.work_packet_packet_path(wp_id))?,
+-        )?;
+@@ -29236,7 +29568,2 @@ mod tests {
+-            tracked_packet
+-                .governance
+-                .gate_summary
+-                .as_ref()
+-                .expect("gate summary should be projected")
+-                .task_board_id,
+-            canonical_task_board_id.as_str()
++            pre_work_evidence.descriptor_provenance.as_deref(),
++            Some("master_spec")
+@@ -29243,0 +29571 @@ mod tests {
++        assert_eq!(pre_work_evidence.role_proof.as_deref(), Some("WP_VALIDATOR"));
+@@ -29245,7 +29573,2 @@ mod tests {
+-            tracked_packet
+-                .governance
+-                .activation_summary
+-                .as_ref()
+-                .expect("activation summary should be projected")
+-                .task_board_id,
+-            canonical_task_board_id.as_str()
++            pre_work_evidence.session_proof.as_deref(),
++            Some("wp_validator:gate-session-1")
+@@ -29253 +29576 @@ mod tests {
+-        assert!(tracked_packet
++        assert!(pre_work_evidence
+@@ -29255,2 +29578,2 @@ mod tests {
+-            .contains(&runtime_paths.validator_gate_display(wp_id)));
+-        assert!(tracked_packet
++            .contains(&"gate-check-pass-1".to_string()));
++        assert!(pre_work_evidence
+@@ -29258,8 +29581 @@ mod tests {
+-            .contains(&runtime_paths.activation_traceability_display(wp_id)));
+-
+-        let task_board_index: locus::task_board::TaskBoardIndexV1 =
+-            serde_json::from_slice(&std::fs::read(runtime_paths.task_board_index_path())?)?;
+-        assert_eq!(
+-            task_board_index.task_board_id,
+-            canonical_task_board_id.as_str()
+-        );
++            .contains(&gate_decision_ref));
+@@ -29267,2 +29583,2 @@ mod tests {
+-            task_board_index.record_id,
+-            TASK_BOARD_INDEX_RECORD_ID.to_string()
++            pre_work_evidence.validation_report_ref.as_ref(),
++            Some(&validation_report_ref)
+@@ -29270,12 +29585,0 @@ mod tests {
+-        let row = task_board_index
+-            .rows
+-            .iter()
+-            .find(|entry| entry.work_packet_id == wp_id)
+-            .expect("task board row should exist");
+-        assert_eq!(row.task_board_id, canonical_task_board_id.as_str());
+-        assert!(row
+-            .evidence_refs
+-            .contains(&runtime_paths.validator_gate_display(wp_id)));
+-        assert!(row
+-            .evidence_refs
+-            .contains(&runtime_paths.activation_traceability_display(wp_id)));
+@@ -29283,8 +29587,8 @@ mod tests {
+-        let events = state
+-            .flight_recorder
+-            .list_events(EventFilter::default())
+-            .await?;
+-        let activation_events = events
+-            .iter()
+-            .filter(|event| event.event_type == FlightRecorderEventType::GovWorkPacketActivated)
+-            .collect::<Vec<_>>();
++        let tracked_packet: locus::TrackedWorkPacketArtifactV1 =
++            serde_json::from_slice(&std::fs::read(runtime_paths.work_packet_packet_path(wp_id))?)?;
++        assert!(tracked_packet.evidence_refs.contains(&gate_state_ref));
++        let tracked_gate_summary = tracked_packet
++            .governance
++            .gate_summary
++            .as_ref()
++            .expect("tracked packet must preserve gate summary");
+@@ -29292,3 +29596,2 @@ mod tests {
+-            activation_events.len(),
+-            1,
+-            "expected exactly one gov_work_packet_activated event"
++            tracked_gate_summary.check_evidence,
++            gate_artifact.gate_summary.check_evidence
+@@ -29297,7 +29600,11 @@ mod tests {
+-        let payload: FrEvtGovWorkPacketActivated =
+-            serde_json::from_value(activation_events[0].payload.clone())?;
+-        assert_eq!(payload.base_wp_id, wp_id);
+-        assert_eq!(payload.work_packet_id, wp_id);
+-        assert_eq!(
+-            payload.traceability_registry_ref,
+-            runtime_paths.wp_traceability_registry_display()
++        Ok(())
++    }
++
++    #[test]
++    fn closeout_posture_requires_gate_evidence_owner_and_action_truth(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let tmp = tempfile::tempdir()?;
++        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(tmp.path().to_path_buf())?;
++        let wp_id = "WP-CLOSEOUT-1";
++        let descriptor = locus::structured_collaboration_schema_descriptor(
++            locus::StructuredCollaborationRecordFamily::WorkPacketSummary,
+@@ -29305,4 +29612,6 @@ mod tests {
+-        assert_eq!(payload.task_board_ref, runtime_paths.task_board_display());
+-        assert_eq!(
+-            payload.active_packet_ref,
+-            format!(".GOV/task_packets/{wp_id}/packet.md")
++        let gate_record_ref = runtime_paths.validator_gate_display(wp_id);
++        let owner_authority_ref = runtime_paths.work_packet_packet_display(wp_id);
++        let canonical_decision_ref = runtime_paths.governance_decision_display("archive-pass-1");
++        let advisory_mailbox_ref = format!(
++            "{}thread-WP-CLOSEOUT-1.json",
++            runtime_paths.role_mailbox_export_dir_display()
+@@ -29310,3 +29619,912 @@ mod tests {
+-        assert_eq!(
+-            payload.stub_packet_ref,
+-            format!(".GOV/task_packets/stubs/{wp_id}/packet.md")
++        let advisory_decision_ref = format!(
++            "{}nested/archive-pass-1.json",
++            runtime_paths.governance_decisions_dir_display()
++        );
++        write_committable_validator_gate_record(
++            &runtime_paths,
++            wp_id,
++            vec![gate_record_ref.clone(), canonical_decision_ref.clone()],
++        )?;
++
++        let canonical = locus::StructuredCollaborationSummaryV1 {
++            schema_id: descriptor.schema_id.to_string(),
++            schema_version: descriptor.schema_version.to_string(),
++            record_id: wp_id.to_string(),
++            record_kind: descriptor.record_kind.to_string(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![advisory_mailbox_ref.clone(), owner_authority_ref.clone()],
++            evidence_refs: vec![runtime_paths.task_board_display(), gate_record_ref.clone()],
++            mirror_contract: None,
++            workflow_state_family: locus::WorkflowStateFamily::Done,
++            queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForHuman,
++            allowed_action_ids: vec!["archive_work_packet".to_string(), "archive".to_string()],
++            transition_rule_ids: vec![],
++            queue_automation_rule_ids: vec![],
++            executor_eligibility_policy_ids: vec![],
++            status: "done".to_string(),
++            title_or_objective: "Closeout posture".to_string(),
++            blockers: vec![],
++            next_action: Some("archive".to_string()),
++            summary_ref: Some(runtime_paths.work_packet_summary_display(wp_id)),
++        };
++
++        let posture = locus::derive_software_delivery_closeout_posture(
++            &canonical,
++            &runtime_paths,
++            Some("checkpoint-pass-1"),
++            &[advisory_decision_ref.clone(), canonical_decision_ref.clone()],
++        )
++        .expect("canonical gate, owner, and action truth must derive closeout posture");
++        assert_eq!(
++            posture.closeout_state,
++            locus::SoftwareDeliveryCloseoutState::ReadyToClose
++        );
++        assert_eq!(posture.gate_record_ref, gate_record_ref);
++        assert_eq!(posture.owner_authority_ref, owner_authority_ref);
++        assert_eq!(posture.next_action.as_deref(), Some("archive"));
++        assert_eq!(
++            posture.allowed_action_ids,
++            vec!["archive".to_string(), "archive_work_packet".to_string()]
++        );
++        assert_eq!(
++            posture.governed_action_resolution_refs,
++            vec![canonical_decision_ref.clone()]
++        );
++        assert_eq!(posture.checkpoint_id.as_deref(), Some("checkpoint-pass-1"));
++
++        let mut missing_gate = canonical.clone();
++        missing_gate.evidence_refs = vec![runtime_paths.task_board_display()];
++        assert!(locus::derive_software_delivery_closeout_posture(
++            &missing_gate,
++            &runtime_paths,
++            None,
++            &[canonical_decision_ref.clone()],
++        )
++        .is_none());
++
++        let mut missing_owner = canonical.clone();
++        missing_owner.authority_refs = vec![advisory_mailbox_ref];
++        assert!(locus::derive_software_delivery_closeout_posture(
++            &missing_owner,
++            &runtime_paths,
++            None,
++            &[canonical_decision_ref.clone()],
++        )
++        .is_none());
++
++        let mut missing_action = canonical.clone();
++        missing_action.next_action = None;
++        assert!(locus::derive_software_delivery_closeout_posture(
++            &missing_action,
++            &runtime_paths,
++            None,
++            &[canonical_decision_ref.clone()],
++        )
++        .is_none());
++        let validation = locus::validate_software_delivery_closeout_canonical_truth(
++            &missing_action,
++            &runtime_paths,
++        );
++        assert!(!validation.ok);
++        assert!(validation
++            .issues
++            .iter()
++            .any(|issue| issue.field == "next_action"));
++
++        let workspace_root = runtime_paths.workspace_root().to_path_buf();
++        let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
++        let summary_value = serde_json::to_value(&canonical)?;
++        apply_software_delivery_closeout_posture_lifecycle(
++            &runtime_paths,
++            &workspace_root,
++            wp_id,
++            &summary_value,
++        )
++        .expect("production closeout posture lifecycle must emit when gate/evidence/owner/action truth is valid");
++        let posture: locus::SoftwareDeliveryCloseoutPostureV1 =
++            serde_json::from_slice(&std::fs::read(&posture_path)?)?;
++        assert_eq!(
++            posture.governed_action_resolution_refs,
++            vec![canonical_decision_ref.clone()]
++        );
++
++        let mut missing_gate_for_lifecycle = canonical.clone();
++        missing_gate_for_lifecycle.evidence_refs = vec![runtime_paths.task_board_display()];
++        let missing_gate_value = serde_json::to_value(&missing_gate_for_lifecycle)?;
++        apply_software_delivery_closeout_posture_lifecycle(
++            &runtime_paths,
++            &workspace_root,
++            wp_id,
++            &missing_gate_value,
++        )?;
++        assert!(
++            !posture_path.exists(),
++            "production closeout posture lifecycle must drop postures when gate truth is missing"
++        );
++
++        Ok(())
++    }
++
++    #[test]
++    fn closeout_posture_lifecycle_preserves_summary_governed_action_resolution_refs(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let tmp = tempfile::tempdir()?;
++        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(tmp.path().to_path_buf())?;
++        let wp_id = "WP-CLOSEOUT-LIFECYCLE-DECISION-REFS-1";
++        let gate_record_ref = runtime_paths.validator_gate_display(wp_id);
++        let owner_authority_ref = runtime_paths.work_packet_packet_display(wp_id);
++        let decision_ref = runtime_paths.governance_decision_display("archive-pass-1");
++        write_committable_validator_gate_record(
++            &runtime_paths,
++            wp_id,
++            vec![gate_record_ref.clone(), decision_ref.clone()],
++        )?;
++        let canonical = locus::StructuredCollaborationSummaryV1 {
++            schema_id: "hsk.structured_collaboration_summary@1".to_string(),
++            schema_version: "1".to_string(),
++            record_id: wp_id.to_string(),
++            record_kind: "work_packet".to_string(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            updated_at: "2026-05-03T12:00:00Z".to_string(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![owner_authority_ref],
++            evidence_refs: vec![gate_record_ref, decision_ref.clone()],
++            mirror_contract: None,
++            workflow_state_family: locus::WorkflowStateFamily::Validation,
++            queue_reason_code: locus::WorkflowQueueReasonCode::ValidationWait,
++            allowed_action_ids: vec!["validate".to_string()],
++            transition_rule_ids: vec![],
++            queue_automation_rule_ids: vec![],
++            executor_eligibility_policy_ids: vec![],
++            status: "validation".to_string(),
++            title_or_objective: "closeout lifecycle refs test".to_string(),
++            blockers: vec![],
++            next_action: Some("validate".to_string()),
++            summary_ref: Some(runtime_paths.work_packet_summary_display(wp_id)),
++        };
++        let summary_value = serde_json::to_value(&canonical)?;
++        let workspace_root = runtime_paths.workspace_root().to_path_buf();
++        let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
++        std::fs::create_dir_all(
++            posture_path
++                .parent()
++                .expect("closeout posture parent directory must exist"),
++        )?;
++        apply_software_delivery_closeout_posture_lifecycle(
++            &runtime_paths,
++            &workspace_root,
++            wp_id,
++            &summary_value,
++        )
++        .expect("closeout posture lifecycle emit must succeed");
++        let posture: locus::SoftwareDeliveryCloseoutPostureV1 =
++            serde_json::from_slice(&std::fs::read(&posture_path)?)?;
++        assert_eq!(
++            posture.governed_action_resolution_refs,
++            vec![decision_ref],
++            "production closeout posture lifecycle must project canonical governance decision refs"
++        );
++        Ok(())
++    }
++
++    #[test]
++    fn validator_gate_final_pass_requires_committable_gate_and_authority_proof(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let tmp = tempfile::tempdir()?;
++        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(tmp.path().to_path_buf())?;
++        let wp_id = "WP-FINAL-PASS-AUTHORITY-1";
++        let gate_record_ref = runtime_paths.validator_gate_display(wp_id);
++        let owner_authority_ref = runtime_paths.work_packet_packet_display(wp_id);
++        let decision_ref = runtime_paths.governance_decision_display("archive-pass-1");
++        let gate_record_path = runtime_paths.validator_gate_record_path(wp_id);
++        let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
++        let workspace_root = runtime_paths.workspace_root().to_path_buf();
++        let descriptor = locus::structured_collaboration_schema_descriptor(
++            locus::StructuredCollaborationRecordFamily::WorkPacketSummary,
++        );
++        let canonical = locus::StructuredCollaborationSummaryV1 {
++            schema_id: descriptor.schema_id.to_string(),
++            schema_version: descriptor.schema_version.to_string(),
++            record_id: wp_id.to_string(),
++            record_kind: descriptor.record_kind.to_string(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![owner_authority_ref],
++            evidence_refs: vec![runtime_paths.task_board_display(), gate_record_ref.clone()],
++            mirror_contract: None,
++            workflow_state_family: locus::WorkflowStateFamily::Done,
++            queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForHuman,
++            allowed_action_ids: vec!["archive".to_string()],
++            transition_rule_ids: vec![],
++            queue_automation_rule_ids: vec![],
++            executor_eligibility_policy_ids: vec![],
++            status: "done".to_string(),
++            title_or_objective: "Final pass authority proof".to_string(),
++            blockers: vec![],
++            next_action: Some("archive".to_string()),
++            summary_ref: Some(runtime_paths.work_packet_summary_display(wp_id)),
++        };
++        let governed_action_refs = vec![decision_ref.clone()];
++
++        std::fs::create_dir_all(
++            gate_record_path
++                .parent()
++                .expect("validator gate parent directory must exist"),
++        )?;
++        std::fs::write(
++            &gate_record_path,
++            serde_json::to_vec(&json!({
++                "gate_summary": {
++                    "gate_state_ref": gate_record_ref,
++                    "gate_record_id": format!("validator_gate:{wp_id}"),
++                    "check_result": { "status": "pass" },
++                    "evidence_refs": [decision_ref.clone()],
++                }
++            }))?,
++        )?;
++        assert!(
++            locus::derive_software_delivery_closeout_posture(
++                &canonical,
++                &runtime_paths,
++                None,
++                &governed_action_refs,
++            )
++            .is_none(),
++            "raw CheckResult PASS is not final PASS authority"
++        );
++
++        std::fs::write(
++            &gate_record_path,
++            serde_json::to_vec(&json!({
++                "gate_summary": {
++                    "gate_state_ref": gate_record_ref,
++                    "gate_record_id": format!("validator_gate:{wp_id}"),
++                    "check_evidence": [{
++                        "gate_phase": "committable",
++                        "check_result_status": "pass",
++                        "evidence_refs": [decision_ref.clone()],
++                    }]
++                }
++            }))?,
++        )?;
++        assert!(
++            locus::derive_software_delivery_closeout_posture(
++                &canonical,
++                &runtime_paths,
++                None,
++                &governed_action_refs,
++            )
++            .is_none(),
++            "committable PASS without role/session proof is not final PASS authority"
++        );
++
++        std::fs::write(
++            &gate_record_path,
++            serde_json::to_vec(&json!({
++                "gate_summary": {
++                    "gate_state_ref": gate_record_ref,
++                    "gate_record_id": format!("validator_gate:{wp_id}"),
++                    "check_evidence": [{
++                        "gate_phase": "pre_work",
++                        "check_result_status": "pass",
++                        "role_proof": "WP_VALIDATOR",
++                        "session_proof": "wp_validator:gate-session-1",
++                        "evidence_refs": [decision_ref.clone()],
++                    }]
++                }
++            }))?,
++        )?;
++        assert!(
++            locus::derive_software_delivery_closeout_posture(
++                &canonical,
++                &runtime_paths,
++                None,
++                &governed_action_refs,
++            )
++            .is_none(),
++            "pre-work PASS proof is not a committable final gate"
++        );
++
++        std::fs::write(
++            &gate_record_path,
++            serde_json::to_vec(&json!({
++                "gate_summary": {
++                    "gate_state_ref": gate_record_ref,
++                    "gate_record_id": format!("validator_gate:{wp_id}"),
++                    "check_evidence": [{
++                        "gate_phase": "post_work",
++                        "check_result_status": "pass",
++                        "role_proof": "WP_VALIDATOR",
++                        "session_proof": "wp_validator:gate-session-1",
++                        "evidence_refs": [decision_ref.clone()],
++                    }]
++                }
++            }))?,
++        )?;
++        assert!(
++            locus::derive_software_delivery_closeout_posture(
++                &canonical,
++                &runtime_paths,
++                None,
++                &governed_action_refs,
++            )
++            .is_none(),
++            "ordinary post-work PASS proof is not a committable final gate"
++        );
++
++        std::fs::write(
++            &gate_record_path,
++            serde_json::to_vec(&json!({
++                "gate_summary": {
++                    "gate_state_ref": gate_record_ref,
++                    "gate_record_id": format!("validator_gate:{wp_id}"),
++                    "check_evidence": [{
++                        "gate_phase": "committable",
++                        "check_result_status": "pass",
++                        "validated_by": "validator",
++                        "evidence_refs": [decision_ref.clone()],
++                    }]
++                }
++            }))?,
++        )?;
++        assert!(
++            locus::derive_software_delivery_closeout_posture(
++                &canonical,
++                &runtime_paths,
++                None,
++                &governed_action_refs,
++            )
++            .is_none(),
++            "validated_by alone is not distinct role/session authority proof"
++        );
++
++        write_committable_validator_gate_record(
++            &runtime_paths,
++            wp_id,
++            vec![gate_record_ref, decision_ref.clone()],
++        )?;
++        let posture = locus::derive_software_delivery_closeout_posture(
++            &canonical,
++            &runtime_paths,
++            Some("checkpoint-pass-1"),
++            &governed_action_refs,
++        )
++        .expect("committable PASS with evidence and authority proof must derive closeout posture");
++        assert_eq!(
++            posture.closeout_state,
++            locus::SoftwareDeliveryCloseoutState::ReadyToClose
++        );
++        assert_eq!(
++            posture.governed_action_resolution_refs,
++            vec![decision_ref.clone()]
++        );
++
++        apply_software_delivery_closeout_posture_lifecycle(
++            &runtime_paths,
++            &workspace_root,
++            wp_id,
++            &serde_json::to_value(&canonical)?,
++        )?;
++        assert!(
++            posture_path.exists(),
++            "production closeout lifecycle must emit only after final PASS authority proof"
++        );
++
++        Ok(())
++    }
++
++    #[test]
++    fn check_result_pass_does_not_close_work_without_gate_materialization(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let tmp = tempfile::tempdir()?;
++        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(tmp.path().to_path_buf())?;
++        let wp_id = "WP-CHECK-RESULT-MATERIALIZATION-GUARD-1";
++        let gate_record_ref = runtime_paths.validator_gate_display(wp_id);
++        let owner_authority_ref = runtime_paths.work_packet_packet_display(wp_id);
++        let decision_ref = runtime_paths.governance_decision_display("archive-pass-1");
++        let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
++        let workspace_root = runtime_paths.workspace_root().to_path_buf();
++        let descriptor = locus::structured_collaboration_schema_descriptor(
++            locus::StructuredCollaborationRecordFamily::WorkPacketSummary,
++        );
++        let canonical = locus::StructuredCollaborationSummaryV1 {
++            schema_id: descriptor.schema_id.to_string(),
++            schema_version: descriptor.schema_version.to_string(),
++            record_id: wp_id.to_string(),
++            record_kind: descriptor.record_kind.to_string(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![owner_authority_ref],
++            evidence_refs: vec![runtime_paths.task_board_display(), gate_record_ref.clone()],
++            mirror_contract: None,
++            workflow_state_family: locus::WorkflowStateFamily::Done,
++            queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForHuman,
++            allowed_action_ids: vec!["archive".to_string()],
++            transition_rule_ids: vec![],
++            queue_automation_rule_ids: vec![],
++            executor_eligibility_policy_ids: vec![],
++            status: "done".to_string(),
++            title_or_objective: "Check result pass without gate materialization".to_string(),
++            blockers: vec![],
++            next_action: Some("archive".to_string()),
++            summary_ref: Some(runtime_paths.work_packet_summary_display(wp_id)),
++        };
++        let summary_value = serde_json::to_value(&canonical)?;
++
++        let posture = locus::derive_software_delivery_closeout_posture(
++            &canonical,
++            &runtime_paths,
++            None,
++            &[decision_ref.clone()],
++        );
++        assert!(
++            posture.is_none(),
++            "check-result pass does not close without validator gate materialization"
++        );
++
++        apply_software_delivery_closeout_posture_lifecycle(
++            &runtime_paths,
++            &workspace_root,
++            wp_id,
++            &summary_value,
++        )?;
++        assert!(
++            !posture_path.exists(),
++            "production closeout posture artifact must not be written without gate materialization"
++        );
++
++        write_committable_validator_gate_record(
++            &runtime_paths,
++            wp_id,
++            vec![gate_record_ref, runtime_paths.governance_decision_display("archive-pass-1")],
++        )?;
++
++        apply_software_delivery_closeout_posture_lifecycle(
++            &runtime_paths,
++            &workspace_root,
++            wp_id,
++            &summary_value,
++        )?;
++        let posture: locus::SoftwareDeliveryCloseoutPostureV1 =
++            serde_json::from_slice(&std::fs::read(&posture_path)?)?;
++        assert_eq!(
++            posture.governed_action_resolution_refs,
++            vec![decision_ref],
++            "check-result pass with materialized validator gate must yield closeout posture"
++        );
++
++        Ok(())
++    }
++
++    #[test]
++    fn task_board_and_mailbox_closeout_badges_remain_projection_only() -> Result<(), Box<dyn std::error::Error>> {
++        let tmp = tempfile::tempdir()?;
++        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(tmp.path().to_path_buf())?;
++        let wp_id = "WP-CLOSEOUT-PROJECTION-BADGES-1";
++        let gate_record_ref = runtime_paths.validator_gate_display(wp_id);
++        let owner_authority_ref = runtime_paths.work_packet_packet_display(wp_id);
++        let decision_ref = runtime_paths.governance_decision_display("archive-pass-1");
++        write_committable_validator_gate_record(
++            &runtime_paths,
++            wp_id,
++            vec![gate_record_ref.clone(), decision_ref.clone()],
++        )?;
++
++        let descriptor = locus::structured_collaboration_schema_descriptor(
++            locus::StructuredCollaborationRecordFamily::WorkPacketSummary,
++        );
++        let canonical = locus::StructuredCollaborationSummaryV1 {
++            schema_id: descriptor.schema_id.to_string(),
++            schema_version: descriptor.schema_version.to_string(),
++            record_id: wp_id.to_string(),
++            record_kind: descriptor.record_kind.to_string(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            updated_at: Utc::now().to_rfc3339(),
++            mirror_state: locus::MirrorSyncState::CanonicalOnly,
++            authority_refs: vec![owner_authority_ref],
++            evidence_refs: vec![
++                runtime_paths.task_board_display(),
++                gate_record_ref.clone(),
++                decision_ref.clone(),
++            ],
++            mirror_contract: None,
++            workflow_state_family: locus::WorkflowStateFamily::Done,
++            queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForHuman,
++            allowed_action_ids: vec!["archive".to_string()],
++            transition_rule_ids: vec![],
++            queue_automation_rule_ids: vec![],
++            executor_eligibility_policy_ids: vec![],
++            status: "done".to_string(),
++            title_or_objective: "Projection-only closeout badge".to_string(),
++            blockers: vec![],
++            next_action: Some("archive".to_string()),
++            summary_ref: Some(runtime_paths.work_packet_summary_display(wp_id)),
++        };
++        let workspace_root = runtime_paths.workspace_root().to_path_buf();
++        let summary_value = serde_json::to_value(&canonical)?;
++        apply_software_delivery_closeout_posture_lifecycle(
++            &runtime_paths,
++            &workspace_root,
++            wp_id,
++            &summary_value,
++        )?;
++        apply_software_delivery_workflow_run_lifecycle(
++            &runtime_paths,
++            &workspace_root,
++            wp_id,
++            &summary_value,
++        )?;
++        apply_software_delivery_projection_surface_lifecycle(
++            &runtime_paths,
++            &workspace_root,
++            wp_id,
++            &summary_value,
++        )?;
++
++        let badge = build_software_delivery_closeout_badge_from_disk(&runtime_paths, wp_id)
++            .expect("runtime projection and closeout posture must yield a badge");
++        assert!(badge.advisory_only);
++        assert_eq!(badge.work_packet_id, wp_id);
++        assert_eq!(
++            badge.closeout_state,
++            Some(locus::SoftwareDeliveryCloseoutState::ReadyToClose)
++        );
++        assert_eq!(
++            badge.workflow_binding_state,
++            Some(locus::SoftwareDeliveryWorkflowBindingState::CloseoutPending)
++        );
++        assert_eq!(badge.gate_record_ref.as_deref(), Some(gate_record_ref.as_str()));
++        assert!(badge
++            .source_record_refs
++            .contains(&runtime_paths.work_packet_projection_surface_display(wp_id)));
++        assert!(badge
++            .source_record_refs
++            .contains(&runtime_paths.work_packet_closeout_posture_display(wp_id)));
++
++        let task_board_entry = locus::task_board::TaskBoardEntryRecordV1 {
++            schema_id: "hsk.task_board_entry@1".into(),
++            schema_version: "1.0.0".into(),
++            record_id: format!("tbe-{wp_id}"),
++            record_kind: "task_board_entry".into(),
++            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
++            profile_extension: None,
++            updated_at: canonical.updated_at.clone(),
++            mirror_state: locus::MirrorSyncState::AdvisoryEdit,
++            authority_refs: canonical.authority_refs.clone(),
++            evidence_refs: canonical.evidence_refs.clone(),
++            mirror_contract: None,
++            workflow_state_family: canonical.workflow_state_family,
++            queue_reason_code: canonical.queue_reason_code,
++            allowed_action_ids: canonical.allowed_action_ids.clone(),
++            transition_rule_ids: vec![],
++            queue_automation_rule_ids: vec![],
++            executor_eligibility_policy_ids: vec![],
++            task_board_id: "tb-closeout-projection".into(),
++            work_packet_id: wp_id.into(),
++            lane_id: "blocked".into(),
++            display_order: 0,
++            view_ids: vec![],
++            token: "stale-board-token".into(),
++            status: "mailbox-says-ready".into(),
++            summary_ref: runtime_paths.work_packet_summary_display(wp_id),
++            closeout_badge: Some(badge.clone()),
++        };
++        assert!(
++            locus::validate_software_delivery_task_board_projection_against_canonical(
++                &task_board_entry,
++                &canonical,
++            )
++            .ok,
++            "Task Board advisory lane/status must not disturb canonical state"
++        );
++        let dcc_summary = build_dcc_workflow_summary_from_task_board_entry(
++            &task_board_entry,
++            Some("workflow-run-closeout-projection".to_string()),
++            Some("model-session-closeout-projection".to_string()),
++            None,
++            None,
++        );
++        assert_eq!(dcc_summary.closeout_badge, task_board_entry.closeout_badge);
++        assert_eq!(
++            dcc_summary
++                .closeout_badge
++                .as_ref()
++                .and_then(|badge| badge.gate_record_ref.as_deref()),
++            Some(gate_record_ref.as_str()),
++            "DCC compact summary must carry the same runtime-backed gate badge"
++        );
++
++        let projection = read_software_delivery_projection_surface(&runtime_paths, wp_id)
++            .expect("projection surface must exist");
++        let mailbox_row = build_software_delivery_mailbox_triage_row_from_disk(
++            &runtime_paths,
++            wp_id,
++        )
++        .expect("standard runtime-backed software-delivery mailbox triage row must build");
++        assert_eq!(mailbox_row.closeout_badge, task_board_entry.closeout_badge);
++        assert_eq!(mailbox_row.work_packet_id, task_board_entry.work_packet_id);
++
++        let mut foreign_badge = badge.clone();
++        foreign_badge.work_packet_id = "WP-OTHER-CLOSEOUT-PROJECTION".to_string();
++        let mut foreign_badge_entry = task_board_entry.clone();
++        foreign_badge_entry.closeout_badge = Some(foreign_badge.clone());
++        let foreign_dcc_summary = build_dcc_workflow_summary_from_task_board_entry(
++            &foreign_badge_entry,
++            Some("workflow-run-closeout-projection".to_string()),
++            Some("model-session-closeout-projection".to_string()),
++            None,
++            None,
++        );
++        assert_eq!(
++            foreign_dcc_summary.closeout_badge, None,
++            "DCC compact summary must not mix badge context across work packets"
++        );
++        assert!(
++            crate::role_mailbox::build_software_delivery_overlay_triage_row(
++                &projection,
++                foreign_badge,
++            )
++            .is_none(),
++            "Role Mailbox must reject a badge for a different work packet"
++        );
++
++        std::fs::remove_file(runtime_paths.work_packet_closeout_posture_path(wp_id))?;
++        let blocked_badge = build_software_delivery_closeout_badge_from_disk(&runtime_paths, wp_id)
++            .expect("projection surface alone still yields a blocked display badge");
++        assert_eq!(blocked_badge.label, "closeout_blocked_no_posture");
++        assert_eq!(blocked_badge.closeout_state, None);
++        assert!(
++            blocked_badge.advisory_only,
++            "badge remains projection-only when closeout posture is absent"
++        );
++
++        let mut stale_board_entry = task_board_entry.clone();
++        stale_board_entry.status = "ready_to_close_from_board_text".into();
++        stale_board_entry.closeout_badge = Some(blocked_badge.clone());
++        let blocked_dcc_summary = build_dcc_workflow_summary_from_task_board_entry(
++            &stale_board_entry,
++            Some("workflow-run-closeout-projection".to_string()),
++            Some("model-session-closeout-projection".to_string()),
++            None,
++            None,
++        );
++        assert_eq!(
++            stale_board_entry
++                .closeout_badge
++                .as_ref()
++                .map(|badge| badge.label.as_str()),
++            Some("closeout_blocked_no_posture"),
++            "Task Board text cannot recreate missing runtime closeout posture"
++        );
++        assert_eq!(
++            blocked_dcc_summary
++                .closeout_badge
++                .as_ref()
++                .map(|badge| badge.label.as_str()),
++            Some("closeout_blocked_no_posture"),
++            "DCC compact summary cannot recreate missing runtime closeout posture"
++        );
++        let standard_blocked_mailbox_row = build_software_delivery_mailbox_triage_row_from_disk(
++            &runtime_paths,
++            wp_id,
++        )
++        .expect("standard runtime-backed mailbox row must build without closeout posture");
++        assert_eq!(
++            standard_blocked_mailbox_row
++                .closeout_badge
++                .as_ref()
++                .map(|badge| badge.label.as_str()),
++            Some("closeout_blocked_no_posture"),
++            "standard Role Mailbox path must read missing runtime posture as blocked"
++        );
++        let mut stale_mailbox_projection = projection.clone();
++        stale_mailbox_projection.advisory_role_mailbox_thread_ids =
++            vec!["announce-back-says-ready".to_string()];
++        let stale_mailbox_row = crate::role_mailbox::build_software_delivery_overlay_triage_row(
++            &stale_mailbox_projection,
++            blocked_badge,
++        )
++        .expect("software-delivery mailbox triage row must build from runtime badge");
++        assert_eq!(
++            stale_mailbox_row
++                .closeout_badge
++                .as_ref()
++                .map(|badge| badge.label.as_str()),
++            Some("closeout_blocked_no_posture"),
++            "Role Mailbox announce-back text cannot recreate missing runtime closeout posture"
++        );
++
++        Ok(())
++    }
++
++    // MT-003 backend-backed DCC collaboration projection tests.
++
++    #[tokio::test]
++    async fn governance_workflow_mirror_gate_transition_emits_fr_event(
++    ) -> Result<(), Box<dyn std::error::Error>> {
++        let state = setup_state().await?;
++
++        let _env_lock = RUNTIME_ENV_LOCK.lock().expect("runtime env lock poisoned");
++        let tmp = tempfile::tempdir()?;
++        let _workspace_root = EnvVarGuard::set(
++            "HANDSHAKE_WORKSPACE_ROOT",
++            &tmp.path().display().to_string(),
++        );
++        let _gov_root =
++            EnvVarGuard::set(RUNTIME_GOVERNANCE_ROOT_ENV, RUNTIME_GOVERNANCE_DEFAULT_ROOT);
++
++        let runtime_paths = RuntimeGovernancePaths::resolve()?;
++        let canonical_task_board_id = canonical_task_board_id();
++        assert_ne!(canonical_task_board_id, runtime_paths.task_board_display());
++        let wp_id = "WP-FR-1";
++        let create_params = locus::LocusCreateWpParams {
++            wp_id: wp_id.to_string(),
++            title: "Workflow mirror activation".to_string(),
++            description: "Prove Workflow-Mirror activation emits FR-EVT-GOV-WP-001".to_string(),
++            priority: 1,
++            kind: locus::WorkPacketType::Feature,
++            phase: locus::WorkPacketPhase::Phase1,
++            routing: locus::RoutingPolicy::GovStandard,
++            task_packet_path: Some(format!(".GOV/task_packets/{wp_id}/packet.md")),
++            assignee: Some("CODER".to_string()),
++            labels: Some(vec!["workflow-mirror".to_string()]),
++            spec_session_id: Some("spec-session-1".to_string()),
++            reporter: "operator".to_string(),
++        };
++        execute_locus_work_packet_operation(
++            state.storage.as_ref(),
++            locus::LocusOperation::CreateWp(create_params.clone()),
++        )
++        .await?;
++        materialize_structured_collaboration_artifacts(
++            &state,
++            &locus::LocusOperation::CreateWp(create_params),
++        )
++        .await?;
++
++        let gate_params = locus::LocusGateWpParams {
++            wp_id: wp_id.to_string(),
++            gate: locus::LocusGateKind::PreWork,
++            result: locus::GateStatus {
++                status: locus::GateStatusKind::Pass,
++                validated_at: Some(Utc::now()),
++                validated_by: Some("validator".to_string()),
++                notes: Some("activation gate passed".to_string()),
++                validation_report_ref: None,
++            },
++        };
++        execute_locus_work_packet_operation(
++            state.storage.as_ref(),
++            locus::LocusOperation::GateWp(gate_params.clone()),
++        )
++        .await?;
++        materialize_structured_collaboration_artifacts(
++            &state,
++            &locus::LocusOperation::GateWp(gate_params),
++        )
++        .await?;
++
++        let gate_artifact: locus::WorkflowMirrorGateArtifactV1 =
++            serde_json::from_slice(&std::fs::read(runtime_paths.validator_gate_path(wp_id))?)?;
++        assert_eq!(gate_artifact.wp_id, wp_id);
++        assert_eq!(
++            gate_artifact.task_board_id,
++            canonical_task_board_id.as_str()
++        );
++        assert_eq!(
++            gate_artifact.gate_summary.task_board_id,
++            canonical_task_board_id.as_str()
++        );
++        assert_eq!(
++            gate_artifact.gate_state_ref,
++            runtime_paths.validator_gate_display(wp_id)
++        );
++        assert!(gate_artifact
++            .gate_summary
++            .evidence_refs
++            .contains(&runtime_paths.task_board_display()));
++
++        let activation_artifact: locus::WorkflowMirrorActivationArtifactV1 =
++            serde_json::from_slice(&std::fs::read(
++                runtime_paths.activation_traceability_path(wp_id),
++            )?)?;
++        assert_eq!(activation_artifact.base_wp_id, wp_id);
++        assert_eq!(activation_artifact.work_packet_id, wp_id);
++        assert_eq!(
++            activation_artifact.task_board_id,
++            canonical_task_board_id.as_str()
++        );
++        assert_eq!(
++            activation_artifact.traceability_ref,
++            runtime_paths.activation_traceability_display(wp_id)
++        );
++        assert_eq!(
++            activation_artifact.active_packet_ref,
++            format!(".GOV/task_packets/{wp_id}/packet.md")
++        );
++
++        let tracked_packet: locus::TrackedWorkPacketArtifactV1 = serde_json::from_slice(
++            &std::fs::read(runtime_paths.work_packet_packet_path(wp_id))?,
++        )?;
++        assert_eq!(
++            tracked_packet
++                .governance
++                .gate_summary
++                .as_ref()
++                .expect("gate summary should be projected")
++                .task_board_id,
++            canonical_task_board_id.as_str()
++        );
++        assert_eq!(
++            tracked_packet
++                .governance
++                .activation_summary
++                .as_ref()
++                .expect("activation summary should be projected")
++                .task_board_id,
++            canonical_task_board_id.as_str()
++        );
++        assert!(tracked_packet
++            .evidence_refs
++            .contains(&runtime_paths.validator_gate_display(wp_id)));
++        assert!(tracked_packet
++            .evidence_refs
++            .contains(&runtime_paths.activation_traceability_display(wp_id)));
++
++        let task_board_index: locus::task_board::TaskBoardIndexV1 =
++            serde_json::from_slice(&std::fs::read(runtime_paths.task_board_index_path())?)?;
++        assert_eq!(
++            task_board_index.task_board_id,
++            canonical_task_board_id.as_str()
++        );
++        assert_eq!(
++            task_board_index.record_id,
++            TASK_BOARD_INDEX_RECORD_ID.to_string()
++        );
++        let row = task_board_index
++            .rows
++            .iter()
++            .find(|entry| entry.work_packet_id == wp_id)
++            .expect("task board row should exist");
++        assert_eq!(row.task_board_id, canonical_task_board_id.as_str());
++        assert!(row
++            .evidence_refs
++            .contains(&runtime_paths.validator_gate_display(wp_id)));
++        assert!(row
++            .evidence_refs
++            .contains(&runtime_paths.activation_traceability_display(wp_id)));
++
++        let events = state
++            .flight_recorder
++            .list_events(EventFilter::default())
++            .await?;
++        let activation_events = events
++            .iter()
++            .filter(|event| event.event_type == FlightRecorderEventType::GovWorkPacketActivated)
++            .collect::<Vec<_>>();
++        assert_eq!(
++            activation_events.len(),
++            1,
++            "expected exactly one gov_work_packet_activated event"
++        );
++
++        let payload: FrEvtGovWorkPacketActivated =
++            serde_json::from_value(activation_events[0].payload.clone())?;
++        assert_eq!(payload.base_wp_id, wp_id);
++        assert_eq!(payload.work_packet_id, wp_id);
++        assert_eq!(
++            payload.traceability_registry_ref,
++            runtime_paths.wp_traceability_registry_display()
++        );
++        assert_eq!(payload.task_board_ref, runtime_paths.task_board_display());
++        assert_eq!(
++            payload.active_packet_ref,
++            format!(".GOV/task_packets/{wp_id}/packet.md")
++        );
++        assert_eq!(
++            payload.stub_packet_ref,
++            format!(".GOV/task_packets/stubs/{wp_id}/packet.md")
+@@ -29741,0 +30960 @@ mod tests {
++                closeout_badge: None,
+@@ -29913,0 +31133,4 @@ mod tests {
++            assert_eq!(
++                ws.closeout_badge, original.closeout_badge,
++                "DCC summary closeout_badge must match task-board entry projection"
++            );
+@@ -29974,0 +31198 @@ mod tests {
++                closeout_badge: None,

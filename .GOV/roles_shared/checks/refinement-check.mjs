@@ -217,6 +217,42 @@ function normalizeCsv(value) {
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+function normalizeCsvWithKnownValues(value, knownValues) {
+  const raw = String(value || '').trim();
+  if (!raw || /^NONE$/i.test(raw)) return [];
+
+  const known = Array.from(knownValues || [])
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  const refs = [];
+  let i = 0;
+
+  while (i < raw.length) {
+    while (i < raw.length && /[\s,]/.test(raw[i])) i += 1;
+    if (i >= raw.length) break;
+
+    const matched = known.find((item) => {
+      if (raw.slice(i, i + item.length).toUpperCase() !== item.toUpperCase()) return false;
+      const next = raw[i + item.length] || '';
+      return !next || next === ',';
+    });
+    if (matched) {
+      refs.push(matched);
+      i += matched.length;
+      continue;
+    }
+
+    const nextComma = raw.indexOf(',', i);
+    const end = nextComma === -1 ? raw.length : nextComma;
+    const token = raw.slice(i, end).trim();
+    if (token) refs.push(token);
+    i = end + 1;
+  }
+
+  return refs;
+}
+
 function parsePipeRecord(item) {
   const record = {};
   for (const part of String(item || '').split('|')) {
@@ -1951,7 +1987,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       parsed.forceMultiplierResolutions = [];
 
       for (const candidate of candidates) {
-        const pillarRefs = candidate.pillars.filter((value) => !/^NONE$/i.test(value));
+        const pillarRefs = normalizeCsvWithKnownValues(candidate.pillarsRaw, pillarLookup.values()).filter((value) => !/^NONE$/i.test(value));
         const mechanicalRefs = candidate.mechanical.filter((value) => !/^NONE$/i.test(value));
         const primitiveFeatureRefs = candidate.primitivesFeatures.filter((value) => !/^NONE$/i.test(value));
 
@@ -2291,7 +2327,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
       if (!controls.found || controls.items.filter((s) => !isPlaceholderValue(s)).length === 0) {
         errors.push('UI_UX_RUBRIC UI_CONTROLS must include at least one concrete control');
       } else {
-        const anyTooltip = controls.items.some((s) => /\bTooltip:\b/i.test(s) && !/Tooltip:\s*<fill/i.test(s));
+        const anyTooltip = controls.items.some((s) => /\bTooltip:\s*\S/i.test(s) && !/Tooltip:\s*<fill/i.test(s));
         if (!anyTooltip) errors.push('UI_UX_RUBRIC UI_CONTROLS entries must include concrete Tooltip: text');
       }
       if (!states.found || states.items.length === 0) {

@@ -5,8 +5,8 @@ const GOV_ROOT_NORMALIZED = normalizeRepoPath(GOV_ROOT_REPO_REL);
 const GOV_DISPLAY_ROOT = ".GOV";
 const PRODUCT_ROOT_ALIAS_PREFIX = "../handshake_main/";
 const PRODUCT_SURFACE_PREFIXES = ["src/", "app/", "tests/"];
-const ROOT_GOVERNANCE_FILES = new Set(["AGENTS.md", "justfile"]);
-const ROOT_GOVERNANCE_PREFIXES = [".github/"];
+const ROOT_GOVERNANCE_FILES = new Set(["AGENTS.md", "justfile", ".claude", ".github", "orcstart.cmd"]);
+const ROOT_GOVERNANCE_PREFIXES = [".claude/", ".github/"];
 const LEGACY_SCOPE_PLACEHOLDERS = new Set([
   "NONE",
   "N/A",

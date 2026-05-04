@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -11,6 +12,8 @@ import {
   appendWpReceipt,
   buildGovernedPhaseCheckInvocation,
   deriveReviewNotificationTargets,
+  reviewOpenItemIsResolvedByEntry,
+  resolveMicrotaskCommittedHandoffRange,
   summarizeCommittedCoderHandoffDirtyState,
   validateWpReceiptAppendPreconditions,
 } from "../scripts/wp/wp-receipt-append.mjs";
@@ -365,6 +368,38 @@ test("committed coder handoff dirty-state summary tolerates pre-existing out-of-
   assert.deepEqual(summary.transientArtifactPaths, ["tmp-test-proof.log"]);
   assert.deepEqual(summary.ambientOutOfScopePaths, ["src/ambient.rs (PRODUCT_OUT_OF_SCOPE)"]);
   assert.deepEqual(summary.blockingPaths, []);
+});
+
+test("microtask handoff commit narrows committed coder handoff range to HEAD commit", () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-handoff-range-"));
+  try {
+    execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["config", "user.email", "test@example.com"], { cwd: repo });
+    execFileSync("git", ["config", "user.name", "Test User"], { cwd: repo });
+
+    fs.writeFileSync(path.join(repo, "demo.txt"), "one\n", "utf8");
+    execFileSync("git", ["add", "demo.txt"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["commit", "-m", "base"], { cwd: repo, stdio: "ignore" });
+    const baseRev = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repo,
+      encoding: "utf8",
+    }).trim();
+
+    fs.writeFileSync(path.join(repo, "demo.txt"), "one\ntwo\n", "utf8");
+    execFileSync("git", ["commit", "-am", "head"], { cwd: repo, stdio: "ignore" });
+    const headRev = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repo,
+      encoding: "utf8",
+    }).trim();
+
+    assert.deepEqual(resolveMicrotaskCommittedHandoffRange({ commit: headRev }, repo), {
+      baseRev,
+      headRev,
+      source: "MICROTASK_CONTRACT_COMMIT",
+    });
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 });
 
 test("review exchange preflight blocks invalid direct-review receipts before thread append", () => {
@@ -730,6 +765,39 @@ test("review exchange preflight rejects resolution receipts that do not answer a
     fs.rmSync(packetDir, { recursive: true, force: true });
     fs.rmSync(commDir, { recursive: true, force: true });
   }
+});
+
+test("coder intent resolves superseded validator kickoff duplicates for the same session and microtask", () => {
+  const staleKickoff = {
+    correlation_id: "spec_anchor=Handshake_Master_Spec_v02.181.md Phase 1 validator-gate and closeout posture",
+    receipt_kind: "VALIDATOR_KICKOFF",
+    opened_by_role: "WP_VALIDATOR",
+    opened_by_session: "wp_validator:wp-1-demo-v1",
+    target_role: "CODER",
+    target_session: "coder:wp-1-demo-v1",
+    microtask_contract: {
+      scope_ref: "MT-001",
+    },
+  };
+  const coderIntent = {
+    receipt_kind: "CODER_INTENT",
+    actor_role: "CODER",
+    actor_session: "coder:wp-1-demo-v1",
+    target_role: "WP_VALIDATOR",
+    target_session: "wp_validator:wp-1-demo-v1",
+    correlation_id: "Handshake_Master_Spec_v02.181.md Phase 1 validator-gate and closeout posture",
+    ack_for: "Handshake_Master_Spec_v02.181.md Phase 1 validator-gate and closeout posture",
+    packet_row_ref: "MT-001",
+    microtask_contract: {
+      scope_ref: "MT-001",
+    },
+  };
+
+  assert.equal(reviewOpenItemIsResolvedByEntry(staleKickoff, coderIntent), true);
+  assert.equal(reviewOpenItemIsResolvedByEntry({
+    ...staleKickoff,
+    microtask_contract: { scope_ref: "MT-002" },
+  }, coderIntent), false);
 });
 
 test("validator review preflight suppresses duplicate decisive approvals for the same handoff round", () => {

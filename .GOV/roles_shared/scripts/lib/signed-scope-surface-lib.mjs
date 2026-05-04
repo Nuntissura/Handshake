@@ -15,6 +15,18 @@ function stripTicks(value) {
   return String(value || "").trim().replace(/^`|`$/g, "");
 }
 
+const FIXED_GIT_SHA_RE = /^[a-f0-9]{7,40}$/i;
+
+function parseCommittedValidationRange(value) {
+  const text = stripTicks(value);
+  const match = text.match(/^\s*([a-f0-9]{7,40})\.\.([a-f0-9]{7,40})\s*$/i);
+  if (!match) return null;
+  return {
+    baseRev: match[1],
+    headRev: match[2],
+  };
+}
+
 function normalizeRepoRelativePath(value) {
   return stripTicks(value).replace(/\\/g, "/");
 }
@@ -36,15 +48,15 @@ export function parseSignedScopeValidationEntries(packetText) {
   }
 
   for (const line of lines) {
-    const fileMatch = line.match(/^\s*-\s+\*\*Target File\*\*:\s*`?([^`]+?)`?\s*$/i);
+    const fileMatch = line.match(/^\s*-\s+\*\*(Historical Target File|Target File)\*\*:\s*`?([^`]+?)`?\s*$/i);
     if (fileMatch) {
       flush();
       current = {
-        filePath: normalizeRepoRelativePath(fileMatch[1]),
+        filePath: normalizeRepoRelativePath(fileMatch[2]),
         start: null,
         end: null,
         lineDelta: null,
-        containmentOnly: false,
+        containmentOnly: /^Historical Target File$/i.test(fileMatch[1]),
       };
       continue;
     }
@@ -348,6 +360,7 @@ function readCandidateTargetDiff({
   repoRoot,
   targetHeadSha,
   currentMainHeadSha,
+  committedValidationTarget = "",
   gitRunner,
 }) {
   const mainWorktreeAbs = resolveMainWorktreeAbs(packetText, repoRoot);
@@ -355,13 +368,14 @@ function readCandidateTargetDiff({
     ? gitRunner
     : (args) => defaultGitRunner(mainWorktreeAbs, args);
   const packetWpId = stripTicks(parseSingleField(packetText, "WP_ID"));
-  const explicitCommittedRange = parseExplicitCoderHandoffRange(packetText, packetWpId);
+  const durableCommittedRange = parseCommittedValidationRange(committedValidationTarget);
+  const explicitCommittedRange = durableCommittedRange || parseExplicitCoderHandoffRange(packetText, packetWpId);
   const declaredMergeBaseSha = stripTicks(parseSingleField(packetText, "MERGE_BASE_SHA"));
 
   if (
     explicitCommittedRange
-    && /^[0-9a-f]{7,40}$/i.test(explicitCommittedRange.baseRev)
-    && /^[0-9a-f]{7,40}$/i.test(explicitCommittedRange.headRev)
+    && FIXED_GIT_SHA_RE.test(explicitCommittedRange.baseRev)
+    && FIXED_GIT_SHA_RE.test(explicitCommittedRange.headRev)
     && explicitCommittedRange.headRev.toLowerCase() === String(targetHeadSha || "").trim().toLowerCase()
   ) {
     const explicitBaseAncestorResult = runGit([
@@ -528,6 +542,7 @@ export function validateSignedScopeSurface(packetText, {
   errors.push(...compareSummaryAgainstDeclaredSurface(artifactSummary, declaredEntries, "signed patch artifact", {
     enforceWindows: false,
     enforceLineDelta: false,
+    allowDeclaredContainmentOnlyOmissions: true,
   }));
 
   return {
@@ -611,6 +626,7 @@ export function validateCandidateTargetAgainstSignedScope(packetText, {
   repoRoot = REPO_ROOT,
   targetHeadSha = "",
   currentMainHeadSha = "",
+  committedValidationTarget = "",
   candidateDiffText = null,
   gitRunner = null,
 } = {}) {
@@ -644,6 +660,7 @@ export function validateCandidateTargetAgainstSignedScope(packetText, {
       repoRoot,
       targetHeadSha,
       currentMainHeadSha,
+      committedValidationTarget,
       gitRunner,
     });
     mainWorktreeAbs = diffResult.mainWorktreeAbs || mainWorktreeAbs;

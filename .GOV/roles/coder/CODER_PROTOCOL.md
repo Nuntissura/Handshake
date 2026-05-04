@@ -21,6 +21,13 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
 - Visible happy-path completion is insufficient. You must harden invariants, failure paths, and proof surfaces so the workflow can distinguish real completion from false completion.
 - If proof is incomplete, hand off with an explicit partial or non-pass status instead of narrating "done."
 
+## Adult Production Boundary (When Applicable) [CX-123]
+
+- When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
+- The Operator owns legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. The Coder does not track, manage, verify, store, adjudicate, enforce, or demand those real-world obligations as a prerequisite to ordinary technical/governance work.
+- Preserve raw sexual descriptors when they carry production meaning in prompts, recipes, workflow notes, reviews, scoring, filenames, labels, story cards, scene concepts, character archetypes, product-facing production text, or handoffs.
+- Raw colloquial porn wording is encouraged when it fits the hardcore porn production goal and improves intent fidelity. Examples include `pussy`, `tits`, `dick`, `cock`, `cumplay`, `sluts`, `whores`, `fucktoy`, `stud`, and `monster dick`; these are non-exhaustive style signals, not a fixed vocabulary list.
+
 ## Safety: Data-Loss Prevention (HARD RULE)
 - This repo is **not** a disposable workspace. Untracked files may be critical work (e.g., WPs/refinements).
 - **Do not** run destructive commands that can delete/overwrite work unless the user explicitly authorizes it in the same turn:
@@ -414,6 +421,7 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
 - Set `validator_trigger` only when the validator should wake up. Do not expect continuous polling.
 - `just wp-heartbeat ...` is liveness-only. The `next_actor`, `waiting_on`, and session-route parameters must match current runtime truth; use receipts/notifications to change workflow routing, not heartbeat.
 - Prefer `just active-lane-brief CODER WP-{ID}` when context or routing feels fragmented instead of rereading packet/runtime/session truth separately.
+- For session-targeted review helpers, `<session>` means your current receipt `actor_session` from `active-lane-brief`, `check-notifications`, or the active send-mt prompt. It is not necessarily the broker `session_key`. Use the exact `target_session` shown by the route/open review item; exact string continuity is required for ack matching.
 - Prefer deterministic helpers over hand-editing these files:
   - `just wp-thread-append WP-{ID} CODER <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]` (writes both `THREAD.md` and a paired `THREAD_MESSAGE` receipt)
   - `just wp-heartbeat WP-{ID} CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
@@ -542,7 +550,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
   2. Implement the clause described in the MT
   3. Set `CODER STATUS: DONE` with file:line evidence in `EVIDENCE` and commands in `TESTS_RUN`
   4. Commit the MT work on the feature branch with message `feat: MT-NNN <description>`
-  5. Send a governed review request: `just wp-review-request WP-{ID} CODER <session> WP_VALIDATOR <target_session> "MT-NNN complete: <summary>"`
+  5. Send a governed review request: `just wp-review-request WP-{ID} CODER <actor_session> WP_VALIDATOR <target_session> "MT-NNN complete: <summary>"`, where both session values are the exact route strings from `active-lane-brief` / the send-mt prompt.
   6. **STOP.** Wait for validator review response before starting the next MT. Do not batch-implement multiple MTs without intermediate review.
   7. If the validator steers (sends fix instructions), fix the current MT before proceeding.
   8. Only proceed to the next MT after the validator confirms the current MT or the orchestrator explicitly instructs continuation.
@@ -1308,6 +1316,8 @@ Complete ALL steps before claiming work is done.
   (or run `just cargo-clean`, which uses `../Handshake_Artifacts/handshake-cargo-target`).
 
 **Run ALL commands from TEST_PLAN:**
+
+**Host-load waiver exception:** If the packet has an active Operator-approved waiver covering host load or cargo/TEST_PLAN execution, do not start the waived heavy command (for example `cargo test`, `cargo clippy`, broad `pnpm test`, or full builds). Do not inspect, cancel, kill, throttle, or otherwise touch operator-owned download scripts or external processes. Record `Result: NOT_RUN_WAIVED` with the waiver ID in handoff evidence and use lighter evidence explicitly allowed by the waiver; if the command is still required after the waiver expires, escalate to the Orchestrator instead of surprising the host.
 
 **Example for MEDIUM risk:**
 ```bash

@@ -14,6 +14,13 @@
 - Treat weak proof, split authority, and workflow defects that hide uncertainty as product-grade defects, not only governance defects.
 - Prefer `NOT_PROVEN`, `PARTIAL`, `BLOCKED`, or `PENDING` when the evidence ceiling is real instead of rounding up to PASS.
 
+## Adult Production Boundary (When Applicable) [CX-123]
+
+- When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
+- The Operator owns legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. The Validator does not track, manage, verify, store, adjudicate, enforce, or demand those real-world obligations as a prerequisite to ordinary technical/governance work.
+- Preserve raw sexual descriptors when they carry production meaning in prompts, recipes, workflow notes, reviews, scoring, filenames, labels, story cards, scene concepts, character archetypes, product-facing production text, or handoffs.
+- Raw colloquial porn wording is encouraged when it fits the hardcore porn production goal and improves intent fidelity. Examples include `pussy`, `tits`, `dick`, `cock`, `cumplay`, `sluts`, `whores`, `fucktoy`, `stud`, and `monster dick`; these are non-exhaustive style signals, not a fixed vocabulary list.
+
 ## Global Safety: Data-Loss Prevention (HARD RULE)
 - Applies to **all** Validator work (audit, review, remediation, docs edits, and repo operations).
 - This repo is **not** a disposable workspace. Untracked files may be critical work (e.g., WPs/refinements).
@@ -664,6 +671,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 
 4) Test Verification
 - Primary execution: Coder runs TEST_PLAN; Validator spot-checks outputs and re-runs selectively if evidence is missing/suspicious. If TEST_PLAN not run, FAIL unless explicitly waived.
+- Host-load waiver handling: If packet `WAIVERS GRANTED` contains an active Operator-approved TEST/ENVIRONMENT waiver for host load or cargo/TEST_PLAN execution, treat the affected heavy commands as `NOT_RUN_WAIVED` instead of FAIL for that waiver scope. Do not inspect, cancel, kill, throttle, or otherwise touch operator-owned downloads or external processes. Use committed evidence, targeted light checks, and explicit deferred-proof notes; require fresh execution before final PASS only when the waiver expiry says product proof still needs it.
 - Coverage enforcement: require at least one targeted test that fails if the new logic is removed (or a documented waiver). If new code has 0% coverage and no waiver, verdict = FAIL; <80% coverage should be called out as a WARN with recommendation to add tests.
 - Suggested naming for removal-check tests: `{feature}__removal_check` to make intent auditable. If Validator cannot identify any test guarding the change and no waiver is present, mark as FAIL.
 

@@ -1204,6 +1204,7 @@ export function buildInlineStartupPrompt({
     `STARTUP BRIEF (OPERATIONAL MEMORY): each role startup prints .GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md plus the role-specific STARTUP_BRIEF under that role's docs folder. Treat those cards as Memory-Manager-curated anti-repeat guidance, not protocol authority.`,
     `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${contextDigestCommand} instead of rereading ${contextDigestSurface} surfaces separately.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
+    `HOST_LOAD_STANCE (HARD): Treat operator-owned downloads and other external host processes as out of scope. Do not inspect, cancel, kill, throttle, or otherwise touch them. Before starting heavy validation/build commands (cargo test, cargo clippy, broad pnpm test, full builds), check packet WAIVERS GRANTED and current Orchestrator/Operator instructions. If an active host-load waiver covers the command, record NOT_RUN_WAIVED or deferred evidence with the waiver ID instead of launching the heavy command. If no waiver covers it and the command is required, escalate to the Orchestrator rather than surprising the host.`,
     `INTER_ROLE_VERB_RULE (RGF-248): Routine role traffic should use named verbs where available via \`wp-receipt-append --verb <NAME> --verb-body '<JSON>'\`. Readers prefer \`verb\` / \`verb_body\` fields and fall back to legacy prose receipts only for compatibility.`,
     role === "MEMORY_MANAGER"
       ? `REPOMEM EXCEPTION: Memory Manager is a packetless hygiene lane, not a normal WP repomem coverage target. Use this lane's synthetic receipts and, if mutation is needed, open memory with: ${repomemOpenCommand}.`
@@ -1280,6 +1281,7 @@ export function buildInlineStartupPrompt({
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: only the assigned WP in the assigned WP worktree.`,
       `GOVERNANCE NOISE RULE: the worktree .GOV tree is a live shared governance junction. Treat it as read-only context except for the assigned packet and declared MT files, which you may update for coder-owned status/evidence through the junction without committing .GOV on the feature branch. Use \`just coder-next ${wpId}\` as the filtered resume surface, and do not treat raw .GOV git noise as WP scope evidence.`,
+      `WP WORKTREE ROUTING (HARD): Product navigation, tests, and edits belong to the assigned WP worktree/current cwd. If any receipt metadata mentions \`../handshake_main\` or another non-WP worktree as a product path, treat it as stale navigation noise and resolve the same packet-declared surfaces relative to the assigned WP worktree.`,
       `FLOW: \`MANUAL_RELAY\` = \`just phase-check STARTUP ${wpId} CODER\` -> skeleton approval when required -> implementation -> \`just phase-check HANDOFF ${wpId} CODER\` -> Validator handoff. \`ORCHESTRATOR_MANAGED\` = \`just phase-check STARTUP ${wpId} CODER\` -> validator-owned bootstrap/skeleton checkpoint -> implementation with bounded overlap review -> \`just phase-check HANDOFF ${wpId} CODER\` -> Validator handoff; no routine Operator approvals after signature.`,
       `BRANCH RULE: never merge \`main\`; only use the assigned WP backup branch when the packet allows it.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required coder <-> WP validator lane. Respond to validator kickoff with \`just wp-coder-intent ${wpId} <your-session> <validator-session> "<summary>" <correlation_id>\`, use that kickoff/intent loop for bootstrap/skeleton/data-shape review, and publish review-ready handoff with \`just wp-coder-handoff ${wpId} <your-session> <validator-session> "<summary>"\`. Use \`just wp-thread-append ${wpId} CODER <your-session> "<message>" @wpval\` only for soft coordination that is not part of the required contract.`,
@@ -1309,6 +1311,7 @@ export function buildInlineStartupPrompt({
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: validate evidence in the assigned WP worktree, not intent.`,
+      `WP WORKTREE ROUTING (HARD): Locate packet-declared product surfaces from the assigned WP worktree/current cwd. Do not discover or cite \`../handshake_main\` product paths for WP validator kickoff, review metadata, proof commands, or file targets; \`handshake_main\` is an integration/main containment surface, not this WP's writable review target.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then report findings.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
       `DIRECT COMMUNICATION (MANDATORY): Use the structured direct-review helpers, not generic thread traffic, for the required WP validator <-> coder lane. Publish kickoff with \`just wp-validator-kickoff ${wpId} <your-session> <coder-session> "<summary>"\`, use that kickoff to judge bootstrap/skeleton/micro-task direction early, and publish the review with \`just wp-validator-review ${wpId} <your-session> <coder-session> "<summary>" <correlation_id>\`. Use \`just wp-thread-append ${wpId} WP_VALIDATOR <your-session> "<message>" @coder\` only for soft coordination that is not part of the required contract.`,
@@ -1439,6 +1442,9 @@ export function buildInlineStartupPrompt({
   const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
     ...startupCommands.map((command, index) => `${index + 1}. ${command}`),
+    `LONG-STARTUP TOOL RULE: startup commands may take several minutes; when a tool supports it, set a timeout of at least 900000 ms for each bootstrap command.`,
+    `BACKGROUND MONITOR RULE: if a bootstrap command is auto-backgrounded, monitor that exact task/output until it finishes; do not launch the same startup command a second time.`,
+    `BACKGROUND EXIT GATE: do not end the START_SESSION turn, say "I'll wait", or report final startup state while any bootstrap background task is still active; use the available Monitor/task-output mechanism until completion, then continue with the next bootstrap command.`,
     `After those commands, report only the resulting lifecycle/gate state, blockers, and next required command(s).`,
     `Do not run follow-on tests, validation, implementation, edits, or merge actions in this START_SESSION turn.`,
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
@@ -1587,10 +1593,10 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       : null,
     // Auto-relay communication instructions per role [CX-503C]
     role === "WP_VALIDATOR"
-      ? `AUTO-RELAY: When you finish reviewing a microtask, send your response back to the coder via: just wp-review-response ${wpId} WP_VALIDATOR WP_VALIDATOR:${wpId} CODER CODER:${wpId} '<MT-NNN PASS or STEER: findings>'. This triggers the auto-relay to dispatch your response to the coder session.`
+      ? `AUTO-RELAY: When you finish reviewing a microtask, send your response back to the coder via wp-review-response. The target_session must exactly match the open review item's opened_by_session/actor_session; do not synthesize CODER:${wpId} if the open review shows another session string. Example shape: just wp-review-response ${wpId} WP_VALIDATOR <your-actor-session> CODER <open-review-opened_by_session> '<MT-NNN PASS or STEER: findings>'. This triggers the auto-relay to dispatch your response to the coder session.`
       : null,
     role === "CODER"
-      ? `AUTO-RELAY: After committing each microtask, a git hook will automatically fire wp-review-request to the validator. If the hook does not fire, run manually: just wp-review-request ${wpId} CODER CODER:${wpId} WP_VALIDATOR WP_VALIDATOR:${wpId} '<MT-NNN complete: summary>'. Then STOP and wait for the validator's response.`
+      ? `AUTO-RELAY: After committing each microtask, a git hook will automatically fire wp-review-request to the validator. If the hook does not fire, run manually with your actual receipt actor_session from active-lane-brief/check-notifications and the validator target_session shown in the current send-mt prompt: just wp-review-request ${wpId} CODER <your-actor-session> WP_VALIDATOR <validator-target-session> '<MT-NNN complete: summary>'. Then STOP and wait for the validator's response.`
       : null,
   ].filter(Boolean).join("\n");
 }

@@ -33,7 +33,16 @@ import {
   workPacketPath,
   WORK_PACKET_STORAGE_ROOT_REPO_REL,
 } from "../../../../roles_shared/scripts/lib/runtime-paths.mjs";
-import { formatBoundedItemList, parsePacketScopeList } from "../../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
+import {
+  classifyWpChangedPath,
+  collectBudgetCountedFiles,
+  deriveWpScopeContract,
+  formatBoundedItemList,
+  normalizeRepoPath,
+  parsePacketScopeDiscipline,
+  parsePacketScopeList,
+  scopeDisciplineRequiresEnforcement,
+} from "../../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 import {
   evaluateWpCommunicationHealth,
   deriveLatestValidatorAssessment,
@@ -1547,8 +1556,22 @@ function extractPreWorkErrors(output) {
 
 function preWorkFailureIsNonBlockingForCommittedTarget(output) {
   const errors = extractPreWorkErrors(output);
-  if (errors.length === 0) return false;
-  return errors.every((entry) =>
+  if (errors.length > 0) {
+    return errors.every((entry) => preWorkErrorIsBranchLocalOutOfScope(entry));
+  }
+
+  const failedStepLines = String(output || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^FAIL\s+\|/i.test(line))
+    .filter((line) => !/^FAIL\s+\|\s+phase-check\s+/i.test(line));
+  const onlyPreWorkFailed = failedStepLines.length > 0
+    && failedStepLines.every((line) => /^FAIL\s+\|\s+pre-work-check failed\b/i.test(line));
+  return onlyPreWorkFailed && /Branch-local out-of-scope edits detected before work starts:/i.test(String(output || ""));
+}
+
+function preWorkErrorIsBranchLocalOutOfScope(entry) {
+  return (
     /^Branch-local out-of-scope edits detected before work starts:/i.test(String(entry || "").trim())
   );
 }
@@ -1604,6 +1627,203 @@ function selectCommittedValidationTarget(worktreeAbs, packetContent, { rev = "",
     summary: "HEAD",
     targetHeadSha: "HEAD",
   };
+}
+
+function parseCommittedRangeSummary(summary = "") {
+  const parts = String(summary || "").trim().split("..");
+  if (parts.length !== 2) return null;
+  const [baseRev, headRev] = parts.map((entry) => String(entry || "").trim());
+  if (!baseRev || !headRev) return null;
+  return { baseRev, headRev };
+}
+
+function runGitResult(worktreeAbs, args, gitRunner = null) {
+  if (typeof gitRunner === "function") {
+    const result = gitRunner(args);
+    return {
+      code: typeof result?.code === "number" ? result.code : 1,
+      output: String(result?.output || "").trim(),
+    };
+  }
+  return runCommandInWorktree(worktreeAbs, "git", args);
+}
+
+function resolveCommittedScopeRange({ worktreeAbs, committedTarget = {}, targetHeadSha = "", gitRunner = null } = {}) {
+  const errors = [];
+  const warnings = [];
+  const mode = String(committedTarget?.mode || "").trim().toUpperCase();
+  const summary = String(committedTarget?.summary || "").trim();
+  const normalizedTargetHeadSha = String(targetHeadSha || "").trim();
+
+  if (mode === "COMMITTED_RANGE") {
+    const parsed = parseCommittedRangeSummary(summary);
+    if (!parsed) {
+      return { ok: false, errors: [`committed target range is invalid: ${summary || "<missing>"}`], warnings };
+    }
+    const baseResult = runGitResult(worktreeAbs, ["rev-parse", parsed.baseRev], gitRunner);
+    const headResult = runGitResult(worktreeAbs, ["rev-parse", parsed.headRev], gitRunner);
+    if (baseResult.code !== 0) errors.push(`cannot resolve committed target base ${parsed.baseRev}`);
+    if (headResult.code !== 0) errors.push(`cannot resolve committed target head ${parsed.headRev}`);
+    if (errors.length > 0) return { ok: false, errors, warnings };
+
+    const baseSha = String(baseResult.output || "").trim();
+    const headSha = String(headResult.output || "").trim();
+    if (normalizedTargetHeadSha && headSha && headSha !== normalizedTargetHeadSha) {
+      errors.push(`committed target head ${headSha} does not match selected target_head_sha ${normalizedTargetHeadSha}`);
+    }
+    return {
+      ok: errors.length === 0,
+      errors,
+      warnings,
+      baseRev: baseSha,
+      headRev: headSha,
+      summary: `${baseSha}..${headSha}`,
+    };
+  }
+
+  if (mode === "COMMITTED_REV") {
+    if (!normalizedTargetHeadSha) {
+      return { ok: false, errors: ["committed target rev is missing target_head_sha"], warnings };
+    }
+    const parentsResult = runGitResult(worktreeAbs, ["rev-list", "--parents", "-n", "1", normalizedTargetHeadSha], gitRunner);
+    if (parentsResult.code !== 0) {
+      return { ok: false, errors: [`cannot resolve parent for committed target ${normalizedTargetHeadSha}`], warnings };
+    }
+    const parentTokens = String(parentsResult.output || "").trim().split(/\s+/).filter(Boolean);
+    if (parentTokens.length < 2) {
+      return { ok: false, errors: [`committed target ${normalizedTargetHeadSha} has no parent to diff against`], warnings };
+    }
+    return {
+      ok: true,
+      errors,
+      warnings,
+      baseRev: parentTokens[1],
+      headRev: normalizedTargetHeadSha,
+      summary: `${parentTokens[1]}..${normalizedTargetHeadSha}`,
+    };
+  }
+
+  return { ok: false, errors: [`unsupported committed target mode ${mode || "<missing>"}`], warnings };
+}
+
+export function buildCommittedTargetScopeEvidence({
+  wpId = "",
+  packetContent = "",
+  worktreeAbs = "",
+  committedTarget = {},
+  targetHeadSha = "",
+  gitRunner = null,
+} = {}) {
+  const errors = [];
+  const warnings = [];
+  const range = resolveCommittedScopeRange({
+    worktreeAbs,
+    committedTarget,
+    targetHeadSha,
+    gitRunner,
+  });
+  errors.push(...(range.errors || []));
+  warnings.push(...(range.warnings || []));
+  if (!range.ok) {
+    return {
+      ok: false,
+      status: "FAIL",
+      mode: "COMMITTED_TARGET_SCOPE",
+      target: String(committedTarget?.summary || "").trim(),
+      changedFiles: [],
+      inScopeFiles: [],
+      disallowedFiles: [],
+      errors,
+      warnings,
+    };
+  }
+
+  const changedFilesResult = runGitResult(worktreeAbs, [
+    "diff",
+    "--name-only",
+    range.baseRev,
+    range.headRev,
+  ], gitRunner);
+  if (changedFilesResult.code !== 0) {
+    errors.push(`cannot list changed files for committed target ${range.summary}`);
+  }
+  const changedFiles = String(changedFilesResult.output || "")
+    .split(/\r?\n/)
+    .map((entry) => normalizeRepoPath(entry))
+    .filter(Boolean);
+
+  const diffCheck = runGitResult(worktreeAbs, [
+    "diff",
+    "--check",
+    range.baseRev,
+    range.headRev,
+  ], gitRunner);
+  if (diffCheck.code !== 0) {
+    errors.push(`git diff --check failed for committed target ${range.summary}${diffCheck.output ? `: ${diffCheck.output}` : ""}`);
+  }
+
+  const scopeContract = deriveWpScopeContract({ wpId, packetContent });
+  const disallowedFiles = [];
+  for (const changedFile of changedFiles) {
+    const classification = classifyWpChangedPath(changedFile, scopeContract);
+    if (!classification.allowed) {
+      disallowedFiles.push(`${classification.kind}: ${classification.path}`);
+    }
+  }
+  const uniqueDisallowedFiles = Array.from(new Set(disallowedFiles));
+  if (uniqueDisallowedFiles.length > 0) {
+    errors.push(`Committed target changes outside signed WP scope: ${formatBoundedItemList(uniqueDisallowedFiles, { noun: "entry" })}`);
+  }
+
+  const packetFormatVersion = parseClaimField(packetContent, "PACKET_FORMAT_VERSION");
+  const scopeDiscipline = parsePacketScopeDiscipline(packetContent);
+  const inScopeFiles = collectBudgetCountedFiles(changedFiles, scopeContract);
+  if (scopeDisciplineRequiresEnforcement(packetFormatVersion)) {
+    if (!scopeDiscipline.touchedFileBudgetValid) {
+      errors.push("TOUCHED_FILE_BUDGET must be an integer >= 1 for committed target scope validation");
+    } else if (inScopeFiles.length > scopeDiscipline.touchedFileBudget) {
+      errors.push(
+        `Committed target touched file budget exceeded: ${inScopeFiles.length} > ${scopeDiscipline.touchedFileBudget} (${formatBoundedItemList(inScopeFiles, { noun: "path" })})`,
+      );
+    }
+    if (!scopeDiscipline.broadToolAllowlistValid) {
+      const invalidTokens = scopeDiscipline.invalidBroadToolTokens || [];
+      const detail = invalidTokens.includes("NONE_WITH_OTHERS")
+        ? "NONE cannot be combined with other broad tool allowlist tokens"
+        : `invalid token(s): ${invalidTokens.join(", ")}`;
+      errors.push(`BROAD_TOOL_ALLOWLIST invalid for committed target scope validation: ${detail}`);
+    }
+  }
+
+  const zeroDeltaAllowed = /^YES$/i.test(parseClaimField(packetContent, "ZERO_DELTA_PROOF_ALLOWED"));
+  if (changedFiles.length === 0 && !zeroDeltaAllowed) {
+    errors.push(`No files changed in committed target ${range.summary}`);
+  } else if (changedFiles.length === 0) {
+    warnings.push("No files changed in committed target; ZERO_DELTA_PROOF_ALLOWED=YES");
+  }
+
+  return {
+    ok: errors.length === 0,
+    status: errors.length === 0 ? "PASS" : "FAIL",
+    mode: "COMMITTED_TARGET_SCOPE",
+    target: range.summary,
+    changedFiles,
+    inScopeFiles,
+    disallowedFiles: uniqueDisallowedFiles,
+    diffCheckStatus: diffCheck.code === 0 ? "PASS" : "FAIL",
+    errors,
+    warnings,
+  };
+}
+
+function handoffPhaseFailureIsPostWorkOnly(output) {
+  const lines = String(output || "").split(/\r?\n/);
+  const failedStepLines = lines
+    .map((line) => line.trim())
+    .filter((line) => /^FAIL\s+\|/i.test(line))
+    .filter((line) => !/^FAIL\s+\|\s+phase-check\s+/i.test(line));
+  if (failedStepLines.length === 0) return false;
+  return failedStepLines.every((line) => /^FAIL\s+\|\s+post-work-check failed\b/i.test(line));
 }
 
 // RGF-184: detect zero-execution in test proof output.
@@ -1793,13 +2013,25 @@ export function buildValidatorHandoffCheckResult({
       "CODER",
       ...committedTarget.args,
     ]);
+    const committedTargetScope = buildCommittedTargetScopeEvidence({
+      wpId: normalizedWpId,
+      packetContent,
+      worktreeAbs,
+      committedTarget,
+      targetHeadSha,
+    });
     const cargoCleanStatus = cargoClean.code === 0 ? "PASS" : "FAIL";
     const preWorkNonBlockingForCommittedTarget =
       preWork.code !== 0 && preWorkFailureIsNonBlockingForCommittedTarget(preWork.output);
+    const postWorkNonBlockingForCommittedTarget =
+      postWork.code !== 0
+      && handoffPhaseFailureIsPostWorkOnly(postWork.output)
+      && committedTargetScope.ok;
     const livePrepareWorktreeStatus = preWork.code === 0 && cargoClean.code === 0 && postWork.code === 0 ? "PASS" : "FAIL";
     const committedTargetStatus =
       cargoClean.code === 0
-      && postWork.code === 0
+      && committedTargetScope.ok
+      && (postWork.code === 0 || postWorkNonBlockingForCommittedTarget)
       && (preWork.code === 0 || preWorkNonBlockingForCommittedTarget)
         ? "PASS"
         : "FAIL";
@@ -1821,6 +2053,15 @@ export function buildValidatorHandoffCheckResult({
       cargo_clean_required: true,
       cargo_clean_status: cargoCleanStatus,
       post_work_status: postWork.code === 0 ? "PASS" : "FAIL",
+      committed_scope_status: committedTargetScope.status,
+      committed_scope_mode: committedTargetScope.mode,
+      committed_scope_target: committedTargetScope.target,
+      committed_scope_changed_files: committedTargetScope.changedFiles,
+      committed_scope_errors: committedTargetScope.errors,
+      committed_scope_warnings: committedTargetScope.warnings,
+      post_work_non_blocking_reason: postWorkNonBlockingForCommittedTarget
+        ? "POST_WORK_MANIFEST_GATE_FAILED_BUT_COMMITTED_TARGET_SCOPE_PASSED"
+        : "",
       pre_work_command: buildPhaseCheckCommand({
         phase: "STARTUP",
         wpId: normalizedWpId,
@@ -1867,6 +2108,8 @@ export function buildValidatorHandoffCheckResult({
         `pre_work_status=${evidence.pre_work_status}`,
         `cargo_clean_status=${evidence.cargo_clean_status}`,
         `post_work_status=${evidence.post_work_status}`,
+        `committed_scope_status=${evidence.committed_scope_status}`,
+        ...(committedTargetScope.errors || []).slice(0, 5).map((entry) => `committed_scope_error=${entry}`),
         ...(livePrepareHealth ? [`live_prepare_worktree_status=${livePrepareHealth.status}`] : []),
         ...extraDetails,
         `evidence_file=${validatorGateStateFilePath(normalizedWpId).replace(/\\/g, "/")}`,
@@ -1884,9 +2127,12 @@ export function buildValidatorHandoffCheckResult({
         `committed_validation_mode=${evidence.committed_validation_mode}`,
         `committed_validation_target=${evidence.committed_validation_target}`,
         `target_head_sha=${evidence.target_head_sha}`,
+        `committed_scope_status=${evidence.committed_scope_status}`,
+        `committed_scope_changed_files=${formatBoundedItemList(evidence.committed_scope_changed_files || [], { noun: "path" })}`,
         `live_prepare_worktree_status=${livePrepareHealth?.status || evidence.status}`,
         `durable_committed_proof_status=${durableCommittedProof?.status || evidence.status}`,
         ...(preWorkNonBlockingForCommittedTarget ? ["non_blocking_pre_work_failure=BRANCH_LOCAL_OUT_OF_SCOPE_EDITS"] : []),
+        ...(postWorkNonBlockingForCommittedTarget ? [`non_blocking_post_work_failure=${evidence.post_work_non_blocking_reason}`] : []),
         `evidence_file=${validatorGateStateFilePath(normalizedWpId).replace(/\\/g, "/")}`,
         ...(nonBlockingSyncWarnings.length > 0
           ? [`sync_warnings=${formatBoundedItemList(nonBlockingSyncWarnings, { noun: "warning" })}`]

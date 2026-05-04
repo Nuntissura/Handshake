@@ -151,7 +151,7 @@ Requirements (HARD):
   - PILLAR: Command Center | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Front End Memory System | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Execution / Job Runtime | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
-  - PILLAR: Prompt-to-Spec | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Spec to prompt | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: SQL to PostgreSQL shift readiness | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: LLM-friendly data | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: Stage | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>

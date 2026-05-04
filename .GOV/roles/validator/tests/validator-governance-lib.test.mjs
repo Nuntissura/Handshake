@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import {
+  buildCommittedTargetScopeEvidence,
   buildValidatorReadyCommands,
   deriveValidatorResumeAction,
   deriveValidatorResumeState,
@@ -35,6 +36,90 @@ function packetFixture({
 - GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V3
 `.trim();
 }
+
+function scopedPacketFixture({
+  touchedFileBudget = 2,
+  broadToolAllowlist = "NONE",
+} = {}) {
+  return `# Task Packet: WP-TEST-VALIDATOR-v1
+
+**Status:** In Progress
+
+## METADATA
+- WP_ID: WP-TEST-VALIDATOR-v1
+- PACKET_FORMAT_VERSION: 2026-03-23
+
+## SCOPE
+- IN_SCOPE_PATHS:
+  - src/backend/a.rs
+  - src/backend/b.rs
+- OUT_OF_SCOPE:
+  - tests/
+- TOUCHED_FILE_BUDGET: ${touchedFileBudget}
+- BROAD_TOOL_ALLOWLIST: ${broadToolAllowlist}
+`.trim();
+}
+
+function committedRangeGitRunner({ changedFiles = [], diffCheckCode = 0, diffCheckOutput = "" } = {}) {
+  const baseSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const headSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  return (args) => {
+    if (args[0] === "rev-parse" && args[1] === baseSha) return { code: 0, output: baseSha };
+    if (args[0] === "rev-parse" && args[1] === headSha) return { code: 0, output: headSha };
+    if (args[0] === "diff" && args[1] === "--name-only") {
+      return { code: 0, output: changedFiles.join("\n") };
+    }
+    if (args[0] === "diff" && args[1] === "--check") {
+      return { code: diffCheckCode, output: diffCheckOutput };
+    }
+    return { code: 1, output: `unexpected git call: ${args.join(" ")}` };
+  };
+}
+
+test("committed target scope evidence accepts in-scope explicit ranges without relying on line manifests", () => {
+  const baseSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const headSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const result = buildCommittedTargetScopeEvidence({
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: scopedPacketFixture(),
+    worktreeAbs: ".",
+    committedTarget: {
+      mode: "COMMITTED_RANGE",
+      summary: `${baseSha}..${headSha}`,
+    },
+    targetHeadSha: headSha,
+    gitRunner: committedRangeGitRunner({
+      changedFiles: ["src/backend/a.rs", "src/backend/b.rs"],
+    }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.status, "PASS");
+  assert.deepEqual(result.inScopeFiles, ["src/backend/a.rs", "src/backend/b.rs"]);
+  assert.deepEqual(result.errors, []);
+});
+
+test("committed target scope evidence rejects out-of-scope files in explicit ranges", () => {
+  const baseSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const headSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const result = buildCommittedTargetScopeEvidence({
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: scopedPacketFixture(),
+    worktreeAbs: ".",
+    committedTarget: {
+      mode: "COMMITTED_RANGE",
+      summary: `${baseSha}..${headSha}`,
+    },
+    targetHeadSha: headSha,
+    gitRunner: committedRangeGitRunner({
+      changedFiles: ["src/backend/a.rs", "tests/a_test.rs"],
+    }),
+  });
+
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /outside signed WP scope/i);
+  assert.deepEqual(result.disallowedFiles, ["EXPLICIT_OUT_OF_SCOPE: tests/a_test.rs"]);
+});
 
 test("validator packet policy blocks pre-threshold folder packets as remediation-required legacy closures", () => {
   const evaluation = evaluateValidatorPacketGovernanceState({

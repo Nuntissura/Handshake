@@ -467,6 +467,7 @@ Next: N/A
 ## WAIVERS GRANTED
 - (Record explicit user waivers here per [CX-573F]. Prefer pipe records so the computed policy gate can classify them deterministically.)
 - (Format: `- WAIVER_ID: CX-... | STATUS: ACTIVE | COVERS: SCOPE, PROOF, TEST, ENVIRONMENT, PROTECTED_SURFACE, HEURISTIC, GOVERNANCE | SCOPE: <WP/local scope> | JUSTIFICATION: <why> | APPROVER: <user/operator> | EXPIRES: <date or condition>`.)
+- (Host-load/test deferral example: `- WAIVER_ID: CX-ENV-HOST-LOAD-... | STATUS: ACTIVE | COVERS: TEST, ENVIRONMENT | SCOPE: <heavy commands> while operator-owned host load is active | JUSTIFICATION: Operator waived heavy tests during load; roles must not touch external processes | APPROVER: Operator | EXPIRES: <condition requiring fresh proof or closure>`.)
 - (Do not use `## WAIVERS GRANTED` to continue after token-cost overrun. Token budget and token-ledger drift are diagnostic-only cost telemetry and must be surfaced mechanically in audits/dossiers instead of requiring a continuation waiver.)
 - NONE
 

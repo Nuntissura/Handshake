@@ -11,6 +11,11 @@ function normalizeText(value) {
   return String(value || "").trim();
 }
 
+function normalizeTextList(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => normalizeText(entry)).filter(Boolean);
+}
+
 function normalizeStatus(value) {
   const normalized = normalizeText(value).toUpperCase();
   return PROOF_STATUS_VALUES.includes(normalized) ? normalized : "FAIL";
@@ -53,6 +58,13 @@ function normalizeProofRecord(raw, fallbackKind = "LIVE_PREPARE_WORKTREE_HEALTH"
     cargo_clean_required: Boolean(record.cargo_clean_required),
     cargo_clean_status: normalizeText(record.cargo_clean_status).toUpperCase() || "FAIL",
     post_work_status: normalizeText(record.post_work_status).toUpperCase() || "FAIL",
+    committed_scope_status: normalizeText(record.committed_scope_status).toUpperCase() || "",
+    committed_scope_mode: normalizeText(record.committed_scope_mode),
+    committed_scope_target: normalizeText(record.committed_scope_target),
+    committed_scope_changed_files: normalizeTextList(record.committed_scope_changed_files),
+    committed_scope_errors: normalizeTextList(record.committed_scope_errors),
+    committed_scope_warnings: normalizeTextList(record.committed_scope_warnings),
+    post_work_non_blocking_reason: normalizeText(record.post_work_non_blocking_reason),
     pre_work_command: normalizeText(record.pre_work_command),
     cargo_clean_command: normalizeText(record.cargo_clean_command),
     post_work_command: normalizeText(record.post_work_command),

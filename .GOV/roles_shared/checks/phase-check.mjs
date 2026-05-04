@@ -337,6 +337,13 @@ export function parseCommittedTargetArgs(args = []) {
   };
 }
 
+export function isCloseoutSyncKernelRoot(closeoutSyncCwd = "") {
+  const kernelRoot = path.resolve(GOV_ROOT_ABS, "..");
+  const normalizedCloseoutCwd = path.resolve(String(closeoutSyncCwd || "")).replace(/\\/g, "/").toLowerCase();
+  const normalizedKernelCwd = kernelRoot.replace(/\\/g, "/").toLowerCase();
+  return normalizedCloseoutCwd === normalizedKernelCwd;
+}
+
 function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   const mode = String(syncOptions?.modeSpec?.mode || "").trim();
   if (!wpId || !mode) {
@@ -357,9 +364,8 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   // RGF-183: fail-fast when closeout resolves to the kernel root for a product-contained WP.
   // If resolveCloseoutSyncCwd fell back to phaseCheckCwd (the kernel), the signed-scope
   // validation will use kernel git context and produce false missing-file/drift failures.
-  const normalizedCloseoutCwd = path.resolve(closeoutSyncCwd).replace(/\\/g, "/").toLowerCase();
-  const normalizedKernelCwd = path.resolve(phaseCheckCwd).replace(/\\/g, "/").toLowerCase();
-  if (normalizedCloseoutCwd === normalizedKernelCwd) {
+  if (isCloseoutSyncKernelRoot(closeoutSyncCwd)) {
+    const kernelRoot = path.resolve(GOV_ROOT_ABS, "..");
     const packetInfo = resolveWorkPacketPath(wpId);
     const packetText = packetInfo?.packetAbsPath && fs.existsSync(packetInfo.packetAbsPath)
       ? fs.readFileSync(packetInfo.packetAbsPath, "utf8")
@@ -372,7 +378,8 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
         ok: false,
         output: [
           `[RGF-183] CLOSEOUT sync failed: resolved to kernel root instead of product worktree.`,
-          `  kernel_root: ${phaseCheckCwd}`,
+          `  kernel_root: ${kernelRoot}`,
+          `  phase_check_cwd: ${phaseCheckCwd}`,
           `  declared_product_worktree: ${declaredProductWorktree}`,
           `  resolved_closeout_cwd: ${closeoutSyncCwd}`,
           `  The WP's committed target lives in a product worktree, but closeout resolved to the kernel.`,

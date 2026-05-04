@@ -23,6 +23,7 @@ const SUPPORTED_RECEIPT_KINDS = [
   ...REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
 ];
 const EXPLICIT_REVIEW_ROLE_VALUES = ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+const FULL_GIT_SHA_RE = /^[0-9a-f]{40}$/i;
 
 function fail(message) {
   failWithMemory("wp-review-exchange.mjs", message, { role: "SHARED" });
@@ -36,6 +37,101 @@ function nullableValue(value) {
   const raw = String(value ?? "").trim();
   if (!raw || /^null$/i.test(raw) || /^none$/i.test(raw) || /^n\/a$/i.test(raw) || /^<unassigned>$/i.test(raw)) return null;
   return raw;
+}
+
+function trimCliWrapperQuotes(value) {
+  let raw = String(value ?? "").trim();
+  if (raw.length >= 2) {
+    const first = raw[0];
+    const last = raw[raw.length - 1];
+    if ((first === "'" && last === "'") || (first === "\"" && last === "\"")) {
+      raw = raw.slice(1, -1);
+    }
+  }
+  return raw;
+}
+
+const REVIEW_CLI_OPTION_FIELDS = [
+  "correlationId",
+  "specAnchor",
+  "packetRowRef",
+  "ackFor",
+  "microtaskJson",
+];
+const VALIDATOR_KICKOFF_CLI_OPTION_FIELDS = [
+  "specAnchor",
+  "packetRowRef",
+  "microtaskJson",
+];
+const REVIEW_CLI_OPTION_FIELD_BY_KEY = new Map([
+  ["correlation", "correlationId"],
+  ["correlationid", "correlationId"],
+  ["specanchor", "specAnchor"],
+  ["packetrowref", "packetRowRef"],
+  ["ackfor", "ackFor"],
+  ["microtask", "microtaskJson"],
+  ["microtaskjson", "microtaskJson"],
+]);
+
+function normalizedCliOptionKey(value) {
+  return String(value || "").trim().toLowerCase().replace(/[-_]/g, "");
+}
+
+function parseNamedCliOption(raw, fieldByKey) {
+  const match = trimCliWrapperQuotes(raw).match(/^([A-Za-z][A-Za-z0-9_-]*)=(.*)$/s);
+  if (!match) return null;
+  const outerField = fieldByKey.get(normalizedCliOptionKey(match[1]));
+  if (!outerField) return null;
+  const innerMatch = String(match[2] ?? "").match(/^([A-Za-z][A-Za-z0-9_-]*)=(.*)$/s);
+  if (innerMatch) {
+    const innerField = fieldByKey.get(normalizedCliOptionKey(innerMatch[1]));
+    if (innerField) return { field: innerField, value: innerMatch[2] };
+  }
+  return { field: outerField, value: match[2] };
+}
+
+export function parseReviewExchangeCliArgs(argv = []) {
+  const [receiptKind, wpId, actorRole, actorSession, targetRole, targetSession, summary, ...rawOptions] = argv;
+  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
+  const positionalFields = normalizedReceiptKind === "VALIDATOR_KICKOFF"
+    ? VALIDATOR_KICKOFF_CLI_OPTION_FIELDS
+    : REVIEW_CLI_OPTION_FIELDS;
+  const parsed = {};
+  const positional = [];
+  for (const value of rawOptions) {
+    const named = parseNamedCliOption(value, REVIEW_CLI_OPTION_FIELD_BY_KEY);
+    if (named) {
+      parsed[named.field] = named.value;
+      continue;
+    }
+    positional.push(String(value ?? ""));
+  }
+
+  const compacted = normalizedReceiptKind === "VALIDATOR_KICKOFF"
+    ? positional.filter((value) => String(value || "").trim())
+    : positional;
+  let positionalIndex = 0;
+  for (const field of positionalFields) {
+    if (parsed[field] !== undefined) continue;
+    if (positionalIndex >= compacted.length) break;
+    parsed[field] = compacted[positionalIndex];
+    positionalIndex += 1;
+  }
+
+  return {
+    receiptKind,
+    wpId,
+    actorRole,
+    actorSession,
+    targetRole,
+    targetSession,
+    summary,
+    correlationId: parsed.correlationId,
+    specAnchor: parsed.specAnchor,
+    packetRowRef: parsed.packetRowRef,
+    ackFor: parsed.ackFor,
+    microtaskJson: parsed.microtaskJson,
+  };
 }
 
 function inferTargetRole(receiptKind, actorRole) {
@@ -59,6 +155,26 @@ function buildTargetLabel(targetRole, targetSession) {
   return targetSession ? `${targetRole}:${targetSession}` : targetRole;
 }
 
+export function resolveReviewAckFor({
+  receiptKind = "",
+  actorRole = "",
+  ackFor = null,
+  correlationId = null,
+} = {}) {
+  const explicitAckFor = nullableValue(ackFor);
+  if (explicitAckFor) return explicitAckFor;
+
+  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
+  const normalizedActorRole = normalizeRole(actorRole);
+  if (
+    REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalizedReceiptKind)
+    || (normalizedReceiptKind === "CODER_INTENT" && normalizedActorRole === "CODER")
+  ) {
+    return nullableValue(correlationId);
+  }
+  return null;
+}
+
 function inferMicrotaskScopeRef(packetRowRef, summary) {
   const rowRef = String(packetRowRef || "").trim();
   if (/^MT-\d{3}$/i.test(rowRef)) return rowRef.toUpperCase();
@@ -80,6 +196,19 @@ function inferReviewMode({ receiptKind, actorRole, targetRole, packetRowRef, sum
   return null;
 }
 
+function inferHandoffCommitFromSummary({ receiptKind, summary }) {
+  if (String(receiptKind || "").trim().toUpperCase() !== "CODER_HANDOFF") return null;
+  const match = String(summary || "").match(/\b(?:commit|sha|head_commit)\s*[:=]?\s*([0-9a-f]{40})\b/i);
+  return match && FULL_GIT_SHA_RE.test(match[1]) ? match[1] : null;
+}
+
+function attachInferredHandoffCommit(contract, { receiptKind, summary } = {}) {
+  if (!contract || typeof contract !== "object" || Array.isArray(contract)) return contract;
+  if (contract.commit || contract.commit_sha || contract.head_commit) return contract;
+  const commit = inferHandoffCommitFromSummary({ receiptKind, summary });
+  return commit ? { ...contract, commit } : contract;
+}
+
 export function deriveFallbackReviewMicrotaskContract({
   wpId,
   receiptKind,
@@ -89,15 +218,24 @@ export function deriveFallbackReviewMicrotaskContract({
   summary,
   microtaskContract = null,
 } = {}) {
+  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
   if (microtaskContract && typeof microtaskContract === "object" && !Array.isArray(microtaskContract)) {
     const scopeRef = String(microtaskContract.scope_ref || "").trim();
-    if (!scopeRef) return microtaskContract;
+    if (!scopeRef) {
+      return attachInferredHandoffCommit(microtaskContract, {
+        receiptKind: normalizedReceiptKind,
+        summary,
+      });
+    }
     const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef);
-    return resolution.match
+    const contract = resolution.match
       ? mergeHeuristicRiskContract(microtaskContract, resolution.match.heuristicRisk)
       : microtaskContract;
+    return attachInferredHandoffCommit(contract, {
+      receiptKind: normalizedReceiptKind,
+      summary,
+    });
   }
-  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
   if (![
     ...REVIEW_OPEN_RECEIPT_KIND_VALUES,
     ...REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
@@ -129,7 +267,13 @@ export function deriveFallbackReviewMicrotaskContract({
   if (normalizedReceiptKind === "REVIEW_REQUEST") {
     contract.expected_receipt_kind = "REVIEW_RESPONSE";
   }
-  return mergeHeuristicRiskContract(contract, resolution.match.heuristicRisk);
+  return attachInferredHandoffCommit(
+    mergeHeuristicRiskContract(contract, resolution.match.heuristicRisk),
+    {
+      receiptKind: normalizedReceiptKind,
+      summary,
+    },
+  );
 }
 
 function parseMicrotaskContract(value) {
@@ -233,9 +377,12 @@ export function recordReviewExchange({
   if (!CORRELATION_ID) {
     fail(`CORRELATION_ID is required for ${RECEIPT_KIND}`);
   }
-  if (!ACK_FOR && REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(RECEIPT_KIND)) {
-    ACK_FOR = CORRELATION_ID;
-  }
+  ACK_FOR = resolveReviewAckFor({
+    receiptKind: RECEIPT_KIND,
+    actorRole: ACTOR_ROLE,
+    ackFor: ACK_FOR,
+    correlationId: CORRELATION_ID,
+  });
 
   const validationArgs = {
     wpId: WP_ID,
@@ -323,8 +470,20 @@ export function recordReviewExchange({
 }
 
 function runCli() {
-  const [receiptKind, wpId, actorRole, actorSession, targetRole, targetSession, summary, correlationId, specAnchor, packetRowRef, ackFor, microtaskJson] =
-    process.argv.slice(2);
+  const {
+    receiptKind,
+    wpId,
+    actorRole,
+    actorSession,
+    targetRole,
+    targetSession,
+    summary,
+    correlationId,
+    specAnchor,
+    packetRowRef,
+    ackFor,
+    microtaskJson,
+  } = parseReviewExchangeCliArgs(process.argv.slice(2));
   if (!receiptKind || !wpId || !actorRole || !actorSession || !summary) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-review-exchange.mjs"

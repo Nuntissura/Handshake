@@ -96,6 +96,7 @@ const BUILD_ORDER_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/reco
 const PHASE_CHECK_SCRIPT_ABS_PATH = repoPathAbs(`${GOV_ROOT_REPO_REL}/roles_shared/checks/phase-check.mjs`);
 const MICROTASK_SCOPE_BUDGET_RECEIPT_KIND_VALUES = new Set(["CODER_INTENT", "REVIEW_REQUEST"]);
 const MT_FIX_CYCLE_ESCALATION_THRESHOLD = 3;
+const FULL_GIT_SHA_RE = /^[0-9a-f]{40}$/i;
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = text.match(re);
@@ -218,6 +219,43 @@ function runInWorktree(worktreeAbs, command, args) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   return String(result || "").trim();
+}
+
+export function resolveMicrotaskCommittedHandoffRange(microtaskContract, worktreeAbs) {
+  const commit = String(
+    microtaskContract?.commit
+    || microtaskContract?.commit_sha
+    || microtaskContract?.head_commit
+    || "",
+  ).trim();
+  if (!commit) return null;
+  if (!FULL_GIT_SHA_RE.test(commit)) {
+    throw new Error("Governed CODER_HANDOFF rejected: microtask handoff commit must be a 40-character git SHA.");
+  }
+  if (!worktreeAbs || !fs.existsSync(worktreeAbs)) {
+    throw new Error("Governed CODER_HANDOFF rejected: PREPARE worktree is unavailable.");
+  }
+
+  const resolvedCommit = runInWorktree(worktreeAbs, "git", ["rev-parse", `${commit}^{commit}`]);
+  if (resolvedCommit.toLowerCase() !== commit.toLowerCase()) {
+    throw new Error(
+      "Governed CODER_HANDOFF rejected: microtask handoff commit did not resolve to the supplied commit SHA.",
+    );
+  }
+
+  const currentHead = runInWorktree(worktreeAbs, "git", ["rev-parse", "HEAD"]);
+  if (currentHead.toLowerCase() !== resolvedCommit.toLowerCase()) {
+    throw new Error(
+      "Governed CODER_HANDOFF rejected: microtask handoff commit must match current PREPARE worktree HEAD.",
+    );
+  }
+
+  const baseRev = runInWorktree(worktreeAbs, "git", ["rev-parse", `${resolvedCommit}^`]);
+  return {
+    baseRev,
+    headRev: resolvedCommit,
+    source: "MICROTASK_CONTRACT_COMMIT",
+  };
 }
 
 export function summarizeCommittedCoderHandoffDirtyState(statusPorcelain, scopeContract, {
@@ -457,6 +495,43 @@ export function deriveReviewNotificationTargets({ workflowLane = "", entry, auto
   return targets;
 }
 
+function normalizeMicrotaskScopeRef(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+export function reviewOpenItemIsResolvedByEntry(item, entry) {
+  const normalizedReceiptKind = normalizeReceiptKind(entry?.receipt_kind);
+  if (!REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalizedReceiptKind)) return false;
+
+  const itemCorrelationId = String(item?.correlation_id || "").trim();
+  const entryCorrelationId = String(entry?.correlation_id || "").trim();
+  const entryAckFor = String(entry?.ack_for || "").trim();
+  if (itemCorrelationId && (itemCorrelationId === entryCorrelationId || itemCorrelationId === entryAckFor)) {
+    return true;
+  }
+
+  if (
+    normalizedReceiptKind !== "CODER_INTENT"
+    || normalizeReceiptKind(item?.receipt_kind) !== "VALIDATOR_KICKOFF"
+  ) {
+    return false;
+  }
+  if (normalizeRole(item?.opened_by_role) !== normalizeRole(entry?.target_role)) return false;
+  if (normalizeRole(item?.target_role) !== normalizeRole(entry?.actor_role)) return false;
+
+  const openActorSession = normalizeSession(item?.opened_by_session);
+  const entryTargetSession = normalizeSession(entry?.target_session);
+  if (openActorSession && entryTargetSession && openActorSession !== entryTargetSession) return false;
+
+  const openTargetSession = normalizeSession(item?.target_session);
+  const entryActorSession = normalizeSession(entry?.actor_session);
+  if (openTargetSession && entryActorSession && openTargetSession !== entryActorSession) return false;
+
+  const itemScopeRef = normalizeMicrotaskScopeRef(item?.microtask_contract?.scope_ref || item?.packet_row_ref);
+  const entryScopeRef = normalizeMicrotaskScopeRef(entry?.microtask_contract?.scope_ref || entry?.packet_row_ref);
+  return Boolean(itemScopeRef && entryScopeRef && itemScopeRef === entryScopeRef);
+}
+
 function updateOpenReviewItems(runtimeStatus, entry) {
   if (!runtimeStatus || typeof runtimeStatus !== "object") return;
   const currentItems = Array.isArray(runtimeStatus.open_review_items) ? runtimeStatus.open_review_items : [];
@@ -466,7 +541,9 @@ function updateOpenReviewItems(runtimeStatus, entry) {
     return;
   }
 
-  const withoutCorrelation = currentItems.filter((item) => String(item?.correlation_id || "").trim() !== correlationId);
+  const withoutCorrelation = currentItems
+    .filter((item) => !reviewOpenItemIsResolvedByEntry(item, entry))
+    .filter((item) => String(item?.correlation_id || "").trim() !== correlationId);
   if (REVIEW_OPEN_RECEIPT_KIND_VALUES.includes(entry.receipt_kind)) {
     withoutCorrelation.push({
       correlation_id: correlationId,
@@ -563,7 +640,7 @@ export function buildGovernedPhaseCheckInvocation({
   };
 }
 
-function assertCommittedCoderHandoffPreflight({ wpId, context }) {
+function assertCommittedCoderHandoffPreflight({ wpId, context, microtaskContract = null }) {
   const prepareEntry = lastGateLog(loadOrchestratorGateLogs(), wpId, "PREPARE");
   if (!prepareEntry) {
     throw new Error("Governed CODER_HANDOFF rejected: PREPARE authority is missing for this WP.");
@@ -582,7 +659,8 @@ function assertCommittedCoderHandoffPreflight({ wpId, context }) {
   }
 
   const scopeContract = deriveWpScopeContract({ wpId, packetContent: context.packetText });
-  const preferredRange = resolveCommittedCoderHandoffRange(context.packetText, wpId);
+  const preferredRange = resolveMicrotaskCommittedHandoffRange(microtaskContract, worktreeAbs)
+    || resolveCommittedCoderHandoffRange(context.packetText, wpId);
   const allowAmbientOutOfScope = Boolean(preferredRange);
 
   const initialStatus = execFileSync("git", ["status", "--porcelain=v1"], {
@@ -1002,7 +1080,11 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
     receiptKind: args?.receiptKind,
   })) {
     if (!options.skipCommittedCoderHandoffGate) {
-      assertCommittedCoderHandoffPreflight({ wpId, context });
+      assertCommittedCoderHandoffPreflight({
+        wpId,
+        context,
+        microtaskContract: args?.microtaskContract,
+      });
     }
     assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus });
   }
