@@ -4206,3 +4206,24 @@
 - FOLLOW_ON_ITEMS:
   - none
 - OUTCOME: `RGF-267` is implemented; future refinement files can use canonical pillar names such as `Task board (product, not repo)` in force-multiplier rows, UI controls with `Tooltip: text` pass as intended, and the template now matches the checker-canonical `Spec to prompt` pillar name.
+
+### 2026.05.04.02 / GOV-CHANGE-20260504-02
+
+- STATUS: APPLIED
+- SUMMARY: hardened direct-review communication helpers against optional metadata field shifts
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1` validator kickoff stored `spec_anchor=...`, `packet_row_ref=...`, and `microtask_json=...` in shifted receipt fields after named optional arguments crossed the Just/Windows shell boundary
+  - The same kickoff surfaced `../handshake_main` product paths in coder startup review metadata even though the assigned WP worktree was `../wtc-closeout-posture-v1`
+- SURFACES:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-thread-append.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-review-exchange.test.mjs`
+  - `.GOV/roles_shared/tests/wp-thread-append.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-ACP-COMMUNICATION-CLI-HARDENING.md`
+- FOLLOW_ON_ITEMS:
+  - none
+- OUTCOME: `RGF-272` is implemented; direct-review wrappers pass optional metadata as stable key=value tokens, the shared parsers recover both wrapper-forwarded and model-authored named arguments, tests cover sparse/nested metadata routing, and generated coder/WP-validator startup prompts now hard-route product surface discovery through the assigned WP worktree instead of `handshake_main`.

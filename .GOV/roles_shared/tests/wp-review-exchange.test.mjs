@@ -4,7 +4,10 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { deriveFallbackReviewMicrotaskContract } from "../scripts/wp/wp-review-exchange.mjs";
+import {
+  deriveFallbackReviewMicrotaskContract,
+  parseReviewExchangeCliArgs,
+} from "../scripts/wp/wp-review-exchange.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
@@ -62,4 +65,47 @@ test("deriveFallbackReviewMicrotaskContract synthesizes overlap metadata from MT
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
   }
+});
+
+test("parseReviewExchangeCliArgs maps named validator kickoff metadata without positional shift", () => {
+  const parsed = parseReviewExchangeCliArgs([
+    "VALIDATOR_KICKOFF",
+    "WP-TEST-v1",
+    "WP_VALIDATOR",
+    "wpv:test",
+    "CODER",
+    "coder:test",
+    "Kickoff",
+    "spec_anchor=Spec v1",
+    "packet_row_ref=AC-001",
+    "microtask_json={\"scope_ref\":\"MT-001\"}",
+  ]);
+
+  assert.equal(parsed.correlationId, undefined);
+  assert.equal(parsed.specAnchor, "Spec v1");
+  assert.equal(parsed.packetRowRef, "AC-001");
+  assert.equal(parsed.microtaskJson, "{\"scope_ref\":\"MT-001\"}");
+});
+
+test("parseReviewExchangeCliArgs unwraps Just wrapper key=value metadata", () => {
+  const parsed = parseReviewExchangeCliArgs([
+    "CODER_INTENT",
+    "WP-TEST-v1",
+    "CODER",
+    "coder:test",
+    "WP_VALIDATOR",
+    "wpv:test",
+    "Intent",
+    "correlation_id=correlation_id=kickoff-1",
+    "spec_anchor=spec_anchor=Spec v1",
+    "packet_row_ref=packet_row_ref=MT-001",
+    "ack_for=ack_for=kickoff-1",
+    "microtask_json=microtask_json={\"scope_ref\":\"MT-001\"}",
+  ]);
+
+  assert.equal(parsed.correlationId, "kickoff-1");
+  assert.equal(parsed.specAnchor, "Spec v1");
+  assert.equal(parsed.packetRowRef, "MT-001");
+  assert.equal(parsed.ackFor, "kickoff-1");
+  assert.equal(parsed.microtaskJson, "{\"scope_ref\":\"MT-001\"}");
 });

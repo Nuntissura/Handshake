@@ -488,16 +488,16 @@ wp-heartbeat wp-id actor_role actor_session current_phase runtime_status next_ex
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-heartbeat.mjs" {{wp-id}} {{actor_role}} {{actor_session}} {{current_phase}} {{runtime_status}} {{next_expected_actor}} "{{waiting_on}}" "{{validator_trigger}}" "{{last_event}}" "{{worktree_dir}}" "{{next_expected_session}}" "{{waiting_on_session}}"
 
 wp-validator-query wp-id actor_role actor_session wp_validator_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_QUERY {{wp-id}} {{actor_role}} {{actor_session}} WP_VALIDATOR {{wp_validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_QUERY {{wp-id}} {{actor_role}} {{actor_session}} WP_VALIDATOR {{wp_validator_session}} "{{summary}}" "correlation_id={{correlation_id}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}" "ack_for=" 'microtask_json={{microtask_json}}'
 
 wp-review-request wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" REVIEW_REQUEST {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" REVIEW_REQUEST {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "correlation_id={{correlation_id}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}" "ack_for=" 'microtask_json={{microtask_json}}'
 
 wp-validator-response wp-id actor_role actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} CODER {{coder_session}} "{{summary}}" "correlation_id={{correlation_id}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}" "ack_for={{ack_for}}" 'microtask_json={{microtask_json}}'
 
 wp-review-response wp-id actor_role actor_session target_role target_session summary correlation_id spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" REVIEW_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" REVIEW_RESPONSE {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "correlation_id={{correlation_id}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}" "ack_for={{ack_for}}" 'microtask_json={{microtask_json}}'
 
 wp-validator-mechanical-review wp-id mt-id range="" *FLAGS:
 	@node "{{GOV_ROOT}}/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs" {{wp-id}} {{mt-id}} {{if range != "" { "--range \"" + range + "\"" } else { "" }}} {{FLAGS}}
@@ -715,7 +715,7 @@ wp-traceability-set base_wp_id active_packet_wp_id context:
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/wp-traceability-set.mjs" {{base_wp_id}} {{active_packet_wp_id}}
 
 wp-thread-append wp-id actor_role actor_session message target="" target_role="" target_session="" correlation_id="" requires_ack="" ack_for="" spec_anchor="" packet_row_ref="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-thread-append.mjs" {{wp-id}} {{actor_role}} {{actor_session}} "{{message}}" "{{target}}" "{{target_role}}" "{{target_session}}" "{{correlation_id}}" "{{requires_ack}}" "{{ack_for}}" "{{spec_anchor}}" "{{packet_row_ref}}"
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-thread-append.mjs" {{wp-id}} {{actor_role}} {{actor_session}} "{{message}}" "target={{target}}" "target_role={{target_role}}" "target_session={{target_session}}" "correlation_id={{correlation_id}}" "requires_ack={{requires_ack}}" "ack_for={{ack_for}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}"
 
 wp-receipt-append wp-id actor_role actor_session receipt_kind summary state_before="" state_after="" target_role="" target_session="" correlation_id="" requires_ack="" ack_for="" spec_anchor="" packet_row_ref="":
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-receipt-append.mjs" {{wp-id}} {{actor_role}} {{actor_session}} {{receipt_kind}} "{{summary}}" "{{state_before}}" "{{state_after}}" "{{target_role}}" "{{target_session}}" "{{correlation_id}}" "{{requires_ack}}" "{{ack_for}}" "{{spec_anchor}}" "{{packet_row_ref}}"
@@ -727,7 +727,7 @@ wp-operator-rule-restatement wp-id actor_role actor_session summary spec_anchor=
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-operator-rule-restatement.mjs" {{wp-id}} {{actor_role}} {{actor_session}} "{{summary}}" "{{spec_anchor}}" "{{packet_row_ref}}"
 
 wp-review-exchange receipt_kind wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" ack_for="" microtask_json="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" {{receipt_kind}} {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" {{receipt_kind}} {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "correlation_id={{correlation_id}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}" "ack_for={{ack_for}}" 'microtask_json={{microtask_json}}'
 
 wp-spec-gap wp-id actor_role actor_session target_role target_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
 	@just wp-review-exchange SPEC_GAP {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
@@ -736,16 +736,16 @@ wp-spec-confirmation wp-id actor_role actor_session target_role target_session s
 	@just wp-review-exchange SPEC_CONFIRMATION {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "{{ack_for}}" '{{microtask_json}}'
 
 wp-validator-kickoff wp-id actor_session coder_session summary spec_anchor="" packet_row_ref="" microtask_json="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_KICKOFF {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_KICKOFF {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}" 'microtask_json={{microtask_json}}'
 
 wp-coder-intent wp-id actor_session validator_session summary correlation_id spec_anchor="" packet_row_ref="" microtask_json="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" CODER_INTENT {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" CODER_INTENT {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "correlation_id={{correlation_id}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}" "ack_for=" 'microtask_json={{microtask_json}}'
 
 wp-coder-handoff wp-id actor_session validator_session summary correlation_id="" spec_anchor="" packet_row_ref="" microtask_json="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" CODER_HANDOFF {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" CODER_HANDOFF {{wp-id}} CODER {{actor_session}} WP_VALIDATOR {{validator_session}} "{{summary}}" "correlation_id={{correlation_id}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}" "ack_for=" 'microtask_json={{microtask_json}}'
 
 wp-validator-review wp-id actor_session coder_session summary correlation_id spec_anchor="" packet_row_ref="" microtask_json="":
-	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_REVIEW {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "{{correlation_id}}" "{{spec_anchor}}" "{{packet_row_ref}}" "" '{{microtask_json}}'
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-review-exchange.mjs" VALIDATOR_REVIEW {{wp-id}} WP_VALIDATOR {{actor_session}} CODER {{coder_session}} "{{summary}}" "correlation_id={{correlation_id}}" "spec_anchor={{spec_anchor}}" "packet_row_ref={{packet_row_ref}}" "ack_for=" 'microtask_json={{microtask_json}}'
 
 wp-communication-health-check wp-id stage="STATUS" role="" session="":
 	@node "{{GOV_ROOT}}/roles_shared/checks/wp-communication-health-check.mjs" {{wp-id}} {{stage}} {{role}} "{{session}}"

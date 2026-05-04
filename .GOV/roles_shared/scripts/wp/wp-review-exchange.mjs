@@ -38,6 +38,89 @@ function nullableValue(value) {
   return raw;
 }
 
+const REVIEW_CLI_OPTION_FIELDS = [
+  "correlationId",
+  "specAnchor",
+  "packetRowRef",
+  "ackFor",
+  "microtaskJson",
+];
+const VALIDATOR_KICKOFF_CLI_OPTION_FIELDS = [
+  "specAnchor",
+  "packetRowRef",
+  "microtaskJson",
+];
+const REVIEW_CLI_OPTION_FIELD_BY_KEY = new Map([
+  ["correlation", "correlationId"],
+  ["correlationid", "correlationId"],
+  ["specanchor", "specAnchor"],
+  ["packetrowref", "packetRowRef"],
+  ["ackfor", "ackFor"],
+  ["microtask", "microtaskJson"],
+  ["microtaskjson", "microtaskJson"],
+]);
+
+function normalizedCliOptionKey(value) {
+  return String(value || "").trim().toLowerCase().replace(/[-_]/g, "");
+}
+
+function parseNamedCliOption(raw, fieldByKey) {
+  const match = String(raw ?? "").match(/^([A-Za-z][A-Za-z0-9_-]*)=(.*)$/s);
+  if (!match) return null;
+  const outerField = fieldByKey.get(normalizedCliOptionKey(match[1]));
+  if (!outerField) return null;
+  const innerMatch = String(match[2] ?? "").match(/^([A-Za-z][A-Za-z0-9_-]*)=(.*)$/s);
+  if (innerMatch) {
+    const innerField = fieldByKey.get(normalizedCliOptionKey(innerMatch[1]));
+    if (innerField) return { field: innerField, value: innerMatch[2] };
+  }
+  return { field: outerField, value: match[2] };
+}
+
+export function parseReviewExchangeCliArgs(argv = []) {
+  const [receiptKind, wpId, actorRole, actorSession, targetRole, targetSession, summary, ...rawOptions] = argv;
+  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
+  const positionalFields = normalizedReceiptKind === "VALIDATOR_KICKOFF"
+    ? VALIDATOR_KICKOFF_CLI_OPTION_FIELDS
+    : REVIEW_CLI_OPTION_FIELDS;
+  const parsed = {};
+  const positional = [];
+  for (const value of rawOptions) {
+    const named = parseNamedCliOption(value, REVIEW_CLI_OPTION_FIELD_BY_KEY);
+    if (named) {
+      parsed[named.field] = named.value;
+      continue;
+    }
+    positional.push(String(value ?? ""));
+  }
+
+  const compacted = normalizedReceiptKind === "VALIDATOR_KICKOFF"
+    ? positional.filter((value) => String(value || "").trim())
+    : positional;
+  let positionalIndex = 0;
+  for (const field of positionalFields) {
+    if (parsed[field] !== undefined) continue;
+    if (positionalIndex >= compacted.length) break;
+    parsed[field] = compacted[positionalIndex];
+    positionalIndex += 1;
+  }
+
+  return {
+    receiptKind,
+    wpId,
+    actorRole,
+    actorSession,
+    targetRole,
+    targetSession,
+    summary,
+    correlationId: parsed.correlationId,
+    specAnchor: parsed.specAnchor,
+    packetRowRef: parsed.packetRowRef,
+    ackFor: parsed.ackFor,
+    microtaskJson: parsed.microtaskJson,
+  };
+}
+
 function inferTargetRole(receiptKind, actorRole) {
   const role = normalizeRole(actorRole);
   if (!EXPLICIT_REVIEW_ROLE_VALUES.includes(role)) return null;
@@ -323,8 +406,20 @@ export function recordReviewExchange({
 }
 
 function runCli() {
-  const [receiptKind, wpId, actorRole, actorSession, targetRole, targetSession, summary, correlationId, specAnchor, packetRowRef, ackFor, microtaskJson] =
-    process.argv.slice(2);
+  const {
+    receiptKind,
+    wpId,
+    actorRole,
+    actorSession,
+    targetRole,
+    targetSession,
+    summary,
+    correlationId,
+    specAnchor,
+    packetRowRef,
+    ackFor,
+    microtaskJson,
+  } = parseReviewExchangeCliArgs(process.argv.slice(2));
   if (!receiptKind || !wpId || !actorRole || !actorSession || !summary) {
     console.error(
       "Usage: node .GOV/roles_shared/scripts/wp/wp-review-exchange.mjs"
