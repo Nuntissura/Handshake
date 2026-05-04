@@ -2,7 +2,9 @@ use super::types::{
     executor_eligibility_policy_ids_for_family, queue_automation_rule_ids_for_reason,
     transition_rule_ids_for_family, validate_software_delivery_task_board_projection_against_canonical,
     MarkdownMirrorContractV1, MirrorSyncState, ProjectProfileKind,
-    StructuredCollaborationRecordFamily, StructuredCollaborationSummaryV1,
+    SoftwareDeliveryCloseoutPostureV1, SoftwareDeliveryCloseoutState,
+    SoftwareDeliveryWorkflowBindingState, StructuredCollaborationRecordFamily,
+    StructuredCollaborationSummaryV1,
     StructuredCollaborationValidationCode, StructuredCollaborationValidationResult, TaskBoardStatus,
     WorkflowQueueReasonCode, WorkflowStateFamily, STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1,
     STRUCTURED_COLLABORATION_SUMMARY_SCHEMA_ID_V1,
@@ -15,6 +17,78 @@ pub struct TaskBoardEntry {
     pub wp_id: String,
     pub token: String,
     pub status: TaskBoardStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SoftwareDeliveryCloseoutProjectionBadgeV1 {
+    pub work_packet_id: String,
+    pub label: String,
+    pub advisory_only: bool,
+    pub projection_surface_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub closeout_posture_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub closeout_state: Option<SoftwareDeliveryCloseoutState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_binding_state: Option<SoftwareDeliveryWorkflowBindingState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gate_record_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_authority_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_action: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_record_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authority_refs: Vec<String>,
+}
+
+fn closeout_badge_label(closeout_state: Option<SoftwareDeliveryCloseoutState>) -> &'static str {
+    match closeout_state {
+        Some(SoftwareDeliveryCloseoutState::ReadyToClose) => "ready_to_close",
+        Some(SoftwareDeliveryCloseoutState::PendingBlockers) => "closeout_blocked",
+        Some(SoftwareDeliveryCloseoutState::PendingGate) => "closeout_blocked_gate",
+        Some(SoftwareDeliveryCloseoutState::NotEligible) => "not_closeout_ready",
+        None => "closeout_blocked_no_posture",
+    }
+}
+
+pub fn build_software_delivery_closeout_projection_badge(
+    work_packet_id: &str,
+    projection_surface_ref: String,
+    closeout_posture_ref: Option<String>,
+    closeout_posture: Option<&SoftwareDeliveryCloseoutPostureV1>,
+    workflow_binding_state: Option<SoftwareDeliveryWorkflowBindingState>,
+) -> SoftwareDeliveryCloseoutProjectionBadgeV1 {
+    let closeout_state = closeout_posture.map(|posture| posture.closeout_state);
+    let mut source_record_refs = vec![projection_surface_ref.clone()];
+    if let Some(reference) = closeout_posture_ref.as_ref() {
+        source_record_refs.push(reference.clone());
+    }
+    source_record_refs.sort();
+    source_record_refs.dedup();
+
+    SoftwareDeliveryCloseoutProjectionBadgeV1 {
+        work_packet_id: work_packet_id.to_string(),
+        label: closeout_badge_label(closeout_state).to_string(),
+        advisory_only: true,
+        projection_surface_ref,
+        closeout_posture_ref,
+        closeout_state,
+        workflow_binding_state,
+        gate_record_ref: closeout_posture.map(|posture| posture.gate_record_ref.clone()),
+        owner_authority_ref: closeout_posture.map(|posture| posture.owner_authority_ref.clone()),
+        next_action: closeout_posture.and_then(|posture| posture.next_action.clone()),
+        source_record_refs,
+        evidence_refs: closeout_posture
+            .map(|posture| posture.evidence_refs.clone())
+            .unwrap_or_default(),
+        authority_refs: closeout_posture
+            .map(|posture| posture.authority_refs.clone())
+            .unwrap_or_default(),
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -72,6 +146,8 @@ pub struct TaskBoardEntryRecordV1 {
     pub token: String,
     pub status: String,
     pub summary_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub closeout_badge: Option<SoftwareDeliveryCloseoutProjectionBadgeV1>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

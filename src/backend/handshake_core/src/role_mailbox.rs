@@ -17,6 +17,7 @@ use crate::flight_recorder::{
     FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
 };
 use crate::runtime_governance::RuntimeGovernancePaths;
+use crate::workflows::locus::task_board::SoftwareDeliveryCloseoutProjectionBadgeV1;
 use crate::workflows::locus::SoftwareDeliveryProjectionSurfaceV1;
 use crate::workflows::locus::SoftwareDeliveryWorkflowBindingState;
 use crate::workflows::locus::{
@@ -1975,6 +1976,8 @@ pub struct SoftwareDeliveryOverlayTriageRowV1 {
     pub queued_instruction_record_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mailbox_thread_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub closeout_badge: Option<SoftwareDeliveryCloseoutProjectionBadgeV1>,
 }
 
 /// Build an advisory mailbox triage row from a software-delivery projection
@@ -1986,8 +1989,20 @@ pub struct SoftwareDeliveryOverlayTriageRowV1 {
 pub fn build_software_delivery_overlay_triage_row(
     projection: &SoftwareDeliveryProjectionSurfaceV1,
 ) -> Option<SoftwareDeliveryOverlayTriageRowV1> {
+    build_software_delivery_overlay_triage_row_with_closeout_badge(projection, None)
+}
+
+pub fn build_software_delivery_overlay_triage_row_with_closeout_badge(
+    projection: &SoftwareDeliveryProjectionSurfaceV1,
+    closeout_badge: Option<SoftwareDeliveryCloseoutProjectionBadgeV1>,
+) -> Option<SoftwareDeliveryOverlayTriageRowV1> {
     if projection.project_profile_kind != ProjectProfileKind::SoftwareDelivery {
         return None;
+    }
+    if let Some(badge) = closeout_badge.as_ref() {
+        if !badge.advisory_only || badge.work_packet_id != projection.work_packet_id {
+            return None;
+        }
     }
     Some(SoftwareDeliveryOverlayTriageRowV1 {
         work_packet_id: projection.work_packet_id.clone(),
@@ -1999,6 +2014,7 @@ pub fn build_software_delivery_overlay_triage_row(
         queued_instruction_record_ids: projection.queued_instruction_record_ids.clone(),
         queued_instruction_record_refs: projection.queued_instruction_record_refs.clone(),
         mailbox_thread_ids: projection.advisory_role_mailbox_thread_ids.clone(),
+        closeout_badge,
     })
 }
 

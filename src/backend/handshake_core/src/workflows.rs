@@ -4193,6 +4193,13 @@ async fn emit_task_board_projection_artifacts(
             token,
             status: task_board_status_string(status).to_string(),
             summary_ref: runtime_paths.work_packet_summary_display(&row.wp_id),
+            closeout_badge: if boundary.project_profile_kind
+                == locus::ProjectProfileKind::SoftwareDelivery
+            {
+                build_software_delivery_closeout_badge_from_disk(runtime_paths, &row.wp_id)
+            } else {
+                None
+            },
         };
         authoritative_entry_truths.push((
             row.wp_id.clone(),
@@ -5367,6 +5374,55 @@ fn gather_software_delivery_governed_action_resolution_refs(
     governed_action_resolution_refs
 }
 
+fn read_software_delivery_projection_surface(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+) -> Option<locus::SoftwareDeliveryProjectionSurfaceV1> {
+    let bytes = fs::read(runtime_paths.work_packet_projection_surface_path(wp_id)).ok()?;
+    let projection: locus::SoftwareDeliveryProjectionSurfaceV1 =
+        serde_json::from_slice(&bytes).ok()?;
+    if projection.project_profile_kind != locus::ProjectProfileKind::SoftwareDelivery {
+        return None;
+    }
+    if projection.work_packet_id != wp_id {
+        return None;
+    }
+    Some(projection)
+}
+
+fn read_software_delivery_closeout_posture(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+) -> Option<locus::SoftwareDeliveryCloseoutPostureV1> {
+    let bytes = fs::read(runtime_paths.work_packet_closeout_posture_path(wp_id)).ok()?;
+    let posture: locus::SoftwareDeliveryCloseoutPostureV1 =
+        serde_json::from_slice(&bytes).ok()?;
+    if posture.project_profile_kind != locus::ProjectProfileKind::SoftwareDelivery {
+        return None;
+    }
+    if posture.work_packet_id != wp_id {
+        return None;
+    }
+    Some(posture)
+}
+
+fn build_software_delivery_closeout_badge_from_disk(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+) -> Option<locus::task_board::SoftwareDeliveryCloseoutProjectionBadgeV1> {
+    let projection = read_software_delivery_projection_surface(runtime_paths, wp_id)?;
+    let posture = read_software_delivery_closeout_posture(runtime_paths, wp_id);
+    Some(locus::task_board::build_software_delivery_closeout_projection_badge(
+        wp_id,
+        runtime_paths.work_packet_projection_surface_display(wp_id),
+        posture
+            .as_ref()
+            .map(|_| runtime_paths.work_packet_closeout_posture_display(wp_id)),
+        posture.as_ref(),
+        projection.workflow_binding_state,
+    ))
+}
+
 /// MT-004 v02.181: read canonical software-delivery overlay records for
 /// `wp_id` from the runtime governance root. Returns the most recent valid
 /// claim/lease record (when present) and all valid queued-instruction
@@ -6400,19 +6456,13 @@ pub async fn build_dcc_control_plane_snapshot(
                 .unwrap_or((None, None));
             let micro_task_summary = mt_summaries.get(&entry.work_packet_id).cloned();
             let gate_state = gate_states.get(&entry.work_packet_id).cloned();
-            DccWorkflowSummary {
-                work_packet_id: entry.work_packet_id.clone(),
+            build_dcc_workflow_summary_from_task_board_entry(
+                entry,
                 workflow_run_id,
-                state_family: entry.workflow_state_family,
-                queue_reason_code: entry.queue_reason_code,
-                allowed_action_ids: entry.allowed_action_ids.clone(),
                 model_session_id,
-                summary_ref: Some(entry.summary_ref.clone()),
                 micro_task_summary,
                 gate_state,
-                authority_refs: entry.authority_refs.clone(),
-                evidence_refs: entry.evidence_refs.clone(),
-            }
+            )
         })
         .collect();
 
@@ -6466,6 +6516,35 @@ pub async fn build_dcc_control_plane_snapshot(
         governance_state,
         collaboration_state,
     })
+}
+
+fn build_dcc_workflow_summary_from_task_board_entry(
+    entry: &locus::task_board::TaskBoardEntryRecordV1,
+    workflow_run_id: Option<String>,
+    model_session_id: Option<String>,
+    micro_task_summary: Option<crate::runtime_governance::DccMicroTaskSummary>,
+    gate_state: Option<crate::runtime_governance::DccGateState>,
+) -> crate::runtime_governance::DccWorkflowSummary {
+    use crate::runtime_governance::DccWorkflowSummary;
+
+    let closeout_badge = entry.closeout_badge.clone().filter(|badge| {
+        badge.advisory_only && badge.work_packet_id == entry.work_packet_id
+    });
+
+    DccWorkflowSummary {
+        work_packet_id: entry.work_packet_id.clone(),
+        workflow_run_id,
+        state_family: entry.workflow_state_family,
+        queue_reason_code: entry.queue_reason_code,
+        allowed_action_ids: entry.allowed_action_ids.clone(),
+        model_session_id,
+        summary_ref: Some(entry.summary_ref.clone()),
+        micro_task_summary,
+        gate_state,
+        closeout_badge,
+        authority_refs: entry.authority_refs.clone(),
+        evidence_refs: entry.evidence_refs.clone(),
+    }
 }
 
 /// Read the projected task board index JSON. Returns (task_board_id, entries, freshness).
@@ -29015,6 +29094,7 @@ mod tests {
                     token: "tok-ready".into(),
                     status: "ready".into(),
                     summary_ref: "summary-ready.json".into(),
+                    closeout_badge: None,
                 },
                 locus::task_board::TaskBoardEntryRecordV1 {
                     schema_id: "hsk.task_board_entry@1".into(),
@@ -29042,6 +29122,7 @@ mod tests {
                     token: "tok-active".into(),
                     status: "in_progress".into(),
                     summary_ref: "summary-active.json".into(),
+                    closeout_badge: None,
                 },
             ],
         };
@@ -29282,6 +29363,7 @@ mod tests {
                 token: "tok-bind".into(),
                 status: "in_progress".into(),
                 summary_ref: "summary-bind.json".into(),
+                closeout_badge: None,
             }],
         };
         std::fs::write(
@@ -30006,6 +30088,233 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn task_board_and_mailbox_closeout_badges_remain_projection_only() -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = tempfile::tempdir()?;
+        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(tmp.path().to_path_buf())?;
+        let wp_id = "WP-CLOSEOUT-PROJECTION-BADGES-1";
+        let gate_record_ref = runtime_paths.validator_gate_display(wp_id);
+        let owner_authority_ref = runtime_paths.work_packet_packet_display(wp_id);
+        let decision_ref = runtime_paths.governance_decision_display("archive-pass-1");
+        write_committable_validator_gate_record(
+            &runtime_paths,
+            wp_id,
+            vec![gate_record_ref.clone(), decision_ref.clone()],
+        )?;
+
+        let descriptor = locus::structured_collaboration_schema_descriptor(
+            locus::StructuredCollaborationRecordFamily::WorkPacketSummary,
+        );
+        let canonical = locus::StructuredCollaborationSummaryV1 {
+            schema_id: descriptor.schema_id.to_string(),
+            schema_version: descriptor.schema_version.to_string(),
+            record_id: wp_id.to_string(),
+            record_kind: descriptor.record_kind.to_string(),
+            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+            updated_at: Utc::now().to_rfc3339(),
+            mirror_state: locus::MirrorSyncState::CanonicalOnly,
+            authority_refs: vec![owner_authority_ref],
+            evidence_refs: vec![
+                runtime_paths.task_board_display(),
+                gate_record_ref.clone(),
+                decision_ref.clone(),
+            ],
+            mirror_contract: None,
+            workflow_state_family: locus::WorkflowStateFamily::Done,
+            queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForHuman,
+            allowed_action_ids: vec!["archive".to_string()],
+            transition_rule_ids: vec![],
+            queue_automation_rule_ids: vec![],
+            executor_eligibility_policy_ids: vec![],
+            status: "done".to_string(),
+            title_or_objective: "Projection-only closeout badge".to_string(),
+            blockers: vec![],
+            next_action: Some("archive".to_string()),
+            summary_ref: Some(runtime_paths.work_packet_summary_display(wp_id)),
+        };
+        let workspace_root = runtime_paths.workspace_root().to_path_buf();
+        let summary_value = serde_json::to_value(&canonical)?;
+        apply_software_delivery_closeout_posture_lifecycle(
+            &runtime_paths,
+            &workspace_root,
+            wp_id,
+            &summary_value,
+        )?;
+        apply_software_delivery_workflow_run_lifecycle(
+            &runtime_paths,
+            &workspace_root,
+            wp_id,
+            &summary_value,
+        )?;
+        apply_software_delivery_projection_surface_lifecycle(
+            &runtime_paths,
+            &workspace_root,
+            wp_id,
+            &summary_value,
+        )?;
+
+        let badge = build_software_delivery_closeout_badge_from_disk(&runtime_paths, wp_id)
+            .expect("runtime projection and closeout posture must yield a badge");
+        assert!(badge.advisory_only);
+        assert_eq!(badge.work_packet_id, wp_id);
+        assert_eq!(
+            badge.closeout_state,
+            Some(locus::SoftwareDeliveryCloseoutState::ReadyToClose)
+        );
+        assert_eq!(
+            badge.workflow_binding_state,
+            Some(locus::SoftwareDeliveryWorkflowBindingState::CloseoutPending)
+        );
+        assert_eq!(badge.gate_record_ref.as_deref(), Some(gate_record_ref.as_str()));
+        assert!(badge
+            .source_record_refs
+            .contains(&runtime_paths.work_packet_projection_surface_display(wp_id)));
+        assert!(badge
+            .source_record_refs
+            .contains(&runtime_paths.work_packet_closeout_posture_display(wp_id)));
+
+        let task_board_entry = locus::task_board::TaskBoardEntryRecordV1 {
+            schema_id: "hsk.task_board_entry@1".into(),
+            schema_version: "1.0.0".into(),
+            record_id: format!("tbe-{wp_id}"),
+            record_kind: "task_board_entry".into(),
+            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+            profile_extension: None,
+            updated_at: canonical.updated_at.clone(),
+            mirror_state: locus::MirrorSyncState::AdvisoryEdit,
+            authority_refs: canonical.authority_refs.clone(),
+            evidence_refs: canonical.evidence_refs.clone(),
+            mirror_contract: None,
+            workflow_state_family: canonical.workflow_state_family,
+            queue_reason_code: canonical.queue_reason_code,
+            allowed_action_ids: canonical.allowed_action_ids.clone(),
+            transition_rule_ids: vec![],
+            queue_automation_rule_ids: vec![],
+            executor_eligibility_policy_ids: vec![],
+            task_board_id: "tb-closeout-projection".into(),
+            work_packet_id: wp_id.into(),
+            lane_id: "blocked".into(),
+            display_order: 0,
+            view_ids: vec![],
+            token: "stale-board-token".into(),
+            status: "mailbox-says-ready".into(),
+            summary_ref: runtime_paths.work_packet_summary_display(wp_id),
+            closeout_badge: Some(badge.clone()),
+        };
+        assert!(
+            locus::validate_software_delivery_task_board_projection_against_canonical(
+                &task_board_entry,
+                &canonical,
+            )
+            .ok,
+            "Task Board advisory lane/status must not disturb canonical state"
+        );
+        let dcc_summary = build_dcc_workflow_summary_from_task_board_entry(
+            &task_board_entry,
+            Some("workflow-run-closeout-projection".to_string()),
+            Some("model-session-closeout-projection".to_string()),
+            None,
+            None,
+        );
+        assert_eq!(dcc_summary.closeout_badge, task_board_entry.closeout_badge);
+        assert_eq!(
+            dcc_summary
+                .closeout_badge
+                .as_ref()
+                .and_then(|badge| badge.gate_record_ref.as_deref()),
+            Some(gate_record_ref.as_str()),
+            "DCC compact summary must carry the same runtime-backed gate badge"
+        );
+
+        let projection = read_software_delivery_projection_surface(&runtime_paths, wp_id)
+            .expect("projection surface must exist");
+        let mailbox_row =
+            crate::role_mailbox::build_software_delivery_overlay_triage_row_with_closeout_badge(
+                &projection,
+                Some(badge.clone()),
+            )
+            .expect("software-delivery mailbox triage row must build");
+        assert_eq!(mailbox_row.closeout_badge, task_board_entry.closeout_badge);
+        assert_eq!(mailbox_row.work_packet_id, task_board_entry.work_packet_id);
+
+        let mut foreign_badge = badge.clone();
+        foreign_badge.work_packet_id = "WP-OTHER-CLOSEOUT-PROJECTION".to_string();
+        let mut foreign_badge_entry = task_board_entry.clone();
+        foreign_badge_entry.closeout_badge = Some(foreign_badge.clone());
+        let foreign_dcc_summary = build_dcc_workflow_summary_from_task_board_entry(
+            &foreign_badge_entry,
+            Some("workflow-run-closeout-projection".to_string()),
+            Some("model-session-closeout-projection".to_string()),
+            None,
+            None,
+        );
+        assert_eq!(
+            foreign_dcc_summary.closeout_badge, None,
+            "DCC compact summary must not mix badge context across work packets"
+        );
+        assert!(
+            crate::role_mailbox::build_software_delivery_overlay_triage_row_with_closeout_badge(
+                &projection,
+                Some(foreign_badge),
+            )
+            .is_none(),
+            "Role Mailbox must reject a badge for a different work packet"
+        );
+
+        std::fs::remove_file(runtime_paths.work_packet_closeout_posture_path(wp_id))?;
+        let blocked_badge = build_software_delivery_closeout_badge_from_disk(&runtime_paths, wp_id)
+            .expect("projection surface alone still yields a blocked display badge");
+        assert_eq!(blocked_badge.label, "closeout_blocked_no_posture");
+        assert_eq!(blocked_badge.closeout_state, None);
+        assert!(
+            blocked_badge.advisory_only,
+            "badge remains projection-only when closeout posture is absent"
+        );
+
+        let mut stale_board_entry = task_board_entry.clone();
+        stale_board_entry.status = "ready_to_close_from_board_text".into();
+        stale_board_entry.closeout_badge = Some(blocked_badge.clone());
+        let blocked_dcc_summary = build_dcc_workflow_summary_from_task_board_entry(
+            &stale_board_entry,
+            Some("workflow-run-closeout-projection".to_string()),
+            Some("model-session-closeout-projection".to_string()),
+            None,
+            None,
+        );
+        assert_eq!(
+            stale_board_entry
+                .closeout_badge
+                .as_ref()
+                .map(|badge| badge.label.as_str()),
+            Some("closeout_blocked_no_posture"),
+            "Task Board text cannot recreate missing runtime closeout posture"
+        );
+        assert_eq!(
+            blocked_dcc_summary
+                .closeout_badge
+                .as_ref()
+                .map(|badge| badge.label.as_str()),
+            Some("closeout_blocked_no_posture"),
+            "DCC compact summary cannot recreate missing runtime closeout posture"
+        );
+        let stale_mailbox_row =
+            crate::role_mailbox::build_software_delivery_overlay_triage_row_with_closeout_badge(
+                &projection,
+                Some(blocked_badge),
+            )
+            .expect("software-delivery mailbox triage row must build");
+        assert_eq!(
+            stale_mailbox_row
+                .closeout_badge
+                .as_ref()
+                .map(|badge| badge.label.as_str()),
+            Some("closeout_blocked_no_posture"),
+            "Role Mailbox announce-back text cannot recreate missing runtime closeout posture"
+        );
+
+        Ok(())
+    }
+
     // MT-003 backend-backed DCC collaboration projection tests.
 
     #[tokio::test]
@@ -30622,6 +30931,7 @@ mod tests {
                 token: format!("tok-{wp_id}"),
                 status: "ready".into(),
                 summary_ref: format!("summary-{wp_id}.json"),
+                closeout_badge: None,
             }
         }
 
@@ -30794,6 +31104,10 @@ mod tests {
                 ws.allowed_action_ids, original.allowed_action_ids,
                 "DCC summary allowed_action_ids must match task-board entry"
             );
+            assert_eq!(
+                ws.closeout_badge, original.closeout_badge,
+                "DCC summary closeout_badge must match task-board entry projection"
+            );
         }
 
         Ok(())
@@ -30855,6 +31169,7 @@ mod tests {
                 token: format!("tok-{wp_id}"),
                 status: "ready".into(),
                 summary_ref: format!("summary-{wp_id}.json"),
+                closeout_badge: None,
             }
         }
 

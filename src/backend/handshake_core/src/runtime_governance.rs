@@ -5,7 +5,10 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::workflows::locus::{self, task_board::TaskBoardEntryRecordV1};
+use crate::workflows::locus::{
+    self,
+    task_board::{SoftwareDeliveryCloseoutProjectionBadgeV1, TaskBoardEntryRecordV1},
+};
 use crate::storage::artifacts::resolve_workspace_root;
 
 pub const RUNTIME_GOVERNANCE_ROOT_ENV: &str = "HANDSHAKE_GOVERNANCE_ROOT";
@@ -89,6 +92,8 @@ pub struct DccWorkflowSummary {
     pub micro_task_summary: Option<DccMicroTaskSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gate_state: Option<DccGateState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub closeout_badge: Option<SoftwareDeliveryCloseoutProjectionBadgeV1>,
     #[serde(default)]
     pub authority_refs: Vec<String>,
     #[serde(default)]
@@ -1584,6 +1589,7 @@ mod tests {
                         pre_work: "pass".to_string(),
                         post_work: "pending".to_string(),
                     }),
+                    closeout_badge: None,
                     authority_refs: vec![".handshake/gov/work_packets/WP-1-Test/".to_string()],
                     evidence_refs: vec![".handshake/gov/task_board/index.json".to_string()],
                 }],
