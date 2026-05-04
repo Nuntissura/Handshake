@@ -1039,6 +1039,8 @@ pub enum WorkflowMirrorVerdict {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct WorkflowMirrorGateSummary {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub gate_record_id: String,
     pub task_board_id: String,
     pub gate_state_ref: String,
     pub pre_work: GateStatus,
@@ -1049,6 +1051,27 @@ pub struct WorkflowMirrorGateSummary {
     pub evidence_refs: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub check_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub check_evidence: Vec<WorkflowMirrorGateCheckEvidenceV1>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkflowMirrorGateCheckEvidenceV1 {
+    pub gate_phase: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub check_result_status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub descriptor_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub descriptor_provenance: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role_proof: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_proof: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validation_report_ref: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -3440,6 +3463,14 @@ pub struct SoftwareDeliveryCloseoutPostureV1 {
     /// approve/validate/archive resolutions). Sorted + deduped on derive.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub governed_action_resolution_refs: Vec<String>,
+    /// Canonical governed actions legal from the current runtime state.
+    /// Packet text, task-board lane actions, and mailbox chronology do not
+    /// write this field.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_action_ids: Vec<String>,
+    /// Canonical next governed action for the closeout posture.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_action: Option<String>,
     pub evidence_refs: Vec<String>,
     pub authority_refs: Vec<String>,
     pub unresolved_blockers: Vec<String>,
@@ -3560,6 +3591,35 @@ pub fn derive_software_delivery_closeout_posture(
         runtime_paths,
         &canonical.record_id,
     )?;
+    let next_action = canonical
+        .next_action
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| {
+            !value.is_empty()
+                && is_governed_action_id_allowed_for_workflow_family(
+                    canonical.workflow_state_family,
+                    value,
+                )
+                && canonical
+                    .allowed_action_ids
+                    .iter()
+                    .any(|id| id.as_str() == *value)
+        })
+        .map(str::to_string)?;
+    let mut allowed_action_ids: Vec<String> = canonical
+        .allowed_action_ids
+        .iter()
+        .filter(|action_id| {
+            is_governed_action_id_allowed_for_workflow_family(
+                canonical.workflow_state_family,
+                action_id,
+            )
+        })
+        .cloned()
+        .collect();
+    allowed_action_ids.sort();
+    allowed_action_ids.dedup();
 
     let (checkpoint_record_ref, checkpoint_id) = match checkpoint_record_id_candidate
         .map(str::trim)
@@ -3582,7 +3642,7 @@ pub fn derive_software_delivery_closeout_posture(
 
     let mut governed_actions: Vec<String> = governed_action_resolution_refs
         .iter()
-        .filter(|value| !value.trim().is_empty())
+        .filter(|value| runtime_paths.is_canonical_governance_decision_ref(value))
         .cloned()
         .collect();
     governed_actions.sort();
@@ -3603,6 +3663,8 @@ pub fn derive_software_delivery_closeout_posture(
         checkpoint_record_ref,
         checkpoint_id,
         governed_action_resolution_refs: governed_actions,
+        allowed_action_ids,
+        next_action: Some(next_action),
         evidence_refs: canonical.evidence_refs.clone(),
         authority_refs: canonical.authority_refs.clone(),
         unresolved_blockers: canonical.blockers.clone(),
@@ -4252,6 +4314,30 @@ pub fn validate_software_delivery_closeout_canonical_truth(
             Some(serde_json::to_string(&canonical.authority_refs).unwrap_or_default()),
             "software-delivery closeout requires a canonical owner-of-record packet authority ref \
              bound to the canonical record_id",
+        );
+    }
+    let next_action_is_canonical = canonical
+        .next_action
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_some_and(|value| {
+            is_governed_action_id_allowed_for_workflow_family(
+                canonical.workflow_state_family,
+                value,
+            ) && canonical
+                .allowed_action_ids
+                .iter()
+                .any(|id| id.as_str() == value)
+        });
+    if !next_action_is_canonical {
+        result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            "next_action",
+            Some("canonical governed action allowed for workflow_state_family".to_string()),
+            canonical.next_action.clone(),
+            "software-delivery closeout requires canonical governed-action truth \
+             from runtime allowed_action_ids/next_action",
         );
     }
     result

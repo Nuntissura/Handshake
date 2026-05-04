@@ -671,6 +671,13 @@ impl RuntimeGovernancePaths {
             .join(format!("{decision_id}.json"))
     }
 
+    pub fn governance_decision_display(&self, decision_id: &str) -> String {
+        display_path(
+            &self.workspace_root,
+            &self.governance_decision_path(decision_id),
+        )
+    }
+
     pub fn validator_gates_dir(&self) -> PathBuf {
         self.governance_root.join(RUNTIME_VALIDATOR_GATES_DIR)
     }
@@ -810,6 +817,24 @@ impl RuntimeGovernancePaths {
     }
 
     // ── MT-004 v02.181: claim/lease canonical paths ─────────────────────────
+
+    /// True iff `value` is a canonical governed-action decision/ref under the
+    /// product runtime governance root: `<gov_root>/governance_decisions/<id>.json`.
+    /// Substring spoofs and nested paths are rejected.
+    pub fn is_canonical_governance_decision_ref(&self, value: &str) -> bool {
+        let normalized = normalize_display_like(value);
+        if normalized.is_empty() || !normalized.ends_with(".json") {
+            return false;
+        }
+        let prefix = normalize_display_like(&self.governance_decisions_dir_display());
+        if !normalized.starts_with(&prefix) {
+            return false;
+        }
+        let inner = &normalized[prefix.len()..];
+        inner
+            .strip_suffix(".json")
+            .is_some_and(|decision_id| !decision_id.is_empty() && !decision_id.contains('/'))
+    }
 
     pub fn claim_leases_dir(&self) -> PathBuf {
         self.governance_root.join(RUNTIME_CLAIM_LEASES_DIR)
