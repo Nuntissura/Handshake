@@ -1,1 +1,0 @@
-D:/Projects/LLM projects/Handshake/Handshake Worktrees/handshake_main/AGENTS.md

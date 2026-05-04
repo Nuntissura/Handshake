@@ -36,7 +36,18 @@ const verboseMode = process.argv.includes("--verbose");
 if (!String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim()) {
   process.env.HANDSHAKE_ACTIVE_REPO_ROOT = repoRoot;
 }
-process.chdir(repoRoot);
+
+function resolveGovRootForChecks(activeRepoRoot) {
+  const injectedGovRoot = String(process.env.HANDSHAKE_GOV_ROOT || "").trim();
+  if (injectedGovRoot) {
+    return path.resolve(injectedGovRoot);
+  }
+  return path.resolve(activeRepoRoot, ".GOV");
+}
+
+const govRoot = resolveGovRootForChecks(repoRoot);
+const checkCwd = path.resolve(govRoot, "..");
+process.chdir(checkCwd);
 
 function checkScript(relativePath) {
   return path.resolve(currentFileDir, relativePath);
@@ -79,6 +90,7 @@ const checkSteps = [
 const env = {
   ...process.env,
   HANDSHAKE_ACTIVE_REPO_ROOT: repoRoot,
+  HANDSHAKE_GOV_ROOT: govRoot,
 };
 
 const failures = [];
@@ -86,7 +98,7 @@ for (const step of checkSteps) {
   const result = runSubprocessCheckStep({
     check: step.check,
     scriptPath: step.scriptPath,
-    cwd: repoRoot,
+    cwd: checkCwd,
     env,
   });
   printRecorded(result);
@@ -123,9 +135,9 @@ async function runMemoryMaintenance() {
         try { db.close(); } catch {}
       }
       if (sinceMs > 6 * 60 * 60 * 1000) {
-        const scriptPath = path.resolve(repoRoot, ".GOV", "roles_shared", "scripts", "memory", "memory-compact.mjs");
+        const scriptPath = path.resolve(govRoot, "roles_shared", "scripts", "memory", "memory-compact.mjs");
         try {
-          execFileSync(process.execPath, [scriptPath], { cwd: repoRoot, stdio: "ignore", env });
+          execFileSync(process.execPath, [scriptPath], { cwd: checkCwd, stdio: "ignore", env });
           outputLines.push("compaction ran");
         } catch {
           outputLines.push("compaction attempted; non-fatal failure");

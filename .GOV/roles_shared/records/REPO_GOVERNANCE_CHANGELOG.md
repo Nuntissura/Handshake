@@ -21,6 +21,50 @@
 
 ## Entries
 
+### 2026.05.04.04 / GOV-CHANGE-20260504-04
+
+- STATUS: APPLIED
+- SUMMARY: fixed `gov-check` subprocess cwd so live governance checks read the kernel `.GOV` while retaining canonical product-root context
+- CHANGE_TYPE: CHECK_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-WP1-VALIDATOR-GATE-ACTIVATION-RECOVERY`
+  - `just gov-check` failed `validator-report-structure-check` and `wp-comm-bundle-check` because subprocesses ran from `handshake_main` and resolved relative `.GOV/task_packets` paths against a stale backup copy.
+- FOLLOW_ON_ITEMS:
+  - `RGF-269`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/checks/gov-check.mjs`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-VALIDATOR-GATE-ACTIVATION-RECOVERY.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `gov-check` now runs child checks from the live governance kernel worktree while passing `HANDSHAKE_ACTIVE_REPO_ROOT` and `HANDSHAKE_GOV_ROOT` explicitly, so packet and WP communication checks use current kernel truth instead of stale `handshake_main/.GOV`.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/checks/gov-check.mjs`
+  - `just gov-check`
+
+### 2026.05.04.03 / GOV-CHANGE-20260504-03
+
+- STATUS: APPLIED
+- SUMMARY: hardened WP worktree creation against stale local `main` seeds and repaired accidental `gov_kernel` tracking of main-only root-control symlinks
+- CHANGE_TYPE: TOOLING_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-WP1-VALIDATOR-GATE-ACTIVATION-RECOVERY`
+  - `WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1` prepare hit artifact-hygiene failure because the new worktree was seeded from stale local `main`.
+  - The packet checkpoint committed local symlinks to `AGENTS.md`, `.claude`, and `.github` on `gov_kernel`, which are main-only root control surfaces.
+- FOLLOW_ON_ITEMS:
+  - `RGF-268`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/topology/worktree-add.mjs`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-VALIDATOR-GATE-ACTIVATION-RECOVERY.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `AGENTS.md` index entry removed from `gov_kernel`; local symlink retained and ignored
+  - `.claude` index entry removed from `gov_kernel`; local symlink retained and ignored
+  - `.github` index entry removed from `gov_kernel`; local symlink retained and ignored
+- OUTCOME: `worktree-add` now refreshes local `main` from `origin/main` with a fast-forward guard before WP worktree creation, so future WP branches do not inherit stale artifact-root or root-control state from an outdated local canonical branch.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/topology/worktree-add.mjs`
+  - `just gov-check`
+
 ### 2026.05.04.02 / GOV-CHANGE-20260504-02
 
 - STATUS: APPLIED
