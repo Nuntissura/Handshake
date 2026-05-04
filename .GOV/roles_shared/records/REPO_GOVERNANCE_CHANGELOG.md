@@ -21,6 +21,26 @@
 
 ## Entries
 
+### 2026.05.04.06 / GOV-CHANGE-20260504-06
+
+- STATUS: APPLIED
+- SUMMARY: added a hard active-wait gate for backgrounded bootstrap commands in generated role startup prompts
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-WP1-VALIDATOR-GATE-ACTIVATION-RECOVERY`
+  - The repaired `WP_VALIDATOR` Claude Opus 4.7 startup no longer relaunched duplicate startup chains, but it ended the START_SESSION turn after saying it would wait while the backgrounded `validator-startup` task was still active.
+- FOLLOW_ON_ITEMS:
+  - `RGF-271`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-VALIDATOR-GATE-ACTIVATION-RECOVERY.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: generated START_SESSION prompts now explicitly forbid ending the turn, saying "I'll wait", or reporting final startup state while any bootstrap background task is still active; the model must monitor the exact task/output to completion before continuing.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `just gov-check`
+
 ### 2026.05.04.05 / GOV-CHANGE-20260504-05
 
 - STATUS: APPLIED
