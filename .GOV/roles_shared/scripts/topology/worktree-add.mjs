@@ -103,6 +103,40 @@ function isForbiddenWorktreeDir(dir) {
   return false;
 }
 
+function refreshLocalMainBaseIfNeeded(base) {
+  if (base !== "main") return;
+
+  console.log("[WORKTREE_ADD] Refreshing local main from origin/main before WP worktree creation");
+  runGitInherit(["fetch", "origin", "main:refs/remotes/origin/main"]);
+
+  let localMain = "";
+  let originMain = "";
+  try {
+    localMain = runGit(["rev-parse", "--verify", "refs/heads/main"]);
+    originMain = runGit(["rev-parse", "--verify", "refs/remotes/origin/main"]);
+  } catch {
+    fail("Cannot resolve local main and origin/main before worktree creation");
+  }
+
+  if (localMain === originMain) {
+    console.log(`[WORKTREE_ADD] Local main already current: ${localMain.slice(0, 8)}`);
+    return;
+  }
+
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", localMain, originMain], { stdio: "pipe" });
+  } catch {
+    fail(
+      "Refusing to move local main before worktree creation because it is not a fast-forward from origin/main:\n"
+      + `- local main: ${localMain}\n`
+      + `- origin/main: ${originMain}`
+    );
+  }
+
+  runGitInherit(["update-ref", "refs/heads/main", originMain, localMain]);
+  console.log(`[WORKTREE_ADD] Fast-forwarded local main ${localMain.slice(0, 8)} -> ${originMain.slice(0, 8)}`);
+}
+
 function verifyArtifactHygieneForWorktree(absDir) {
   const evaluation = evaluateArtifactHygiene({
     repoRoot: absDir,
@@ -134,6 +168,8 @@ function main() {
   if (isForbiddenWorktreeDir(dir)) {
     fail(`Forbidden worktree dir (must be repo-relative): ${dir}`);
   }
+
+  refreshLocalMainBaseIfNeeded(base);
 
   const absDir = path.resolve(repoRoot, dir);
   const registeredBeforePrune = findRegisteredWorktree(absDir);

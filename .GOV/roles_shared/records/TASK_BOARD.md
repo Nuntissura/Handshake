@@ -72,6 +72,7 @@ Entry format (recommended):
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
+- **[WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1]** - [READY_FOR_DEV]
 
 
 
@@ -108,7 +109,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Governance-Pack-v1]** - [STUB]
 - **[WP-1-Software-Delivery-Governance-Overlay-Boundary-v1]** - [STUB]
 - **[WP-1-Software-Delivery-Runtime-Truth-v1]** - [STUB]
-- **[WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1]** - [STUB]
 - **[WP-1-Software-Delivery-Overlay-Coordination-Records-v1]** - [STUB]
 - **[WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane-v1]** - [STUB]
 - **[WP-1-Spec-Authoring-Rubric-v1]** - [STUB]

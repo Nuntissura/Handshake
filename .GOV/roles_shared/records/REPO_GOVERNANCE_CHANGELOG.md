@@ -4104,3 +4104,21 @@
   - `RGF-243` through `RGF-250` remain queued from the harness-pattern tranche
   - `RGF-233` through `RGF-241` remain queued from the closeout-canonicalization tranche
 - OUTCOME: `RGF-242` is implemented: active-session route, relay, and microtask context now uses a shared `<governance-context>` user-message fence instead of any system-prompt rebuild, the Codex and Orchestrator protocol carry cache-stability law, and `gov-check` now includes `cache-stability-check`.
+
+### 2026.05.04.01 / GOV-CHANGE-20260504-01
+
+- STATUS: APPLIED
+- SUMMARY: hardened refinement activation checks after the validator-gate closeout activation stalled in ACP recovery
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1` activation recovery on 2026-05-04
+  - `record-refinement` rejected canonical pillar names containing commas inside force-multiplier `Pillars:` fields
+  - `record-refinement` rejected the template-shaped `Tooltip: text` UI control rows
+  - refinement template/checker drift on `Spec to prompt`
+- SURFACES:
+  - `.GOV/roles_shared/checks/refinement-check.mjs`
+  - `.GOV/templates/REFINEMENT_TEMPLATE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - none
+- OUTCOME: `RGF-267` is implemented; future refinement files can use canonical pillar names such as `Task board (product, not repo)` in force-multiplier rows, UI controls with `Tooltip: text` pass as intended, and the template now matches the checker-canonical `Spec to prompt` pillar name.

@@ -1,6 +1,6 @@
 ﻿# Repo Governance Refactor Task Board
 
-**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the narrowed closeout canonicalization spine now has `RGF-233`, `RGF-240`, and `RGF-241` implemented and verified with `RGF-234` through `RGF-239` held as non-standalone or superseded work, `RGF-242` through `RGF-250` are implemented and verified, the memory-system follow-on tranche `RGF-251` through `RGF-254` is implemented and verified, the WP-1 postmortem cost/truth tranche `RGF-255` through `RGF-264` is implemented and verified, and `RGF-265` plus `RGF-266` are implemented and verified for the operator-local `orcstart` launcher.
+**Status:** Governance refactor remains active; the workflow-truth spine plus canonical-state / typed-action / telemetry / closeout tranche (`RGF-198` through `RGF-209`) is complete, the Calendar Sync Engine follow-on tranche now has `RGF-210`, `RGF-211`, `RGF-212`, `RGF-213`, `RGF-214`, `RGF-215`, and `RGF-216` implemented and verified, the reduction-focused blocker-authority tranche now has `RGF-217` through `RGF-221` implemented and verified, the diagnostic Workflow Dossier write-lane tranche now has `RGF-222` through `RGF-224` implemented and verified, the Orchestrator recovery tranche now has `RGF-225` through `RGF-232` implemented and verified, the narrowed closeout canonicalization spine now has `RGF-233`, `RGF-240`, and `RGF-241` implemented and verified with `RGF-234` through `RGF-239` held as non-standalone or superseded work, `RGF-242` through `RGF-250` are implemented and verified, the memory-system follow-on tranche `RGF-251` through `RGF-254` is implemented and verified, the WP-1 postmortem cost/truth tranche `RGF-255` through `RGF-264` is implemented and verified, `RGF-265` plus `RGF-266` are implemented and verified for the operator-local `orcstart` launcher, and `RGF-267` is implemented and verified for refinement-check autonomy hardening.
 **Scope:** Governance-only refactor tracking for `/.GOV/`  
 **Authority:** `.GOV/roles_shared/docs/REPO_GOVERNANCE_REFACTOR_ROADMAP.md`
 
@@ -329,6 +329,7 @@
 | RGF-264 | DONE | Governance Refactor Board Integrity Check | RGF-254 | AUDIT-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE-SMOKETEST-REVIEW / SMOKETEST-REVIEW-20260427-SOFTWARE-DELIVERY-PROJECTION-SURFACE-DISCIPLINE | `REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, changelog, gov-check bundle | board summary, row table, execution briefs, and follow-on sequence cannot disagree about implemented or queued RGF IDs |
 | RGF-265 | DONE | Orcstart Authority Contract | RGF-23, RGF-253 | AUDIT-20260504-ORCSTART-AUTHORITY-CONTRACT | `.GOV/operator/scripts/orcstart.ps1`, `.GOV/operator/scripts/orcstart.prompt.txt`, `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md` | `orcstart.cmd` emits a model-agnostic repo governing rule set, runs the startup command, and injects the required authority files so startup completion requires AGENTS/Codex/Orchestrator protocol context |
 | RGF-266 | DONE | Orcstart Startup Timeout Guidance | RGF-265 | AUDIT-20260504-ORCSTART-STARTUP-TIMEOUT-GUIDANCE | `.GOV/operator/scripts/orcstart.ps1`, `.GOV/operator/scripts/orcstart.prompt.txt`, `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md` | `orcstart.cmd` foregrounds that startup can take several minutes, treats 10 minutes as the minimum shell timeout, and recommends 20 minutes under host load before the long startup phase |
+| RGF-267 | DONE | Refinement Check Autonomy Hardening | RGF-86, RGF-264 | AUDIT-20260504-WP1-VALIDATOR-GATE-ACTIVATION-RECOVERY | `.GOV/roles_shared/checks/refinement-check.mjs`, `.GOV/templates/REFINEMENT_TEMPLATE.md`, active refinement recovery | force-multiplier pillar parsing now recognizes canonical pillar names containing commas, UI tooltip detection accepts the template's `Tooltip: text` shape, and the refinement template uses the checker-canonical `Spec to prompt` pillar name |
 
 ## Active / Recent Hardening State (2026-04-22)
 
@@ -484,6 +485,7 @@
 91. `RGF-263`
 92. `RGF-265`
 93. `RGF-266`
+94. `RGF-267`
 
 ## Proposed Next Sequence
 
