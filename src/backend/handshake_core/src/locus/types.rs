@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::fs;
 
 pub type Iso8601Timestamp = DateTime<Utc>;
 pub type VectorClock = Value;
@@ -3511,6 +3512,193 @@ fn first_canonical_checkpoint_ref(
     }
 }
 
+fn gate_field_string(candidate_fields: &[(&Value, &[&str])]) -> Option<String> {
+    candidate_fields
+        .iter()
+        .filter_map(|(value, fields)| {
+            fields.iter().find_map(|field| value.get(field).and_then(Value::as_str))
+        })
+        .map(str::trim)
+        .find(|value| !value.is_empty())
+        .map(ToString::to_string)
+}
+
+fn normalize_gate_phase(phase: &str) -> Option<String> {
+    let normalized = phase.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "" => None,
+        _ => Some(normalized),
+    }
+}
+
+fn gate_phase_authorizes_final_pass(phase: &str) -> bool {
+    matches!(
+        normalize_gate_phase(phase).as_deref(),
+        Some("committable" | "committed" | "post_work" | "post-work" | "postwork")
+    )
+}
+
+fn gate_authority_role(value: String) -> Option<String> {
+    let trimmed = value.trim();
+    let role = trimmed
+        .split_once(':')
+        .map(|(left, _)| left.trim())
+        .unwrap_or(trimmed);
+    if role.is_empty() {
+        None
+    } else {
+        Some(role.to_string())
+    }
+}
+
+fn gate_authority_session(value: String) -> Option<String> {
+    let trimmed = value.trim();
+    let session = trimmed
+        .split_once(':')
+        .map(|(_, right)| right.trim())
+        .unwrap_or(trimmed);
+    if session.is_empty() {
+        None
+    } else {
+        Some(session.to_string())
+    }
+}
+
+fn gate_role_proof_from_value(value: &Value) -> Option<String> {
+    let actor = value
+        .get("actor")
+        .or_else(|| value.get("validator"))
+        .unwrap_or(&Value::Null);
+    gate_field_string(&[
+        (value, &["role_proof", "role", "actor_role", "validator_role"]),
+        (actor, &["role"]),
+    ])
+    .or_else(|| gate_field_string(&[(value, &["validated_by"])]))
+    .and_then(gate_authority_role)
+}
+
+fn gate_session_proof_from_value(value: &Value) -> Option<String> {
+    let actor = value
+        .get("actor")
+        .or_else(|| value.get("validator"))
+        .unwrap_or(&Value::Null);
+    gate_field_string(&[
+        (
+            value,
+            &["session_proof", "session", "session_id", "actor_session"],
+        ),
+        (actor, &["session", "session_id"]),
+    ])
+    .or_else(|| gate_field_string(&[(value, &["validated_by"])]))
+    .and_then(gate_authority_session)
+}
+
+fn gate_check_status_from_contexts(contexts: &[&Value]) -> Option<String> {
+    contexts.iter().find_map(|value| {
+        let check_result = value.get("check_result").unwrap_or(&Value::Null);
+        let result = value.get("result").unwrap_or(&Value::Null);
+        gate_field_string(&[
+            (
+                value,
+                &["check_result_status", "status", "result_status", "result"],
+            ),
+            (check_result, &["status", "result_status", "result"]),
+            (result, &["status", "result_status"]),
+        ])
+    })
+}
+
+fn gate_phase_from_contexts(contexts: &[&Value]) -> Option<String> {
+    contexts
+        .iter()
+        .find_map(|value| gate_field_string(&[(value, &["gate_phase", "phase"])]))
+}
+
+fn gate_contexts_have_evidence_refs(contexts: &[&Value]) -> bool {
+    contexts.iter().any(|value| {
+        value
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .is_some_and(|refs| !refs.is_empty())
+    })
+}
+
+fn gate_contexts_have_authority_proof(contexts: &[&Value]) -> bool {
+    contexts
+        .iter()
+        .find_map(|value| gate_role_proof_from_value(value))
+        .is_some()
+        && contexts
+            .iter()
+            .find_map(|value| gate_session_proof_from_value(value))
+            .is_some()
+}
+
+fn gate_entry_authorizes_final_pass(entry: &Value, record: &Value) -> bool {
+    let report = entry.get("validation_report_ref").unwrap_or(&Value::Null);
+    let report_check_result = report.get("check_result").unwrap_or(&Value::Null);
+    let gate_summary = record.get("gate_summary").unwrap_or(&Value::Null);
+    let gate_state = record.get("gate_state").unwrap_or(&Value::Null);
+    let contexts = [
+        entry,
+        report,
+        report_check_result,
+        gate_summary,
+        record,
+        gate_state,
+    ];
+    let status_is_pass = gate_check_status_from_contexts(&contexts)
+        .is_some_and(|status| status.eq_ignore_ascii_case("pass"));
+    let phase_authorizes = gate_phase_from_contexts(&contexts)
+        .is_some_and(|phase| gate_phase_authorizes_final_pass(&phase));
+
+    status_is_pass
+        && phase_authorizes
+        && gate_contexts_have_authority_proof(&contexts)
+        && gate_contexts_have_evidence_refs(&contexts)
+}
+
+fn gate_record_is_committable_gate(record: &Value) -> bool {
+    let gate_summary = record.get("gate_summary").unwrap_or(&Value::Null);
+    if gate_summary
+        .get("check_evidence")
+        .and_then(Value::as_array)
+        .is_some_and(|entries| {
+            entries
+                .iter()
+                .any(|entry| gate_entry_authorizes_final_pass(entry, record))
+        })
+    {
+        return true;
+    }
+
+    [
+        gate_summary.get("check_result"),
+        record.get("check_result"),
+        gate_summary.get("validation_report_ref"),
+        record.get("validation_report_ref"),
+    ]
+    .into_iter()
+    .flatten()
+    .any(|entry| gate_entry_authorizes_final_pass(entry, record))
+}
+
+fn validator_gate_record_authorizes_final_pass(
+    runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
+    canonical_wp_id: &str,
+) -> bool {
+    let gate_record_path = runtime_paths.validator_gate_record_path(canonical_wp_id);
+    let bytes = match fs::read(&gate_record_path) {
+        Ok(value) => value,
+        Err(_) => return false,
+    };
+    let gate_record: Value = match serde_json::from_slice(&bytes) {
+        Ok(value) => value,
+        Err(_) => return false,
+    };
+    gate_record_is_committable_gate(&gate_record)
+}
+
 fn checkpoint_id_from_record_ref(
     record_ref: &str,
     runtime_paths: &crate::runtime_governance::RuntimeGovernancePaths,
@@ -3553,6 +3741,8 @@ fn derive_closeout_state_from_canonical(
 ///   such as `/notes/validator_gates/...` are rejected), OR
 /// - the canonical validator-gate artifact is not materialized under
 ///   `<gov_root>/validator_gates/<wp_id>.json`, OR
+/// - the materialized validator-gate artifact does not carry a final
+///   committable/committed PASS with evidence refs plus role/session proof, OR
 /// - `canonical.authority_refs` does not include a CANONICAL work-packet
 ///   `packet.json` ref under `<gov_root>/work_packets/<wp_id>/packet.json`.
 ///
@@ -3592,6 +3782,9 @@ pub fn derive_software_delivery_closeout_posture(
         .validator_gate_record_path(&canonical.record_id)
         .exists()
     {
+        return None;
+    }
+    if !validator_gate_record_authorizes_final_pass(runtime_paths, &canonical.record_id) {
         return None;
     }
     let owner_authority_ref = first_canonical_owner_packet_ref(
