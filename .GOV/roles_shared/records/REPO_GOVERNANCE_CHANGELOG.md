@@ -21,6 +21,26 @@
 
 ## Entries
 
+### 2026.05.04.05 / GOV-CHANGE-20260504-05
+
+- STATUS: APPLIED
+- SUMMARY: hardened generated role startup prompts against duplicate long-running bootstrap commands after tool auto-backgrounding
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-WP1-VALIDATOR-GATE-ACTIVATION-RECOVERY`
+  - The first `WP_VALIDATOR` Claude Opus 4.7 startup auto-backgrounded `validator-startup` after the tool window, then launched duplicate `validator-startup`/`gov-check` chains while trying to wait.
+- FOLLOW_ON_ITEMS:
+  - `RGF-270`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-VALIDATOR-GATE-ACTIVATION-RECOVERY.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: generated START_SESSION prompts now require long bootstrap timeouts where tool-supported and require monitoring an auto-backgrounded task/output instead of relaunching the same startup command.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `just gov-check`
+
 ### 2026.05.04.04 / GOV-CHANGE-20260504-04
 
 - STATUS: APPLIED

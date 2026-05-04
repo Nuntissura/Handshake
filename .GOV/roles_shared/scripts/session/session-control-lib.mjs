@@ -1439,6 +1439,8 @@ export function buildInlineStartupPrompt({
   const bootLines = [
     `Execute only this startup bootstrap now, in order, before any other work:`,
     ...startupCommands.map((command, index) => `${index + 1}. ${command}`),
+    `LONG-STARTUP TOOL RULE: startup commands may take several minutes; when a tool supports it, set a timeout of at least 900000 ms for each bootstrap command.`,
+    `BACKGROUND MONITOR RULE: if a bootstrap command is auto-backgrounded, monitor that exact task/output until it finishes; do not launch the same startup command a second time.`,
     `After those commands, report only the resulting lifecycle/gate state, blockers, and next required command(s).`,
     `Do not run follow-on tests, validation, implementation, edits, or merge actions in this START_SESSION turn.`,
     `Stop after reporting and wait for a later SEND_PROMPT from the Orchestrator.`,
