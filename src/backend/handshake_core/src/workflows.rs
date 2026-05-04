@@ -29834,6 +29834,59 @@ mod tests {
             "pre-work PASS proof is not a committable final gate"
         );
 
+        std::fs::write(
+            &gate_record_path,
+            serde_json::to_vec(&json!({
+                "gate_summary": {
+                    "gate_state_ref": gate_record_ref,
+                    "gate_record_id": format!("validator_gate:{wp_id}"),
+                    "check_evidence": [{
+                        "gate_phase": "post_work",
+                        "check_result_status": "pass",
+                        "role_proof": "WP_VALIDATOR",
+                        "session_proof": "wp_validator:gate-session-1",
+                        "evidence_refs": [decision_ref.clone()],
+                    }]
+                }
+            }))?,
+        )?;
+        assert!(
+            locus::derive_software_delivery_closeout_posture(
+                &canonical,
+                &runtime_paths,
+                None,
+                &governed_action_refs,
+            )
+            .is_none(),
+            "ordinary post-work PASS proof is not a committable final gate"
+        );
+
+        std::fs::write(
+            &gate_record_path,
+            serde_json::to_vec(&json!({
+                "gate_summary": {
+                    "gate_state_ref": gate_record_ref,
+                    "gate_record_id": format!("validator_gate:{wp_id}"),
+                    "check_evidence": [{
+                        "gate_phase": "committable",
+                        "check_result_status": "pass",
+                        "validated_by": "validator",
+                        "evidence_refs": [decision_ref.clone()],
+                    }]
+                }
+            }))?,
+        )?;
+        assert!(
+            locus::derive_software_delivery_closeout_posture(
+                &canonical,
+                &runtime_paths,
+                None,
+                &governed_action_refs,
+            )
+            .is_none(),
+            "validated_by alone is not distinct role/session authority proof"
+        );
+
         write_committable_validator_gate_record(
             &runtime_paths,
             wp_id,

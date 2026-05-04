@@ -3534,7 +3534,7 @@ fn normalize_gate_phase(phase: &str) -> Option<String> {
 fn gate_phase_authorizes_final_pass(phase: &str) -> bool {
     matches!(
         normalize_gate_phase(phase).as_deref(),
-        Some("committable" | "committed" | "post_work" | "post-work" | "postwork")
+        Some("committable" | "committed")
     )
 }
 
@@ -3573,7 +3573,6 @@ fn gate_role_proof_from_value(value: &Value) -> Option<String> {
         (value, &["role_proof", "role", "actor_role", "validator_role"]),
         (actor, &["role"]),
     ])
-    .or_else(|| gate_field_string(&[(value, &["validated_by"])]))
     .and_then(gate_authority_role)
 }
 
@@ -3589,7 +3588,6 @@ fn gate_session_proof_from_value(value: &Value) -> Option<String> {
         ),
         (actor, &["session", "session_id"]),
     ])
-    .or_else(|| gate_field_string(&[(value, &["validated_by"])]))
     .and_then(gate_authority_session)
 }
 
@@ -3624,14 +3622,16 @@ fn gate_contexts_have_evidence_refs(contexts: &[&Value]) -> bool {
 }
 
 fn gate_contexts_have_authority_proof(contexts: &[&Value]) -> bool {
-    contexts
+    let role = contexts
         .iter()
-        .find_map(|value| gate_role_proof_from_value(value))
-        .is_some()
-        && contexts
-            .iter()
-            .find_map(|value| gate_session_proof_from_value(value))
-            .is_some()
+        .find_map(|value| gate_role_proof_from_value(value));
+    let session = contexts
+        .iter()
+        .find_map(|value| gate_session_proof_from_value(value));
+    match (role, session) {
+        (Some(role), Some(session)) => !role.eq_ignore_ascii_case(&session),
+        _ => false,
+    }
 }
 
 fn gate_entry_authorizes_final_pass(entry: &Value, record: &Value) -> bool {
