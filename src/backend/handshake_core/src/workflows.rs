@@ -5313,11 +5313,13 @@ pub fn apply_software_delivery_closeout_posture_lifecycle(
     )
     .ok()
     .and_then(|summary_struct| {
+        let governed_action_resolution_refs =
+            gather_software_delivery_governed_action_resolution_refs(&summary_struct, runtime_paths);
         locus::derive_software_delivery_closeout_posture(
             &summary_struct,
             runtime_paths,
             None,
-            &[],
+            &governed_action_resolution_refs,
         )
     });
 
@@ -5339,6 +5341,30 @@ pub fn apply_software_delivery_closeout_posture_lifecycle(
         }
     }
     Ok(())
+}
+
+fn gather_software_delivery_governed_action_resolution_refs(
+    summary: &locus::StructuredCollaborationSummaryV1,
+    runtime_paths: &RuntimeGovernancePaths,
+) -> Vec<String> {
+    let mut governed_action_resolution_refs: Vec<String> = summary
+        .authority_refs
+        .iter()
+        .chain(summary.evidence_refs.iter())
+        .filter_map(|reference| {
+            let normalized = reference.trim();
+            if normalized.is_empty() {
+                None
+            } else if runtime_paths.is_canonical_governance_decision_ref(normalized) {
+                Some(normalized.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+    governed_action_resolution_refs.sort();
+    governed_action_resolution_refs.dedup();
+    governed_action_resolution_refs
 }
 
 /// MT-004 v02.181: read canonical software-delivery overlay records for
@@ -5505,11 +5531,13 @@ fn compute_software_delivery_projection_gate_posture_from_disk(
     let has_active_validator_gate = runtime_paths
         .validator_gate_record_path(wp_id)
         .exists();
+    let governed_action_resolution_refs =
+        gather_software_delivery_governed_action_resolution_refs(canonical, runtime_paths);
     let has_closeout_posture = locus::derive_software_delivery_closeout_posture(
         canonical,
         runtime_paths,
         None,
-        &[],
+        &governed_action_resolution_refs,
     )
     .is_some();
     let (
@@ -29553,6 +29581,63 @@ mod tests {
             .iter()
             .any(|issue| issue.field == "next_action"));
 
+        Ok(())
+    }
+
+    #[test]
+    fn closeout_posture_lifecycle_preserves_summary_governed_action_resolution_refs(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = tempfile::tempdir()?;
+        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(tmp.path().to_path_buf())?;
+        let wp_id = "WP-CLOSEOUT-LIFECYCLE-DECISION-REFS-1";
+        let gate_record_ref = runtime_paths.validator_gate_display(wp_id);
+        let owner_authority_ref = runtime_paths.work_packet_packet_display(wp_id);
+        let decision_ref = runtime_paths.governance_decision_display("archive-pass-1");
+        let canonical = locus::StructuredCollaborationSummaryV1 {
+            schema_id: "hsk.structured_collaboration_summary@1".to_string(),
+            schema_version: "1".to_string(),
+            record_id: wp_id.to_string(),
+            record_kind: "work_packet".to_string(),
+            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+            updated_at: "2026-05-03T12:00:00Z".to_string(),
+            mirror_state: locus::MirrorSyncState::CanonicalOnly,
+            authority_refs: vec![owner_authority_ref],
+            evidence_refs: vec![gate_record_ref, decision_ref.clone()],
+            mirror_contract: None,
+            workflow_state_family: locus::WorkflowStateFamily::Validation,
+            queue_reason_code: locus::WorkflowQueueReasonCode::ValidationWait,
+            allowed_action_ids: vec!["validate".to_string()],
+            transition_rule_ids: vec![],
+            queue_automation_rule_ids: vec![],
+            executor_eligibility_policy_ids: vec![],
+            status: "validation".to_string(),
+            title_or_objective: "closeout lifecycle refs test".to_string(),
+            blockers: vec![],
+            next_action: Some("validate".to_string()),
+            summary_ref: Some(runtime_paths.work_packet_summary_display(wp_id)),
+        };
+        let summary_value = serde_json::to_value(&canonical)?;
+        let workspace_root = runtime_paths.workspace_root().to_path_buf();
+        let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
+        std::fs::create_dir_all(
+            posture_path
+                .parent()
+                .expect("closeout posture parent directory must exist"),
+        )?;
+        apply_software_delivery_closeout_posture_lifecycle(
+            &runtime_paths,
+            &workspace_root,
+            wp_id,
+            &summary_value,
+        )
+        .expect("closeout posture lifecycle emit must succeed");
+        let posture: locus::SoftwareDeliveryCloseoutPostureV1 =
+            serde_json::from_slice(&std::fs::read(&posture_path)?)?;
+        assert_eq!(
+            posture.governed_action_resolution_refs,
+            vec![decision_ref],
+            "production closeout posture lifecycle must project canonical governance decision refs"
+        );
         Ok(())
     }
 
