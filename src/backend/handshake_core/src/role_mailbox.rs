@@ -1981,18 +1981,24 @@ pub struct SoftwareDeliveryOverlayTriageRowV1 {
 }
 
 /// Build an advisory mailbox triage row from a software-delivery projection
-/// surface. Returns `None` when `projection.project_profile_kind` is not
-/// `SoftwareDelivery`. The row is a STABLE-ID PROJECTION ONLY: the mailbox
-/// MUST NOT mutate the canonical claim/lease or queued-instruction record
-/// state from this surface; it surfaces ids and canonical record refs so
-/// operators can navigate to authoritative records.
+/// surface plus a runtime-backed closeout badge. Returns `None` when the
+/// projection is not `SoftwareDelivery` or the badge is not advisory and
+/// scoped to the same work packet. The row is a STABLE-ID PROJECTION ONLY:
+/// the mailbox MUST NOT mutate the canonical claim/lease, queued-instruction,
+/// validator-gate, or closeout-posture state from this surface; it surfaces
+/// ids and canonical record refs so operators can navigate to authoritative
+/// records.
 pub fn build_software_delivery_overlay_triage_row(
     projection: &SoftwareDeliveryProjectionSurfaceV1,
+    closeout_badge: SoftwareDeliveryCloseoutProjectionBadgeV1,
 ) -> Option<SoftwareDeliveryOverlayTriageRowV1> {
-    build_software_delivery_overlay_triage_row_with_closeout_badge(projection, None)
+    build_software_delivery_overlay_triage_row_with_closeout_badge(
+        projection,
+        Some(closeout_badge),
+    )
 }
 
-pub fn build_software_delivery_overlay_triage_row_with_closeout_badge(
+fn build_software_delivery_overlay_triage_row_with_closeout_badge(
     projection: &SoftwareDeliveryProjectionSurfaceV1,
     closeout_badge: Option<SoftwareDeliveryCloseoutProjectionBadgeV1>,
 ) -> Option<SoftwareDeliveryOverlayTriageRowV1> {

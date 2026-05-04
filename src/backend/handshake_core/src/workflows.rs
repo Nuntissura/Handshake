@@ -5423,6 +5423,18 @@ fn build_software_delivery_closeout_badge_from_disk(
     ))
 }
 
+fn build_software_delivery_mailbox_triage_row_from_disk(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+) -> Option<crate::role_mailbox::SoftwareDeliveryOverlayTriageRowV1> {
+    let projection = read_software_delivery_projection_surface(runtime_paths, wp_id)?;
+    let closeout_badge = build_software_delivery_closeout_badge_from_disk(runtime_paths, wp_id)?;
+    crate::role_mailbox::build_software_delivery_overlay_triage_row(
+        &projection,
+        closeout_badge,
+    )
+}
+
 /// MT-004 v02.181: read canonical software-delivery overlay records for
 /// `wp_id` from the runtime governance root. Returns the most recent valid
 /// claim/lease record (when present) and all valid queued-instruction
@@ -30228,12 +30240,11 @@ mod tests {
 
         let projection = read_software_delivery_projection_surface(&runtime_paths, wp_id)
             .expect("projection surface must exist");
-        let mailbox_row =
-            crate::role_mailbox::build_software_delivery_overlay_triage_row_with_closeout_badge(
-                &projection,
-                Some(badge.clone()),
-            )
-            .expect("software-delivery mailbox triage row must build");
+        let mailbox_row = build_software_delivery_mailbox_triage_row_from_disk(
+            &runtime_paths,
+            wp_id,
+        )
+        .expect("standard runtime-backed software-delivery mailbox triage row must build");
         assert_eq!(mailbox_row.closeout_badge, task_board_entry.closeout_badge);
         assert_eq!(mailbox_row.work_packet_id, task_board_entry.work_packet_id);
 
@@ -30253,9 +30264,9 @@ mod tests {
             "DCC compact summary must not mix badge context across work packets"
         );
         assert!(
-            crate::role_mailbox::build_software_delivery_overlay_triage_row_with_closeout_badge(
+            crate::role_mailbox::build_software_delivery_overlay_triage_row(
                 &projection,
-                Some(foreign_badge),
+                foreign_badge,
             )
             .is_none(),
             "Role Mailbox must reject a badge for a different work packet"
@@ -30297,12 +30308,27 @@ mod tests {
             Some("closeout_blocked_no_posture"),
             "DCC compact summary cannot recreate missing runtime closeout posture"
         );
-        let stale_mailbox_row =
-            crate::role_mailbox::build_software_delivery_overlay_triage_row_with_closeout_badge(
-                &projection,
-                Some(blocked_badge),
-            )
-            .expect("software-delivery mailbox triage row must build");
+        let standard_blocked_mailbox_row = build_software_delivery_mailbox_triage_row_from_disk(
+            &runtime_paths,
+            wp_id,
+        )
+        .expect("standard runtime-backed mailbox row must build without closeout posture");
+        assert_eq!(
+            standard_blocked_mailbox_row
+                .closeout_badge
+                .as_ref()
+                .map(|badge| badge.label.as_str()),
+            Some("closeout_blocked_no_posture"),
+            "standard Role Mailbox path must read missing runtime posture as blocked"
+        );
+        let mut stale_mailbox_projection = projection.clone();
+        stale_mailbox_projection.advisory_role_mailbox_thread_ids =
+            vec!["announce-back-says-ready".to_string()];
+        let stale_mailbox_row = crate::role_mailbox::build_software_delivery_overlay_triage_row(
+            &stale_mailbox_projection,
+            blocked_badge,
+        )
+        .expect("software-delivery mailbox triage row must build from runtime badge");
         assert_eq!(
             stale_mailbox_row
                 .closeout_badge
