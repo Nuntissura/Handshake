@@ -276,6 +276,7 @@ test("validateReceipt accepts structured microtask contracts on review receipts"
   const errors = validateReceipt(reviewResolutionReceiptFixture({
     microtask_contract: {
       scope_ref: "CLAUSE_CLOSURE_MATRIX/LM-SEARCH-001",
+      commit: "0123456789abcdef0123456789abcdef01234567",
       file_targets: ["src/backend/handshake_core/src/storage/sqlite.rs"],
       proof_commands: ["cargo test storage::tests::sqlite_loom_storage_conformance -- --exact"],
       risk_focus: "portable search parity",
@@ -291,6 +292,16 @@ test("validateReceipt accepts structured microtask contracts on review receipts"
     },
   }));
   assert.deepEqual(errors, []);
+});
+
+test("validateReceipt rejects malformed microtask handoff commit fields", () => {
+  const errors = validateReceipt(reviewResolutionReceiptFixture({
+    microtask_contract: {
+      scope_ref: "MT-001",
+      commit: "not-a-sha",
+    },
+  }));
+  assert.match(errors.join("\n"), /microtask_contract\.commit must be null or a 40-character SHA/);
 });
 
 test("validateReceipt accepts Memory Manager proposal receipts", () => {
@@ -328,6 +339,7 @@ test("receipt schema exposes microtask_contract for external consumers", () => {
   const rule = runtimeStatusSchema.properties.open_review_items.items.properties.microtask_contract;
   assert.equal(rule.type.includes("object"), true);
   assert.equal(rule.properties.expected_receipt_kind.enum.includes("CODER_INTENT"), true);
+  assert.equal(rule.properties.commit.pattern, "^[0-9a-fA-F]{40}$");
   assert.equal(rule.properties.review_mode.enum.includes("OVERLAP"), true);
   assert.equal(rule.properties.phase_gate.enum.includes("SKELETON"), true);
   assert.equal(rule.properties.review_outcome.enum.includes("REPAIR_REQUIRED"), true);
@@ -343,6 +355,7 @@ test("runtime receipt schema exposes microtask_contract on receipts", () => {
   const rule = receiptSchema.properties.microtask_contract;
   assert.equal(rule.type.includes("object"), true);
   assert.equal(rule.properties.expected_receipt_kind.enum.includes("WORKFLOW_INVALIDITY"), true);
+  assert.equal(rule.properties.commit.pattern, "^[0-9a-fA-F]{40}$");
   assert.equal(rule.properties.review_mode.enum.includes("BLOCKING"), true);
   assert.equal(rule.properties.phase_gate.enum.includes("BOOTSTRAP"), true);
   assert.equal(rule.properties.review_outcome.enum.includes("APPROVED_FOR_FINAL_REVIEW"), true);

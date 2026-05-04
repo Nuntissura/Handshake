@@ -1204,6 +1204,7 @@ export function buildInlineStartupPrompt({
     `STARTUP BRIEF (OPERATIONAL MEMORY): each role startup prints .GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md plus the role-specific STARTUP_BRIEF under that role's docs folder. Treat those cards as Memory-Manager-curated anti-repeat guidance, not protocol authority.`,
     `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${contextDigestCommand} instead of rereading ${contextDigestSurface} surfaces separately.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
+    `HOST_LOAD_STANCE (HARD): Treat operator-owned downloads and other external host processes as out of scope. Do not inspect, cancel, kill, throttle, or otherwise touch them. Before starting heavy validation/build commands (cargo test, cargo clippy, broad pnpm test, full builds), check packet WAIVERS GRANTED and current Orchestrator/Operator instructions. If an active host-load waiver covers the command, record NOT_RUN_WAIVED or deferred evidence with the waiver ID instead of launching the heavy command. If no waiver covers it and the command is required, escalate to the Orchestrator rather than surprising the host.`,
     `INTER_ROLE_VERB_RULE (RGF-248): Routine role traffic should use named verbs where available via \`wp-receipt-append --verb <NAME> --verb-body '<JSON>'\`. Readers prefer \`verb\` / \`verb_body\` fields and fall back to legacy prose receipts only for compatibility.`,
     role === "MEMORY_MANAGER"
       ? `REPOMEM EXCEPTION: Memory Manager is a packetless hygiene lane, not a normal WP repomem coverage target. Use this lane's synthetic receipts and, if mutation is needed, open memory with: ${repomemOpenCommand}.`
@@ -1592,10 +1593,10 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       : null,
     // Auto-relay communication instructions per role [CX-503C]
     role === "WP_VALIDATOR"
-      ? `AUTO-RELAY: When you finish reviewing a microtask, send your response back to the coder via: just wp-review-response ${wpId} WP_VALIDATOR WP_VALIDATOR:${wpId} CODER CODER:${wpId} '<MT-NNN PASS or STEER: findings>'. This triggers the auto-relay to dispatch your response to the coder session.`
+      ? `AUTO-RELAY: When you finish reviewing a microtask, send your response back to the coder via wp-review-response. The target_session must exactly match the open review item's opened_by_session/actor_session; do not synthesize CODER:${wpId} if the open review shows another session string. Example shape: just wp-review-response ${wpId} WP_VALIDATOR <your-actor-session> CODER <open-review-opened_by_session> '<MT-NNN PASS or STEER: findings>'. This triggers the auto-relay to dispatch your response to the coder session.`
       : null,
     role === "CODER"
-      ? `AUTO-RELAY: After committing each microtask, a git hook will automatically fire wp-review-request to the validator. If the hook does not fire, run manually: just wp-review-request ${wpId} CODER CODER:${wpId} WP_VALIDATOR WP_VALIDATOR:${wpId} '<MT-NNN complete: summary>'. Then STOP and wait for the validator's response.`
+      ? `AUTO-RELAY: After committing each microtask, a git hook will automatically fire wp-review-request to the validator. If the hook does not fire, run manually with your actual receipt actor_session from active-lane-brief/check-notifications and the validator target_session shown in the current send-mt prompt: just wp-review-request ${wpId} CODER <your-actor-session> WP_VALIDATOR <validator-target-session> '<MT-NNN complete: summary>'. Then STOP and wait for the validator's response.`
       : null,
   ].filter(Boolean).join("\n");
 }

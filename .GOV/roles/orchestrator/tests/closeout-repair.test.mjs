@@ -104,3 +104,46 @@ test("closeout-repair writes regenerated patch to the packet-declared artifact p
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+test("closeout-repair inserts default signed-scope patch reference when packet has only commit artifacts", () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-closeout-repair-default-patch-"));
+  const packetPath = ".GOV/task_packets/WP-TEST-CLOSEOUT-v1/packet.md";
+  const packetAbsPath = path.resolve(tempRoot, packetPath);
+  const packetText = [
+    "# Task Packet: WP-TEST-CLOSEOUT-v1",
+    "",
+    "## METADATA",
+    "- MERGE_BASE_SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "- COMMITTED_TARGET_HEAD_SHA: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "",
+    "## VALIDATION",
+    "- **Target File**: `src/demo.rs`",
+    "- **Artifacts**: Commit `bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb`",
+    "",
+    "## STATUS_HANDOFF",
+    "- Current WP_STATUS: IN_PROGRESS",
+  ].join("\n");
+
+  try {
+    fs.mkdirSync(path.dirname(packetAbsPath), { recursive: true });
+    fs.writeFileSync(packetAbsPath, packetText, "utf8");
+    const repair = applySignedScopePatchRepair({
+      packetText,
+      packetPath,
+      repoRoot: tempRoot,
+      gitExec: () => "diff --git a/src/demo.rs b/src/demo.rs\n+change\n",
+    });
+
+    assert.equal(repair.applied, true);
+    assert.equal(repair.packetUpdated, true);
+    assert.equal(repair.patchPath, ".GOV/task_packets/WP-TEST-CLOSEOUT-v1/signed-scope.patch");
+    const updatedPacket = fs.readFileSync(packetAbsPath, "utf8");
+    assert.match(updatedPacket, /- \*\*Artifacts\*\*: `\.GOV\/task_packets\/WP-TEST-CLOSEOUT-v1\/signed-scope\.patch`/);
+    assert.equal(
+      fs.readFileSync(path.resolve(tempRoot, repair.patchPath), "utf8"),
+      "diff --git a/src/demo.rs b/src/demo.rs\n+change\n",
+    );
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});

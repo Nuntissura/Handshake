@@ -471,6 +471,53 @@ test("integration-validator closeout state combines topology and WP-scoped close
   assert.equal(evaluation.dependencyView.dependencies.repomem_coverage.status, "PASS");
 });
 
+test("integration-validator closeout state uses durable committed validation target after local main contains target", () => {
+  const repoRoot = repoRootWithArtifact(matchingDiff);
+  const committedBaseSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const targetHeadSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const evaluation = evaluateIntegrationValidatorCloseoutState({
+    repoRoot,
+    wpId: "WP-TEST-VALIDATOR-v1",
+    packetContent: packetFixture({
+      currentMainCompatibilityBaselineSha: targetHeadSha,
+    }),
+    actorContext: actorContextFixture(),
+    committedEvidence: {
+      status: "PASS",
+      target_head_sha: targetHeadSha,
+      committed_validation_target: `${committedBaseSha}..${targetHeadSha}`,
+    },
+    requests: [],
+    results: [],
+    registrySessions: [],
+    brokerState: { active_runs: [] },
+    worktreeExists: () => true,
+    fileExists: () => true,
+    repomemCoverage: repomemCoverageFixture(),
+    gitRunner: (args) => {
+      if (args[0] === "cat-file") return { code: 0, output: "" };
+      if (args[0] === "rev-parse") return { code: 0, output: targetHeadSha };
+      if (
+        args[0] === "merge-base"
+        && args[1] === "--is-ancestor"
+        && args[2] === committedBaseSha
+        && args[3] === targetHeadSha
+      ) {
+        return { code: 0, output: "" };
+      }
+      if (args[0] === "diff" && args[3] === committedBaseSha && args[4] === targetHeadSha) {
+        return { code: 0, output: matchingDiff };
+      }
+      return { code: 1, output: `unexpected git call: ${args.join(" ")}` };
+    },
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.issues.length, 0);
+  assert.equal(evaluation.candidateSignedScope.ok, true);
+  assert.equal(evaluation.candidateSignedScope.mergeBaseSha, committedBaseSha);
+});
+
 test("integration-validator closeout state passes with a self-owned active final-lane broker run", () => {
   const repoRoot = repoRootWithArtifact(matchingDiff);
   const evaluation = evaluateIntegrationValidatorCloseoutState({

@@ -731,8 +731,11 @@ export function evaluateIntegrationValidatorCloseoutState({
         repoRoot,
         targetHeadSha: topology.targetHeadSha,
         currentMainHeadSha: topology.currentMainHeadSha || "",
-      gitRunner,
-    })
+        committedValidationTarget: topology.durableCommittedProof?.committed_validation_target
+          || topology.durableCommittedProof?.committed_scope_target
+          || "",
+        gitRunner,
+      })
     : {
       ok: false,
       errors: ["candidate target validation requires committed target_head_sha"],

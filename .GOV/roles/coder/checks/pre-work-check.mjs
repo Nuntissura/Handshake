@@ -903,7 +903,7 @@ if (!fs.existsSync(taskPacketDir)) {
       if (controls.length === 0) {
         errors.push('UI_UX_APPLICABLE=YES requires UI_CONTROLS to list at least one concrete control');
       } else {
-        const anyTooltip = controls.some((s) => /\bTooltip:\b/i.test(s) && !/Tooltip:\s*<fill/i.test(s));
+        const anyTooltip = controls.some((s) => /\bTooltip:\s*(?!<fill\b)\S/i.test(s));
         if (!anyTooltip) {
           errors.push('UI_UX_APPLICABLE=YES requires UI_CONTROLS entries to include concrete Tooltip: text');
         }

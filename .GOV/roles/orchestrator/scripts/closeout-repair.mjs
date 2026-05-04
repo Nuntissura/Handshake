@@ -30,6 +30,7 @@ import {
   buildIntegrationValidatorCloseoutCheckResult,
   loadDeclaredRuntimeStatus,
 } from "../../../roles/validator/scripts/lib/integration-validator-closeout-lib.mjs";
+import { committedEvidenceForCloseout } from "../../../roles/validator/scripts/lib/committed-validation-evidence-lib.mjs";
 import { buildValidatorPacketCompleteResult } from "../../../roles/validator/scripts/lib/validator-governance-lib.mjs";
 import { validateSignedScopeCompatibilityTruth } from "../../../roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs";
 import {
@@ -45,6 +46,7 @@ const CLOSEOUT_FAILURE_MESSAGES = {
   SIGNED_SCOPE_COMPATIBILITY_INVALID: "signed-scope compatibility truth is invalid",
   MISSING_SIGNED_SCOPE_PATCH: "signed-scope patch artifact is missing",
   SIGNED_SCOPE_SURFACE_INVALID: "signed-scope surface declarations are invalid",
+  TARGET_NOT_VISIBLE_IN_MAIN: "committed target is not visible in integration-validator main worktree",
   CLAUSE_COVERAGE_MISMATCH: "clause coverage mismatch between matrix and validation reports",
   MISSING_VALIDATION_VERDICT: "missing or incomplete validation verdict in packet",
   PACKET_COMPLETENESS_OTHER: "packet completeness issue",
@@ -144,7 +146,7 @@ function extractValidationReportsSection(packetText = "") {
 
 export function packetHasValidationVerdict(packetText = "") {
   const reportsSection = extractValidationReportsSection(packetText);
-  return /^(?:\s*-\s*|\s*#{1,6}\s+|\s*)Verdict\s*:\s*(PASS|FAIL|ABANDONED|OUTDATED_ONLY|PENDING)\s*$/gim.test(reportsSection);
+  return /^(?:\s*-\s*|\s*#{1,6}\s+|\s*)`?Verdict`?\s*:\s*`?(PASS|FAIL|ABANDONED|OUTDATED_ONLY|PENDING)`?\s*$/gim.test(reportsSection);
 }
 
 function pushFailure(failures, code, details = []) {
@@ -218,12 +220,64 @@ export function resolveDeclaredPatchArtifactPath({
   return path.join(path.dirname(packetAbsPath), "signed-scope.patch");
 }
 
+function parseSingleField(packetText, label) {
+  const match = String(packetText || "").match(
+    new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi"),
+  );
+  return match ? match[1].trim().replace(/^`|`$/g, "") : "";
+}
+
 function parseCommitField(packetText, label) {
+  const singleField = parseSingleField(packetText, label);
+  if (/^[0-9a-f]{40}$/i.test(singleField)) return singleField;
   const match = String(packetText || "").match(
     new RegExp(`\\*\\*${label}\\*\\*:\\s*\`?([0-9a-f]{40})\`?`, "i"),
   );
   return match ? match[1] : "";
 }
+
+function parseCommittedRangeTarget(value = "", targetHeadSha = "") {
+  const parts = String(value || "").trim().split("..");
+  if (parts.length !== 2) return null;
+  const [baseRev, headRev] = parts.map((entry) => String(entry || "").trim());
+  if (!/^[0-9a-f]{40}$/i.test(baseRev) || !/^[0-9a-f]{40}$/i.test(headRev)) return null;
+  if (targetHeadSha && headRev.toLowerCase() !== String(targetHeadSha || "").toLowerCase()) return null;
+  return { baseRev, headRev };
+}
+
+function readDurableCommittedProof(wpId, repoRoot = REPO_ROOT) {
+  const gateStatePath = path.resolve(repoRoot, "../gov_runtime/roles_shared/validator_gates", `${wpId}.json`);
+  if (!fs.existsSync(gateStatePath)) return null;
+  const gateState = JSON.parse(fs.readFileSync(gateStatePath, "utf8"));
+  return committedEvidenceForCloseout(gateState?.committed_validation_evidence?.[wpId] || null);
+}
+
+function insertSignedScopePatchArtifactReference(packetText = "", patchRelPath = "") {
+  const normalizedPatchRel = normalizePath(patchRelPath);
+  if (!normalizedPatchRel) return packetText;
+  if (parseSignedScopePatchArtifacts(packetText).length > 0) return packetText;
+
+  const artifactLine = `- **Artifacts**: \`${normalizedPatchRel}\``;
+  const lines = String(packetText || "").split(/\r?\n/);
+  const validationIndex = lines.findIndex((line) => /^##\s+VALIDATION\b/i.test(line));
+  if (validationIndex === -1) {
+    return `${String(packetText || "").trimEnd()}\n\n## VALIDATION\n${artifactLine}\n`;
+  }
+
+  let insertIndex = lines.length;
+  for (let index = validationIndex + 1; index < lines.length; index += 1) {
+    if (/^##\s+\S/.test(lines[index])) {
+      insertIndex = index;
+      break;
+    }
+  }
+  return [
+    ...lines.slice(0, insertIndex),
+    artifactLine,
+    ...lines.slice(insertIndex),
+  ].join("\n");
+}
+
 
 export function collectCloseoutRepairFailures({
   packetText = "",
@@ -257,7 +311,7 @@ export function collectCloseoutRepairFailures({
   }
 
   const patchArtifactMissingErrors = (signedScopeSurfaceValidation?.errors || []).filter((error) =>
-    /signed scope patch artifact is missing/i.test(String(error || ""))
+    /signed scope patch artifact is missing|signed scope surface requires exactly one unique patch artifact reference \(found 0\)/i.test(String(error || ""))
   );
   if (patchArtifactMissingErrors.length > 0) {
     pushFailure(failures, "MISSING_SIGNED_SCOPE_PATCH", patchArtifactMissingErrors);
@@ -313,10 +367,18 @@ export function collectCloseoutRepairFailures({
   }
 
   if (closeoutResult && !closeoutResult.ok) {
+    const closeoutDetails = [
+      closeoutResult.message,
+      ...(closeoutResult.details || []),
+      ...(closeoutResult.issues || []),
+    ].filter(Boolean);
+    if (closeoutDetails.some((detail) => /cannot resolve committed target/i.test(String(detail || "")))) {
+      pushFailure(failures, "TARGET_NOT_VISIBLE_IN_MAIN", closeoutDetails);
+    }
     pushFailure(
       failures,
       "INTEGRATION_VALIDATOR_CLOSEOUT",
-      [closeoutResult.message, ...(closeoutResult.details || [])].filter(Boolean),
+      closeoutDetails,
     );
   }
 
@@ -338,7 +400,7 @@ export function applyBaselineShaRepair({
 
   const packetAbsPath = path.resolve(repoRoot, packetPath);
   const oldMatch = String(packetText || "").match(
-    /(\*\*CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA\*\*:\s*)`?([0-9a-f]{40}|NOT_RUN|NONE)`?/i,
+    /^(\s*-\s*(?:\*\*)?CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA(?:\*\*)?\s*:\s*)`?([0-9a-f]{40}|NOT_RUN|NONE)`?/mi,
   );
   if (!oldMatch) {
     return { applied: false, reason: "Could not find CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA field in packet" };
@@ -354,18 +416,74 @@ export function applyBaselineShaRepair({
   };
 }
 
+export function applyCommittedTargetImportRepair({
+  wpId = "",
+  repoRoot = REPO_ROOT,
+  gitExec = execFileSync,
+} = {}) {
+  const durableProof = readDurableCommittedProof(wpId, repoRoot);
+  const targetHeadSha = String(durableProof?.target_head_sha || "").trim();
+  const prepareBranch = String(durableProof?.prepare_branch || "").trim();
+  const prepareWorktreeDir = String(durableProof?.prepare_worktree_dir || "").trim();
+  if (!/^[0-9a-f]{40}$/i.test(targetHeadSha)) {
+    return { applied: false, reason: "Committed target proof is missing target_head_sha" };
+  }
+  if (!prepareBranch) {
+    return { applied: false, reason: "Committed target proof is missing prepare_branch" };
+  }
+  if (!prepareWorktreeDir) {
+    return { applied: false, reason: "Committed target proof is missing prepare_worktree_dir" };
+  }
+
+  const mainWorktree = path.resolve(repoRoot, "../handshake_main");
+  const prepareWorktree = path.resolve(repoRoot, prepareWorktreeDir);
+  try {
+    gitExec("git", ["-C", mainWorktree, "cat-file", "-e", `${targetHeadSha}^{commit}`], {
+      encoding: "utf8",
+    });
+    return { applied: false, reason: "Target already visible in integration-validator main worktree", targetHeadSha };
+  } catch {
+    // Continue with import.
+  }
+
+  gitExec("git", [
+    "-C",
+    mainWorktree,
+    "fetch",
+    prepareWorktree,
+    `${prepareBranch}:refs/heads/${prepareBranch}`,
+  ], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  gitExec("git", ["-C", mainWorktree, "cat-file", "-e", `${targetHeadSha}^{commit}`], {
+    encoding: "utf8",
+  });
+
+  return {
+    applied: true,
+    targetHeadSha,
+    prepareBranch,
+    prepareWorktree: normalizePath(prepareWorktree),
+  };
+}
+
 export function applySignedScopePatchRepair({
+  wpId = "",
   packetText = "",
   packetPath = "",
   repoRoot = REPO_ROOT,
   gitExec = execFileSync,
 } = {}) {
-  const mergeBaseSha = parseCommitField(packetText, "MERGE_BASE_SHA");
-  const targetHeadSha = parseCommitField(packetText, "COMMITTED_TARGET_HEAD_SHA");
+  const durableProof = wpId ? readDurableCommittedProof(wpId, repoRoot) : null;
+  const targetHeadSha = parseCommitField(packetText, "COMMITTED_TARGET_HEAD_SHA")
+    || String(durableProof?.target_head_sha || "").trim();
+  const committedRange = parseCommittedRangeTarget(durableProof?.committed_validation_target || "", targetHeadSha);
+  const mergeBaseSha = committedRange?.baseRev || parseCommitField(packetText, "MERGE_BASE_SHA");
   if (!mergeBaseSha || !targetHeadSha) {
     return {
       applied: false,
-      reason: "Could not find MERGE_BASE_SHA and/or COMMITTED_TARGET_HEAD_SHA in packet",
+      reason: "Could not find MERGE_BASE_SHA and/or COMMITTED_TARGET_HEAD_SHA in packet or committed handoff evidence",
     };
   }
 
@@ -385,12 +503,23 @@ export function applySignedScopePatchRepair({
     maxBuffer: 10 * 1024 * 1024,
   }) || "");
   fs.writeFileSync(patchAbsPath, diff, "utf8");
+  const packetAbsPath = path.resolve(repoRoot, packetPath);
+  const patchRelPath = normalizePath(path.relative(repoRoot, patchAbsPath));
+  const patchReferenced = parseSignedScopePatchArtifacts(packetText).length > 0;
+  const nextPacketText = patchReferenced
+    ? packetText
+    : insertSignedScopePatchArtifactReference(packetText, patchRelPath);
+  if (nextPacketText !== packetText) {
+    fs.writeFileSync(packetAbsPath, nextPacketText, "utf8");
+  }
   return {
     applied: true,
     mergeBaseSha,
     targetHeadSha,
     diffLength: diff.length,
-    patchPath: normalizePath(path.relative(repoRoot, patchAbsPath)),
+    patchPath: patchRelPath,
+    packetText: nextPacketText,
+    packetUpdated: nextPacketText !== packetText,
   };
 }
 
@@ -495,6 +624,11 @@ function logManualAction(code) {
     log("    Manual action: verify receipts, notifications, and route residue before closeout.");
     return;
   }
+  if (code === "TARGET_NOT_VISIBLE_IN_MAIN") {
+    log("  TARGET_NOT_VISIBLE_IN_MAIN: committed target import did not complete.");
+    log("    Manual action: import the PREPARE branch into handshake_main, then re-run closeout-repair.");
+    return;
+  }
   if (code === "INTEGRATION_VALIDATOR_CLOSEOUT") {
     log("  INTEGRATION_VALIDATOR_CLOSEOUT: topology or session-control truth is not closeout-ready.");
     log("    Manual action: verify final-lane topology, session registry, and broker consistency.");
@@ -590,6 +724,26 @@ export function runCloseoutRepairCli(argv = process.argv.slice(2)) {
   const repairs = [];
   let currentPacketText = diagnostics.packetText;
 
+  if (failures.some((failure) => failure.code === "TARGET_NOT_VISIBLE_IN_MAIN")) {
+    log("  Repairing: committed target visibility in integration-validator main worktree...");
+    try {
+      const result = applyCommittedTargetImportRepair({
+        wpId,
+        repoRoot: REPO_ROOT,
+      });
+      if (result.applied) {
+        repairs.push("TARGET_NOT_VISIBLE_IN_MAIN");
+        log(
+          `    Fixed: imported ${result.targetHeadSha.slice(0, 8)} from ${result.prepareBranch} at ${result.prepareWorktree}`,
+        );
+      } else {
+        log(`    Not applied: ${result.reason}`);
+      }
+    } catch (error) {
+      log(`    Failed to repair: ${error.message}`);
+    }
+  }
+
   if (failures.some((failure) => failure.code === "BASELINE_SHA_MISMATCH")) {
     log("  Repairing: CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA...");
     try {
@@ -615,11 +769,13 @@ export function runCloseoutRepairCli(argv = process.argv.slice(2)) {
     log("  Repairing: signed-scope patch artifact...");
     try {
       const result = applySignedScopePatchRepair({
+        wpId,
         packetText: currentPacketText,
         packetPath: diagnostics.packetPath,
         repoRoot: REPO_ROOT,
       });
       if (result.applied) {
+        currentPacketText = result.packetText || currentPacketText;
         repairs.push("MISSING_SIGNED_SCOPE_PATCH");
         log(
           `    Fixed: generated ${result.patchPath} from ${result.mergeBaseSha.slice(0, 8)}..${result.targetHeadSha.slice(0, 8)} (${result.diffLength} bytes)`,

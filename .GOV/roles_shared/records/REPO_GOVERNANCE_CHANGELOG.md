@@ -21,6 +21,128 @@
 
 ## Entries
 
+### 2026.05.04.11 / GOV-CHANGE-20260504-11
+
+- STATUS: APPLIED
+- SUMMARY: added committed-target handoff and closeout repair proof for WP-1 final-lane recovery
+- CHANGE_TYPE: VALIDATOR_GATE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-WP1-COMMITTED-TARGET-CLOSEOUT-REPAIR`
+  - Active WP final-lane PASS was blocked after source review because stale branch-range manifests and preserved out-of-scope dirty files in the candidate worktree hid the accepted committed target from the governed handoff/closeout proof path.
+- FOLLOW_ON_ITEMS:
+  - `RGF-279`
+- FILES_CHANGED:
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/committed-validation-evidence-lib.mjs`
+  - `.GOV/roles/validator/tests/validator-governance-lib.test.mjs`
+  - `.GOV/roles/validator/scripts/lib/integration-validator-closeout-lib.mjs`
+  - `.GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `.GOV/roles_shared/scripts/lib/signed-scope-surface-lib.mjs`
+  - `.GOV/roles_shared/tests/signed-scope-surface-lib.test.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles/orchestrator/tests/closeout-repair.test.mjs`
+  - `.GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.md`
+  - `.GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/signed-scope.patch`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-COMMITTED-TARGET-CLOSEOUT-REPAIR.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: explicit committed-target handoff proof now passes for `040197df72b590f35034f3ec282dc4fb43515adc..eddcf18ba08898dcf2b4a99e5b901ad80dba8aaa`, closeout repair imports the candidate commit into `handshake_main`, and the packet carries a generated signed-scope patch artifact for final closeout validation. Contained-in-main closeout validation also passes the durable committed validation target from validator evidence into signed-scope diff validation, so after local `main` already fast-forwards to the accepted target, closeout still compares the accepted committed range instead of falling back to post-merge empty or first-parent diff inference.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/phase-check.test.mjs`
+  - `node --test .GOV/roles/validator/tests/validator-governance-lib.test.mjs`
+  - `node --test .GOV/roles/validator/tests/committed-validation-evidence-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/signed-scope-surface-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/signed-scope-surface-lib.test.mjs .GOV/roles/validator/tests/integration-validator-closeout-lib.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/closeout-repair.test.mjs`
+  - `just phase-check HANDOFF WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1 WP_VALIDATOR "" --range 040197df72b590f35034f3ec282dc4fb43515adc..eddcf18ba08898dcf2b4a99e5b901ad80dba8aaa`
+
+### 2026.05.04.09 / GOV-CHANGE-20260504-09
+
+- STATUS: APPLIED
+- SUMMARY: hardened session actor routing in microtask dispatch and direct-review prompts
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-WP1-SESSION-ACTOR-ROUTING-HARDENING`
+  - Active WP MT-001/MT-002 review traffic exposed broker `session_key` / receipt `actor_session` drift, including a rejected validator response when the target session did not exactly match the open review item's actor session.
+- FOLLOW_ON_ITEMS:
+  - `RGF-277`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/send-mt-prompt.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-SESSION-ACTOR-ROUTING-HARDENING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `send-mt` now labels broker keys separately from receipt actor sessions, generated manual `wp-review-request` commands use live route/registry session values, and role prompts/protocols tell validators to answer the exact open review session instead of reconstructing synthetic role/WP keys.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/send-mt-prompt.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `just gov-check`
+
+### 2026.05.04.08 / GOV-CHANGE-20260504-08
+
+- STATUS: APPLIED
+- SUMMARY: narrowed committed coder handoff preflight to the microtask handoff commit when declared
+- CHANGE_TYPE: RECEIPT_GATE_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-CODER-HANDOFF-MICROTASK-COMMIT-RANGE`
+  - Active WP coder handoff for commit `d8543c1cf664e5afc48fca30b007eacda19fbed6` was blocked because the committed handoff preflight fell back to the packet branch range and pulled unrelated historical branch changes into the current microtask validation manifest.
+- FOLLOW_ON_ITEMS:
+  - `RGF-276`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-exchange.test.mjs`
+  - `.GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+  - `.GOV/roles_shared/schemas/WP_RECEIPT.schema.json`
+  - `.GOV/roles_shared/schemas/WP_RUNTIME_STATUS.schema.json`
+  - `.GOV/Audits/audits/AUDIT-20260504-CODER-HANDOFF-MICROTASK-COMMIT-RANGE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: governed `CODER_HANDOFF` preflight now honors a full SHA supplied in `microtask_json.commit` or canonical handoff summary text, requires the prepared worktree HEAD to match it, accepts that SHA in receipt/runtime schemas, and passes `post-work-check --range <parent>..<commit>` so current MT handoff validation is not widened by stale branch history.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `node --check .GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `node --check .GOV/roles_shared/scripts/lib/wp-communications-lib.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-review-exchange.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-communications-lib.test.mjs`
+
+### 2026.05.04.07 / GOV-CHANGE-20260504-07
+
+- STATUS: APPLIED
+- SUMMARY: added host-load-aware validation waivers and refreshed restartable session model-profile selection
+- CHANGE_TYPE: SESSION_CONTROL_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260504-HOST-LOAD-MODEL-PROFILE-REFRESH`
+  - Operator instruction on 2026-05-04: do not touch long-running operator-owned download scripts, waive cargo tests when host load makes them impractical, and change WP Validator from Claude to GPT-5.5 extra-high reasoning because of Claude rate limits.
+- FOLLOW_ON_ITEMS:
+  - `RGF-275`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/session-registry-lib.test.mjs`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.md`
+  - `.GOV/Audits/audits/AUDIT-20260504-HOST-LOAD-MODEL-PROFILE-REFRESH.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: governed roles now treat active TEST/ENVIRONMENT host-load waivers as authority to defer covered heavy validation commands without touching operator-owned processes, and restartable governed sessions refresh packet-declared model profiles instead of keeping stale profile ids.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/session-registry-lib.mjs`
+  - `node --test .GOV/roles_shared/tests/session-registry-lib.test.mjs`
+  - `just gov-check`
+
 ### 2026.05.04.06 / GOV-CHANGE-20260504-06
 
 - STATUS: APPLIED
@@ -4227,3 +4349,55 @@
 - FOLLOW_ON_ITEMS:
   - none
 - OUTCOME: `RGF-272` is implemented; direct-review wrappers pass optional metadata as stable key=value tokens, the shared parsers recover both wrapper-forwarded and model-authored named arguments, tests cover sparse/nested metadata routing, and generated coder/WP-validator startup prompts now hard-route product surface discovery through the assigned WP worktree instead of `handshake_main`.
+
+### 2026.05.04.03 / GOV-CHANGE-20260504-03
+
+- STATUS: APPLIED
+- SUMMARY: hardened coder-intent ack defaults and duplicate-kickoff reconciliation during the validator-gate closeout posture run
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1` coder bootstrap hit a `CODER_INTENT` wrapper failure because `ack_for` was required but the role helper did not expose it
+  - the canonical `CODER_INTENT` closed the canonical kickoff but left the earlier malformed duplicate kickoff open, keeping the lane routed to CODER instead of WP_VALIDATOR
+- SURFACES:
+  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/tests/wp-review-exchange.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-DIRECT-REVIEW-INTENT-RECONCILIATION.md`
+- FOLLOW_ON_ITEMS:
+  - none
+- OUTCOME: `RGF-273` is implemented; `CODER_INTENT` now auto-acks its correlation when the wrapper omits `ack_for`, and receipt runtime reconciliation retires stale duplicate validator-kickoff items for the same target coder session and microtask after a canonical coder-intent response.
+
+### 2026.05.04.04 / GOV-CHANGE-20260504-04
+
+- STATUS: APPLIED
+- SUMMARY: fixed UI tooltip detection in the coder pre-work gate during validator-gate closeout posture startup
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `just phase-check STARTUP WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1 CODER coder:wp-1-software-delivery-validator-gate-closeout-posture-v1 --verbose` failed `pre-work-check` even though the packet listed concrete `Tooltip: text` entries under `UI_CONTROLS`
+  - the pre-work regex required a word boundary after `Tooltip:`, which cannot match the normal colon-space-text form used by the task packet template
+- SURFACES:
+  - `.GOV/roles/coder/checks/pre-work-check.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-PREWORK-TOOLTIP-CHECK-HARDENING.md`
+- FOLLOW_ON_ITEMS:
+  - none
+- OUTCOME: `RGF-274` is implemented; valid `Tooltip: text` UI control entries satisfy the coder pre-work gate while `<fill>` placeholders remain rejected.
+
+### 2026.05.04.10 / GOV-CHANGE-20260504-10
+
+- STATUS: APPLIED
+- SUMMARY: switched the active WP Coder profile back to GPT-5.5 after Codex Spark quota exhaustion
+- CHANGE_TYPE: GOVERNANCE_RUNTIME_PATCH
+- DRIVER_EVIDENCE:
+  - `WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1` MT-004 Coder run failed during remote compaction with `You've hit your usage limit for GPT-5.3-Codex-Spark`
+  - `session-send ... FALLBACK` still attempted to compact the Spark-bound thread, so the Orchestrator closed that thread and started a fresh Coder session
+  - the fresh session registry showed `OPENAI_GPT_5_5_XHIGH`, while the active packet still declared Spark and would mislead future self-prime prompts
+- SURFACES:
+  - `.GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/Audits/audits/AUDIT-20260504-WP1-CODER-SPARK-RATE-LIMIT-FALLBACK.md`
+- FOLLOW_ON_ITEMS:
+  - improve session-control fallback semantics so explicit `FALLBACK` can supersede a packet-declared primary profile without hand-editing the active packet
+- OUTCOME: `RGF-278` is implemented; the active packet now supersedes the Spark Coder waiver and records GPT-5.5 extra-high as the active Coder profile for this WP while Spark is unavailable.

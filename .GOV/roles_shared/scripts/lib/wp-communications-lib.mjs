@@ -203,6 +203,9 @@ function validateMicrotaskContract(value, prefix, errors) {
 
   const allowedKeys = new Set([
     "scope_ref",
+    "commit",
+    "commit_sha",
+    "head_commit",
     "file_targets",
     "proof_commands",
     "risk_focus",
@@ -221,6 +224,11 @@ function validateMicrotaskContract(value, prefix, errors) {
   }
   if (!(value.scope_ref === undefined || isNullableString(value.scope_ref))) {
     errors.push(`${prefix}.scope_ref must be null or a non-empty string`);
+  }
+  for (const key of ["commit", "commit_sha", "head_commit"]) {
+    if (!(value[key] === undefined || isNullableSha(value[key]))) {
+      errors.push(`${prefix}.${key} must be null or a 40-character SHA`);
+    }
   }
   if (!(value.risk_focus === undefined || isNullableString(value.risk_focus))) {
     errors.push(`${prefix}.risk_focus must be null or a non-empty string`);
@@ -271,6 +279,9 @@ function validateMicrotaskContract(value, prefix, errors) {
 
   const hasPayload =
     isNonEmptyString(value.scope_ref)
+    || isNonEmptyString(value.commit)
+    || isNonEmptyString(value.commit_sha)
+    || isNonEmptyString(value.head_commit)
     || isNonEmptyString(value.risk_focus)
     || isNonEmptyString(value.expected_receipt_kind)
     || isNonEmptyString(value.review_mode)

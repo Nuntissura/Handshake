@@ -23,6 +23,7 @@ const SUPPORTED_RECEIPT_KINDS = [
   ...REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
 ];
 const EXPLICIT_REVIEW_ROLE_VALUES = ["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+const FULL_GIT_SHA_RE = /^[0-9a-f]{40}$/i;
 
 function fail(message) {
   failWithMemory("wp-review-exchange.mjs", message, { role: "SHARED" });
@@ -35,6 +36,18 @@ function normalizeRole(value) {
 function nullableValue(value) {
   const raw = String(value ?? "").trim();
   if (!raw || /^null$/i.test(raw) || /^none$/i.test(raw) || /^n\/a$/i.test(raw) || /^<unassigned>$/i.test(raw)) return null;
+  return raw;
+}
+
+function trimCliWrapperQuotes(value) {
+  let raw = String(value ?? "").trim();
+  if (raw.length >= 2) {
+    const first = raw[0];
+    const last = raw[raw.length - 1];
+    if ((first === "'" && last === "'") || (first === "\"" && last === "\"")) {
+      raw = raw.slice(1, -1);
+    }
+  }
   return raw;
 }
 
@@ -65,7 +78,7 @@ function normalizedCliOptionKey(value) {
 }
 
 function parseNamedCliOption(raw, fieldByKey) {
-  const match = String(raw ?? "").match(/^([A-Za-z][A-Za-z0-9_-]*)=(.*)$/s);
+  const match = trimCliWrapperQuotes(raw).match(/^([A-Za-z][A-Za-z0-9_-]*)=(.*)$/s);
   if (!match) return null;
   const outerField = fieldByKey.get(normalizedCliOptionKey(match[1]));
   if (!outerField) return null;
@@ -142,6 +155,26 @@ function buildTargetLabel(targetRole, targetSession) {
   return targetSession ? `${targetRole}:${targetSession}` : targetRole;
 }
 
+export function resolveReviewAckFor({
+  receiptKind = "",
+  actorRole = "",
+  ackFor = null,
+  correlationId = null,
+} = {}) {
+  const explicitAckFor = nullableValue(ackFor);
+  if (explicitAckFor) return explicitAckFor;
+
+  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
+  const normalizedActorRole = normalizeRole(actorRole);
+  if (
+    REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(normalizedReceiptKind)
+    || (normalizedReceiptKind === "CODER_INTENT" && normalizedActorRole === "CODER")
+  ) {
+    return nullableValue(correlationId);
+  }
+  return null;
+}
+
 function inferMicrotaskScopeRef(packetRowRef, summary) {
   const rowRef = String(packetRowRef || "").trim();
   if (/^MT-\d{3}$/i.test(rowRef)) return rowRef.toUpperCase();
@@ -163,6 +196,19 @@ function inferReviewMode({ receiptKind, actorRole, targetRole, packetRowRef, sum
   return null;
 }
 
+function inferHandoffCommitFromSummary({ receiptKind, summary }) {
+  if (String(receiptKind || "").trim().toUpperCase() !== "CODER_HANDOFF") return null;
+  const match = String(summary || "").match(/\b(?:commit|sha|head_commit)\s*[:=]?\s*([0-9a-f]{40})\b/i);
+  return match && FULL_GIT_SHA_RE.test(match[1]) ? match[1] : null;
+}
+
+function attachInferredHandoffCommit(contract, { receiptKind, summary } = {}) {
+  if (!contract || typeof contract !== "object" || Array.isArray(contract)) return contract;
+  if (contract.commit || contract.commit_sha || contract.head_commit) return contract;
+  const commit = inferHandoffCommitFromSummary({ receiptKind, summary });
+  return commit ? { ...contract, commit } : contract;
+}
+
 export function deriveFallbackReviewMicrotaskContract({
   wpId,
   receiptKind,
@@ -172,15 +218,24 @@ export function deriveFallbackReviewMicrotaskContract({
   summary,
   microtaskContract = null,
 } = {}) {
+  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
   if (microtaskContract && typeof microtaskContract === "object" && !Array.isArray(microtaskContract)) {
     const scopeRef = String(microtaskContract.scope_ref || "").trim();
-    if (!scopeRef) return microtaskContract;
+    if (!scopeRef) {
+      return attachInferredHandoffCommit(microtaskContract, {
+        receiptKind: normalizedReceiptKind,
+        summary,
+      });
+    }
     const resolution = resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef);
-    return resolution.match
+    const contract = resolution.match
       ? mergeHeuristicRiskContract(microtaskContract, resolution.match.heuristicRisk)
       : microtaskContract;
+    return attachInferredHandoffCommit(contract, {
+      receiptKind: normalizedReceiptKind,
+      summary,
+    });
   }
-  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
   if (![
     ...REVIEW_OPEN_RECEIPT_KIND_VALUES,
     ...REVIEW_RESOLUTION_RECEIPT_KIND_VALUES,
@@ -212,7 +267,13 @@ export function deriveFallbackReviewMicrotaskContract({
   if (normalizedReceiptKind === "REVIEW_REQUEST") {
     contract.expected_receipt_kind = "REVIEW_RESPONSE";
   }
-  return mergeHeuristicRiskContract(contract, resolution.match.heuristicRisk);
+  return attachInferredHandoffCommit(
+    mergeHeuristicRiskContract(contract, resolution.match.heuristicRisk),
+    {
+      receiptKind: normalizedReceiptKind,
+      summary,
+    },
+  );
 }
 
 function parseMicrotaskContract(value) {
@@ -316,9 +377,12 @@ export function recordReviewExchange({
   if (!CORRELATION_ID) {
     fail(`CORRELATION_ID is required for ${RECEIPT_KIND}`);
   }
-  if (!ACK_FOR && REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(RECEIPT_KIND)) {
-    ACK_FOR = CORRELATION_ID;
-  }
+  ACK_FOR = resolveReviewAckFor({
+    receiptKind: RECEIPT_KIND,
+    actorRole: ACTOR_ROLE,
+    ackFor: ACK_FOR,
+    correlationId: CORRELATION_ID,
+  });
 
   const validationArgs = {
     wpId: WP_ID,

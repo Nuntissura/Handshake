@@ -671,6 +671,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 
 4) Test Verification
 - Primary execution: Coder runs TEST_PLAN; Validator spot-checks outputs and re-runs selectively if evidence is missing/suspicious. If TEST_PLAN not run, FAIL unless explicitly waived.
+- Host-load waiver handling: If packet `WAIVERS GRANTED` contains an active Operator-approved TEST/ENVIRONMENT waiver for host load or cargo/TEST_PLAN execution, treat the affected heavy commands as `NOT_RUN_WAIVED` instead of FAIL for that waiver scope. Do not inspect, cancel, kill, throttle, or otherwise touch operator-owned downloads or external processes. Use committed evidence, targeted light checks, and explicit deferred-proof notes; require fresh execution before final PASS only when the waiver expiry says product proof still needs it.
 - Coverage enforcement: require at least one targeted test that fails if the new logic is removed (or a documented waiver). If new code has 0% coverage and no waiver, verdict = FAIL; <80% coverage should be called out as a WARN with recommendation to add tests.
 - Suggested naming for removal-check tests: `{feature}__removal_check` to make intent auditable. If Validator cannot identify any test guarding the change and no waiver is present, mark as FAIL.
 
