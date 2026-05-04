@@ -3551,6 +3551,8 @@ fn derive_closeout_state_from_canonical(
 /// - `canonical.evidence_refs` does not include a CANONICAL validator-gate
 ///   ref under `<gov_root>/validator_gates/<wp_id>.json` (substring spoofs
 ///   such as `/notes/validator_gates/...` are rejected), OR
+/// - the canonical validator-gate artifact is not materialized under
+///   `<gov_root>/validator_gates/<wp_id>.json`, OR
 /// - `canonical.authority_refs` does not include a CANONICAL work-packet
 ///   `packet.json` ref under `<gov_root>/work_packets/<wp_id>/packet.json`.
 ///
@@ -3586,6 +3588,12 @@ pub fn derive_software_delivery_closeout_posture(
         runtime_paths,
         &canonical.record_id,
     )?;
+    if !runtime_paths
+        .validator_gate_record_path(&canonical.record_id)
+        .exists()
+    {
+        return None;
+    }
     let owner_authority_ref = first_canonical_owner_packet_ref(
         &canonical.authority_refs,
         runtime_paths,

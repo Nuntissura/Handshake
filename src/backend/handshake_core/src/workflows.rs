@@ -29493,6 +29493,20 @@ mod tests {
             "{}nested/archive-pass-1.json",
             runtime_paths.governance_decisions_dir_display()
         );
+        let gate_record_path = runtime_paths.validator_gate_record_path(wp_id);
+        std::fs::create_dir_all(
+            gate_record_path
+                .parent()
+                .expect("validator gate parent directory must exist"),
+        )?;
+        std::fs::write(
+            &gate_record_path,
+            serde_json::to_vec(&json!({
+                "gate_record_id": format!("validator_gate:{wp_id}"),
+                "gate_state_ref": runtime_paths.validator_gate_display(wp_id),
+                "gate_state": { "status": "pass" }
+            }))?,
+        )?;
 
         let canonical = locus::StructuredCollaborationSummaryV1 {
             schema_id: descriptor.schema_id.to_string(),
@@ -29593,6 +29607,20 @@ mod tests {
         let gate_record_ref = runtime_paths.validator_gate_display(wp_id);
         let owner_authority_ref = runtime_paths.work_packet_packet_display(wp_id);
         let decision_ref = runtime_paths.governance_decision_display("archive-pass-1");
+        let gate_record_path = runtime_paths.validator_gate_record_path(wp_id);
+        std::fs::create_dir_all(
+            gate_record_path
+                .parent()
+                .expect("validator gate parent directory must exist"),
+        )?;
+        std::fs::write(
+            &gate_record_path,
+            serde_json::to_vec(&json!({
+                "gate_record_id": format!("validator_gate:{wp_id}"),
+                "gate_state_ref": runtime_paths.validator_gate_display(wp_id),
+                "gate_state": { "status": "pass" }
+            }))?,
+        )?;
         let canonical = locus::StructuredCollaborationSummaryV1 {
             schema_id: "hsk.structured_collaboration_summary@1".to_string(),
             schema_version: "1".to_string(),
@@ -29638,6 +29666,102 @@ mod tests {
             vec![decision_ref],
             "production closeout posture lifecycle must project canonical governance decision refs"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn check_result_pass_does_not_close_work_without_gate_materialization(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = tempfile::tempdir()?;
+        let runtime_paths = RuntimeGovernancePaths::from_workspace_root(tmp.path().to_path_buf())?;
+        let wp_id = "WP-CHECK-RESULT-MATERIALIZATION-GUARD-1";
+        let gate_record_ref = runtime_paths.validator_gate_display(wp_id);
+        let owner_authority_ref = runtime_paths.work_packet_packet_display(wp_id);
+        let decision_ref = runtime_paths.governance_decision_display("archive-pass-1");
+        let gate_record_path = runtime_paths.validator_gate_record_path(wp_id);
+        let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
+        let workspace_root = runtime_paths.workspace_root().to_path_buf();
+        let descriptor = locus::structured_collaboration_schema_descriptor(
+            locus::StructuredCollaborationRecordFamily::WorkPacketSummary,
+        );
+        let canonical = locus::StructuredCollaborationSummaryV1 {
+            schema_id: descriptor.schema_id.to_string(),
+            schema_version: descriptor.schema_version.to_string(),
+            record_id: wp_id.to_string(),
+            record_kind: descriptor.record_kind.to_string(),
+            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+            updated_at: Utc::now().to_rfc3339(),
+            mirror_state: locus::MirrorSyncState::CanonicalOnly,
+            authority_refs: vec![owner_authority_ref],
+            evidence_refs: vec![runtime_paths.task_board_display(), gate_record_ref.clone()],
+            mirror_contract: None,
+            workflow_state_family: locus::WorkflowStateFamily::Done,
+            queue_reason_code: locus::WorkflowQueueReasonCode::ReadyForHuman,
+            allowed_action_ids: vec!["archive".to_string()],
+            transition_rule_ids: vec![],
+            queue_automation_rule_ids: vec![],
+            executor_eligibility_policy_ids: vec![],
+            status: "done".to_string(),
+            title_or_objective: "Check result pass without gate materialization".to_string(),
+            blockers: vec![],
+            next_action: Some("archive".to_string()),
+            summary_ref: Some(runtime_paths.work_packet_summary_display(wp_id)),
+        };
+        let summary_value = serde_json::to_value(&canonical)?;
+
+        let posture = locus::derive_software_delivery_closeout_posture(
+            &canonical,
+            &runtime_paths,
+            None,
+            &[decision_ref.clone()],
+        );
+        assert!(
+            posture.is_none(),
+            "check-result pass does not close without validator gate materialization"
+        );
+
+        apply_software_delivery_closeout_posture_lifecycle(
+            &runtime_paths,
+            &workspace_root,
+            wp_id,
+            &summary_value,
+        )?;
+        assert!(
+            !posture_path.exists(),
+            "production closeout posture artifact must not be written without gate materialization"
+        );
+
+        std::fs::create_dir_all(
+            gate_record_path
+                .parent()
+                .expect("validator gate parent directory must exist"),
+        )?;
+        std::fs::write(
+            &gate_record_path,
+            serde_json::to_vec(&json!({
+                "gate_summary": {
+                    "gate_state_ref": gate_record_ref,
+                    "gate_record_id": format!("validator_gate:{wp_id}"),
+                    "check_result": { "status": "pass" },
+                    "evidence_refs": [runtime_paths.task_board_display(), runtime_paths.governance_decision_display("archive-pass-1")],
+                }
+            }))?,
+        )?;
+
+        apply_software_delivery_closeout_posture_lifecycle(
+            &runtime_paths,
+            &workspace_root,
+            wp_id,
+            &summary_value,
+        )?;
+        let posture: locus::SoftwareDeliveryCloseoutPostureV1 =
+            serde_json::from_slice(&std::fs::read(&posture_path)?)?;
+        assert_eq!(
+            posture.governed_action_resolution_refs,
+            vec![decision_ref],
+            "check-result pass with materialized validator gate must yield closeout posture"
+        );
+
         Ok(())
     }
 
