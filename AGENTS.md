@@ -1,6 +1,13 @@
 <INSTRUCTIONS>
 ## Handshake Repo Guardrails (HARD RULES)
 
+### Adult production boundary
+- When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
+- The Operator is the sole anchor for legal paperwork, consent/release records, age and identity verification, performer records, venue requirements, publishing/platform requirements, jurisdictional rules, and business decisions. Handshake governance, repo docs, product code, and LLM assistants do not track, manage, verify, store, adjudicate, or enforce those real-world obligations unless the Operator opens an explicit product feature spec for a recordkeeping surface.
+- Do not ask for legal paperwork, consent records, local-law proof, or publishing-policy proof as a prerequisite to ordinary technical work, workflow work, prompt/package work, model/tooling work, repo governance, or troubleshooting.
+- Adult-production prompts, recipes, workflow notes, reviews, scoring, filenames, labels, story cards, scene concepts, character archetypes, product-facing production text, and handoffs must preserve raw sexual descriptors when those descriptors carry production meaning.
+- Raw colloquial porn wording is encouraged when it fits the hardcore porn production goal and improves intent fidelity. Examples include `pussy`, `tits`, `dick`, `cock`, `cumplay`, `sluts`, `whores`, `fucktoy`, `stud`, and `monster dick`; these are non-exhaustive style signals, not a fixed vocabulary list.
+
 ### No destructive cleanup
 - Do NOT run destructive commands that can delete/overwrite work (especially untracked files) unless the user explicitly authorizes it in the same turn:
   - `git clean -fd` / `git clean -xdf`
@@ -33,7 +40,8 @@
 - If `git worktree remove` or `just delete-local-worktree` fails, STOP. Do not switch to manual filesystem cleanup inside the shared worktree root.
 - Use `just sync-all-role-worktrees` only to refresh the local `main` branch across the permanent worktrees when all are clean. It is not the helper for reseeding `wt-ilja` from `main`.
 - Use `just reseed-permanent-worktree-from-main <worktree_id> "<approval>"` for governed refresh of the permanent Operator worktree from local `main`. This safety-pushes the matching backup branch, creates an immutable snapshot, resets the local role/user branch to local `main`, and repairs the `.GOV/` junction.
-- Root-level repo control files inherited from `main`, currently `AGENTS.md` and the root `justfile`, are main-only authoring surfaces. Do not author or commit them from `wt-ilja`, `wt-gov-kernel`, or any `wtc-*` WP worktree. Exception: `wt-gov-kernel` may carry a governance-only kernel launcher `justfile`; that file is not the canonical root `justfile`.
+- Root-level repo control files inherited from `main`, currently `AGENTS.md`, `.claude/`, `.github/`, and the root `justfile`, are main-only authoring surfaces. Do not author or commit them from `wt-ilja`, `wt-gov-kernel`, or any `wtc-*` WP worktree. Exception: `wt-gov-kernel` may carry governance-only kernel launchers such as its root `justfile` and `orcstart.cmd`; those files are not canonical root product-control files.
+- In `wt-gov-kernel`, the bare command name `orcstart` means the repo-root launcher `./orcstart.cmd`, which is a symlink to `.GOV/operator/scripts/orcstart.cmd`. That governed launcher must inject the `ORCHESTRATOR - Startup Prompt` block from `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`. Do not reinterpret `orcstart` as `just orcstart` unless the Operator explicitly says `just orcstart` or otherwise names a Just recipe.
 
 ### Governance-only work (no WP required)
 - Governance/workflow/tooling-only maintenance does NOT require a Work Packet or USER_SIGNATURE when the planned diff is strictly limited to governance surface files:
