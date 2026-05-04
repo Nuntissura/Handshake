@@ -29582,7 +29582,7 @@ mod tests {
             &missing_action,
             &runtime_paths,
             None,
-            &[canonical_decision_ref],
+            &[canonical_decision_ref.clone()],
         )
         .is_none());
         let validation = locus::validate_software_delivery_closeout_canonical_truth(
