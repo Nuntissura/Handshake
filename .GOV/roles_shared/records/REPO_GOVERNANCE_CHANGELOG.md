@@ -21,6 +21,30 @@
 
 ## Entries
 
+### 2026.05.05.01 / GOV-CHANGE-20260505-01
+
+- STATUS: APPLIED
+- SUMMARY: fixed orcstart startup failure from repo governance board path validation against stale main governance backup
+- CHANGE_TYPE: GOV_CHECK_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260505-ORCSTART-GOV-CHECK-LIVE-KERNEL-PATHING`
+  - `orcstart.cmd` correctly set `HANDSHAKE_GOV_ROOT` to the live kernel, but `repo-governance-board-check.mjs` read and validated `.GOV` paths against `HANDSHAKE_ACTIVE_REPO_ROOT`, causing false failures when `handshake_main/.GOV` lacked operator-local launcher docs that existed in the kernel.
+- FOLLOW_ON_ITEMS:
+  - `RGF-280`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `.GOV/roles_shared/scripts/lib/repo-governance-board-lib.mjs`
+  - `.GOV/roles_shared/tests/repo-governance-board-lib.test.mjs`
+  - `.GOV/Audits/audits/AUDIT-20260505-ORCSTART-GOV-CHECK-LIVE-KERNEL-PATHING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: board validation now reads the board, changelog, guide, and `.GOV/*.md` path references from the injected live governance root while preserving canonical product-root context for checks that need it.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/repo-governance-board-lib.test.mjs`
+  - split-root `repo-governance-board-check.mjs` invocation with `HANDSHAKE_ACTIVE_REPO_ROOT=handshake_main` and `HANDSHAKE_GOV_ROOT=wt-gov-kernel/.GOV`
+  - `just gov-check`
+  - `.\\orcstart.cmd`
+
 ### 2026.05.04.11 / GOV-CHANGE-20260504-11
 
 - STATUS: APPLIED

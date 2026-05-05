@@ -165,14 +165,18 @@ function changelogMentions(changelogText = "", id = "") {
   return new RegExp(`\\b${String(id || "").replace("-", "\\-")}\\b`).test(changelogText);
 }
 
-function referenceExists(repoRoot, referencePath) {
+function referenceExists(repoRoot, referencePath, governanceRoot = "") {
   const normalized = normalizePathText(referencePath);
   if (!normalized) return true;
+  if (governanceRoot && normalized.startsWith(".GOV/")) {
+    return fs.existsSync(path.resolve(governanceRoot, normalized.slice(".GOV/".length)));
+  }
   return fs.existsSync(path.resolve(repoRoot, normalized));
 }
 
 export function validateRepoGovernanceBoard({
   repoRoot = process.cwd(),
+  governanceRoot = "",
   boardText = "",
   changelogText = "",
   guideText = "",
@@ -231,7 +235,7 @@ export function validateRepoGovernanceBoard({
   }
 
   for (const ref of parsed.pathReferences) {
-    if (!referenceExists(repoRoot, ref.path)) {
+    if (!referenceExists(repoRoot, ref.path, governanceRoot)) {
       errors.push(`${REPO_GOVERNANCE_BOARD_PATH}:${ref.line}: referenced file does not exist: ${ref.path}`);
     }
   }
