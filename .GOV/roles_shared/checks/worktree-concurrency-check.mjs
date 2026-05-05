@@ -84,6 +84,7 @@ export function wpRequiresDedicatedWorktreeMapping({ role = "", wpId = "" } = {}
   const normalizedRole = String(role || "").trim().toUpperCase();
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedWpId.startsWith("WP-")) return false;
+  if (["ACTIVATION_MANAGER", "ORCHESTRATOR", "CLASSIC_ORCHESTRATOR"].includes(normalizedRole)) return false;
   if (normalizedRole === "MEMORY_MANAGER") return false;
   if (/^WP-MEMORY-HYGIENE_/i.test(normalizedWpId)) return false;
   return true;

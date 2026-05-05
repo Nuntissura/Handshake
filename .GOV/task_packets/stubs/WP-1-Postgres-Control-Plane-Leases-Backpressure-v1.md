@@ -1,0 +1,74 @@
+# TASK_PACKET_STUB_TEMPLATE
+
+This is a BACKLOG STUB. It is NOT an executable Work Packet.
+
+Rules:
+- No USER_SIGNATURE is requested/required for stubs.
+- No refinement file is required for stubs.
+- Coder/Validator MUST NOT start work from a stub.
+- When activating a stub into a real WP, follow `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (Technical Refinement Block + USER_SIGNATURE + refinement + `just create-task-packet`).
+- If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
+
+---
+
+# Work Packet Stub: WP-1-Postgres-Control-Plane-Leases-Backpressure-v1
+
+## STUB_METADATA
+- WP_ID: WP-1-Postgres-Control-Plane-Leases-Backpressure-v1
+- BASE_WP_ID: WP-1-Postgres-Control-Plane-Leases-Backpressure
+- CREATED_AT: 2026-05-05T17:55:00Z
+- STUB_STATUS: STUB (NOT READY FOR DEV)
+- BUILD_ORDER_DOMAIN: BACKEND
+- BUILD_ORDER_TECH_BLOCKER: YES
+- BUILD_ORDER_VALUE_TIER: HIGH
+- BUILD_ORDER_RISK_TIER: HIGH
+- BUILD_ORDER_DEPENDS_ON: WP-1-Postgres-Primary-Control-Plane-Foundation, WP-1-Postgres-Dev-Test-Container-Matrix, WP-1-Storage-Abstraction-Layer, WP-1-ModelSession-Core-Scheduler
+- BUILD_ORDER_BLOCKS: WP-1-ModelSession-Postgres-Queue-Workers, WP-1-FEMS-Postgres-Memory-Store, WP-1-Workflow-Engine-Postgres-Durable-Execution, WP-1-DCC-Postgres-Control-Plane-Projections
+- SPEC_TARGET: .GOV/spec/SPEC_CURRENT.md
+- ROLE_MODEL_PROFILE_POLICY: ROLE_MODEL_PROFILE_CATALOG_V1
+- ACTIVATION_MANAGER_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
+- ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
+- CODER_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
+- WP_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH
+- INTEGRATION_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
+- ROADMAP_POINTER: SPEC_CURRENT storage portability and ModelSession concurrency anchors
+- SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
+  - Storage portability and PostgreSQL backend anchors around Master Spec lines 3248-3520.
+  - ModelSession memory/concurrency anchors around Master Spec line 11967.
+
+## INTENT (DRAFT)
+- What: Add PostgreSQL-backed claim, lease, heartbeat, retry, and backpressure primitives for control-plane work that can be shared by sessions, model runs, workflow jobs, and memory jobs.
+- Why: Self-hosting parallel model execution needs one authoritative runtime arbiter. Without leases and bounded backpressure, multiple models can duplicate work, overrun host capacity, or corrupt queue state under high load.
+
+## SCOPE_SKETCH (DRAFT)
+- IN_SCOPE:
+  - Portable lease table/schema and application-layer claim/reclaim operations.
+  - Queue state transitions for pending, claimed, running, stalled, retryable, dead-letter, and completed work.
+  - Backpressure policy inputs for max concurrent models, per-provider limits, memory jobs, and host load.
+  - Deterministic tests for duplicate-claim prevention, lease expiry, retry bounds, and crash recovery.
+- OUT_OF_SCOPE:
+  - Provider-specific model invocation details.
+  - UI projection beyond emitting enough state for later DCC display.
+  - Real distributed cluster scheduling.
+
+## ACCEPTANCE_CRITERIA (DRAFT)
+- Concurrent claim attempts on the same queue item produce exactly one winner.
+- Expired leases are reclaimable through a bounded, auditable transition.
+- Backpressure prevents new claims when configured host/model limits are reached.
+- Failure and dead-letter states are persisted in PostgreSQL and visible to downstream projection APIs.
+
+## DEPENDENCIES / BLOCKERS (DRAFT)
+- Depends on the PostgreSQL-primary foundation, stable test container matrix, storage abstraction, and existing ModelSession scheduler contract.
+- Blocks PostgreSQL queue workers, FEMS memory jobs, workflow durable execution, and DCC runtime truth projections.
+
+## RISKS / UNKNOWNs (DRAFT)
+- Risk: SQL locking semantics differ by backend; activation should prefer PostgreSQL-native correctness while keeping SQLite fallback boundaries explicit.
+- Unknown: whether advisory locks, row locks, or application-side compare-and-swap should be the default primitive.
+
+## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)
+- [ ] Confirm the requirement exists in Master Spec Main Body or create/approve spec enrichment first.
+- [ ] Produce the in-chat Technical Refinement Block.
+- [ ] Obtain USER_SIGNATURE for the WP.
+- [ ] Create the signed refinement.
+- [ ] Create the official Work Packet via `just create-task-packet WP-1-Postgres-Control-Plane-Leases-Backpressure-v1`.
+- [ ] Move `.GOV/roles_shared/records/TASK_BOARD.md` entry from STUB to Ready for Dev.

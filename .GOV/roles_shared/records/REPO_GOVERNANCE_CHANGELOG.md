@@ -21,6 +21,28 @@
 
 ## Entries
 
+### 2026.05.05.02 / GOV-CHANGE-20260505-02
+
+- STATUS: APPLIED
+- SUMMARY: opened heavy-load ACP and swarm workflow hardening track during PostgreSQL-primary control-plane activation
+- CHANGE_TYPE: GOVERNANCE_REFACTOR_TRACKING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING`
+  - Operator started `WP-1-Postgres-Primary-Control-Plane-Foundation-v1` under orchestrator-managed ACP with heavy host-load expectations and asked for future swarm-parallel workflow hardening to be tracked on the governance refactor board.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+- FILES_CHANGED:
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+  - `.GOV/roles_shared/checks/worktree-concurrency-check.mjs`
+  - `.GOV/roles_shared/tests/worktree-concurrency-check.test.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `RGF-281` now records the ACP/session-control hardening lane, and the first implemented slice prevents pre-signature Activation Manager sessions from falsely failing local topology checks for missing coder/WP-validator worktrees while preserving the dedicated-worktree requirement for Task Board `IN_PROGRESS` WPs.
+- VERIFICATION:
+  - `node --test .GOV/roles_shared/tests/worktree-concurrency-check.test.mjs`
+  - `just build-order-sync`
+  - `just gov-check`
+
 ### 2026.05.05.01 / GOV-CHANGE-20260505-01
 
 - STATUS: APPLIED
