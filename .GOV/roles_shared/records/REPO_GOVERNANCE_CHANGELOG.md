@@ -5195,6 +5195,13 @@
 
 
 
+### GOV-CHANGE-20260507-02
+- TASKS: RGF-299
+- SUMMARY: Added deterministic WP dossier runtime initialization and validation. The internal initializer creates the external WP_DOSSIERS/WP-{ID}/ tree for active WP communication folders, and the wp-comm bundle now fails when required dossier dirs/files or index/manifest contracts are missing. Runtime dossier payloads remain outside git.
+- FILES: .GOV/roles_shared/scripts/audit/wp-dossier-runtime.mjs; .GOV/roles_shared/checks/wp-dossier-runtime-check.mjs; .GOV/roles_shared/checks/wp-comm-bundle-check.mjs; .GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- RUNTIME: Initialized 34 external WP dossier trees under ../gov_runtime/roles_shared/WP_DOSSIERS/.
+- VALIDATION: PASS - wp-dossier-runtime-check; residual-artifact-writer-inventory-check; just gov-check --sync-topology; just gov-check.
+
 ### GOV-CHANGE-20260507-01
 - TASKS: RGF-299
 - SUMMARY: Started phase bundle diagnosis hardening by declaring the per-WP external dossier archive and making failure dossier writes WP-aware. WP dossiers live under the external governance runtime root at roles_shared/WP_DOSSIERS/WP-{ID}/, preserve raw ACP/repomem/command/bundle logs for posterity, and expose index.json as the first machine/model lookup surface.
