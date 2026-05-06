@@ -52,6 +52,8 @@ Every action card must use this shape:
 - SOURCE: <memory ids, changelog ids, or brief source>
 ```
 
+Every active role startup brief must include one `CX-218K` mechanical intervention card. That card must tell the role to classify 3-5 plausible causes before patching, steering, relaying, validating, activating, declaring a stall, or treating handoff/documentation/protocol drift as blocked; it must name `documentation/protocol drift` and `session/ACP drift`; it must require the cheapest deterministic read, repair, or typed helper first; and it must forbid manually relaying or brokering ordinary role content when a typed helper, receipt, envelope, or authority artifact exists.
+
 ## Shared Brief
 
 `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md` uses the same action-card shape and may include cross-role cards for pathing, PowerShell, topology, toolcalling, and governance memory usage.

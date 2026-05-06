@@ -267,6 +267,7 @@ Format:
 | WP-1-FEMS-Bitemporal-Indexing | .GOV/task_packets/stubs/WP-1-FEMS-Bitemporal-Indexing-v1.md | TBD | |
 | WP-1-FEMS-Outcome-Feedback-Loop | .GOV/task_packets/stubs/WP-1-FEMS-Outcome-Feedback-Loop-v1.md | TBD | |
 | WP-1-FEMS-MT-Handoff-Memory-Context | .GOV/task_packets/stubs/WP-1-FEMS-MT-Handoff-Memory-Context-v1.md | TBD | |
+| WP-1-Postgres-Primary-Control-Plane-Foundation | .GOV/task_packets/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/packet.md | TBD | |
 
 ## Historical Failure + Live Smoketest Lineage
 

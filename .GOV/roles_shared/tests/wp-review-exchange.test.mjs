@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 
 import {
   deriveFallbackReviewMicrotaskContract,
+  isFinalIntegrationReviewResolution,
   parseReviewExchangeCliArgs,
+  reviewExchangeOptionalFieldErrors,
   resolveReviewAckFor,
 } from "../scripts/wp/wp-review-exchange.mjs";
 
@@ -126,6 +128,23 @@ test("parseReviewExchangeCliArgs strips shell wrapper quotes from named metadata
   assert.equal(parsed.microtaskJson, "{\"scope_ref\":\"MT-001\",\"commit\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}");
 });
 
+test("reviewExchangeOptionalFieldErrors rejects shell-spillover review request correlation ids", () => {
+  const errors = reviewExchangeOptionalFieldErrors({
+    receiptKind: "REVIEW_REQUEST",
+    correlationId: "requires",
+  });
+
+  assert.match(errors.join("\n"), /Malformed REVIEW_REQUEST correlation_id/);
+  assert.equal(reviewExchangeOptionalFieldErrors({
+    receiptKind: "REVIEW_REQUEST",
+    correlationId: "review:WP-TEST:review_request:abc:123456",
+  }).length, 0);
+  assert.equal(reviewExchangeOptionalFieldErrors({
+    receiptKind: "REVIEW_REQUEST",
+    correlationId: "",
+  }).length, 0);
+});
+
 test("deriveFallbackReviewMicrotaskContract infers coder handoff commit from summary", () => {
   const wpId = "WP-TEST-REVIEW-EXCHANGE-HANDOFF-COMMIT-v1";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
@@ -156,6 +175,26 @@ test("deriveFallbackReviewMicrotaskContract infers coder handoff commit from sum
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
   }
+});
+
+test("isFinalIntegrationReviewResolution recognizes final coder handoff reviews", () => {
+  assert.equal(isFinalIntegrationReviewResolution({
+    receiptKind: "REVIEW_RESPONSE",
+    actorRole: "INTEGRATION_VALIDATOR",
+    targetRole: "CODER",
+    correlationId: "review:WP-TEST:coder_handoff:final:abc123",
+    packetRowRef: "CODER_HANDOFF final handoff",
+    summary: "INTEGRATION_REVIEW PASS for final CODER_HANDOFF",
+  }), true);
+
+  assert.equal(isFinalIntegrationReviewResolution({
+    receiptKind: "REVIEW_RESPONSE",
+    actorRole: "WP_VALIDATOR",
+    targetRole: "CODER",
+    correlationId: "review:WP-TEST:review_request:mt001:abc123",
+    packetRowRef: "MT-001",
+    summary: "MT-001 PASS",
+  }), false);
 });
 
 test("resolveReviewAckFor defaults coder intent ack to correlation id", () => {

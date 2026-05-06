@@ -30,16 +30,42 @@ const JUSTFILE_PATH = "justfile";
 // The justfile uses {{GOV_ROOT}} (a just variable) — when matching raw justfile text,
 // we must use the literal justfile variable syntax, not the resolved GOV_ROOT_REPO_REL.
 const JUSTFILE_GOV_PREFIX = "{{GOV_ROOT}}";
+const CODEX_PATH = path.join(GOV_ROOT_REPO_REL, "codex", "Handshake_Codex_v1.4.md");
 const ORCHESTRATOR_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "ORCHESTRATOR_PROTOCOL.md");
+const CLASSIC_ORCHESTRATOR_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "classic_orchestrator", "CLASSIC_ORCHESTRATOR_PROTOCOL.md");
 const CODER_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "coder", "CODER_PROTOCOL.md");
+const WP_VALIDATOR_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "wp_validator", "WP_VALIDATOR_PROTOCOL.md");
+const INTEGRATION_VALIDATOR_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "integration_validator", "INTEGRATION_VALIDATOR_PROTOCOL.md");
 const VALIDATOR_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "validator", "VALIDATOR_PROTOCOL.md");
+const MEMORY_MANAGER_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "memory_manager", "MEMORY_MANAGER_PROTOCOL.md");
+const ACTIVATION_MANAGER_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "activation_manager", "ACTIVATION_MANAGER_PROTOCOL.md");
+const ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md");
+const SHARED_STARTUP_BRIEF_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "SHARED_STARTUP_BRIEF.md");
+const COMMAND_SURFACE_REFERENCE_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "COMMAND_SURFACE_REFERENCE.md");
+const ROLE_WORKFLOW_QUICKREF_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "ROLE_WORKFLOW_QUICKREF.md");
+const ROLE_SESSION_ORCHESTRATION_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "ROLE_SESSION_ORCHESTRATION.md");
+const GOVERNED_WORKFLOW_EXAMPLES_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "GOVERNED_WORKFLOW_EXAMPLES.md");
+const STARTUP_BRIEF_SCHEMA_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "STARTUP_BRIEF_SCHEMA.md");
+const OPERATOR_STARTUP_PROMPTS_PATH = path.join(GOV_ROOT_REPO_REL, "operator", "docs_local", "Handshake_Role_Startup_Prompts.md");
+const ORCSTART_PROMPT_PATH = path.join(GOV_ROOT_REPO_REL, "operator", "scripts", "orcstart.prompt.txt");
+const ORCHESTRATOR_STARTUP_BRIEF_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "docs", "ORCHESTRATOR_STARTUP_BRIEF.md");
+const CLASSIC_ORCHESTRATOR_STARTUP_BRIEF_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "classic_orchestrator", "docs", "CLASSIC_ORCHESTRATOR_STARTUP_BRIEF.md");
+const ACTIVATION_MANAGER_STARTUP_BRIEF_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "activation_manager", "docs", "ACTIVATION_MANAGER_STARTUP_BRIEF.md");
+const WP_VALIDATOR_STARTUP_BRIEF_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "wp_validator", "docs", "WP_VALIDATOR_STARTUP_BRIEF.md");
+const INTEGRATION_VALIDATOR_STARTUP_BRIEF_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "integration_validator", "docs", "INTEGRATION_VALIDATOR_STARTUP_BRIEF.md");
+const VALIDATOR_STARTUP_BRIEF_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "validator", "docs", "VALIDATOR_STARTUP_BRIEF.md");
+const MEMORY_MANAGER_STARTUP_BRIEF_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "memory_manager", "docs", "MEMORY_MANAGER_STARTUP_BRIEF.md");
 const ORCHESTRATOR_GATES_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "checks", "orchestrator_gates.mjs");
 const ORCHESTRATOR_NEXT_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "orchestrator-next.mjs");
+const ORCHESTRATOR_RESCUE_LIB_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "orchestrator-rescue-lib.mjs");
 const CREATE_TASK_PACKET_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "create-task-packet.mjs");
 const LAUNCH_CLI_SESSION_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "launch-cli-session.mjs");
 const SESSION_CONTROL_COMMAND_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
 const SESSION_CONTROL_CANCEL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-cancel.mjs");
 const SESSION_CONTROL_LIB_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "scripts", "session", "session-control-lib.mjs");
+const WP_LANE_HEALTH_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "scripts", "session", "wp-lane-health.mjs");
+const WP_RELAY_WATCHDOG_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "wp-relay-watchdog.mjs");
+const WP_AUTONOMOUS_MONITOR_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "wp-autonomous-monitor.mjs");
 const ROLE_SESSION_WORKTREE_ADD_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "role-session-worktree-add.mjs");
 const PRE_WORK_CHECK_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "coder", "checks", "pre-work-check.mjs");
 const SESSION_POLICY_CHECK_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "checks", "session-policy-check.mjs");
@@ -50,16 +76,42 @@ const ROLE_SESSION_REGISTRY_SCHEMA_PATH = path.join(GOV_ROOT_REPO_REL, "roles_sh
 
 const ACTIVE_SURFACE_PATHS = [
   JUSTFILE_PATH,
+  CODEX_PATH,
   ORCHESTRATOR_PROTOCOL_PATH,
+  CLASSIC_ORCHESTRATOR_PROTOCOL_PATH,
   CODER_PROTOCOL_PATH,
+  WP_VALIDATOR_PROTOCOL_PATH,
+  INTEGRATION_VALIDATOR_PROTOCOL_PATH,
   VALIDATOR_PROTOCOL_PATH,
+  MEMORY_MANAGER_PROTOCOL_PATH,
+  ACTIVATION_MANAGER_PROTOCOL_PATH,
+  ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH,
+  SHARED_STARTUP_BRIEF_PATH,
+  COMMAND_SURFACE_REFERENCE_PATH,
+  ROLE_WORKFLOW_QUICKREF_PATH,
+  ROLE_SESSION_ORCHESTRATION_PATH,
+  GOVERNED_WORKFLOW_EXAMPLES_PATH,
+  STARTUP_BRIEF_SCHEMA_PATH,
+  OPERATOR_STARTUP_PROMPTS_PATH,
+  ORCSTART_PROMPT_PATH,
+  ORCHESTRATOR_STARTUP_BRIEF_PATH,
+  CLASSIC_ORCHESTRATOR_STARTUP_BRIEF_PATH,
+  ACTIVATION_MANAGER_STARTUP_BRIEF_PATH,
+  WP_VALIDATOR_STARTUP_BRIEF_PATH,
+  INTEGRATION_VALIDATOR_STARTUP_BRIEF_PATH,
+  VALIDATOR_STARTUP_BRIEF_PATH,
+  MEMORY_MANAGER_STARTUP_BRIEF_PATH,
   ORCHESTRATOR_GATES_PATH,
   ORCHESTRATOR_NEXT_PATH,
+  ORCHESTRATOR_RESCUE_LIB_PATH,
   CREATE_TASK_PACKET_PATH,
   LAUNCH_CLI_SESSION_PATH,
   SESSION_CONTROL_COMMAND_PATH,
   SESSION_CONTROL_CANCEL_PATH,
   SESSION_CONTROL_LIB_PATH,
+  WP_LANE_HEALTH_PATH,
+  WP_RELAY_WATCHDOG_PATH,
+  WP_AUTONOMOUS_MONITOR_PATH,
   ROLE_SESSION_WORKTREE_ADD_PATH,
   PRE_WORK_CHECK_PATH,
   SESSION_POLICY_CHECK_PATH,
@@ -158,16 +210,42 @@ const contents = new Map(ACTIVE_SURFACE_PATHS.map((filePath) => [filePath, readU
 const errors = [];
 
 const justfileContent = contents.get(JUSTFILE_PATH);
+const codexContent = contents.get(CODEX_PATH);
 const orchestratorProtocol = contents.get(ORCHESTRATOR_PROTOCOL_PATH);
+const classicOrchestratorProtocol = contents.get(CLASSIC_ORCHESTRATOR_PROTOCOL_PATH);
 const coderProtocol = contents.get(CODER_PROTOCOL_PATH);
+const wpValidatorProtocol = contents.get(WP_VALIDATOR_PROTOCOL_PATH);
+const integrationValidatorProtocol = contents.get(INTEGRATION_VALIDATOR_PROTOCOL_PATH);
 const validatorProtocol = contents.get(VALIDATOR_PROTOCOL_PATH);
+const memoryManagerProtocol = contents.get(MEMORY_MANAGER_PROTOCOL_PATH);
+const activationManagerProtocol = contents.get(ACTIVATION_MANAGER_PROTOCOL_PATH);
+const orchestratorManagedWorkflowPlaybook = contents.get(ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH);
+const sharedStartupBrief = contents.get(SHARED_STARTUP_BRIEF_PATH);
+const commandSurfaceReference = contents.get(COMMAND_SURFACE_REFERENCE_PATH);
+const roleWorkflowQuickref = contents.get(ROLE_WORKFLOW_QUICKREF_PATH);
+const roleSessionOrchestration = contents.get(ROLE_SESSION_ORCHESTRATION_PATH);
+const governedWorkflowExamples = contents.get(GOVERNED_WORKFLOW_EXAMPLES_PATH);
+const startupBriefSchema = contents.get(STARTUP_BRIEF_SCHEMA_PATH);
+const operatorStartupPrompts = contents.get(OPERATOR_STARTUP_PROMPTS_PATH);
+const orcstartPrompt = contents.get(ORCSTART_PROMPT_PATH);
+const orchestratorStartupBrief = contents.get(ORCHESTRATOR_STARTUP_BRIEF_PATH);
+const classicOrchestratorStartupBrief = contents.get(CLASSIC_ORCHESTRATOR_STARTUP_BRIEF_PATH);
+const activationManagerStartupBrief = contents.get(ACTIVATION_MANAGER_STARTUP_BRIEF_PATH);
+const wpValidatorStartupBrief = contents.get(WP_VALIDATOR_STARTUP_BRIEF_PATH);
+const integrationValidatorStartupBrief = contents.get(INTEGRATION_VALIDATOR_STARTUP_BRIEF_PATH);
+const validatorStartupBrief = contents.get(VALIDATOR_STARTUP_BRIEF_PATH);
+const memoryManagerStartupBrief = contents.get(MEMORY_MANAGER_STARTUP_BRIEF_PATH);
 const orchestratorGates = contents.get(ORCHESTRATOR_GATES_PATH);
 const orchestratorNext = contents.get(ORCHESTRATOR_NEXT_PATH);
+const orchestratorRescueLib = contents.get(ORCHESTRATOR_RESCUE_LIB_PATH);
 const createTaskPacket = contents.get(CREATE_TASK_PACKET_PATH);
 const launchCliSession = contents.get(LAUNCH_CLI_SESSION_PATH);
 const sessionControlCommand = contents.get(SESSION_CONTROL_COMMAND_PATH);
 const sessionControlCancel = contents.get(SESSION_CONTROL_CANCEL_PATH);
 const sessionControlLib = contents.get(SESSION_CONTROL_LIB_PATH);
+const wpLaneHealth = contents.get(WP_LANE_HEALTH_PATH);
+const wpRelayWatchdog = contents.get(WP_RELAY_WATCHDOG_PATH);
+const wpAutonomousMonitor = contents.get(WP_AUTONOMOUS_MONITOR_PATH);
 const roleSessionWorktreeAdd = contents.get(ROLE_SESSION_WORKTREE_ADD_PATH);
 const preWorkCheck = contents.get(PRE_WORK_CHECK_PATH);
 const sessionPolicyCheck = contents.get(SESSION_POLICY_CHECK_PATH);
@@ -332,6 +410,137 @@ requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "BLOC
 requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "routine Operator interruption ends after signature/prepare");
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "do not ask the Operator for routine approval, \"proceed\", or checkpoint actions");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "do not ask the Operator for routine approval, \"proceed\", or checkpoint actions");
+
+// CX-218K: mechanical intervention discipline must stay present on every role
+// that can patch, steer, relay, validate, activate, or propose workflow repairs.
+const MECHANICAL_INTERVENTION_SURFACES = [
+  { filePath: CODEX_PATH, content: codexContent, requirePlaybook: true },
+  { filePath: ORCHESTRATOR_PROTOCOL_PATH, content: orchestratorProtocol, requirePlaybook: true },
+  { filePath: CLASSIC_ORCHESTRATOR_PROTOCOL_PATH, content: classicOrchestratorProtocol, requirePlaybook: false },
+  { filePath: CODER_PROTOCOL_PATH, content: coderProtocol, requirePlaybook: true },
+  { filePath: WP_VALIDATOR_PROTOCOL_PATH, content: wpValidatorProtocol, requirePlaybook: true },
+  { filePath: INTEGRATION_VALIDATOR_PROTOCOL_PATH, content: integrationValidatorProtocol, requirePlaybook: true },
+  { filePath: VALIDATOR_PROTOCOL_PATH, content: validatorProtocol, requirePlaybook: false },
+  { filePath: MEMORY_MANAGER_PROTOCOL_PATH, content: memoryManagerProtocol, requirePlaybook: true },
+  { filePath: ACTIVATION_MANAGER_PROTOCOL_PATH, content: activationManagerProtocol, requirePlaybook: true },
+];
+
+for (const { filePath, content, requirePlaybook } of MECHANICAL_INTERVENTION_SURFACES) {
+  requireSubstring(errors, filePath, content, "CX-218K", "CX-218K mechanical intervention authority");
+  requireRegex(errors, filePath, content, /3-5\s+plausible\s+causes/i, "3-5 plausible causes triage");
+  requireSubstring(errors, filePath, content, "documentation/protocol drift", "documentation/protocol drift cause");
+  requireRegex(errors, filePath, content, /session\/ACP drift|ACP\/session ambiguity|session\/ACP/i, "session/ACP drift cause");
+  requireRegex(errors, filePath, content, /cheapest\s+deterministic/i, "cheapest deterministic read/repair/helper rule");
+  requireRegex(errors, filePath, content, /manually\s+(relay|broker)\s+ordinary/i, "no manual ordinary-content relay when typed helper exists");
+  if (requirePlaybook) {
+    requireSubstring(
+      errors,
+      filePath,
+      content,
+      ".GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md",
+      "orchestrator-managed workflow playbook reference",
+    );
+  }
+}
+
+const ROLE_STARTUP_BRIEF_MECHANICAL_SURFACES = [
+  { filePath: ORCHESTRATOR_STARTUP_BRIEF_PATH, content: orchestratorStartupBrief },
+  { filePath: CLASSIC_ORCHESTRATOR_STARTUP_BRIEF_PATH, content: classicOrchestratorStartupBrief },
+  { filePath: ACTIVATION_MANAGER_STARTUP_BRIEF_PATH, content: activationManagerStartupBrief },
+  { filePath: WP_VALIDATOR_STARTUP_BRIEF_PATH, content: wpValidatorStartupBrief },
+  { filePath: INTEGRATION_VALIDATOR_STARTUP_BRIEF_PATH, content: integrationValidatorStartupBrief },
+  { filePath: VALIDATOR_STARTUP_BRIEF_PATH, content: validatorStartupBrief },
+  { filePath: MEMORY_MANAGER_STARTUP_BRIEF_PATH, content: memoryManagerStartupBrief },
+];
+
+for (const { filePath, content } of ROLE_STARTUP_BRIEF_MECHANICAL_SURFACES) {
+  requireSubstring(errors, filePath, content, "CX-218K", "CX-218K role-startup intervention card");
+  requireRegex(errors, filePath, content, /3-5\s+plausible\s+causes/i, "3-5 plausible causes triage");
+  requireSubstring(errors, filePath, content, "documentation/protocol drift", "documentation/protocol drift cause");
+  requireRegex(errors, filePath, content, /session\/ACP drift|ACP\/session ambiguity|session\/ACP/i, "session/ACP drift cause");
+  requireRegex(errors, filePath, content, /cheapest\s+deterministic/i, "cheapest deterministic read/repair/helper rule");
+  requireRegex(errors, filePath, content, /manually\s+(relay|broker)\s+ordinary/i, "no manual ordinary-content relay when typed helper exists");
+}
+
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "## Stall Patterns");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "Post-Commit Auto-Relay Does Not Fire");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "Final Handoff Closeout Inversion");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "Closeout Report Materialization Drift");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "Merge-Pending Terminal Projection");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "Main Containment Drift");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "TERMINAL_HISTORY_HIDDEN");
+requireSubstring(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, "Every active role startup brief must include one `CX-218K` mechanical intervention card");
+requireSubstring(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, "cheapest deterministic read, repair, or typed helper");
+requireRegex(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, /manually\s+relaying\s+or\s+brokering\s+ordinary/i, "startup schema no manual ordinary-content relay");
+
+const MECHANICAL_STARTUP_REFERENCE_SURFACES = [
+  { filePath: SHARED_STARTUP_BRIEF_PATH, content: sharedStartupBrief, requirePlaybook: true },
+  { filePath: COMMAND_SURFACE_REFERENCE_PATH, content: commandSurfaceReference, requirePlaybook: true },
+  { filePath: ROLE_WORKFLOW_QUICKREF_PATH, content: roleWorkflowQuickref, requirePlaybook: true },
+  { filePath: ROLE_SESSION_ORCHESTRATION_PATH, content: roleSessionOrchestration, requirePlaybook: false },
+  { filePath: OPERATOR_STARTUP_PROMPTS_PATH, content: operatorStartupPrompts, requirePlaybook: true },
+  { filePath: ORCSTART_PROMPT_PATH, content: orcstartPrompt, requirePlaybook: true },
+  { filePath: ORCHESTRATOR_STARTUP_BRIEF_PATH, content: orchestratorStartupBrief, requirePlaybook: false },
+  { filePath: SESSION_CONTROL_LIB_PATH, content: sessionControlLib, requirePlaybook: true },
+  { filePath: ORCHESTRATOR_RESCUE_LIB_PATH, content: orchestratorRescueLib, requirePlaybook: false },
+];
+
+for (const { filePath, content, requirePlaybook } of MECHANICAL_STARTUP_REFERENCE_SURFACES) {
+  requireSubstring(errors, filePath, content, "CX-218K", "CX-218K startup/reference intervention discipline");
+  requireRegex(errors, filePath, content, /3-5\s+plausible\s+causes/i, "3-5 plausible causes triage");
+  requireSubstring(errors, filePath, content, "documentation/protocol drift", "documentation/protocol drift cause");
+  requireRegex(errors, filePath, content, /session\/ACP drift|ACP\/session ambiguity|session\/ACP/i, "session/ACP drift cause");
+  if (requirePlaybook) {
+    requireSubstring(errors, filePath, content, ".GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md", "orchestrator-managed workflow playbook reference");
+  }
+}
+
+requireSubstring(errors, OPERATOR_STARTUP_PROMPTS_PATH, operatorStartupPrompts, "phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>");
+requireSubstring(errors, OPERATOR_STARTUP_PROMPTS_PATH, operatorStartupPrompts, "phase-check VERDICT");
+requireSubstring(errors, ORCSTART_PROMPT_PATH, orcstartPrompt, "phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>");
+requireSubstring(errors, ORCSTART_PROMPT_PATH, orcstartPrompt, "review/verdict response");
+requireSubstring(errors, ORCHESTRATOR_STARTUP_BRIEF_PATH, orchestratorStartupBrief, "phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR <session>");
+requireSubstring(errors, ORCHESTRATOR_RESCUE_LIB_PATH, orchestratorRescueLib, "phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>");
+requireSubstring(errors, GOVERNED_WORKFLOW_EXAMPLES_PATH, governedWorkflowExamples, "phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR <intval_session>");
+forbidRegex(errors, GOVERNED_WORKFLOW_EXAMPLES_PATH, governedWorkflowExamples, /Final merge-readiness review request/, "stale final Integration Validator review request example");
+forbidRegex(errors, GOVERNED_WORKFLOW_EXAMPLES_PATH, governedWorkflowExamples, /REVIEW_REQUEST WP-\{ID\} INTEGRATION_VALIDATOR/, "Integration Validator opening final review request to Coder");
+forbidRegex(errors, OPERATOR_STARTUP_PROMPTS_PATH, operatorStartupPrompts, /unresolved overlap queue at 2 or less/i, "stale overlap queue size");
+
+// Lane diagnostics must not regress to default-path or active-stall assumptions after terminal closeout.
+requireSubstring(errors, WP_LANE_HEALTH_PATH, wpLaneHealth, "loadPacketContextForWp", "packet-declared WP communication context");
+requireSubstring(errors, WP_LANE_HEALTH_PATH, wpLaneHealth, "readExecutionPublicationView", "packet/task-board publication terminal view");
+requireSubstring(errors, WP_LANE_HEALTH_PATH, wpLaneHealth, "runtimeStatus: parseJsonFile(runtimeStatusFile)", "publication view object-call runtime input");
+requireSubstring(errors, WP_LANE_HEALTH_PATH, wpLaneHealth, "isTerminalPacketStatus", "packet terminal status fence");
+requireSubstring(errors, WP_LANE_HEALTH_PATH, wpLaneHealth, "packetContext.notificationsFile", "packet-declared notifications file");
+requireSubstring(errors, WP_LANE_HEALTH_PATH, wpLaneHealth, "packetContext.receiptsFile", "packet-declared receipts file");
+requireSubstring(errors, WP_LANE_HEALTH_PATH, wpLaneHealth, '["-C", worktreeDir, "rev-parse", "--git-path", "hooks/post-commit"]', "Git effective hook path check");
+requireSubstring(errors, WP_LANE_HEALTH_PATH, wpLaneHealth, "Terminal history suppression", "terminal history suppression");
+for (const [filePath, content] of [
+  [WP_RELAY_WATCHDOG_PATH, wpRelayWatchdog],
+  [WP_AUTONOMOUS_MONITOR_PATH, wpAutonomousMonitor],
+]) {
+  requireSubstring(errors, filePath, content, "readExecutionPublicationView", "packet/task-board publication terminal view");
+  requireSubstring(errors, filePath, content, "parsePacketStatus", "packet artifact status parse");
+  requireSubstring(errors, filePath, content, "readTaskBoardStatusForWp", "task-board artifact status parse");
+  requireSubstring(errors, filePath, content, "isTerminalTaskBoardStatus", "task-board terminal fence");
+  forbidRegex(errors, filePath, content, /materializeRuntimeAuthorityView/, "runtime-only terminal projection");
+}
+requireSubstring(errors, WP_RELAY_WATCHDOG_PATH, wpRelayWatchdog, "TERMINAL_HISTORY_HIDDEN", "watchdog terminal history skip reason");
+requireSubstring(errors, WP_AUTONOMOUS_MONITOR_PATH, wpAutonomousMonitor, "terminal=YES publication=", "monitor terminal publication log");
+forbidRegex(
+  errors,
+  WP_LANE_HEALTH_PATH,
+  wpLaneHealth,
+  /path\.join\(\s*REPO_ROOT\s*,\s*"\.\."\s*,\s*"gov_runtime"\s*,\s*"roles_shared"\s*,\s*"WP_COMMUNICATIONS"/,
+  "default WP_COMMUNICATIONS runtime path in lane-health",
+);
+forbidRegex(
+  errors,
+  SESSION_CONTROL_LIB_PATH,
+  sessionControlLib,
+  /WP_COMMUNICATIONS\/\$\{wpId\}\/RUNTIME_STATUS\.json/,
+  "startup prompt hard-coded WP runtime status path",
+);
 
 // Scripts must expose the current role/command contract and point at active paths.
 requireRegex(

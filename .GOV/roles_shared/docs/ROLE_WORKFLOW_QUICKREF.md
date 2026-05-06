@@ -55,6 +55,8 @@ Rule:
   - `INTEGRATION_VALIDATOR`: `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
   - classical/manual `VALIDATOR`: `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
 - Direct-review contract and session-repair rules: `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+- Orchestrator-managed healthy-lane and stall-recovery map: `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+- CX-218K mechanical intervention: before repair, steer, relay, handoff, closeout, or documentation/protocol drift work, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper.
 - Legacy packet remediation policy: `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
 - Runtime placement and archival law: `.GOV/roles_shared/README.md`
 - Parallel ownership/worktree model: `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
@@ -243,10 +245,10 @@ Role rule:
 Primary commands (per WP validation):
 - `just phase-check STARTUP WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session>`
 - `just phase-check HANDOFF WP-... CODER` (canonical coder-side handoff closure)
-- `just phase-check HANDOFF WP-... WP_VALIDATOR`
-- `just phase-check VERDICT WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR`
+- `just phase-check HANDOFF WP-... WP_VALIDATOR --range <base>..<head>` (committed target evidence for final whole-WP handoff)
+- `just phase-check VERDICT WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session>` (Integration Validator uses this before answering an open final `CODER_HANDOFF`)
 - `just closeout-repair WP-... [--dry-run] [--debug]` before whole-WP closeout when packet/runtime/SHA/artifact truth needs mechanical repair
-- `just phase-check CLOSEOUT WP-...`
+- `just phase-check CLOSEOUT WP-...` after the final review/verdict response exists, before terminal closeout or PASS commit clearance
 - governed closeout write through the same phase surface: `just phase-check CLOSEOUT WP-... --sync-mode <MODE> --context "<why this truth is being written>"`
 - governed closeout write also publishes `WP_COMMUNICATIONS/<WP_ID>/TERMINAL_CLOSEOUT_RECORD.json`; packet, task-board, dossier, and truth-bundle rows are projections of that terminal record plus runtime authority
 - `phase-check CLOSEOUT --sync-mode ...` also makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot; dossier debt is diagnostic only, and the human post-mortem/review plus rubric can be appended after terminal truth is recorded

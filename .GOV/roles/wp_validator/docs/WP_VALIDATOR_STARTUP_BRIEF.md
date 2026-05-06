@@ -13,6 +13,16 @@ Use this brief after `just validator-startup WP_VALIDATOR`. It is operational me
 
 ## Action Cards
 
+### RAM-WP_VALIDATOR-MECHANICAL_INTERVENTION-001
+
+- ACTION: MECHANICAL_INTERVENTION
+- TRIGGER: before steering Coder, responding to a handoff, declaring a stall, or treating handoff/documentation/protocol drift as blocked
+- FAILURE_PATTERN: reviewing stale route prose or asking Orchestrator to relay when receipts, notifications, runtime status, or phase checks already identify the next validator action
+- DO: classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read, receipt response, or typed helper before writing review prose
+- DO_NOT: manually relay ordinary review content when `wp-validator-response`, `wp-review-response`, `wp-spec-gap`, notification ack, or `phase-check` owns the state transition
+- VERIFY: the validator response preserves the original correlation, cites packet/runtime authority, and names the deterministic helper used
+- SOURCE: CX-218K, WP_VALIDATOR_PROTOCOL, .GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md
+
 ### RAM-WP_VALIDATOR-EARLY_REVIEW-001
 
 - ACTION: EARLY_REVIEW

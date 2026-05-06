@@ -8,6 +8,7 @@ export const SESSION_HEALTH_REASON_CODE_VALUES = [
   "SESSION_RUNTIME_FAILED",
   "SESSION_NOT_STEERABLE",
   "ACTIVE_RUN_TIMEOUT",
+  "COMMAND_OUTPUT_MISSING",
   "COMMAND_OUTPUT_IDLE",
   "HEARTBEAT_STALE",
   "HEARTBEAT_DEGRADED",
@@ -168,6 +169,21 @@ export function evaluateGovernedSessionHealth({
       healthState: "FAILED",
       reasonCode: "ACTIVE_RUN_TIMEOUT",
       summary: `${targetLabel} still has ${expiredRuns.length} active run(s) recorded after broker timeout expiry.`,
+      session,
+      targetRole: normalizedTargetRole,
+      targetSession: normalizedTargetSession,
+      activeRuns: runs,
+      timedOutRuns: expiredRuns,
+      heartbeatAgeSeconds,
+      outputIdleSeconds,
+    });
+  }
+
+  if (runs.length > 0 && outputFreshness === "MISSING") {
+    return buildProjection({
+      healthState: "DEGRADED",
+      reasonCode: "COMMAND_OUTPUT_MISSING",
+      summary: `${targetLabel} still has an active run, but the governed command output file is missing.`,
       session,
       targetRole: normalizedTargetRole,
       targetSession: normalizedTargetSession,

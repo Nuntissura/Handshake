@@ -19,15 +19,29 @@ import path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
 import { loadSessionRegistry } from "./session-registry-lib.mjs";
 import { sessionKey, defaultCoderBranch, defaultCoderWorktreeDir, SESSION_CONTROL_BROKER_STATE_FILE } from "./session-policy.mjs";
-import { REPO_ROOT, normalizePath, repoPathAbs, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
-import { parseJsonFile, parseJsonlFile } from "../lib/wp-communications-lib.mjs";
-import { readExecutionProjectionView } from "../lib/wp-execution-state-lib.mjs";
+import { GOV_ROOT_ABS, REPO_ROOT, normalizePath, repoPathAbs, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import {
+  communicationPathsForWp,
+  NOTIFICATIONS_FILE_NAME,
+  parseJsonFile,
+  parseJsonlFile,
+  RECEIPTS_FILE_NAME,
+} from "../lib/wp-communications-lib.mjs";
+import { readExecutionPublicationView } from "../lib/wp-execution-state-lib.mjs";
+import {
+  isTerminalPacketStatus,
+  isTerminalTaskBoardStatus,
+  parsePacketStatus,
+  parseTaskBoardStatus,
+  taskBoardStatusForPacketStatus,
+} from "../lib/wp-authority-projection-lib.mjs";
 import {
   normalizeRelayEscalationPolicy,
   relayEscalationPolicyBudgetLabel,
 } from "../lib/wp-relay-policy-lib.mjs";
 import { readWpTokenUsageLedger } from "./wp-token-usage-lib.mjs";
 import { evaluateWpTokenBudget } from "./wp-token-budget-lib.mjs";
+import { checkAllNotifications } from "../wp/wp-check-notifications.mjs";
 import {
   activeRunsForSession,
   buildSessionTelemetry,
@@ -59,17 +73,64 @@ function displayRepoRelativePath(value) {
   return normalizePath(path.relative(REPO_ROOT, absolutePath) || ".");
 }
 
-function loadRuntimeStatusForWp(id) {
+function loadPacketContextForWp(id) {
+  const fallbackCommunicationDir = communicationPathsForWp(id).dir;
+  let taskBoardStatus = "";
   try {
-    const packetPath = resolveWorkPacketPath(id);
-    const packetAbsPath = repoPathAbs(packetPath);
-    if (!packetPath || !fs.existsSync(packetAbsPath)) return null;
+    const taskBoardPath = path.join(GOV_ROOT_ABS, "roles_shared", "records", "TASK_BOARD.md");
+    if (fs.existsSync(taskBoardPath)) {
+      taskBoardStatus = parseTaskBoardStatus(fs.readFileSync(taskBoardPath, "utf8"), id);
+    }
+  } catch {}
+  try {
+    const packetRecord = resolveWorkPacketPath(id);
+    const packetPath = typeof packetRecord === "string" ? packetRecord : packetRecord?.packetPath;
+    const packetAbsPath = packetRecord?.packetAbsPath ? path.resolve(packetRecord.packetAbsPath) : repoPathAbs(packetPath);
+    if (!packetPath || !fs.existsSync(packetAbsPath)) {
+      return {
+        communicationDir: fallbackCommunicationDir,
+        notificationsFile: normalizePath(path.join(fallbackCommunicationDir, NOTIFICATIONS_FILE_NAME)),
+        receiptsFile: normalizePath(path.join(fallbackCommunicationDir, RECEIPTS_FILE_NAME)),
+      };
+    }
     const packetText = fs.readFileSync(packetAbsPath, "utf8");
-    const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-    if (!runtimeStatusFile) return null;
-    const runtimeStatusAbs = repoPathAbs(runtimeStatusFile);
-    if (!fs.existsSync(runtimeStatusAbs)) return null;
-    return readExecutionProjectionView(parseJsonFile(runtimeStatusFile)).runtime || null;
+    const packetStatus = parsePacketStatus(packetText);
+    const communicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR") || fallbackCommunicationDir;
+    const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE")
+      || normalizePath(path.join(communicationDir, "RUNTIME_STATUS.json"));
+    return {
+      packetPath,
+      packetAbsPath,
+      packetText,
+      packetStatus,
+      taskBoardStatus: taskBoardStatus || taskBoardStatusForPacketStatus(packetStatus),
+      communicationDir,
+      runtimeStatusFile,
+      notificationsFile: parseSingleField(packetText, "WP_NOTIFICATIONS_FILE")
+        || normalizePath(path.join(communicationDir, NOTIFICATIONS_FILE_NAME)),
+      receiptsFile: parseSingleField(packetText, "WP_RECEIPTS_FILE")
+        || normalizePath(path.join(communicationDir, RECEIPTS_FILE_NAME)),
+    };
+  } catch {
+    return {
+      packetStatus: "",
+      taskBoardStatus,
+      communicationDir: fallbackCommunicationDir,
+      notificationsFile: normalizePath(path.join(fallbackCommunicationDir, NOTIFICATIONS_FILE_NAME)),
+      receiptsFile: normalizePath(path.join(fallbackCommunicationDir, RECEIPTS_FILE_NAME)),
+    };
+  }
+}
+
+function loadRuntimePublicationForPacketContext(packetContext) {
+  try {
+    const runtimeStatusFile = packetContext?.runtimeStatusFile || "";
+    if (!runtimeStatusFile || !fs.existsSync(repoPathAbs(runtimeStatusFile))) return null;
+    return readExecutionPublicationView({
+      runtimeStatus: parseJsonFile(runtimeStatusFile),
+      packetStatus: packetContext?.packetStatus || null,
+      taskBoardStatus: packetContext?.taskBoardStatus || null,
+    });
   } catch {
     return null;
   }
@@ -81,46 +142,92 @@ const coderKey = sessionKey("CODER", wpId);
 const validatorKey = sessionKey("WP_VALIDATOR", wpId);
 const coderSession = registry.sessions.find((s) => s.session_key === coderKey);
 const validatorSession = registry.sessions.find((s) => s.session_key === validatorKey);
-const runtimeStatus = loadRuntimeStatusForWp(wpId);
+const packetContext = loadPacketContextForWp(wpId);
+const runtimeProjection = loadRuntimePublicationForPacketContext(packetContext);
+const runtimeStatus = runtimeProjection?.runtime || null;
+const terminalArtifact = Boolean(
+  isTerminalPacketStatus(packetContext?.packetStatus)
+  || isTerminalTaskBoardStatus(packetContext?.taskBoardStatus)
+);
+const terminalWp = Boolean(runtimeProjection?.terminal || terminalArtifact);
 const relayPolicy = normalizeRelayEscalationPolicy(runtimeStatus?.relay_escalation_policy);
 const brokerActiveRuns = fs.existsSync(repoPathAbs(SESSION_CONTROL_BROKER_STATE_FILE))
   ? (parseJsonFile(SESSION_CONTROL_BROKER_STATE_FILE)?.active_runs || [])
   : [];
+let coderTelemetry = null;
+let validatorTelemetry = null;
+
+function upper(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function sessionIsActivelyRunning(session = null, telemetry = null) {
+  if (Number(telemetry?.run?.active_run_count || 0) > 0) return true;
+  const states = [
+    session?.runtime_state,
+    session?.effective_command_status,
+    session?.effective_command_outcome_state,
+    session?.effective_governed_action_state,
+    session?.effective_governed_action_outcome_state,
+  ].map((value) => upper(value));
+  return states.some((value) => ["COMMAND_RUNNING", "RUNNING", "ACCEPTED_RUNNING", "ACTIVE"].includes(value));
+}
+
+function routeTargetHasActiveRun() {
+  const coderActive = sessionIsActivelyRunning(coderSession, coderTelemetry);
+  const validatorActive = sessionIsActivelyRunning(validatorSession, validatorTelemetry);
+  const nextActor = upper(runtimeStatus?.next_expected_actor || runtimeStatus?.execution_state?.authority?.next_expected_actor);
+  if (nextActor === "CODER") return coderActive;
+  if (nextActor === "WP_VALIDATOR") return validatorActive;
+  return coderActive || validatorActive;
+}
+
+if (terminalWp) {
+  const terminalStatus = (terminalArtifact ? packetContext?.taskBoardStatus : "")
+    || runtimeProjection?.task_board_status
+    || packetContext?.packetStatus
+    || runtimeProjection?.packet_status
+    || runtimeStatus?.main_containment_status
+    || "terminal";
+  info.push(`Terminal WP: ${terminalStatus} - historical lane residue is not an active stall`);
+}
 
 if (!coderSession) {
-  issues.push("CODER session not registered");
+  if (terminalWp) info.push("CODER: not registered (terminal history)");
+  else issues.push("CODER session not registered");
 } else {
   info.push(`CODER: ${coderSession.runtime_state}`);
   info.push(`CODER health: ${coderSession.health_state || "UNKNOWN"} (${coderSession.health_reason_code || "UNKNOWN"})`);
-  {
-    const telemetry = buildSessionTelemetry({
-      session: coderSession,
-      activeRuns: activeRunsForSession(coderSession, brokerActiveRuns),
-      repoRoot: REPO_ROOT,
-    });
-    info.push(`CODER telemetry: ${formatSessionRunTelemetryInline(telemetry.run)} | ${formatSessionStepTelemetryInline(telemetry.step)}`);
-  }
+  coderTelemetry = buildSessionTelemetry({
+    session: coderSession,
+    activeRuns: activeRunsForSession(coderSession, brokerActiveRuns),
+    repoRoot: REPO_ROOT,
+  });
+  info.push(`CODER telemetry: ${formatSessionRunTelemetryInline(coderTelemetry.run)} | ${formatSessionStepTelemetryInline(coderTelemetry.step)}`);
+  if (!terminalWp) {
   if (coderSession.runtime_state === "FAILED") issues.push("CODER session FAILED — needs restart");
   if (coderSession.runtime_state === "COMPLETED") issues.push("CODER session COMPLETED — may need restart for more MTs");
 }
+}
 
 if (!validatorSession) {
-  issues.push("WP_VALIDATOR session not registered");
+  if (terminalWp) info.push("WP_VALIDATOR: not registered (terminal history)");
+  else issues.push("WP_VALIDATOR session not registered");
 } else {
   info.push(`WP_VALIDATOR: ${validatorSession.runtime_state}`);
   info.push(`WP_VALIDATOR health: ${validatorSession.health_state || "UNKNOWN"} (${validatorSession.health_reason_code || "UNKNOWN"})`);
-  {
-    const telemetry = buildSessionTelemetry({
-      session: validatorSession,
-      activeRuns: activeRunsForSession(validatorSession, brokerActiveRuns),
-      repoRoot: REPO_ROOT,
-    });
-    info.push(`WP_VALIDATOR telemetry: ${formatSessionRunTelemetryInline(telemetry.run)} | ${formatSessionStepTelemetryInline(telemetry.step)}`);
-  }
+  validatorTelemetry = buildSessionTelemetry({
+    session: validatorSession,
+    activeRuns: activeRunsForSession(validatorSession, brokerActiveRuns),
+    repoRoot: REPO_ROOT,
+  });
+  info.push(`WP_VALIDATOR telemetry: ${formatSessionRunTelemetryInline(validatorTelemetry.run)} | ${formatSessionStepTelemetryInline(validatorTelemetry.step)}`);
+  if (!terminalWp) {
   if (validatorSession.runtime_state === "FAILED") issues.push("WP_VALIDATOR session FAILED — auto-relay will not work");
   if (validatorSession.runtime_state === "COMPLETED") issues.push("WP_VALIDATOR session COMPLETED — auto-relay will not work");
   if (!["READY", "COMMAND_RUNNING"].includes(validatorSession.runtime_state)) {
     issues.push(`WP_VALIDATOR not steerable (state: ${validatorSession.runtime_state}) — auto-relay dispatch will fail`);
+  }
   }
 }
 
@@ -129,21 +236,33 @@ const worktreeDir = repoPathAbs(defaultCoderWorktreeDir(wpId));
 if (fs.existsSync(worktreeDir)) {
   const dotGitPath = path.join(worktreeDir, ".git");
   let hookExists = false;
+  let hookPath = "";
   try {
-    if (fs.statSync(dotGitPath).isFile()) {
+    const effectiveHookPath = execFileSync("git", ["-C", worktreeDir, "rev-parse", "--git-path", "hooks/post-commit"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (effectiveHookPath) {
+      hookPath = path.isAbsolute(effectiveHookPath) ? effectiveHookPath : path.resolve(worktreeDir, effectiveHookPath);
+      hookExists = fs.existsSync(hookPath);
+    }
+  } catch {}
+  try {
+    if (!hookExists && fs.statSync(dotGitPath).isFile()) {
       const gitdirContent = fs.readFileSync(dotGitPath, "utf8").trim();
       const match = gitdirContent.match(/^gitdir:\s*(.+)$/);
       if (match) {
         const realGitDir = path.isAbsolute(match[1]) ? match[1] : path.resolve(worktreeDir, match[1]);
-        const hookPath = path.join(realGitDir, "hooks", "post-commit");
+        hookPath = path.join(realGitDir, "hooks", "post-commit");
         hookExists = fs.existsSync(hookPath);
       }
-    } else {
-      hookExists = fs.existsSync(path.join(dotGitPath, "hooks", "post-commit"));
+    } else if (!hookExists) {
+      hookPath = path.join(dotGitPath, "hooks", "post-commit");
+      hookExists = fs.existsSync(hookPath);
     }
   } catch {}
   if (hookExists) {
-    info.push("MT hook: INSTALLED");
+    info.push(`MT hook: INSTALLED (${displayRepoRelativePath(hookPath)})`);
   } else {
     issues.push("MT hook: NOT INSTALLED — auto-relay will not fire on commits. Run: just install-mt-hook " + wpId);
   }
@@ -164,14 +283,14 @@ if (fs.existsSync(worktreeDir)) {
 
 // 4. Notification queue
 try {
-  const commDir = path.join(REPO_ROOT, "..", "gov_runtime", "roles_shared", "WP_COMMUNICATIONS", wpId);
-  const notificationsFile = path.join(commDir, "NOTIFICATIONS.jsonl");
-  if (fs.existsSync(notificationsFile)) {
+  const notificationsFile = packetContext.notificationsFile;
+  if (fs.existsSync(repoPathAbs(notificationsFile))) {
     const notifications = parseJsonlFile(notificationsFile);
-    const pending = notifications.filter((n) => !n.acknowledged);
+    const pendingByRole = checkAllNotifications({ wpId });
+    const pending = Object.values(pendingByRole).flatMap((entry) => entry.notifications || []);
     const latestPushAlert = selectLatestPushAlert(pending);
     if (pending.length > 0) {
-      issues.push(`${pending.length} unacknowledged notification(s) — auto-relay may have failed`);
+      issues.push(`${pending.length} pending notification(s) by cursor - auto-relay may have failed`);
       for (const n of pending.slice(-3)) {
         info.push(`  pending: ${n.target_role} ← ${n.source_role}: ${(n.summary || "").slice(0, 80)}`);
       }
@@ -188,9 +307,8 @@ try {
 
 // 5. Receipts (last activity)
 try {
-  const commDir = path.join(REPO_ROOT, "..", "gov_runtime", "roles_shared", "WP_COMMUNICATIONS", wpId);
-  const receiptsFile = path.join(commDir, "RECEIPTS.jsonl");
-  if (fs.existsSync(receiptsFile)) {
+  const receiptsFile = packetContext.receiptsFile;
+  if (fs.existsSync(repoPathAbs(receiptsFile))) {
     const receipts = parseJsonlFile(receiptsFile);
     const lastReceipt = receipts[receipts.length - 1];
     if (lastReceipt) {
@@ -198,7 +316,13 @@ try {
       const ageMs = Date.now() - new Date(lastTime).getTime();
       const ageMins = Math.round(ageMs / 60000);
       info.push(`Last receipt: ${ageMins}m ago — ${lastReceipt.receipt_kind || "unknown"} from ${lastReceipt.actor_role || "unknown"}`);
-      if (ageMins > 10) issues.push(`Last receipt was ${ageMins}m ago — possible stall (default stale_after: 20m)`);
+      if (ageMins > 10) {
+        if (routeTargetHasActiveRun()) {
+          info.push("  receipt idle note: route target is actively running; wait for command completion or active-run watchdog verdict");
+        } else {
+          issues.push(`Last receipt was ${ageMins}m ago — possible stall (default stale_after: 20m)`);
+        }
+      }
     }
   }
 } catch {}
@@ -241,6 +365,31 @@ try {
     info.push("Tokens: no usage recorded");
   }
 } catch {}
+
+if (terminalWp) {
+  const terminalHistoryIssuePatterns = [
+    /session not registered/i,
+    /not steerable/i,
+    /auto-relay/i,
+    /Coder worktree not found/i,
+    /pending notification/i,
+    /Last receipt was .*possible stall/i,
+    /Relay policy blocks automatic recovery/i,
+  ];
+  const keptIssues = [];
+  let suppressedIssues = 0;
+  for (const issue of issues) {
+    if (terminalHistoryIssuePatterns.some((pattern) => pattern.test(String(issue || "")))) {
+      suppressedIssues += 1;
+    } else {
+      keptIssues.push(issue);
+    }
+  }
+  if (suppressedIssues > 0) {
+    issues.splice(0, issues.length, ...keptIssues);
+    info.push(`Terminal history suppression: ${suppressedIssues} stale lane issue(s) hidden`);
+  }
+}
 
 // 8. Summary
 console.log(`\nWP_LANE_HEALTH: ${wpId}`);

@@ -21,6 +21,14 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
 - Visible happy-path completion is insufficient. You must harden invariants, failure paths, and proof surfaces so the workflow can distinguish real completion from false completion.
 - If proof is incomplete, hand off with an explicit partial or non-pass status instead of narrating "done."
 
+## Mechanical Intervention Discipline [CX-218K]
+
+- Before reporting a handoff stall, MT auto-relay miss, formatter spillover, proof delay, or protocol/helper mismatch, classify 3-5 plausible causes: runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, scope/worktree drift, and local tool/proof failure.
+- Choose the cheapest deterministic read, proof, or typed helper first: packet scope, diff/status, hook output, notification cursor, typed receipts, `CODER_HANDOFF`, `REVIEW_REQUEST`, blocker summaries, and packet-scoped thread entries.
+- Do not manually relay ordinary implementation or handoff content when a typed receipt, review request, handoff helper, blocker summary, or packet thread entry can carry the state transition.
+- If the likely cause is governance tooling, ACP routing, hook behavior, or protocol drift, report the exact deterministic blocker to Orchestrator/WP Validator instead of silently retrying broad commands or asking the Operator for routine approval.
+- Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as lane context for orchestrator-managed stalls; it does not expand Coder authority or allow governance edits.
+
 ## Adult Production Boundary (When Applicable) [CX-123]
 
 - When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."
@@ -33,8 +41,10 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
 - **Do not** run destructive commands that can delete/overwrite work unless the user explicitly authorizes it in the same turn:
   - `git clean -fd` / `git clean -xdf`
   - `git reset --hard`
+  - `git restore` / `git checkout --`
   - `rm` / `del` / `Remove-Item` on non-temp paths
 - If a cleanup/reset is ever requested, first make it reversible: `git stash push -u -m "SAFETY: before <operation>"`, then show the user exactly what would be deleted (`git clean -nd`) and get explicit approval.
+- For scoped MT work, run formatters only against packet-cleared file targets where the tool supports file-level formatting. If a broad formatter touches files outside the cleared scope, STOP and emit a typed blocker/repair note to the Orchestrator or WP Validator; do not silently `git restore` the spillover after a failed backup push.
 
 ## Multi-Provider Model Awareness
 
@@ -57,7 +67,7 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
   - skeleton checkpoint marker commit (`just coder-skeleton-checkpoint WP-{ID}` — empty commit, no `.GOV/` files) for `MANUAL_RELAY` lanes only
   - skeleton approval commit present on the WP branch before implementation continues for `MANUAL_RELAY` lanes only
   - [CX-212D] Work packet and refinement safety lives in `gov_kernel`, not on the feature branch
-- Before destructive or state-hiding local git actions on the WP branch (`git merge`, `git switch`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the assigned WP backup branch on GitHub.
+- Before destructive or state-hiding local git actions on the WP branch (`git merge`, `git switch`, `git restore`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the assigned WP backup branch on GitHub.
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Startup must surface `just backup-status` so backup configuration and recent immutable snapshots are visible before coding proceeds. This is safety context only, not a bypass for destructive-op approvals.
 - Only the Operator may approve fast-forwarding GitHub backup branches, deleting GitHub branches, deleting local branches, or deleting worktrees. If cleanup is requested broadly, STOP, list the exact actions + exact targets, and ask for approval on that presented list.
@@ -559,6 +569,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - **Evidence Management:** Write proof per micro task, not one dump at the end. You MAY also append to `## EVIDENCE` in the work packet for aggregate evidence.
 - **Durable run notes:** During WP execution, capture notable findings (compile errors, scope ambiguities, governance friction, implementation decisions, abandoned approaches) with `just repomem insight|decision|error|concern ... --wp WP-{ID}`. The Workflow Dossier receives a terminal WP-bound memory snapshot at closeout; import debt is diagnostic only, so do not duplicate the same narrative in live dossier sections.
 - **Compile Gate [CX-503I]:** The post-commit hook runs `cargo check` before firing the review request. If your code does not compile, the hook does NOT notify the validator. You see the compile error in the git output — fix it and re-commit before the validator is involved.
+- **Hook Contract:** The post-commit auto-relay fires only for commit subjects shaped `feat: MT-NNN <description>` and only when the hook is installed at Git's effective `hooks/post-commit` path. If you committed a valid MT and no `REVIEW_REQUEST` notification appears, run the documented manual `wp-review-request` once, report that auto-relay missed, and stop for orchestrator hook repair instead of repeating commits or inventing a second route.
 - **Self-Claim Task Board [CX-503L]:** When available, check the MT task board (`just mt-board WP-{ID}`) for the next unclaimed MT instead of waiting for orchestrator assignment. Claim it (`just mt-claim WP-{ID} MT-NNN`), implement, commit, and mark complete (`just mt-complete WP-{ID} MT-NNN`).
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
 - **Status Updates:** Update the `## STATUS_HANDOFF` section with a real self-audit, not a generic "tests passing" note. When `CODER_HANDOFF_RIGOR_PROFILE=RUBRIC_SELF_AUDIT_V2`, include both the standard handoff core and the rubric-proof fields.

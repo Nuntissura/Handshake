@@ -9,6 +9,10 @@
 
 This file groups the live `just` surface by workflow purpose so roles do not have to infer command meaning from protocol prose alone.
 
+For orchestrator-managed healthy-lane order and stall-recovery triage, use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` alongside the role protocols.
+
+CX-218K mechanical intervention rule: before using repair, steer, relay, handoff, or closeout commands to respond to a stall, handoff delay, documentation/protocol drift, or ACP/session ambiguity, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift. Then choose the cheapest deterministic read or typed helper instead of another narrative prompt.
+
 For the exhaustive inventory, run:
 
 ```bash
@@ -54,8 +58,9 @@ Turn-boundary nudge queue:
 - `just nudge-drain <SESSION_ID>`
 - `just nudge-depth <SESSION_ID>`
   - `RGF-245` stores governance nudges under `gov_runtime/nudges/<wp_id>/<session_id>/` and drains them with atomic `.claimed` rename semantics.
-  - Non-emergency `orchestrator-steer-next` `SEND_PROMPT` delivery enqueues a `STEER` nudge; use `--now` only for explicit immediate/direct ACP sends.
-  - Governed startup prompt assembly drains queued nudges at a safe boundary and injects them as bounded user-message context.
+  - Non-emergency `orchestrator-steer-next` `SEND_PROMPT` delivery may enqueue a `STEER` nudge; use `--now` only for explicit immediate/direct ACP sends.
+  - Governed startup and steering prompt assembly drains queued nudges at a safe boundary and injects them as bounded user-message context.
+  - If a relay is `ESCALATED`, the projected target session is already `READY`, and no governed control request is pending, `orchestrator-steer-next` sends one direct safe-boundary prompt instead of adding another dead-letter nudge.
 
 Hook-driven role self-prime:
 - `just role-self-prime <ROLE> WP-{ID} [--mt-id MT-NNN] [--session-id ROLE:WP-{ID}]`
@@ -179,6 +184,7 @@ These are safe starting points for orientation and health checks.
   - the governed prompt carries typed route context (`GOVERNED_ROUTE_CONTEXT`, `DIRECT_ROLE_MESSAGE`) derived from receipt/notification truth instead of generic resume prose
   - route context is fenced as `<governance-context>` user-message context; it must not rebuild or mutate the active role session's cached system prompt
   - when stalled-relay escalation is active, this is the canonical continue/repair command instead of silent waiting
+  - when an escalated target session is already `READY` with no pending governed control request, this drains queued turn-boundary nudges into a single direct safe-boundary `SEND_PROMPT`
   - before dispatch, the helper now echoes the runtime-native relay escalation policy for the lane (`failure_class`, `policy_state`, `next_strategy`, strategy budget) so repairs are based on canonical runtime truth rather than local transcript interpretation
   - under cost-governor `RECOVERY_MODE`, broad explicit-target steering is blocked unless it matches the projected next legal actor; `OVERRIDE_REQUIRED` requires `--override-recovery=<operator reason>`
 - `just manual-relay-next WP-{ID} [--debug]`
@@ -263,7 +269,7 @@ These are safe starting points for orientation and health checks.
 
 - `just repomem open "<what this session is about>" --role ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR --wp WP-ID`
   - `runtime-write`
-  - **MANDATORY** at WP-bound role session start. Creates SESSION_OPEN for the role and WP; missing `--role` or `--wp` fails closed for these roles. Content >=80 chars enforced. Shows prior session context on success.
+  - **MANDATORY** at WP-bound role session start. Creates SESSION_OPEN for the role and WP; missing `--role` or `--wp` fails closed for these roles. Content >=80 chars enforced. Shows prior session context on success. Session markers are role/WP-scoped, so opening one role lane does not auto-close a concurrent role lane for the same WP.
 - `just repomem open "<what this session is about>" --role ORCHESTRATOR|CLASSIC_ORCHESTRATOR [--wp WP-ID]`
   - `runtime-write`
   - **MANDATORY** at coordinator session start. Use `--wp` whenever the session is bound to an active WP; coordinator work can start packetless when no WP exists yet.
@@ -281,7 +287,7 @@ These are safe starting points for orientation and health checks.
   - research conclusion checkpoint; content >=80 chars
 - `just repomem close "<session summary>" --decisions "<key decisions made>"`
   - `runtime-write`
-  - **MANDATORY** at session end. Content >=80 chars, `--decisions` required. Shows session checkpoint summary. Clears session marker. The just wrapper now forwards variadic flag text literally so PowerShell metacharacters in `--decisions` content no longer break before Node sees the arguments.
+  - **MANDATORY** at session end. Content >=80 chars, `--decisions` required. Shows session checkpoint summary. Clears the current role/WP-scoped marker. The just wrapper now forwards variadic flag text literally so PowerShell metacharacters in `--decisions` content no longer break before Node sees the arguments.
 - `just repomem context "<why this action>" --trigger "<just cmd>"` 
   - `runtime-write`
   - piggybacked context for mutation commands; content >=40 chars; auto-called by `task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, `phase-check CLOSEOUT --sync-mode ...`, `begin-refinement`, `begin-research`, `wp-traceability-set`
@@ -378,6 +384,9 @@ These legacy commands still work (they redirect to the governance memory DB) but
 - `just install-mt-hook WP-{ID}`
   - `runtime-write`
   - install the microtask commit hook for a WP branch
+  - uses `git -C <coder_worktree> rev-parse --git-path hooks/post-commit` and writes to that effective hook path
+  - linked worktrees must not infer hook location by parsing `.git`; the private worktree gitdir hook can be inert
+  - hook-driven auto-relay requires commit subjects shaped `feat: MT-NNN <description>`
 - `just install-validator-guard WP-{ID}`
   - `runtime-write`
   - install the validator guard hook for a WP branch
@@ -694,9 +703,9 @@ These operate on the packet-declared `WP_COMMUNICATION_DIR` under external runti
   - `read-only` by default; `CLOSEOUT` becomes `governance-write` when `--sync-mode ... --context ...` is supplied
   - canonical phase-boundary gate entrypoint
   - `STARTUP`: is the canonical startup/bootstrapping gate; for `CODER` it owns the packet/startup proof that used to live behind `pre-work`, and for validator roles it proves the startup communication mesh before productive work starts
-  - `HANDOFF`: proves coder closure or validator handoff readiness from one phase artifact, depending on role
-  - `VERDICT`: proves the final review communication boundary from one phase artifact and includes `artifact-root-preflight-check` so artifact-root/environment drift is classified before final review or merge
-  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves closeout readiness, runs dossier judgment validation, and refreshes memory-manager maintenance; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot. Dossier debt is diagnostic only.
+  - `HANDOFF`: proves coder closure or validator handoff readiness from one phase artifact, depending on role; for final whole-WP handoff prep use `WP_VALIDATOR --range <base>..<head>` so durable committed validation evidence is written before Integration Validator steering
+  - `VERDICT`: proves the final review communication boundary from one phase artifact and includes `artifact-root-preflight-check` so artifact-root/environment drift is classified before final review or merge; Integration Validator uses `VERDICT ... INTEGRATION_VALIDATOR <session>` to accept an open final `CODER_HANDOFF` addressed to that session
+  - `CLOSEOUT`: runs the verdict bundle, emits the integration-validator context brief, proves terminal closeout readiness, runs dossier judgment validation, and refreshes memory-manager maintenance after the final review/verdict response exists; with `--sync-mode ... --context ...` it also performs the governed packet/runtime/TASK_BOARD closeout sync inside the same phase artifact and makes a best-effort terminal Workflow Dossier append of closeout trace plus WP-bound repomem snapshot. Dossier debt is diagnostic only.
 - `just closeout-repair WP-{ID} [--dry-run] [--debug]`
   - `governance-write`
   - mechanical closeout pre-repair surface owned by the Orchestrator

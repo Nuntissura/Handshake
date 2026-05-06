@@ -88,7 +88,7 @@ function extractListItemsAfterLabel(sectionText, label) {
   // with parseSectionField (both read the authoritative report, not a later WP Validator report).
   const labelRe = new RegExp(`^(?:\\s*#{1,6}\\s+|\\s*-\\s*|\\s*)(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*$`, "i");
   const headingRe = /^#{1,6}\s+\S/;
-  const nextLabelRe = /^(?:\s*-\s*|\s*)[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
+  const nextLabelRe = /^(?:\s*-\s*|\s*)[A-Z][A-Z0-9_ ()/-]*\s*:\s*.*$/;
 
   const labelIdx = lines.findIndex((line) => labelRe.test(line));
   if (labelIdx === -1) return [];

@@ -445,6 +445,18 @@ test("steering prompt stays compact and codex-explicit", () => {
   assert.match(prompt, /Do not request routine Operator approval/i);
 });
 
+test("coder steering prompt does not let notification ack replace implementation handoff", () => {
+  const wpId = "WP-TEST-CODER-STEER-v1";
+  const prompt = buildSteeringPrompt({
+    role: "CODER",
+    wpId,
+  });
+
+  assert.match(prompt, /CODER HANDOFF ROUTE \(HARD\):/);
+  assert.match(prompt, /acknowledging the notification is not the governed action/i);
+  assert.match(prompt, /implement only the cleared MT, commit it, and emit the required review\/handoff receipt/i);
+});
+
 test("integration-validator control requests carry kernel governance env override", () => {
   const env = buildRoleEnvironmentOverrides({
     role: "INTEGRATION_VALIDATOR",

@@ -134,6 +134,25 @@ export function parseReviewExchangeCliArgs(argv = []) {
   };
 }
 
+export function reviewExchangeOptionalFieldErrors({
+  receiptKind = "",
+  correlationId = null,
+} = {}) {
+  const errors = [];
+  const normalizedReceiptKind = String(receiptKind || "").trim().toUpperCase();
+  const explicitCorrelationId = nullableValue(correlationId);
+  if (
+    normalizedReceiptKind === "REVIEW_REQUEST"
+    && explicitCorrelationId
+    && !String(explicitCorrelationId).startsWith("review:")
+  ) {
+    errors.push(
+      "Malformed REVIEW_REQUEST correlation_id. Leave correlation_id blank so the helper generates review:<wp>:review_request:<id>, or pass an explicit review:* id. If this value is a stray word from the summary, fix shell quoting and rerun the review helper.",
+    );
+  }
+  return errors;
+}
+
 function inferTargetRole(receiptKind, actorRole) {
   const role = normalizeRole(actorRole);
   if (!EXPLICIT_REVIEW_ROLE_VALUES.includes(role)) return null;
@@ -194,6 +213,25 @@ function inferReviewMode({ receiptKind, actorRole, targetRole, packetRowRef, sum
     return "OVERLAP";
   }
   return null;
+}
+
+export function isFinalIntegrationReviewResolution({
+  receiptKind = "",
+  actorRole = "",
+  targetRole = "",
+  correlationId = "",
+  packetRowRef = "",
+  summary = "",
+} = {}) {
+  if (String(receiptKind || "").trim().toUpperCase() !== "REVIEW_RESPONSE") return false;
+  if (normalizeRole(actorRole) !== "INTEGRATION_VALIDATOR") return false;
+  if (normalizeRole(targetRole) !== "CODER") return false;
+
+  const correlation = String(correlationId || "").trim();
+  const rowRef = String(packetRowRef || "").trim();
+  const text = `${rowRef}\n${String(summary || "").trim()}`;
+  return correlation.includes(":coder_handoff:final:")
+    || (/CODER_HANDOFF/i.test(text) && /final/i.test(text));
 }
 
 function inferHandoffCommitFromSummary({ receiptKind, summary }) {
@@ -348,7 +386,15 @@ export function recordReviewExchange({
   const TARGET_SESSION = nullableValue(targetSession);
   const SPEC_ANCHOR = nullableValue(specAnchor);
   const PACKET_ROW_REF = nullableValue(packetRowRef);
-  const MICROTASK_CONTRACT = deriveFallbackReviewMicrotaskContract({
+  const FINAL_INTEGRATION_REVIEW = isFinalIntegrationReviewResolution({
+    receiptKind: RECEIPT_KIND,
+    actorRole: ACTOR_ROLE,
+    targetRole: TARGET_ROLE,
+    correlationId,
+    packetRowRef: PACKET_ROW_REF,
+    summary: SUMMARY,
+  });
+  const MICROTASK_CONTRACT = FINAL_INTEGRATION_REVIEW ? null : deriveFallbackReviewMicrotaskContract({
     wpId: WP_ID,
     receiptKind: RECEIPT_KIND,
     actorRole: ACTOR_ROLE,
@@ -370,6 +416,13 @@ export function recordReviewExchange({
   if (!SUMMARY) fail("SUMMARY is required");
   if (!TARGET_ROLE || !EXPLICIT_REVIEW_ROLE_VALUES.includes(TARGET_ROLE)) {
     fail(`TARGET_ROLE must resolve to one of ${EXPLICIT_REVIEW_ROLE_VALUES.join(", ")}`);
+  }
+  const optionalFieldErrors = reviewExchangeOptionalFieldErrors({
+    receiptKind: RECEIPT_KIND,
+    correlationId,
+  });
+  if (optionalFieldErrors.length > 0) {
+    fail(optionalFieldErrors.join("\n"));
   }
 
   const CORRELATION_ID = nullableValue(correlationId)

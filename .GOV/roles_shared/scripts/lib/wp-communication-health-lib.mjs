@@ -155,6 +155,54 @@ function partitionOpenReviewItems(openReviewItems = []) {
   };
 }
 
+function isFinalIntegrationOpenItem(item = null) {
+  const targetRole = normalizeRole(item?.target_role);
+  const openedByRole = normalizeRole(item?.opened_by_role || item?.actor_role);
+  const receiptKind = normalizeReceiptKind(item?.receipt_kind);
+  return targetRole === "INTEGRATION_VALIDATOR"
+    && openedByRole === "CODER"
+    && ["CODER_HANDOFF", "REVIEW_REQUEST"].includes(receiptKind);
+}
+
+function finalIntegrationItemTargetsActor(item = null, actorRole = "", actorSession = "") {
+  if (!isFinalIntegrationOpenItem(item)) return false;
+  if (normalizeRole(actorRole) !== "INTEGRATION_VALIDATOR") return false;
+  const targetSession = normalizeSession(item?.target_session);
+  const normalizedActorSession = normalizeSession(actorSession);
+  return !targetSession || !normalizedActorSession || targetSession === normalizedActorSession;
+}
+
+function openReviewItemsForStage({
+  openReviewItems = [],
+  stage = "STATUS",
+  actorRole = "",
+  actorSession = "",
+} = {}) {
+  const normalizedStage = String(stage || "STATUS").trim().toUpperCase();
+  return (Array.isArray(openReviewItems) ? openReviewItems : []).filter((item) => {
+    if (normalizedStage === "HANDOFF" && isFinalIntegrationOpenItem(item)) {
+      return false;
+    }
+    if (normalizedStage === "VERDICT" && finalIntegrationItemTargetsActor(item, actorRole, actorSession)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function finalIntegrationReviewOpenForActor({
+  stage = "STATUS",
+  actorRole = "",
+  actorSession = "",
+  integrationFinalPair = null,
+} = {}) {
+  const normalizedStage = String(stage || "STATUS").trim().toUpperCase();
+  if (normalizedStage !== "VERDICT") return false;
+  if (normalizeRole(actorRole) !== "INTEGRATION_VALIDATOR") return false;
+  if (!integrationFinalPair?.openReceipt || integrationFinalPair?.reply) return false;
+  return finalIntegrationItemTargetsActor(integrationFinalPair.openReceipt, actorRole, actorSession);
+}
+
 /**
  * Build a role-specific inbox: pending obligations that must be addressed
  * before the role can proceed to new work.
@@ -936,6 +984,13 @@ export function evaluateWpCommunicationHealth({
 
   const openReviewItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
   const openReviewPartition = partitionOpenReviewItems(openReviewItems);
+  const stageOpenReviewItems = openReviewItemsForStage({
+    openReviewItems,
+    stage: normalizedStage,
+    actorRole,
+    actorSession,
+  });
+  const stageOpenReviewPartition = partitionOpenReviewItems(stageOpenReviewItems);
   const workflowInvalidities = workflowInvalidityReceipts(receipts);
   const activeWorkflowInvalidity = activeWorkflowInvalidityReceipt(receipts);
   const validatorKickoffs = receiptFilter(receipts, {
@@ -1018,6 +1073,15 @@ export function evaluateWpCommunicationHealth({
     }),
   ];
   const integrationFinalPair = latestOpenReceiptStatus(integrationFinalOpenReceipts, integrationFinalResolutionReceipts);
+  const finalIntegrationReviewResolved =
+    Boolean(integrationFinalPair.openReceipt)
+    && Boolean(integrationFinalPair.reply);
+  const finalIntegrationOpenForActor = finalIntegrationReviewOpenForActor({
+    stage: normalizedStage,
+    actorRole,
+    actorSession,
+    integrationFinalPair,
+  });
   const details = buildBaseDetails({
     wpId,
     stage: normalizedStage,
@@ -1174,19 +1238,19 @@ export function evaluateWpCommunicationHealth({
     });
   }
   const blockingOpenReviewResult = () => {
-    const blockingItems = openReviewPartition.blockingQueue.length > 0
-      ? openReviewPartition.blockingQueue
-      : openReviewPartition.overlapQueue;
+    const blockingItems = stageOpenReviewPartition.blockingQueue.length > 0
+      ? stageOpenReviewPartition.blockingQueue
+      : stageOpenReviewPartition.overlapQueue;
     return result({
       applicable: true,
       ok: false,
       state: "COMM_BLOCKED_OPEN_ITEMS",
-      message: openReviewPartition.exceedsOverlapLimit
+      message: stageOpenReviewPartition.exceedsOverlapLimit
         ? "Overlap microtask review backlog exceeded the bounded validator queue"
         : "Open review items still block direct review progression",
       details: [
         ...details,
-        ...(openReviewPartition.exceedsOverlapLimit
+        ...(stageOpenReviewPartition.exceedsOverlapLimit
           ? [`overlap_backpressure_limit=${MAX_OVERLAP_MICROTASK_REVIEW_ITEMS}`]
           : []),
         ...blockingItems.map((entry) =>
@@ -1243,7 +1307,7 @@ export function evaluateWpCommunicationHealth({
         correlations,
       });
     }
-    if (openReviewPartition.blockingQueue.length > 0 || openReviewPartition.exceedsOverlapLimit) {
+    if (stageOpenReviewPartition.blockingQueue.length > 0 || stageOpenReviewPartition.exceedsOverlapLimit) {
       return blockingOpenReviewResult();
     }
     if (intentCheckpoint.required && !intentCheckpointClearance) {
@@ -1320,6 +1384,23 @@ export function evaluateWpCommunicationHealth({
         latestWpValidatorReviewOutcome,
       });
     }
+    if (finalIntegrationReviewResolved) {
+      return result({
+        applicable: true,
+        ok: true,
+        state: "COMM_OK",
+        message: "Final Integration Validator direct review is resolved",
+        details: [
+          ...details,
+          `final_review_correlation=${integrationFinalPair.openReceipt?.correlation_id || "<missing>"}`,
+          `final_review_resolution=${integrationFinalPair.reply?.receipt_kind || "<missing>"}`,
+        ],
+        counts,
+        correlations,
+        latestValidatorAssessment,
+        latestWpValidatorReviewOutcome,
+      });
+    }
     if (activeMicrotaskNeedsCoderHandoff) {
       return result({
         applicable: true,
@@ -1336,7 +1417,7 @@ export function evaluateWpCommunicationHealth({
         latestWpValidatorReviewOutcome,
       });
     }
-    if (openReviewPartition.blockingQueue.length > 0 || openReviewPartition.exceedsOverlapLimit) {
+    if (stageOpenReviewPartition.blockingQueue.length > 0 || stageOpenReviewPartition.exceedsOverlapLimit) {
       return blockingOpenReviewResult();
     }
     if (requiresFinalAuthorityDirectReview(packetFormatVersion) && !integrationFinalPair.reply) {
@@ -1407,7 +1488,7 @@ export function evaluateWpCommunicationHealth({
     });
   }
 
-  if (openReviewPartition.blockingQueue.length > 0 || openReviewPartition.exceedsOverlapLimit) {
+  if (stageOpenReviewPartition.blockingQueue.length > 0 || stageOpenReviewPartition.exceedsOverlapLimit) {
     return blockingOpenReviewResult();
   }
 
@@ -1500,6 +1581,23 @@ export function evaluateWpCommunicationHealth({
       latestWpValidatorReviewOutcome,
     });
   }
+  if (finalIntegrationReviewResolved) {
+    return result({
+      applicable: true,
+      ok: true,
+      state: "COMM_OK",
+      message: "Final Integration Validator direct review is resolved",
+      details: [
+        ...details,
+        `final_review_correlation=${integrationFinalPair.openReceipt?.correlation_id || "<missing>"}`,
+        `final_review_resolution=${integrationFinalPair.reply?.receipt_kind || "<missing>"}`,
+      ],
+      counts,
+      correlations,
+      latestValidatorAssessment,
+      latestWpValidatorReviewOutcome,
+    });
+  }
   if (activeMicrotaskNeedsCoderHandoff) {
     return result({
       applicable: true,
@@ -1509,6 +1607,24 @@ export function evaluateWpCommunicationHealth({
       details: [
         ...details,
         `active_microtask_requires_handoff=${activeMicrotask?.mt_id || "<missing>"}:${activeMicrotask?.state || "<missing>"}`,
+      ],
+      counts,
+      correlations,
+      latestValidatorAssessment,
+      latestWpValidatorReviewOutcome,
+    });
+  }
+
+  if (finalIntegrationOpenForActor) {
+    return result({
+      applicable: true,
+      ok: true,
+      state: "COMM_WAITING_FOR_FINAL_REVIEW",
+      message: "Verdict preflight is ready; Integration Validator has the final coder handoff to review",
+      details: [
+        ...details,
+        `final_review_correlation=${integrationFinalPair.openReceipt?.correlation_id || "<missing>"}`,
+        `final_review_target_session=${integrationFinalPair.openReceipt?.target_session || "<unspecified>"}`,
       ],
       counts,
       correlations,
@@ -1547,7 +1663,7 @@ export function evaluateWpCommunicationHealth({
     });
   }
 
-  if (openReviewPartition.blockingQueue.length > 0 || openReviewPartition.exceedsOverlapLimit) {
+  if (stageOpenReviewPartition.blockingQueue.length > 0 || stageOpenReviewPartition.exceedsOverlapLimit) {
     return blockingOpenReviewResult();
   }
 

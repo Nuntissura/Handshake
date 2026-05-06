@@ -21,6 +21,250 @@
 
 ## Entries
 
+### 2026.05.06.07 / GOV-CHANGE-20260506-07
+
+- STATUS: APPLIED
+- SUMMARY: changed `orcstart` nonzero startup checks into warning-context instead of authority-injection failure
+- CHANGE_TYPE: STARTUP_LAUNCHER_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260506-ORCSTART-NONZERO-STARTUP-WARNING`
+  - `orcstart.cmd` exited `1` when `just orchestrator-startup` failed deterministic governance checks, even though it had emitted the role prompt, governing contract, and authority files. The launcher exit code caused assistants to withhold startup acknowledgement instead of obeying the injected authority contract.
+- FOLLOW_ON_ITEMS:
+  - `RGF-282`
+- FILES_CHANGED:
+  - `.GOV/operator/scripts/orcstart.ps1`
+  - `.GOV/operator/scripts/orcstart.prompt.txt`
+  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
+  - `.GOV/Audits/audits/AUDIT-20260506-ORCSTART-NONZERO-STARTUP-WARNING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `orcstart` now captures and streams startup output, prints `STARTUP WARNING: FIRST COMMAND NONZERO` with likely parsed causes when `just orchestrator-startup` exits nonzero, continues authority-file injection, and exits `0` when prompt and authority injection succeed. Missing prompt or required authority files remain fatal.
+- VERIFICATION:
+  - `.\orcstart.cmd --help`
+  - `.\orcstart.cmd --print`
+  - `.\orcstart.cmd --brief`
+  - `git diff --check`
+  - `just gov-check`
+
+### 2026.05.06.06 / GOV-CHANGE-20260506-06
+
+- STATUS: APPLIED
+- SUMMARY: hardened terminal monitors, role startup CX-218K cards, and main-containment playbook flow
+- CHANGE_TYPE: ACP_WORKFLOW_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING`
+  - After the PostgreSQL-primary WP reached terminal PASS/merge-pending truth, the remaining cost risks were stale terminal monitors, role-local startup briefs missing the mechanical 3-5-cause discipline, and main-containment sequencing being carried mostly by session memory.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+- FILES_CHANGED:
+  - `.GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `.GOV/roles/orchestrator/scripts/wp-autonomous-monitor.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`
+  - `.GOV/roles/*/docs/*STARTUP_BRIEF.md`
+  - `.GOV/roles/*/*PROTOCOL.md`
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: terminal publication truth is now consumed by lane health, relay watchdog, and autonomous monitor; role startup memory now carries CX-218K cards for all active coordinator/activation/validator/memory roles; protocol alignment fails if those cards or the cheapest deterministic helper rule drift; and the playbook now documents the mechanical local-main containment sequence after Integration Validator PASS. The active PostgreSQL-primary WP was merged into local `main`, then contained-main closeout projected `Validated (PASS)` with `MERGED_MAIN_COMMIT=00fda21a394278ca1fa105df972ffac8b9f4d11e`.
+- VERIFICATION:
+  - `node --check .GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/wp-autonomous-monitor.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `node .GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `just wp-lane-health WP-1-Postgres-Primary-Control-Plane-Foundation-v1`
+  - `node .GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs WP-1-Postgres-Primary-Control-Plane-Foundation-v1 --observe-only`
+  - `node .GOV/roles/orchestrator/scripts/wp-autonomous-monitor.mjs WP-1-Postgres-Primary-Control-Plane-Foundation-v1 --once --log-file ../gov_runtime/roles_shared/SESSION_MONITORS/WP-1-Postgres-Primary-Control-Plane-Foundation-v1-monitor-check.log`
+  - `just artifact-hygiene-check`
+  - `git -C ../handshake_main merge --no-ff --no-edit origin/feat/WP-1-Postgres-Primary-Control-Plane-Foundation-v1`
+  - `git -C ../handshake_main merge-base --is-ancestor d7f3f760945c21076d75188fb2c90f1eafb155c3 HEAD`
+  - `just phase-check CLOSEOUT WP-1-Postgres-Primary-Control-Plane-Foundation-v1 --sync-mode CONTAINED_IN_MAIN --merged-main-sha 00fda21a394278ca1fa105df972ffac8b9f4d11e --context "Local main now contains approved Integration Validator PASS head d7f3f760 for the PostgreSQL primary control plane WP after governed merge from handshake_main."`
+
+### 2026.05.06.05 / GOV-CHANGE-20260506-05
+
+- STATUS: APPLIED
+- SUMMARY: suppressed terminal-WP lane-health false stalls after merge-pending closeout
+- CHANGE_TYPE: ACP_WORKFLOW_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING`
+  - After `WP-1-Postgres-Primary-Control-Plane-Foundation-v1` reached terminal `MERGE_PENDING`, `orchestrator-next` and communication health correctly reported no active handoff, but `wp-lane-health` still warned that the closed WP Validator was not steerable and that the last receipt was stale.
+  - The diagnostic had also lost runtime terminal truth because it treated the current packet resolver return object as a string path.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `wp-lane-health` now resolves packet objects correctly, reads the packet-declared runtime projection, prints terminal state for terminal WPs, and suppresses stale lane-history issues such as closed-session steerability, old receipts, pending-notification noise, hook/worktree auto-relay readiness, and relay-recovery blockers when packet/task-board truth is already terminal.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `just wp-lane-health WP-1-Postgres-Primary-Control-Plane-Foundation-v1`
+
+### 2026.05.06.04 / GOV-CHANGE-20260506-04
+
+- STATUS: APPLIED
+- SUMMARY: made the CX-218K orchestrator-managed intervention playbook enforceable across active role protocols
+- CHANGE_TYPE: ACP_WORKFLOW_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING`
+  - The Operator required orchestrator-managed workflow handling to become mechanical: when a stall, handoff delay, documentation drift, ACP/session ambiguity, or relay gap appears, the active role should classify 3-5 plausible causes before steering, patching, or declaring a blocker.
+  - The first playbook/protocol slice documented that behavior, but it still relied on future agents remembering the convention instead of a check that fails on protocol drift.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+- FILES_CHANGED:
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: Coder protocol now carries the same CX-218K mechanical intervention discipline as the other active roles, and `protocol-alignment-check` treats Codex, Orchestrator, Classic Orchestrator, Coder, WP Validator, Integration Validator, classic Validator, Memory Manager, Activation Manager, and the orchestrator-managed playbook as active drift surfaces. The check now requires CX-218K, 3-5 plausible-cause triage, documentation/protocol drift language, ACP/session ambiguity language, and playbook references where the lane role should use the playbook directly.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `node .GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `node --test .GOV/roles_shared/tests/governance-command-contract.test.mjs`
+
+### 2026.05.06.03 / GOV-CHANGE-20260506-03
+
+- STATUS: APPLIED
+- SUMMARY: fixed final-handoff closeout ordering and relay wrapper flag parsing for orchestrator-managed recovery
+- CHANGE_TYPE: ACP_WORKFLOW_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING`
+  - During final validation of `WP-1-Postgres-Primary-Control-Plane-Foundation-v1`, Integration Validator tried `phase-check CLOSEOUT` before resolving the open final `CODER_HANDOFF` review item, producing `CLOSEOUT_PHASE_GATE_FAILED` even though the correct next phase was `VERDICT`.
+  - The immediate recovery command `just orchestrator-steer-next WP-1-Postgres-Primary-Control-Plane-Foundation-v1 --target-role=INTEGRATION_VALIDATOR --target-session=... --direct` was consumed incorrectly by the Just wrapper because option-shaped arguments filled `context` and `model` before reaching the relay script.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+- FILES_CHANGED:
+  - `justfile`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-steer-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: final Integration Validator handoff now has an explicit ordering contract: committed handoff evidence must pass first, `phase-check VERDICT ... INTEGRATION_VALIDATOR <session>` accepts that session's open final `CODER_HANDOFF` as expected inbox state, the validator then emits the correlation-preserving final review response, and `phase-check CLOSEOUT` runs only after that response resolves the handoff. Orchestrator relay wrappers now treat option-shaped second/third positionals as flags, so direct targeted steering commands no longer fail in `repomem context` before dispatch.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `node --check .GOV/roles_shared/checks/phase-check-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/orchestrator-steer-next.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/phase-check.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `node --test .GOV/roles/orchestrator/tests/orchestrator-steer-lib.test.mjs`
+  - `just phase-check HANDOFF WP-1-Postgres-Primary-Control-Plane-Foundation-v1 WP_VALIDATOR --range ac9f8fbb4db74bffcecc29aea0bb6262b1ab9a7e..d7f3f760945c21076d75188fb2c90f1eafb155c3`
+  - `just phase-check VERDICT WP-1-Postgres-Primary-Control-Plane-Foundation-v1 INTEGRATION_VALIDATOR integration_validator:wp-1-postgres-primary-control-plane-foundation-v1`
+  - `just --dry-run orchestrator-steer-next WP-1-Postgres-Primary-Control-Plane-Foundation-v1 --target-role=INTEGRATION_VALIDATOR --target-session=integration_validator:wp-1-postgres-primary-control-plane-foundation-v1 --direct`
+
+### 2026.05.06.02 / GOV-CHANGE-20260506-02
+
+- STATUS: APPLIED
+- SUMMARY: fixed linked-worktree MT hook installation so post-commit auto-relay can fire from the effective Git hook path
+- CHANGE_TYPE: ACP_WORKFLOW_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING`
+  - During MT-001 on `WP-1-Postgres-Primary-Control-Plane-Foundation-v1`, Coder committed successfully and then had to send `wp-review-request` manually because the installed post-commit hook did not fire. Git resolved `hooks/post-commit` to the common `.git/hooks/post-commit` path while the installer had written under the linked worktree private gitdir.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/hooks/install-mt-hook.mjs`
+  - `.GOV/roles_shared/scripts/hooks/post-commit-mt-review-request.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `.GOV/roles_shared/tests/install-mt-hook.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-exchange.test.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: MT hook installation now asks Git for the effective hook path, linked-worktree inert hook placement is covered by a focused test, non-MT commit subjects are logged as ignored auto-relay inputs, the hook compile gate uses the handshake_core manifest path instead of bare root cargo, compile-gate timeouts relay with an explicit inconclusive warning instead of dead-lettering, malformed manual review-request route fields fail closed, and the playbook/protocols/prompts document the exact auto-relay fallback boundary.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/hooks/install-mt-hook.mjs`
+  - `node --check .GOV/roles_shared/scripts/hooks/post-commit-mt-review-request.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `node --check .GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `node --test .GOV/roles_shared/tests/install-mt-hook.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-review-exchange.test.mjs`
+  - `just install-mt-hook WP-1-Postgres-Primary-Control-Plane-Foundation-v1`
+
+### 2026.05.06.01 / GOV-CHANGE-20260506-01
+
+- STATUS: APPLIED
+- SUMMARY: made active-run relay projection and formatter-spillover cleanup discipline mechanical for orchestrator-managed ACP lanes
+- CHANGE_TYPE: ACP_WORKFLOW_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING`
+  - While the governed Coder was actively compiling the PostgreSQL-primary proof under host load, stale route/receipt clocks still projected a possible stall; the same live turn exposed broad formatter spillover and a `git restore` cleanup path after backup-push refusal.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/lib/wp-relay-escalation-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles_shared/tests/wp-relay-escalation-lib.test.mjs`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: active governed target runs now hold relay escalation in `WATCH` instead of recommending duplicate steering, lane health treats receipt idleness as informational when the route target is actively running, and role law/playbook guidance treats `git restore` cleanup plus broad formatter spillover as explicit destructive/state-hiding repair risk.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/lib/wp-relay-escalation-lib.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-relay-escalation-lib.test.mjs`
+  - `just wp-lane-health WP-1-Postgres-Primary-Control-Plane-Foundation-v1`
+
+### 2026.05.05.03 / GOV-CHANGE-20260505-03
+
+- STATUS: APPLIED
+- SUMMARY: hardened activation-readiness recovery and prelaunch relay classification for heavy-load orchestrator-managed WPs
+- CHANGE_TYPE: ACP_WORKFLOW_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING`
+  - During recovery of `WP-1-Postgres-Primary-Control-Plane-Foundation-v1`, a stale `ACTIVATION_READINESS` file reported `packet missing` after the packet existed, and bootstrap runtime truth projected `VALIDATOR_KICKOFF` before any Coder/WP Validator session had been launched.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+- FILES_CHANGED:
+  - `.GOV/roles/activation_manager/scripts/activation-manager.mjs`
+  - `.GOV/roles/orchestrator/scripts/lib/workflow-lane-guidance-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-relay-escalation-lib.mjs`
+  - `.GOV/roles/orchestrator/tests/workflow-lane-guidance-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-relay-escalation-lib.test.mjs`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: activation readiness refresh is now the cheap deterministic first recovery step, readiness files expose machine-readable freshness and launch fields, `orchestrator-next` no longer lets unlaunched validator kickoff residue override prelaunch delegation, and relay escalation suppresses prelaunch bootstrap false positives.
+- VERIFICATION:
+  - `node --test .GOV/roles/orchestrator/tests/workflow-lane-guidance-lib.test.mjs`
+  - `node --test .GOV/roles_shared/tests/wp-relay-escalation-lib.test.mjs`
+  - `just activation-manager readiness WP-1-Postgres-Primary-Control-Plane-Foundation-v1 --write`
+  - `just orchestrator-next WP-1-Postgres-Primary-Control-Plane-Foundation-v1`
+
 ### 2026.05.05.02 / GOV-CHANGE-20260505-02
 
 - STATUS: APPLIED
@@ -4447,3 +4691,85 @@
 - FOLLOW_ON_ITEMS:
   - improve session-control fallback semantics so explicit `FALLBACK` can supersede a packet-declared primary profile without hand-editing the active packet
 - OUTCOME: `RGF-278` is implemented; the active packet now supersedes the Spark Coder waiver and records GPT-5.5 extra-high as the active Coder profile for this WP while Spark is unavailable.
+
+### 2026.05.05.01 / GOV-CHANGE-20260505-01
+
+- STATUS: APPLIED
+- SUMMARY: hardened the PostgreSQL-primary orchestrator-managed ACP startup path for heavy host load and parallel-role recovery
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `WP-1-Postgres-Primary-Control-Plane-Foundation-v1` resumed after a broken Activation Manager/spec-enrichment session under heavy host load
+  - Master Spec v02.182 was verified against the main-worktree v02.181 backup before downstream launch
+  - startup mesh checks initially failed from `wt-gov-kernel` because coder gates ran against the orchestrator worktree and runtime sessions were not projected into `active_role_sessions`
+  - `repomem open` in a WP Validator session auto-closed the active Orchestrator memory session
+  - a fresh `VALIDATOR_KICKOFF` inherited old `stale_after` runtime timestamps and looked escalated immediately
+- SURFACES:
+  - `.GOV/roles/activation_manager/scripts/activation-manager.mjs`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/lib/workflow-lane-guidance-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles_shared/checks/phase-check.mjs`
+  - `.GOV/roles_shared/checks/wp-communication-health-check.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
+  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
+  - `.GOV/roles_shared/scripts/lib/wp-relay-escalation-lib.mjs`
+  - `.GOV/roles_shared/scripts/memory/governance-memory-lib.mjs`
+  - `.GOV/roles_shared/scripts/memory/repomem.mjs`
+  - `.GOV/roles_shared/scripts/session/session-health-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-token-usage-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `justfile`
+  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
+  - `.GOV/roles_shared/tests/session-health-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/phase-check.test.mjs`
+  - `.GOV/roles_shared/tests/repomem-parallel-session-cli.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/wp-relay-escalation-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-token-usage-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `.GOV/roles/orchestrator/tests/workflow-lane-guidance-lib.test.mjs`
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- FOLLOW_ON_ITEMS:
+  - Continue moving role progress through direct-review receipts after the settled intent checkpoint; next live route is Coder MT-001 implementation/handoff.
+- OUTCOME: `RGF-281` remains active but now has the core startup/handoff hardening slice applied: activation readiness is machine-readable, prelaunch relay residue is suppressed, phase-check resolves packet-declared worktrees, registry-backed startup mesh accepts active governed sessions and lower-case actor aliases, active raw command token drift is diagnostic instead of failure, `orchestrator-next` does not relaunch already active downstream roles, repomem uses strict role/WP-scoped markers, Orchestrator mutation wrappers pass explicit memory scope, fresh routes get a receipt grace window when old runtime clocks are stale, the early `CODER_INTENT` checkpoint mechanically distinguishes `wp-validator-response` from `wp-review-response`, session health marks missing active-run output as degraded, READY stalled routes drain queued nudges into one direct safe-boundary steer, Coder steering no longer treats notification ack as satisfying `CODER_HANDOFF`, and Codex/protocols now require 3-5-cause mechanical intervention triage using the orchestrator-managed playbook.
+
+### 2026.05.06.02 / GOV-CHANGE-20260506-02
+
+- STATUS: APPLIED
+- SUMMARY: closed the PostgreSQL-primary orchestrator-managed lane to merge-pending while hardening final-review and closeout projection mechanics
+- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - `WP-1-Postgres-Primary-Control-Plane-Foundation-v1` final Integration Validator PASS was recorded as a `wp-review-response`, which initially re-routed the lane back to Coder/microtask truth instead of resolving the final direct review.
+  - `phase-check CLOSEOUT --sync-mode MERGE_PENDING` then exposed deterministic closeout brittleness: missing signed-scope report materialization, bullet-shaped split-report fields, parser list bleed into report instructions, and `orchestrator-next` treating stale Activation readiness as Coder delegation after terminal merge-pending truth.
+- SURFACES:
+  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
+  - `.GOV/roles_shared/scripts/lib/computed-policy-gate-lib.mjs`
+  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
+  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
+  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
+  - `.GOV/roles_shared/tests/wp-review-exchange.test.mjs`
+  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
+  - `.GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
+  - `.GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
+  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
+  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
+- FOLLOW_ON_ITEMS:
+  - After local `main` actually contains the product branch, Integration Validator should run `just phase-check CLOSEOUT WP-1-Postgres-Primary-Control-Plane-Foundation-v1 --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`.
+- OUTCOME: `RGF-281` now includes terminal-lane hardening: final Integration Validator review responses resolve the final direct-review lane without Coder ack debt, closeout sync can materialize a parser-compliant validation report from the final Integration Validator PASS receipt, failed closeout self-validation rolls back instead of persisting partial packet edits, split-report parsers stop lists at inline scalar labels, merge-pending runtime projection is not mistaken for stale `VERDICT` drift, and `orchestrator-next` treats `MERGE_PENDING`/`DONE_MERGE_PENDING` as terminal history rather than stale Activation-readiness-driven Coder delegation.

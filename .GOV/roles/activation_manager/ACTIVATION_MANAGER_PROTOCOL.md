@@ -45,6 +45,15 @@ MANDATORY - The Activation Manager is a bounded pre-launch governance authoring 
 
 Refinement signature, packet creation, and pre-launch handback to the Orchestrator/Coder pipeline emit typed receipts and notifications. Pre-launch state (signature, scope, MT contract, model profiles, worktree assignment) crosses into orchestrator-managed via schema fields, never through prose summaries the next role must parse. Operator-facing refinement narrative belongs in the refinement artifact for human review and is NOT the wire to the Orchestrator. See Codex `[CX-130]` for the full rule.
 
+## Mechanical Intervention Discipline [CX-218K]
+
+- Before repairing activation, readiness, spec enrichment, or packet hydration drift, classify 3-5 plausible causes: stale readiness projection, signature/scope mismatch, packet/spec pointer drift, worktree/backup drift, documentation/protocol drift, session/ACP drift, and clock/staleness drift.
+- Choose the cheapest deterministic read, repair, or typed helper first: readiness refresh, target artifact checks, packet/refinement checks, bounded activation repair, and typed handoff receipts before asking for a model continuation.
+- Do not manually relay ordinary activation content when the refinement, packet, readiness helper, or typed `REFINEMENT_HANDOFF_SUMMARY` can write the authority artifact.
+- If a stale readiness artifact disagrees with live packet/worktree truth, regenerate `ACTIVATION_READINESS` and report the exact launch blocker or `READY_FOR_DOWNSTREAM_LAUNCH` state.
+- Do not launch Coder, WP Validator, or Integration Validator. If downstream routing is blocked, hand the exact mechanical blocker back to Orchestrator.
+- Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as shared lane context for what happens after activation handoff.
+
 ## Refinement And Enrichment Standard (HARD)
 
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager refinement/enrichment pass MUST be equal to or better than the old Orchestrator-owned pre-launch flow. Moving the work out of the Orchestrator does not lower the standard.
@@ -73,7 +82,7 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 5. Only if the Orchestrator explicitly requests excerpts should the Activation Manager paste refinement/spec text back into chat. In that fallback path, send only the requested sections or anchors in bounded chunks. Safe default: 4 chunks.
 6. Stop and wait for the Orchestrator to return operator approval evidence, the one-time signature, and the selected `Coder-A..Coder-Z` execution owner.
 7. Record the returned signature/workflow tuple/execution owner and continue packet, microtask, worktree, backup-branch, and readiness preparation.
-8. Emit one truthful `ACTIVATION_READINESS` block and self-close.
+8. Emit one truthful `ACTIVATION_READINESS` block and self-close. The readiness block MUST include machine-readable freshness and launch fields (`GENERATED_AT_UTC`, `STATE_SOURCE`, `READY_FOR_DOWNSTREAM_LAUNCH`) so Orchestrator recovery can distinguish stale projection files from live readiness truth without waking an ACP session.
 
 ## Repair Return And Relaunch
 
@@ -139,7 +148,7 @@ Cross-session conversational memory captures what was refined, decided, and flag
 6. Hydrate packet, microtasks, worktree, backup-branch, and preparation artifacts.
 7. Confirm new executable packets contain `PACKET_ACCEPTANCE_MATRIX` rows generated from the packet closure requirements; do not hand back a packet that relies on prose-only acceptance criteria.
 8. Run the mechanical activation-readiness pass, including declared-topology and governance-document health checks.
-9. Emit `ACTIVATION_READINESS` for the Orchestrator and stop.
+9. Emit `ACTIVATION_READINESS` for the Orchestrator and stop. If the Orchestrator later patches deterministic readiness tooling, it may refresh the readiness artifact with `just activation-manager readiness WP-{ID} --write` before relaunching this role; treat that refresh as the current mechanical handoff surface.
 
 ## Refinement Handoff Summary Contract
 
@@ -171,7 +180,10 @@ The Activation Manager hands back one structured outcome:
 ```text
 ACTIVATION_READINESS
 - WP_ID: <WP-{ID}>
+- GENERATED_AT_UTC: <RFC3339 UTC>
+- STATE_SOURCE: RECOMPUTED
 - VERDICT: READY_FOR_ORCHESTRATOR_REVIEW | REPAIR_REQUIRED | BLOCKED_BY_SPEC_ENRICHMENT | BLOCKED_BY_OPERATOR_APPROVAL
+- READY_FOR_DOWNSTREAM_LAUNCH: YES | NO
 - STUBS_CREATED_OR_UPDATED: <WP-... ids | NONE>
 - LOCAL_BRANCH: <declared coder branch or <missing>>
 - LOCAL_WORKTREE_DIR: <declared coder worktree or <missing>>

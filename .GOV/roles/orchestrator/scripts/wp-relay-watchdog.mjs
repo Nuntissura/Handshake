@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  GOV_ROOT_ABS,
   REPO_ROOT,
   repoPathAbs,
   resolveWorkPacketPath,
@@ -16,6 +17,14 @@ import {
   validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
+import { readExecutionPublicationView } from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
+import {
+  isTerminalPacketStatus,
+  isTerminalTaskBoardStatus,
+  parsePacketStatus,
+  parseTaskBoardStatus,
+  taskBoardStatusForPacketStatus,
+} from "../../../roles_shared/scripts/lib/wp-authority-projection-lib.mjs";
 import {
   normalizeRelayEscalationPolicy,
   relayEscalationPolicyBudgetLabel,
@@ -89,6 +98,16 @@ function parseSessionControlField(text, label) {
   const re = new RegExp(`^\\[SESSION_CONTROL\\]\\s+${label}=([^\\r\\n]+)$`, "mi");
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
+}
+
+function readTaskBoardStatusForWp(wpId) {
+  try {
+    const taskBoardPath = path.join(GOV_ROOT_ABS, "roles_shared", "records", "TASK_BOARD.md");
+    if (!fs.existsSync(taskBoardPath)) return "";
+    return parseTaskBoardStatus(fs.readFileSync(taskBoardPath, "utf8"), wpId);
+  } catch {
+    return "";
+  }
 }
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -559,7 +578,31 @@ function loadWpRelayInputs(wpId, registrySessions) {
   }
 
   const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  const runtimeStatus = parseJsonFile(runtimeStatusFile);
+  const packetStatus = parsePacketStatus(packetText);
+  const taskBoardStatus = readTaskBoardStatusForWp(wpId) || taskBoardStatusForPacketStatus(packetStatus);
+  const runtimeRawStatus = parseJsonFile(runtimeStatusFile);
+  const publicationView = readExecutionPublicationView({
+    runtimeStatus: runtimeRawStatus,
+    packetStatus,
+    taskBoardStatus,
+  });
+  const runtimeStatus = publicationView.runtime || runtimeRawStatus;
+  if (
+    publicationView.terminal
+    || isTerminalPacketStatus(packetStatus)
+    || isTerminalTaskBoardStatus(taskBoardStatus)
+  ) {
+    return {
+      wpId,
+      applicable: false,
+      skipReason: "TERMINAL_HISTORY_HIDDEN",
+      terminal: true,
+      workflowLane,
+      packetPath: resolved.packetPath,
+      packetStatus: publicationView.packet_status || packetStatus,
+      taskBoardStatus: publicationView.task_board_status || taskBoardStatus,
+    };
+  }
   const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile)) ? parseJsonlFile(receiptsFile) : [];
   const communicationEvaluation = evaluateWpCommunicationHealth({
     wpId,

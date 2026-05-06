@@ -218,10 +218,30 @@ export function runGateCheck(wpId) {
   return { ok: true, output: `${lines.join("\n")}\n` };
 }
 
-function runSubprocessStep({ scriptPath: targetScriptPath, args = [] }) {
+function runSubprocessStep({
+  scriptPath: targetScriptPath,
+  args = [],
+  cwd = resolvePhaseCheckCwd(),
+  env = process.env,
+}) {
+  const resolvedCwd = path.resolve(cwd || resolvePhaseCheckCwd());
+  if (!fs.existsSync(resolvedCwd)) {
+    return {
+      ok: false,
+      output: `Subprocess step cwd does not exist: ${resolvedCwd}\n`,
+    };
+  }
   const result = spawnSync(process.execPath, [targetScriptPath, ...args], {
+    cwd: resolvedCwd,
     encoding: "utf8",
+    env,
   });
+  if (result.error) {
+    return {
+      ok: false,
+      output: `Subprocess step failed to start in ${resolvedCwd}: ${result.error.message}\n`,
+    };
+  }
   return {
     ok: result.status === 0,
     output: ensureTrailingNewline(`${result.stdout || ""}${result.stderr || ""}`.trimEnd()),
@@ -391,7 +411,8 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
   }
 
   const outputChunks = [];
-  const repomemGateResult = spawnSync(process.execPath, [repomemScript, "gate"], {
+  const closeoutRepomemScopeArgs = ["--role", "INTEGRATION_VALIDATOR", "--wp", wpId];
+  const repomemGateResult = spawnSync(process.execPath, [repomemScript, "gate", ...closeoutRepomemScopeArgs], {
     cwd: phaseCheckCwd,
     encoding: "utf8",
   });
@@ -408,8 +429,7 @@ function runCloseoutSyncStep({ wpId = "", syncOptions = {} } = {}) {
     String(syncOptions.context || "").trim(),
     "--trigger",
     triggerRef,
-    "--wp",
-    wpId,
+    ...closeoutRepomemScopeArgs,
   ];
   const repomemContextResult = spawnSync(process.execPath, repomemContextArgs, {
     cwd: phaseCheckCwd,
@@ -776,6 +796,7 @@ function runStep(step) {
     return {
       ok: result.ok,
       output: formatWpCommunicationHealthCheckResult(result),
+      resultData: result,
     };
   }
   if (label === "integration-validator-context-brief") {
@@ -831,7 +852,19 @@ function runStep(step) {
       resultData: result,
     };
   }
-  return runSubprocessStep(step);
+  if (label === "pre-work-check" || label === "post-work-check") {
+    const coderWorktreeCwd = resolveDeclaredCoderWorktreeCwd(args[0]);
+    return runSubprocessStep({
+      ...step,
+      cwd: coderWorktreeCwd,
+      env: roleWorktreeEnv(coderWorktreeCwd),
+    });
+  }
+  return runSubprocessStep({
+    ...step,
+    cwd: resolvePhaseCheckCwd(),
+    env: process.env,
+  });
 }
 
 const ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
@@ -865,6 +898,71 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = String(text || "").match(re);
   return match ? match[1].trim() : "";
+}
+
+export function resolveDeclaredCoderWorktreeDir(wpId) {
+  return parseSingleField(readPacketText(wpId), "LOCAL_WORKTREE_DIR") || defaultCoderWorktreeDir(wpId);
+}
+
+export function resolveDeclaredCoderWorktreeCwd(wpId) {
+  return path.resolve(REPO_ROOT, resolveDeclaredCoderWorktreeDir(wpId));
+}
+
+function roleWorktreeEnv(cwd) {
+  return {
+    ...process.env,
+    HANDSHAKE_ACTIVE_REPO_ROOT: path.resolve(cwd || resolvePhaseCheckCwd()),
+    HANDSHAKE_GOV_ROOT: GOV_ROOT_ABS,
+  };
+}
+
+export function maybeDeferPrelaunchStartupMesh({
+  phase = "",
+  role = "",
+  step = null,
+  result = null,
+  stepResults = new Map(),
+} = {}) {
+  const normalizedPhase = String(phase || "").trim().toUpperCase();
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  if (
+    normalizedPhase !== "STARTUP"
+    || normalizedRole !== "CODER"
+    || String(step?.label || "").trim() !== "wp-communication-health-check"
+    || result?.ok
+  ) {
+    return result;
+  }
+
+  const activeLaneOutput = String(stepResults.get("active-lane-brief")?.output || "");
+  const details = Array.isArray(result?.resultData?.details) ? result.resultData.details : [];
+  const isPrelaunchLane =
+    /SESSION:\s+key=<none>/i.test(activeLaneOutput)
+    && /RELAY:\s+status=PRELAUNCH_NOT_APPLICABLE/i.test(activeLaneOutput);
+  const missingCoder = details.some((detail) => /active_role_sessions missing CODER/i.test(String(detail || "")));
+  const missingValidatorPeer = details.some((detail) => /startup_peer_missing=WP_VALIDATOR/i.test(String(detail || "")));
+  if (!isPrelaunchLane || !missingCoder || !missingValidatorPeer) {
+    return result;
+  }
+
+  const output = ensureTrailingNewline([
+    String(result?.output || "").trimEnd(),
+    "",
+    "[PRELAUNCH_MESH_DEFERRED] PASS: startup mesh check is deferred until the initial Coder and WP Validator sessions exist.",
+  ].join("\n").trimEnd());
+  return {
+    ...result,
+    ok: true,
+    output,
+    resultData: result?.resultData
+      ? {
+        ...result.resultData,
+        ok: true,
+        state: "COMM_PRELAUNCH_DEFERRED",
+        message: "Startup communication mesh deferred until initial sessions exist",
+      }
+      : result?.resultData,
+  };
 }
 
 function workflowLaneForPacket(wpId) {
@@ -954,14 +1052,17 @@ async function printFailLog(wpId) {
 // [CX-109D] Forbidden worktree directories for coder sessions.
 const CODER_FORBIDDEN_WORKTREE_NAMES = ["handshake_main", "wt-gov-kernel", "wt-ilja"];
 
-function checkCoderWorktreeConfinement(wpId) {
-  const cwd = path.resolve(process.cwd());
-  const cwdBase = path.basename(cwd);
+function checkCoderWorktreeConfinement(wpId, cwd = process.cwd()) {
+  const resolvedCwd = path.resolve(cwd || process.cwd());
+  if (!fs.existsSync(resolvedCwd)) {
+    return { ok: false, why: `CODER_WORKTREE_MISSING [CX-109D]: declared WP worktree does not exist at '${resolvedCwd}'. Launch or repair the WP worktree before starting Coder work.` };
+  }
+  const cwdBase = path.basename(resolvedCwd);
   const forbidden = CODER_FORBIDDEN_WORKTREE_NAMES.find((name) => cwdBase === name);
   if (forbidden) {
     return { ok: false, why: `CODER_WORKTREE_BREACH [CX-109D]: coder session is running in forbidden directory '${forbidden}'. Coder must operate in the declared WP worktree.` };
   }
-  const expectedWorktreeDir = defaultCoderWorktreeDir(wpId);
+  const expectedWorktreeDir = resolveDeclaredCoderWorktreeDir(wpId);
   const expectedBase = path.basename(path.resolve(REPO_ROOT, expectedWorktreeDir));
   if (cwdBase !== expectedBase) {
     return { ok: false, why: `CODER_WORKTREE_MISMATCH [CX-109D]: coder cwd '${cwdBase}' does not match declared WP worktree '${expectedBase}'. Coder must operate in the assigned WP worktree.` };
@@ -982,7 +1083,7 @@ function buildStartupCoderOutcome({
   let why = defaultWhy;
 
   // [CX-109D] Worktree confinement check — must run before any other startup logic.
-  const confinement = checkCoderWorktreeConfinement(wpId);
+  const confinement = checkCoderWorktreeConfinement(wpId, resolveDeclaredCoderWorktreeCwd(wpId));
   if (!confinement.ok) {
     ok = false;
     why = confinement.why;
@@ -1256,7 +1357,14 @@ async function runCli() {
         deferredCloseoutMaintenanceStep = currentStep;
         continue;
       }
-      const result = runStep(currentStep);
+      let result = runStep(currentStep);
+      result = maybeDeferPrelaunchStartupMesh({
+        phase: normalizedPhase,
+        role: normalizedRole,
+        step: currentStep,
+        result,
+        stepResults,
+      });
       stepResults.set(currentStep.label, result);
       sections.push({ title: currentStep.label, body: result.output });
       printStepSummary({ phase: normalizedPhase, wpId: wpIdArg, label: currentStep.label, result, verbose });

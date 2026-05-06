@@ -522,8 +522,11 @@ for (const session of registry.sessions || []) {
   if (session.runtime_state === "READY") {
     const governance = evaluateSessionGovernanceState(repoRoot, session);
     if (!governance.steeringAllowed) {
+      const repairCommand = session.role && session.wp_id
+        ? ` repair: just session-close ${session.role} ${session.wp_id}`
+        : "";
       invariantErrors.push(
-        `session ${session.session_key} is READY but steering is blocked: ${governance.steeringBlockers.join("; ")}`,
+        `session ${session.session_key} is READY but steering is blocked: ${governance.steeringBlockers.join("; ")}.${repairCommand}`,
       );
     }
   }

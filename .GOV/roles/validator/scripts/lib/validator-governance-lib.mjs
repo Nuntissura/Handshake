@@ -829,7 +829,7 @@ export function buildValidatorPacketCompleteResult({
       const sectionLines = String(sectionText || "").split(/\r?\n/);
       const labelRe = new RegExp(`^\\s*${label}\\s*:\\s*$`, "i");
       const headingRe = /^#{1,6}\s+\S/;
-      const nextLabelRe = /^\s*[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
+      const nextLabelRe = /^\s*[A-Z][A-Z0-9_ ()/-]*\s*:\s*.*$/;
 
       const labelIdx = sectionLines.findIndex((line) => labelRe.test(line));
       if (labelIdx === -1) return false;
@@ -851,7 +851,7 @@ export function buildValidatorPacketCompleteResult({
       const sectionLines = String(sectionText || "").split(/\r?\n/);
       const labelRe = new RegExp(`^\\s*${label}\\s*:\\s*$`, "i");
       const headingRe = /^#{1,6}\s+\S/;
-      const nextLabelRe = /^\s*[A-Z][A-Z0-9_ ()/-]*\s*:\s*$/;
+      const nextLabelRe = /^\s*[A-Z][A-Z0-9_ ()/-]*\s*:\s*.*$/;
       const items = [];
 
       const labelIdx = sectionLines.findIndex((line) => labelRe.test(line));

@@ -56,16 +56,17 @@ function deriveRuntimeCloseoutState(projection = {}, currentRuntime = {}) {
   const nextRuntime = { ...(currentRuntime || {}) };
 
   if (status === "Done") {
-    nextRuntime.current_phase = "STATUS_SYNC";
-    nextRuntime.runtime_status = "completed";
-    nextRuntime.next_expected_actor = containment === "MERGE_PENDING" ? "INTEGRATION_VALIDATOR" : "ORCHESTRATOR";
-    nextRuntime.next_expected_session = containment === "MERGE_PENDING"
+    const nextExpectedSession = containment === "MERGE_PENDING"
       ? (
         projection.integration_validator_of_record
         || normalizeDeclaredSessionValue(currentRuntime?.integration_validator_of_record)
         || normalizeDeclaredSessionValue(currentRuntime?.next_expected_session)
       )
       : null;
+    nextRuntime.current_phase = "STATUS_SYNC";
+    nextRuntime.runtime_status = "completed";
+    nextRuntime.next_expected_actor = containment === "MERGE_PENDING" ? "INTEGRATION_VALIDATOR" : "ORCHESTRATOR";
+    nextRuntime.next_expected_session = nextExpectedSession;
     nextRuntime.waiting_on = containment === "MERGE_PENDING" ? "MAIN_CONTAINMENT" : "STATUS_SYNC";
     nextRuntime.waiting_on_session = null;
     nextRuntime.validator_trigger = "NONE";
@@ -73,6 +74,11 @@ function deriveRuntimeCloseoutState(projection = {}, currentRuntime = {}) {
     nextRuntime.ready_for_validation = false;
     nextRuntime.ready_for_validation_reason = null;
     nextRuntime.attention_required = false;
+    nextRuntime.route_anchor_state = containment === "MERGE_PENDING" ? "COMM_OK" : null;
+    nextRuntime.route_anchor_kind = containment === "MERGE_PENDING" ? "MAIN_CONTAINMENT" : null;
+    nextRuntime.route_anchor_correlation_id = null;
+    nextRuntime.route_anchor_target_role = containment === "MERGE_PENDING" ? "INTEGRATION_VALIDATOR" : null;
+    nextRuntime.route_anchor_target_session = containment === "MERGE_PENDING" ? nextExpectedSession : null;
     return nextRuntime;
   }
 
@@ -286,6 +292,11 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
     && communicationEvaluation.ok
     && String(communicationEvaluation.state || "").trim().toUpperCase() === "COMM_OK"
   ) {
+    const packetStatus = String(projection.current_packet_status || "").trim();
+    const containmentStatus = String(projection.main_containment_status || "").trim().toUpperCase();
+    const terminalCloseoutProjection =
+      /^Validated \(/i.test(packetStatus)
+      || (packetStatus === "Done" && containmentStatus === "MERGE_PENDING");
     if (runtimePhase === "BOOTSTRAP") {
       const message = "runtime.current_phase is still BOOTSTRAP even though direct review is already complete";
       issues.push(message);
@@ -298,7 +309,7 @@ export function evaluatePacketRuntimeProjectionDrift(packetText, runtimeStatus =
         ),
       );
     }
-    if (String(runtimeStatus?.current_milestone || "").trim().toUpperCase() !== "VERDICT") {
+    if (!terminalCloseoutProjection && String(runtimeStatus?.current_milestone || "").trim().toUpperCase() !== "VERDICT") {
       const message = `runtime.current_milestone (${runtimeStatus?.current_milestone || "<missing>"}) should be VERDICT once the direct-review lane is complete`;
       issues.push(message);
       ownerClasses.add("RUNTIME_PROJECTION");

@@ -192,6 +192,46 @@ test("readWpTokenUsageLedger reports material raw-output drift as FAIL", async (
   assert.deepEqual(ledger.ledger_health.missing_tracked_command_ids_sample, ["cmd-wpval"]);
 }));
 
+test("readWpTokenUsageLedger excludes in-flight raw commands from drift severity", async () => withTempRepo(async (repoRoot) => {
+  const { syncWpTokenUsageLedger, readWpTokenUsageLedger } = await loadTokenLib(path.join(repoRoot, "gov_runtime"));
+  const coderOutput = path.join(repoRoot, "gov_runtime", "roles_shared", "SESSION_CONTROL_OUTPUTS", "CODER_WP-TEST-v1", "cmd-coder.jsonl");
+  const activeOutput = path.join(repoRoot, "gov_runtime", "roles_shared", "SESSION_CONTROL_OUTPUTS", "WP_VALIDATOR_WP-TEST-v1", "cmd-active.jsonl");
+  fs.mkdirSync(path.dirname(coderOutput), { recursive: true });
+  fs.mkdirSync(path.dirname(activeOutput), { recursive: true });
+  fs.writeFileSync(coderOutput, `${JSON.stringify({ timestamp: "2026-03-29T10:00:01Z", type: "turn.completed", usage: { input_tokens: 100, cached_input_tokens: 40, output_tokens: 12 } })}\n`, "utf8");
+  fs.writeFileSync(activeOutput, [
+    JSON.stringify({
+      timestamp: "2026-03-29T10:05:00Z",
+      type: "control.requested",
+      session_id: "WP_VALIDATOR:WP-TEST-v1",
+      command_id: "cmd-active",
+      command_kind: "START_SESSION",
+    }),
+    JSON.stringify({ timestamp: "2026-03-29T10:05:02Z", type: "turn.started" }),
+  ].join("\n") + "\n", "utf8");
+
+  await withRuntimeRoot(path.join(repoRoot, "gov_runtime"), () => syncWpTokenUsageLedger(repoRoot, {
+    command_id: "cmd-coder",
+    command_kind: "START_SESSION",
+    session_key: "CODER:WP-TEST-v1",
+    wp_id: "WP-TEST-v1",
+    role: "CODER",
+    status: "COMPLETED",
+    processed_at: "2026-03-29T10:00:05Z",
+    output_jsonl_file: path.relative(repoRoot, coderOutput),
+  }));
+
+  const { ledger } = await withRuntimeRoot(path.join(repoRoot, "gov_runtime"), () => readWpTokenUsageLedger(repoRoot, "WP-TEST-v1"));
+
+  assert.equal(ledger.summary.command_count, 2);
+  assert.equal(ledger.raw_scan.summary.command_count, 2);
+  assert.equal(ledger.ledger_health.status, "MATCH");
+  assert.equal(ledger.ledger_health.severity, "PASS");
+  assert.equal(ledger.ledger_health.pending_raw_command_count, 1);
+  assert.deepEqual(ledger.ledger_health.pending_raw_command_ids_sample, ["cmd-active"]);
+  assert.equal(ledger.ledger_health.missing_tracked_command_count, 0);
+}));
+
 test("settleWpTokenUsageLedger backfills tracked commands from raw output and records settlement metadata", async () => withTempRepo(async (repoRoot) => {
   const { syncWpTokenUsageLedger, readWpTokenUsageLedger, settleWpTokenUsageLedger } = await loadTokenLib(path.join(repoRoot, "gov_runtime"));
   const coderOutput = path.join(repoRoot, "gov_runtime", "roles_shared", "SESSION_CONTROL_OUTPUTS", "CODER_WP-TEST-v1", "cmd-coder.jsonl");

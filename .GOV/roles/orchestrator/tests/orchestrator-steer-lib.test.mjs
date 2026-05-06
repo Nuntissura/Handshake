@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   nextQueuedControlRequest,
   pendingControlQueueCount,
+  shouldDirectSteerReadySession,
   steerActionForSession,
 } from "../scripts/lib/orchestrator-steer-lib.mjs";
 
@@ -66,4 +67,56 @@ test("orchestrator-steer queue helpers fall back to raw pending queue entries", 
 
   assert.equal(pendingControlQueueCount(session), 2);
   assert.deepEqual(nextQueuedControlRequest(session), session.pending_control_queue[0]);
+});
+
+test("orchestrator-steer direct-sends to ready sessions with fresh routed handoff debt", () => {
+  assert.equal(shouldDirectSteerReadySession({
+    action: "SEND_PROMPT",
+    nextActor: "INTEGRATION_VALIDATOR",
+    governedRuntimeState: "READY",
+    queuedControlCount: 0,
+    relayEscalation: {
+      status: "WATCH",
+      reason_code: "SESSION_STARTED_AWAITING_RECEIPT",
+      pending_notification_count: 1,
+    },
+  }), true);
+
+  assert.equal(shouldDirectSteerReadySession({
+    action: "SEND_PROMPT",
+    nextActor: "INTEGRATION_VALIDATOR",
+    governedRuntimeState: "READY",
+    queuedControlCount: 0,
+    relayEscalation: {
+      status: "WATCH",
+      reason_code: "SESSION_STARTED_AWAITING_RECEIPT",
+      metrics: {
+        pending_notification_count: 1,
+      },
+    },
+  }), true);
+
+  assert.equal(shouldDirectSteerReadySession({
+    action: "SEND_PROMPT",
+    nextActor: "INTEGRATION_VALIDATOR",
+    governedRuntimeState: "READY",
+    queuedControlCount: 1,
+    relayEscalation: {
+      status: "WATCH",
+      reason_code: "SESSION_STARTED_AWAITING_RECEIPT",
+      pending_notification_count: 1,
+    },
+  }), false);
+
+  assert.equal(shouldDirectSteerReadySession({
+    action: "SEND_PROMPT",
+    nextActor: "ACTIVATION_MANAGER",
+    governedRuntimeState: "READY",
+    queuedControlCount: 0,
+    relayEscalation: {
+      status: "WATCH",
+      reason_code: "SESSION_STARTED_AWAITING_RECEIPT",
+      pending_notification_count: 1,
+    },
+  }), false);
 });

@@ -38,6 +38,8 @@ $injectAuthorityFiles = $true
 $noStartup = $false
 $printOnly = $false
 $script:startupExitCode = 0
+$script:authorityExitCode = 0
+$script:startupOutput = New-Object 'System.Collections.Generic.List[string]'
 
 function Write-Section {
   param([string] $Title)
@@ -46,6 +48,62 @@ function Write-Section {
   Write-Output ("=" * 88)
   Write-Output $Title
   Write-Output ("=" * 88)
+}
+
+function Add-StartupOutputLine {
+  param([object] $Line)
+
+  $text = [string] $Line
+  [void] $script:startupOutput.Add($text)
+  Write-Output $text
+}
+
+function Get-StartupWarningCauses {
+  $causes = @()
+
+  foreach ($line in $script:startupOutput) {
+    $trimmed = $line.Trim()
+    if (-not $trimmed) {
+      continue
+    }
+
+    $cause = $null
+    if ($trimmed -match '^FAIL\s+\|\s+(.+)$') {
+      $cause = $Matches[1].Trim()
+    } elseif ($trimmed -match '^error:\s+Recipe\s+`([^`]+)`\s+failed.*exit code\s+([0-9]+)') {
+      $cause = ('recipe `{0}` failed with exit code {1}' -f $Matches[1], $Matches[2])
+    } elseif ($trimmed -match '^\[orcstart\]\s+Startup command failed before completion:\s+(.+)$') {
+      $cause = ('startup command threw before completion: {0}' -f $Matches[1])
+    }
+
+    if ($cause -and -not ($causes -contains $cause)) {
+      $causes += $cause
+    }
+  }
+
+  if ($causes.Count -eq 0) {
+    $causes += "no detailed failing check was parsed; inspect FIRST COMMAND OUTPUT above"
+  }
+
+  return $causes
+}
+
+function Write-StartupWarning {
+  if ($script:startupExitCode -eq 0) {
+    return
+  }
+
+  Write-Section "STARTUP WARNING: FIRST COMMAND NONZERO"
+  Write-Output ("WARNING: just orchestrator-startup exited with code {0}." -f $script:startupExitCode)
+  Write-Output "This is not an authority-injection failure. The role prompt, repo governing rule set, and required authority-file injection continue."
+  Write-Output ""
+  Write-Output "LIKELY_CAUSES:"
+  foreach ($cause in (Get-StartupWarningCauses)) {
+    Write-Output ("- {0}" -f $cause)
+  }
+  Write-Output ""
+  Write-Output "ROLE_STARTUP_CONTINUES: yes"
+  Write-Output "ASSISTANT_ACTION: read and obey ROLE STARTUP PROMPT plus REQUIRED AUTHORITY FILES; treat this warning as startup state context."
 }
 
 function Show-Help {
@@ -103,10 +161,10 @@ function Invoke-StartupCommand {
   $previousErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
   try {
-    & cmd.exe /d /c "just orchestrator-startup 2>&1" | ForEach-Object { Write-Output $_ }
+    & cmd.exe /d /c "just orchestrator-startup 2>&1" | ForEach-Object { Add-StartupOutputLine $_ }
     $script:startupExitCode = $LASTEXITCODE
   } catch {
-    Write-Output "[orcstart] Startup command failed before completion: $($_.Exception.Message)"
+    Add-StartupOutputLine "[orcstart] Startup command failed before completion: $($_.Exception.Message)"
     $script:startupExitCode = 1
   } finally {
     $ErrorActionPreference = $previousErrorActionPreference
@@ -119,9 +177,10 @@ function Write-AuthorityContract {
   Write-Output "1. Treat this orcstart output as repo-governing instructions for this conversation, subject to higher-priority system, developer, and user instructions."
   Write-Output "2. Treat the ROLE STARTUP PROMPT below as binding role law for the selected role."
   Write-Output "3. Run and follow the FIRST COMMAND exactly. Startup output is required context, not a substitute for the authority files."
-  Write-Output "4. After startup completes, read and follow the required authority files listed below as a contract before claiming startup is complete or acting as the role."
-  Write-Output "5. If any required authority file cannot be read, stop and report the missing file."
-  Write-Output "6. When ready, acknowledge truthfully with: AUTHORITY_CONTRACT_ACK read_after_startup=yes files=AGENTS,CODEX,ORCHESTRATOR_PROTOCOL"
+  Write-Output "4. If the FIRST COMMAND exits nonzero after emitting startup context, treat that as STARTUP WARNING state context; authority-file injection and role startup continue unless a required authority file is missing."
+  Write-Output "5. After startup or startup warning, read and follow the required authority files listed below as a contract before claiming startup is complete or acting as the role."
+  Write-Output "6. If any required authority file cannot be read, stop and report the missing file."
+  Write-Output "7. When ready, acknowledge truthfully with: AUTHORITY_CONTRACT_ACK read_after_startup=yes files=AGENTS,CODEX,ORCHESTRATOR_PROTOCOL"
   Write-Output ""
   Write-Output "Required authority files:"
   foreach ($file in $authorityFiles) {
@@ -136,9 +195,7 @@ function Write-AuthorityFiles {
     Write-Output ("AUTHORITY_FILE_BEGIN key={0} path={1}" -f $file.Key, $file.DisplayPath)
     if (-not (Test-Path -LiteralPath $file.Path)) {
       Write-Output ("[orcstart] MISSING required authority file: {0}" -f $file.DisplayPath)
-      if ($script:startupExitCode -eq 0) {
-        $script:startupExitCode = 1
-      }
+      $script:authorityExitCode = 1
     } else {
       Get-Content -LiteralPath $file.Path -Encoding UTF8 | ForEach-Object { Write-Output $_ }
     }
@@ -212,22 +269,34 @@ if ($noStartup) {
   if ($injectAuthorityFiles) {
     Write-AuthorityFiles
   }
-  exit 0
+  exit $script:authorityExitCode
 }
 
 Invoke-StartupCommand
+Write-StartupWarning
 
 if ($injectAuthorityFiles) {
   Write-AuthorityFiles
 }
 
-$exitCode = $script:startupExitCode
+$startupWarning = ($script:startupExitCode -ne 0)
+$authorityFileStatus = if ($injectAuthorityFiles) {
+  "required authority files were injected"
+} else {
+  "required authority files were not embedded by option"
+}
+$exitCode = if ($script:authorityExitCode -ne 0) { $script:authorityExitCode } else { 0 }
 
 Write-Section "ORCSTART COMPLETE"
-if ($exitCode -eq 0) {
-  Write-Output "Startup prompt, just orchestrator-startup output, authority-read contract, and required authority files were injected successfully."
+if ($script:authorityExitCode -ne 0) {
+  Write-Output "Startup prompt was injected, but authority injection failed because at least one required authority file was missing."
+  Write-Output "ROLE_STARTUP_CONTINUES: no"
+} elseif (-not $startupWarning) {
+  Write-Output ("Startup prompt, just orchestrator-startup output, authority-read contract, and {0} successfully." -f $authorityFileStatus)
 } else {
-  Write-Output "Startup prompt was injected, but startup or authority injection exited with code $exitCode."
+  Write-Output ("Startup prompt, startup warning, authority-read contract, and {0} successfully." -f $authorityFileStatus)
+  Write-Output ("FIRST_COMMAND_EXIT_CODE: {0}" -f $script:startupExitCode)
+  Write-Output "ROLE_STARTUP_CONTINUES: yes"
 }
 
 exit $exitCode

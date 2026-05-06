@@ -284,6 +284,7 @@ function collectActivationState(wpId) {
   const refinementSignature = parseMetadataField(refinementText, "USER_SIGNATURE");
   const refinementReviewStatus = parseMetadataField(refinementText, "USER_REVIEW_STATUS").toUpperCase();
   const stubWpIds = parseMetadataField(refinementText, "STUB_WP_IDS");
+  const specEnrichmentBlocking = refinementExists && (enrichmentNeeded === "YES" || clearlyCoversVerdict === "FAIL");
 
   const claimCheck = runNode(`${GOV_ROOT_REPO_REL}/roles_shared/checks/task-packet-claim-check.mjs`);
   const traceabilityCheck = runNode(`${GOV_ROOT_REPO_REL}/roles_shared/checks/wp-activation-traceability-check.mjs`);
@@ -299,6 +300,8 @@ function collectActivationState(wpId) {
 
   if (packet.packetExists) {
     artifactsReady.push(packet.packetPath);
+  } else if (specEnrichmentBlocking) {
+    findings.push("packet missing (expected until approved spec enrichment is landed and the same refinement is refreshed)");
   } else {
     findings.push("packet missing");
   }
@@ -364,12 +367,12 @@ function collectActivationState(wpId) {
   let verdict = "READY_FOR_ORCHESTRATOR_REVIEW";
   let nextAction = "Orchestrator review the activation bundle and decide whether to launch downstream lanes.";
 
-  if (!refinementExists || !packet.packetExists) {
-    verdict = "REPAIR_REQUIRED";
-    nextAction = "Repair or create the missing packet/refinement artifacts before activation can proceed.";
-  } else if (enrichmentNeeded === "YES" || clearlyCoversVerdict === "FAIL") {
+  if (specEnrichmentBlocking) {
     verdict = "BLOCKED_BY_SPEC_ENRICHMENT";
     nextAction = "Perform the approved spec-enrichment pass, advance SPEC_CURRENT if needed, then refresh the same WP refinement.";
+  } else if (!refinementExists || !packet.packetExists) {
+    verdict = "REPAIR_REQUIRED";
+    nextAction = "Repair or create the missing packet/refinement artifacts before activation can proceed.";
   } else if (!userApprovalEvidence || /^<pending>$/i.test(userApprovalEvidence) || !refinementSignature || /^<pending>$/i.test(refinementSignature)) {
     verdict = "BLOCKED_BY_OPERATOR_APPROVAL";
     nextAction = `Obtain operator approval evidence and record the one-time signature for ${wpId} before packet activation is treated as ready.`;
@@ -423,10 +426,14 @@ function readinessArtifactPath(wpId) {
 }
 
 function renderReadinessReport(state) {
+  const readyForDownstreamLaunch = state.verdict === "READY_FOR_ORCHESTRATOR_REVIEW" ? "YES" : "NO";
   const lines = [
     "ACTIVATION_READINESS",
     `- WP_ID: ${state.wpId}`,
+    `- GENERATED_AT_UTC: ${new Date().toISOString()}`,
+    "- STATE_SOURCE: RECOMPUTED",
     `- VERDICT: ${state.verdict}`,
+    `- READY_FOR_DOWNSTREAM_LAUNCH: ${readyForDownstreamLaunch}`,
     `- TASK_BOARD_STATUS: ${state.taskBoardStatus || "<not found>"}`,
     `- PACKET_STATUS: ${state.packet.packetStatus || "<missing>"}`,
     `- CURRENT_WP_STATUS: ${state.packet.currentWpStatus || "<missing>"}`,

@@ -662,9 +662,59 @@ export const VALID_CHECKPOINT_TYPES = [
 ];
 
 const SESSION_MARKER_FILE = "CURRENT_REPOMEM_SESSION.json";
+const SESSION_MARKER_DIR = "REPOMEM_SESSIONS";
+
+function normalizeMarkerRole(value = "") {
+  return String(value || "").trim().toUpperCase();
+}
+
+function normalizeMarkerWpId(value = "") {
+  return String(value || "").trim();
+}
+
+function safeMarkerPart(value = "", fallback = "GLOBAL") {
+  const safe = String(value || "")
+    .trim()
+    .replace(/[^A-Za-z0-9_.-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return safe || fallback;
+}
 
 function sessionMarkerPath() {
   return path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", SESSION_MARKER_FILE);
+}
+
+function scopedSessionMarkerDir() {
+  return path.join(GOVERNANCE_RUNTIME_ROOT_ABS, "roles_shared", SESSION_MARKER_DIR);
+}
+
+function scopedSessionMarkerPath({ role = "", wpId = "" } = {}) {
+  const rolePart = safeMarkerPart(normalizeMarkerRole(role), "ROLE");
+  const wpPart = safeMarkerPart(normalizeMarkerWpId(wpId), "NO_WP");
+  return path.join(scopedSessionMarkerDir(), `${rolePart}__${wpPart}.json`);
+}
+
+function readSessionMarkerFile(markerPath) {
+  if (!fs.existsSync(markerPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(markerPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function markerMatchesScope(session, { role = "", wpId = "", sessionId = "" } = {}) {
+  if (!session) return false;
+  const expectedRole = normalizeMarkerRole(role);
+  const expectedWpId = normalizeMarkerWpId(wpId);
+  const expectedSessionId = String(sessionId || "").trim();
+  const markerRole = normalizeMarkerRole(session.role);
+  const markerWpId = normalizeMarkerWpId(session.wp_id || session.wpId || "");
+  const markerSessionId = String(session.session_id || "").trim();
+  if (expectedSessionId && markerSessionId !== expectedSessionId) return false;
+  if (expectedRole && markerRole !== expectedRole) return false;
+  if (expectedWpId && markerWpId !== expectedWpId) return false;
+  return true;
 }
 
 export function generateSessionId(role) {
@@ -672,21 +722,51 @@ export function generateSessionId(role) {
   return `${(role || "SESSION").toUpperCase()}-${ts}`;
 }
 
-export function getCurrentSession() {
-  const markerPath = sessionMarkerPath();
-  if (!fs.existsSync(markerPath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(markerPath, "utf8"));
-  } catch { return null; }
+export function getCurrentSession(scope = {}) {
+  const role = normalizeMarkerRole(scope.role);
+  const wpId = normalizeMarkerWpId(scope.wpId || scope.wp_id || "");
+  if (role || wpId) {
+    if (role) {
+      const scoped = readSessionMarkerFile(scopedSessionMarkerPath({ role, wpId }));
+      if (markerMatchesScope(scoped, { role, wpId })) return scoped;
+    }
+    const legacy = readSessionMarkerFile(sessionMarkerPath());
+    return markerMatchesScope(legacy, { role, wpId }) ? legacy : null;
+  }
+  return readSessionMarkerFile(sessionMarkerPath());
 }
 
-export function writeSessionMarker(session) {
-  fs.writeFileSync(sessionMarkerPath(), JSON.stringify(session, null, 2));
+export function writeSessionMarker(session, { updateGlobal = true } = {}) {
+  const payload = {
+    ...session,
+    role: normalizeMarkerRole(session?.role || ""),
+    wp_id: normalizeMarkerWpId(session?.wp_id || session?.wpId || ""),
+  };
+  fs.mkdirSync(scopedSessionMarkerDir(), { recursive: true });
+  if (payload.role) {
+    fs.writeFileSync(scopedSessionMarkerPath({ role: payload.role, wpId: payload.wp_id }), JSON.stringify(payload, null, 2));
+  }
+  if (updateGlobal) {
+    fs.writeFileSync(sessionMarkerPath(), JSON.stringify(payload, null, 2));
+  }
 }
 
-export function clearSessionMarker() {
+export function clearSessionMarker(scope = {}) {
+  const role = normalizeMarkerRole(scope.role);
+  const wpId = normalizeMarkerWpId(scope.wpId || scope.wp_id || "");
+  const sessionId = String(scope.sessionId || scope.session_id || "").trim();
+  if (role) {
+    const scopedPath = scopedSessionMarkerPath({ role, wpId });
+    const scoped = readSessionMarkerFile(scopedPath);
+    if (markerMatchesScope(scoped, { role, wpId, sessionId }) && fs.existsSync(scopedPath)) {
+      fs.unlinkSync(scopedPath);
+    }
+  }
   const markerPath = sessionMarkerPath();
-  if (fs.existsSync(markerPath)) fs.unlinkSync(markerPath);
+  const legacy = readSessionMarkerFile(markerPath);
+  if (markerMatchesScope(legacy, { role, wpId, sessionId }) && fs.existsSync(markerPath)) {
+    fs.unlinkSync(markerPath);
+  }
 }
 
 export function addConversationCheckpoint(db, {
@@ -832,8 +912,8 @@ export function getRecentConversationContext(db, { maxEntries = 8, maxTokens = 6
   return { lines, tokenCount };
 }
 
-export function checkSessionGate() {
-  const session = getCurrentSession();
+export function checkSessionGate(scope = {}) {
+  const session = getCurrentSession(scope);
   if (!session) {
     return { open: false, message: "REPOMEM_GATE_FAIL: No active session. Run `just repomem open \"<what this session is about>\"` first." };
   }

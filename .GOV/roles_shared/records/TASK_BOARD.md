@@ -1245,6 +1245,7 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Calendar-Sync-Engine-v3]** - [VALIDATED]
 - **[WP-1-Software-Delivery-Projection-Surface-Discipline-v1]** - [VALIDATED]
 - **[WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1]** - [VALIDATED]
+- **[WP-1-Postgres-Primary-Control-Plane-Foundation-v1]** - [VALIDATED]
 
 
 ## Blocked

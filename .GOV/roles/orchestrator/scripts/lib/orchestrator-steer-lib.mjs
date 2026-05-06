@@ -34,3 +34,31 @@ export function steerActionForSession(session) {
   if (runtimeState === "CLOSED") return "START_SESSION";
   return "SEND_PROMPT";
 }
+
+export function shouldDirectSteerReadySession({
+  action = "",
+  sendNow = false,
+  nextActor = "",
+  governedRuntimeState = "",
+  queuedControlCount = 0,
+  relayEscalation = null,
+} = {}) {
+  if (normalizeToken(action) !== "SEND_PROMPT") return false;
+  if (sendNow) return false;
+  if (normalizeToken(nextActor) === "ACTIVATION_MANAGER") return false;
+  if (normalizeToken(governedRuntimeState) !== "READY") return false;
+  if (Number(queuedControlCount || 0) !== 0) return false;
+
+  const relayStatus = normalizeToken(relayEscalation?.status);
+  if (relayStatus === "ESCALATED") return true;
+
+  const reasonCode = normalizeToken(relayEscalation?.reason_code);
+  const pendingNotifications = Number(
+    relayEscalation?.pending_notification_count
+    || relayEscalation?.metrics?.pending_notification_count
+    || 0,
+  );
+  return relayStatus === "WATCH"
+    && pendingNotifications > 0
+    && ["SESSION_STARTED_AWAITING_RECEIPT", "ROUTE_OPENED_AWAITING_RECEIPT"].includes(reasonCode);
+}

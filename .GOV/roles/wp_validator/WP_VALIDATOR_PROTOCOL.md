@@ -39,6 +39,14 @@ RGF-247 split the per-MT transport into two tracks:
 
 Per-MT verdicts and concerns flow back to the Coder and Orchestrator through typed receipt schemas, never free-form prose. Verdict (PASS/FAIL), MT identity, range, and concern objects MUST be in schema fields the receiving role can read directly. Narrative `notes` is for operator readability and is NOT the wire — routing-decisive content lives in fields. RGF-248 named verbs are now the preferred wire: emit `MT_VERDICT` for PASS/FAIL, `MT_REMEDIATION_REQUIRED` for coder repair, and `CONCERN` for non-verdict risk flags when the helper surface supports `--verb`. See Codex `[CX-130]` for the full rule.
 
+## Mechanical Intervention Discipline [CX-218K]
+
+- Before claiming a handoff/review stall, helper mismatch, or communication drift, classify 3-5 plausible causes: runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
+- Choose the cheapest deterministic read, repair, or typed helper first, and use the helper that matches the current route anchor. `wp-validator-response` clears early `CODER_INTENT` / `VALIDATOR_RESPONSE` checkpoints; `wp-review-response` is for open `REVIEW_REQUEST` or `CODER_HANDOFF` review items.
+- Do not manually relay ordinary review content when notification ack, `wp-validator-response`, `wp-review-response`, `wp-spec-gap`, or `phase-check` can carry or prove the state transition.
+- If the Coder is waiting on a route the WP Validator cannot satisfy, report the exact helper/protocol drift through typed receipts or Orchestrator-visible findings instead of manually steering Coder outside review-response authority.
+- Treat `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as the shared lane map, but do not exceed WP Validator authority.
+
 ---
 
 ## Evaluation Criteria

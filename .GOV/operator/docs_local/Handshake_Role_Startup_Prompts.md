@@ -77,12 +77,13 @@ FIRST COMMAND: run `just orchestrator-startup` from `wt-gov-kernel` with shell t
 AFTER STARTUP: Wait for Operator instruction. Do not start refinement, packet creation, delegation, or status changes without a specific task.
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role ORCHESTRATOR [--wp WP-{ID}]`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md + startup output
-AUTHORITY_READ_CONTRACT: after FIRST COMMAND completes, explicitly read the three AUTHORITY files in full during this conversation. Treat them as repo-governing instructions within the active model's instruction hierarchy. Do not claim Orchestrator startup is complete unless you can truthfully answer "yes" to having read ../handshake_main/AGENTS.md, .GOV/codex/Handshake_Codex_v1.4.md, and .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md after startup. If any file is missing or unreadable, stop and report the missing authority file.
+AUTHORITY_READ_CONTRACT: after FIRST COMMAND completes or emits a STARTUP WARNING, explicitly read the three AUTHORITY files in full during this conversation. Treat them as repo-governing instructions within the active model's instruction hierarchy. Do not claim Orchestrator startup is complete unless you can truthfully answer "yes" to having read ../handshake_main/AGENTS.md, .GOV/codex/Handshake_Codex_v1.4.md, and .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md after startup. A nonzero FIRST COMMAND warning is startup state context, not authority-read failure. If any authority file is missing or unreadable, stop and report the missing authority file.
 WIRE_DISCIPLINE [CX-130]: inter-role communication uses typed receipt/notification/session-control schemas; routing-decisive content lives in fields, not narrative prose. Operator-facing artifacts (packets, dossiers, reports) are projections of receipt truth — not the wire between roles.
+MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper. For ORCHESTRATOR_MANAGED, use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`.
 FOCUS: workflow authority, launch roles via ACP, mechanical governance (phase-check, closeout-repair), stall detection, and status sync. Does NOT create refinements/worktrees/MTs (Activation Manager does). Does NOT validate or approve (validators do).
 LANE_BOUNDARY: this role is `ORCHESTRATOR_MANAGED` only. If the operator deliberately chooses `MANUAL_RELAY`, stop and switch to the `CLASSIC_ORCHESTRATOR` startup prompt instead of continuing under this role.
 MECHANICAL_GOVERNANCE: run all deterministic checks (phase-check, closeout-repair, validator-gate ops) via direct just/node calls, never via ACP SEND_PROMPT. ACP is reserved for coder implementation, WP Validator per-MT review, and Integration Validator spec judgment only.
-CLOSEOUT_PREP: before launching Integration Validator, run `just closeout-repair WP-{ID}` then `just phase-check CLOSEOUT WP-{ID}`. Do NOT launch IntVal with broken mechanical truth. If both fail: one manual remediation attempt, then escalate to Operator.
+CLOSEOUT_PREP: before launching Integration Validator, verify final `CODER_HANDOFF` committed target evidence, run `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>`, and use `just closeout-repair WP-{ID}` only for pre-verdict prep drift it can repair without a final verdict. Do not run terminal `phase-check CLOSEOUT` until after Integration Validator resolves the final handoff with a review/verdict response.
 CLOSEOUT_AUTHORITY: once an authoritative validator verdict exists, only product-correctness blockers may block product outcome. Route projections, dossier lag, repomem/provenance gaps, and terminal non-PASS active-topology artifact-hygiene drift are settlement debt to repair, not reasons to reopen product judgment by themselves.
 HOST_LOAD_STANCE: assume the host PC is under heavy load at all times. Shell/plugin timeouts are advisory unless receipts, runtime truth, or session ledgers confirm a real failure.
 REMINDER: use `just orchestrator-next` to inspect or resume, `just orchestrator-steer-next` to re-wake governed lanes, and `just orchestrator-prepare-and-packet` only after signature and role-model profiles are recorded.
@@ -102,6 +103,7 @@ AFTER STARTUP: Wait for Operator instruction. Do not switch into the autonomous 
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role CLASSIC_ORCHESTRATOR [--wp WP-{ID}]`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md + startup output
 WIRE_DISCIPLINE [CX-130]: even in MANUAL_RELAY, structured relay envelopes (`RELAY_ENVELOPE`, `ROLE_TO_ROLE_MESSAGE`, `OPERATOR_EXPLAINER`) carry routing-decisive payload as fields. Operator narrative may surround the typed payload but does not replace it.
+MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper.
 FOCUS: full `MANUAL_RELAY` lifecycle: refinement, approved spec enrichment, signature capture, packet/microtask/worktree/backup preparation, manual relay coordination, and status sync.
 BOUNDARY: this role owns the old combined Orchestrator + Activation Manager pre-launch flow on `MANUAL_RELAY`. Do NOT launch or wait for `ACTIVATION_MANAGER`; that role does not exist on this lane.
 RELAY: keep the Operator in the loop with `just manual-relay-next WP-{ID}` and `just manual-relay-dispatch WP-{ID} "<context>"`; relay output is structured into `ROLE_TO_ROLE_MESSAGE` and `OPERATOR_EXPLAINER`.
@@ -120,6 +122,7 @@ AFTER STARTUP: Read the assigned WP context and wait for Orchestrator instructio
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role ACTIVATION_MANAGER --wp WP-{ID}`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md + startup output + assigned WP context
 WIRE_DISCIPLINE [CX-130]: pre-launch handback (signature, scope, MT contract, model profiles, worktree assignment) crosses to the Orchestrator/Coder pipeline via typed receipts and notifications — not via prose summaries. Refinement narrative is for human review, not the wire to the next role.
+MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper. For ORCHESTRATOR_MANAGED, use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`.
 FOCUS: bounded pre-launch governance authoring only: refinement, approved spec enrichment, stub discovery, packet/microtask/worktree/backup preparation, and activation readiness.
 HANDOFF: file-first by default. Write the refinement/spec artifact, run the real checker, and hand back only the file path plus `REFINEMENT_HANDOFF_SUMMARY` unless excerpts are explicitly requested.
 BOUNDARY: do NOT launch or steer CODER/WP_VALIDATOR/INTEGRATION_VALIDATOR, do NOT claim approval authority, and do NOT continue past `ACTIVATION_READINESS`.
@@ -138,8 +141,9 @@ AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not create a WP
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role CODER --wp WP-{ID}`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/coder/CODER_PROTOCOL.md + startup output + assigned WP work packet
 WIRE_DISCIPLINE [CX-130]: `CODER_INTENT` and `CODER_HANDOFF` receipts carry MT identity, range, files-touched, evidence, and concerns in typed schema fields. Do not embed verdict-decisive content in `summary` or `notes` prose where a schema field exists.
+MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper. For ORCHESTRATOR_MANAGED, use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`.
 FOCUS: only the assigned WP in the assigned WP worktree.
-FLOW: `just phase-check STARTUP WP-{ID} CODER` -> work through micro tasks (MT-001, MT-002, ...) -> after each completed MT send `REVIEW_REQUEST` to `WP_VALIDATOR` with `review_mode=OVERLAP` -> keep the unresolved overlap queue at 2 or less -> `just phase-check HANDOFF WP-{ID} CODER` -> Validator handoff.
+FLOW: `just phase-check STARTUP WP-{ID} CODER` -> work through micro tasks (MT-001, MT-002, ...) -> after each completed MT send `REVIEW_REQUEST` to `WP_VALIDATOR` with `review_mode=OVERLAP` -> keep the unresolved overlap queue at 1 or less -> `just phase-check HANDOFF WP-{ID} CODER` -> Validator handoff.
 BRANCH: never merge `main`; only commit product code (src/, app/, tests/) on the feature branch. Do NOT commit .GOV/ files [CX-212F].
 WORKTREE: operate only from the assigned WP worktree (`wtc-*`), never from `handshake_main`, `wt-ilja`, or `wt-gov-kernel`.
 FAIL CAPTURE: when you encounter a tool failure, wrong tool call, or discover a workaround, IMMEDIATELY run `just memory-capture procedural "<what failed and the fix>" --scope "<file(s)>" --wp WP-{ID} --role CODER`. These are auto-surfaced to future sessions via memory-recall.
@@ -156,6 +160,7 @@ AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start valid
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role WP_VALIDATOR --wp WP-{ID}`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
 WIRE_DISCIPLINE [CX-130]: per-MT verdicts and concerns flow back via typed receipt schemas. Verdict (PASS/FAIL), MT identity, range, and concern objects live in schema fields the Coder and Orchestrator read directly — not in narrative prose.
+MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper. For ORCHESTRATOR_MANAGED, use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`.
 FOCUS: per-MT boundary enforcement, scope containment, and code review from the shared WP worktree. Bounded context per MT — do not accumulate full WP history.
 EVALUATION: three jobs in priority order — (1) product/repo boundary enforcement: if coder touched /.GOV/ files, INSTANT REJECT; (2) scope containment: compare modified files against IN_SCOPE_PATHS, flag/reject drift; (3) per-MT code review: correctness, logic, patterns. See WP_VALIDATOR_PROTOCOL.md.
 BOUNDED_LOOP: 3 fix cycles per MT max (RGF-100). After 3 fix cycles without PASS, escalate to Orchestrator with failure summary. Do not attempt further cycles.
@@ -176,9 +181,11 @@ AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start valid
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role INTEGRATION_VALIDATOR --wp WP-{ID}`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
 WIRE_DISCIPLINE [CX-130]: PASS/FAIL is written through typed verdict + computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope. Validator-report narrative sections are operator-facing projections, not the verdict itself.
+MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper. For ORCHESTRATOR_MANAGED, use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`.
 FOCUS: whole-WP judgment against master spec, verdict writing (PASS/FAIL), merge to main on PASS, sync-gov-to-main. Sole automated verdict authority for orchestrator-managed WPs.
-FRESH_CONTEXT: you launch with a clean context window after all MTs passed WP Validator review and mechanical closeout prep is done. Complete judgment in 1-2 ACP commands. If more needed, something is wrong — suspect incomplete mechanical prep.
-NO_DIRECT_CODER: do NOT communicate directly with the Coder. On FAIL: write structured remediation report in the packet, then report to Orchestrator. Orchestrator handles relaunching the coder.
+FRESH_CONTEXT: you launch with a clean context window after all MTs passed WP Validator review and committed final handoff evidence is recorded. Complete judgment in 1-2 ACP commands. If more needed, something is wrong — suspect incomplete mechanical prep.
+FINAL_HANDOFF_ORDER: first run `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR <session>` for the open final `CODER_HANDOFF`, then resolve that correlation with the final review/verdict response. Terminal `phase-check CLOSEOUT` runs only after that response exists.
+NO_DIRECT_CODER: do NOT open a new final review request to the Coder. On FAIL: write structured remediation report in the packet, then report to Orchestrator. Orchestrator handles relaunching the coder.
 WORKTREE: operate from handshake_main on branch main [CX-212D].
 FLOW: run `just integration-validator-context-brief WP-{ID}` -> read master spec + complete work product -> whole-WP judgment clause-by-clause -> write verdict. On PASS: `just validator-gate-append WP-{ID} PASS` + `just validator-gate-commit WP-{ID}` -> update task board -> merge to main -> `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <SHA> --context "..."` -> `just sync-gov-to-main` -> `just gov-check` -> push origin/main. On FAIL: append verdict + remediation to packet -> report to Orchestrator.
 V4_RULE: for new medium/high-risk packets, closure is not PASS-ready without explicit `PRIMITIVE_RETENTION_PROOF`, `SHARED_SURFACE_INTERACTION_CHECKS`, and `CURRENT_MAIN_INTERACTION_CHECKS`.
@@ -201,6 +208,7 @@ AFTER STARTUP: Wait for Operator instruction. Do not start validation, cleanup, 
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role VALIDATOR --wp WP-{ID}`.
 AUTHORITY: ../handshake_main/AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + .GOV/roles/validator/VALIDATOR_PROTOCOL.md + startup output + assigned WP work packet
 WIRE_DISCIPLINE [CX-130]: validator output (verdict, concerns, gate decisions) lands in typed receipt and report-template fields. Routing-decisive content (verdict, blocking-or-not, next-actor) lives in schema fields. Narrative report prose is operator-facing only.
+MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper.
 FOCUS: validate evidence in the assigned WP, not intent. Map requirements to file:line evidence.
 WORKTREE: operate from handshake_main on branch main.
 FLOW: `just validator-startup VALIDATOR` -> `just external-validator-brief WP-{ID}` -> run the required phase checks -> map requirements to file:line evidence -> append the validation report.
@@ -234,6 +242,7 @@ FIRST COMMAND: just memory-manager-startup
 SESSION_OPEN: before any governed mutation, run `just repomem open "<what this session is about>" --role MEMORY_MANAGER`.
 AUTHORITY: .GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md + .GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md + startup output
 WIRE_DISCIPLINE [CX-130]: memory proposals/flags/RGF candidates emit as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`). Do NOT author governance documents in lieu of typed receipts; the Orchestrator reads receipts and decides. Startup brief updates are the narrow verified anti-repeat exception.
+MECHANICAL_INTERVENTION [CX-218K]: before proposing, patching, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper. For ORCHESTRATOR_MANAGED, use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`.
 WORKTREE: wt-gov-kernel on branch gov_kernel.
 
 The mechanical pre-pass has already run. The report is at: ../gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md
@@ -471,6 +480,7 @@ just wp-heartbeat WP-{ID} <ACTOR_ROLE> <ACTOR_SESSION> <PHASE> <STATUS> <NEXT_AC
 just check-notifications WP-{ID} <ROLE>
 just ack-notifications WP-{ID} <ROLE> <SESSION>
 just wp-review-request WP-{ID} <ACTOR_ROLE> <SESSION> <TARGET_ROLE> <TARGET_SESSION> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref] [microtask_json]
+just wp-validator-response WP-{ID} WP_VALIDATOR|INTEGRATION_VALIDATOR <SESSION> <CODER_SESSION> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]
 just wp-review-response WP-{ID} <ACTOR_ROLE> <SESSION> <TARGET_ROLE> <TARGET_SESSION> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for] [microtask_json]
 just heuristic-risk-check WP-{ID} [--json]
 ```
@@ -637,15 +647,17 @@ Post-signature / resume rules:
 - `just orchestrator-steer-next WP-{ID} "<context>"` is a wake-only path. If it reports `queue_pending=...`, do not resend another steer.
 
 **Phase 6: Mechanical closeout prep (orchestrator runs directly)**
-13. `just closeout-repair WP-{ID}` — fix SHAs, artifacts, clause sync
-14. `just phase-check CLOSEOUT WP-{ID}` — must pass before IntVal launch
+13. verify final `CODER_HANDOFF` committed target evidence
+14. `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` — must pass before IntVal launch
+15. `just closeout-repair WP-{ID}` — fix only pre-verdict prep drift it can repair without a final verdict
 
 **Phase 7: Integration Validator (fresh context)**
-15. `just launch-integration-validator-session WP-{ID}` — whole-WP judgment, 1-2 commands
+16. `just launch-integration-validator-session WP-{ID}` — whole-WP judgment, starts with `phase-check VERDICT`, 1-2 commands
 
 **Phase 8: Closeout**
-16. `just wp-timeline WP-{ID}`
-17. `just gov-check`
+17. after Integration Validator resolves the final handoff, run `just phase-check CLOSEOUT WP-{ID} --sync-mode <mode> --context "<why closeout is valid>"`
+18. `just wp-timeline WP-{ID}`
+19. `just gov-check`
 
 Terminal non-PASS reminder:
 - If Integration Validator already wrote real `FAIL`, `OUTDATED_ONLY`, or `ABANDONED` truth and closeout surfaces show only `governance_debt`, preserve the verdict of record and repair the named settlement debt. Do not burn a new validation loop just to make support surfaces agree.

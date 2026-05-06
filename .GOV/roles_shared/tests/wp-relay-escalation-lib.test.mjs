@@ -29,6 +29,33 @@ test("relay escalation is not applicable when no governed actor is projected", (
   assert.equal(result.status, "NOT_APPLICABLE");
 });
 
+test("prelaunch bootstrap validator kickoff is not treated as stalled relay before sessions exist", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      next_expected_actor: "WP_VALIDATOR",
+      next_expected_session: null,
+      current_packet_status: "Ready for Dev",
+      current_task_board_status: "READY_FOR_DEV",
+      current_phase: "BOOTSTRAP",
+      waiting_on: "VALIDATOR_KICKOFF",
+      active_role_sessions: [],
+    }),
+    communicationEvaluation: { applicable: true },
+    receipts: [
+      { actor_role: "SYSTEM", actor_session: "bootstrap", timestamp_utc: "2026-03-30T10:00:00Z" },
+    ],
+    pendingNotifications: [],
+    registrySessions: [],
+    nowIso: "2026-03-30T10:30:00Z",
+  });
+
+  assert.equal(result.applicable, false);
+  assert.equal(result.status, "PRELAUNCH_NOT_APPLICABLE");
+  assert.equal(result.reason_code, "PRELAUNCH_BOOTSTRAP_AWAITS_SESSION_LAUNCH");
+  assert.equal(result.recommended_command, null);
+});
+
 test("relay escalation warns after heartbeat_due_at when pending notifications are still waiting", () => {
   const result = evaluateWpRelayEscalation({
     wpId: "WP-TEST-RELAY-v1",
@@ -93,7 +120,40 @@ test("relay escalation fails when receipt progress is stale even without pending
   assert.equal(result.reason_code, "ROUTE_STALE_WAITING_ON_CODER_HANDOFF");
 });
 
-test("relay escalation records route and session activity timestamps when registry activity occurs after the route opened", () => {
+test("relay escalation waits instead of re-steering while target session has active governed run", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-1",
+    }),
+    communicationEvaluation: { applicable: true, state: "COMM_WAITING_FOR_HANDOFF" },
+    receipts: [
+      { actor_role: "WP_VALIDATOR", actor_session: "wpv-1", timestamp_utc: "2026-03-30T10:00:00Z" },
+    ],
+    pendingNotifications: [],
+    registrySessions: [
+      {
+        role: "CODER",
+        wp_id: "WP-TEST-RELAY-v1",
+        session_id: "coder-1",
+        session_key: "CODER:WP-TEST-RELAY-v1",
+        runtime_state: "COMMAND_RUNNING",
+        effective_command_status: "RUNNING",
+        effective_governed_action_state: "ACCEPTED_RUNNING",
+        updated_at: "2026-03-30T10:04:00Z",
+      },
+    ],
+    nowIso: "2026-03-30T10:25:00Z",
+  });
+
+  assert.equal(result.status, "WATCH");
+  assert.equal(result.reason_code, "TARGET_SESSION_RUNNING_AWAITING_COMPLETION");
+  assert.equal(result.recommended_command, null);
+  assert.equal(result.metrics.active_target_run, true);
+});
+
+test("relay escalation gives fresh governed session activity a receipt grace window", () => {
   const result = evaluateWpRelayEscalation({
     wpId: "WP-TEST-RELAY-v1",
     runtimeStatus: baseRuntime({
@@ -117,10 +177,37 @@ test("relay escalation records route and session activity timestamps when regist
     nowIso: "2026-03-30T10:30:00Z",
   });
 
-  assert.equal(result.status, "ESCALATED");
-  assert.equal(result.reason_code, "SESSION_ACTIVE_NO_RECEIPT_PROGRESS");
+  assert.equal(result.status, "WATCH");
+  assert.equal(result.reason_code, "SESSION_STARTED_AWAITING_RECEIPT");
+  assert.equal(result.recommended_command, null);
   assert.equal(result.metrics.route_anchor_at, "2026-03-30T10:00:00.000Z");
   assert.equal(result.metrics.latest_session_activity_at, "2026-03-30T10:25:00.000Z");
+  assert.equal(result.metrics.session_receipt_grace_until, "2026-03-30T10:40:00.000Z");
+});
+
+test("relay escalation gives a fresh route its own grace window when runtime stale_after is old", () => {
+  const result = evaluateWpRelayEscalation({
+    wpId: "WP-TEST-RELAY-v1",
+    runtimeStatus: baseRuntime({
+      next_expected_actor: "CODER",
+      next_expected_session: "coder-2",
+      heartbeat_due_at: "2026-03-30T09:30:00Z",
+      stale_after: "2026-03-30T09:45:00Z",
+    }),
+    communicationEvaluation: { applicable: true, state: "COMM_WAITING_FOR_INTENT" },
+    receipts: [
+      { actor_role: "WP_VALIDATOR", actor_session: "wpv-1", timestamp_utc: "2026-03-30T10:00:00Z" },
+    ],
+    pendingNotifications: [
+      { target_role: "CODER", target_session: "coder-2", timestamp_utc: "2026-03-30T10:00:00Z" },
+    ],
+    nowIso: "2026-03-30T10:05:00Z",
+  });
+
+  assert.equal(result.status, "WATCH");
+  assert.equal(result.reason_code, "ROUTE_OPENED_AWAITING_RECEIPT");
+  assert.equal(result.recommended_command, null);
+  assert.equal(result.metrics.route_receipt_grace_until, "2026-03-30T10:15:00.000Z");
 });
 
 test("relay escalation surfaces human approval waits even before watchdog thresholds are crossed", () => {

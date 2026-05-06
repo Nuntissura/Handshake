@@ -52,6 +52,14 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 - Manual-relay implementation currently lives under `.GOV/roles/orchestrator/scripts/manual-relay-*.mjs` for compatibility, but those helpers are Classic-Orchestrator-owned surfaces by lane authority
 - New manual-relay packets still carry `PACKET_ACCEPTANCE_MATRIX`; Classic Orchestrator must preserve stable acceptance row IDs during combined pre-launch/packet repair and must not replace unresolved rows with prose-only acceptance claims.
 
+## Mechanical Intervention Discipline [CX-218K]
+
+- Before every manual-relay patch, dispatch, repair, or stalled-handoff action, classify 3-5 plausible causes: relay-envelope drift, packet/runtime mismatch, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/memory/worktree drift.
+- Choose the cheapest deterministic read, repair, or typed helper first: `just manual-relay-next`, `just manual-relay-dispatch`, packet/runtime reads, notification cursors, session registry status, and typed relay envelopes.
+- Do not manually relay ordinary role content when a typed relay envelope, governed receipt, manual-relay helper, or packet/runtime artifact can carry or prove the state transition.
+- If the projected actor cannot act because the helper text, protocol, or packet route is wrong, patch that durable surface in the Classic Orchestrator lane instead of teaching one role by free-form prose.
+- Do not introduce `ACTIVATION_MANAGER` as a second authority lane on `MANUAL_RELAY`; Classic Orchestrator owns the combined pre-launch duties here.
+
 ## Self-Prime And Predecessor Summary (RGF-249)
 
 - Classic Orchestrator is eligible for deterministic self-prime just like the split governed roles.

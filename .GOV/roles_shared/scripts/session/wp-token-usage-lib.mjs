@@ -15,6 +15,16 @@ import { parseJsonlFile, writeJsonFile } from "./session-registry-lib.mjs";
 export const WP_TOKEN_USAGE_SCHEMA_ID = "hsk.wp_token_usage@1";
 export const WP_TOKEN_USAGE_SCHEMA_VERSION = "wp_token_usage_v1";
 const OUTPUT_SCAN_SAMPLE_SIZE = 8;
+const PENDING_RAW_COMMAND_STATUSES = new Set([
+  "UNKNOWN",
+  "REQUESTED",
+  "STARTING",
+  "RUNNING",
+  "ACCEPTED_RUNNING",
+  "PENDING",
+  "QUEUED",
+  "IN_PROGRESS",
+]);
 
 function nowIso() {
   return new Date().toISOString();
@@ -401,6 +411,7 @@ function buildLedgerHealth(trackedCommands = [], rawCommands = []) {
       reason: "No tracked commands or raw session output files were found for this WP.",
       tracked_command_count: 0,
       raw_output_command_count: 0,
+      pending_raw_command_count: 0,
       missing_tracked_command_count: 0,
       stale_tracked_command_count: 0,
       summary_match: true,
@@ -417,16 +428,25 @@ function buildLedgerHealth(trackedCommands = [], rawCommands = []) {
       warnings: [],
       failures: [],
       missing_tracked_command_ids_sample: [],
+      pending_raw_command_ids_sample: [],
       stale_tracked_command_ids_sample: [],
     };
   }
 
   const trackedIds = new Set(trackedCommands.map((entry) => entry.command_id).filter(Boolean));
-  const rawIds = new Set(rawCommands.map((entry) => entry.command_id).filter(Boolean));
+  const pendingRawCommands = rawCommands.filter((entry) =>
+    entry.command_id
+    && !trackedIds.has(entry.command_id)
+    && normalizeCount(entry.turn_count) === 0
+    && PENDING_RAW_COMMAND_STATUSES.has(normalizeText(entry.status).toUpperCase() || "UNKNOWN")
+  );
+  const pendingRawIds = new Set(pendingRawCommands.map((entry) => entry.command_id));
+  const healthRawCommands = rawCommands.filter((entry) => !pendingRawIds.has(entry.command_id));
+  const rawIds = new Set(healthRawCommands.map((entry) => entry.command_id).filter(Boolean));
   const missingTracked = [...rawIds].filter((commandId) => !trackedIds.has(commandId));
   const staleTracked = [...trackedIds].filter((commandId) => !rawIds.has(commandId));
   const trackedSummary = summarizeCommands(trackedCommands);
-  const rawSummary = summarizeCommands(rawCommands);
+  const rawSummary = summarizeCommands(healthRawCommands);
   const usageDelta = usageTotalsDelta(trackedSummary.usage_totals, rawSummary.usage_totals);
   const metrics = {
     command_delta_count: Math.abs(trackedSummary.command_count - rawSummary.command_count),
@@ -450,6 +470,9 @@ function buildLedgerHealth(trackedCommands = [], rawCommands = []) {
   const reasons = [];
   if (missingTracked.length > 0) {
     reasons.push(`${missingTracked.length} raw output command(s) are not represented in the tracked ledger`);
+  }
+  if (pendingRawCommands.length > 0) {
+    reasons.push(`${pendingRawCommands.length} raw output command(s) appear to still be in flight and are excluded from drift severity`);
   }
   if (staleTracked.length > 0) {
     reasons.push(`${staleTracked.length} tracked command(s) no longer have raw output files`);
@@ -530,6 +553,9 @@ function buildLedgerHealth(trackedCommands = [], rawCommands = []) {
   if (status === "DRIFT" && staleTracked.length > 0) {
     warnings.push(`${staleTracked.length} tracked command(s) no longer have raw output files`);
   }
+  if (pendingRawCommands.length > 0) {
+    warnings.push(`${pendingRawCommands.length} in-flight raw output command(s) are not counted as token-ledger drift until they settle`);
+  }
 
   const driftClass = status === "MATCH"
     ? "NONE"
@@ -557,6 +583,7 @@ function buildLedgerHealth(trackedCommands = [], rawCommands = []) {
     reason: reasons.join("; ") || "Tracked ledger matches raw session output usage.",
     tracked_command_count: trackedSummary.command_count,
     raw_output_command_count: rawSummary.command_count,
+    pending_raw_command_count: pendingRawCommands.length,
     missing_tracked_command_count: missingTracked.length,
     stale_tracked_command_count: staleTracked.length,
     summary_match: summaryMatch,
@@ -564,6 +591,7 @@ function buildLedgerHealth(trackedCommands = [], rawCommands = []) {
     warnings,
     failures,
     missing_tracked_command_ids_sample: sampleList(missingTracked),
+    pending_raw_command_ids_sample: sampleList(pendingRawCommands.map((entry) => entry.command_id)),
     stale_tracked_command_ids_sample: sampleList(staleTracked),
   };
 }

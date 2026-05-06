@@ -10,6 +10,9 @@ import {
   parseCloseoutSyncOptions,
   parseCommittedTargetArgs,
   isCloseoutSyncKernelRoot,
+  maybeDeferPrelaunchStartupMesh,
+  resolveDeclaredCoderWorktreeCwd,
+  resolveDeclaredCoderWorktreeDir,
   resolveCloseoutSyncCwd,
   resolveTerminalReadySessionsForWp,
   resolvePhaseCheckCwd,
@@ -226,6 +229,57 @@ test("startup phase plan skips pre-work-check for committed handoff preflight mo
   ]);
 });
 
+test("startup phase runner resolves coder checks to the packet-declared worktree", () => {
+  const wpId = "WP-TEST-PHASE-CODER-CWD-v1";
+  const packetDir = path.join(".GOV", "task_packets", wpId);
+  const packetPath = path.join(packetDir, "packet.md");
+
+  fs.mkdirSync(packetDir, { recursive: true });
+  fs.writeFileSync(packetPath, [
+    `# Task Packet: ${wpId}`,
+    "",
+    "## METADATA",
+    "- LOCAL_WORKTREE_DIR: ../wtc-custom-phase-v1",
+  ].join("\n"), "utf8");
+
+  try {
+    assert.equal(resolveDeclaredCoderWorktreeDir(wpId), "../wtc-custom-phase-v1");
+    assert.equal(resolveDeclaredCoderWorktreeCwd(wpId), path.resolve(REPO_ROOT, "../wtc-custom-phase-v1"));
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+  }
+});
+
+test("startup phase runner defers communication mesh before first governed sessions launch", () => {
+  const result = maybeDeferPrelaunchStartupMesh({
+    phase: "STARTUP",
+    role: "CODER",
+    step: { label: "wp-communication-health-check" },
+    result: {
+      ok: false,
+      output: "[WP_COMMUNICATION_HEALTH] FAIL: Startup communication mesh is not ready\n",
+      resultData: {
+        details: [
+          "active_role_sessions missing CODER",
+          "startup_peer_missing=WP_VALIDATOR",
+        ],
+      },
+    },
+    stepResults: new Map([
+      ["active-lane-brief", {
+        output: [
+          "- SESSION: key=<none>",
+          "- RELAY: status=PRELAUNCH_NOT_APPLICABLE",
+        ].join("\n"),
+      }],
+    ]),
+  });
+
+  assert.equal(result.ok, true);
+  assert.match(result.output, /PRELAUNCH_MESH_DEFERRED/);
+  assert.equal(result.resultData.state, "COMM_PRELAUNCH_DEFERRED");
+});
+
 test("handoff phase plan folds packet completeness into the composite boundary", () => {
   const plan = buildPhaseCheckPlan({
     phase: "HANDOFF",
@@ -285,6 +339,8 @@ test("closeout phase plan includes verdict proof, context bundle, closeout prefl
   const plan = buildPhaseCheckPlan({
     phase: "CLOSEOUT",
     wpId: "WP-TEST-PHASE-v1",
+    role: "INTEGRATION_VALIDATOR",
+    session: "integration-validator:test",
   });
 
   assert.deepEqual(plan.map((step) => step.label), [
@@ -296,6 +352,12 @@ test("closeout phase plan includes verdict proof, context bundle, closeout prefl
     "integration-validator-closeout-check",
     "launch-memory-manager",
     "intelligent-review-cadence-check",
+  ]);
+  assert.deepEqual(plan[3]?.args, [
+    "WP-TEST-PHASE-v1",
+    "VERDICT",
+    "INTEGRATION_VALIDATOR",
+    "integration-validator:test",
   ]);
 });
 

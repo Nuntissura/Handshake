@@ -83,21 +83,49 @@ try {
 }
 
 const mtMatch = commitMsg.match(/^feat:\s+(MT-\d+)\s+(.+)$/i);
-if (!mtMatch) process.exit(0);
+const commitHash = latestCommitHash(repoRoot);
+if (!mtMatch) {
+  console.log("[POST-COMMIT-HOOK] Commit subject is not an MT auto-relay subject; review request NOT sent.");
+  console.log("[POST-COMMIT-HOOK] Expected: feat: MT-NNN <description>");
+  appendCompileGateLog({
+    repoRoot,
+    wpId,
+    entry: {
+      timestamp: new Date().toISOString(),
+      gate: "COMMIT_SUBJECT_NOT_MT",
+      commit: commitHash,
+      subject: commitMsg.slice(0, 200),
+      expected_subject: "feat: MT-NNN <description>",
+    },
+  });
+  process.exit(0);
+}
 const mtId = mtMatch[1].toUpperCase().replace(/^MT-(\d{1,2})$/, (_m, n) => `MT-${n.padStart(3, "0")}`);
 const mtDesc = mtMatch[2];
-const commitHash = latestCommitHash(repoRoot);
 
 const cargoTomlPath = path.join(repoRoot, "src", "backend", "handshake_core", "Cargo.toml");
+let compileGateSummarySuffix = "";
+function cargoCheckTimedOut(error) {
+  const text = [
+    error?.code,
+    error?.signal,
+    error?.message,
+    error?.stderr,
+    error?.stdout,
+  ].map((value) => String(value || "")).join("\n");
+  return Boolean(error?.killed)
+    || /SIGTERM|ETIMEDOUT|timed out|timeout/i.test(text);
+}
+
 if (fs.existsSync(cargoTomlPath)) {
-  console.log("[POST-COMMIT-HOOK] Compile gate: running cargo check...");
+  console.log("[POST-COMMIT-HOOK] Compile gate: running cargo check on handshake_core manifest...");
   try {
-    execSync("cargo check", {
+    execFileSync("cargo", ["check", "--manifest-path", cargoTomlPath], {
       encoding: "utf8",
       cwd: repoRoot,
       env: {
         ...process.env,
-        CARGO_TARGET_DIR: "../Handshake_Artifacts/handshake-cargo-target",
+        CARGO_TARGET_DIR: path.resolve(repoRoot, "..", "Handshake_Artifacts", "handshake-cargo-target"),
       },
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 180_000,
@@ -116,6 +144,22 @@ if (fs.existsSync(cargoTomlPath)) {
   } catch (cargoErr) {
     const stderr = String(cargoErr?.stderr || cargoErr?.message || "");
     const errorPreview = stderr.slice(0, 500);
+    if (cargoCheckTimedOut(cargoErr)) {
+      console.log("[POST-COMMIT-HOOK] COMPILE GATE TIMEOUT; review request will be sent with inconclusive compile-gate warning.");
+      console.log(errorPreview);
+      compileGateSummarySuffix = " HOOK_COMPILE_GATE=TIMEOUT_INCONCLUSIVE: cargo check did not finish within the hook timeout; validator must treat compile evidence as inconclusive.";
+      appendCompileGateLog({
+        repoRoot,
+        wpId,
+        entry: {
+          timestamp: new Date().toISOString(),
+          mt_id: mtId,
+          commit: commitHash,
+          gate: "COMPILE_TIMEOUT_REVIEW_SENT",
+          error_preview: errorPreview,
+        },
+      });
+    } else {
     console.log("[POST-COMMIT-HOOK] COMPILE GATE FAILED; review request NOT sent.");
     console.log(errorPreview);
     appendCompileGateLog({
@@ -130,6 +174,7 @@ if (fs.existsSync(cargoTomlPath)) {
       },
     });
     process.exit(0);
+    }
   }
 } else {
   console.log(`[POST-COMMIT-HOOK] No Cargo.toml found at ${cargoTomlPath}; skipping compile gate`);
@@ -245,7 +290,7 @@ try {
     coderKey,
     "WP_VALIDATOR",
     validatorKey,
-    `${mtId} complete: ${mtDesc}`,
+    `${mtId} complete: ${mtDesc}.${compileGateSummarySuffix}`,
     "",
     "",
     mtId,

@@ -39,19 +39,35 @@
 
 Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) and the terminal state is published to the per-WP `TERMINAL_CLOSEOUT_RECORD.json`. Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability — they project from the typed verdict, they are NOT the verdict. RGF-248 named verbs are now the preferred receipt wire: emit `INTEGRATION_VERDICT` for final PASS/FAIL and `CONCERN` for integration risks when the helper surface supports `--verb`. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout receipt. See Codex `[CX-130]` for the full rule.
 
+## Mechanical Intervention Discipline [CX-218K]
+
+- Before treating a closeout or merge path as blocked, classify 3-5 plausible causes: product proof failure, closeout artifact drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift.
+- Choose the cheapest deterministic read, repair, or typed helper first: final handoff notification, `phase-check VERDICT`, integration-validator context brief, contained-main proof, and closeout sync output before mutating verdict or merge truth.
+- Distinguish product-outcome blockers from deterministic governance settlement debt. If deterministic closeout truth is broken, report the exact failing command/artifact to Orchestrator instead of repairing governance tooling from the Integration Validator lane.
+- Do not manually relay ordinary final-review content when typed verdict/concern fields, `wp-review-response`, `phase-check`, or contained-main closeout can carry or prove the state transition.
+- Use typed verdict/concern fields for blocker truth. Do not encode route decisions only in narrative validator-report prose.
+- Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` only as lane context; Integration Validator authority remains final product judgment and merge authority.
+
 ## What The Integration Validator Receives
 
 When the Integration Validator launches, the Orchestrator has already:
 1. Verified all MTs are complete (WP_VALIDATOR PASS on each)
 2. Run `just closeout-repair WP-{ID}` to fix all mechanical closeout issues
-3. Verified `just phase-check CLOSEOUT WP-{ID}` passes mechanically, including artifact-root preflight and Workflow Dossier judgment diagnostics
-4. Prepared the signed scope artifact and compatibility truth
+3. Verified the committed final handoff range with `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` so durable `committed_validation_evidence` exists for the candidate under review
+4. Prepared the signed scope artifact and compatibility truth that can be finalized during terminal closeout
 
 The Integration Validator receives:
 - The master spec (`SPEC_CURRENT` — sections 1-6, 9-11 are the sole definition of "Done")
 - The complete packet with all MT work, clause closure matrix, and evidence
 - The coder's committed work product (branch diff against merge base)
 - Clean mechanical truth (no SHA mismatches, no missing artifacts)
+
+## Final Handoff Route Discipline
+
+- When the active route is a final `CODER_HANDOFF`, first run `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR <your-session>`. This proves the final handoff is actually addressed to your governed session while allowing the handoff item to remain open for your review.
+- Do not run `just phase-check CLOSEOUT WP-{ID}` as the first response to an open final handoff. `CLOSEOUT` is terminal merge/closeout readiness proof after the final review response or verdict path, not the action that resolves the handoff.
+- If `phase-check VERDICT` fails because committed handoff validation evidence is missing, report `BLOCKER_CLASS=GOVERNANCE_BLOCKER` to the Orchestrator with the required command (`just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>`). Do not emit `WORKFLOW_INVALIDITY` for this ordinary prep gap unless the route/correlation is malformed or authority is impossible.
+- After the product/spec review is complete, emit the typed review response that preserves the final handoff `correlation_id` and `ack_for`. A blocker or FAIL review still resolves the handoff correlation; narrative status alone does not.
 
 ## Six Responsibilities
 
@@ -111,7 +127,7 @@ After judgment, write the verdict:
 - **If the failure is spec ambiguity or governance issue:**
   - Report to Orchestrator with findings for operator escalation
 - Do not request a new remediation WP unless the failure proves real scope expansion or the Operator explicitly chooses a split; if a split is required, the old WP dossier must receive its terminal WP-bound repomem snapshot first.
-- The Integration Validator does NOT communicate directly with the coder — all remediation routes through the Orchestrator
+- The Integration Validator does NOT steer the coder directly. A final handoff review receipt may target the coder session only to resolve the open handoff correlation mechanically; remediation instructions and relaunch decisions route through the Orchestrator.
 
 ### 5. Artifact Hygiene Pre-Merge Check (HARD)
 
@@ -162,7 +178,7 @@ After verdict and merge:
 
 - Receives from Orchestrator: launch prompt with WP context, spec reference, work product location
 - Sends to Orchestrator: verdict receipt (`STATUS` with PASS/FAIL), findings, post-mortem observations
-- Does NOT communicate with Coder or WP Validator directly — on FAIL, writes remediation in the packet and reports to Orchestrator
+- Does NOT steer Coder or WP Validator directly; final handoff review receipts may mechanically resolve the open coder handoff correlation, but on FAIL the Integration Validator writes remediation in the packet and reports to Orchestrator for routing
 - All communication is through structured receipts in the packet's WP_COMMUNICATIONS folder
 
 ## Context Discipline

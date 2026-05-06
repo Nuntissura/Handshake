@@ -354,8 +354,8 @@ orchestrator-startup-truth-check:
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator-startup-truth-check.mjs"
 
 orchestrator-next wp-id="" *FLAGS:
-	@just repomem-soft-gate
-	@just memory-recall RESUME --wp {{wp-id}}
+	@just repomem-soft-gate --role ORCHESTRATOR --wp {{wp-id}}
+	@just memory-recall RESUME --role ORCHESTRATOR --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-next.mjs" {{wp-id}} {{FLAGS}}
 
 orchestrator-health wp-id="" *FLAGS:
@@ -366,22 +366,22 @@ orchestrator-rescue wp-id="" *FLAGS:
 	@just repomem-soft-gate
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-rescue.mjs" {{wp-id}} {{FLAGS}}
 
-orchestrator-steer-next wp-id context model="PRIMARY" *FLAGS:
-	@just repomem-gate
-	@just memory-recall STEERING --wp {{wp-id}}
-	@just repomem context "{{context}}" --trigger orchestrator-steer-next --wp {{wp-id}}
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-steer-next.mjs" {{wp-id}} {{model}} {{FLAGS}}
+orchestrator-steer-next wp-id context="" model="PRIMARY" *FLAGS:
+	@just repomem-gate --role ORCHESTRATOR --wp {{wp-id}}
+	@just memory-recall STEERING --role ORCHESTRATOR --wp {{wp-id}}
+	@$Context = "{{context}}"; $Model = "{{model}}"; $FlagText = "{{FLAGS}}"; $Args = @(); if ($FlagText) { $Args += $FlagText.Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries) }; if ($Context -and $Context.StartsWith("--")) { $Args = @($Context) + $Args; $Context = "" } elseif ($Context -and $Context.ToUpperInvariant() -in @("PRIMARY", "FALLBACK") -and $Model -eq "PRIMARY") { $Model = $Context.ToUpperInvariant(); $Context = "" }; if ($Model -and $Model.StartsWith("--")) { $Args = @($Model) + $Args; $Model = "PRIMARY" }; if ($Context) { just repomem context "$Context" --trigger "orchestrator-steer-next" --role ORCHESTRATOR --wp {{wp-id}}; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
+	@$Context = "{{context}}"; $Model = "{{model}}"; $FlagText = "{{FLAGS}}"; $Args = @(); if ($FlagText) { $Args += $FlagText.Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries) }; if ($Context -and $Context.StartsWith("--")) { $Args = @($Context) + $Args; $Context = "" } elseif ($Context -and $Context.ToUpperInvariant() -in @("PRIMARY", "FALLBACK") -and $Model -eq "PRIMARY") { $Model = $Context.ToUpperInvariant(); $Context = "" }; if ($Model -and $Model.StartsWith("--")) { $Args = @($Model) + $Args; $Model = "PRIMARY" }; node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-steer-next.mjs" {{wp-id}} $Model @Args
 
 manual-relay-next wp-id *FLAGS:
-	@just repomem-gate
-	@just memory-recall RELAY --wp {{wp-id}}
+	@just repomem-gate --role ORCHESTRATOR --wp {{wp-id}}
+	@just memory-recall RELAY --role ORCHESTRATOR --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-next.mjs" {{wp-id}} {{FLAGS}}
 
-manual-relay-dispatch wp-id context model="PRIMARY" *FLAGS:
-	@just repomem-gate
-	@just memory-recall RELAY --wp {{wp-id}}
-	@just repomem context "{{context}}" --trigger manual-relay-dispatch --wp {{wp-id}}
-	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-dispatch.mjs" {{wp-id}} {{model}} {{FLAGS}}
+manual-relay-dispatch wp-id context="" model="PRIMARY" *FLAGS:
+	@just repomem-gate --role ORCHESTRATOR --wp {{wp-id}}
+	@just memory-recall RELAY --role ORCHESTRATOR --wp {{wp-id}}
+	@$Context = "{{context}}"; $Model = "{{model}}"; $FlagText = "{{FLAGS}}"; $Args = @(); if ($FlagText) { $Args += $FlagText.Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries) }; if ($Context -and $Context.StartsWith("--")) { $Args = @($Context) + $Args; $Context = "" } elseif ($Context -and $Context.ToUpperInvariant() -in @("PRIMARY", "FALLBACK") -and $Model -eq "PRIMARY") { $Model = $Context.ToUpperInvariant(); $Context = "" }; if ($Model -and $Model.StartsWith("--")) { $Args = @($Model) + $Args; $Model = "PRIMARY" }; if ($Context) { just repomem context "$Context" --trigger "manual-relay-dispatch" --role ORCHESTRATOR --wp {{wp-id}}; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
+	@$Context = "{{context}}"; $Model = "{{model}}"; $FlagText = "{{FLAGS}}"; $Args = @(); if ($FlagText) { $Args += $FlagText.Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries) }; if ($Context -and $Context.StartsWith("--")) { $Args = @($Context) + $Args; $Context = "" } elseif ($Context -and $Context.ToUpperInvariant() -in @("PRIMARY", "FALLBACK") -and $Model -eq "PRIMARY") { $Model = $Context.ToUpperInvariant(); $Context = "" }; if ($Model -and $Model.StartsWith("--")) { $Args = @($Model) + $Args; $Model = "PRIMARY" }; node "{{GOV_ROOT}}/roles/orchestrator/scripts/manual-relay-dispatch.mjs" {{wp-id}} $Model @Args
 
 coder-next wp-id="":
 	@just memory-recall CODER_RESUME --wp {{wp-id}}
@@ -423,8 +423,8 @@ validator-next role wp-id="" *FLAGS:
 	@$env:HANDSHAKE_VALIDATOR_ROLE="{{role}}"; node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles/validator/scripts/validator-next.mjs" --role {{role}} {{wp-id}} --raw-flags "{{FLAGS}}"
 
 task-board-set wp-id status context reason="":
-	@just repomem-gate
-	@just repomem context "{{context}}" --trigger task-board-set --wp {{wp-id}}
+	@just repomem-gate --role ORCHESTRATOR --wp {{wp-id}}
+	@just repomem context "{{context}}" --trigger task-board-set --role ORCHESTRATOR --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/task-board-set.mjs" {{wp-id}} {{status}} "{{reason}}"
 
 integration-validator-context-brief wp-id *args:
@@ -585,15 +585,15 @@ shell-with-memory role command_family command *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/shell-with-memory.mjs" {{role}} {{command_family}} "{{command}}" --raw-flags "{{FLAGS}}"
 
 begin-refinement wp-id intent:
-	@just repomem-gate
-	@just memory-recall REFINEMENT --wp {{wp-id}}
-	@just repomem context "{{intent}}" --trigger begin-refinement --wp {{wp-id}}
+	@just repomem-gate --role ORCHESTRATOR --wp {{wp-id}}
+	@just memory-recall REFINEMENT --role ORCHESTRATOR --wp {{wp-id}}
+	@just repomem context "{{intent}}" --trigger begin-refinement --role ORCHESTRATOR --wp {{wp-id}}
 	@just memory-intent-snapshot "{{intent}}" --wp {{wp-id}} --role ORCHESTRATOR --reason "entering refinement" --expected "refined scope with discovery primitives"
 	@echo "[INTENT_GATE] Intent captured for {{wp-id}}. Proceed with refinement analysis, research, and design."
 
 begin-research intent *FLAGS:
-	@just repomem-gate
-	@just repomem context "{{intent}}" --trigger begin-research
+	@just repomem-gate --role ORCHESTRATOR
+	@just repomem context "{{intent}}" --trigger begin-research --role ORCHESTRATOR
 	@just memory-intent-snapshot "{{intent}}" --role ORCHESTRATOR {{FLAGS}}
 	@echo "[INTENT_GATE] Intent captured. Proceed with research."
 
@@ -606,11 +606,11 @@ memory-patterns *FLAGS:
 repomem subcommand content="" *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/lib/node-argv-proxy.mjs" "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" {{subcommand}} "{{content}}" --raw-flags "{{FLAGS}}"
 
-repomem-gate:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate
+repomem-gate *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate {{FLAGS}}
 
-repomem-soft-gate:
-	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate --soft
+repomem-soft-gate *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/memory/repomem.mjs" gate --soft {{FLAGS}}
 
 resolve-protected-worktree worktree_id *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" {{worktree_id}} {{FLAGS}}
@@ -702,16 +702,16 @@ record-role-model-profiles wp-id orchestrator_profile="" coder_profile="" wp_val
 	@node "{{GOV_ROOT}}/roles/orchestrator/checks/orchestrator_gates.mjs" profiles {{wp-id}} {{orchestrator_profile}} {{coder_profile}} {{wp_validator_profile}} {{integration_validator_profile}} {{activation_manager_profile}}
 
 create-task-packet wp-id context:
-	@just repomem-gate
-	@just memory-recall PACKET_CREATE --wp {{wp-id}}
-	@just repomem context "{{context}}" --trigger create-task-packet --wp {{wp-id}}
+	@just repomem-gate --role ORCHESTRATOR --wp {{wp-id}}
+	@just memory-recall PACKET_CREATE --role ORCHESTRATOR --wp {{wp-id}}
+	@just repomem context "{{context}}" --trigger create-task-packet --role ORCHESTRATOR --wp {{wp-id}}
 	@echo "Creating task packet: {{wp-id}}..."
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/create-task-packet.mjs" {{wp-id}}
 	@just build-order-sync
 
 wp-traceability-set base_wp_id active_packet_wp_id context:
-	@just repomem-gate
-	@just repomem context "{{context}}" --trigger wp-traceability-set --wp {{base_wp_id}}
+	@just repomem-gate --role ORCHESTRATOR --wp {{base_wp_id}}
+	@just repomem context "{{context}}" --trigger wp-traceability-set --role ORCHESTRATOR --wp {{base_wp_id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/wp-traceability-set.mjs" {{base_wp_id}} {{active_packet_wp_id}}
 
 wp-thread-append wp-id actor_role actor_session message target="" target_role="" target_session="" correlation_id="" requires_ack="" ack_for="" spec_anchor="" packet_row_ref="":
@@ -765,7 +765,6 @@ orchestrator-prepare-and-packet wp-id workflow_lane="" execution_lane="" label="
 	@just memory-recall DELEGATION --wp {{wp-id}}
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-prepare-and-packet.mjs" {{wp-id}} {{workflow_lane}} {{execution_lane}}
 	@echo "[ORCHESTRATOR] Committing governance checkpoint on gov_kernel..."
-	@git add -A
-	@git diff --cached --quiet; if ($LASTEXITCODE -ne 0) { git commit -m "gov: checkpoint packet+refinement+micro-tasks [{{wp-id}}]" }
+	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/orchestrator-checkpoint-activation.mjs" {{wp-id}}
 	@echo "[ORCHESTRATOR] Creating backup snapshot before coder launch..."
 	@just backup-snapshot "{{label}}"
