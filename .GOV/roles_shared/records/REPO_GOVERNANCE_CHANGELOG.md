@@ -21,6 +21,20 @@
 
 ## Entries
 
+### 2026.05.06.26 / GOV-CHANGE-20260506-26
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by adding a contract-first refinement reader and migrating Activation Manager readiness to prefer `packet.json` and `refinement.json` fields for workflow lane, packet claims, worktree/backup claims, signatures, approval evidence, enrichment verdicts, and stub IDs before Markdown projection fallback.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/roles/activation_manager/scripts/activation-manager.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Activation still validates the Markdown refinement projection because existing refinement checks have not yet accepted primary JSON contracts directly.
+  - Existing imported contracts may lack some newer fields until projection/contract repair runs again.
+
 ### 2026.05.06.25 / GOV-CHANGE-20260506-25
 - STATUS: APPLIED
 - AREA: Repo Governance

@@ -4,6 +4,7 @@ import {
   GOV_ROOT_REPO_REL,
   normalizePath,
   repoPathAbs,
+  resolveRefinementPath,
   resolveWorkPacketPath,
   WORK_PACKET_STORAGE_ROOT_REPO_REL,
 } from "./runtime-paths.mjs";
@@ -104,6 +105,8 @@ export function buildLegacyWorkPacketContract({ wpId, packetText = "", packetPat
       work_branch: parsePacketSingleField(packetText, "LOCAL_BRANCH"),
       worktree_dir: parsePacketSingleField(packetText, "LOCAL_WORKTREE_DIR"),
       remote_backup_branch: parsePacketSingleField(packetText, "REMOTE_BACKUP_BRANCH"),
+      remote_backup_url: parsePacketSingleField(packetText, "REMOTE_BACKUP_URL"),
+      backup_push_status: parsePacketSingleField(packetText, "BACKUP_PUSH_STATUS"),
     },
     workflow: {
       lane: workflowLane,
@@ -123,6 +126,7 @@ export function buildLegacyWorkPacketContract({ wpId, packetText = "", packetPat
       status: parseStatus(packetText),
       main_containment_status: parsePacketSingleField(packetText, "MAIN_CONTAINMENT_STATUS"),
       current_main_compatibility_status: parsePacketSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS"),
+      current_wp_status: parsePacketSingleField(packetText, "CURRENT_WP_STATUS"),
       risk_tier: parsePacketSingleField(packetText, "RISK_TIER"),
       user_signature: parsePacketSingleField(packetText, "USER_SIGNATURE"),
       packet_format_version: parsePacketSingleField(packetText, "PACKET_FORMAT_VERSION"),
@@ -309,6 +313,11 @@ export function buildLegacyRefinementContract({ wpId, refinementText = "", refin
     refinement: {
       operator_request: parsePacketSingleField(refinementText, "OPERATOR_REQUEST") || wpId,
       user_signature: parsePacketSingleField(refinementText, "USER_SIGNATURE"),
+      user_approval_evidence: parsePacketSingleField(refinementText, "USER_APPROVAL_EVIDENCE"),
+      user_review_status: parsePacketSingleField(refinementText, "USER_REVIEW_STATUS"),
+      enrichment_needed: parsePacketSingleField(refinementText, "ENRICHMENT_NEEDED"),
+      clearly_covers_verdict: parsePacketSingleField(refinementText, "CLEARLY_COVERS_VERDICT"),
+      stub_wp_ids: parsePacketSingleField(refinementText, "STUB_WP_IDS"),
       enforcement_profile: parsePacketSingleField(refinementText, "REFINEMENT_ENFORCEMENT_PROFILE"),
       approved_spec_enrichment: [],
       scope_edges: [],
@@ -370,6 +379,72 @@ export function buildLegacyMicrotaskContract({ wpId, mtId, mtText = "", mtPath =
       risks: ["Imported MT contract may under-capture prose-only review or proof instructions."],
       minimum_controls: ["Use contract-first identity and preserve projection hash."],
     },
+  };
+}
+
+export function readWorkPacketRefinementContract(wpId) {
+  const packetState = readWorkPacketContract(wpId);
+  const packetContractPath = packetState.contractPath || "";
+  const folderRefinementPath = packetState.resolved?.isFolder
+    ? {
+        rel: path.posix.join(packetState.resolved.packetDir, "refinement.md"),
+        abs: path.join(packetState.resolved.packetDirAbs, "refinement.md"),
+      }
+    : null;
+  const contractPath = packetState.resolved?.isFolder ? contractPathFor(packetState.resolved, "refinement.json") : null;
+  const contract = contractPath ? readJsonIfExists(contractPath.abs) : null;
+  const legacyRel = folderRefinementPath && fs.existsSync(folderRefinementPath.abs)
+    ? folderRefinementPath.rel
+    : (resolveRefinementPath(wpId) || path.posix.join(GOV_ROOT_REPO_REL, "refinements", `${wpId}.md`));
+  const legacyAbs = folderRefinementPath && fs.existsSync(folderRefinementPath.abs)
+    ? folderRefinementPath.abs
+    : repoPathAbs(legacyRel);
+  const refinementText = readTextIfExists(legacyAbs);
+
+  if (contract) {
+    return {
+      ok: true,
+      source: "PRIMARY_MACHINE_READABLE",
+      contract,
+      refinementText,
+      refinementPath: contract.markdown_projection?.path || legacyRel,
+      refinementAbsPath: legacyAbs,
+      contractPath: contractPath.rel,
+      contractAbsPath: contractPath.abs,
+      packetState,
+    };
+  }
+
+  if (!refinementText) {
+    return {
+      ok: false,
+      source: "MISSING",
+      contract: null,
+      refinementText: "",
+      refinementPath: legacyRel,
+      refinementAbsPath: legacyAbs,
+      contractPath: contractPath?.rel || "",
+      contractAbsPath: contractPath?.abs || "",
+      packetState,
+    };
+  }
+
+  return {
+    ok: true,
+    source: "LEGACY_AUTHORITY",
+    contract: buildLegacyRefinementContract({
+      wpId,
+      refinementText,
+      refinementPath: legacyRel,
+      packetContractPath,
+      packetDir: packetState.resolved?.packetDir || "",
+    }),
+    refinementText,
+    refinementPath: legacyRel,
+    refinementAbsPath: legacyAbs,
+    contractPath: contractPath?.rel || "",
+    contractAbsPath: contractPath?.abs || "",
+    packetState,
   };
 }
 
