@@ -21,6 +21,20 @@
 
 ## Entries
 
+### 2026.05.06.27 / GOV-CHANGE-20260506-27
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by migrating closeout formatting and closeout repair packet context resolution to the shared contract-first packet communication view for kernel-local operations.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/wp/wp-closeout-format.mjs`
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Closeout internals still mutate Markdown projections directly; future work should update primary contracts and regenerate projections instead of editing projections first.
+  - Timeline, dossier, rescue, and remaining audit/projection paths still need contract-first migration.
+
 ### 2026.05.06.26 / GOV-CHANGE-20260506-26
 - STATUS: APPLIED
 - AREA: Repo Governance

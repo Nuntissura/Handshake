@@ -13,7 +13,8 @@
  */
 
 import fs from "node:fs";
-import { REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import { REPO_ROOT, repoPathAbs } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
 import { parseJsonFile, validateRuntimeStatus } from "../lib/wp-communications-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
 import { readExecutionPublicationView } from "../lib/wp-execution-state-lib.mjs";
@@ -39,21 +40,21 @@ if (!wpId || !wpId.startsWith("WP-") || !mergedMainCommit) {
   process.exit(1);
 }
 
-const resolved = resolveWorkPacketPath(wpId);
-if (!resolved) {
+const packetContext = buildWorkPacketCommunicationView(wpId);
+if (!packetContext.ok || !packetContext.packetPath) {
   console.error(`[WP_CLOSEOUT_FORMAT] Cannot resolve packet path for ${wpId}`);
   process.exit(1);
 }
-const packetAbsPath = repoPathAbs(resolved.packetPath || resolved);
+const packetAbsPath = packetContext.packetAbsPath || repoPathAbs(packetContext.packetPath);
 if (!fs.existsSync(packetAbsPath)) {
   console.error(`[WP_CLOSEOUT_FORMAT] Packet not found: ${packetAbsPath}`);
   process.exit(1);
 }
 
-let content = fs.readFileSync(packetAbsPath, "utf8");
+let content = packetContext.packetText || fs.readFileSync(packetAbsPath, "utf8");
 let changes = 0;
-const packetStatusBefore = parsePacketStatus(content);
-const runtimeStatusFile = parseSingleField(content, "WP_RUNTIME_STATUS_FILE");
+const packetStatusBefore = packetContext.packetStatus || parsePacketStatus(content);
+const runtimeStatusFile = packetContext.runtimeStatusFile || parseSingleField(content, "WP_RUNTIME_STATUS_FILE");
 const runtimeStatusAbsPath = runtimeStatusFile ? repoPathAbs(runtimeStatusFile) : "";
 const runtimeStatus = runtimeStatusAbsPath && fs.existsSync(runtimeStatusAbsPath)
   ? parseJsonFile(runtimeStatusAbsPath)
@@ -202,7 +203,7 @@ const terminalPublication = publishTerminalCloseoutRecord({
   record: nextTerminalCloseoutRecord,
 });
 terminalRecordPath = terminalPublication.path;
-console.log(`[WP_CLOSEOUT_FORMAT] Packet updated: ${resolved.packetPath || resolved}`);
+console.log(`[WP_CLOSEOUT_FORMAT] Packet updated: ${packetContext.packetPath}`);
 console.log(`[WP_CLOSEOUT_FORMAT] Changes: ${changes}`);
 if (runtimeSynced) console.log(`[WP_CLOSEOUT_FORMAT] Runtime synced: ${runtimeSynced}`);
 if (terminalRecordPath) console.log(`[WP_CLOSEOUT_FORMAT] Terminal closeout record: ${terminalRecordPath}`);

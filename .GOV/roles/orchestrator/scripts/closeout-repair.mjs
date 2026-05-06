@@ -24,6 +24,7 @@ import {
   normalizePath,
   resolveWorkPacketPathAtRepo,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../../../roles_shared/scripts/lib/work-packet-contract-read-lib.mjs";
 import { buildWpCommunicationHealthCheckResult } from "../../../roles_shared/checks/wp-communication-health-check.mjs";
 import { resolveCloseoutSyncCwd } from "../../../roles_shared/checks/phase-check.mjs";
 import {
@@ -174,6 +175,16 @@ export function readCurrentMainHeadSha({
 }
 
 function resolvePacketContext(wpId, repoRoot = REPO_ROOT) {
+  if (path.resolve(repoRoot) === path.resolve(REPO_ROOT)) {
+    const packetContext = buildWorkPacketCommunicationView(wpId);
+    if (packetContext.ok && packetContext.packetPath && packetContext.packetAbsPath && fs.existsSync(packetContext.packetAbsPath)) {
+      return {
+        packetPath: packetContext.packetPath,
+        packetAbsPath: packetContext.packetAbsPath,
+        packetText: packetContext.packetText || fs.readFileSync(packetContext.packetAbsPath, "utf8"),
+      };
+    }
+  }
   const resolved = resolveWorkPacketPathAtRepo(repoRoot, wpId, ".GOV");
   if (!resolved?.packetPath || !resolved?.packetAbsPath || !fs.existsSync(resolved.packetAbsPath)) {
     throw new Error(`Official packet not found for ${wpId}`);
