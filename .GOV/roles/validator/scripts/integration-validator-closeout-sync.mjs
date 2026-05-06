@@ -24,6 +24,7 @@ import {
   parseJsonlFile,
   validateRuntimeStatus,
 } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
+import { updateWorkPacketLifecycleContract } from "../../../roles_shared/scripts/lib/work-packet-contract-read-lib.mjs";
 import { parseExecutionCloseoutMode } from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
 import {
   buildTerminalCloseoutRecordFromCloseoutSync,
@@ -527,6 +528,12 @@ if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPat
 const packetPath = resolvedPacket.packetPath;
 const packetAbsPath = resolvedPacket.packetAbsPath;
 const originalPacketText = readText(packetAbsPath);
+const packetContractAbsPath = resolvedPacket?.isFolder && resolvedPacket?.packetDirAbs
+  ? path.join(resolvedPacket.packetDirAbs, "packet.json")
+  : "";
+const originalPacketContractText = packetContractAbsPath && fs.existsSync(packetContractAbsPath)
+  ? readText(packetContractAbsPath)
+  : null;
 const originalTaskBoardText = fs.existsSync(taskBoardPath) ? readText(taskBoardPath) : "";
 const receiptsPath = repoPathAbs(parseSingleField(originalPacketText, "WP_RECEIPTS_FILE") || "");
 const originalReceiptsText = receiptsPath && fs.existsSync(receiptsPath) ? readText(receiptsPath) : "";
@@ -718,21 +725,23 @@ if (validatorSessionsOfRecord.integrationValidatorOfRecord) {
     validatorSessionsOfRecord.integrationValidatorOfRecord,
   );
 }
+const signedScopeUpdate = resolveCloseoutSignedScopeCompatibilityUpdate({
+  packetText: nextPacketText,
+  requestedMode,
+  baselineSha,
+  timestamp,
+});
 nextPacketText = updateSignedScopeCompatibilityTruth(
   nextPacketText,
-  resolveCloseoutSignedScopeCompatibilityUpdate({
-    packetText: nextPacketText,
-    requestedMode,
-    baselineSha,
-    timestamp,
-  }),
+  signedScopeUpdate,
 );
-nextPacketText = updateMergeProgressionTruth(nextPacketText, {
+const mergeProgressionUpdate = {
   status: requestedMode.packetStatus,
   mainContainmentStatus: requestedMode.mainContainmentStatus,
   mergedMainCommit: requestedMode.requireMergedMainCommit ? mergedMainCommit : "NONE",
   mainContainmentVerifiedAtUtc: requestedMode.requireMergedMainCommit ? timestamp : "N/A",
-});
+};
+nextPacketText = updateMergeProgressionTruth(nextPacketText, mergeProgressionUpdate);
 const terminalCurrentState = terminalCurrentStateForMode(requestedMode);
 if (terminalCurrentState) {
   nextPacketText = replaceCurrentStateField(nextPacketText, "Verdict", terminalCurrentState.verdict);
@@ -766,7 +775,34 @@ if (mergeValidation.errors.length > 0) {
 }
 
 let terminalPublicationPath = "";
-writeText(packetAbsPath, nextPacketText);
+const packetLifecycleWrite = updateWorkPacketLifecycleContract({
+  wpId,
+  projectionText: nextPacketText,
+  generator: "integration-validator-closeout-sync.mjs",
+  lifecyclePatch: {
+    status: requestedMode.packetStatus,
+    current_wp_status: requestedMode.boardStatus,
+    wp_validator_of_record: validatorSessionsOfRecord.wpValidatorOfRecord || null,
+    integration_validator_of_record: validatorSessionsOfRecord.integrationValidatorOfRecord || null,
+    current_main_compatibility_status: signedScopeUpdate.currentMainCompatibilityStatus,
+    current_main_compatibility_baseline_sha: signedScopeUpdate.currentMainCompatibilityBaselineSha,
+    current_main_compatibility_verified_at_utc: signedScopeUpdate.currentMainCompatibilityVerifiedAtUtc,
+    packet_widening_decision: signedScopeUpdate.packetWideningDecision,
+    packet_widening_evidence: signedScopeUpdate.packetWideningEvidence,
+    main_containment_status: requestedMode.mainContainmentStatus,
+    merged_main_commit: mergeProgressionUpdate.mergedMainCommit,
+    main_containment_verified_at_utc: mergeProgressionUpdate.mainContainmentVerifiedAtUtc,
+    validation_verdict: parsedTruth.validationVerdict || requestedMode.requiredValidationVerdict,
+    validation_verdict_recorded_at_utc: parsedTruth.validationVerdictRecord?.timestampUtc || null,
+    validation_actor_role: parsedTruth.validationVerdictRecord?.actorRole || "INTEGRATION_VALIDATOR",
+    validation_actor_session: parsedTruth.validationVerdictRecord?.actorSession || "",
+    validation_evidence_pointer: parsedTruth.validationVerdictRecord?.evidencePointer || "",
+  },
+});
+nextPacketText = packetLifecycleWrite.packetText || nextPacketText;
+if (!packetLifecycleWrite.updated) {
+  writeText(packetAbsPath, nextPacketText);
+}
 if (nextRuntimeStatusData && runtimeStatusPath) {
   writeText(runtimeStatusPath, `${JSON.stringify(nextRuntimeStatusData, null, 2)}\n`);
 }
@@ -888,6 +924,13 @@ try {
   terminalPublicationPath = terminalPublication.path;
 } catch (error) {
   writeText(packetAbsPath, originalPacketText);
+  if (packetContractAbsPath) {
+    if (originalPacketContractText === null) {
+      if (fs.existsSync(packetContractAbsPath)) fs.unlinkSync(packetContractAbsPath);
+    } else {
+      writeText(packetContractAbsPath, originalPacketContractText);
+    }
+  }
   if (originalTaskBoardText) writeText(taskBoardPath, originalTaskBoardText);
   if (receiptsPath && typeof originalReceiptsText === "string") writeText(receiptsPath, originalReceiptsText);
   if (originalRuntimeStatusText) writeText(runtimeStatusPath, originalRuntimeStatusText);

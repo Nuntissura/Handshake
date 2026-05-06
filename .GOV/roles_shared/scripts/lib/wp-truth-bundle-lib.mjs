@@ -77,7 +77,10 @@ function hasCompleteContractEvaluatorTruth(contract = null) {
     "current_main_compatibility_verified_at_utc",
     "packet_widening_decision",
     "packet_widening_evidence",
-  ].every((key) => Object.prototype.hasOwnProperty.call(lifecycle, key));
+  ].every((key) =>
+    Object.prototype.hasOwnProperty.call(lifecycle, key)
+    && String(lifecycle[key] ?? "").trim() !== ""
+  );
 }
 
 function latestByTimestamp(entries = [], field = "timestamp_utc") {

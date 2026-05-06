@@ -14,7 +14,10 @@
 
 import fs from "node:fs";
 import { REPO_ROOT, repoPathAbs } from "../lib/runtime-paths.mjs";
-import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
+import {
+  buildWorkPacketCommunicationView,
+  updateWorkPacketLifecycleContract,
+} from "../lib/work-packet-contract-read-lib.mjs";
 import { parseJsonFile, validateRuntimeStatus } from "../lib/wp-communications-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
 import { readExecutionPublicationView } from "../lib/wp-execution-state-lib.mjs";
@@ -181,6 +184,31 @@ if (closureCount > 0) {
 }
 
 fs.writeFileSync(packetAbsPath, content, "utf8");
+const packetLifecycleWrite = updateWorkPacketLifecycleContract({
+  wpId,
+  projectionText: content,
+  generator: "wp-closeout-format.mjs",
+  lifecyclePatch: {
+    status: "Validated (PASS)",
+    current_wp_status: "DONE_VALIDATED",
+    main_containment_status: "CONTAINED_IN_MAIN",
+    merged_main_commit: mergedMainCommit,
+    main_containment_verified_at_utc: closeoutTimestamp,
+    current_main_compatibility_status: "COMPATIBLE",
+    current_main_compatibility_baseline_sha: packetContext.currentMainCompatibilityBaselineSha || parseSingleField(content, "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA") || null,
+    current_main_compatibility_verified_at_utc: packetContext.currentMainCompatibilityVerifiedAtUtc || parseSingleField(content, "CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC") || closeoutTimestamp,
+    packet_widening_decision: "NOT_REQUIRED",
+    packet_widening_evidence: "N/A",
+    validation_verdict: "PASS",
+    validation_verdict_recorded_at_utc: validationVerdictRecord.timestampUtc || null,
+    validation_actor_role: validationVerdictRecord.actorRole || "INTEGRATION_VALIDATOR",
+    validation_actor_session: validationVerdictRecord.actorSession || "",
+    validation_evidence_pointer: validationVerdictRecord.evidencePointer || "",
+  },
+});
+if (packetLifecycleWrite.updated) {
+  content = packetLifecycleWrite.packetText || content;
+}
 let runtimeSynced = "";
 let terminalRecordPath = "";
 if (runtimeStatusAbsPath && runtimeStatus) {

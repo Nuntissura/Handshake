@@ -21,6 +21,14 @@
 
 ## Entries
 
+### 2026.05.06.37 / GOV-CHANGE-20260506-37
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Advanced RGF-288/RGF-286 writer migration by adding a shared primary packet lifecycle writer and migrating closeout writer paths to update `packet.json` before Markdown projection. Integration Validator closeout sync now writes status, validator-of-record, signed-scope compatibility, merge-containment, validation verdict, and current WP status into primary lifecycle contract fields with rollback support. `wp-closeout-format` uses the same helper for contained-main PASS formatting.
+- Contract impact: Closeout/signed-scope truth is no longer only a packet Markdown mutation on the primary closeout path. `packet.md` remains a stamped projection generated from the primary lifecycle contract when a folder-based packet contract exists; flat legacy packets remain fallback-only.
+- Files changed: `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`, `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`, `.GOV/roles_shared/scripts/wp/wp-closeout-format.mjs`, `.GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, and regenerated `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` after validation sync.
+- Verification: PENDING. Run `just gov-check --sync-topology`, then `just gov-check`.
 ### 2026.05.06.36 / GOV-CHANGE-20260506-36
 
 - Status: RECORDED
@@ -5181,6 +5189,7 @@
 - FOLLOW_ON_ITEMS:
   - improve session-control fallback semantics so explicit `FALLBACK` can supersede a packet-declared primary profile without hand-editing the active packet
 - OUTCOME: `RGF-278` is implemented; the active packet now supersedes the Spark Coder waiver and records GPT-5.5 extra-high as the active Coder profile for this WP while Spark is unavailable.
+
 
 
 

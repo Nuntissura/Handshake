@@ -272,6 +272,77 @@ export function readWorkPacketContract(wpId) {
   };
 }
 
+export function updateWorkPacketLifecycleContract({
+  wpId,
+  lifecyclePatch = {},
+  projectionText = "",
+  generator = "work-packet-lifecycle-writer",
+} = {}) {
+  const state = readWorkPacketContract(wpId);
+  if (!state.ok || !state.resolved?.packetAbsPath) {
+    return {
+      updated: false,
+      reason: "packet_missing",
+      packetText: projectionText || "",
+      contract: null,
+      contractPath: "",
+      contractAbsPath: "",
+    };
+  }
+  if (!state.resolved?.isFolder || !state.resolved?.packetDirAbs || !state.resolved?.packetDir) {
+    return {
+      updated: false,
+      reason: "flat_legacy_packet_has_no_primary_contract_path",
+      packetText: projectionText || state.packetText || "",
+      contract: state.contract,
+      contractPath: "",
+      contractAbsPath: "",
+    };
+  }
+
+  const contractAbsPath = state.contractAbsPath || path.join(state.resolved.packetDirAbs, "packet.json");
+  const contractPath = state.contractPath || path.posix.join(state.resolved.packetDir, "packet.json");
+  const projectionRel = state.resolved.packetPath;
+  const projectionAbs = state.resolved.packetAbsPath;
+  const projectionBody = stripGeneratedProjectionHeader(projectionText || state.packetText || "");
+  const sourceFile = normalizePath(
+    state.contract?.authority_files?.packet_contract
+    || contractPath,
+  );
+  const nextContract = {
+    ...(state.contract || {}),
+    contract_authority: "PRIMARY_MACHINE_READABLE",
+    lifecycle: {
+      ...(state.contract?.lifecycle || {}),
+      ...(lifecyclePatch || {}),
+    },
+  };
+  nextContract.authority_files = {
+    ...(nextContract.authority_files || {}),
+    packet_contract: contractPath,
+    packet_projection: projectionRel,
+  };
+  const stamped = stampContractProjectionMetadata(nextContract, {
+    projectionPath: projectionRel,
+    projectionBody,
+    sourceFile,
+    generator,
+  });
+  const nextProjectionText = addOrReplaceGeneratedProjectionHeader(projectionBody, stamped, {
+    sourceFile,
+  });
+  fs.writeFileSync(contractAbsPath, stableStringify(stamped), "utf8");
+  fs.writeFileSync(projectionAbs, nextProjectionText, "utf8");
+  return {
+    updated: true,
+    reason: "updated_primary_contract_and_projection",
+    packetText: nextProjectionText,
+    contract: stamped,
+    contractPath,
+    contractAbsPath,
+  };
+}
+
 export function buildWorkPacketCommunicationView(wpId) {
   const state = readWorkPacketContract(wpId);
   if (!state.ok) {
