@@ -1,4 +1,4 @@
-<INSTRUCTIONS>
+﻿<INSTRUCTIONS>
 ## Handshake Repo Guardrails (HARD RULES)
 
 ### Adult production boundary
@@ -61,6 +61,14 @@
   - Keep a separate public script only when authority owner, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs. Internal helper libs are still allowed; the real target is fewer public entrypoints.
   - If a new live governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether any older surface is being retired or intentionally kept distinct.
   - Do not retire an old public governance surface until the replacement is confirmed as tracked and usable in the active topology.
+- Deterministic atomic governance-file stance:
+  - New or substantially refactored repo-governance workflow surfaces should move toward one deterministic machine-readable authority file, not manually maintained Markdown-plus-JSON sidecars.
+  - Work packets, Activation Manager refinements, microtasks, startup capsules, runtime state, receipts, validator reports, workflow dossiers, and templates should use typed JSON/JSONL/YAML-compatible contracts that ACP, apps, checks, and tools can ingest without parsing narrative Markdown.
+  - When a machine-readable contract exists for a surface, that contract is the authority; Markdown is a generated human/operator projection, frozen legacy reference, or short migration bridge.
+  - Sidecars are allowed only as generated cache/projection, read-only migration bridge, or legacy import aid with source hash/provenance; they must not become a second editable source of truth.
+  - During migration, legacy Markdown remains authoritative only until the machine contract is generated, validated, and declared current.
+  - Any governance change that touches packet, refinement, microtask, startup, dossier, or protocol surfaces must update the single authoritative machine contract or record explicit migration debt with a concrete RGF/task-board item.
+  - Workflow playbooks must be kept up to date as generated/projection surfaces over machine-readable workflow contracts. If the contract changes, update or regenerate the playbook projection in the same governance change, or record explicit debt explaining why the projection was not updated.
 - Build/test/tool outputs MUST live at the external sibling root `../Handshake_Artifacts/` (subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`). Repo-local `target/` directories are governance violations.
 - When old governance scripts/tests are retired during repo-governance cleanup, move them to an operator-designated external archive root outside the repo for safekeeping and posterity instead of hard-deleting them. Keep that archive location out of runtime assumptions; record the concrete path in the relevant audit/log for the cleanup wave.
 - Operator-facing scope split rule:
@@ -123,9 +131,9 @@
   - Integration Validator = final technical and merge authority
 
 ### Governance memory system [CX-503K]
-- Governance memory is a cross-session, cross-WP knowledge system stored in `gov_runtime/roles_shared/GOVERNANCE_MEMORY.db` (SQLite). It is NOT a source of truth — work packets, receipts, and governance ledgers remain authoritative. Memory is supplementary context.
-- **Role-scoped injection:** Coder startup receives **procedural memories only** (the fail log, up to 1500 tokens). Validator startup receives **procedural + semantic** (fail log + governance context, up to 1500 tokens). Orchestrator startup receives **full cross-WP memory** (all types, governance-weighted, up to 2000 tokens). Session diversification caps at 3 memories per source session. Treat injected memories as hints — the packet and code win over memory.
-- **Memory types:** procedural (fix patterns — the fail log), semantic (distilled facts), episodic (session events).
+- Governance memory is a cross-session, cross-WP knowledge system stored in `gov_runtime/roles_shared/GOVERNANCE_MEMORY.db` (SQLite). It is NOT a source of truth â€” work packets, receipts, and governance ledgers remain authoritative. Memory is supplementary context.
+- **Role-scoped injection:** Coder startup receives **procedural memories only** (the fail log, up to 1500 tokens). Validator startup receives **procedural + semantic** (fail log + governance context, up to 1500 tokens). Orchestrator startup receives **full cross-WP memory** (all types, governance-weighted, up to 2000 tokens). Session diversification caps at 3 memories per source session. Treat injected memories as hints â€” the packet and code win over memory.
+- **Memory types:** procedural (fix patterns â€” the fail log), semantic (distilled facts), episodic (session events).
 - **Population:** Event-driven: every `wp-receipt-append` immediately extracts high-signal receipts to memory. Batch: `just memory-refresh` runs at every role startup (orchestrator, coder, validator) + during `just gov-check`. Session-end: CLOSE_SESSION captures a session summary. Check failures: validator-scan, validator-handoff-check, pre-work, and post-work failures are auto-captured. Manual: `just memory-capture <type> "<insight>"`.
 - **Maintenance:** Dual-gate compaction (time + activity thresholds). Write-time novelty scoring prevents duplicate patterns. New procedural memories supersede matching old ones. Contradiction detection flags conflicting semantic memories. Connectivity-weighted decay resists pruning well-linked memories. Hard cap of 500 active entries. No LLM required for any operation.
 - **Role responsibilities:**
@@ -133,10 +141,10 @@
   - Memory Manager: governed ACP session on Codex Spark (reasoning extra-high). Analyzes patterns, resolves contradictions, flags stale memories, drafts RGF candidates. Self-terminates after tasks. Protocol: `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
   - Coder: receives fail log at startup. `just pre-work` surfaces fail log for the WP. Can capture insights via `just memory-capture procedural "<insight>"`.
   - Validator: receives fail log + context at startup. Check failures auto-captured. Can capture insights via `just memory-capture semantic "<insight>"`.
-  - All roles: memory is supplementary — the work packet is the execution authority
+  - All roles: memory is supplementary â€” the work packet is the execution authority
 - **Backup:** `gov_runtime/` is included in backup snapshots. `just memory-export` provides git-trackable JSONL archival; `just memory-import` restores from export.
 - **Intent-gated entry points (Orchestrator, SHOULD):** Before refinement, research, or complex multi-step reasoning, use `just begin-refinement WP-{ID} "<intent>"` or `just begin-research "<intent>" --wp WP-{ID}` to capture an intent snapshot (importance 0.9) before proceeding. `orchestrator-next` emits an `INTENT_SNAPSHOT [RGF-147]` reminder at REFINEMENT stages. The raw `just memory-intent-snapshot` command remains available for ad-hoc use.
-- **Canonical reference:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` — the operational guide for the full memory system.
+- **Canonical reference:** `.GOV/roles_shared/docs/GOVERNANCE_MEMORY_GUIDE.md` â€” the operational guide for the full memory system.
 
 ### Current role execution policy
 - Orchestrators MUST NEVER edit product code under `src/`, `app/`, or `tests/`. Even one-line fixes must be routed through the governed coder session via `just session-send`. This is a hard role boundary [CX-580A].
@@ -156,7 +164,7 @@
 - `handshake_main` (branch `main`) has a real `/.GOV/` copy as a stable backup, synced from the kernel by the Integration Validator by default, or by the Orchestrator when explicitly instructed by the Operator, using `just sync-gov-to-main`.
 - `wt-ilja` (branch `user_ilja`) is the permanent non-main user worktree created from `main`, so product code and root-level LLM files (`justfile`, `AGENTS.md`) come from `main`. Its inherited `/.GOV/` is then replaced with a junction to `../wt-gov-kernel/.GOV`.
 - Coder worktrees (`wtc-*`) follow the same pattern: create from `main`, then replace inherited `/.GOV/` with a junction by the worktree creation script.
-- WP worktree budget: 1 per WP. Coder and WP Validator share the same `wtc-*` worktree on `feat/WP-{ID}` [CX-503G]. No separate `wtv-*` worktree needed — governance uses `.GOV/` junction. The per-MT stop pattern ensures only one role is active at a time. Integration Validator operates from `handshake_main` on `main`.
+- WP worktree budget: 1 per WP. Coder and WP Validator share the same `wtc-*` worktree on `feat/WP-{ID}` [CX-503G]. No separate `wtv-*` worktree needed â€” governance uses `.GOV/` junction. The per-MT stop pattern ensures only one role is active at a time. Integration Validator operates from `handshake_main` on `main`.
 - The Orchestrator MAY write to the governance kernel. During active multi-session steering, prefer deferring governance edits to reduce cognitive load.
 - Coders and WP Validators read governance through their junction and MUST NOT edit `/.GOV/` directly.
 - Sync responsibilities:
@@ -164,3 +172,4 @@
   - Integration Validator: default owner of `just sync-gov-to-main` before pushing to `origin/main`.
   - Coders/WP Validators: read governance through their junction; do NOT edit or commit `/.GOV/` files.
 </INSTRUCTIONS>
+
