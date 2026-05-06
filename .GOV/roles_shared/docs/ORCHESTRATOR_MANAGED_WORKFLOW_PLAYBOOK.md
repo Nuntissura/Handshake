@@ -99,6 +99,7 @@ Red-team stance before launch or repair:
 - Packet Markdown projection: `.GOV/task_packets/WP-{ID}/packet.md` generated from or reconciled to the packet contract; legacy Markdown authority must be explicitly classified as `LEGACY_AUTHORITY`.
 - Legacy import/repair: `just wp-contract-import WP-{ID}` or `just wp-contract-import --all --dry-run`; this is the governed path for stamping generated projection hashes instead of hand-editing packet/refinement/MT sidecars.
 - Flat legacy/stub inventory: `just flat-packet-legacy-inventory` writes `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`; `--check` detects drift. This inventory classifies migration inputs only and does not authorize moving, deleting, or duplicating flat packet authority.
+- Communication consumers: provisioning, health, and communications drift checks read packet communication fields through the contract-first packet communication view. Markdown packet fields are legacy fallback only when the primary contract lacks a field.
 - Communications: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`
 - Runtime: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/RUNTIME_STATUS.json`
 - Receipts: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/RECEIPTS.jsonl`

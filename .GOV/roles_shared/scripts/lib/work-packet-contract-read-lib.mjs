@@ -112,9 +112,11 @@ export function buildLegacyWorkPacketContract({ wpId, packetText = "", packetPat
       session_start_authority: parsePacketSingleField(packetText, "SESSION_START_AUTHORITY"),
       host_preference: parsePacketSingleField(packetText, "SESSION_HOST_PREFERENCE"),
       communication_dir: communicationDir,
+      thread_file: parsePacketSingleField(packetText, "WP_THREAD_FILE") || (communicationDir ? path.posix.join(communicationDir, "THREAD.md") : ""),
       runtime_status_file: parsePacketSingleField(packetText, "WP_RUNTIME_STATUS_FILE") || (communicationDir ? path.posix.join(communicationDir, "RUNTIME_STATUS.json") : ""),
       receipts_file: parsePacketSingleField(packetText, "WP_RECEIPTS_FILE") || (communicationDir ? path.posix.join(communicationDir, "RECEIPTS.jsonl") : ""),
       communication_contract: parsePacketSingleField(packetText, "COMMUNICATION_CONTRACT"),
+      communication_health_gate: parsePacketSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
     },
     lifecycle: {
       status: parseStatus(packetText),
@@ -199,6 +201,80 @@ export function readWorkPacketContract(wpId) {
     packetText,
     contractPath: contractPath?.rel || "",
     contractAbsPath: contractPath?.abs || "",
+  };
+}
+
+export function buildWorkPacketCommunicationView(wpId) {
+  const state = readWorkPacketContract(wpId);
+  if (!state.ok) {
+    return {
+      ok: false,
+      source: state.source,
+      wpId,
+      packetPath: "",
+      packetAbsPath: "",
+      packetText: "",
+      contract: null,
+    };
+  }
+
+  const contract = state.contract || {};
+  const workflow = contract.workflow || {};
+  const lifecycle = contract.lifecycle || {};
+  const sourceControl = contract.source_control || {};
+  const packetText = state.packetText || "";
+  const communicationDir = normalizePath(workflow.communication_dir || parsePacketSingleField(packetText, "WP_COMMUNICATION_DIR"));
+  const threadFile = normalizePath(
+    workflow.thread_file
+    || parsePacketSingleField(packetText, "WP_THREAD_FILE")
+    || (communicationDir ? path.posix.join(communicationDir, "THREAD.md") : ""),
+  );
+  const runtimeStatusFile = normalizePath(
+    workflow.runtime_status_file
+    || parsePacketSingleField(packetText, "WP_RUNTIME_STATUS_FILE")
+    || (communicationDir ? path.posix.join(communicationDir, "RUNTIME_STATUS.json") : ""),
+  );
+  const receiptsFile = normalizePath(
+    workflow.receipts_file
+    || parsePacketSingleField(packetText, "WP_RECEIPTS_FILE")
+    || (communicationDir ? path.posix.join(communicationDir, "RECEIPTS.jsonl") : ""),
+  );
+  const packetPath = normalizePath(
+    state.resolved?.packetPath
+    || contract.markdown_projection?.path
+    || contract.authority_files?.packet_projection
+    || "",
+  );
+
+  return {
+    ok: true,
+    source: state.source,
+    wpId: contract.wp_id || parsePacketSingleField(packetText, "WP_ID") || wpId,
+    baseWpId: String(contract.base_wp_id || parsePacketSingleField(packetText, "BASE_WP_ID") || wpId || "").replace(/\s*\(.*/, "").trim(),
+    packetPath,
+    packetAbsPath: state.resolved?.packetAbsPath || (packetPath ? repoPathAbs(packetPath) : ""),
+    packetText,
+    contract,
+    workflowLane: workflow.lane || parsePacketSingleField(packetText, "WORKFLOW_LANE"),
+    packetFormatVersion: lifecycle.packet_format_version || parsePacketSingleField(packetText, "PACKET_FORMAT_VERSION"),
+    communicationContract: workflow.communication_contract || parsePacketSingleField(packetText, "COMMUNICATION_CONTRACT"),
+    communicationHealthGate: workflow.communication_health_gate || parsePacketSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+    communicationDir,
+    threadFile,
+    runtimeStatusFile,
+    receiptsFile,
+    executionOwner: workflow.execution_owner || parsePacketSingleField(packetText, "EXECUTION_OWNER"),
+    workflowAuthority: workflow.authority || parsePacketSingleField(packetText, "WORKFLOW_AUTHORITY"),
+    technicalAdvisor: workflow.technical_advisor || parsePacketSingleField(packetText, "TECHNICAL_ADVISOR"),
+    technicalAuthority: workflow.technical_authority || parsePacketSingleField(packetText, "TECHNICAL_AUTHORITY"),
+    mergeAuthority: workflow.merge_authority || parsePacketSingleField(packetText, "MERGE_AUTHORITY"),
+    localBranch: sourceControl.work_branch || parsePacketSingleField(packetText, "LOCAL_BRANCH"),
+    localWorktreeDir: sourceControl.worktree_dir || parsePacketSingleField(packetText, "LOCAL_WORKTREE_DIR"),
+    agenticMode: workflow.agentic_mode || parsePacketSingleField(packetText, "AGENTIC_MODE"),
+    packetStatus: lifecycle.status || parseStatus(packetText),
+    mainContainmentStatus: lifecycle.main_containment_status || parsePacketSingleField(packetText, "MAIN_CONTAINMENT_STATUS"),
+    currentMainCompatibilityStatus: lifecycle.current_main_compatibility_status || parsePacketSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS"),
+    riskTier: lifecycle.risk_tier || parsePacketSingleField(packetText, "RISK_TIER"),
   };
 }
 

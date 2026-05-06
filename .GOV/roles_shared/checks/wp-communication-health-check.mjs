@@ -9,7 +9,8 @@ import {
   evaluateWpCommunicationHealth,
 } from "../scripts/lib/wp-communication-health-lib.mjs";
 import { normalize, parseJsonFile, parseJsonlFile } from "../scripts/lib/wp-communications-lib.mjs";
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../scripts/lib/work-packet-contract-read-lib.mjs";
 import {
   formatVerboseCheckDetails,
   recordCheckResult,
@@ -35,22 +36,19 @@ function parseSingleField(text, label) {
 }
 
 function resolvePacketContext(wpId) {
-  const resolved = resolveWorkPacketPath(wpId);
-  const packetPath = resolved?.packetPath || `${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`;
-  const packetAbsPath = repoPathAbs(packetPath);
-  if (!fs.existsSync(packetAbsPath)) {
-    throw new Error(`Official packet not found: ${normalize(packetPath)}`);
+  const context = buildWorkPacketCommunicationView(wpId);
+  if (!context.ok || !context.packetPath) {
+    throw new Error(`Official packet not found: ${normalize(`${GOV_ROOT_REPO_REL}/task_packets/${wpId}.md`)}`);
   }
-  const packetText = fs.readFileSync(packetAbsPath, "utf8");
   return {
-    packetPath: normalize(packetPath),
-    packetText,
-    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
-    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
-    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
-    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
-    receiptsFile: parseSingleField(packetText, "WP_RECEIPTS_FILE"),
-    runtimeStatusFile: parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE"),
+    packetPath: normalize(context.packetPath),
+    packetText: context.packetText,
+    workflowLane: context.workflowLane,
+    packetFormatVersion: context.packetFormatVersion,
+    communicationContract: context.communicationContract,
+    communicationHealthGate: context.communicationHealthGate,
+    receiptsFile: context.receiptsFile,
+    runtimeStatusFile: context.runtimeStatusFile,
   };
 }
 

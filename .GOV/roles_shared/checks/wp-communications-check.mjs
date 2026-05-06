@@ -17,7 +17,8 @@ import {
   validateReceipt,
   validateRuntimeStatus,
 } from "../scripts/lib/wp-communications-lib.mjs";
-import { GOV_ROOT_REPO_REL, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../scripts/lib/work-packet-contract-read-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 
 registerFailCaptureHook("wp-communications-check.mjs", { role: "SHARED" });
@@ -32,6 +33,15 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = text.match(re);
   return match ? match[1].trim() : "";
+}
+
+function packetCommunicationContext(wpId, fallbackPacketPath = "") {
+  const context = buildWorkPacketCommunicationView(wpId);
+  if (!context.ok) return null;
+  return {
+    ...context,
+    packetPath: normalize(context.packetPath || fallbackPacketPath),
+  };
 }
 
 export function isPacketlessSyntheticWp(wpId) {
@@ -64,17 +74,17 @@ function main() {
       } else {
         continue;
       }
-      const text = fs.readFileSync(packetPath, "utf8");
-
-      const communicationDir = parseSingleField(text, "WP_COMMUNICATION_DIR");
-      const threadFile = parseSingleField(text, "WP_THREAD_FILE");
-      const runtimeStatusFile = parseSingleField(text, "WP_RUNTIME_STATUS_FILE");
-      const receiptsFile = parseSingleField(text, "WP_RECEIPTS_FILE");
+      const context = packetCommunicationContext(wpId, packetPath);
+      if (!context) continue;
+      const communicationDir = context.communicationDir;
+      const threadFile = context.threadFile;
+      const runtimeStatusFile = context.runtimeStatusFile;
+      const receiptsFile = context.receiptsFile;
       const declared = [communicationDir, threadFile, runtimeStatusFile, receiptsFile].filter(Boolean);
       if (declared.length === 0) continue;
 
       if (declared.length !== 4) {
-        violations.push(`${packetPath}: packet declares only part of the WP communication metadata set`);
+        violations.push(`${context.packetPath}: packet declares only part of the WP communication metadata set`);
         continue;
       }
 
@@ -85,21 +95,21 @@ function main() {
       const expectedReceipts = expected.receiptsFile;
 
       if (normalize(communicationDir) !== normalize(expectedDir)) {
-        violations.push(`${packetPath}: WP_COMMUNICATION_DIR must be ${expectedDir} (got ${communicationDir})`);
+        violations.push(`${context.packetPath}: WP_COMMUNICATION_DIR must be ${expectedDir} (got ${communicationDir})`);
       }
       if (normalize(threadFile) !== normalize(expectedThread)) {
-        violations.push(`${packetPath}: WP_THREAD_FILE must be ${expectedThread} (got ${threadFile})`);
+        violations.push(`${context.packetPath}: WP_THREAD_FILE must be ${expectedThread} (got ${threadFile})`);
       }
       if (normalize(runtimeStatusFile) !== normalize(expectedRuntime)) {
-        violations.push(`${packetPath}: WP_RUNTIME_STATUS_FILE must be ${expectedRuntime} (got ${runtimeStatusFile})`);
+        violations.push(`${context.packetPath}: WP_RUNTIME_STATUS_FILE must be ${expectedRuntime} (got ${runtimeStatusFile})`);
       }
       if (normalize(receiptsFile) !== normalize(expectedReceipts)) {
-        violations.push(`${packetPath}: WP_RECEIPTS_FILE must be ${expectedReceipts} (got ${receiptsFile})`);
+        violations.push(`${context.packetPath}: WP_RECEIPTS_FILE must be ${expectedReceipts} (got ${receiptsFile})`);
       }
 
       for (const requiredPath of [expectedDir, expectedThread, expectedRuntime, expectedReceipts]) {
         if (!fs.existsSync(requiredPath)) {
-          violations.push(`${packetPath}: referenced communication artifact missing on disk -> ${requiredPath}`);
+          violations.push(`${context.packetPath}: referenced communication artifact missing on disk -> ${requiredPath}`);
         }
       }
 
@@ -108,10 +118,10 @@ function main() {
           const runtimeStatus = parseJsonFile(expectedRuntime);
           const runtimeErrors = validateRuntimeStatus(runtimeStatus);
           for (const error of runtimeErrors) {
-            violations.push(`${packetPath}: ${RUNTIME_STATUS_FILE_NAME} invalid -> ${error}`);
+            violations.push(`${context.packetPath}: ${RUNTIME_STATUS_FILE_NAME} invalid -> ${error}`);
           }
         } catch (error) {
-          violations.push(`${packetPath}: ${RUNTIME_STATUS_FILE_NAME} parse/validation failure -> ${error.message}`);
+          violations.push(`${context.packetPath}: ${RUNTIME_STATUS_FILE_NAME} parse/validation failure -> ${error.message}`);
         }
       }
 
@@ -119,22 +129,22 @@ function main() {
         try {
           const receipts = parseJsonlFile(expectedReceipts);
           if (receipts.length === 0) {
-            violations.push(`${packetPath}: ${RECEIPTS_FILE_NAME} must contain at least one receipt entry`);
+            violations.push(`${context.packetPath}: ${RECEIPTS_FILE_NAME} must contain at least one receipt entry`);
           }
           receipts.forEach((receipt, index) => {
             const receiptErrors = validateReceipt(receipt);
             for (const error of receiptErrors) {
-              violations.push(`${packetPath}: ${RECEIPTS_FILE_NAME} line ${index + 1} invalid -> ${error}`);
+              violations.push(`${context.packetPath}: ${RECEIPTS_FILE_NAME} line ${index + 1} invalid -> ${error}`);
             }
           });
         } catch (error) {
-          violations.push(`${packetPath}: ${RECEIPTS_FILE_NAME} parse/validation failure -> ${error.message}`);
+          violations.push(`${context.packetPath}: ${RECEIPTS_FILE_NAME} parse/validation failure -> ${error.message}`);
         }
       }
 
       const legacyDir = legacyCommunicationPathsForWp(wpId).dir;
       if (fs.existsSync(legacyDir)) {
-        violations.push(`${packetPath}: repo-local legacy communication directory still exists -> ${legacyDir}`);
+        violations.push(`${context.packetPath}: repo-local legacy communication directory still exists -> ${legacyDir}`);
       }
     }
   }
@@ -170,13 +180,12 @@ function main() {
         }
         continue;
       }
-      const packetPath = resolveWorkPacketPath(entry.name)?.packetPath || path.join(PACKETS_DIR, `${entry.name}.md`);
-      if (!fs.existsSync(packetPath)) {
+      const context = packetCommunicationContext(entry.name, path.join(PACKETS_DIR, `${entry.name}.md`));
+      if (!context) {
         violations.push(`${COMM_ROOT}/${entry.name}: orphan communication folder with no matching official packet`);
         continue;
       }
-      const packetText = fs.readFileSync(packetPath, "utf8");
-      const communicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+      const communicationDir = context.communicationDir;
       const authoritativeDir = normalize(communicationPathsForWp(entry.name).dir);
       const currentDir = normalize(path.join(COMM_ROOT, entry.name));
 

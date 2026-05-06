@@ -21,6 +21,23 @@
 
 ## Entries
 
+### 2026.05.06.23 / GOV-CHANGE-20260506-23
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by introducing a shared contract-first packet communication view and migrating WP communication provisioning, communication health, and communications drift checks to prefer `packet.json` workflow/lifecycle/source-control fields before Markdown projection fallback.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/roles_shared/checks/wp-communication-health-check.mjs`
+  - `.GOV/roles_shared/checks/wp-communications-check.mjs`
+  - `.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Markdown projection remains a fallback for fields not present in older imported contracts.
+  - Future slices still need to migrate closeout, lane-health, timeline, dossier, activation, and manual-relay consumers.
+
 ### 2026.05.06.22 / GOV-CHANGE-20260506-22
 - STATUS: APPLIED
 - AREA: Repo Governance

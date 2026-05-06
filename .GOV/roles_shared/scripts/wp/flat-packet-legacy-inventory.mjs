@@ -217,7 +217,7 @@ async function main() {
   );
 }
 
-if (import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   main().catch((error) => {
     console.error(`flat-packet-legacy-inventory failed: ${error.message}`);
     process.exit(1);
