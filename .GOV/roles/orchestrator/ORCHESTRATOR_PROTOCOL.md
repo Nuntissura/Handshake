@@ -18,6 +18,14 @@
 - New public governance entrypoints are illegal unless the ledger records owner role, phase, authority boundary, side-effect class, invocation path, replacement bundle, primary debug artifact, and validation/check coverage.
 - Coder is excluded from topology maintenance. Do not route topology-ledger repair to Coder.
 
+## WP Dossier Runtime Archive [CX-218J1]
+
+- Per-WP raw diagnostic dossiers live under the external repo-governance runtime root: default `../gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/`, overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
+- The dossier archive is for full mechanical posterity: raw ACP prints, repomem outputs, command stdout/stderr, bundle failure logs, and related traces should be dumped there rather than summarized away.
+- `index.json` is the first model/tool lookup surface; `artifact_manifest.json` lists raw artifacts; `events.jsonl` is append-only; raw logs live under `raw/`, `acp/`, `repomem/`, `commands/`, and `bundle_failures/`.
+- `workflow_postmortem.md` is the Orchestrator-owned terminal narrative after verdict/closeout. Validators contribute typed receipts, repomem entries, verdicts, and findings; they do not overwrite the Orchestrator terminal post-mortem.
+- Do not store runtime dossier payloads in git. Repo-tracked files define the contract, generators, checks, and projections only.
+
 ## Orchestrator Role Definition (ORCHESTRATOR_MANAGED) [RGF-189]
 
 In the orchestrator-managed workflow, the Orchestrator:

@@ -5195,6 +5195,12 @@
 
 
 
+### GOV-CHANGE-20260507-01
+- TASKS: RGF-299
+- SUMMARY: Started phase bundle diagnosis hardening by declaring the per-WP external dossier archive and making failure dossier writes WP-aware. WP dossiers live under the external governance runtime root at roles_shared/WP_DOSSIERS/WP-{ID}/, preserve raw ACP/repomem/command/bundle logs for posterity, and expose index.json as the first machine/model lookup surface.
+- FILES: .GOV/codex/Handshake_Codex_v1.4.md; .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md; .GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md; .GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md; .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md; .GOV/roles_shared/scripts/lib/runtime-paths.mjs; .GOV/roles_shared/scripts/lib/check-result-lib.mjs; .GOV/roles_shared/scripts/lib/governance-topology-lib.mjs; .GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - residual-artifact-writer-inventory-check; governance-topology-check; just gov-check --sync-topology; just gov-check.
+
 ### GOV-CHANGE-20260506-43
 - TASKS: RGF-298
 - SUMMARY: Started full script inventory reconciliation by hardening the generated governance topology checker. The topology check now validates required metadata, duplicate surface ids and file paths, file existence, source hashes, public Just linkage, and classified owner/phase metadata, and the generated topology ledger records the RGF-298 reconciliation contract.

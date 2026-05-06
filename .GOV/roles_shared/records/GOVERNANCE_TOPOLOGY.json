@@ -134,9 +134,17 @@
     "schema_version": "phase_bundle_failure_dossier_v1",
     "jsonl_path": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
     "markdown_projection_path": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.md",
+    "wp_dossier_root_template": "gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/",
+    "wp_dossier_index": "gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/index.json",
+    "wp_dossier_events": "gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/events.jsonl",
+    "wp_dossier_artifact_manifest": "gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/artifact_manifest.json",
+    "wp_dossier_workflow_postmortem": "gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/workflow_postmortem.md",
+    "raw_archive_policy": "dump_all_logs_for_posterity",
+    "model_entrypoint_policy": "models/tools read index.json first, then follow artifact refs to raw logs when needed",
     "required_fields": [
       "run_id",
       "timestamp",
+      "wp_id",
       "phase",
       "bundle",
       "substep_id",
@@ -149,6 +157,10 @@
       "duration_ms",
       "stdout_artifact",
       "stderr_artifact",
+      "artifact_refs",
+      "wp_dossier_root",
+      "wp_dossier_index",
+      "workflow_postmortem_ref",
       "debug_artifact",
       "invariant",
       "suspected_cause_category",
@@ -970,7 +982,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:d879e91637b7fde6f2a6b313060b555c8e2597151b4b75d3e7abb3779dbf3463",
+      "source_hash": "sha256:f3269cd261d0f6958d62f89903328f45126acbb49407b03834ceaafe1da0f295",
       "last_verified_at_utc": null
     },
     {
@@ -3338,7 +3350,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:05321790d7cba1baa3510459d11af1bcc5363f325c99ce99c0868ed529c8302a",
+      "source_hash": "sha256:69bf19aea3c02196c03cb4fb0385b3f213592c87fb7be88c7f1ca6ad1e010a01",
       "last_verified_at_utc": null
     },
     {
@@ -3498,7 +3510,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:ae80d1a4c104882753a7223d385e33fec8d728cb28f78015e4598411663d206d",
+      "source_hash": "sha256:5bfcd8055a04c93039c3c92db59c7d7cbca1abedc701ddac1fd6a8c634dda1dc",
       "last_verified_at_utc": null
     },
     {
@@ -3518,7 +3530,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:63afaf9ebb6d26da9e51614fa75a9987d5c966c0f9bd24820f8feed0c122d6c7",
+      "source_hash": "sha256:e1c7196d6d9128df58a6c8ddac7a7040803a1a82f05a1bb82a48557302c5f38b",
       "last_verified_at_utc": null
     },
     {
@@ -4382,7 +4394,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:8d0a0ae15722d0a27b42d49073c5e2ddfb31857ad40f7824944cd25f5c176ae2",
+      "source_hash": "sha256:12e18577cdc4b25a59f8117c2de9c1a9e488d5211b775929c6efe79d7aa291db",
       "last_verified_at_utc": null
     },
     {
@@ -4522,7 +4534,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:79ed26ca8fc7eb0d2a66261e2e64a646ba321cc7c88dcd3fd1821390f09dff28",
+      "source_hash": "sha256:77ba8f8d10287bb250fd645d1145aedb80d1474c2880551db2bc1b01e7a9f978",
       "last_verified_at_utc": null
     },
     {
@@ -4882,7 +4894,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:90e2400efd2de1b53ef2f60982ebe0289d58cf10c0db399938aa5ab04a1efb16",
+      "source_hash": "sha256:220ac4997bfd34431bb3d55e6f81a0f71ee2189d95f30fea8e549b1db0c8a7fa",
       "last_verified_at_utc": null
     },
     {
@@ -9446,7 +9458,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:fbe41eddae1675a7fa35f3893fc33cb21ae3c6f0e6a55e54900282cbb06748c0",
+      "source_hash": "sha256:b53d4ca31bc768b9ffbe74ab55e50bc4c6482a1de4103b534b714a8bcc7b6373",
       "last_verified_at_utc": null
     },
     {
@@ -9980,7 +9992,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:7272b9f0cd82f52fe8fac2b2961215c689cf71b4beb47f33ec2a402eaa66a7a9",
+      "source_hash": "sha256:12db27ae90a90733788eef44acf7c467e942517f1dc6e973dbcc099420ec4257",
       "last_verified_at_utc": null
     },
     {
@@ -10420,7 +10432,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:0604fff09879b9dba81ba38e35496b4cd72fce6301e9c6495fc938ae15c984bb",
+      "source_hash": "sha256:243a8d54cb9ec02b49002f5a3eed444bc08cabf88496fb24791a9efba4830920",
       "last_verified_at_utc": null
     },
     {
@@ -12401,7 +12413,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:d3493ccca4537db17cb273830e72f91963197738d76b7efcbc8e1e7b7513a574",
+      "source_hash": "sha256:70f001905d95fb509e1edc01cf8fdb599a851218eb478e067ff87c996e63e150",
       "last_verified_at_utc": null
     },
     {
@@ -17388,5 +17400,5 @@
       "last_verified_at_utc": null
     }
   ],
-  "projection_hash": "sha256:81e0e62ae2fb3b5020f292666ab05cf40b79c03ec3e7082ef2c71535d2fbd755"
+  "projection_hash": "sha256:a879ab5ef5db6bb8410c758b84ed44674721d0c76f26899449d9ef915e6ca8cc"
 }

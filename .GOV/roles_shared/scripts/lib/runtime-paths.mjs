@@ -448,6 +448,7 @@ export const SHARED_GOV_SESSION_CONTROL_RESULTS_FILE = relWithinGovernanceRuntim
 export const SHARED_GOV_SESSION_CONTROL_OUTPUT_DIR = relWithinGovernanceRuntime("roles_shared", "SESSION_CONTROL_OUTPUTS");
 export const SHARED_GOV_SESSION_CONTROL_BROKER_STATE_FILE = relWithinGovernanceRuntime("roles_shared", "SESSION_CONTROL_BROKER_STATE.json");
 export const SHARED_GOV_WP_COMMUNICATIONS_ROOT = relWithinGovernanceRuntime("roles_shared", "WP_COMMUNICATIONS");
+export const SHARED_GOV_WP_DOSSIERS_ROOT = relWithinGovernanceRuntime("roles_shared", "WP_DOSSIERS");
 export const SHARED_GOV_WP_TOKEN_USAGE_ROOT = relWithinGovernanceRuntime("roles_shared", "WP_TOKEN_USAGE");
 export const SHARED_GOV_VALIDATOR_GATES_ROOT = relWithinGovernanceRuntime("roles_shared", "validator_gates");
 export const SHARED_GOV_GIT_TOPOLOGY_FILE = relWithinGovernanceRuntime("roles_shared", "GIT_TOPOLOGY_REGISTRY.json");
