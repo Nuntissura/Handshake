@@ -21,6 +21,20 @@
 
 ## Entries
 
+### 2026.05.06.25 / GOV-CHANGE-20260506-25
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by migrating classic/manual-relay next and dispatch entrypoints to resolve packet lane and communication fields through the contract-first packet communication view before Markdown projection fallback.
+- CHANGED:
+  - `.GOV/roles/orchestrator/scripts/manual-relay-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/manual-relay-dispatch.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Manual-relay drift evaluation still receives packet projection text; future work should pass contract-derived views into downstream evaluators directly.
+  - Remaining high-value migrations are closeout, activation, timeline, and dossier consumers.
+
 ### 2026.05.06.24 / GOV-CHANGE-20260506-24
 - STATUS: APPLIED
 - AREA: Repo Governance
