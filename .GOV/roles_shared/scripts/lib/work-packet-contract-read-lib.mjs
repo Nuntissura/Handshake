@@ -115,6 +115,7 @@ export function buildLegacyWorkPacketContract({ wpId, packetText = "", packetPat
       thread_file: parsePacketSingleField(packetText, "WP_THREAD_FILE") || (communicationDir ? path.posix.join(communicationDir, "THREAD.md") : ""),
       runtime_status_file: parsePacketSingleField(packetText, "WP_RUNTIME_STATUS_FILE") || (communicationDir ? path.posix.join(communicationDir, "RUNTIME_STATUS.json") : ""),
       receipts_file: parsePacketSingleField(packetText, "WP_RECEIPTS_FILE") || (communicationDir ? path.posix.join(communicationDir, "RECEIPTS.jsonl") : ""),
+      notifications_file: parsePacketSingleField(packetText, "WP_NOTIFICATIONS_FILE") || (communicationDir ? path.posix.join(communicationDir, "NOTIFICATIONS.jsonl") : ""),
       communication_contract: parsePacketSingleField(packetText, "COMMUNICATION_CONTRACT"),
       communication_health_gate: parsePacketSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
     },
@@ -239,6 +240,11 @@ export function buildWorkPacketCommunicationView(wpId) {
     || parsePacketSingleField(packetText, "WP_RECEIPTS_FILE")
     || (communicationDir ? path.posix.join(communicationDir, "RECEIPTS.jsonl") : ""),
   );
+  const notificationsFile = normalizePath(
+    workflow.notifications_file
+    || parsePacketSingleField(packetText, "WP_NOTIFICATIONS_FILE")
+    || (communicationDir ? path.posix.join(communicationDir, "NOTIFICATIONS.jsonl") : ""),
+  );
   const packetPath = normalizePath(
     state.resolved?.packetPath
     || contract.markdown_projection?.path
@@ -263,6 +269,7 @@ export function buildWorkPacketCommunicationView(wpId) {
     threadFile,
     runtimeStatusFile,
     receiptsFile,
+    notificationsFile,
     executionOwner: workflow.execution_owner || parsePacketSingleField(packetText, "EXECUTION_OWNER"),
     workflowAuthority: workflow.authority || parsePacketSingleField(packetText, "WORKFLOW_AUTHORITY"),
     technicalAdvisor: workflow.technical_advisor || parsePacketSingleField(packetText, "TECHNICAL_ADVISOR"),

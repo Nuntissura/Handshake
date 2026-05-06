@@ -21,6 +21,22 @@
 
 ## Entries
 
+### 2026.05.06.24 / GOV-CHANGE-20260506-24
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by migrating session-facing packet consumers to the contract-first packet communication view for lane health, active-lane briefs, and orchestrator session-registry status. The shared view now also derives deterministic notification paths from the packet communication contract.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Session diagnostics still pass packet projection text into downstream evaluators until those evaluators accept contract objects directly.
+  - Closeout, activation, timeline, dossier, and manual-relay paths still need migration.
+
 ### 2026.05.06.23 / GOV-CHANGE-20260506-23
 - STATUS: APPLIED
 - AREA: Repo Governance
