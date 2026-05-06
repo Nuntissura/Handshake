@@ -236,6 +236,12 @@ test("syncRuntimeProjectionFromPacket keeps the integration-validator session bo
   assert.equal(runtime.next_expected_actor, "INTEGRATION_VALIDATOR");
   assert.equal(runtime.next_expected_session, "integration_validator:wp-test-validator-v1");
   assert.equal(runtime.waiting_on, "MAIN_CONTAINMENT");
+  assert.equal(runtime.route_anchor_state, "COMM_OK");
+  assert.equal(runtime.route_anchor_kind, "MAIN_CONTAINMENT");
+  assert.equal(runtime.route_anchor_correlation_id, null);
+  assert.equal(runtime.route_anchor_target_role, "INTEGRATION_VALIDATOR");
+  assert.equal(runtime.route_anchor_target_session, "integration_validator:wp-test-validator-v1");
+  assert.equal(runtime.execution_state.authority.route_anchor.kind, "MAIN_CONTAINMENT");
   assert.equal(runtime.attention_required, false);
 });
 
@@ -279,6 +285,38 @@ test("evaluatePacketRuntimeProjectionDrift flags stale bootstrap runtime after d
     drift.issue_details.find((detail) => detail.message.includes("CURRENT_MAIN_COMPATIBILITY_STATUS=NOT_RUN"))?.owner,
     "PACKET_CLOSEOUT_TRUTH",
   );
+});
+
+test("evaluatePacketRuntimeProjectionDrift accepts merge-pending containment projection after direct review", () => {
+  const drift = evaluatePacketRuntimeProjectionDrift(
+    packetFixture({
+      status: "Done",
+      containment: "MERGE_PENDING",
+      merged: "NONE",
+      verifiedAt: "N/A",
+    }),
+    {
+      current_packet_status: "Done",
+      current_task_board_status: "DONE_MERGE_PENDING",
+      current_phase: "STATUS_SYNC",
+      current_milestone: "CONTAINMENT",
+      runtime_status: "completed",
+      main_containment_status: "MERGE_PENDING",
+      current_main_compatibility_status: "COMPATIBLE",
+      current_main_compatibility_baseline_sha: "89abcdef0123456789abcdef0123456789abcdef",
+      current_main_compatibility_verified_at_utc: "2026-03-26T11:00:00Z",
+    },
+    {
+      communicationEvaluation: {
+        applicable: true,
+        ok: true,
+        state: "COMM_OK",
+      },
+    },
+  );
+
+  assert.equal(drift.ok, true);
+  assert.deepEqual(drift.issues, []);
 });
 
 test("evaluatePacketRuntimeProjectionDrift isolates runtime-only ownership when packet closeout truth is already aligned", () => {

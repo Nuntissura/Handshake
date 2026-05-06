@@ -9,13 +9,16 @@ import {
   evaluateWpCommunicationHealth,
 } from "../scripts/lib/wp-communication-health-lib.mjs";
 import { normalize, parseJsonFile, parseJsonlFile } from "../scripts/lib/wp-communications-lib.mjs";
-import { GOV_ROOT_REPO_REL, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 import {
   formatVerboseCheckDetails,
   recordCheckResult,
 } from "../scripts/lib/check-result-lib.mjs";
 import { ensureWpCommunications } from "../scripts/wp/ensure-wp-communications.mjs";
 import { checkAllNotifications } from "../scripts/wp/wp-check-notifications.mjs";
+import { loadSessionRegistry } from "../scripts/session/session-registry-lib.mjs";
+
+const CLOSED_SESSION_STATE_VALUES = new Set(["CLOSED", "COMPLETED", "FAILED", "STALE", "CANCELLED"]);
 
 function usage() {
   console.error(
@@ -48,6 +51,50 @@ function resolvePacketContext(wpId) {
     communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
     receiptsFile: parseSingleField(packetText, "WP_RECEIPTS_FILE"),
     runtimeStatusFile: parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE"),
+  };
+}
+
+function registryActiveRoleSessionsForWp(wpId) {
+  try {
+    const { registry } = loadSessionRegistry(REPO_ROOT);
+    return (registry.sessions || [])
+      .filter((entry) => String(entry?.wp_id || "").trim() === String(wpId || "").trim())
+      .filter((entry) => !CLOSED_SESSION_STATE_VALUES.has(String(entry?.runtime_state || "").trim().toUpperCase()))
+      .flatMap((entry) => {
+        const role = normalize(entry?.role);
+        const canonicalSessionId = normalize(entry?.session_key) || normalize(entry?.session_thread_id);
+        const aliasSessionId = role && wpId ? `${role.toLowerCase()}:${String(wpId || "").trim().toLowerCase()}` : "";
+        const base = {
+          role,
+          state: normalize(entry?.runtime_state) || "UNKNOWN",
+          last_heartbeat_at: normalize(entry?.last_event_at) || normalize(entry?.updated_at) || normalize(entry?.session_thread_started_at),
+        };
+        return [canonicalSessionId, aliasSessionId]
+          .filter(Boolean)
+          .filter((sessionId, index, values) => values.indexOf(sessionId) === index)
+          .map((sessionId) => ({ ...base, session_id: sessionId }));
+      })
+      .filter((entry) => entry.role && entry.session_id);
+  } catch {
+    return [];
+  }
+}
+
+function runtimeStatusWithRegistrySessions(wpId, runtimeStatus = {}) {
+  const existing = Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [];
+  const merged = [...existing];
+  const seen = new Set(existing.map((entry) =>
+    `${normalize(entry?.role)}:${normalize(entry?.session_id)}`
+  ));
+  for (const entry of registryActiveRoleSessionsForWp(wpId)) {
+    const key = `${normalize(entry.role)}:${normalize(entry.session_id)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(entry);
+  }
+  return {
+    ...runtimeStatus,
+    active_role_sessions: merged,
   };
 }
 
@@ -84,9 +131,10 @@ export function buildWpCommunicationHealthCheckResult({
   const receipts = context.receiptsFile && fs.existsSync(repoPathAbs(context.receiptsFile))
     ? parseJsonlFile(context.receiptsFile)
     : [];
-  const runtimeStatus = context.runtimeStatusFile && fs.existsSync(repoPathAbs(context.runtimeStatusFile))
+  const runtimeStatusRaw = context.runtimeStatusFile && fs.existsSync(repoPathAbs(context.runtimeStatusFile))
     ? parseJsonFile(context.runtimeStatusFile)
     : { open_review_items: [] };
+  const runtimeStatus = runtimeStatusWithRegistrySessions(normalizedWpId, runtimeStatusRaw);
   const latestReceipt = receipts.at(-1) || null;
   const pendingNotifications = Object.values(checkAllNotifications({ wpId: normalizedWpId })).flatMap((entry) => entry.notifications || []);
 

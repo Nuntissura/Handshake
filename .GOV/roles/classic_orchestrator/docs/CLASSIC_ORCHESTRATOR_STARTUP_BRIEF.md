@@ -13,6 +13,16 @@ Use this brief after `just classic-orchestrator-startup`. It is operational memo
 
 ## Action Cards
 
+### RAM-CLASSIC_ORCHESTRATOR-MECHANICAL_INTERVENTION-001
+
+- ACTION: MECHANICAL_INTERVENTION
+- TRIGGER: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked
+- FAILURE_PATTERN: spending manual-relay turns on transcript reconstruction instead of classifying route and artifact drift mechanically
+- DO: classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read, repair, or typed helper before relaying content
+- DO_NOT: manually broker ordinary role content when an existing manual-relay helper, packet artifact, receipt, or runtime status can prove the next action
+- VERIFY: the chosen relay or repair cites the cause class, helper output, and current packet/runtime authority
+- SOURCE: CX-218K, CLASSIC_ORCHESTRATOR_PROTOCOL
+
 ### RAM-CLASSIC_ORCHESTRATOR-LANE-001
 
 - ACTION: LANE_BOUNDARY

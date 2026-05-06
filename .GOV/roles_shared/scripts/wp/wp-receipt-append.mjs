@@ -429,6 +429,16 @@ function shouldAppendOrchestratorGovernanceCheckpoint({ workflowLane, entry }) {
   return GOVERNANCE_CHECKPOINT_RECEIPT_KIND_VALUES.has(normalizeReceiptKind(entry?.receipt_kind));
 }
 
+function isFinalIntegrationReviewResponseEntry(entry = {}) {
+  if (normalizeReceiptKind(entry?.receipt_kind) !== "REVIEW_RESPONSE") return false;
+  if (normalizeRole(entry?.actor_role) !== "INTEGRATION_VALIDATOR") return false;
+  if (normalizeRole(entry?.target_role) !== "CODER") return false;
+  const correlation = String(entry?.correlation_id || entry?.ack_for || "").trim();
+  const text = `${String(entry?.packet_row_ref || "").trim()}\n${String(entry?.summary || "").trim()}`;
+  return correlation.includes(":coder_handoff:final:")
+    || (/CODER_HANDOFF/i.test(text) && /final/i.test(text));
+}
+
 function buildOrchestratorGovernanceCheckpointSummary({ entry, autoRoute }) {
   const assessment = deriveLatestValidatorAssessment([entry]);
   const nextActor = normalizeRole(autoRoute?.nextExpectedActor) || "UNCHANGED";
@@ -448,8 +458,9 @@ export function deriveReviewNotificationTargets({ workflowLane = "", entry, auto
   const actorRole = normalizeRole(entry?.actor_role);
   const explicitTargetRole = normalizeRole(entry?.target_role);
   const explicitTargetSession = normalizeSession(entry?.target_session);
+  const finalIntegrationReviewResponse = isFinalIntegrationReviewResponseEntry(entry);
 
-  if (explicitTargetRole) {
+  if (explicitTargetRole && !finalIntegrationReviewResponse) {
     appendNotificationTarget(targets, seenTargets, {
       actorRole,
       targetRole: explicitTargetRole,
@@ -735,7 +746,42 @@ function assertCommittedCoderHandoffPreflight({ wpId, context, microtaskContract
   }
 }
 
-function assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus }) {
+function finalIntegrationHandoffAfterDrainedReviewLaneAllowed({
+  evaluation,
+  runtimeStatus,
+  receipts,
+  targetRole,
+}) {
+  if (normalizeRole(targetRole) !== "INTEGRATION_VALIDATOR") return false;
+
+  const routeAnchorState = String(runtimeStatus?.route_anchor_state || "").trim().toUpperCase();
+  const routeAnchorKind = normalizeReceiptKind(runtimeStatus?.route_anchor_kind);
+  const evaluationState = String(evaluation?.state || "").trim().toUpperCase();
+  const routeLooksDrained = routeAnchorState === "COMM_OK"
+    && REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(routeAnchorKind);
+  if (evaluationState !== "COMM_OK" && !routeLooksDrained) return false;
+
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  const nextActor = normalizeRole(runtimeStatus?.next_expected_actor);
+  if (nextActor !== "ORCHESTRATOR" || waitingOn !== "VERDICT_PROGRESSION") return false;
+
+  const openReviewItems = Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [];
+  if (openReviewItems.length > 0) return false;
+
+  const existingCoderHandoffs = (Array.isArray(receipts) ? receipts : [])
+    .filter((entry) => normalizeReceiptKind(entry?.receipt_kind) === "CODER_HANDOFF");
+  if (existingCoderHandoffs.length > 0) return false;
+
+  const counts = evaluation?.details?.counts || evaluation?.counts || {};
+  const coderReviewOpenReceipts = Number(counts.coderReviewOpenReceipts || 0);
+  const validatorReviews = Number(counts.validatorReviews || 0);
+  if (coderReviewOpenReceipts > 0) return validatorReviews >= coderReviewOpenReceipts;
+
+  const latestReceiptKind = normalizeReceiptKind((Array.isArray(receipts) ? receipts : []).at(-1)?.receipt_kind);
+  return REVIEW_RESOLUTION_RECEIPT_KIND_VALUES.includes(latestReceiptKind);
+}
+
+function assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus, targetRole = null }) {
   if (!runtimeStatus || normalizeRole(context?.workflowLane) !== "ORCHESTRATOR_MANAGED") return;
   const pendingOverlapReviews = (Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items : [])
     .filter((item) => isOverlapMicrotaskReviewItem(item));
@@ -764,6 +810,12 @@ function assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus }) {
   const nextActor = normalizeRole(autoRoute?.nextExpectedActor);
   const waitingOn = String(autoRoute?.waitingOn || "").trim().toUpperCase();
   if (nextActor === "CODER" && ["CODER_HANDOFF", "CODER_REPAIR_HANDOFF"].includes(waitingOn)) return;
+  if (finalIntegrationHandoffAfterDrainedReviewLaneAllowed({
+    evaluation,
+    runtimeStatus,
+    receipts,
+    targetRole,
+  })) return;
 
   let reason = `lane is not currently waiting on a coder handoff (${nextActor || "NONE"} / ${waitingOn || "UNKNOWN"}).`;
   if (String(evaluation?.state || "").trim().toUpperCase() === "COMM_WAITING_FOR_INTENT_CHECKPOINT") {
@@ -881,6 +933,21 @@ function assertReviewResolutionCorrelationPreflight({
       return true;
     });
     if (matchingCheckpointDriver) return;
+  }
+
+  const expectedRouteKind = normalizeReceiptKind(
+    runtimeStatus?.route_anchor_kind
+      || runtimeStatus?.execution_state?.authority?.route_anchor?.kind,
+  );
+  const intentCheckpointUsedReviewResponse = normalizedReceiptKind === "REVIEW_RESPONSE"
+    && VALIDATOR_ASSESSMENT_ROLE_VALUES.has(normalizedActorRole)
+    && normalizedTargetRole === "CODER"
+    && normalizedWaitingOn === "WP_VALIDATOR_INTENT_CHECKPOINT"
+    && expectedRouteKind === "VALIDATOR_RESPONSE";
+  if (intentCheckpointUsedReviewResponse) {
+    throw new Error(
+      "Governed REVIEW_RESPONSE rejected: runtime is waiting on WP_VALIDATOR_INTENT_CHECKPOINT and route_anchor_kind=VALIDATOR_RESPONSE. Use `just wp-validator-response ...` to clear CODER_INTENT; reserve `just wp-review-response ...` for open REVIEW_REQUEST/CODER_HANDOFF review items.",
+    );
   }
 
   throw new Error(
@@ -1086,7 +1153,12 @@ export function validateWpReceiptAppendPreconditions(args = {}, options = {}) {
         microtaskContract: args?.microtaskContract,
       });
     }
-    assertCoderHandoffRoutePreflight({ wpId, context, runtimeStatus });
+    assertCoderHandoffRoutePreflight({
+      wpId,
+      context,
+      runtimeStatus,
+      targetRole: args?.targetRole,
+    });
   }
   if (overlapReviewPreflightApplies({
     context,

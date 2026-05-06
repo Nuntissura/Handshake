@@ -45,21 +45,26 @@ for (const fixtureName of fs.readdirSync(FIXTURES_DIR).filter((name) => name.end
 
 function baseInput({
   wpId = "WP-TEST-AUTO-ROUTE",
+  stage = "STATUS",
   packetFormatVersion = "2026-03-22",
   communicationHealthGate = "HANDOFF_VERDICT_BLOCKING",
   packetContent = "",
+  actorRole = "",
+  actorSession = "",
   receipts = [],
   runtimeStatus = {},
 } = {}) {
   return {
     wpId,
-    stage: "STATUS",
+    stage,
     packetPath: `.GOV/task_packets/${wpId}/packet.md`,
     packetContent,
     workflowLane: "ORCHESTRATOR_MANAGED",
     packetFormatVersion,
     communicationContract: "DIRECT_REVIEW_V1",
     communicationHealthGate,
+    actorRole,
+    actorSession,
     receipts,
     runtimeStatus: {
       workflow_lane: "ORCHESTRATOR_MANAGED",
@@ -97,6 +102,95 @@ function baseInput({
       open_review_items: [],
       ...runtimeStatus,
     },
+  };
+}
+
+function completedWpValidatorReviewReceipts() {
+  return [
+    {
+      receipt_kind: "VALIDATOR_KICKOFF",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "kickoff-1",
+      ack_for: null,
+      timestamp_utc: "2026-03-22T10:01:00Z",
+    },
+    {
+      receipt_kind: "CODER_INTENT",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      target_role: "WP_VALIDATOR",
+      target_session: "wpv-1",
+      correlation_id: "kickoff-1",
+      ack_for: "kickoff-1",
+      timestamp_utc: "2026-03-22T10:02:00Z",
+    },
+    {
+      receipt_kind: "VALIDATOR_RESPONSE",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "kickoff-1",
+      ack_for: "kickoff-1",
+      summary: "Bootstrap and skeleton cleared; proceed.",
+      timestamp_utc: "2026-03-22T10:02:30Z",
+    },
+    {
+      receipt_kind: "CODER_HANDOFF",
+      actor_role: "CODER",
+      actor_session: "coder-1",
+      target_role: "WP_VALIDATOR",
+      target_session: "wpv-1",
+      correlation_id: "handoff-1",
+      ack_for: null,
+      timestamp_utc: "2026-03-22T10:03:00Z",
+    },
+    {
+      receipt_kind: "VALIDATOR_REVIEW",
+      actor_role: "WP_VALIDATOR",
+      actor_session: "wpv-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "handoff-1",
+      ack_for: "handoff-1",
+      timestamp_utc: "2026-03-22T10:04:00Z",
+    },
+  ];
+}
+
+function finalIntegrationHandoffReceipt(overrides = {}) {
+  return {
+    receipt_kind: "CODER_HANDOFF",
+    actor_role: "CODER",
+    actor_session: "coder-1",
+    target_role: "INTEGRATION_VALIDATOR",
+    target_session: "intval-1",
+    correlation_id: "final-1",
+    ack_for: null,
+    summary: "Final whole-WP handoff for integration validation.",
+    timestamp_utc: "2026-03-22T10:05:00Z",
+    ...overrides,
+  };
+}
+
+function finalIntegrationHandoffOpenItem(overrides = {}) {
+  return {
+    correlation_id: "final-1",
+    receipt_kind: "CODER_HANDOFF",
+    summary: "Final whole-WP handoff for integration validation.",
+    opened_by_role: "CODER",
+    opened_by_session: "coder-1",
+    target_role: "INTEGRATION_VALIDATOR",
+    target_session: "intval-1",
+    spec_anchor: null,
+    packet_row_ref: null,
+    requires_ack: true,
+    opened_at: "2026-03-22T10:05:00Z",
+    updated_at: "2026-03-22T10:05:00Z",
+    ...overrides,
   };
 }
 
@@ -655,6 +749,125 @@ test("auto route wakes integration validator when final review request is open",
   assert.equal(route.nextExpectedSession, "intval-1");
   assert.equal(route.validatorTrigger, "BLOCKED_NEEDS_VALIDATOR");
   assert.equal(route.notification, null, "explicit review request already targets integration validator");
+});
+
+test("handoff stage ignores a later final Integration Validator handoff item", () => {
+  const input = baseInput({
+    stage: "HANDOFF",
+    packetFormatVersion: "2026-04-06",
+    receipts: [
+      ...completedWpValidatorReviewReceipts(),
+      finalIntegrationHandoffReceipt(),
+    ],
+    runtimeStatus: {
+      open_review_items: [
+        finalIntegrationHandoffOpenItem(),
+      ],
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.match(evaluation.details.join("\n"), /integration_final_open=1/);
+});
+
+test("Integration Validator verdict preflight accepts its own open final handoff", () => {
+  const input = baseInput({
+    stage: "VERDICT",
+    packetFormatVersion: "2026-04-06",
+    actorRole: "INTEGRATION_VALIDATOR",
+    actorSession: "intval-1",
+    receipts: [
+      ...completedWpValidatorReviewReceipts(),
+      finalIntegrationHandoffReceipt(),
+    ],
+    runtimeStatus: {
+      open_review_items: [
+        finalIntegrationHandoffOpenItem(),
+      ],
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.state, "COMM_WAITING_FOR_FINAL_REVIEW");
+  assert.match(evaluation.message, /has the final coder handoff to review/);
+});
+
+test("Integration Validator verdict preflight blocks a final handoff targeted to another session", () => {
+  const input = baseInput({
+    stage: "VERDICT",
+    packetFormatVersion: "2026-04-06",
+    actorRole: "INTEGRATION_VALIDATOR",
+    actorSession: "intval-2",
+    receipts: [
+      ...completedWpValidatorReviewReceipts(),
+      finalIntegrationHandoffReceipt({ target_session: "intval-1" }),
+    ],
+    runtimeStatus: {
+      open_review_items: [
+        finalIntegrationHandoffOpenItem({ target_session: "intval-1" }),
+      ],
+    },
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+
+  assert.equal(evaluation.ok, false);
+  assert.equal(evaluation.state, "COMM_BLOCKED_OPEN_ITEMS");
+});
+
+test("final Integration Validator review resolution overrides stale active microtask handoff projection", () => {
+  const input = baseInput({
+    stage: "VERDICT",
+    packetFormatVersion: "2026-04-06",
+    receipts: [
+      ...completedWpValidatorReviewReceipts(),
+      finalIntegrationHandoffReceipt({
+        correlation_id: "review:WP-TEST:coder_handoff:final:abc123",
+        microtask_contract: {
+          scope_ref: "MT-001",
+          file_targets: ["storage/mod.rs"],
+          proof_commands: ["cargo test storage"],
+          phase_gate: "MICROTASK",
+        },
+      }),
+      {
+        receipt_kind: "REVIEW_RESPONSE",
+        actor_role: "INTEGRATION_VALIDATOR",
+        actor_session: "intval-1",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "review:WP-TEST:coder_handoff:final:abc123",
+        ack_for: "review:WP-TEST:coder_handoff:final:abc123",
+        packet_row_ref: "CODER_HANDOFF final handoff",
+        microtask_contract: {
+          scope_ref: "MT-003",
+          file_targets: ["storage/mod.rs", "storage/tests.rs"],
+          proof_commands: ["cargo test sqlite"],
+          phase_gate: "MICROTASK",
+        },
+        summary: "INTEGRATION_REVIEW PASS for final CODER_HANDOFF.",
+        timestamp_utc: "2026-03-22T10:06:00Z",
+      },
+    ],
+  });
+
+  const evaluation = evaluateWpCommunicationHealth(input);
+  const route = deriveWpCommunicationAutoRoute({
+    evaluation,
+    runtimeStatus: input.runtimeStatus,
+    latestReceipt: input.receipts.at(-1),
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.state, "COMM_OK");
+  assert.match(evaluation.message, /Final Integration Validator direct review is resolved/);
+  assert.equal(route.nextExpectedActor, "ORCHESTRATOR");
+  assert.equal(route.waitingOn, "VERDICT_PROGRESSION");
 });
 
 test("route anchors preserve the blocked validator target when open review items reorder", () => {

@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   closeoutModeFromPacketStatus,
   closeoutSyncCommandForProjection,
+  buildDownstreamGovernedContinuationCommands,
+  downstreamGovernedSessionState,
   findActiveTokenBudgetContinuationWaiver,
   isTerminalOrchestratorBoardStatus,
   latestOrchestratorAcpHealthAlert,
@@ -96,11 +98,109 @@ test("orchestrator-next prefers canonical closeout repair over duplicate board p
   assert.match(command, /^just phase-check CLOSEOUT WP-TEST --sync-mode CONTAINED_IN_MAIN /);
 });
 
+test("orchestrator-next routes direct-review completion to final coder handoff before closeout sync", () => {
+  const command = closeoutSyncCommandForProjection(
+    "WP-TEST",
+    {
+      current_packet_status: "In Progress",
+      current_task_board_status: "IN_PROGRESS",
+      current_main_compatibility_status: "NOT_RUN",
+    },
+    {
+      current_packet_status: "In Progress",
+      current_task_board_status: "IN_PROGRESS",
+      runtime_status: "working",
+      current_phase: "VALIDATION",
+      next_expected_actor: "ORCHESTRATOR",
+      waiting_on: "VERDICT_PROGRESSION",
+      committed_handoff_head_sha: "d7f3f760945c21076d75188fb2c90f1eafb155c3",
+    },
+    {
+      ok: true,
+      state: "COMM_OK",
+      counts: {
+        coderHandoffs: 0,
+      },
+    },
+    "IN_PROGRESS",
+  );
+
+  assert.match(command, /^just session-send CODER WP-TEST /);
+  assert.match(command, /final CODER_HANDOFF/);
+});
+
+test("orchestrator-next routes resolved final Integration Validator review to closeout sync", () => {
+  const command = closeoutSyncCommandForProjection(
+    "WP-TEST",
+    {
+      current_packet_status: "In Progress",
+      current_task_board_status: "IN_PROGRESS",
+      current_main_compatibility_status: "NOT_RUN",
+    },
+    {
+      current_packet_status: "In Progress",
+      current_task_board_status: "IN_PROGRESS",
+      runtime_status: "working",
+      current_phase: "VALIDATION",
+      next_expected_actor: "ORCHESTRATOR",
+      waiting_on: "VERDICT_PROGRESSION",
+      committed_handoff_head_sha: "d7f3f760945c21076d75188fb2c90f1eafb155c3",
+    },
+    {
+      ok: true,
+      state: "COMM_OK",
+      counts: {
+        coderHandoffs: 0,
+        integrationFinalOpenReceipts: 1,
+        integrationFinalResolutionReceipts: 1,
+      },
+    },
+    "IN_PROGRESS",
+  );
+
+  assert.equal(
+    command,
+    'just phase-check CLOSEOUT WP-TEST --sync-mode MERGE_PENDING --context "<why this closeout truth is being recorded, >=40 chars>"',
+  );
+});
+
+test("orchestrator-next inserts committed handoff validation before Integration Validator relay", () => {
+  const commands = buildDownstreamGovernedContinuationCommands({
+    wpId: "WP-TEST-MISSING-COMMITTED-EVIDENCE-v1",
+    runtimeStatus: {
+      next_expected_actor: "INTEGRATION_VALIDATOR",
+      next_expected_session: "integration-validator:test",
+      waiting_on: "OPEN_REVIEW_ITEM_CODER_HANDOFF",
+      committed_handoff_base_sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      committed_handoff_head_sha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    },
+    registrySessions: [
+      {
+        role: "CODER",
+        wp_id: "WP-TEST-MISSING-COMMITTED-EVIDENCE-v1",
+        runtime_state: "READY",
+      },
+      {
+        role: "WP_VALIDATOR",
+        wp_id: "WP-TEST-MISSING-COMMITTED-EVIDENCE-v1",
+        runtime_state: "READY",
+      },
+    ],
+  });
+
+  assert.equal(
+    commands[0],
+    "just phase-check HANDOFF WP-TEST-MISSING-COMMITTED-EVIDENCE-v1 WP_VALIDATOR --range aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  );
+  assert.match(commands[1], /^just active-lane-brief INTEGRATION_VALIDATOR /);
+});
+
 test("orchestrator-next treats abandoned task-board state as terminal orchestrator history", () => {
   assert.equal(isTerminalOrchestratorBoardStatus("ABANDONED"), true);
   assert.equal(isTerminalOrchestratorBoardStatus("VALIDATED"), true);
+  assert.equal(isTerminalOrchestratorBoardStatus("DONE_MERGE_PENDING"), true);
   assert.equal(isTerminalOrchestratorBoardStatus("SUPERSEDED"), true);
-  assert.equal(isTerminalOrchestratorBoardStatus("MERGE_PENDING"), false);
+  assert.equal(isTerminalOrchestratorBoardStatus("MERGE_PENDING"), true);
   assert.equal(isTerminalOrchestratorBoardStatus("IN_PROGRESS"), false);
 });
 
@@ -287,6 +387,46 @@ test("orchestrator-next classifies queue-backed governed wait state for the proj
   assert.equal(queued?.target, "CODER:CODER-WP-1-Test-v1");
   assert.equal(queued?.queueCount, 2);
   assert.equal(queued?.queuedRequest?.command_kind, "SEND_PROMPT");
+});
+
+test("orchestrator-next routes to existing downstream governed sessions instead of relaunching them", () => {
+  const wpId = "WP-TEST-ORCH-MANAGED-v1";
+  const registrySessions = [
+    { role: "CODER", wp_id: wpId, runtime_state: "READY" },
+    { role: "WP_VALIDATOR", wp_id: wpId, runtime_state: "READY" },
+  ];
+
+  const state = downstreamGovernedSessionState({ registrySessions, wpId });
+  assert.equal(state.hasBothInitialRoles, true);
+
+  const commands = buildDownstreamGovernedContinuationCommands({
+    wpId,
+    runtimeStatus: {
+      next_expected_actor: "WP_VALIDATOR",
+    },
+    registrySessions,
+  });
+
+  assert(commands.some((line) => /^just session-send WP_VALIDATOR /.test(line)));
+  assert(commands.every((line) => !/launch-coder-session|launch-wp-validator-session/.test(line)));
+});
+
+test("orchestrator-next launches only missing downstream governed sessions", () => {
+  const wpId = "WP-TEST-ORCH-MANAGED-v1";
+  const commands = buildDownstreamGovernedContinuationCommands({
+    wpId,
+    runtimeStatus: {
+      next_expected_actor: "WP_VALIDATOR",
+    },
+    registrySessions: [
+      { role: "CODER", wp_id: wpId, runtime_state: "READY" },
+    ],
+  });
+
+  assert.deepEqual(commands, [
+    `just launch-wp-validator-session ${wpId}`,
+    `just session-registry-status ${wpId}`,
+  ]);
 });
 
 test("orchestrator-next ignores queued work when the projected next actor is not a governed relay target", () => {

@@ -21,12 +21,15 @@ import {
   relayEscalationPolicyBudgetLabel,
 } from "../../../roles_shared/scripts/lib/wp-relay-policy-lib.mjs";
 import { GOV_ROOT_REPO_REL, resolveWorkPacketPath, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { committedEvidenceForCloseout } from "../../validator/scripts/lib/committed-validation-evidence-lib.mjs";
 import { checkAllNotifications, checkNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { evaluateWpCommunicationBoundary, evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { evaluateWpRelayEscalation } from "../../../roles_shared/scripts/lib/wp-relay-escalation-lib.mjs";
 import {
   nextQueuedControlRequest,
   pendingControlQueueCount,
+  shouldDirectSteerReadySession,
   steerActionForSession,
 } from "./lib/orchestrator-steer-lib.mjs";
 import { activationReadinessRequiresActivationManager } from "./lib/workflow-lane-guidance-lib.mjs";
@@ -116,6 +119,46 @@ function loadRuntimeStatus(packetText) {
     receiptsFile,
     runtimeStatus: parseJsonFile(runtimeStatusFile),
   };
+}
+
+function readDurableCommittedProof(wpIdValue = "") {
+  const gatePath = resolveValidatorGatePath(wpIdValue);
+  if (!gatePath || !fs.existsSync(gatePath)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(gatePath, "utf8"));
+    return committedEvidenceForCloseout(raw?.committed_validation_evidence?.[wpIdValue] || null);
+  } catch {
+    return null;
+  }
+}
+
+function missingCommittedHandoffValidationCommand(wpIdValue = "", runtimeStatusValue = {}) {
+  const nextActorValue = normalizeRole(runtimeStatusValue?.next_expected_actor);
+  const waitingOn = String(runtimeStatusValue?.waiting_on || "").trim().toUpperCase();
+  if (nextActorValue !== "INTEGRATION_VALIDATOR" || !waitingOn.includes("CODER_HANDOFF")) return "";
+
+  const reviewAnchor = runtimeStatusValue?.execution_state?.authority?.review_anchor || {};
+  const baseSha = String(
+    runtimeStatusValue?.committed_handoff_base_sha
+    || reviewAnchor?.committed_handoff_base_sha
+    || "",
+  ).trim();
+  const headSha = String(
+    runtimeStatusValue?.committed_handoff_head_sha
+    || reviewAnchor?.committed_handoff_head_sha
+    || "",
+  ).trim();
+  if (!/^[0-9a-f]{40}$/i.test(baseSha) || !/^[0-9a-f]{40}$/i.test(headSha)) return "";
+
+  const durableProof = readDurableCommittedProof(wpIdValue);
+  if (
+    String(durableProof?.status || "").trim().toUpperCase() === "PASS"
+    && String(durableProof?.target_head_sha || "").trim().toLowerCase() === headSha.toLowerCase()
+  ) {
+    return "";
+  }
+
+  return `just phase-check HANDOFF ${wpIdValue} WP_VALIDATOR --range ${baseSha}..${headSha}`;
 }
 
 if (!wpId || !/^WP-/.test(wpId)) {
@@ -210,6 +253,14 @@ if (!ACTIVE_ROLE_SET.has(nextActor)) {
   ]);
 }
 
+const committedHandoffValidationCommand = missingCommittedHandoffValidationCommand(wpId, runtimeStatus);
+if (nextActor === "INTEGRATION_VALIDATOR" && committedHandoffValidationCommand) {
+  fail("Committed handoff validation must pass before steering the Integration Validator", [
+    committedHandoffValidationCommand,
+    "This proves the exact final handoff range and writes durable committed_validation_evidence for closeout.",
+  ]);
+}
+
 const governedSession = (registry.sessions || []).find((entry) => entry.session_key === sessionKey(nextActor, wpId)) || null;
 const roleConfig = resolveRoleConfig(nextActor, wpId);
 if (!roleConfig) {
@@ -218,6 +269,7 @@ if (!roleConfig) {
 
 const commandScript = path.join(GOV_ROOT_REPO_REL, "roles", "orchestrator", "scripts", "session-control-command.mjs");
 const action = steerActionForSession(governedSession);
+const governedRuntimeState = String(governedSession?.runtime_state || "").trim().toUpperCase();
 const nextSession = explicitTargetRole
   ? (explicitTargetSession || preferredTargetSession(runtimeStatus, governedSession))
   : nextActor === "ACTIVATION_MANAGER"
@@ -247,6 +299,16 @@ if (nextActor !== "ACTIVATION_MANAGER" && action === "SEND_PROMPT" && queuedCont
   console.log("[ORCHESTRATOR_STEER_NEXT] state=queue-backed follow-up already exists for this governed session; wait for broker drain instead of sending another prompt");
   process.exit(0);
 }
+const autoDirectReadySteer = action === "SEND_PROMPT"
+  && shouldDirectSteerReadySession({
+    action,
+    sendNow,
+    nextActor,
+    governedRuntimeState,
+    queuedControlCount,
+    relayEscalation,
+  });
+const deliverDirect = sendNow || autoDirectReadySteer;
 
 const tokenLedger = readWpTokenUsageLedger(repoRoot, wpId).ledger;
 const costGovernor = evaluateOrchestratorCostGovernor({ ledger: tokenLedger });
@@ -319,6 +381,7 @@ if (nextActor === "ACTIVATION_MANAGER") {
       "Treat DIRECT_ROLE_MESSAGE as the current receipt/notification-derived payload for WORKFLOW_LANE=ORCHESTRATOR_MANAGED.",
       "Do not rediscover the relay type from scratch before acting; use RELAY_KIND and SOURCE_KIND as the current route context.",
       `If you emit a paired acknowledgement, question, or response, preserve correlation_id=${envelope.correlationId} when applicable.`,
+      "Acknowledging a routed notification is not a terminal response. For SOURCE_KIND=CODER_HANDOFF, run phase-check VERDICT for the Integration Validator session or record a typed blocker, then emit the validator review receipt that resolves the handoff correlation. Do not use phase-check CLOSEOUT as the first response to an open final handoff.",
     ],
   });
 }
@@ -356,7 +419,10 @@ if (nextActor === "ACTIVATION_MANAGER") {
   console.log(`[ORCHESTRATOR_STEER_NEXT] activation_readiness_path=${activationGate.readiness.path}`);
 }
 console.log(`[ORCHESTRATOR_STEER_NEXT] action=${action}`);
-console.log(`[ORCHESTRATOR_STEER_NEXT] delivery=${action === "SEND_PROMPT" && !sendNow ? "NUDGE_QUEUE" : "DIRECT_ACP"}`);
+if (autoDirectReadySteer) {
+  console.log("[ORCHESTRATOR_STEER_NEXT] auto_direct_reason=READY_STALLED_ROUTE");
+}
+console.log(`[ORCHESTRATOR_STEER_NEXT] delivery=${action === "SEND_PROMPT" && !deliverDirect ? "NUDGE_QUEUE" : "DIRECT_ACP"}`);
 if (envelope) {
   console.log(`[ORCHESTRATOR_STEER_NEXT] relay_kind=${envelope.relayKind}`);
   console.log(`[ORCHESTRATOR_STEER_NEXT] source_kind=${envelope.sourceKind}`);
@@ -374,7 +440,7 @@ if (action === "START_SESSION") {
   process.exit(0);
 }
 
-if (!sendNow) {
+if (!deliverDirect) {
   const result = enqueueNudge({
     sessionId: sessionKey(nextActor, wpId),
     payload: {

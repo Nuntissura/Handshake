@@ -144,7 +144,12 @@ export function buildPhaseCheckPlan({
       step("artifact-root-preflight-check", "roles_shared/checks/artifact-root-preflight-check.mjs", [normalizedWpId]),
       step("active-lane-brief", "roles_shared/scripts/session/active-lane-brief-lib.mjs", [verdictRole, normalizedWpId, "--json"]),
       step("validator-packet-complete", "roles/validator/scripts/lib/validator-governance-lib.mjs", [normalizedWpId]),
-      step("wp-communication-health-check", "roles_shared/checks/wp-communication-health-check.mjs", [normalizedWpId, "VERDICT"]),
+      step("wp-communication-health-check", "roles_shared/checks/wp-communication-health-check.mjs", [
+        normalizedWpId,
+        "VERDICT",
+        verdictRole,
+        normalizedSession,
+      ]),
     ];
   }
 
@@ -153,6 +158,7 @@ export function buildPhaseCheckPlan({
       phase: "VERDICT",
       wpId: normalizedWpId,
       role: normalizedRole || "INTEGRATION_VALIDATOR",
+      session: normalizedSession,
     }),
     step("integration-validator-context-brief", "roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs", [normalizedWpId]),
     step("integration-validator-closeout-check", "roles/validator/scripts/lib/integration-validator-closeout-lib.mjs", [normalizedWpId, ...normalizedArgs]),

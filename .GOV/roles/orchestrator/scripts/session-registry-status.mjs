@@ -420,6 +420,10 @@ if (wpTokenUsage) {
       console.log(`- tracked_turn_count: ${wpTokenUsage.tracked_summary.turn_count}`);
       console.log(`- raw_output_command_count: ${wpTokenUsage.raw_scan.summary.command_count}`);
       console.log(`- raw_output_turn_count: ${wpTokenUsage.raw_scan.summary.turn_count}`);
+      if (wpTokenUsage.ledger_health.pending_raw_command_count > 0) {
+        console.log(`- pending_raw_command_count: ${wpTokenUsage.ledger_health.pending_raw_command_count}`);
+        console.log(`- pending_raw_command_ids_sample: ${wpTokenUsage.ledger_health.pending_raw_command_ids_sample.join(", ")}`);
+      }
     }
     if (wpTokenUsage.ledger_health.status === "DRIFT") {
       console.log(`- drift_reason: ${wpTokenUsage.ledger_health.reason}`);

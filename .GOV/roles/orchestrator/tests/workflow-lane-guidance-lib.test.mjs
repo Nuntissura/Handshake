@@ -19,7 +19,12 @@ test("readActivationReadinessState parses the activation readiness artifact", ()
   fs.writeFileSync(artifactPath, [
     "ACTIVATION_READINESS",
     `- WP_ID: ${wpId}`,
+    "- GENERATED_AT_UTC: 2026-05-05T22:40:00.000Z",
+    "- STATE_SOURCE: RECOMPUTED",
     "- VERDICT: READY_FOR_ORCHESTRATOR_REVIEW",
+    "- READY_FOR_DOWNSTREAM_LAUNCH: YES",
+    "- PACKET_STATUS: Ready for Dev",
+    "- OUTSTANDING_ISSUES: NONE",
     "- NEXT_ORCHESTRATOR_ACTION: Launch downstream governed lanes.",
     "",
   ].join("\n"), "utf8");
@@ -28,6 +33,11 @@ test("readActivationReadinessState parses the activation readiness artifact", ()
     const readiness = readActivationReadinessState(wpId);
     assert.equal(readiness.exists, true);
     assert.equal(readiness.verdict, "READY_FOR_ORCHESTRATOR_REVIEW");
+    assert.equal(readiness.generatedAtUtc, "2026-05-05T22:40:00.000Z");
+    assert.equal(readiness.stateSource, "RECOMPUTED");
+    assert.equal(readiness.readyField, "YES");
+    assert.equal(readiness.packetStatus, "Ready for Dev");
+    assert.equal(readiness.outstandingIssues, "NONE");
     assert.equal(readiness.readyForDownstreamLaunch, true);
     assert.match(readiness.path, /roles\/activation_manager\/runtime\/activation_readiness\//);
     assert.match(readiness.nextOrchestratorAction, /Launch downstream governed lanes/i);
@@ -42,16 +52,20 @@ test("workflow lane guidance keeps orchestrator-managed launch on Activation Man
     exists: true,
     verdict: "REPAIR_REQUIRED",
     nextOrchestratorAction: "Repair activation bundle.",
+    generatedAtUtc: "2026-05-05T22:40:00.000Z",
     path: "tmp/readiness.md",
   });
   const manualCommands = buildManualRelayCommands(wpId);
   const downstreamCommands = buildDownstreamGovernedLaunchCommands(wpId);
 
   assert.deepEqual(activationCommands.slice(0, 2), [
-    `just launch-activation-manager-session ${wpId}`,
-    "# Current ACTIVATION_READINESS: REPAIR_REQUIRED (tmp/readiness.md)",
+    `just activation-manager readiness ${wpId} --write`,
+    `just activation-manager next ${wpId}`,
   ]);
-  assert.match(activationCommands.join("\n"), /mandatory for ORCHESTRATOR_MANAGED/i);
+  assert.match(activationCommands.join("\n"), /Current ACTIVATION_READINESS: REPAIR_REQUIRED/i);
+  assert.match(activationCommands.join("\n"), /Readiness generated_at: 2026-05-05T22:40:00.000Z/i);
+  assert.match(activationCommands.join("\n"), /still not READY_FOR_ORCHESTRATOR_REVIEW: just launch-activation-manager-session/i);
+  assert.match(activationCommands.join("\n"), /cheap recovery gate/i);
   assert.deepEqual(manualCommands.slice(0, 2), [
     `just manual-relay-next ${wpId}`,
     `just session-registry-status ${wpId}`,

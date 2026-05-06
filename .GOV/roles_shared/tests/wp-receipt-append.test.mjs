@@ -193,6 +193,35 @@ test("orchestrator checkpoint does not duplicate an auto-route that already targ
   assert.equal(targets[1].sourceKind, "AUTO_ROUTE");
 });
 
+test("final Integration Validator review response notifies Orchestrator but not Coder", () => {
+  const targets = deriveReviewNotificationTargets({
+    workflowLane: "ORCHESTRATOR_MANAGED",
+    entry: {
+      receipt_kind: "REVIEW_RESPONSE",
+      actor_role: "INTEGRATION_VALIDATOR",
+      actor_session: "intval-1",
+      target_role: "CODER",
+      target_session: "coder-1",
+      correlation_id: "review:WP-TEST:coder_handoff:final:abc123",
+      ack_for: "review:WP-TEST:coder_handoff:final:abc123",
+      packet_row_ref: "CODER_HANDOFF final handoff",
+      summary: "INTEGRATION_REVIEW PASS for final CODER_HANDOFF.",
+    },
+    autoRoute: {
+      nextExpectedActor: "ORCHESTRATOR",
+      notification: {
+        targetRole: "ORCHESTRATOR",
+        targetSession: null,
+        summary: "AUTO_ROUTE: direct review lane complete; orchestrator verdict progression ready",
+      },
+    },
+  });
+
+  assert.equal(targets.some((entry) => entry.targetRole === "CODER"), false);
+  assert.equal(targets.filter((entry) => entry.targetRole === "ORCHESTRATOR").length, 1);
+  assert.equal(targets[0].sourceKind, "AUTO_ROUTE");
+});
+
 test("non-assessment receipts do not add orchestrator checkpoint notifications", () => {
   const targets = deriveReviewNotificationTargets({
     workflowLane: "ORCHESTRATOR_MANAGED",
@@ -422,7 +451,7 @@ test("review exchange preflight blocks invalid direct-review receipts before thr
         targetRole: "INTEGRATION_VALIDATOR",
         targetSession: null,
         summary: "Requesting final integration review.",
-        correlationId: "review-request-test",
+        correlationId: "review:WP-TEST-REVIEW-EXCHANGE-PREFLIGHT:review_request:test",
       }),
       /target_session is required for REVIEW_REQUEST/,
     );
@@ -455,7 +484,7 @@ test("review exchange preflight rejects placeholder unassigned target sessions",
         targetRole: "INTEGRATION_VALIDATOR",
         targetSession: "<unassigned>",
         summary: "Requesting final integration review.",
-        correlationId: "review-request-test",
+        correlationId: "review:WP-TEST-REVIEW-EXCHANGE-UNASSIGNED:review_request:test",
       }),
       /target_session is required for REVIEW_REQUEST/,
     );
@@ -812,6 +841,57 @@ test("validator review preflight suppresses duplicate decisive approvals for the
     [
       JSON.stringify({
         schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T09:57:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "VALIDATOR_KICKOFF",
+        summary: "Kickoff for direct-review lane.",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:validator_kickoff:1",
+        requires_ack: true,
+        ack_for: null,
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T09:58:00Z",
+        wp_id: wpId,
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        actor_authority_kind: "PRIMARY_CODER",
+        validator_role_kind: null,
+        receipt_kind: "CODER_INTENT",
+        summary: "Intent for MT-001.",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:validator_kickoff:1",
+        requires_ack: false,
+        ack_for: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:validator_kickoff:1",
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T09:59:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "VALIDATOR_RESPONSE",
+        summary: "Intent checkpoint PASS.",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:validator_kickoff:1",
+        requires_ack: false,
+        ack_for: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:validator_kickoff:1",
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
         timestamp_utc: "2026-04-01T10:00:00Z",
         wp_id: wpId,
         actor_role: "CODER",
@@ -1000,6 +1080,108 @@ test("coder handoff preflight rejects missing validator intent checkpoint on con
   }
 });
 
+test("coder final handoff preflight allows integration handoff after drained microtask review lane", () => {
+  const wpId = "WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-final-handoff-drained-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+
+  writeMicrotaskCheckpointPacket(packetDir, wpId, commDir, [
+    {
+      mtId: "MT-001",
+      clause: "Final handoff after direct review",
+      codeSurfaces: ["src/demo.rs"],
+      expectedTests: ["cargo test final_handoff -- --exact"],
+    },
+  ]);
+  fs.writeFileSync(
+    receiptsPath,
+    [
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:00:00Z",
+        wp_id: wpId,
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        actor_authority_kind: "PRIMARY_CODER",
+        validator_role_kind: null,
+        receipt_kind: "REVIEW_REQUEST",
+        summary: "MT-001 complete and ready for review.",
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:review_request:mt001",
+        requires_ack: true,
+        ack_for: null,
+        packet_row_ref: "MT-001",
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:01:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "REVIEW_RESPONSE",
+        summary: "MT-001 PASS. Coder cleared; expect whole-WP handoff next.",
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:review_request:mt001",
+        requires_ack: false,
+        ack_for: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:review_request:mt001",
+        packet_row_ref: "MT-001",
+        refs: [],
+      }),
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(
+    runtimePath,
+    JSON.stringify({
+      schema_version: "wp_runtime_status@1",
+      wp_id: wpId,
+      workflow_lane: "ORCHESTRATOR_MANAGED",
+      current_packet_status: "In Progress",
+      runtime_status: "working",
+      current_milestone: "VERDICT",
+      current_phase: "VALIDATION",
+      next_expected_actor: "ORCHESTRATOR",
+      next_expected_session: null,
+      waiting_on: "VERDICT_PROGRESSION",
+      waiting_on_session: null,
+      route_anchor_state: "COMM_OK",
+      route_anchor_kind: "REVIEW_RESPONSE",
+      route_anchor_correlation_id: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:review_request:mt001",
+      open_review_items: [],
+    }, null, 2),
+    "utf8",
+  );
+
+  try {
+    assert.doesNotThrow(() => validateWpReceiptAppendPreconditions({
+      wpId,
+      actorRole: "CODER",
+      actorSession: "coder-1",
+      receiptKind: "CODER_HANDOFF",
+      summary: "Final whole-WP handoff. commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      targetRole: "INTEGRATION_VALIDATOR",
+      targetSession: "integration-validator-1",
+      correlationId: "review:WP-TEST-FINAL-HANDOFF-AFTER-MT-DRAIN-v1:coder_handoff:final",
+      requiresAck: true,
+      microtaskContract: {
+        commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+    }, {
+      skipCommittedCoderHandoffGate: true,
+    }));
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
 test("validator response preflight accepts intent checkpoint clearance after coder intent", () => {
   const wpId = "WP-TEST-INTENT-CHECKPOINT-CLEAR";
   const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
@@ -1110,6 +1292,108 @@ test("validator response preflight accepts intent checkpoint clearance after cod
       specAnchor: "MT-001",
       packetRowRef: "MT-001",
     }));
+  } finally {
+    fs.rmSync(packetDir, { recursive: true, force: true });
+    fs.rmSync(commDir, { recursive: true, force: true });
+  }
+});
+
+test("review response preflight points intent checkpoint clearance to validator response helper", () => {
+  const wpId = "WP-TEST-INTENT-CHECKPOINT-WRONG-HELPER";
+  const packetDir = path.join(repoRoot, ".GOV", "task_packets", wpId);
+  const commDir = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-intent-checkpoint-wrong-helper-"));
+  const receiptsPath = path.join(commDir, "RECEIPTS.jsonl");
+  const runtimePath = path.join(commDir, "RUNTIME_STATUS.json");
+
+  writeIntentCheckpointPacket(packetDir, wpId, commDir);
+  fs.writeFileSync(
+    receiptsPath,
+    [
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:00:00Z",
+        wp_id: wpId,
+        actor_role: "WP_VALIDATOR",
+        actor_session: "wpv-1",
+        actor_authority_kind: "WP_VALIDATOR",
+        validator_role_kind: "WP_VALIDATOR",
+        receipt_kind: "VALIDATOR_KICKOFF",
+        summary: "Kickoff",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "CODER",
+        target_session: "coder-1",
+        correlation_id: "kickoff-1",
+        requires_ack: true,
+        ack_for: null,
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+      JSON.stringify({
+        schema_version: "wp_receipt@1",
+        timestamp_utc: "2026-04-01T10:01:00Z",
+        wp_id: wpId,
+        actor_role: "CODER",
+        actor_session: "coder-1",
+        actor_authority_kind: "PRIMARY_CODER",
+        validator_role_kind: null,
+        receipt_kind: "CODER_INTENT",
+        summary: "Implementation order drafted.",
+        branch: "feat/test-intent-checkpoint",
+        worktree_dir: "../wtc-test",
+        state_before: null,
+        state_after: null,
+        target_role: "WP_VALIDATOR",
+        target_session: "wpv-1",
+        correlation_id: "kickoff-1",
+        requires_ack: false,
+        ack_for: "kickoff-1",
+        spec_anchor: null,
+        packet_row_ref: null,
+        refs: [],
+      }),
+    ].join("\n"),
+    "utf8",
+  );
+  fs.writeFileSync(
+    runtimePath,
+    JSON.stringify({
+      workflow_lane: "ORCHESTRATOR_MANAGED",
+      next_expected_actor: "WP_VALIDATOR",
+      next_expected_session: "wpv-1",
+      waiting_on: "WP_VALIDATOR_INTENT_CHECKPOINT",
+      waiting_on_session: "wpv-1",
+      route_anchor_state: "COMM_WAITING_FOR_INTENT_CHECKPOINT",
+      route_anchor_kind: "VALIDATOR_RESPONSE",
+      route_anchor_correlation_id: "kickoff-1",
+      route_anchor_target_role: "WP_VALIDATOR",
+      route_anchor_target_session: "wpv-1",
+      runtime_status: "working",
+      current_phase: "BOOTSTRAP",
+      open_review_items: [],
+    }, null, 2),
+    "utf8",
+  );
+
+  try {
+    assert.throws(
+      () => validateWpReceiptAppendPreconditions({
+        wpId,
+        actorRole: "WP_VALIDATOR",
+        actorSession: "wpv-1",
+        receiptKind: "REVIEW_RESPONSE",
+        summary: "Intent checkpoint cleared.",
+        targetRole: "CODER",
+        targetSession: "coder-1",
+        correlationId: "kickoff-1",
+        ackFor: "kickoff-1",
+        packetRowRef: "MT-001",
+      }),
+      /Use `just wp-validator-response \.\.\.` to clear CODER_INTENT/i,
+    );
   } finally {
     fs.rmSync(packetDir, { recursive: true, force: true });
     fs.rmSync(commDir, { recursive: true, force: true });

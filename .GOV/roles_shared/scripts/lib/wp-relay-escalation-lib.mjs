@@ -7,6 +7,10 @@ function normalizeSession(value) {
   return raw || null;
 }
 
+const SESSION_ACTIVITY_RECEIPT_GRACE_MS = 15 * 60 * 1000;
+const ROUTE_RECEIPT_GRACE_MS = 15 * 60 * 1000;
+const CLOSED_SESSION_STATE_VALUES = new Set(["CLOSED", "COMPLETED", "FAILED", "STALE", "CANCELLED"]);
+
 function parseTimestamp(value) {
   const text = String(value || "").trim();
   if (!text) return null;
@@ -67,6 +71,90 @@ function matchingRegistrySession(entry, role, wpId, session) {
     || key.endsWith(`:${expectedSession}`)
     || normalizeSession(entry?.session_thread_id) === expectedSession
     || normalizeSession(entry?.session_id) === expectedSession;
+}
+
+function hasRegistrySessionForRole(registrySessions = [], role = "", wpId = "", session = null) {
+  return (registrySessions || []).some((entry) => matchingRegistrySession(entry, role, wpId, session));
+}
+
+function matchingTargetRegistrySessions(registrySessions = [], role = "", wpId = "", session = null) {
+  return (registrySessions || []).filter((entry) => matchingRegistrySession(entry, role, wpId, session));
+}
+
+function matchingTargetRuntimeSessions(runtimeStatus = {}, role = "", session = null) {
+  const runtimeSessions = Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [];
+  return runtimeSessions.filter((entry) => matchingRoleSession(entry, role, session));
+}
+
+function isSessionActivelyRunning(entry = {}) {
+  const stateValues = [
+    entry?.state,
+    entry?.runtime_state,
+    entry?.effective_command_status,
+    entry?.effective_command_outcome_state,
+    entry?.effective_governed_action_state,
+    entry?.effective_governed_action_outcome_state,
+    entry?.effective_governed_action?.state,
+    entry?.effective_governed_action?.outcome_state,
+  ].map((value) => String(value || "").trim().toUpperCase());
+  if (stateValues.some((value) => ["COMMAND_RUNNING", "RUNNING", "ACCEPTED_RUNNING", "ACTIVE"].includes(value))) {
+    return true;
+  }
+  const disposition = String(
+    entry?.effective_governed_action_resume_disposition
+      || entry?.effective_governed_action?.resume_disposition
+      || "",
+  ).trim().toUpperCase();
+  return disposition === "PENDING";
+}
+
+function isOpenSessionState(value = "") {
+  const normalized = String(value || "").trim().toUpperCase();
+  return !normalized || !CLOSED_SESSION_STATE_VALUES.has(normalized);
+}
+
+function hasOpenTargetSession(runtimeStatus = {}, registrySessions = [], role = "", wpId = "", session = null) {
+  const runtimeSessions = Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [];
+  if (runtimeSessions.some((entry) =>
+    matchingRoleSession(entry, role, session)
+    && isOpenSessionState(entry?.state || entry?.runtime_state)
+  )) {
+    return true;
+  }
+  return (registrySessions || []).some((entry) =>
+    matchingRegistrySession(entry, role, wpId, session)
+    && isOpenSessionState(entry?.runtime_state || entry?.state)
+  );
+}
+
+function isPrelaunchBootstrapValidatorKickoff(runtimeStatus = {}, registrySessions = [], wpId = "", nextActor = "", nextSession = null) {
+  const packetStatus = String(
+    runtimeStatus?.current_packet_status
+      || runtimeStatus?.execution_state?.authority?.packet_status
+      || runtimeStatus?.packet_status
+      || "",
+  ).trim().toUpperCase();
+  const taskBoardStatus = String(
+    runtimeStatus?.current_task_board_status
+      || runtimeStatus?.execution_state?.authority?.task_board_status
+      || runtimeStatus?.task_board_status
+      || "",
+  ).trim().toUpperCase();
+  const phase = String(
+    runtimeStatus?.current_phase
+      || runtimeStatus?.execution_state?.authority?.phase
+      || "",
+  ).trim().toUpperCase();
+  const waitingOn = String(runtimeStatus?.waiting_on || runtimeStatus?.execution_state?.authority?.waiting_on || "").trim().toUpperCase();
+  const activeSessions = Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [];
+
+  return packetStatus === "READY FOR DEV"
+    && taskBoardStatus === "READY_FOR_DEV"
+    && phase === "BOOTSTRAP"
+    && normalizeRole(nextActor) === "WP_VALIDATOR"
+    && waitingOn === "VALIDATOR_KICKOFF"
+    && activeSessions.length === 0
+    && !hasRegistrySessionForRole(registrySessions, nextActor, wpId, nextSession);
 }
 
 function latestActorReceiptTimestamp(receipts, role, session) {
@@ -169,6 +257,22 @@ export function evaluateWpRelayEscalation({
     };
   }
 
+  if (isPrelaunchBootstrapValidatorKickoff(runtimeStatus, registrySessions, wpId, nextActor, nextSession)) {
+    return {
+      applicable: false,
+      status: "PRELAUNCH_NOT_APPLICABLE",
+      severity: "NONE",
+      summary: "Prelaunch bootstrap is waiting for the initial governed session launch; validator kickoff residue is not a stalled relay yet.",
+      reason_code: "PRELAUNCH_BOOTSTRAP_AWAITS_SESSION_LAUNCH",
+      target_role: nextActor || null,
+      target_session: nextSession,
+      recommended_command: null,
+      metrics: {},
+      warnings: [],
+      failures: [],
+    };
+  }
+
   const heartbeatDueTs = parseTimestamp(runtimeStatus?.heartbeat_due_at);
   const staleAfterTs = parseTimestamp(runtimeStatus?.stale_after);
   const targetNotifications = (pendingNotifications || []).filter((entry) => matchesTarget(entry, nextActor, nextSession));
@@ -191,6 +295,11 @@ export function evaluateWpRelayEscalation({
       .map((entry) => entry.updated_at || entry.last_event_at),
   );
   const latestSessionActivityTs = maxParsedTimestamp([runtimeSessionActivityTs, registrySessionActivityTs]);
+  const openTargetSession = hasOpenTargetSession(runtimeStatus, registrySessions, nextActor, wpId, nextSession);
+  const activeTargetRun = [
+    ...matchingTargetRuntimeSessions(runtimeStatus, nextActor, nextSession),
+    ...matchingTargetRegistrySessions(registrySessions, nextActor, wpId, nextSession),
+  ].some((entry) => isSessionActivelyRunning(entry));
   const pendingNotificationCount = targetNotifications.length;
   const recommendedCommand = `just orchestrator-steer-next ${wpId} "<why this stalled relay should be re-woken, >=40 chars>"`;
   const blockingReasonCode = routeReasonFromCommunicationState(communicationEvaluation?.state, {
@@ -211,6 +320,7 @@ export function evaluateWpRelayEscalation({
     minutes_since_latest_notification: minutesBetween(nowTs, latestNotificationTs),
     minutes_since_latest_target_receipt: minutesBetween(nowTs, latestTargetReceiptTs),
     minutes_since_latest_session_activity: minutesBetween(nowTs, latestSessionActivityTs),
+    active_target_run: activeTargetRun,
     current_relay_escalation_cycle: Number(runtimeStatus?.current_relay_escalation_cycle || 0),
     max_relay_escalation_cycles: Number(runtimeStatus?.max_relay_escalation_cycles || 0),
     current_worker_interrupt_cycle: Number(runtimeStatus?.current_worker_interrupt_cycle || 0),
@@ -226,6 +336,22 @@ export function evaluateWpRelayEscalation({
     && latestSessionActivityTs > routeAnchorTs;
   const receiptMovedAfterRoute = Number.isFinite(latestTargetReceiptTs) && Number.isFinite(routeAnchorTs)
     && latestTargetReceiptTs > routeAnchorTs;
+  const sessionReceiptGraceUntilTs = openTargetSession && sessionMovedAfterRoute
+    ? latestSessionActivityTs + SESSION_ACTIVITY_RECEIPT_GRACE_MS
+    : null;
+  const sessionReceiptGraceOpen = Number.isFinite(sessionReceiptGraceUntilTs)
+    && nowTs <= sessionReceiptGraceUntilTs
+    && !receiptMovedAfterRoute;
+  const routeClockWasAlreadyStale = Number.isFinite(staleAfterTs) && Number.isFinite(routeAnchorTs)
+    && staleAfterTs < routeAnchorTs;
+  const routeReceiptGraceUntilTs = routeClockWasAlreadyStale && Number.isFinite(routeAnchorTs)
+    ? routeAnchorTs + ROUTE_RECEIPT_GRACE_MS
+    : null;
+  const routeReceiptGraceOpen = Number.isFinite(routeReceiptGraceUntilTs)
+    && nowTs <= routeReceiptGraceUntilTs
+    && !receiptMovedAfterRoute;
+  metrics.session_receipt_grace_until = isoFromTimestamp(sessionReceiptGraceUntilTs);
+  metrics.route_receipt_grace_until = isoFromTimestamp(routeReceiptGraceUntilTs);
 
   let status = "NORMAL";
   let severity = "NONE";
@@ -262,7 +388,25 @@ export function evaluateWpRelayEscalation({
     }
   }
 
-  if (thresholdPassed && pendingNotificationCount > 0 && !receiptMovedAfterRoute) {
+  if (activeTargetRun && !receiptMovedAfterRoute) {
+    status = "WATCH";
+    severity = "WARN";
+    reasonCode = "TARGET_SESSION_RUNNING_AWAITING_COMPLETION";
+    summary = `Relay is waiting on ${targetLabel}: the target session has an active governed run, so do not re-steer until the run settles or the active-run watchdog reports a bounded restart condition.`;
+    warnings.push(summary);
+  } else if (sessionReceiptGraceOpen) {
+    status = "WATCH";
+    severity = "WARN";
+    reasonCode = "SESSION_STARTED_AWAITING_RECEIPT";
+    summary = `Relay is waiting on ${targetLabel}: the governed session moved after the route opened; allow the startup receipt grace window before steering.`;
+    warnings.push(summary);
+  } else if (routeReceiptGraceOpen) {
+    status = "WATCH";
+    severity = "WARN";
+    reasonCode = "ROUTE_OPENED_AWAITING_RECEIPT";
+    summary = `Relay is waiting on ${targetLabel}: the route opened after an old stale_after clock; allow the fresh route receipt grace window before steering.`;
+    warnings.push(summary);
+  } else if (thresholdPassed && pendingNotificationCount > 0 && !receiptMovedAfterRoute) {
     status = "ESCALATED";
     severity = "FAIL";
     reasonCode = sessionMovedAfterRoute
@@ -303,7 +447,7 @@ export function evaluateWpRelayEscalation({
     reason_code: reasonCode,
     target_role: nextActor,
     target_session: nextSession,
-    recommended_command: recommendedCommand,
+    recommended_command: status === "ESCALATED" ? recommendedCommand : null,
     metrics,
     warnings,
     failures,

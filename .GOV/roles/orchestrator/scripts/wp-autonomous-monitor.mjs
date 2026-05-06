@@ -6,8 +6,15 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadSessionRegistry } from "../../../roles_shared/scripts/session/session-registry-lib.mjs";
 import { parseJsonFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
-import { materializeRuntimeAuthorityView } from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
-import { repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { readExecutionPublicationView } from "../../../roles_shared/scripts/lib/wp-execution-state-lib.mjs";
+import {
+  isTerminalPacketStatus,
+  isTerminalTaskBoardStatus,
+  parsePacketStatus,
+  parseTaskBoardStatus,
+  taskBoardStatusForPacketStatus,
+} from "../../../roles_shared/scripts/lib/wp-authority-projection-lib.mjs";
+import { GOV_ROOT_ABS, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const WATCHDOG_SCRIPT = path.resolve(REPO_ROOT, ".GOV/roles/orchestrator/scripts/wp-relay-watchdog.mjs");
@@ -90,6 +97,16 @@ function runNode(scriptPath, args = [], timeoutMs = 120000) {
   });
 }
 
+function readTaskBoardStatusForWp(wpId) {
+  try {
+    const taskBoardPath = path.join(GOV_ROOT_ABS, "roles_shared", "records", "TASK_BOARD.md");
+    if (!fs.existsSync(taskBoardPath)) return "";
+    return parseTaskBoardStatus(fs.readFileSync(taskBoardPath, "utf8"), wpId);
+  } catch {
+    return "";
+  }
+}
+
 function loadPacketRuntime(wpId) {
   const packetInfo = resolveWorkPacketPath(wpId);
   const packetPath = packetInfo?.packetPath || `.GOV/task_packets/${wpId}/packet.md`;
@@ -103,10 +120,26 @@ function loadPacketRuntime(wpId) {
     throw new Error(`Packet missing WP_RUNTIME_STATUS_FILE: ${packetPath}`);
   }
   const runtimePath = String(runtimeMatch[1] || "").trim();
+  const packetStatus = parsePacketStatus(packetText);
+  const taskBoardStatus = readTaskBoardStatusForWp(wpId) || taskBoardStatusForPacketStatus(packetStatus);
+  const runtimeRawStatus = parseJsonFile(runtimePath);
+  const publicationView = readExecutionPublicationView({
+    runtimeStatus: runtimeRawStatus,
+    packetStatus,
+    taskBoardStatus,
+  });
   return {
     packetPath,
     runtimePath,
-    runtimeStatus: materializeRuntimeAuthorityView(parseJsonFile(runtimePath)),
+    packetStatus: publicationView.packet_status || packetStatus,
+    taskBoardStatus: publicationView.task_board_status || taskBoardStatus,
+    publicationView,
+    terminal: Boolean(
+      publicationView.terminal
+      || isTerminalPacketStatus(packetStatus)
+      || isTerminalTaskBoardStatus(taskBoardStatus)
+    ),
+    runtimeStatus: publicationView.runtime || runtimeRawStatus,
   };
 }
 
@@ -115,7 +148,8 @@ function loadRegistrySession(registrySessions = [], role = "", wpId = "") {
   return (registrySessions || []).find((entry) => String(entry?.session_key || "").trim() === targetKey) || null;
 }
 
-function wpIsTerminal(runtimeStatus = {}) {
+function wpIsTerminal(runtimeStatus = {}, terminalHint = false) {
+  if (terminalHint) return true;
   const packetStatus = String(runtimeStatus?.current_packet_status || "").trim().toUpperCase();
   const boardStatus = String(runtimeStatus?.current_task_board_status || "").trim().toUpperCase();
   const containment = String(runtimeStatus?.main_containment_status || "").trim().toUpperCase();
@@ -177,7 +211,8 @@ function trySteerValidator(wpId, targetSession, logFile) {
 
 function monitorOnce(wpId, logFile) {
   const { registry } = loadSessionRegistry(REPO_ROOT);
-  const { runtimeStatus } = loadPacketRuntime(wpId);
+  const packetRuntime = loadPacketRuntime(wpId);
+  const { runtimeStatus, publicationView } = packetRuntime;
   const coderSession = loadRegistrySession(registry.sessions, "CODER", wpId);
   const validatorSession = loadRegistrySession(registry.sessions, "WP_VALIDATOR", wpId);
   const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
@@ -185,7 +220,7 @@ function monitorOnce(wpId, logFile) {
   appendLog(
     logFile,
     [
-      `status=${runtimeStatus?.current_packet_status || "<missing>"}`,
+      `status=${publicationView?.packet_status || runtimeStatus?.current_packet_status || "<missing>"}`,
       `phase=${runtimeStatus?.current_phase || "<missing>"}`,
       `next=${nextActor || "<none>"}`,
       `waiting_on=${runtimeStatus?.waiting_on || "<missing>"}`,
@@ -194,14 +229,19 @@ function monitorOnce(wpId, logFile) {
     ].join(" | "),
   );
 
-  if (wpIsTerminal(runtimeStatus)) {
-    appendLog(logFile, "terminal=YES");
+  if (wpIsTerminal(runtimeStatus, packetRuntime.terminal)) {
+    appendLog(logFile, `terminal=YES publication=${publicationView?.task_board_status || publicationView?.packet_status || "terminal"}`);
     return { terminal: true };
   }
 
   tryWatchdog(wpId, logFile);
 
-  const refreshed = loadPacketRuntime(wpId).runtimeStatus;
+  const refreshedPacketRuntime = loadPacketRuntime(wpId);
+  if (wpIsTerminal(refreshedPacketRuntime.runtimeStatus, refreshedPacketRuntime.terminal)) {
+    appendLog(logFile, `terminal=YES publication=${refreshedPacketRuntime.publicationView?.task_board_status || refreshedPacketRuntime.publicationView?.packet_status || "terminal"}`);
+    return { terminal: true };
+  }
+  const refreshed = refreshedPacketRuntime.runtimeStatus;
   const refreshedRegistry = loadSessionRegistry(REPO_ROOT).registry;
   const refreshedCoder = loadRegistrySession(refreshedRegistry.sessions, "CODER", wpId);
   const refreshedValidator = loadRegistrySession(refreshedRegistry.sessions, "WP_VALIDATOR", wpId);

@@ -54,9 +54,10 @@ import {
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
 import { checkAllNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { parsePolicyWaiverLedger } from "../../../roles_shared/scripts/lib/computed-policy-gate-lib.mjs";
+import { resolveValidatorGatePath } from "../../../roles_shared/scripts/lib/validator-gate-paths.mjs";
+import { committedEvidenceForCloseout } from "../../validator/scripts/lib/committed-validation-evidence-lib.mjs";
 import {
   buildActivationManagerLaunchCommands,
-  buildDownstreamGovernedLaunchCommands,
   buildManualRelayCommands,
   normalizeWorkflowLane,
   readActivationReadinessState,
@@ -104,7 +105,7 @@ const TASK_BOARD_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md
 const TASK_BOARD_ABS_PATH = repoPathAbs(TASK_BOARD_PATH);
 const EXECUTION_OWNER_USAGE = `{${EXECUTION_OWNER_RANGE_HELP}}`;
 const GOVERNED_ROLE_RELAY_TARGETS = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
-const TERMINAL_ORCHESTRATOR_BOARD_STATUSES = new Set(["VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"]);
+const TERMINAL_ORCHESTRATOR_BOARD_STATUSES = new Set(["DONE_MERGE_PENDING", "MERGE_PENDING", "VALIDATED", "FAIL", "OUTDATED_ONLY", "ABANDONED", "SUPERSEDED"]);
 const TOKEN_POLICY_CONFLICT_RE = /TOKEN_BUDGET_EXCEEDED|POLICY_CONFLICT|token\s+budget|token-ledger\s+drift/i;
 
 registerFailCaptureHook("orchestrator-next.mjs", { role: "ORCHESTRATOR" });
@@ -268,6 +269,117 @@ export function queuedGovernedWaitState({
   };
 }
 
+const NON_TERMINAL_GOVERNED_SESSION_STATES = new Set(["STARTING", "RUNNING", "READY", "WAITING", "ACTIVE"]);
+
+function nonTerminalGovernedSessionForRole(registrySessions = [], role = "", wpId = "") {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const normalizedWpId = String(wpId || "").trim();
+  return (registrySessions || []).find((entry) =>
+    String(entry?.role || "").trim().toUpperCase() === normalizedRole
+    && String(entry?.wp_id || "").trim() === normalizedWpId
+    && NON_TERMINAL_GOVERNED_SESSION_STATES.has(String(entry?.runtime_state || "").trim().toUpperCase())
+  ) || null;
+}
+
+export function downstreamGovernedSessionState({
+  registrySessions = [],
+  wpId = "",
+} = {}) {
+  const coder = nonTerminalGovernedSessionForRole(registrySessions, "CODER", wpId);
+  const wpValidator = nonTerminalGovernedSessionForRole(registrySessions, "WP_VALIDATOR", wpId);
+  return {
+    coder,
+    wpValidator,
+    hasCoder: Boolean(coder),
+    hasWpValidator: Boolean(wpValidator),
+    hasBothInitialRoles: Boolean(coder && wpValidator),
+  };
+}
+
+function sessionSendPromptForNextActor(nextActor = "", wpId = "") {
+  const actor = String(nextActor || "").trim().toUpperCase();
+  if (actor === "WP_VALIDATOR") {
+    return `Continue from your START_SESSION report for ${wpId}. Run the notification check/ack, run the startup mesh gate required by your protocol, publish the structured validator kickoff to the paired Coder, then stop and report the receipt/correlation id.`;
+  }
+  if (actor === "CODER") {
+    return `Continue from your START_SESSION report for ${wpId}. Follow coder-next, create the required bootstrap claim commit, preserve the backup push, then stop and report the commit/status. Do not implement product code yet.`;
+  }
+  return `Continue from your START_SESSION report for ${wpId}. Run the next role-owned command from your filtered resume surface, then stop and report lifecycle state and blockers.`;
+}
+
+export function buildDownstreamGovernedContinuationCommands({
+  wpId = "",
+  runtimeStatus = {},
+  registrySessions = [],
+} = {}) {
+  const state = downstreamGovernedSessionState({ registrySessions, wpId });
+  const commands = [];
+  if (!state.hasCoder) commands.push(`just launch-coder-session ${wpId}`);
+  if (!state.hasWpValidator) commands.push(`just launch-wp-validator-session ${wpId}`);
+  if (!state.hasBothInitialRoles) {
+    commands.push(`just session-registry-status ${wpId}`);
+    return commands;
+  }
+
+  const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+  const committedTargetCommand = committedHandoffValidationCommand(wpId, runtimeStatus);
+  if (committedTargetCommand) commands.push(committedTargetCommand);
+  if (GOVERNED_ROLE_RELAY_TARGETS.has(nextActor)) {
+    commands.push(`just active-lane-brief ${nextActor} ${wpId}`);
+    commands.push(`just session-send ${nextActor} ${wpId} "${sessionSendPromptForNextActor(nextActor, wpId)}"`);
+  } else {
+    commands.push(`just active-lane-brief CODER ${wpId}`);
+  }
+  commands.push(`just session-registry-status ${wpId}`);
+  commands.push(`just orchestrator-next ${wpId}`);
+  return commands;
+}
+
+function readDurableCommittedProof(wpId = "") {
+  const gatePath = resolveValidatorGatePath(wpId);
+  if (!gatePath || !fs.existsSync(gatePath)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(gatePath, "utf8"));
+    return committedEvidenceForCloseout(raw?.committed_validation_evidence?.[wpId] || null);
+  } catch {
+    return null;
+  }
+}
+
+function committedHandoffValidationCommand(wpId = "", runtimeStatus = {}) {
+  const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+  const waitingOn = String(runtimeStatus?.waiting_on || "").trim().toUpperCase();
+  if (nextActor !== "INTEGRATION_VALIDATOR" || !waitingOn.includes("CODER_HANDOFF")) return "";
+
+  const reviewAnchor = runtimeStatus?.execution_state?.authority?.review_anchor || {};
+  const baseSha = String(
+    runtimeStatus?.committed_handoff_base_sha
+    || reviewAnchor?.committed_handoff_base_sha
+    || "",
+  ).trim();
+  const headSha = String(
+    runtimeStatus?.committed_handoff_head_sha
+    || reviewAnchor?.committed_handoff_head_sha
+    || "",
+  ).trim();
+  if (!/^[0-9a-f]{40}$/i.test(baseSha) || !/^[0-9a-f]{40}$/i.test(headSha)) return "";
+
+  const durableProof = readDurableCommittedProof(wpId);
+  if (
+    String(durableProof?.status || "").trim().toUpperCase() === "PASS"
+    && String(durableProof?.target_head_sha || "").trim().toLowerCase() === headSha.toLowerCase()
+  ) {
+    return "";
+  }
+
+  return buildPhaseCheckCommand({
+    phase: "HANDOFF",
+    wpId,
+    role: "WP_VALIDATOR",
+    args: ["--range", `${baseSha}..${headSha}`],
+  });
+}
+
 export function findActiveTokenBudgetContinuationWaiver(packetText = "") {
   const waiverLedger = parsePolicyWaiverLedger(packetText);
   return waiverLedger.activeEntries.find((entry) => {
@@ -374,6 +486,18 @@ export function closeoutSyncCommandForProjection(
   communicationEvaluation = null,
   currentBoardStatus = "",
 ) {
+  const finalIntegrationReviewResolved =
+    Number(communicationEvaluation?.counts?.integrationFinalResolutionReceipts || 0) > 0;
+  const directReviewCompleteWithoutFinalHandoff =
+    communicationEvaluation?.ok
+    && String(communicationEvaluation.state || "").trim().toUpperCase() === "COMM_OK"
+    && String(projection.current_main_compatibility_status || "").trim().toUpperCase() === "NOT_RUN"
+    && Number(communicationEvaluation?.counts?.coderHandoffs || 0) === 0
+    && !finalIntegrationReviewResolved;
+  if (directReviewCompleteWithoutFinalHandoff) {
+    return `just session-send CODER ${wpId} "All declared MTs have WP Validator PASS and open review items are drained. Record the required final CODER_HANDOFF for whole-WP Integration Validator review now, including committed handoff base/head/range, STATUS_HANDOFF rubric fields, proof commands/results, and carry-over risks. Do not edit product code unless final handoff checks expose a concrete blocker; if blocked, report the blocker through typed receipts."`;
+  }
+
   const publication = readExecutionPublicationView({
     runtimeStatus,
     packetStatus: projection.current_packet_status,
@@ -412,6 +536,21 @@ function relayCommandForRuntime(wpId, workflowLane = "", runtimeStatus = {}) {
   if (normalizeWorkflowLane(workflowLane) !== "ORCHESTRATOR_MANAGED") return "";
   const nextActor = String(runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
   if (!GOVERNED_ROLE_RELAY_TARGETS.has(nextActor)) return "";
+  const packetStatus = String(runtimeStatus?.current_packet_status || runtimeStatus?.execution_state?.authority?.packet_status || "").trim().toUpperCase();
+  const taskBoardStatus = String(runtimeStatus?.current_task_board_status || runtimeStatus?.execution_state?.authority?.task_board_status || "").trim().toUpperCase();
+  const phase = String(runtimeStatus?.current_phase || runtimeStatus?.execution_state?.authority?.phase || "").trim().toUpperCase();
+  const waitingOn = String(runtimeStatus?.waiting_on || runtimeStatus?.execution_state?.authority?.waiting_on || "").trim().toUpperCase();
+  const activeRoleSessions = Array.isArray(runtimeStatus?.active_role_sessions) ? runtimeStatus.active_role_sessions : [];
+  if (
+    packetStatus === "READY FOR DEV"
+    && taskBoardStatus === "READY_FOR_DEV"
+    && phase === "BOOTSTRAP"
+    && nextActor === "WP_VALIDATOR"
+    && waitingOn === "VALIDATOR_KICKOFF"
+    && activeRoleSessions.length === 0
+  ) {
+    return "";
+  }
   return `just orchestrator-steer-next ${wpId} "<why this stalled relay should be re-woken, >=40 chars>"`;
 }
 
@@ -609,6 +748,30 @@ function main() {
   const boardStatus = taskBoardStatus(wpId);
   if (isTerminalOrchestratorBoardStatus(boardStatus)) {
     const packetPath = (resolveWorkPacketPath(wpId)?.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`)).replace(/\\/g, "/");
+    const terminalSessionResidueCommands = [];
+    const terminalSessionResidueFindings = [];
+    try {
+      const registryPath = path.resolve(process.cwd(), "../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json");
+      const residueStates = new Set(["READY", "ACTIVE", "WAITING", "COMMAND_RUNNING"]);
+      if (fs.existsSync(registryPath)) {
+        const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+        for (const session of registry.sessions || []) {
+          if (String(session?.wp_id || "") !== wpId) continue;
+          const runtimeState = String(session?.runtime_state || "").trim().toUpperCase();
+          if (!residueStates.has(runtimeState)) continue;
+          const role = String(session?.role || "").trim();
+          if (!role) continue;
+          terminalSessionResidueFindings.push(
+            `Terminal session residue: ${session.session_key || `${role}:${wpId}`} runtime_state=${runtimeState}`,
+          );
+          terminalSessionResidueCommands.push(`just session-close ${role} ${wpId}`);
+        }
+      }
+    } catch (error) {
+      terminalSessionResidueFindings.push(
+        `Unable to inspect terminal session residue: ${String(error?.message || error).slice(0, 160)}`,
+      );
+    }
     printLifecycle({ wpId, stage: "STATUS_SYNC", next: "STOP" });
     printOperatorEnvelope("NONE", "NONE");
     printConfidence(inferred.source === "explicit" ? "HIGH" : "MEDIUM", inferred.source);
@@ -617,11 +780,21 @@ function main() {
       `Packet: ${packetPath}`,
       `Current branch: ${gitContext.branch || "<unknown>"}`,
       `Current worktree: ${displayPathForOperator(gitContext.topLevel)}`,
+      ...terminalSessionResidueFindings,
     ]);
-    printNextCommands([
+    const terminalNextCommands = [
+      ...terminalSessionResidueCommands,
       `just wp-truth-bundle ${wpId}`,
       `cat ${packetPath}`,
-      `just orchestrator-next WP-{ACTIVE_ID}`,
+    ];
+    if (["DONE_MERGE_PENDING", "MERGE_PENDING"].includes(String(boardStatus || "").trim().toUpperCase())) {
+      terminalNextCommands.push(
+        `# After local main containment is real: just phase-check CLOSEOUT ${wpId} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`,
+      );
+    }
+    terminalNextCommands.push(`just orchestrator-next WP-{ACTIVE_ID}`);
+    printNextCommands([
+      ...terminalNextCommands,
     ]);
     return;
   }
@@ -647,8 +820,14 @@ function main() {
   let refinementSigned = false;
   let refinementErrors = [];
   let refinementParsed = null;
+  let refinementText = "";
+  let enrichmentNeeded = "";
+  let clearlyCoversVerdict = "";
   let confidenceDetail = confidence.detail;
   if (refinementExists) {
+    refinementText = fs.readFileSync(refinementPath, "utf8");
+    enrichmentNeeded = parseSingleField(refinementText, "ENRICHMENT_NEEDED").toUpperCase();
+    clearlyCoversVerdict = parseSingleField(refinementText, "CLEARLY_COVERS_VERDICT").toUpperCase();
     const ready = validateRefinementFile(refinementPath, {
       expectedWpId: wpId,
       requireSignature: false,
@@ -704,6 +883,24 @@ function main() {
   }
 
   if (!lastSignature) {
+    if (enrichmentNeeded === "YES" || clearlyCoversVerdict === "FAIL") {
+      printLifecycle({ wpId, stage: "APPROVAL", next: "SPEC_ENRICHMENT" });
+      printOperatorEnvelope(
+        `Collect explicit approval for the refinement, then run approved spec enrichment before consuming a one-time signature for ${wpId}`,
+        "SPEC_ENRICHMENT_REQUIRED_BEFORE_SIGNATURE",
+      );
+      printConfidence(confidence.level, confidenceDetail);
+      printState("Refinement recorded and reviewable, but it declares a Master Spec update is required. Packet signature is blocked until SPEC_CURRENT advances and the same refinement is refreshed.");
+      printNextCommands([
+        `# Paste the FULL Technical Refinement Block from ${refinementPath.replace(/\\/g, "/")} in chat (verbatim; no summary).`,
+        `# When approved, preserve the approval evidence: APPROVE REFINEMENT ${wpId}`,
+        `just activation-manager next ${wpId}`,
+        `# Steer Activation Manager to apply the approved spec enrichment, advance SPEC_CURRENT, refresh the same refinement, and verify follow-up stubs.`,
+        `# After the refreshed refinement reports ENRICHMENT_NEEDED=NO and USER_APPROVAL_EVIDENCE is set, run:`,
+        `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
+      ]);
+      return;
+    }
     printLifecycle({ wpId, stage: "APPROVAL", next: "SIGNATURE" });
     printOperatorEnvelope(
       `Collect explicit approval + one-time signature bundle for ${wpId} (signature + workflow lane + execution owner)`,
@@ -1022,15 +1219,21 @@ function main() {
   printLifecycle({ wpId, stage: "DELEGATION", next: "DELEGATION" });
   printOperatorEnvelope("NONE", "NONE");
   printConfidence(confidence.level, confidenceDetail);
-  printState(
-    needsStubCleanup
-      ? "Work packet exists; Task Board still lists this WP as [STUB]."
-      : "Work packet exists; ready to delegate to Coder."
-  );
   const normalizedWorkflowLane = normalizeWorkflowLane(workflowLane);
   const activationReadiness = normalizedWorkflowLane === "ORCHESTRATOR_MANAGED"
     ? readActivationReadinessState(wpId)
     : null;
+  const downstreamStateForDisplay = normalizedWorkflowLane === "ORCHESTRATOR_MANAGED"
+    ? downstreamGovernedSessionState({ registrySessions: governedSessionSummaries, wpId })
+    : null;
+  const projectedNextActor = String(packetRuntimeState?.runtimeStatus?.next_expected_actor || "").trim().toUpperCase();
+  printState(
+    needsStubCleanup
+      ? "Work packet exists; Task Board still lists this WP as [STUB]."
+      : downstreamStateForDisplay?.hasBothInitialRoles
+        ? `Work packet exists; downstream sessions are active; steer ${projectedNextActor || "the projected governed role"}.`
+        : "Work packet exists; ready to delegate to Coder."
+  );
 
   printFindings([
     ...tokenPolicyContinuation.findings,
@@ -1058,20 +1261,42 @@ function main() {
       : []),
     ...loadMemoryInsights(wpId),
   ]);
-  const runtimeRelayCommand = relayCommandForRuntime(wpId, workflowLane, packetRuntimeState?.runtimeStatus || {});
+  const activationBlocksDownstream = normalizedWorkflowLane === "ORCHESTRATOR_MANAGED"
+    && !activationReadiness?.readyForDownstreamLaunch;
+  const runtimeRelayCommand = activationBlocksDownstream
+    ? ""
+    : relayCommandForRuntime(wpId, workflowLane, packetRuntimeState?.runtimeStatus || {});
   const cmds = [`cat ${packetPath}`];
   if (["WARN", "RECOVERY_MODE", "OVERRIDE_REQUIRED"].includes(String(costGovernor?.state || "").trim().toUpperCase())) {
     cmds.unshift(`just wp-truth-bundle ${wpId}`);
   }
-  if (runtimeRelayCommand) {
+  if (activationBlocksDownstream) {
+    cmds.push(...buildActivationManagerLaunchCommands(wpId, activationReadiness));
+  } else if (runtimeRelayCommand) {
     cmds.push(runtimeRelayCommand);
     cmds.push(`just session-registry-status ${wpId}`);
   } else if (normalizedWorkflowLane === "MANUAL_RELAY") {
     cmds.push(...buildManualRelayCommands(wpId));
   } else if (normalizedWorkflowLane === "ORCHESTRATOR_MANAGED") {
     if (activationReadiness?.readyForDownstreamLaunch) {
-      cmds.push(buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }));
-      cmds.push(...buildDownstreamGovernedLaunchCommands(wpId));
+      const downstreamState = downstreamGovernedSessionState({
+        registrySessions: governedSessionSummaries,
+        wpId,
+      });
+      if (downstreamState.hasBothInitialRoles) {
+        cmds.push(...buildDownstreamGovernedContinuationCommands({
+          wpId,
+          runtimeStatus: packetRuntimeState?.runtimeStatus || {},
+          registrySessions: governedSessionSummaries,
+        }));
+      } else {
+        cmds.push(buildPhaseCheckCommand({ phase: "STARTUP", wpId, role: "CODER" }));
+        cmds.push(...buildDownstreamGovernedContinuationCommands({
+          wpId,
+          runtimeStatus: packetRuntimeState?.runtimeStatus || {},
+          registrySessions: governedSessionSummaries,
+        }));
+      }
     } else {
       cmds.push(...buildActivationManagerLaunchCommands(wpId, activationReadiness));
     }

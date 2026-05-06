@@ -67,6 +67,30 @@ test("session health projection fails when broker active runs have expired", () 
   assert.equal(projection.reasonCode, "ACTIVE_RUN_TIMEOUT");
 });
 
+test("session health projection degrades active runs when command output is missing", () => {
+  const projection = evaluateGovernedSessionHealth({
+    targetRole: "CODER",
+    targetSession: "CODER:WP-TEST",
+    session: makeSession({
+      runtime_state: "COMMAND_RUNNING",
+      last_heartbeat_at: "2026-04-18T09:59:30Z",
+      last_event_at: "2026-04-18T09:59:30Z",
+    }),
+    activeRuns: [
+      {
+        role: "CODER",
+        session_key: "CODER:WP-TEST",
+        timeout_at: "2026-04-18T10:30:00Z",
+      },
+    ],
+    outputFreshnessStatus: "MISSING",
+    now: new Date("2026-04-18T10:00:00Z"),
+  });
+
+  assert.equal(projection.healthState, "DEGRADED");
+  assert.equal(projection.reasonCode, "COMMAND_OUTPUT_MISSING");
+});
+
 test("session health projection degrades aging heartbeat before the hard fail threshold", () => {
   const projection = evaluateGovernedSessionHealth({
     targetRole: "WP_VALIDATOR",

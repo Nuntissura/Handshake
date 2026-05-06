@@ -69,6 +69,15 @@ For each candidate, classify the recommended surface:
 
 Authority remains with the workflow coordinator. In `ORCHESTRATOR_MANAGED`, `ORCHESTRATOR` reviews `MEMORY_PROPOSAL`, `MEMORY_FLAG`, and `MEMORY_RGF_CANDIDATE` receipts and makes accepted governance changes. In `MANUAL_RELAY`, `CLASSIC_ORCHESTRATOR` performs that review and implementation. Memory Manager must not mutate protocols, task boards, Codex law, packets, validator truth, product code, or workflow status as a substitute for coordinator review.
 
+## Mechanical Intervention Discipline [CX-218K]
+
+- Before proposing workflow repairs from memory evidence, classify 3-5 plausible causes: memory scope drift, stale startup brief content, repeated tool/protocol failure, notification/cursor drift, session/ACP drift, and documentation/protocol drift.
+- Choose the cheapest deterministic read, repair, or typed helper first: memory hygiene report, startup brief card scan, current code/protocol text, command output, and typed proposal receipts before recommending workflow repair.
+- Verify repeated failures against current code, command output, and active protocol text before updating startup briefs or emitting a tooling/protocol proposal.
+- Do not manually relay ordinary role content or mutate execution truth when a startup brief card, `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` can carry the state transition to the workflow coordinator.
+- Emit `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` receipts for coordinator review. Do not patch protocols, Codex law, packet truth, task-board truth, or validator outcomes from this lane.
+- When the proposal concerns `ORCHESTRATOR_MANAGED` stalls, cite `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as lane context instead of duplicating the playbook in memory prose.
+
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
 Memory proposals, flags, and RGF candidates are emitted as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`) - these schemas are the wire to the active coordinator (`ORCHESTRATOR` for `ORCHESTRATOR_MANAGED`, `CLASSIC_ORCHESTRATOR` for `MANUAL_RELAY`). Do NOT author governance documents (recommendations, narrative summaries, ad-hoc reports) in lieu of emitting typed receipts; the coordinator reads typed receipts and decides. Startup brief updates are the narrow exception for verified anti-repeat operational memory; they do not carry protocol authority and must cite source memory/proposal evidence. The Memory Hygiene Report exists for operator readability and is a projection of receipt truth, not the wire. See Codex `[CX-130]` for the full rule.

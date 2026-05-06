@@ -26,21 +26,38 @@ export function readActivationReadinessState(wpId) {
     return {
       exists: false,
       verdict: "<missing>",
+      generatedAtUtc: "",
+      stateSource: "",
       nextOrchestratorAction: "",
       path: artifactRel,
       readyForDownstreamLaunch: false,
+      readyField: "",
+      outstandingIssues: "",
+      packetStatus: "",
     };
   }
 
   const report = fs.readFileSync(artifactAbs, "utf8");
   const verdict = parseReadinessField(report, "VERDICT") || "<missing>";
+  const generatedAtUtc = parseReadinessField(report, "GENERATED_AT_UTC");
+  const stateSource = parseReadinessField(report, "STATE_SOURCE");
+  const readyField = parseReadinessField(report, "READY_FOR_DOWNSTREAM_LAUNCH");
+  const packetStatus = parseReadinessField(report, "PACKET_STATUS");
+  const outstandingIssues = parseReadinessField(report, "OUTSTANDING_ISSUES");
   const nextOrchestratorAction = parseReadinessField(report, "NEXT_ORCHESTRATOR_ACTION");
+  const readyForDownstreamLaunch = /^YES$/i.test(readyField)
+    || (readyField.length === 0 && verdict === "READY_FOR_ORCHESTRATOR_REVIEW");
   return {
     exists: true,
     verdict,
+    generatedAtUtc,
+    stateSource,
     nextOrchestratorAction,
     path: artifactRel,
-    readyForDownstreamLaunch: verdict === "READY_FOR_ORCHESTRATOR_REVIEW",
+    readyForDownstreamLaunch,
+    readyField,
+    outstandingIssues,
+    packetStatus,
   };
 }
 
@@ -54,16 +71,21 @@ export function activationReadinessRequiresActivationManager(wpId) {
 
 export function buildActivationManagerLaunchCommands(wpId, readiness = null) {
   const commands = [
-    `just launch-activation-manager-session ${wpId}`,
+    `just activation-manager readiness ${wpId} --write`,
+    `just activation-manager next ${wpId}`,
   ];
   if (readiness?.exists) {
     commands.push(`# Current ACTIVATION_READINESS: ${readiness.verdict} (${readiness.path})`);
   }
+  if (readiness?.generatedAtUtc) {
+    commands.push(`# Readiness generated_at: ${readiness.generatedAtUtc}`);
+  }
   if (readiness?.nextOrchestratorAction) {
     commands.push(`# Readiness follow-up: ${readiness.nextOrchestratorAction}`);
   }
+  commands.push(`# If refreshed ACTIVATION_READINESS is still not READY_FOR_ORCHESTRATOR_REVIEW: just launch-activation-manager-session ${wpId}`);
   commands.push(`just session-registry-status ${wpId}`);
-  commands.push("# Activation Manager is mandatory for ORCHESTRATOR_MANAGED; do not launch coder or validators until truthful ACTIVATION_READINESS is in place.");
+  commands.push("# Direct readiness refresh is the cheap recovery gate; do not wake Activation Manager, Coder, or validators until truthful ACTIVATION_READINESS is in place.");
   return commands;
 }
 

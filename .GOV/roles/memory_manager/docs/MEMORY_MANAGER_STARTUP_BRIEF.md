@@ -13,6 +13,16 @@ Use this brief after `just memory-manager-startup`. It is operational memory for
 
 ## Action Cards
 
+### RAM-MEMORY_MANAGER-MECHANICAL_INTERVENTION-001
+
+- ACTION: MECHANICAL_INTERVENTION
+- TRIGGER: before proposing startup-brief/protocol repair, declaring memory drift, or treating handoff/documentation/protocol drift as blocked
+- FAILURE_PATTERN: adding more memory summaries without identifying the deterministic governance surface that should prevent the repeated failure
+- DO: classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read, hygiene report, startup brief edit, or typed proposal helper before recommending repair
+- DO_NOT: directly mutate packet/task-board/product truth or manually relay ordinary role content when a proposal receipt, startup brief card, or governed check owns the state transition
+- VERIFY: proposal or startup brief card names the cause class, evidence id/path, owning workflow authority, and deterministic guard that will catch recurrence
+- SOURCE: CX-218K, MEMORY_MANAGER_PROTOCOL, .GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md
+
 ### RAM-MEMORY_MANAGER-ACTIONABLE_MEMORY-001
 
 - ACTION: ACTIONABLE_MEMORY

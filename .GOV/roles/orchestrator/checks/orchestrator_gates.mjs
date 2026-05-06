@@ -231,6 +231,33 @@ if (action === 'refine') {
     });
     saveState(state);
 
+    const refinementContent = fs.readFileSync(refinementPath, 'utf8');
+    const enrichmentNeeded = (refinementContent.match(/^\s*-\s*ENRICHMENT_NEEDED\s*:\s*(YES|NO)\s*$/mi)?.[1] || '').toUpperCase();
+    const clearlyCoversVerdict = (refinementContent.match(/^\s*-\s*CLEARLY_COVERS_VERDICT\s*:\s*(PASS|FAIL)\s*$/mi)?.[1] || '').toUpperCase();
+    if (enrichmentNeeded === 'YES' || clearlyCoversVerdict === 'FAIL') {
+        v2PrintGateBlocks({
+            wpId,
+            stage: 'REFINEMENT',
+            next: 'SPEC_ENRICHMENT',
+            operatorAction: `Collect explicit approval for ${wpId}; do not consume a signature until the approved spec enrichment is landed and the same refinement is refreshed`,
+            gateRan: `just record-refinement ${wpId}`,
+            result: 'PASS',
+            why: 'Technical refinement recorded, but it declares ENRICHMENT_NEEDED=YES / CLEARLY_COVERS_VERDICT=FAIL. Signature capture is blocked until SPEC_CURRENT advances and the refreshed refinement no longer requires enrichment.',
+            gateOutputLines: [
+                `[ORCHESTRATOR GATE] Technical Refinement recorded for ${wpId}.`,
+                '- signature_capture: BLOCKED_UNTIL_SPEC_ENRICHMENT_REFRESH',
+            ],
+            nextCommands: [
+                `# Paste the FULL Technical Refinement Block from ${refinementPath.replace(/\\/g, '/')} in chat as assistant-authored text (verbatim; no summary). Tool/terminal output does NOT count.`,
+                `# If approved, preserve this exact evidence in the refreshed refinement: APPROVE REFINEMENT ${wpId}`,
+                `just activation-manager next ${wpId}`,
+                `# Steer Activation Manager to apply the approved spec enrichment, advance SPEC_CURRENT, refresh the same refinement, and verify follow-up stubs.`,
+                `# After refresh reports ENRICHMENT_NEEDED=NO, run: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
+            ],
+        });
+        process.exit(0);
+    }
+
     v2PrintGateBlocks({
         wpId,
         stage: 'REFINEMENT',
@@ -328,6 +355,8 @@ if (action === 'sign') {
                 `Run the spec enrichment workflow first (new spec version + update ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md).`,
                 'Then refresh the SAME WP refinement against the updated spec and record a fresh same-WP signature.',
                 'Create a NEW WP variant only when scope materially widened or explicit remediation/splitting is required.',
+                'The supplied signature was NOT written to the refinement or SIGNATURE_AUDIT.',
+                `Next: just activation-manager next ${wpId}`,
             ]);
         }
     } catch (e) {

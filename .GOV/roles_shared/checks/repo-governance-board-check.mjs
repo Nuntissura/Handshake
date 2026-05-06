@@ -17,20 +17,41 @@ function repoRootFromHere() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 }
 
+function resolveGovRoot(repoRoot) {
+  const injectedGovRoot = String(process.env.HANDSHAKE_GOV_ROOT || "").trim();
+  if (injectedGovRoot) {
+    return path.resolve(injectedGovRoot);
+  }
+  return path.resolve(repoRoot, ".GOV");
+}
+
+function resolveRepoRelativePath(repoRoot, govRoot, repoRelativePath) {
+  const normalized = String(repoRelativePath || "").replace(/\\/g, "/");
+  if (normalized === ".GOV") {
+    return govRoot;
+  }
+  if (normalized.startsWith(".GOV/")) {
+    return path.resolve(govRoot, normalized.slice(".GOV/".length));
+  }
+  return path.resolve(repoRoot, normalized);
+}
+
 function fail(message, details = []) {
   failWithMemory("repo-governance-board-check.mjs", message, { role: "SHARED", details });
 }
 
 const repoRoot = path.resolve(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || repoRootFromHere());
-const boardAbs = path.resolve(repoRoot, REPO_GOVERNANCE_BOARD_PATH);
+const govRoot = resolveGovRoot(repoRoot);
+const boardAbs = resolveRepoRelativePath(repoRoot, govRoot, REPO_GOVERNANCE_BOARD_PATH);
 if (!fs.existsSync(boardAbs)) {
   fail("Repo governance refactor board is missing", [REPO_GOVERNANCE_BOARD_PATH]);
 }
 
-const changelogAbs = path.resolve(repoRoot, REPO_GOVERNANCE_CHANGELOG_PATH);
-const guideAbs = path.resolve(repoRoot, WP1_POSTMORTEM_GUIDE_PATH);
+const changelogAbs = resolveRepoRelativePath(repoRoot, govRoot, REPO_GOVERNANCE_CHANGELOG_PATH);
+const guideAbs = resolveRepoRelativePath(repoRoot, govRoot, WP1_POSTMORTEM_GUIDE_PATH);
 const result = validateRepoGovernanceBoard({
   repoRoot,
+  governanceRoot: govRoot,
   boardText: fs.readFileSync(boardAbs, "utf8"),
   changelogText: fs.existsSync(changelogAbs) ? fs.readFileSync(changelogAbs, "utf8") : "",
   guideText: fs.existsSync(guideAbs) ? fs.readFileSync(guideAbs, "utf8") : "",
@@ -48,4 +69,3 @@ console.log(`- planned: ${result.summary.planned_count}`);
 if (result.warnings.length > 0) {
   console.log(`- warnings: ${result.warnings.join(" | ")}`);
 }
-

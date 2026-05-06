@@ -191,11 +191,67 @@ const { flags, positional } = parseFlags(rawArgs);
 
 if (!command) usage();
 
+function normalizeRole(value = "") {
+  return String(value || "").trim().toUpperCase();
+}
+
+function normalizeWpId(value = "") {
+  return String(value || "").trim();
+}
+
+function inferSessionRole(currentFlags = flags) {
+  return normalizeRole(
+    currentFlags.role
+    || process.env.HANDSHAKE_REPOMEM_ROLE
+    || process.env.HANDSHAKE_ROLE
+    || process.env.HANDSHAKE_VALIDATOR_ROLE
+    || "",
+  );
+}
+
+function inferSessionWpId(currentFlags = flags) {
+  return normalizeWpId(
+    currentFlags.wp
+    || process.env.HANDSHAKE_REPOMEM_WP_ID
+    || process.env.WP_ID
+    || process.env.HANDSHAKE_ACTIVE_WP_ID
+    || "",
+  );
+}
+
+function sessionScopeFromFlags(currentFlags = flags) {
+  return {
+    role: inferSessionRole(currentFlags),
+    wpId: inferSessionWpId(currentFlags),
+  };
+}
+
+function getScopedCurrentSession(currentFlags = flags) {
+  const scope = sessionScopeFromFlags(currentFlags);
+  return scope.role || scope.wpId ? getCurrentSession(scope) : getCurrentSession();
+}
+
+function sameScope(session, { role = "", wpId = "" } = {}) {
+  if (!session) return false;
+  const sessionRole = normalizeRole(session.role);
+  const sessionWpId = normalizeWpId(session.wp_id || session.wpId || "");
+  const expectedRole = normalizeRole(role);
+  const expectedWpId = normalizeWpId(wpId);
+  if (expectedRole && sessionRole !== expectedRole) return false;
+  if (expectedWpId) return sessionWpId === expectedWpId;
+  if (sessionWpId) return false;
+  return true;
+}
+
+function checkpointWpId() {
+  return inferSessionWpId(flags);
+}
+
 // ---------------------------------------------------------------------------
 // gate — lightweight check, no DB open needed
 // ---------------------------------------------------------------------------
 if (command === "gate") {
-  const result = checkSessionGate();
+  const result = checkSessionGate(sessionScopeFromFlags());
   if (!result.open) {
     if (Object.prototype.hasOwnProperty.call(flags, "soft")) {
       const warning = String(result.message || "REPOMEM_GATE_FAIL: No active session.")
@@ -239,8 +295,9 @@ try {
       process.exit(1);
     }
 
-    // Close any stale session first
-    const existingSession = getCurrentSession();
+    // Close only the same role/WP lane. Other active roles may be running in
+    // parallel under ACP and must keep their memory sessions open.
+    const existingSession = getCurrentSession({ role, wpId });
     if (existingSession) {
       addConversationCheckpoint(db, {
         sessionId: existingSession.session_id,
@@ -253,15 +310,22 @@ try {
       console.log(`[repomem] Auto-closed stale session ${existingSession.session_id}`);
     }
 
+    const ambientSession = getCurrentSession();
+    const preserveAmbientSession = ambientSession && !sameScope(ambientSession, { role, wpId });
+    if (preserveAmbientSession) {
+      console.log(`[repomem] Preserved concurrent session ${ambientSession.session_id}`);
+    }
+
     const sessionId = generateSessionId(role);
     const now = new Date().toISOString();
 
     writeSessionMarker({
       session_id: sessionId,
       role,
+      wp_id: wpId,
       opened_at: now,
       topic: content.slice(0, 200),
-    });
+    }, { updateGlobal: !preserveAmbientSession });
 
     const id = addConversationCheckpoint(db, {
       sessionId,
@@ -296,7 +360,7 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "pre", MIN_PRE_CONTENT_LENGTH);
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
       process.exit(1);
@@ -307,7 +371,7 @@ try {
       role: session.role,
       checkpointType: "PRE_TASK",
       triggerRef: flags.trigger || "",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: content.slice(0, 120),
       content,
       filesReferenced: flags.files || "",
@@ -321,7 +385,7 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "insight");
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
       process.exit(1);
@@ -331,7 +395,7 @@ try {
       sessionId: session.session_id,
       role: session.role,
       checkpointType: "INSIGHT",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: content.slice(0, 120),
       content,
       filesReferenced: flags.files || "",
@@ -346,7 +410,7 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "decision");
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
       process.exit(1);
@@ -356,7 +420,7 @@ try {
       sessionId: session.session_id,
       role: session.role,
       checkpointType: "DECISION",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: content.slice(0, 120),
       content,
       filesReferenced: flags.files || "",
@@ -371,7 +435,7 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "error", MIN_PRE_CONTENT_LENGTH);
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
       process.exit(1);
@@ -382,7 +446,7 @@ try {
       role: session.role,
       checkpointType: "ERROR",
       triggerRef: flags.trigger || "",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: `[error] ${content.slice(0, 112)}`,
       content,
       filesReferenced: flags.files || "",
@@ -396,7 +460,7 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "abandon");
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
       process.exit(1);
@@ -406,7 +470,7 @@ try {
       sessionId: session.session_id,
       role: session.role,
       checkpointType: "ABANDON",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: `[abandon] ${content.slice(0, 110)}`,
       content,
       filesReferenced: flags.files || "",
@@ -420,7 +484,7 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "concern");
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
       process.exit(1);
@@ -430,7 +494,7 @@ try {
       sessionId: session.session_id,
       role: session.role,
       checkpointType: "CONCERN",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: `[concern] ${content.slice(0, 109)}`,
       content,
       filesReferenced: flags.files || "",
@@ -444,7 +508,7 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "escalation", MIN_PRE_CONTENT_LENGTH);
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
       process.exit(1);
@@ -454,7 +518,7 @@ try {
       sessionId: session.session_id,
       role: session.role,
       checkpointType: "ESCALATION",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: `[escalation] ${content.slice(0, 107)}`,
       content,
     });
@@ -467,7 +531,7 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "research-close");
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
       process.exit(1);
@@ -477,7 +541,7 @@ try {
       sessionId: session.session_id,
       role: session.role,
       checkpointType: "RESEARCH_CLOSE",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: content.slice(0, 120),
       content,
       filesReferenced: flags.files || "",
@@ -493,7 +557,7 @@ try {
     }
     enforceContentLength(content, "close");
     enforceDecisions(flags.decisions, "close");
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session to close.");
       process.exit(1);
@@ -508,7 +572,7 @@ try {
       sessionId: session.session_id,
       role: session.role,
       checkpointType: "SESSION_CLOSE",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: content.slice(0, 120),
       content,
       decisions: flags.decisions || "",
@@ -559,7 +623,11 @@ try {
       }
     }
 
-    clearSessionMarker();
+    clearSessionMarker({
+      role: session.role,
+      wpId: session.wp_id || checkpointWpId(),
+      sessionId: session.session_id,
+    });
 
   } else if (command === "context") {
     // Piggybacked context capture — for mutation commands that require --context
@@ -569,7 +637,7 @@ try {
       process.exit(1);
     }
     enforceContentLength(content, "context", MIN_PRE_CONTENT_LENGTH);
-    const session = getCurrentSession();
+    const session = getScopedCurrentSession();
     if (!session) {
       console.error("REPOMEM_ERROR: No active session. Run `just repomem open` first.");
       process.exit(1);
@@ -580,7 +648,7 @@ try {
       role: session.role,
       checkpointType: "PRE_TASK",
       triggerRef: flags.trigger || "",
-      wpId: flags.wp || "",
+      wpId: checkpointWpId(),
       topic: `[ctx] ${(content).slice(0, 110)}`,
       content,
       filesReferenced: flags.files || "",
@@ -608,7 +676,7 @@ try {
         }
       }
     } else if (flags.session === "current") {
-      const session = getCurrentSession();
+      const session = getScopedCurrentSession();
       if (!session) {
         console.log("[repomem] No active session.");
       } else {
@@ -635,7 +703,7 @@ try {
         lastN: limit,
         sinceDate,
         search: flags.search || "",
-        wpId: flags.wp || "",
+        wpId: checkpointWpId(),
       });
 
       if (entries.length === 0) {

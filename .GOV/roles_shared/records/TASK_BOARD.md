@@ -118,6 +118,13 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Locus-Phase1-Medallion-Search-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Storage-No-Runtime-DDL-v1]** - [STUB]
+- **[WP-1-Postgres-Dev-Test-Container-Matrix-v1]** - [STUB]
+- **[WP-1-Postgres-Control-Plane-Leases-Backpressure-v1]** - [STUB]
+- **[WP-1-ModelSession-Postgres-Queue-Workers-v1]** - [STUB]
+- **[WP-1-FEMS-Postgres-Memory-Store-v1]** - [STUB]
+- **[WP-1-Workflow-Engine-Postgres-Durable-Execution-v1]** - [STUB]
+- **[WP-1-DCC-Postgres-Control-Plane-Projections-v1]** - [STUB]
+- **[WP-1-SQLite-Cache-Offline-Boundaries-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Spec-Router-CapabilitySnapshot-v1]** - [STUB]
 - **[WP-1-Spec-Router-Evidence-Portability-v1]** - [STUB]
@@ -1238,6 +1245,7 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 - **[WP-1-Calendar-Sync-Engine-v3]** - [VALIDATED]
 - **[WP-1-Software-Delivery-Projection-Surface-Discipline-v1]** - [VALIDATED]
 - **[WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1]** - [VALIDATED]
+- **[WP-1-Postgres-Primary-Control-Plane-Foundation-v1]** - [VALIDATED]
 
 
 ## Blocked

@@ -75,39 +75,39 @@ just wp-validator-review WP-{ID} <wp_validator_session> <coder_session> "Review 
 
 Use this when the WP is orchestrator-managed and final merge-ready authority belongs to `INTEGRATION_VALIDATOR`.
 
-### Orchestrator launches the final validator lane
+### Orchestrator proves the final committed handoff and launches the final validator lane
 
 ```bash
+just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>
 just launch-integration-validator-session WP-{ID}
 ```
 
-### Integration Validator resumes and opens the final review pair
+### Integration Validator resumes and consumes the final handoff pair
 
 ```bash
 just validator-startup INTEGRATION_VALIDATOR
 just validator-next INTEGRATION_VALIDATOR WP-{ID}
-just phase-check STARTUP WP-{ID} INTEGRATION_VALIDATOR <intval_session>
-just wp-review-exchange REVIEW_REQUEST WP-{ID} INTEGRATION_VALIDATOR <intval_session> CODER <coder_session> "Final merge-readiness review request" "" "<spec_anchor>" "<packet_row_ref>"
+just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR <intval_session>
+just wp-review-response WP-{ID} INTEGRATION_VALIDATOR <intval_session> CODER <coder_session> "Final whole-WP verdict response with closure evidence" <final_coder_handoff_correlation_id>
 ```
 
-### Coder submits response to Integration Validator review request
+### Orchestrator verifies terminal closeout after final response
 
 ```bash
-just check-notifications WP-{ID} CODER <coder_session>
-just ack-notifications WP-{ID} CODER <coder_session>
-just wp-review-response WP-{ID} CODER <coder_session> INTEGRATION_VALIDATOR <intval_session> "Final response with closure evidence" <review_request_correlation_id>
+just wp-communication-health-check WP-{ID} STATUS
+just phase-check CLOSEOUT WP-{ID} --sync-mode MERGE_PENDING --context "<why merge-pending closure is valid>"
 ```
 
-### Integration Validator clears final gates
+### Integration Validator clears merge gates after real main containment
 
 ```bash
 just check-notifications WP-{ID} INTEGRATION_VALIDATOR <intval_session>
 just ack-notifications WP-{ID} INTEGRATION_VALIDATOR <intval_session>
-just phase-check CLOSEOUT WP-{ID}
 just validator-gate-append WP-{ID} PASS
 just validator-gate-commit WP-{ID}
 just validator-gate-present WP-{ID} PASS
 just validator-gate-acknowledge WP-{ID}
+just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <SHA> --context "<why contained-main closure is valid>"
 just gov-check
 ```
 
@@ -115,7 +115,8 @@ just gov-check
 
 - `WP_VALIDATOR` is advisory for orchestrator-managed WPs.
 - Final merge-ready authority is a separate lane.
-- The final coder <-> integration-validator review pair must be visible in governed receipts before verdict clearance.
+- The final whole-WP `CODER_HANDOFF` is the review pair Integration Validator resolves; Integration Validator does not open a new final review request to Coder.
+- Terminal closeout happens after the final review/verdict response exists; contained-main closeout waits for real main containment proof.
 
 ## Example 3 - Stale session recovery
 

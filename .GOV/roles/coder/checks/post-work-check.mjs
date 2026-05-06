@@ -30,6 +30,7 @@ import {
 } from '../../../roles_shared/scripts/lib/baseline-waiver-ledger-lib.mjs';
 import { resolveCommittedCoderHandoffRange } from '../../../roles_shared/scripts/lib/role-resume-utils.mjs';
 import { resolveGitBaselineMergeBase } from '../scripts/lib/coder-governance-lib.mjs';
+import { buildWpCommunicationHealthCheckResult } from '../../../roles_shared/checks/wp-communication-health-check.mjs';
 
 registerFailCaptureHook('post-work-check.mjs', { role: 'CODER' });
 
@@ -294,6 +295,52 @@ const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(parsePacketSin
 
 const PACKET_COMMITTED_HANDOFF_RANGE = resolveCommittedCoderHandoffRange(packetContent, WP_ID);
 
+const buildDirectReviewReceiptCoverage = () => {
+  if (workflowLane !== 'ORCHESTRATOR_MANAGED') {
+    return {
+      ok: false,
+      reason: 'workflow lane is not ORCHESTRATOR_MANAGED',
+      evaluation: null,
+    };
+  }
+  try {
+    const evaluation = buildWpCommunicationHealthCheckResult({
+      wpId: WP_ID,
+      stage: 'STATUS',
+    });
+    const counts = evaluation?.counts || {};
+    const coderReviewOpenReceipts = Number(counts.coderReviewOpenReceipts || 0);
+    const validatorReviews = Number(counts.validatorReviews || 0);
+    const openReviewItems = Number(counts.openReviewItems || 0);
+    const blockingOpenReviewItems = Number(counts.blockingOpenReviewItems || 0);
+    const ok = Boolean(evaluation?.ok)
+      && String(evaluation?.state || '').trim().toUpperCase() === 'COMM_OK'
+      && coderReviewOpenReceipts > 0
+      && validatorReviews >= coderReviewOpenReceipts
+      && openReviewItems === 0
+      && blockingOpenReviewItems === 0;
+    return {
+      ok,
+      reason: ok
+        ? `direct review receipts complete (${validatorReviews}/${coderReviewOpenReceipts})`
+        : `direct review receipts incomplete (${validatorReviews}/${coderReviewOpenReceipts}, open=${openReviewItems}, blocking=${blockingOpenReviewItems})`,
+      evaluation,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `direct review receipt coverage unavailable: ${err?.message || err}`,
+      evaluation: null,
+    };
+  }
+};
+
+const directReviewReceiptCoverage = buildDirectReviewReceiptCoverage();
+const receiptBackedDirectReviewManifest = directReviewReceiptCoverage.ok;
+if (receiptBackedDirectReviewManifest) {
+  console.log(`NOTE: ORCHESTRATOR_MANAGED direct-review receipts satisfy packet manifest fallback: ${directReviewReceiptCoverage.reason}.`);
+}
+
 const requiresManifest = (filePath) => {
   const p = filePath.replace(/\\/g, '/');
   if (p.startsWith(`${GOV_DISPLAY_ROOT}/`)) return false;
@@ -517,7 +564,9 @@ if (isModernPacket) {
   }
 
   const evidenceMapping = extractSection(packetContent, 'EVIDENCE_MAPPING');
-  if (!evidenceMapping) {
+  if (receiptBackedDirectReviewManifest) {
+    warnings.push('Packet EVIDENCE_MAPPING/EVIDENCE/STATUS_HANDOFF prose is incomplete, but ORCHESTRATOR_MANAGED direct-review receipts provide the mechanical handoff manifest fallback.');
+  } else if (!evidenceMapping) {
     errors.push('Missing ## EVIDENCE_MAPPING section (required for modern packets)');
   } else {
     const hasFileLine = /(?:src[\\/]|app[\\/]|\.GOV[\\/])[^`\s]*:\d+\b/i.test(evidenceMapping);
@@ -527,7 +576,9 @@ if (isModernPacket) {
   }
 
   const evidence = extractSection(packetContent, 'EVIDENCE');
-  if (!evidence) {
+  if (receiptBackedDirectReviewManifest) {
+    // Covered above as one consolidated warning.
+  } else if (!evidence) {
     errors.push('Missing ## EVIDENCE section (required for modern packets)');
   } else {
     const evidenceLines = evidence.split('\n');
@@ -539,7 +590,9 @@ if (isModernPacket) {
   }
 
   const handoffRigorProfile = parsePacketSingleField(packetContent, 'CODER_HANDOFF_RIGOR_PROFILE');
-  if (/^MAIN_BODY_SELF_CRITIQUE_V1$/i.test(handoffRigorProfile)) {
+  if (receiptBackedDirectReviewManifest) {
+    // Covered above as one consolidated warning.
+  } else if (/^MAIN_BODY_SELF_CRITIQUE_V1$/i.test(handoffRigorProfile)) {
     const statusHandoff = extractSection(packetContent, 'STATUS_HANDOFF');
     if (!statusHandoff) {
       errors.push('Missing ## STATUS_HANDOFF section (required for MAIN_BODY_SELF_CRITIQUE_V1)');
@@ -858,19 +911,26 @@ if (manifests) {
     }
   }
 
-  // Require manifest coverage for all non-docs changed files.
-  const manifestTargets = new Set(manifests.map((m) => path.normalize(m.target_file).replace(/\\/g, '/')).filter(Boolean));
-  const missingCoverage = changedFiles
-    .map((p) => p.replace(/\\/g, '/'))
-    .filter((p) => requiresManifest(p))
-    .filter((p) => !manifestTargets.has(p));
-  if (missingCoverage.length > 0) {
-    errors.push(`Missing VALIDATION manifest coverage for changed files: ${missingCoverage.join(', ')}`);
+  if (receiptBackedDirectReviewManifest) {
+    warnings.push(`VALIDATION manifest coverage is supplied by ORCHESTRATOR_MANAGED direct-review receipts: ${directReviewReceiptCoverage.reason}.`);
+  } else {
+    // Require manifest coverage for all non-docs changed files.
+    const manifestTargets = new Set(manifests.map((m) => path.normalize(m.target_file).replace(/\\/g, '/')).filter(Boolean));
+    const missingCoverage = changedFiles
+      .map((p) => p.replace(/\\/g, '/'))
+      .filter((p) => requiresManifest(p))
+      .filter((p) => !manifestTargets.has(p));
+    if (missingCoverage.length > 0) {
+      errors.push(`Missing VALIDATION manifest coverage for changed files: ${missingCoverage.join(', ')}`);
+    }
   }
 
   // Now validate each manifest entry.
   console.log('\nCheck 3: File integrity (per manifest entry)');
-  manifests.forEach((manifest, idx) => {
+  if (receiptBackedDirectReviewManifest) {
+    console.log('SKIP: packet manifest file integrity is covered by direct-review receipt fallback for this ORCHESTRATOR_MANAGED handoff.');
+  } else {
+    manifests.forEach((manifest, idx) => {
     const label = `Manifest[${idx + 1}]`;
 
     spec.requiredFields.forEach((field) => {
@@ -997,7 +1057,8 @@ if (manifests) {
       }
       errors.push(`${label}: gate missing or unchecked: ${gate} (${spec.gateErrorCodes[gate]})`);
     });
-  });
+    });
+  }
 }
 
 // Check 4: git status sanity

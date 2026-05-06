@@ -67,6 +67,31 @@ test("repo governance board check rejects missing implementation brief files", (
   }
 });
 
+test("repo governance board check resolves .GOV references from injected governance root", () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-board-product-root-"));
+  const governanceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "hsk-board-gov-root-"));
+  try {
+    const referencedRel = ".GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md";
+    const referencedAbs = path.join(governanceRoot, "operator", "docs_local", "Handshake_Role_Startup_Prompts.md");
+    fs.mkdirSync(path.dirname(referencedAbs), { recursive: true });
+    fs.writeFileSync(referencedAbs, "# startup prompts\n", "utf8");
+
+    const board = [
+      boardWithRows([
+        "| RGF-255 | PLANNED | A | - | audit | `x` | signal |",
+        "| RGF-256 | PLANNED | B | RGF-255 | audit | `x` | signal |",
+      ]),
+      "",
+      `**Implementation briefs:** \`${referencedRel}\``,
+    ].join("\n");
+    const result = validateRepoGovernanceBoard({ repoRoot, governanceRoot, boardText: board });
+    assert.equal(result.ok, true);
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+    fs.rmSync(governanceRoot, { recursive: true, force: true });
+  }
+});
+
 test("repo governance board check accepts a clean planned tranche", () => {
   const board = boardWithRows([
     "| RGF-255 | PLANNED | Compact WP Truth Bundle | - | audit | `roles_shared/scripts/lib/wp-truth-bundle-lib.mjs` | one command emits truth |",
@@ -81,4 +106,3 @@ test("repo governance board check accepts a clean planned tranche", () => {
   const result = validateRepoGovernanceBoard({ boardText: board, guideText: guide });
   assert.equal(result.ok, true);
 });
-

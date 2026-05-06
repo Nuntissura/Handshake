@@ -111,11 +111,12 @@ Default external repo-governance runtime root from a repo worktree: `../gov_runt
 Required review pairs:
 - `KICKOFF`: `VALIDATOR_KICKOFF` -> `CODER_INTENT`
 - `HANDOFF`: `CODER_HANDOFF` -> `VALIDATOR_REVIEW`
-- `VERDICT`: for `PACKET_FORMAT_VERSION >= 2026-03-22`, one direct coder <-> integration-validator review pair must exist before final verdict clearance
-- Before PASS commit clearance in the orchestrator-managed final lane, run `just phase-check CLOSEOUT WP-{ID}`. If it fails, final review is not closeout-ready: do not write partial closure truth, do not compensate with narrative repair, and fix the topology/runtime issue first.
+- `VERDICT`: final Integration Validator review uses the open whole-WP `CODER_HANDOFF`; run `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR <session>` before judging and resolving that correlation.
+- Before PASS commit clearance in the orchestrator-managed final lane, run `just phase-check CLOSEOUT WP-{ID}` after the final review/verdict response exists. If it fails, terminal closeout is not ready: do not write partial closure truth, do not compensate with narrative repair, and fix the topology/runtime issue first.
 
 Blocking rule:
 - If `just phase-check <STARTUP|HANDOFF|VERDICT|CLOSEOUT> WP-{ID} ...` or the underlying `just wp-communication-health-check WP-{ID} KICKOFF|HANDOFF|VERDICT` fails, treat the boundary as not proven. Do not compensate with narrative relay or manual interpretation.
+- CX-218K: before using repair, steer, relay, handoff, or closeout commands to respond to a stall, handoff delay, documentation/protocol drift, or session/ACP ambiguity, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift. Then use the cheapest deterministic read or typed helper.
 
 ## Session-Control Repair Playbook (Shared)
 

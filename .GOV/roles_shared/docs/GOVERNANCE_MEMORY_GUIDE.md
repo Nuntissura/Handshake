@@ -21,6 +21,7 @@ Injected memory is advisory. If memory conflicts with the packet, receipts, runt
 ## Required Role Habits
 
 - Open a repomem session before governed mutation: `just repomem open "<purpose>" --role ROLE [--wp WP-{ID}]`.
+- Repomem session markers are role/WP-scoped for parallel ACP work. Keep using `--role` and `--wp` on WP-bound role memory commands; governed role sessions also receive `HANDSHAKE_ROLE` and `WP_ID` so follow-up checkpoints can resolve their own lane without closing another role.
 - Capture tool failures immediately: `just memory-capture procedural "<what failed and the fix>" --role ROLE [--wp WP-{ID}]`.
 - Close sessions with both substantive content and `--decisions`.
 - Use `just memory-search "<query>"` for full detail when startup injection surfaces only a summary.

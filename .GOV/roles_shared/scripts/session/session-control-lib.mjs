@@ -1083,7 +1083,7 @@ export function buildStartupInjectionLines({
       maxLines: STARTUP_CONVERSATION_PROMPT_MAX_LINES,
     },
   );
-  const nudgeLines = drainStartupNudgeLines({ role, wpId });
+  const nudgeLines = drainTurnBoundaryNudgeLines({ role, wpId, boundary: "startup" });
 
   if (resolvedStartupMemoryLines.length === 0 && resolvedConversationLines.length === 0 && nudgeLines.length === 0) {
     return [];
@@ -1100,16 +1100,17 @@ export function buildStartupInjectionLines({
   return lines;
 }
 
-function drainStartupNudgeLines({ role = "", wpId = "" } = {}) {
+function drainTurnBoundaryNudgeLines({ role = "", wpId = "", boundary = "turn" } = {}) {
   const normalizedRole = String(role || "").trim().toUpperCase();
   const normalizedWpId = String(wpId || "").trim();
   if (!normalizedRole || !normalizedWpId || normalizedRole === "ORCHESTRATOR") return [];
   const sessionId = sessionKey(normalizedRole, normalizedWpId);
+  const normalizedBoundary = String(boundary || "turn").trim().toLowerCase() || "turn";
   try {
     const drained = drainNudges({
       sessionId,
       wpId: normalizedWpId,
-      drainerId: `startup:${normalizedRole}:${normalizedWpId}`,
+      drainerId: `${normalizedBoundary}:${normalizedRole}:${normalizedWpId}`,
     });
     if (!drained.nudges.length && !drained.orphansRecovered && !drained.expired) return [];
     const lines = [
@@ -1202,6 +1203,7 @@ export function buildInlineStartupPrompt({
     ),
     `MINIMAL LIVE READ SET (MANDATORY): After startup and assignment, work from startup output + active packet + active WP thread/notifications + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md when command choice is unclear.`,
     `STARTUP BRIEF (OPERATIONAL MEMORY): each role startup prints .GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md plus the role-specific STARTUP_BRIEF under that role's docs folder. Treat those cards as Memory-Manager-curated anti-repeat guidance, not protocol authority.`,
+    `MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper. For ORCHESTRATOR_MANAGED, use .GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md.`,
     `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${contextDigestCommand} instead of rereading ${contextDigestSurface} surfaces separately.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
     `HOST_LOAD_STANCE (HARD): Treat operator-owned downloads and other external host processes as out of scope. Do not inspect, cancel, kill, throttle, or otherwise touch them. Before starting heavy validation/build commands (cargo test, cargo clippy, broad pnpm test, full builds), check packet WAIVERS GRANTED and current Orchestrator/Operator instructions. If an active host-load waiver covers the command, record NOT_RUN_WAIVED or deferred evidence with the waiver ID instead of launching the heavy command. If no waiver covers it and the command is required, escalate to the Orchestrator rather than surprising the host.`,
@@ -1348,7 +1350,8 @@ export function buildInlineStartupPrompt({
       `FINAL-LANE STARTUP ORDER (HARD): Before any repo search, packet rediscovery, or broad .GOV inspection, complete \`${roleStartupCommand("INTEGRATION_VALIDATOR")}\` -> \`${roleNextCommand("INTEGRATION_VALIDATOR", wpId)}\` -> \`just integration-validator-context-brief ${wpId}\`, then treat the emitted \`packet_read_path\` and \`prepare_worktree_dir\` as the authoritative readable pointers.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
-      `VERDICT COMMUNICATION (MANDATORY): The Integration Validator does NOT communicate directly with the Coder. Judge the complete work product against the master spec independently. On PASS: write verdict in packet, run validator-gate-append/commit, update task board, merge to main, run sync-gov-to-main. On FAIL: write a structured remediation report in the packet with specific fix instructions, then report to the Orchestrator via \`just wp-receipt-append ${wpId} INTEGRATION_VALIDATOR <your-session> STATUS "<FAIL summary with remediation instructions given>"\`. The Orchestrator handles relaunching the coder with remediation context. See .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md for the full FAIL remediation flow.`,
+      `VERDICT COMMUNICATION (MANDATORY): The Integration Validator does not steer the Coder directly. Judge the complete work product against the master spec independently; a final handoff review receipt may target the coder session only to resolve the open handoff correlation mechanically. On PASS: write verdict in packet, run validator-gate-append/commit, update task board, merge to main, run sync-gov-to-main. On FAIL: write a structured remediation report in the packet with specific fix instructions, then report to the Orchestrator via \`just wp-receipt-append ${wpId} INTEGRATION_VALIDATOR <your-session> STATUS "<FAIL summary with remediation instructions given>"\`. The Orchestrator handles relaunching the coder with remediation context. See .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md for the full FAIL remediation flow.`,
+      `FINAL HANDOFF ROUTE (HARD): If DIRECT_ROLE_MESSAGE/SOURCE_KIND is CODER_HANDOFF, do not use \`phase-check CLOSEOUT\` as the first action. Run \`just phase-check VERDICT ${wpId} INTEGRATION_VALIDATOR <your-session>\`; if it passes, review the candidate and emit the validator review receipt that preserves the handoff correlation/ack_for. \`phase-check CLOSEOUT\` is terminal closeout/merge-readiness proof after the final review response or verdict, not a substitute for answering the handoff.`,
       `STARTUP MESH (MANDATORY): Before entering the final review lane, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `FINAL-LANE CONTEXT (MANDATORY): Use \`just integration-validator-context-brief ${wpId}\` as the canonical authority/path/context bundle for this lane instead of rebuilding branch/worktree/session/main-compatibility truth manually.`,
       `CONTRACT GATE (HARD): Before PASS clearance, \`${contractGateCommand}\` must pass.`,
@@ -1406,11 +1409,6 @@ export function buildInlineStartupPrompt({
   const inboxLines = [];
   if (role === "CODER" || role === "WP_VALIDATOR" || role === "INTEGRATION_VALIDATOR" || role === "VALIDATOR") {
     try {
-      const runtimeStatusPath = repoPathAbs(
-        `${GOV_ROOT_ABS.replace(/\\/g, "/").replace(/.*\.GOV$/i, ".GOV")}/../gov_runtime/roles_shared/WP_COMMUNICATIONS/${wpId}/RUNTIME_STATUS.json`
-          .replace(/^\.GOV\/\.\.\//, "")
-      );
-      // Try the canonical comm path from the packet if available.
       const packetInfo = resolveWorkPacketPath(wpId);
       let runtimeStatus = null;
       if (packetInfo?.packetAbsPath && fs.existsSync(packetInfo.packetAbsPath)) {
@@ -1471,10 +1469,12 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   }
   const repomemOpenCommand = roleRepomemOpenCommand(role, wpId);
   const executableNext = executableNextCommand(role, wpId, resolvedRoleConfig);
+  const turnBoundaryNudgeLines = drainTurnBoundaryNudgeLines({ role, wpId, boundary: "steer" });
   if (role === "MEMORY_MANAGER") {
     return [
       `RESUME GOVERNED ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      ...turnBoundaryNudgeLines,
       `Use gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md + .GOV/roles/memory_manager/proposals/ + synthetic WP communication files under WP_COMMUNICATIONS/${wpId} as the live truth surface. There is no official packet for this lane.`,
       `REPOMEM EXCEPTION: this synthetic hygiene lane is not a normal WP coverage target; if mutation is needed and no Memory Manager session is open, run ${repomemOpenCommand}.`,
       `Run in order:`,
@@ -1490,6 +1490,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     return [
       `RESUME MANUAL_RELAY ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      ...turnBoundaryNudgeLines,
       `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable run notes.`,
       `Use packet + runtime projection + task board + WP communications as live truth. Do not convert this manual lane into autonomous ORCHESTRATOR_MANAGED steering.`,
       `If route/context feels fragmented, use \`just manual-relay-next ${wpId}\` before dispatching or updating status.`,
@@ -1505,6 +1506,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     return [
       `RESUME MANUAL_RELAY ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      ...turnBoundaryNudgeLines,
       `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable validation notes.`,
       `Operator is the relay for this lane. Do not assume autonomous split-validator steering unless the packet explicitly declares ORCHESTRATOR_MANAGED.`,
       `Use packet + active WP thread/notifications + current runtime projection + \`just external-validator-brief ${wpId}\` as the live truth surface. Do not reread large governance documents if context is already stable.`,
@@ -1537,6 +1539,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   return [
     `RESUME GOVERNED ${role} lane for ${wpId}.`,
     `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+    ...turnBoundaryNudgeLines,
     `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable run notes instead of live dossier narration.`,
     `Use ${role === "ACTIVATION_MANAGER" ? "refinement + packet (if present) + activation readiness artifact + current runtime/session projection" : "packet + active WP thread/notifications + current runtime projection"} as the live truth surface. Do not reread large governance documents if context is already stable.`,
     `If route/context feels fragmented, use ${role === "ACTIVATION_MANAGER" ? `just activation-manager next ${wpId}` : `just active-lane-brief ${role} ${wpId}`} instead of rediscovering ${role === "ACTIVATION_MANAGER" ? "refinement/packet/runtime truth" : "packet/runtime/session truth"} manually.`,
@@ -1593,10 +1596,13 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
       : null,
     // Auto-relay communication instructions per role [CX-503C]
     role === "WP_VALIDATOR"
-      ? `AUTO-RELAY: When you finish reviewing a microtask, send your response back to the coder via wp-review-response. The target_session must exactly match the open review item's opened_by_session/actor_session; do not synthesize CODER:${wpId} if the open review shows another session string. Example shape: just wp-review-response ${wpId} WP_VALIDATOR <your-actor-session> CODER <open-review-opened_by_session> '<MT-NNN PASS or STEER: findings>'. This triggers the auto-relay to dispatch your response to the coder session.`
+      ? `AUTO-RELAY: First inspect active-lane-brief route truth. If waiting_on=WP_VALIDATOR_INTENT_CHECKPOINT or route_anchor_kind=VALIDATOR_RESPONSE, clear CODER_INTENT with wp-validator-response. For actual open REVIEW_REQUEST/CODER_HANDOFF review items, send your response via wp-review-response. The target_session must exactly match the open review item's opened_by_session/actor_session; do not synthesize CODER:${wpId} if the open review shows another session string. Example shape for review items: just wp-review-response ${wpId} WP_VALIDATOR <your-actor-session> CODER <open-review-opened_by_session> '<MT-NNN PASS or STEER: findings>'. This triggers the auto-relay to dispatch your response to the coder session.`
       : null,
     role === "CODER"
-      ? `AUTO-RELAY: After committing each microtask, a git hook will automatically fire wp-review-request to the validator. If the hook does not fire, run manually with your actual receipt actor_session from active-lane-brief/check-notifications and the validator target_session shown in the current send-mt prompt: just wp-review-request ${wpId} CODER <your-actor-session> WP_VALIDATOR <validator-target-session> '<MT-NNN complete: summary>'. Then STOP and wait for the validator's response.`
+      ? `AUTO-RELAY: Commit each microtask with the exact subject shape \`feat: MT-NNN <description>\`; the post-commit hook fires wp-review-request only for that subject. Subjects like \`fix: ...\` or missing MT ids are ignored and will not auto-relay. If a valid committed MT still does not create a REVIEW_REQUEST, run manually with your actual receipt actor_session from active-lane-brief/check-notifications and the validator target_session shown in the current send-mt prompt: just wp-review-request ${wpId} CODER <your-actor-session> WP_VALIDATOR <validator-target-session> '<MT-NNN complete: summary>'. Keep that command-line summary short and avoid raw quoted error strings that can spill into optional positional fields. Then STOP and wait for the validator's response.`
+      : null,
+    role === "CODER"
+      ? `CODER HANDOFF ROUTE (HARD): If runtime or DIRECT_ROLE_MESSAGE shows a VALIDATOR_RESPONSE / CODER_INTENT PASS and waiting_on=CODER_HANDOFF, acknowledging the notification is not the governed action. After ack, implement only the cleared MT, commit it, and emit the required review/handoff receipt. Stop only after that handoff or a concrete blocker.`
       : null,
   ].filter(Boolean).join("\n");
 }
