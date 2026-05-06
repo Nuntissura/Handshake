@@ -114,7 +114,7 @@ impl ControlPlaneStorageConfig {
             None if non_empty(database_url).is_some_and(is_postgres_url) => {
                 ControlPlaneStorageMode::PostgresPrimary
             }
-            None => ControlPlaneStorageMode::SqliteCache,
+            None => ControlPlaneStorageMode::PostgresPrimary,
         };
 
         let database_url = match mode {

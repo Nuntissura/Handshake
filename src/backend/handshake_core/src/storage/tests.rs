@@ -3431,6 +3431,21 @@ fn storage_mode_defaults_to_postgres_primary_when_required() -> StorageResult<()
     Ok(())
 }
 
+#[test]
+fn storage_mode_fails_closed_when_postgres_required_without_url() {
+    for requires_postgres in [Some("true"), None] {
+        let err =
+            ControlPlaneStorageConfig::resolve(None, requires_postgres, None).unwrap_err();
+
+        match err {
+            StorageError::Validation(message) => {
+                assert_eq!(message, "postgres_primary requires DATABASE_URL");
+            }
+            other => panic!("expected validation error, got {other:?}"),
+        }
+    }
+}
+
 #[tokio::test]
 async fn database_trait_purity_capability_snapshot_reports_postgres() -> StorageResult<()> {
     if postgres_test_url().is_none() {
