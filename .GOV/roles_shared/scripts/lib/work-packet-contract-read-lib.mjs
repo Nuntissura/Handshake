@@ -56,6 +56,33 @@ function splitList(value = "") {
     .filter(Boolean);
 }
 
+function normalizeListValues(values = []) {
+  return Array.from(new Set(
+    (Array.isArray(values) ? values : splitList(values))
+      .map((entry) => String(entry || "").trim().replace(/^`|`$/g, ""))
+      .filter(Boolean),
+  ));
+}
+
+function formatProjectionField(label, value) {
+  const normalized = String(value ?? "").trim();
+  return normalized ? `- ${label}: ${normalized}` : "";
+}
+
+function formatProjectionList(label, values = []) {
+  const normalizedValues = normalizeListValues(values);
+  if (normalizedValues.length === 0) return "";
+  return [
+    `- ${label}:`,
+    ...normalizedValues.map((entry) => `  - ${entry}`),
+  ].join("\n");
+}
+
+function appendIfPresent(lines, value) {
+  const normalized = String(value || "").trimEnd();
+  if (normalized) lines.push(normalized);
+}
+
 function normalizeBaseWpId(value = "", wpId = "") {
   const raw = String(value || "").replace(/\s*\(.*/, "").trim();
   const candidate = raw || wpId || "";
@@ -309,6 +336,82 @@ export function buildWorkPacketCommunicationView(wpId) {
     mainContainmentStatus: lifecycle.main_containment_status || parsePacketSingleField(packetText, "MAIN_CONTAINMENT_STATUS"),
     currentMainCompatibilityStatus: lifecycle.current_main_compatibility_status || parsePacketSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS"),
     riskTier: lifecycle.risk_tier || parsePacketSingleField(packetText, "RISK_TIER"),
+  };
+}
+
+export function buildContractDerivedPacketProjectionText({ contract = null, packetText = "", source = "" } = {}) {
+  const normalizedContract = contract && typeof contract === "object" ? contract : {};
+  const workflow = normalizedContract.workflow || {};
+  const lifecycle = normalizedContract.lifecycle || {};
+  const sourceControl = normalizedContract.source_control || {};
+  const scope = normalizedContract.scope || {};
+  const authorityFiles = normalizedContract.authority_files || {};
+  const projection = normalizedContract.markdown_projection || {};
+  const lines = [
+    `# Contract-Derived Packet Projection: ${normalizedContract.wp_id || "<unknown>"}`,
+    "",
+    "<!-- CONTRACT_DERIVED_PACKET_PROJECTION: generated in-memory for legacy evaluator compatibility; do not persist as authority. -->",
+    "",
+  ];
+
+  appendIfPresent(lines, formatProjectionField("WP_ID", normalizedContract.wp_id));
+  appendIfPresent(lines, formatProjectionField("BASE_WP_ID", normalizedContract.base_wp_id));
+  appendIfPresent(lines, formatProjectionField("Status", lifecycle.status));
+  appendIfPresent(lines, formatProjectionField("WORKFLOW_LANE", workflow.lane));
+  appendIfPresent(lines, formatProjectionField("WORKFLOW_AUTHORITY", workflow.authority));
+  appendIfPresent(lines, formatProjectionField("EXECUTION_OWNER", workflow.execution_owner));
+  appendIfPresent(lines, formatProjectionField("SESSION_START_AUTHORITY", workflow.session_start_authority));
+  appendIfPresent(lines, formatProjectionField("WP_COMMUNICATION_DIR", workflow.communication_dir));
+  appendIfPresent(lines, formatProjectionField("WP_THREAD_FILE", workflow.thread_file));
+  appendIfPresent(lines, formatProjectionField("WP_RUNTIME_STATUS_FILE", workflow.runtime_status_file));
+  appendIfPresent(lines, formatProjectionField("WP_RECEIPTS_FILE", workflow.receipts_file));
+  appendIfPresent(lines, formatProjectionField("WP_NOTIFICATIONS_FILE", workflow.notifications_file));
+  appendIfPresent(lines, formatProjectionField("COMMUNICATION_CONTRACT", workflow.communication_contract));
+  appendIfPresent(lines, formatProjectionField("COMMUNICATION_HEALTH_GATE", workflow.communication_health_gate));
+  appendIfPresent(lines, formatProjectionField("LOCAL_BRANCH", sourceControl.work_branch));
+  appendIfPresent(lines, formatProjectionField("LOCAL_WORKTREE_DIR", sourceControl.worktree_dir));
+  appendIfPresent(lines, formatProjectionField("REMOTE_BACKUP_BRANCH", sourceControl.remote_backup_branch));
+  appendIfPresent(lines, formatProjectionField("REMOTE_BACKUP_URL", sourceControl.remote_backup_url));
+  appendIfPresent(lines, formatProjectionField("BACKUP_PUSH_STATUS", sourceControl.backup_push_status));
+  appendIfPresent(lines, formatProjectionField("USER_SIGNATURE", lifecycle.user_signature));
+  appendIfPresent(lines, formatProjectionField("PACKET_FORMAT_VERSION", lifecycle.packet_format_version));
+  appendIfPresent(lines, formatProjectionField("MAIN_CONTAINMENT_STATUS", lifecycle.main_containment_status));
+  appendIfPresent(lines, formatProjectionField("CURRENT_MAIN_COMPATIBILITY_STATUS", lifecycle.current_main_compatibility_status));
+  appendIfPresent(lines, formatProjectionField("CURRENT_WP_STATUS", lifecycle.current_wp_status));
+  appendIfPresent(lines, formatProjectionField("RISK_TIER", lifecycle.risk_tier));
+  appendIfPresent(lines, formatProjectionField("AUTHORITATIVE_CONTRACT_FILE", authorityFiles.packet_contract));
+  appendIfPresent(lines, formatProjectionField("MARKDOWN_PROJECTION_FILE", projection.path || authorityFiles.packet_projection));
+  appendIfPresent(lines, formatProjectionField("CONTRACT_SOURCE", source || normalizedContract.contract_authority || ""));
+  appendIfPresent(lines, formatProjectionList("IN_SCOPE_PATHS", scope.allowed_paths || []));
+  appendIfPresent(lines, formatProjectionList("OUT_OF_SCOPE", scope.forbidden_paths || []));
+  appendIfPresent(lines, formatProjectionList("SPEC_ANCHOR", scope.spec_anchors || []));
+  appendIfPresent(lines, formatProjectionList("ACCEPTANCE_CRITERIA", scope.acceptance_criteria || []));
+
+  const legacyText = stripGeneratedProjectionHeader(packetText);
+  if (legacyText.trim()) {
+    lines.push("");
+    lines.push("## LEGACY_PACKET_PROJECTION_FALLBACK");
+    lines.push("");
+    lines.push(legacyText.trimEnd());
+  }
+
+  return `${lines.filter((line) => line !== null && line !== undefined).join("\n")}\n`;
+}
+
+export function buildWorkPacketEvaluatorView(wpId) {
+  const communicationView = buildWorkPacketCommunicationView(wpId);
+  if (!communicationView.ok) return communicationView;
+  const packetText = buildContractDerivedPacketProjectionText({
+    contract: communicationView.contract,
+    packetText: communicationView.packetText,
+    source: communicationView.source,
+  });
+  return {
+    ...communicationView,
+    packetText,
+    legacyPacketText: communicationView.packetText,
+    contractDerivedPacketText: packetText,
+    contractSource: communicationView.source,
   };
 }
 

@@ -20,6 +20,7 @@ import { readWpTokenUsageLedger } from "../session/wp-token-usage-lib.mjs";
 import { evaluateWpRepomemCoverage } from "../memory/repomem-coverage-lib.mjs";
 import { resolveValidatorGatePath } from "./validator-gate-paths.mjs";
 import { readTerminalCloseoutRecord } from "./terminal-closeout-record-lib.mjs";
+import { buildWorkPacketEvaluatorView } from "./work-packet-contract-read-lib.mjs";
 
 export const WP_TRUTH_BUNDLE_SCHEMA_ID = "hsk.wp_truth_bundle@1";
 export const WP_TRUTH_BUNDLE_SCHEMA_VERSION = "wp_truth_bundle_v1";
@@ -199,9 +200,10 @@ export function buildWpTruthBundle({
   }
 
   const resolvedPacket = resolveWorkPacketPath(normalizedWpId);
-  const packetPath = resolvedPacket?.packetPath || "";
-  const packetAbsPath = resolvedPacket?.packetAbsPath || "";
-  const hasPacket = packetText !== null || (packetAbsPath && fs.existsSync(packetAbsPath));
+  const packetView = packetText === null ? buildWorkPacketEvaluatorView(normalizedWpId) : null;
+  const packetPath = packetView?.packetPath || resolvedPacket?.packetPath || "";
+  const packetAbsPath = packetView?.packetAbsPath || resolvedPacket?.packetAbsPath || "";
+  const hasPacket = packetText !== null || Boolean(packetView?.ok) || (packetAbsPath && fs.existsSync(packetAbsPath));
   if (!hasPacket) {
     return {
       ok: false,
@@ -210,10 +212,10 @@ export function buildWpTruthBundle({
     };
   }
 
-  const text = packetText !== null ? String(packetText || "") : fs.readFileSync(packetAbsPath, "utf8");
-  const runtimePath = parseSingleField(text, "WP_RUNTIME_STATUS_FILE");
-  const receiptsPath = parseSingleField(text, "WP_RECEIPTS_FILE");
-  const notificationsPath = parseSingleField(text, "WP_NOTIFICATIONS_FILE");
+  const text = packetText !== null ? String(packetText || "") : (packetView?.packetText || fs.readFileSync(packetAbsPath, "utf8"));
+  const runtimePath = packetView?.runtimeStatusFile || parseSingleField(text, "WP_RUNTIME_STATUS_FILE");
+  const receiptsPath = packetView?.receiptsFile || parseSingleField(text, "WP_RECEIPTS_FILE");
+  const notificationsPath = packetView?.notificationsFile || parseSingleField(text, "WP_NOTIFICATIONS_FILE");
   const runtime = runtimeStatus !== null ? (runtimeStatus || {}) : safeReadJson(runtimePath, {});
   const resolvedReceipts = receipts !== null ? receipts : safeReadJsonl(receiptsPath);
   const resolvedNotifications = notifications !== null ? notifications : safeReadJsonl(notificationsPath);
@@ -263,6 +265,8 @@ export function buildWpTruthBundle({
     generated_at_utc: timestamp,
     wp_id: normalizedWpId,
     packet_path: packetPath,
+    packet_contract_source: packetView?.contractSource || (packetText !== null ? "INJECTED_PACKET_TEXT" : "LEGACY_PROJECTION"),
+    packet_contract_authority: packetView?.contract?.contract_authority || null,
     packet_status: parseSingleField(text, "Status") || projection.current_packet_status || "UNKNOWN",
     runtime_status: normalizeText(runtime?.runtime_status || "UNKNOWN"),
     task_board_status: boardStatus,

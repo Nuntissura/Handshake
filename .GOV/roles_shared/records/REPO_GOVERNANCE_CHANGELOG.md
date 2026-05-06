@@ -21,6 +21,14 @@
 
 ## Entries
 
+### 2026.05.06.35 / GOV-CHANGE-20260506-35
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Advanced RGF-288 by adding a contract-derived packet evaluator view and migrating downstream evaluator paths away from requiring raw packet Markdown. WP mechanical MT validation now resolves packet communications, worktree, branch, and scope from `packet.json` first, and WP truth bundles consume the contract-derived evaluator view before Markdown projection fallback.
+- Contract impact: Legacy packet text remains available only as fallback compatibility. Evaluators that still parse Markdown can now receive deterministic in-memory projection text generated from the primary machine-readable contract, reducing dependence on stale operator-facing packet Markdown.
+- Files changed: `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`, `.GOV/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs`, `.GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, and regenerated `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` after validation sync.
+- Verification: PENDING. Run `just gov-check --sync-topology`, then `just gov-check`.
 ### 2026.05.06.34 / GOV-CHANGE-20260506-34
 
 - Status: RECORDED
@@ -5165,5 +5173,6 @@
 - FOLLOW_ON_ITEMS:
   - improve session-control fallback semantics so explicit `FALLBACK` can supersede a packet-declared primary profile without hand-editing the active packet
 - OUTCOME: `RGF-278` is implemented; the active packet now supersedes the Spark Coder waiver and records GPT-5.5 extra-high as the active Coder profile for this WP while Spark is unavailable.
+
 
 
