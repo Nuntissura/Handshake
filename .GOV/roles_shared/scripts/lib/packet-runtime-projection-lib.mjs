@@ -17,6 +17,10 @@ function parseSingleField(text, label) {
   return match ? match[1].trim() : "";
 }
 
+function isContractLike(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
 function normalizeDeclaredSessionValue(value) {
   const raw = String(value || "").trim();
   if (!raw || /^(<unassigned>|NONE|N\/A|NA|NULL)$/i.test(raw)) return null;
@@ -32,6 +36,25 @@ function normalizeNoneLike(value) {
 }
 
 export function parseRuntimeProjectionFromPacket(packetText) {
+  if (isContractLike(packetText)) {
+    const lifecycle = packetText.lifecycle || {};
+    const compatibility = parseSignedScopeCompatibilityTruth(packetText);
+    const currentPacketStatus = String(lifecycle.status || "").trim();
+    return {
+      current_packet_status: currentPacketStatus,
+      current_task_board_status: taskBoardStatusForPacketStatus(currentPacketStatus),
+      wp_validator_of_record: normalizeDeclaredSessionValue(lifecycle.wp_validator_of_record),
+      integration_validator_of_record: normalizeDeclaredSessionValue(lifecycle.integration_validator_of_record),
+      main_containment_status: normalizeNoneLike(lifecycle.main_containment_status),
+      merged_main_commit: normalizeNoneLike(lifecycle.merged_main_commit),
+      main_containment_verified_at_utc: normalizeNoneLike(lifecycle.main_containment_verified_at_utc),
+      current_main_compatibility_status: normalizeNoneLike(compatibility.currentMainCompatibilityStatus),
+      current_main_compatibility_baseline_sha: normalizeNoneLike(compatibility.currentMainCompatibilityBaselineSha),
+      current_main_compatibility_verified_at_utc: normalizeNoneLike(compatibility.currentMainCompatibilityVerifiedAtUtc),
+      packet_widening_decision: normalizeNoneLike(compatibility.packetWideningDecision),
+      packet_widening_evidence: normalizeNoneLike(compatibility.packetWideningEvidence),
+    };
+  }
   const compatibility = parseSignedScopeCompatibilityTruth(packetText);
   const currentPacketStatus = parsePacketStatus(packetText);
   return {

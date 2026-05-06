@@ -69,6 +69,11 @@ function formatProjectionField(label, value) {
   return normalized ? `- ${label}: ${normalized}` : "";
 }
 
+function contractOrPacketField(value, packetText, label) {
+  const normalized = String(value ?? "").trim();
+  return normalized || parsePacketSingleField(packetText, label);
+}
+
 function formatProjectionList(label, values = []) {
   const normalizedValues = normalizeListValues(values);
   if (normalizedValues.length === 0) return "";
@@ -175,11 +180,19 @@ export function buildLegacyWorkPacketContract({ wpId, packetText = "", packetPat
     lifecycle: {
       status: parseStatus(packetText),
       main_containment_status: parsePacketSingleField(packetText, "MAIN_CONTAINMENT_STATUS"),
+      merged_main_commit: parsePacketSingleField(packetText, "MERGED_MAIN_COMMIT"),
+      main_containment_verified_at_utc: parsePacketSingleField(packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC"),
       current_main_compatibility_status: parsePacketSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS"),
+      current_main_compatibility_baseline_sha: parsePacketSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA"),
+      current_main_compatibility_verified_at_utc: parsePacketSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC"),
+      packet_widening_decision: parsePacketSingleField(packetText, "PACKET_WIDENING_DECISION"),
+      packet_widening_evidence: parsePacketSingleField(packetText, "PACKET_WIDENING_EVIDENCE"),
       current_wp_status: parsePacketSingleField(packetText, "CURRENT_WP_STATUS"),
       risk_tier: parsePacketSingleField(packetText, "RISK_TIER"),
       user_signature: parsePacketSingleField(packetText, "USER_SIGNATURE"),
       packet_format_version: parsePacketSingleField(packetText, "PACKET_FORMAT_VERSION"),
+      wp_validator_of_record: parsePacketSingleField(packetText, "WP_VALIDATOR_OF_RECORD"),
+      integration_validator_of_record: parsePacketSingleField(packetText, "INTEGRATION_VALIDATOR_OF_RECORD"),
     },
     authority_files: {
       packet_contract: packetDir ? path.posix.join(packetDir, "packet.json") : "",
@@ -335,7 +348,15 @@ export function buildWorkPacketCommunicationView(wpId) {
     packetStatus: lifecycle.status || parseStatus(packetText),
     mainContainmentStatus: lifecycle.main_containment_status || parsePacketSingleField(packetText, "MAIN_CONTAINMENT_STATUS"),
     currentMainCompatibilityStatus: lifecycle.current_main_compatibility_status || parsePacketSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS"),
+    currentMainCompatibilityBaselineSha: lifecycle.current_main_compatibility_baseline_sha || parsePacketSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA"),
+    currentMainCompatibilityVerifiedAtUtc: lifecycle.current_main_compatibility_verified_at_utc || parsePacketSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC"),
+    packetWideningDecision: lifecycle.packet_widening_decision || parsePacketSingleField(packetText, "PACKET_WIDENING_DECISION"),
+    packetWideningEvidence: lifecycle.packet_widening_evidence || parsePacketSingleField(packetText, "PACKET_WIDENING_EVIDENCE"),
     riskTier: lifecycle.risk_tier || parsePacketSingleField(packetText, "RISK_TIER"),
+    mainContainmentVerifiedAtUtc: lifecycle.main_containment_verified_at_utc || parsePacketSingleField(packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC"),
+    mergedMainCommit: lifecycle.merged_main_commit || parsePacketSingleField(packetText, "MERGED_MAIN_COMMIT"),
+    wpValidatorOfRecord: lifecycle.wp_validator_of_record || parsePacketSingleField(packetText, "WP_VALIDATOR_OF_RECORD"),
+    integrationValidatorOfRecord: lifecycle.integration_validator_of_record || parsePacketSingleField(packetText, "INTEGRATION_VALIDATOR_OF_RECORD"),
   };
 }
 
@@ -356,29 +377,37 @@ export function buildContractDerivedPacketProjectionText({ contract = null, pack
 
   appendIfPresent(lines, formatProjectionField("WP_ID", normalizedContract.wp_id));
   appendIfPresent(lines, formatProjectionField("BASE_WP_ID", normalizedContract.base_wp_id));
-  appendIfPresent(lines, formatProjectionField("Status", lifecycle.status));
-  appendIfPresent(lines, formatProjectionField("WORKFLOW_LANE", workflow.lane));
-  appendIfPresent(lines, formatProjectionField("WORKFLOW_AUTHORITY", workflow.authority));
-  appendIfPresent(lines, formatProjectionField("EXECUTION_OWNER", workflow.execution_owner));
-  appendIfPresent(lines, formatProjectionField("SESSION_START_AUTHORITY", workflow.session_start_authority));
-  appendIfPresent(lines, formatProjectionField("WP_COMMUNICATION_DIR", workflow.communication_dir));
-  appendIfPresent(lines, formatProjectionField("WP_THREAD_FILE", workflow.thread_file));
-  appendIfPresent(lines, formatProjectionField("WP_RUNTIME_STATUS_FILE", workflow.runtime_status_file));
-  appendIfPresent(lines, formatProjectionField("WP_RECEIPTS_FILE", workflow.receipts_file));
-  appendIfPresent(lines, formatProjectionField("WP_NOTIFICATIONS_FILE", workflow.notifications_file));
-  appendIfPresent(lines, formatProjectionField("COMMUNICATION_CONTRACT", workflow.communication_contract));
-  appendIfPresent(lines, formatProjectionField("COMMUNICATION_HEALTH_GATE", workflow.communication_health_gate));
-  appendIfPresent(lines, formatProjectionField("LOCAL_BRANCH", sourceControl.work_branch));
-  appendIfPresent(lines, formatProjectionField("LOCAL_WORKTREE_DIR", sourceControl.worktree_dir));
-  appendIfPresent(lines, formatProjectionField("REMOTE_BACKUP_BRANCH", sourceControl.remote_backup_branch));
-  appendIfPresent(lines, formatProjectionField("REMOTE_BACKUP_URL", sourceControl.remote_backup_url));
-  appendIfPresent(lines, formatProjectionField("BACKUP_PUSH_STATUS", sourceControl.backup_push_status));
-  appendIfPresent(lines, formatProjectionField("USER_SIGNATURE", lifecycle.user_signature));
-  appendIfPresent(lines, formatProjectionField("PACKET_FORMAT_VERSION", lifecycle.packet_format_version));
-  appendIfPresent(lines, formatProjectionField("MAIN_CONTAINMENT_STATUS", lifecycle.main_containment_status));
-  appendIfPresent(lines, formatProjectionField("CURRENT_MAIN_COMPATIBILITY_STATUS", lifecycle.current_main_compatibility_status));
-  appendIfPresent(lines, formatProjectionField("CURRENT_WP_STATUS", lifecycle.current_wp_status));
-  appendIfPresent(lines, formatProjectionField("RISK_TIER", lifecycle.risk_tier));
+  appendIfPresent(lines, formatProjectionField("Status", contractOrPacketField(lifecycle.status, packetText, "Status")));
+  appendIfPresent(lines, formatProjectionField("WORKFLOW_LANE", contractOrPacketField(workflow.lane, packetText, "WORKFLOW_LANE")));
+  appendIfPresent(lines, formatProjectionField("WORKFLOW_AUTHORITY", contractOrPacketField(workflow.authority, packetText, "WORKFLOW_AUTHORITY")));
+  appendIfPresent(lines, formatProjectionField("EXECUTION_OWNER", contractOrPacketField(workflow.execution_owner, packetText, "EXECUTION_OWNER")));
+  appendIfPresent(lines, formatProjectionField("SESSION_START_AUTHORITY", contractOrPacketField(workflow.session_start_authority, packetText, "SESSION_START_AUTHORITY")));
+  appendIfPresent(lines, formatProjectionField("WP_COMMUNICATION_DIR", contractOrPacketField(workflow.communication_dir, packetText, "WP_COMMUNICATION_DIR")));
+  appendIfPresent(lines, formatProjectionField("WP_THREAD_FILE", contractOrPacketField(workflow.thread_file, packetText, "WP_THREAD_FILE")));
+  appendIfPresent(lines, formatProjectionField("WP_RUNTIME_STATUS_FILE", contractOrPacketField(workflow.runtime_status_file, packetText, "WP_RUNTIME_STATUS_FILE")));
+  appendIfPresent(lines, formatProjectionField("WP_RECEIPTS_FILE", contractOrPacketField(workflow.receipts_file, packetText, "WP_RECEIPTS_FILE")));
+  appendIfPresent(lines, formatProjectionField("WP_NOTIFICATIONS_FILE", contractOrPacketField(workflow.notifications_file, packetText, "WP_NOTIFICATIONS_FILE")));
+  appendIfPresent(lines, formatProjectionField("COMMUNICATION_CONTRACT", contractOrPacketField(workflow.communication_contract, packetText, "COMMUNICATION_CONTRACT")));
+  appendIfPresent(lines, formatProjectionField("COMMUNICATION_HEALTH_GATE", contractOrPacketField(workflow.communication_health_gate, packetText, "COMMUNICATION_HEALTH_GATE")));
+  appendIfPresent(lines, formatProjectionField("LOCAL_BRANCH", contractOrPacketField(sourceControl.work_branch, packetText, "LOCAL_BRANCH")));
+  appendIfPresent(lines, formatProjectionField("LOCAL_WORKTREE_DIR", contractOrPacketField(sourceControl.worktree_dir, packetText, "LOCAL_WORKTREE_DIR")));
+  appendIfPresent(lines, formatProjectionField("REMOTE_BACKUP_BRANCH", contractOrPacketField(sourceControl.remote_backup_branch, packetText, "REMOTE_BACKUP_BRANCH")));
+  appendIfPresent(lines, formatProjectionField("REMOTE_BACKUP_URL", contractOrPacketField(sourceControl.remote_backup_url, packetText, "REMOTE_BACKUP_URL")));
+  appendIfPresent(lines, formatProjectionField("BACKUP_PUSH_STATUS", contractOrPacketField(sourceControl.backup_push_status, packetText, "BACKUP_PUSH_STATUS")));
+  appendIfPresent(lines, formatProjectionField("USER_SIGNATURE", contractOrPacketField(lifecycle.user_signature, packetText, "USER_SIGNATURE")));
+  appendIfPresent(lines, formatProjectionField("PACKET_FORMAT_VERSION", contractOrPacketField(lifecycle.packet_format_version, packetText, "PACKET_FORMAT_VERSION")));
+  appendIfPresent(lines, formatProjectionField("WP_VALIDATOR_OF_RECORD", contractOrPacketField(lifecycle.wp_validator_of_record, packetText, "WP_VALIDATOR_OF_RECORD")));
+  appendIfPresent(lines, formatProjectionField("INTEGRATION_VALIDATOR_OF_RECORD", contractOrPacketField(lifecycle.integration_validator_of_record, packetText, "INTEGRATION_VALIDATOR_OF_RECORD")));
+  appendIfPresent(lines, formatProjectionField("MAIN_CONTAINMENT_STATUS", contractOrPacketField(lifecycle.main_containment_status, packetText, "MAIN_CONTAINMENT_STATUS")));
+  appendIfPresent(lines, formatProjectionField("MERGED_MAIN_COMMIT", contractOrPacketField(lifecycle.merged_main_commit, packetText, "MERGED_MAIN_COMMIT")));
+  appendIfPresent(lines, formatProjectionField("MAIN_CONTAINMENT_VERIFIED_AT_UTC", contractOrPacketField(lifecycle.main_containment_verified_at_utc, packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC")));
+  appendIfPresent(lines, formatProjectionField("CURRENT_MAIN_COMPATIBILITY_STATUS", contractOrPacketField(lifecycle.current_main_compatibility_status, packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS")));
+  appendIfPresent(lines, formatProjectionField("CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA", contractOrPacketField(lifecycle.current_main_compatibility_baseline_sha, packetText, "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA")));
+  appendIfPresent(lines, formatProjectionField("CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC", contractOrPacketField(lifecycle.current_main_compatibility_verified_at_utc, packetText, "CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC")));
+  appendIfPresent(lines, formatProjectionField("PACKET_WIDENING_DECISION", contractOrPacketField(lifecycle.packet_widening_decision, packetText, "PACKET_WIDENING_DECISION")));
+  appendIfPresent(lines, formatProjectionField("PACKET_WIDENING_EVIDENCE", contractOrPacketField(lifecycle.packet_widening_evidence, packetText, "PACKET_WIDENING_EVIDENCE")));
+  appendIfPresent(lines, formatProjectionField("CURRENT_WP_STATUS", contractOrPacketField(lifecycle.current_wp_status, packetText, "CURRENT_WP_STATUS")));
+  appendIfPresent(lines, formatProjectionField("RISK_TIER", contractOrPacketField(lifecycle.risk_tier, packetText, "RISK_TIER")));
   appendIfPresent(lines, formatProjectionField("AUTHORITATIVE_CONTRACT_FILE", authorityFiles.packet_contract));
   appendIfPresent(lines, formatProjectionField("MARKDOWN_PROJECTION_FILE", projection.path || authorityFiles.packet_projection));
   appendIfPresent(lines, formatProjectionField("CONTRACT_SOURCE", source || normalizedContract.contract_authority || ""));

@@ -21,6 +21,14 @@
 
 ## Entries
 
+### 2026.05.06.36 / GOV-CHANGE-20260506-36
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Advanced RGF-288/RGF-286 by adding contract-native packet lifecycle parsing for signed-scope compatibility, merge-progression truth, and runtime projection evaluators. The WP truth bundle now uses primary `packet.json` lifecycle fields directly when the complete evaluator field set exists, otherwise it falls back to the generated compatibility projection rather than failing on older partial contracts.
+- Contract impact: `packet.json` lifecycle fields are now the preferred closeout/signed-scope evaluator authority for `MAIN_CONTAINMENT_*`, `MERGED_MAIN_COMMIT`, `CURRENT_MAIN_COMPATIBILITY_*`, `PACKET_WIDENING_*`, validator-of-record, and status projection data. Older contracts remain safe through explicit fallback until writer migration fills the complete lifecycle field set.
+- Files changed: `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`, `.GOV/roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs`, `.GOV/roles_shared/scripts/lib/merge-progression-truth-lib.mjs`, `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`, `.GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, and regenerated `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` after validation sync.
+- Verification: PENDING. Run `just gov-check --sync-topology`, then `just gov-check`.
 ### 2026.05.06.35 / GOV-CHANGE-20260506-35
 
 - Status: RECORDED
@@ -5173,6 +5181,7 @@
 - FOLLOW_ON_ITEMS:
   - improve session-control fallback semantics so explicit `FALLBACK` can supersede a packet-declared primary profile without hand-editing the active packet
 - OUTCOME: `RGF-278` is implemented; the active packet now supersedes the Spark Coder waiver and records GPT-5.5 extra-high as the active Coder profile for this WP while Spark is unavailable.
+
 
 
 
