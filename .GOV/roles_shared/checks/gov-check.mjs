@@ -6,6 +6,10 @@ import {
   recordCheckResult,
   runSubprocessCheckStep,
 } from "../scripts/lib/check-result-lib.mjs";
+import {
+  buildGovernanceTopology,
+  writeGovernanceTopology,
+} from "../scripts/lib/governance-topology-lib.mjs";
 
 function resolveRepoRoot() {
   const injectedRepoRoot = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
@@ -32,6 +36,10 @@ function resolveRepoRoot() {
 const currentFileDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(resolveRepoRoot());
 const verboseMode = process.argv.includes("--verbose");
+const listMode = process.argv.includes("--list");
+const dryRunMode = process.argv.includes("--dry-run");
+const jsonMode = process.argv.includes("--json");
+const syncTopologyMode = process.argv.includes("--sync-topology");
 
 if (!String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim()) {
   process.env.HANDSHAKE_ACTIVE_REPO_ROOT = repoRoot;
@@ -64,27 +72,30 @@ function printRecorded(recorded) {
 // Bundled checks [RGF-194] run sub-checks as child processes and collect ALL failures.
 // 6 bundles replace 24 individual imports; 8 standalone checks remain (unique purpose, no natural grouping).
 const checkSteps = [
-  ["spec-current-check", "../scripts/spec-current-check.mjs"],
-  ["spec-bundle-check", "./spec-bundle-check.mjs"],
-  ["atelier_role_registry_check", "./atelier_role_registry_check.mjs"],
-  ["validator-report-structure-check", "../../roles/validator/checks/validator-report-structure-check.mjs"],
-  ["packet-truth-bundle-check", "./packet-truth-bundle-check.mjs"],
-  ["semantic-proof-check", "./semantic-proof-check.mjs"],
-  ["computed-policy-gate-check", "./computed-policy-gate-check.mjs"],
-  ["historical-smoketest-lineage-check", "./historical-smoketest-lineage-check.mjs"],
-  ["build-order-check", "./build-order-check.mjs"],
-  ["repo-governance-board-check", "./repo-governance-board-check.mjs"],
-  ["wp-comm-bundle-check", "./wp-comm-bundle-check.mjs"],
-  ["session-bundle-check", "./session-bundle-check.mjs"],
-  ["cache-stability-check", "./cache-stability-check.mjs"],
-  ["verb-coverage-check", "./verb-coverage-check.mjs"],
-  ["governance-structure-bundle-check", "./governance-structure-bundle-check.mjs"],
-  ["topology-bundle-check", "./topology-bundle-check.mjs"],
-  ["phase1-add-coverage-check", "./phase1-add-coverage-check.mjs"],
-  ["memory-health-check", "./memory-health-check.mjs"],
-].map(([check, relativePath]) => ({
+  ["spec-current-check", "../scripts/spec-current-check.mjs", "SPEC"],
+  ["spec-bundle-check", "./spec-bundle-check.mjs", "SPEC"],
+  ["atelier_role_registry_check", "./atelier_role_registry_check.mjs", "GOVERNANCE_STRUCTURE"],
+  ["validator-report-structure-check", "../../roles/validator/checks/validator-report-structure-check.mjs", "VALIDATION"],
+  ["packet-truth-bundle-check", "./packet-truth-bundle-check.mjs", "WORK_PACKET"],
+  ["semantic-proof-check", "./semantic-proof-check.mjs", "GOVERNANCE_STRUCTURE"],
+  ["computed-policy-gate-check", "./computed-policy-gate-check.mjs", "GOVERNANCE_STRUCTURE"],
+  ["historical-smoketest-lineage-check", "./historical-smoketest-lineage-check.mjs", "AUDIT"],
+  ["build-order-check", "./build-order-check.mjs", "WORK_PACKET"],
+  ["repo-governance-board-check", "./repo-governance-board-check.mjs", "GOVERNANCE_RECORDS"],
+  ["wp-comm-bundle-check", "./wp-comm-bundle-check.mjs", "WORK_PACKET_COMMUNICATION"],
+  ["session-bundle-check", "./session-bundle-check.mjs", "SESSION_CONTROL"],
+  ["cache-stability-check", "./cache-stability-check.mjs", "CACHE"],
+  ["verb-coverage-check", "./verb-coverage-check.mjs", "CONTRACT_COVERAGE"],
+  ["governance-structure-bundle-check", "./governance-structure-bundle-check.mjs", "GOVERNANCE_STRUCTURE"],
+  ["topology-bundle-check", "./topology-bundle-check.mjs", "TOPOLOGY"],
+  ["phase1-add-coverage-check", "./phase1-add-coverage-check.mjs", "COVERAGE"],
+  ["memory-health-check", "./memory-health-check.mjs", "MEMORY"],
+].map(([check, relativePath, phase]) => ({
   check,
   scriptPath: checkScript(relativePath),
+  phase,
+  ownerRole: "SHARED",
+  sideEffectClass: "READ_ONLY_OR_DIAGNOSTIC",
 }));
 
 const env = {
@@ -94,10 +105,41 @@ const env = {
 };
 
 const failures = [];
+
+if (syncTopologyMode) {
+  const topologyPath = writeGovernanceTopology(buildGovernanceTopology());
+  console.log(`governance-topology-sync ok: ${topologyPath}`);
+}
+
+if (listMode || dryRunMode) {
+  const plan = {
+    schema_id: "handshake.gov.gov_check_plan",
+    schema_version: "gov_check_plan_v1",
+    runner: "gov-check",
+    dry_run: dryRunMode,
+    checks: checkSteps.map((step) => ({
+      check: step.check,
+      phase: step.phase,
+      script_path: step.scriptPath,
+      owner_role: step.ownerRole,
+      side_effect_class: step.sideEffectClass,
+    })),
+  };
+  console.log(JSON.stringify(plan, null, 2));
+  if (dryRunMode) process.exit(0);
+}
+
 for (const step of checkSteps) {
   const result = runSubprocessCheckStep({
     check: step.check,
     scriptPath: step.scriptPath,
+    phase: step.phase,
+    bundle: "gov-check",
+    ownerRole: step.ownerRole,
+    sideEffectClass: step.sideEffectClass,
+    invariant: `${step.check} must pass inside gov-check phase bundle`,
+    remediationHint: "Run just gov-check --verbose, inspect check_details.jsonl, and inspect the structured failure dossier row.",
+    relatedTopologyRows: [`file:${path.relative(repoRoot, step.scriptPath).replace(/\\/g, "/")}`],
     cwd: checkCwd,
     env,
   });
@@ -170,5 +212,14 @@ const finalResult = recordCheckResult({
   },
 });
 printRecorded(finalResult);
+if (jsonMode) {
+  console.log(JSON.stringify({
+    schema_id: "handshake.gov.gov_check_result",
+    schema_version: "gov_check_result_v1",
+    verdict: failures.length === 0 ? "OK" : "FAIL",
+    total_checks: checkSteps.length,
+    failed_checks: failures,
+  }, null, 2));
+}
 
 process.exit(failures.length === 0 ? 0 : 1);

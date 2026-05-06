@@ -10,6 +10,7 @@
  *   - runtime-placement-check.mjs
  *   - role-worktree-surface-check.mjs
  *   - topology-registry-check.mjs
+ *   - governance-topology-check.mjs
  */
 
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
@@ -23,6 +24,7 @@ const failures = runBundledChecks(import.meta.url, [
   "runtime-placement-check.mjs",
   "role-worktree-surface-check.mjs",
   "topology-registry-check.mjs",
+  "governance-topology-check.mjs",
 ]);
 
 if (failures.length > 0) {

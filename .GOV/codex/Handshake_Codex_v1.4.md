@@ -745,3 +745,9 @@ Drive-agnostic governance is mandatory: use repo-relative `worktree_dir` values 
 **Blocking rules apply.** If any MUST requirement is violated, work stops until fixed.
 
 
+
+## [CX-913] HARD_PHASE_BUNDLE_SURFACE_CONSOLIDATION (HARD)
+
+`just gov-check` is the canonical repo-governance phase checkpoint bundle runner. Do not add a new public governance check recipe, public leaf script, or standalone diagnostic command when the same owner, phase, side-effect class, and debug surface can be represented inside `gov-check`, `phase-check`, an existing bundle check, or an internal helper. Public Just recipes and direct script entrypoints must remain represented in `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` with owner, phase, authority boundary, side-effect class, replacement bundle, primary debug artifact, validation coverage, and entrypoint status.
+
+Structured phase-bundle failures must write machine-readable dossier rows under the external governance runtime root. Compact terminal output is acceptable only when the durable dossier points to stdout/stderr artifacts, related topology rows, the failed invariant, and a remediation hint.

@@ -9,9 +9,9 @@ CARGO_TARGET_DIR := "{{ARTIFACT_ROOT}}/handshake-cargo-target"
 docs-check:
 	node "{{GOV_ROOT}}/roles_shared/checks/docs-check.mjs"
 
-gov-check:
+gov-check *FLAGS="":
 	just docs-check
-	$mainRoot = (& node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only); if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $env:HANDSHAKE_ACTIVE_REPO_ROOT=(Resolve-Path $mainRoot).Path; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/gov-check.mjs"
+	$mainRoot = (& node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only); if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $env:HANDSHAKE_ACTIVE_REPO_ROOT=(Resolve-Path $mainRoot).Path; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/gov-check.mjs" {{FLAGS}}
 
 canonise-gov:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/checks/canonise-gov.mjs"

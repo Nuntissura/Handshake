@@ -21,6 +21,14 @@
 
 ## Entries
 
+### 2026.05.06.34 / GOV-CHANGE-20260506-34
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Implemented the RGF-291 through RGF-295 script-surface consolidation batch. The governance topology ledger is now a deterministic generated projection, topology drift is enforced by `gov-check`, `gov-check` exposes checkpoint bundle runner flags, public Just recipes and leaf scripts are classified with replacement-bundle policy, and bundle failures write structured failure dossiers.
+- Contract impact: CX-913 now makes `just gov-check` and `just phase-check` the canonical public checkpoint surfaces for repo-governance bundle execution. New public governance recipes or leaf scripts are forbidden unless represented in the topology ledger with owner, phase, side-effect class, debug artifact, replacement bundle, validation coverage, and entrypoint status.
+- Files changed: `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/checks/governance-topology-check.mjs`, `.GOV/roles_shared/checks/gov-check.mjs`, `.GOV/roles_shared/checks/topology-bundle-check.mjs`, `.GOV/roles_shared/scripts/lib/check-result-lib.mjs`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/codex/Handshake_Codex_v1.4.md`, non-Coder role protocols, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, and the kernel `justfile`.
+- Verification: PENDING. Run `just gov-check --sync-topology`, then `just gov-check`.
 ### 2026.05.06.33 / GOV-CHANGE-20260506-33
 
 - Status: RECORDED
@@ -5157,4 +5165,5 @@
 - FOLLOW_ON_ITEMS:
   - improve session-control fallback semantics so explicit `FALLBACK` can supersede a packet-declared primary profile without hand-editing the active packet
 - OUTCOME: `RGF-278` is implemented; the active packet now supersedes the Spark Coder waiver and records GPT-5.5 extra-high as the active Coder profile for this WP while Spark is unavailable.
+
 
