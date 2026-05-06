@@ -226,6 +226,15 @@ function countDeclaredMicrotasks(packetPath) {
   }
 }
 
+function microtaskGranularityLine(count) {
+  if (count <= 0) return "NONE";
+  const stance = "NO_UPPER_COUNT_BIAS";
+  if (count < 8) {
+    return `DECLARED:${count} | ${stance} | LOW_COUNT_REQUIRES_RATIONALE_FOR_BUNDLED_WP`;
+  }
+  return `DECLARED:${count} | ${stance} | MT_SPLIT_VISIBLE`;
+}
+
 function inspectGovKernelLink(localWorktreeDir) {
   if (isMissingClaim(localWorktreeDir)) {
     return {
@@ -446,6 +455,7 @@ function renderReadinessReport(state) {
     `- REMOTE_BACKUP_BRANCH: ${state.packet.remoteBackupBranch || "<missing>"}`,
     `- BACKUP_PUSH_STATUS: ${state.packet.backupPushStatus || "<missing>"}`,
     `- MICROTASK_STATUS: ${state.microtaskCount > 0 ? `DECLARED:${state.microtaskCount}` : "NONE"}`,
+    `- MICROTASK_GRANULARITY: ${microtaskGranularityLine(state.microtaskCount)}`,
     `- REFINEMENT_PATH: ${state.refinementPath}`,
     `- REFINEMENT_REVIEW_STATUS: ${state.refinementReviewStatus || "<missing>"}`,
     `- CLEARLY_COVERS_VERDICT: ${state.clearlyCoversVerdict || "<missing>"}`,

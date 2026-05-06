@@ -93,6 +93,7 @@ test("activation-manager readiness renders the structured readiness contract", (
   assert.match(result.stdout, /- LOCAL_WORKTREE_DIR: /);
   assert.match(result.stdout, /- GOV_KERNEL_LINK: /);
   assert.match(result.stdout, /- MICROTASK_STATUS: /);
+  assert.match(result.stdout, /- MICROTASK_GRANULARITY: /);
   assert.match(result.stdout, /- wp-declared-topology-check: /);
   assert.match(result.stdout, /- NEXT_ORCHESTRATOR_ACTION: /);
 });

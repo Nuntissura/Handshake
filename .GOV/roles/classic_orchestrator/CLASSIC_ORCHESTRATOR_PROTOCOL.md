@@ -94,6 +94,7 @@ Classic Orchestrator owns the pre-launch duties that `ACTIVATION_MANAGER` owns o
 - When a checker names blockers, repair those named blockers first and rerun the gate before broad rereads.
 - Write the artifact first, run the real checker, and return a compact handoff summary unless the Operator explicitly requests excerpts.
 - Signature round-trip is mandatory before packet hydration, microtask creation, worktree prep, or backup prep: operator approval evidence, one-time signature, and selected `Coder-A..Z` owner must be captured.
+- Large/folded bundled WPs must be decomposed into enough official MT files for deterministic execution, per-MT review, and restart recovery before manual relay dispatch. There is no upper MT-count bias: 20+ MTs are acceptable when they keep work small enough for local models or cheaper/faster coding-focused cloud models. Do not compress MTs to reduce paperwork.
 - Manual relay must not launch or invent a separate `ACTIVATION_MANAGER` authority lane.
 
 ## Classical Validator Routing

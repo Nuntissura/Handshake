@@ -62,6 +62,15 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 - Declare Activation-owned governance refactor work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
 - Coder is not the repair lane for activation paperwork. Coder starts only after Activation Manager and Orchestrator-owned startup gates make the packet/worktree state coherent.
 
+## Large WP Microtask Decomposition (HARD)
+
+- Large bundled WPs are allowed only when the Activation Manager decomposes them into enough concrete microtasks for deterministic execution, per-MT review, and crash/session recovery.
+- There is no upper MT-count bias. Creating 20+ MTs is correct when that keeps coder work small enough for local models or cheaper/faster coding-focused cloud models.
+- Do not compress microtasks to reduce paperwork. Split again when one MT would mix unrelated authority boundaries, broad code-surface families, independent proof commands, or unrelated failure modes.
+- Each official MT file must carry a narrow `MT_ID`, `CLAUSE`, `CODE_SURFACES`, `EXPECTED_TESTS`, `DEPENDS_ON`, `RISK_IF_MISSED`, and heuristic-risk fields. Shared schema/helper work belongs in the earliest MT that needs it, with later MTs depending on that row instead of reimplementing it.
+- `ACTIVATION_READINESS` must report the declared MT count. If a broad bundled packet activates with a low MT count, readiness must either mark `READY_FOR_DOWNSTREAM_LAUNCH: NO` or include a specific rationale proving each MT is still independently trackable, reviewable, recoverable, and small-model manageable.
+- For folded-stub bundles, preserve the source-stub fold map and ensure every folded intent lands in at least one concrete MT. Source stubs are history; executable recovery resumes from MT files, receipts, and packet state.
+
 ## Refinement And Enrichment Standard (HARD)
 
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager refinement/enrichment pass MUST be equal to or better than the old Orchestrator-owned pre-launch flow. Moving the work out of the Orchestrator does not lower the standard.
@@ -199,6 +208,7 @@ ACTIVATION_READINESS
 - REMOTE_BACKUP_BRANCH: <declared backup branch or <missing>>
 - BACKUP_PUSH_STATUS: <packet claim or <missing>>
 - MICROTASK_STATUS: <NONE | DECLARED:<count>>
+- MICROTASK_GRANULARITY: <NONE | DECLARED:<count> | NO_UPPER_COUNT_BIAS | LOW_COUNT_REQUIRES_RATIONALE_FOR_BUNDLED_WP | MT_SPLIT_VISIBLE>
 - HEALTH_CHECKS: <task-packet-claim-check=PASS|FAIL | wp-activation-traceability-check=PASS|FAIL | build-order-check=PASS|FAIL | wp-declared-topology-check=PASS|FAIL>
 - ARTIFACTS_READY: <packet/refinement/spec/signature/worktree outputs>
 - OUTSTANDING_ISSUES: <NONE or concrete list>

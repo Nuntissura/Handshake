@@ -32,7 +32,15 @@ This file is the compact map for a healthy orchestrator-managed workflow and the
    - Activation Manager returns `REFINEMENT_HANDOFF_SUMMARY`.
    - Orchestrator reviews, gets operator approval/signature, and steers the bundle back.
    - Activation Manager writes packet, microtasks, worktree/backups, health evidence, and `ACTIVATION_READINESS`.
+   - For large/folded bundles, `ACTIVATION_READINESS` must expose `MICROTASK_STATUS` and `MICROTASK_GRANULARITY`; launch is not healthy if the packet compresses broad subsystem work into a few MTs just to reduce paperwork.
    - Before any model wake on stale readiness, run `just activation-manager readiness WP-{ID} --write` and inspect `just activation-manager next WP-{ID}`.
+
+### Large Bundle MT Discipline
+
+- Bundling related stubs into one WP is allowed when it removes repeated setup/schema/runtime-source decisions, but execution still resumes and validates through official MT files.
+- There is no upper MT-count bias. Prefer 20+ narrow MTs over a few broad MTs when that improves deterministic execution, crash/session recovery, validator targeting, or suitability for smaller local/cloud coding models.
+- A healthy bundle has a fold map from source stubs to MTs, one reviewable proof target per MT, dependency order that avoids reimplementation, and readiness output naming the declared MT count.
+- If a bundled packet has low MT count, think through 3-5 causes before launch: Activation Manager compressed to save paperwork, folded source stubs were not mapped, proof commands span unrelated boundaries, helper/schema work was not assigned to an early dependency MT, or readiness is stale and counting old files.
 
 3. Downstream launch
    - `just phase-check STARTUP WP-{ID} CODER`

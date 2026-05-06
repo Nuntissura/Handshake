@@ -21,6 +21,59 @@
 
 ## Entries
 
+### 2026.05.06.11 / GOV-CHANGE-20260506-11
+
+- STATUS: APPLIED
+- SUMMARY: propagated large-bundle MT granularity law across ACP, Orchestrator, Classic Orchestrator, and playbook surfaces
+- CHANGE_TYPE: ACP_PROTOCOL_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-05-06 asking what can improve large bundled WP handling so ACP, Activation Manager, Orchestrator, and Classic Orchestrator are on the same level.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+  - `RGF-283`
+- FILES_CHANGED:
+  - `.GOV/roles/activation_manager/scripts/activation-manager.mjs`
+  - `.GOV/roles/activation_manager/tests/activation-manager.test.mjs`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: Activation readiness now emits `MICROTASK_GRANULARITY`, ACP startup prompts tell all governed roles that large/folded bundles must execute from official MT truth with no upper MT-count bias, Activation Manager and Classic Orchestrator prompts carry role-specific decomposition duties, Orchestrator must reject/relaunch broad readiness before downstream launch, and the shared playbook names healthy large-bundle MT discipline plus 3-5 likely causes for low MT count drift.
+- VERIFICATION:
+  - `node --check .GOV/roles/activation_manager/scripts/activation-manager.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `node --test .GOV/roles/activation_manager/tests/activation-manager.test.mjs`
+  - `just docs-check`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `just gov-check`
+
+### 2026.05.06.10 / GOV-CHANGE-20260506-10
+
+- STATUS: APPLIED
+- SUMMARY: expanded PostgreSQL bundle microtask granularity and made Activation Manager decomposition stance explicit
+- CHANGE_TYPE: WORK_PACKET_PLANNING_PROTOCOL_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-05-06 that consolidated PostgreSQL packets may be large only when split into enough deterministic MTs for trackable, recoverable execution by smaller local or lower-cost cloud coding models.
+- FOLLOW_ON_ITEMS:
+  - `WP-1-Postgres-Control-Plane-Shift-Bundle-v1`
+  - `RGF-283`
+- FILES_CHANGED:
+  - `.GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: the PostgreSQL control-plane shift stub now states that 20+ MTs are acceptable and preferred when they improve deterministic execution, recovery, review targeting, or small-model suitability. The draft minimum split is expanded to 27 MTs covering live-service proof, migration/fixture paths, storage authority, SQLite boundaries, shared leases/backpressure, ModelSession, FEMS, workflow durable execution, DCC projections, integration proof, and final debt mapping. Activation Manager protocol now forbids compressing large bundled WPs just to reduce paperwork and requires `ACTIVATION_READINESS` to report the declared MT count or block launch when the split is too broad.
+- VERIFICATION:
+  - `just build-order-sync`
+  - `node .GOV/roles_shared/scripts/build-order-sync.mjs --check`
+  - `just docs-check`
+  - `node .GOV/roles_shared/checks/build-order-check.mjs`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `just gov-check`
+
 ### 2026.05.06.09 / GOV-CHANGE-20260506-09
 
 - STATUS: APPLIED
@@ -45,7 +98,7 @@
   - `.GOV/roles_shared/records/BUILD_ORDER.md`
   - `.GOV/roles_shared/scripts/build-order-sync.mjs`
   - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
-- OUTCOME: the immediate PostgreSQL-primary pivot follow-ons now have one activation target, `WP-1-Postgres-Control-Plane-Shift-Bundle-v1`, with seven draft MTs: live PostgreSQL dev/test proof, SQLite authority boundary enforcement, leases/backpressure, ModelSession queue workers, FEMS PostgreSQL memory store, workflow durable execution, and DCC PostgreSQL projections. The original seven stubs are marked superseded/folded outside the active traceability registry, and Loom/video/archive stubs remain separate. Build-order state precedence now treats `SUPERSEDED` before `STUB`, and the refactor board no longer uses a literal glob as a validated file reference.
+- OUTCOME: the immediate PostgreSQL-primary pivot follow-ons now have one activation target, `WP-1-Postgres-Control-Plane-Shift-Bundle-v1`, with an initial seven draft MT groups: live PostgreSQL dev/test proof, SQLite authority boundary enforcement, leases/backpressure, ModelSession queue workers, FEMS PostgreSQL memory store, workflow durable execution, and DCC PostgreSQL projections. The original seven stubs are marked superseded/folded outside the active traceability registry, and Loom/video/archive stubs remain separate. Build-order state precedence now treats `SUPERSEDED` before `STUB`, and the refactor board no longer uses a literal glob as a validated file reference.
 - VERIFICATION:
   - `just build-order-sync`
   - `node --check .GOV/roles_shared/scripts/build-order-sync.mjs`

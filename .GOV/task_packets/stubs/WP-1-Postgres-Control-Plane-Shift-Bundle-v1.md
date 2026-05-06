@@ -67,6 +67,8 @@ Rules:
 - This bundle intentionally includes PostgreSQL-primary control-plane follow-ons plus the SQLite cache/offline boundary because that boundary prevents split-brain fallback during the same pivot.
 - This bundle intentionally excludes Loom. Loom still uses SQLite today and should use PostgreSQL in the future, but it remains a separate stub/WP family because it has distinct product surface, media/archive semantics, and historical smoketest lineage.
 - Activation must preserve microtask-sized implementation slices. A larger WP is allowed only if every coder assignment stays bounded by a packet MT and each MT can be reviewed independently.
+- There is no upper MT-count bias for this bundle. Activation Manager must prefer 20+ small deterministic MTs over fewer broad MTs when that improves trackability, restart recovery, validator targeting, or suitability for smaller local/cloud coding models.
+- The MT list below is a minimum decomposition guide, not a cap. During activation, split any MT again if its code surfaces, test proof, or failure modes would force a small coder model to reason across unrelated authority boundaries.
 - Coder sessions must not implement cross-MT opportunistic cleanup. Shared schema/helper work must be assigned to the earliest MT that needs it and then reused by later MTs.
 
 ## SOURCE_STUBS_FOLDED
@@ -99,40 +101,124 @@ Rules:
 - Intent carried forward: explicit SQLite cache, index, offline, and rebuildable-projection boundaries so SQLite does not become accidental runtime authority.
 - Fold rationale: PostgreSQL-primary implementation must fail closed when authority is required and must label any SQLite cache/offline projection from the start.
 
-## MICRO_TASK_PLAN (DRAFT)
+## MICRO_TASK_PLAN (DRAFT MINIMUM DECOMPOSITION)
 
-### MT-001 PostgreSQL Dev/Test Harness and Live-Service Proof
-- Focus: local PostgreSQL service/test profile, migration reset, seeded fixtures, targeted storage proof commands, and clear skip/fail semantics.
-- Acceptance: at least one live PostgreSQL service-backed proof path exists or activation records an explicit environment blocker; service-down, migration-failed, schema-drift, and fixture-drift failures are distinguishable.
-- Must address carry-over risk: live PostgreSQL service connection was not exercised.
+Activation Manager must convert this bundle into concrete official packet microtask files (`MT-001.md`, `MT-002.md`, etc.) during activation. The exact final split may exceed this list. Do not compress the plan just to keep the count low.
 
-### MT-002 Storage Authority and SQLite Boundary Enforcement
-- Focus: storage mode policy consumption, SQLite cache/offline/index boundaries, source/freshness metadata enforcement, and fail-closed writes when PostgreSQL authority is required.
-- Acceptance: runtime control-plane writes cannot silently land in SQLite under PostgreSQL-required mode; derived/cache surfaces carry source and freshness labels.
-- Must address carry-over risk: MT-003 authority/freshness labels need downstream enforcement consumption.
+### MT-001 PostgreSQL Live-Service Dev Profile
+- Focus: local PostgreSQL service/test profile, environment variable contract, startup/skip semantics, and first connection smoke path.
+- Acceptance: one targeted command can prove a live PostgreSQL connection or emit a deterministic environment blocker; service-down and config-missing are distinguishable.
+- Carry-over risk: live PostgreSQL service connection was not exercised.
 
-### MT-003 PostgreSQL Lease, Claim, Retry, Dead-Letter, and Backpressure Primitives
-- Focus: shared queue/lease schema and helpers for pending, claimed, running, stalled, retryable, dead-letter, and completed work.
-- Acceptance: concurrent claim attempts produce one winner; expired leases are reclaimable; configured limits block new claims with auditable state.
+### MT-002 Migration Reset and Seeded Fixture Path
+- Focus: reset/reapply migrations against PostgreSQL and create a minimal seed fixture set for downstream queue/session/memory/workflow tests.
+- Acceptance: a clean PostgreSQL database can migrate from empty state and load deterministic fixtures without relying on SQLite state.
 
-### MT-004 ModelSession PostgreSQL Queue Workers
-- Focus: ModelSession run queue persistence, worker claims, persisted messages/checkpoints, cancellation/crash resume, and model-profile metadata.
-- Acceptance: multiple workers claim distinct session items; profile IDs and fallback profile metadata persist; resume reads canonical PostgreSQL state.
+### MT-003 Targeted PostgreSQL Proof Command Matrix
+- Focus: narrow proof commands for storage, migration, lease, ModelSession, FEMS, workflow, and DCC slices, with host-load-safe timeouts.
+- Acceptance: proof output separates PASS, PRODUCT_FAIL, ENVIRONMENT_BLOCKED, TIMEOUT_INCONCLUSIVE, and unrelated bare cargo failures.
+- Carry-over risk: bare `cargo test` still has unrelated integration-bin failures.
 
-### MT-005 FEMS PostgreSQL Memory Store and Memory Jobs
-- Focus: MemoryItem, MemoryPack, provenance, tombstone/replay metadata, memory-job claim state, and parallel-safe reads/writes keyed to ModelSession identity.
-- Acceptance: eligible sessions can read memory written by other sessions; concurrent memory writes avoid silent duplicate/canonical overwrite; replay provenance is queryable.
+### MT-004 Storage Mode Authority Contract
+- Focus: PostgreSQL-required mode declaration, storage authority errors, and fail-closed runtime behavior when PostgreSQL authority is unavailable.
+- Acceptance: authoritative control-plane writes cannot silently fall back to SQLite under PostgreSQL-required mode.
 
-### MT-006 Workflow Engine PostgreSQL Durable Execution
-- Focus: workflow instance state, node execution state, checkpoint payload metadata, retry counters, terminal outcomes, and lease-backed runnable workflow claims.
-- Acceptance: workflow execution can stop/resume from PostgreSQL without replaying completed nodes incorrectly; parallel workers cannot execute the same node claim.
+### MT-005 SQLite Cache and Offline Boundary Labels
+- Focus: SQLite cache/offline/index labels, source identifiers, freshness timestamps, and rebuildability metadata.
+- Acceptance: any SQLite-derived control-plane read surface advertises source/freshness and cannot masquerade as PostgreSQL authority.
 
-### MT-007 DCC PostgreSQL Control-Plane Projections
-- Focus: projection models/endpoints for queue depth, active leases, stalled work, ModelSession state, workflow state, memory jobs, dead-letter items, and read-only versus governed action affordances.
-- Acceptance: DCC-ready projection truth comes from PostgreSQL authority or declared derived projections with source/version/freshness metadata; stale/missing/conflicting states are explicit.
+### MT-006 SQLite Write Guard for Control-Plane Authority Paths
+- Focus: explicit rejection of SQLite writes for runtime/control-plane authority surfaces that now require PostgreSQL.
+- Acceptance: tests prove the forbidden write paths fail closed and return actionable authority errors.
+
+### MT-007 PostgreSQL Control-Plane Schema Baseline
+- Focus: shared tables/types for queues, leases, claims, worker identity, runtime item state, attempt counts, timestamps, and terminal status.
+- Acceptance: schema supports pending, claimed, running, completed, retryable, stalled, and dead-letter states without subsystem-specific forks.
+
+### MT-008 Atomic Claim and Lease Acquisition
+- Focus: concurrent claim helper, lock/update strategy, worker identity, lease duration, and one-winner semantics.
+- Acceptance: parallel claim attempts produce exactly one owner per item.
+
+### MT-009 Lease Heartbeat, Expiry, and Reclaim
+- Focus: heartbeat update, expired-lease detection, reclaim eligibility, stale worker metadata, and audit fields.
+- Acceptance: expired work can be reclaimed deterministically while live claims remain protected.
+
+### MT-010 Retry, Dead-Letter, and Backpressure Limits
+- Focus: retry counters, max-attempt rules, dead-letter transition, queue caps, and pressure signals for blocked new claims.
+- Acceptance: retry exhaustion and configured backpressure are visible as queryable state, not only logs.
+
+### MT-011 Authority/Freshness Enforcement Consumption
+- Focus: consuming authority/freshness labels in lease, queue, projection, and read paths that make runtime decisions.
+- Acceptance: stale, SQLite-derived, or unknown-authority state cannot drive authoritative scheduling decisions.
+- Carry-over risk: MT-003 authority/freshness labels need downstream enforcement consumption.
+
+### MT-012 ModelSession Queue Schema and Persistence
+- Focus: ModelSession queue item tables, payload serialization, status fields, profile IDs, fallback profile metadata, and timestamps.
+- Acceptance: queued ModelSession work persists through process restart and reads back with model/profile metadata intact.
+
+### MT-013 ModelSession Worker Claim and Cancellation
+- Focus: worker claim path, cancellation state, cooperative stop, and claim release for ModelSession work.
+- Acceptance: multiple workers claim distinct ModelSession items and cancelled items stop without being reprocessed as normal retries.
+
+### MT-014 ModelSession Messages and Checkpoints
+- Focus: persisted messages, checkpoints, turn/run state, and resume pointers tied to ModelSession identity.
+- Acceptance: resume reads canonical PostgreSQL state and does not depend on transient runtime mirrors.
+
+### MT-015 ModelSession Crash-Resume Proof
+- Focus: tests or harness path simulating interrupted ModelSession work and recovery from PostgreSQL.
+- Acceptance: interrupted work resumes or transitions to retry/dead-letter according to recorded state.
+
+### MT-016 FEMS Memory Record and Pack Schema
+- Focus: MemoryItem, MemoryPack, provenance, source session, write context, tombstone, and replay metadata in PostgreSQL.
+- Acceptance: memory records and packs round-trip from PostgreSQL with provenance needed for later replay/evaluation.
+
+### MT-017 FEMS Memory Job Queue
+- Focus: memory extraction/injection/maintenance job item schema and shared lease/claim integration.
+- Acceptance: FEMS jobs use the same PostgreSQL claim/lease primitives instead of a separate queue model.
+
+### MT-018 FEMS Parallel Write and Dedup Proof
+- Focus: concurrent writes, dedup/canonicalization behavior, tombstones, and conflict visibility.
+- Acceptance: parallel memory writes avoid silent duplicate/canonical overwrite and expose conflict state when needed.
+
+### MT-019 FEMS Cross-Session Read and Replay Proof
+- Focus: session-to-session memory visibility, pack provenance, replay lookup, and query filters.
+- Acceptance: eligible sessions can read memory written by other sessions with source/provenance preserved.
+
+### MT-020 Workflow Instance and Node State Schema
+- Focus: workflow instance state, node execution state, checkpoint metadata, terminal status, attempt counters, and timestamps.
+- Acceptance: workflow state is persisted in PostgreSQL without relying on in-memory or SQLite authority.
+
+### MT-021 Workflow Runnable Claim and Retry Semantics
+- Focus: lease-backed runnable workflow/node claims, retry scheduling, terminal outcome transitions, and claim release.
+- Acceptance: parallel workers cannot execute the same workflow node claim.
+
+### MT-022 Workflow Crash-Resume Proof
+- Focus: stop/resume proof for workflow instances and node checkpoints.
+- Acceptance: resume does not replay completed nodes incorrectly and does not lose retry/dead-letter state.
+
+### MT-023 DCC Session and Queue Projection Backend
+- Focus: DCC backend projection models/endpoints for ModelSession state, queue depth, active workers, active leases, stalled work, and backpressure.
+- Acceptance: DCC-ready session/queue truth comes from PostgreSQL authority or labeled derived projection state.
+
+### MT-024 DCC Workflow and Memory Job Projection Backend
+- Focus: DCC backend projection models/endpoints for workflow instances, runnable claims, memory jobs, retry/dead-letter states, and stale/conflicting states.
+- Acceptance: DCC can distinguish healthy, stalled, retrying, dead-letter, stale, and conflicting control-plane states.
+
+### MT-025 DCC Read-Only Versus Governed Action Affordances
+- Focus: projection of which DCC controls are read-only, which require governed action, and which are blocked by stale/non-authoritative state.
+- Acceptance: DCC action affordances cannot imply authority when the underlying state is stale, derived, or unavailable.
+
+### MT-026 Cross-Subsystem Integration Proof
+- Focus: one end-to-end live PostgreSQL path that touches storage authority, lease/claim, ModelSession, FEMS or workflow, and DCC projection truth.
+- Acceptance: the integration proof is targeted, repeatable, and does not depend on unrelated bare cargo integration-bin success.
+
+### MT-027 Carry-Forward Debt Ledger and Validator Handoff Map
+- Focus: final packet truth for unresolved environment blockers, unrelated bare cargo failures, remaining spec debt, and downstream enforcement gaps.
+- Acceptance: any unresolved risk is recorded with owner, blocker type, affected MTs, and whether it blocks Integration Validator PASS.
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
-- The bundle activates into an official WP with the seven MTs above or an equivalent microtask split that keeps coder assignments bounded.
+- The bundle activates into an official WP with the minimum MT decomposition above or an equivalent finer-grained split that keeps coder assignments bounded.
+- Activation Manager may create 20+ MTs and should do so whenever a smaller split improves deterministic execution, review targeting, restart recovery, or local/small-cloud model suitability.
 - PostgreSQL-required runtime/control-plane operations fail closed when PostgreSQL authority is unavailable.
 - SQLite is allowed only as cache, offline, embedded demo, search index, or rebuildable local projection where explicitly labeled.
 - Queue/lease/backpressure primitives are shared by ModelSession, FEMS, and workflow jobs instead of independently reimplemented.
