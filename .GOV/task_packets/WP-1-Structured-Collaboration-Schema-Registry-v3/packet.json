@@ -1,0 +1,94 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/refinement.json"
+  },
+  "base_wp_id": "WP-1-Structured-Collaboration-Schema-Registry",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-03-19T08:32:11.929Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "2026-03-18",
+    "risk_tier": "HIGH",
+    "status": "Blocked",
+    "user_signature": "ilja190320260923"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:01:56.159Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.md",
+    "projection_hash": "562b066d0883970b",
+    "source_file": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.json",
+    "source_hash": "e1209ade4dcd568d",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": true,
+    "contract_file": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/refinement.json",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "hydration_profile": "HYDRATED_RESEARCH_V1",
+    "status": "SIGNED_OR_LEGACY"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- src/backend/handshake_core/src/locus/types.rs"
+    ],
+    "forbidden_paths": [
+      "- Loom storage",
+      "search",
+      "source-anchor",
+      "and asset portability"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.178.md interface TrackedWorkPacket shared structured-collaboration envelope"
+    ],
+    "summary": "Implement structured diagnostic output for schema validation, add missing TaskBoardEntryRecordV1 fields (task_board_id, lane_id, display_order, view_ids), enforce updated_at in base envelope, prove validate_summary_detail_pair runtime integration, preserve legacy-compatible micro-task progress payload shape at the locus storage boundary, and verify RoleMailboxThreadLineV1 field completeness.",
+    "why": "v2 passed validator but operator code inspection against spec v02.178 revealed string-only validation errors, missing board-projection fields, no updated_at enforcement, unproven summary/detail runtime integration, and incomplete ThreadLine fields. This v3 closes those concrete spec compliance gaps."
+  },
+  "source_control": {
+    "canonical_branch": "main",
+    "merge_base_sha": "facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)",
+    "remote_backup_branch": "feat/WP-1-Structured-Collaboration-Schema-Registry-v3",
+    "work_branch": "feat/WP-1-Structured-Collaboration-Schema-Registry-v3",
+    "worktree_dir": "../wtc-schema-registry-v3"
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v3",
+    "execution_owner": "CODER_A",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "lane": "ORCHESTRATOR_MANAGED",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v3/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v3/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY"
+  },
+  "wp_id": "WP-1-Structured-Collaboration-Schema-Registry-v3"
+}

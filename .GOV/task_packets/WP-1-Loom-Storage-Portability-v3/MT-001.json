@@ -1,0 +1,63 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/MT-001.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/MT-001.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:01:55.983Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/MT-001.md",
+    "projection_hash": "02d4b4593176ed35",
+    "source_file": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.json",
+    "source_hash": "b96bf13074cf3d35",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-001",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "[LM-GRAPH-001] Graph traversal with recursive CTEs on both backends"
+    ],
+    "allowed_paths": [
+      "storage/mod.rs (trait)",
+      "sqlite.rs",
+      "postgres.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "storage_conformance::loom_traverse_graph_depth_limit",
+      "storage_conformance::loom_traverse_graph_cycle_detection"
+    ],
+    "risk_if_missed": "graph navigation and backlink exploration have no backend-portable foundation",
+    "summary": "[LM-GRAPH-001] Graph traversal with recursive CTEs on both backends"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Loom-Storage-Portability-v3"
+}

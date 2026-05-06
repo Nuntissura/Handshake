@@ -1,4 +1,16 @@
-# Governance Repo Map
+﻿# Governance Repo Map
+
+## Governance Kernel Product-Governance Testbed
+
+The governance kernel is the deterministic testbed for future Handshake Product governance. Governance workflow artifacts should be machine-readable, atomic, and deterministic first so ACP, external apps/tools, and product runtime surfaces can ingest the same contracts directly. Markdown remains useful as generated projection or frozen legacy reference, but it must not become a second manually maintained authority when typed JSON, JSONL receipts, schemas, hashes/provenance, and checks can carry the workflow truth.
+
+Current migration stance:
+- packets use `packet.json` as primary contract and `packet.md` as generated projection or legacy reference
+- refinements use `refinement.json` as primary contract and `refinement.md` as generated projection or legacy reference
+- microtasks use `MT-*.json` as primary contract and `MT-*.md` as generated projection or legacy reference
+- workflow contracts use `.GOV/roles_shared/workflow_contracts/*.workflow.json` as machine authority
+- receipts/runtime/session control artifacts use JSON/JSONL authority intended for ACP and app ingestion
+
 
 This folder is the governed control plane for Handshake.
 
@@ -73,3 +85,4 @@ Authoritative folder-placement law lives in `.GOV/codex/Handshake_Codex_v1.4.md`
 ## Deprecations
 
 - See `.GOV/roles_shared/docs/DEPRECATION_SUNSET_PLAN.md` for active compatibility surfaces and removal triggers.
+

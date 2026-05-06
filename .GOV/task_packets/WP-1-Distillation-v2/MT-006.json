@@ -1,0 +1,62 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Distillation-v2/MT-006.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Distillation-v2/MT-006.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Distillation-v2/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-005"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:01:55.930Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Distillation-v2/MT-006.md",
+    "projection_hash": "a45a2b662b7472c9",
+    "source_file": ".GOV/task_packets/WP-1-Distillation-v2/packet.json",
+    "source_hash": "33e0c6e1d0a9d622",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-006",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "Section 5.3.6 Distillation observability (FR events per stage)"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/flight_recorder/mod.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test -p handshake_core -- flight_recorder_distill"
+    ],
+    "risk_if_missed": "Silent pipeline failures; no audit trail",
+    "summary": "Section 5.3.6 Distillation observability (FR events per stage)"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Distillation-v2"
+}

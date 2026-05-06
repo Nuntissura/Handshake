@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Product-Governance-Check-Runner-v1/packet.json source_hash=246e29a39fa9719d projection_hash=a1b832cfb1773b96 generated_at_utc=2026-05-06T15:01:56.038Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 
 Requirements (HARD):

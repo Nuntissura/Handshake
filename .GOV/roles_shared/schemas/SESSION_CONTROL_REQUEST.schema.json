@@ -147,6 +147,59 @@
           }
         }
       }
+    },
+    "role_startup_capsule": {
+      "type": "object",
+      "required": [
+        "schema_id",
+        "schema_version",
+        "generated_at",
+        "role",
+        "wp_id",
+        "authority_files",
+        "work_packet_contract",
+        "refinement_contract",
+        "microtask_contract",
+        "runtime_receipt_state",
+        "first_commands"
+      ],
+      "properties": {
+        "schema_id": {
+          "const": "hsk.role_startup_capsule@1"
+        },
+        "schema_version": {
+          "const": "role_startup_capsule_v1"
+        },
+        "generated_at": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "wp_id": {
+          "type": "string",
+          "pattern": "^WP-"
+        },
+        "authority_files": {
+          "type": "array",
+          "minItems": 1
+        },
+        "work_packet_contract": {
+          "type": "object"
+        },
+        "refinement_contract": {
+          "type": "object"
+        },
+        "microtask_contract": {
+          "type": "object"
+        },
+        "runtime_receipt_state": {
+          "type": "object"
+        },
+        "first_commands": {
+          "type": "array"
+        }
+      }
     }
   },
   "allOf": [

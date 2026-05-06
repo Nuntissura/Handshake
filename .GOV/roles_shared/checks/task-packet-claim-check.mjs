@@ -10,7 +10,7 @@ import {
   roleModelProfileMatchesReasoningStrength,
   ROLE_SESSION_REASONING_REQUIRED,
 } from "../scripts/session/session-policy.mjs";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath, normalizePath } from "../scripts/lib/runtime-paths.mjs";
 import {
   BROAD_TOOL_ALLOWLIST_VALUES,
   hasConcreteScopeEntries,
@@ -29,6 +29,7 @@ import {
   validateDataContractSection,
 } from "../scripts/lib/data-contract-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+import { readWorkPacketContract } from "../scripts/lib/work-packet-contract-read-lib.mjs";
 
 registerFailCaptureHook("task-packet-claim-check.mjs", { role: "SHARED" });
 
@@ -88,23 +89,33 @@ function requiresGovernedReadyClaim({ statusNorm, workflowLane, executionOwner }
 
 function checkPacket(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
-  const status = parseStatus(text);
+  const wpId = inferWpIdFromPacketPath(normalizePath(filePath));
+  const contractState = wpId ? readWorkPacketContract(wpId) : null;
+  const contract = contractState?.contract && typeof contractState.contract === "object" ? contractState.contract : null;
+  const lifecycle = contract?.lifecycle && typeof contract.lifecycle === "object" ? contract.lifecycle : {};
+  const workflow = contract?.workflow && typeof contract.workflow === "object" ? contract.workflow : {};
+  const scope = contract?.scope && typeof contract.scope === "object" ? contract.scope : {};
+  const status = lifecycle.status || parseStatus(text);
   const statusNorm = status.toLowerCase();
   const isClaimedPacket = /in\s*progress/.test(statusNorm);
   const isStartablePacket = /ready\s*for\s*dev|in\s*progress/.test(statusNorm);
   if (!isStartablePacket) return;
 
-  const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
+  const packetFormatVersion = lifecycle.packet_format_version || parseSingleField(text, "PACKET_FORMAT_VERSION");
   const coderModel = parseSingleField(text, "CODER_MODEL");
   const coderStrength = parseSingleField(text, "CODER_REASONING_STRENGTH");
-  const workflowLane = parseSingleField(text, "WORKFLOW_LANE");
-  const executionOwner = parseSingleField(text, "EXECUTION_OWNER");
+  const workflowLane = workflow.lane || parseSingleField(text, "WORKFLOW_LANE");
+  const executionOwner = workflow.execution_owner || parseSingleField(text, "EXECUTION_OWNER");
   const enforceSessionPolicy = packetUsesSessionPolicy(packetFormatVersion);
   const enforceRoleModelProfiles = packetUsesRoleModelProfiles(packetFormatVersion);
   const enforceScopeContract = Boolean(packetFormatVersion);
   const enforceScopeDiscipline = scopeDisciplineRequiresEnforcement(packetFormatVersion);
-  const inScopePaths = parsePacketScopeList(text, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
-  const outOfScopePaths = parsePacketScopeList(text, "OUT_OF_SCOPE");
+  const inScopePaths = Array.isArray(scope.allowed_paths) && scope.allowed_paths.length > 0
+    ? scope.allowed_paths
+    : parsePacketScopeList(text, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
+  const outOfScopePaths = Array.isArray(scope.forbidden_paths) && scope.forbidden_paths.length > 0
+    ? scope.forbidden_paths
+    : parsePacketScopeList(text, "OUT_OF_SCOPE");
   const scopeDiscipline = parsePacketScopeDiscipline(text);
 
   const rel = filePath.split(path.sep).join("/");

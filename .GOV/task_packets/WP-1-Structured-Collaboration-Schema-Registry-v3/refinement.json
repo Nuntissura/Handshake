@@ -1,0 +1,53 @@
+{
+  "activation_manager": {
+    "handoff_summary": null,
+    "readiness_status": "UNKNOWN",
+    "required": false,
+    "session_id": null,
+    "status": "LEGACY_IMPORT"
+  },
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/refinement.json",
+    "refinement_projection": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/refinement.md"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:01:56.161Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/refinement.md",
+    "projection_hash": "d12023b96e82fb23",
+    "source_file": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.json",
+    "source_hash": "9e0593e6f3bfac87",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Use this contract as migration scaffold and preserve original projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported refinement contract is a legacy synthesis and may not capture all prose-only decisions."
+    ]
+  },
+  "refinement": {
+    "acceptance_criteria": [],
+    "approved_spec_enrichment": [],
+    "assumptions": [],
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "microtask_plan": [],
+    "non_goals": [],
+    "operator_request": "WP-1-Structured-Collaboration-Schema-Registry-v3",
+    "scope_edges": [],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.178.md interface TrackedWorkPacket shared structured-collaboration envelope"
+    ],
+    "user_signature": "ilja190320260923"
+  },
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Structured-Collaboration-Schema-Registry-v3"
+}

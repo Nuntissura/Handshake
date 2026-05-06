@@ -1,0 +1,55 @@
+﻿{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "{{WP_ID}}",
+  "mt_id": "{{MT_ID}}",
+  "created_at_utc": "{{DATE_ISO}}T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/{{WP_ID}}/MT-{{MT_ID}}.json",
+    "microtask_projection": ".GOV/task_packets/{{WP_ID}}/MT-{{MT_ID}}.md",
+    "packet_contract": ".GOV/task_packets/{{WP_ID}}/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/{{WP_ID}}/MT-{{MT_ID}}.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "{{MT_SUMMARY}}",
+    "allowed_paths": [],
+    "forbidden_paths": [],
+    "acceptance_criteria": [],
+    "proof_targets": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  }
+}

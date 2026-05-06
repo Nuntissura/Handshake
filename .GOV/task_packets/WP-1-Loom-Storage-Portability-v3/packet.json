@@ -1,0 +1,91 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/refinement.json"
+  },
+  "base_wp_id": "WP-1-Loom-Storage-Portability",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-03-19T08:32:34.441Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "2026-03-18",
+    "risk_tier": "HIGH",
+    "status": "Blocked",
+    "user_signature": "ilja190320260922"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:01:55.979Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.md",
+    "projection_hash": "aa9a302ebb341051",
+    "source_file": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.json",
+    "source_hash": "7b3d450b699c537a",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": true,
+    "contract_file": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/refinement.json",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "hydration_profile": "HYDRATED_RESEARCH_V1",
+    "status": "SIGNED_OR_LEGACY"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- src/backend/handshake_core/src/storage/mod.rs"
+    ],
+    "forbidden_paths": [
+      "- structured-collaboration schema registry and mailbox export schema work"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.178.md 2.3.13 Storage Backend Portability Architecture [CX-DBP-001]"
+    ],
+    "summary": "Implement the 5 missing Loom storage trait methods (traverse_graph, recompute_block_metrics, recompute_all_metrics, get_backlinks, get_outgoing_edges), add LM-SEARCH-002 graph-filtered search on PostgreSQL, and prove LoomSourceAnchor export/replay round-trip parity across both backends with shared conformance tests.",
+    "why": "v2 passed validator but operator code inspection against spec v02.178 revealed 5 missing trait methods, incomplete graph-filtered search, and absent source-anchor round-trip proof. This v3 closes those concrete spec compliance gaps."
+  },
+  "source_control": {
+    "canonical_branch": "main",
+    "merge_base_sha": "facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)",
+    "remote_backup_branch": "feat/WP-1-Loom-Storage-Portability-v3",
+    "work_branch": "feat/WP-1-Loom-Storage-Portability-v3",
+    "worktree_dir": "../wtc-storage-portability-v3"
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v3",
+    "execution_owner": "CODER_B",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "lane": "ORCHESTRATOR_MANAGED",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v3/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Loom-Storage-Portability-v3/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY"
+  },
+  "wp_id": "WP-1-Loom-Storage-Portability-v3"
+}

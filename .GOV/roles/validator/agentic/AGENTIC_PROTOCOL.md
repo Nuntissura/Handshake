@@ -1,16 +1,15 @@
-# AGENTIC_PROTOCOL (Validator)
-
-LEGACY NOTICE:
-- This file remains for historical audit/reference only.
-- Current repo governance keeps Validator duties non-agentic. Multiple validator CLI sessions may still exist when they are explicitly scoped as `WP Validator` and `Integration Validator`, but this add-on is not active for those runs.
-- Do not use this add-on for new runs unless the Operator explicitly re-enables Validator agentic execution in governance.
-- If the Operator explicitly re-enables this non-Coder add-on, it inherits Codex `CX-218K` and `CX-218L`: agentic Validator work must classify 3-5 plausible causes before patching, steering, or relaying; stabilize governance paperwork through typed verdict, blocker, or proposal surfaces; and keep Coder out of governance-paperwork stabilization.
-
-This is an **add-on** protocol for validators operating in orchestrator-led, multi-agent ("agentic") workflows.
-
-It does not replace `/.GOV/roles/validator/VALIDATOR_PROTOCOL.md`; it adds failure-mode defenses specific to agentic relays.
-
----
+﻿# AGENTIC_PROTOCOL (Validator)
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
+## Governance Kernel Product-Governance Testbed [CX-911]
+- The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
+- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
+- Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## 1) Default distrust of summaries (HARD)
 
@@ -63,3 +62,5 @@ Evidence ledger reference: `/.GOV/roles_shared/docs/EVIDENCE_LEDGER.md`.
 When the run is agentic:
 - Require Role Mailbox export metadata to be maintained and to pass `just role-mailbox-export-check`.
 - This is not a substitute for spec-to-code mapping, but it prevents "decision drift" in multi-agent relays.
+
+

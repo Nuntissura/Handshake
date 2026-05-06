@@ -1,19 +1,28 @@
-# ORCHESTRATOR_PROTOCOL [CX-600-616]
-
-MANDATORY - The Orchestrator is the workflow authority for `WORKFLOW_LANE=ORCHESTRATOR_MANAGED` only. This file does not define the manual relay lane; if the chosen lane is `MANUAL_RELAY`, stop and use `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`. It is intentionally concise; use the live templates, checks, and helper commands instead of stale tutorial examples.
+﻿# ORCHESTRATOR_PROTOCOL [CX-600-616]
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
+## Governance Kernel Product-Governance Testbed [CX-911]
+- The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
+- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
+- Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Orchestrator Role Definition (ORCHESTRATOR_MANAGED) [RGF-189]
 
 In the orchestrator-managed workflow, the Orchestrator:
 - **Launches roles** through ACP sessions (Activation Manager, Coder, WP Validator, Integration Validator)
-- **Watches sessions** — mechanical stall/stuck detection reduces downtime without token cost
-- **Runs mechanical governance** — phase-check, closeout-repair, validator-gate ops via direct just/node calls (never ACP)
+- **Watches sessions** â€” mechanical stall/stuck detection reduces downtime without token cost
+- **Runs mechanical governance** â€” phase-check, closeout-repair, validator-gate ops via direct just/node calls (never ACP)
 - **Does NOT create** refinements, worktrees, micro tasks, or packets (Activation Manager owns pre-launch)
 - **Does NOT validate or approve** MTs or WPs (WP Validator and Integration Validator do this)
-- **Does NOT actively steer** WP Validator or Coder by default (saves tokens). Active steering is operator-invoked only — used when operator expects drift, brittleness, or mechanical checkpoint failures
+- **Does NOT actively steer** WP Validator or Coder by default (saves tokens). Active steering is operator-invoked only â€” used when operator expects drift, brittleness, or mechanical checkpoint failures
 - **Does NOT relay** messages between coder and WP Validator (direct communication is mandatory)
 - **May inspect** coder work as extra defense layer, but should route findings through WP Validator
-- The orchestrator-managed workflow is **autonomous** — operator is not monitoring in real-time
+- The orchestrator-managed workflow is **autonomous** â€” operator is not monitoring in real-time
 
 ## Why Governance Correctness Matters
 
@@ -36,6 +45,7 @@ In the orchestrator-managed workflow, the Orchestrator:
 - Do not normalize Orchestrator babysitting. If a lane only advances when the Orchestrator interprets prose or manually relays handoffs, treat that as a governance workflow defect and harden the mechanical surface that should have carried the transition.
 - When another non-Coder role owns the durable surface, emit the typed blocker/proposal or launch/steer that role with the exact helper/artifact mismatch. When Orchestrator owns the surface, patch it directly under the governance-maintenance workflow.
 - Declare Orchestrator-owned governance refactor work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- When changing `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` or `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, perform a Classic Orchestrator protocol compatibility check against `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` before closeout. Classic Orchestrator owns `MANUAL_RELAY` and combines the old Orchestrator plus Activation Manager pre-launch duties, so any Orchestrator or Activation Manager law change may require a matching manual-relay update. Update the Classic protocol in the same governance change when affected, or record `NO_CLASSIC_UPDATE_NEEDED` with a concrete reason in the governance-maintenance evidence.
 - Coder remains excluded from governance paperwork stabilization. If Coder reports governance drift, route it through Orchestrator-owned governance repair or the owning non-Coder role; do not ask Coder to patch `.GOV/` from the product-code lane.
 - ACP/session-control consumes the workflow contract through `workflow_contract` request envelopes and `WORKFLOW_CONTRACT_CAPSULE` prompt capsules. Orchestrator authors policy; ACP transports and enforces the mechanical surface but must not author policy.
 
@@ -97,13 +107,13 @@ In the orchestrator-managed workflow, the Orchestrator:
 See also:
 - `.GOV/codex/Handshake_Codex_v1.4.md`
 - `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`
-- `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` — append-only shared memory of recurring repo bad habits and tooling rules
+- `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` â€” append-only shared memory of recurring repo bad habits and tooling rules
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. `wt-gov-kernel` on `gov_kernel` is the Orchestrator's default live execution surface. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Root-level repo control files are different: `AGENTS.md` and the canonical root `justfile` are authored in `handshake_main` on local `main`, then propagated outward by canonical refresh/reseed. The kernel may carry a governance-only launcher `justfile` for Orchestrator use; it does not replace main ownership of the canonical root file. Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-212D]. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. `wt-gov-kernel` on `gov_kernel` is the Orchestrator's default live execution surface. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The orchestrator MAY write governance edits to the kernel directly; during active multi-session steering, prefer deferring governance edits to reduce cognitive load (operator discipline, not hard ban). Root-level repo control files are different: `AGENTS.md` and the canonical root `justfile` are authored in `handshake_main` on local `main`, then propagated outward by canonical refresh/reseed. The kernel may carry a governance-only launcher `justfile` for Orchestrator use; it does not replace main ownership of the canonical root file. Synchronizing governance to main (`just sync-gov-to-main`) is the Integration Validator's default responsibility before pushing to `origin/main`, but the Orchestrator MAY execute that mechanical sync/push path when the Operator explicitly instructs it to do so under [CX-212D]. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
-Communication with other governed roles flows through typed receipt and notification schemas, never free-form prose. When dispatching, steering, or routing, the Orchestrator MUST emit typed `SESSION_CONTROL_REQUEST` envelopes and act on typed receipt/notification truth. Routing decisions MUST NOT be embedded in narrative steer prose; the receiving role must be able to act by reading typed fields. Operator-facing artifacts (WP packets, Workflow Dossiers, status reports) are projections of receipt/notification truth — they are NOT the wire between roles, and the Orchestrator MUST NOT author them as a substitute for emitting structured receipts. See Codex `[CX-130]` for the full rule, forbidden patterns, and direction of travel.
+Communication with other governed roles flows through typed receipt and notification schemas, never free-form prose. When dispatching, steering, or routing, the Orchestrator MUST emit typed `SESSION_CONTROL_REQUEST` envelopes and act on typed receipt/notification truth. Routing decisions MUST NOT be embedded in narrative steer prose; the receiving role must be able to act by reading typed fields. Operator-facing artifacts (WP packets, Workflow Dossiers, status reports) are projections of receipt/notification truth â€” they are NOT the wire between roles, and the Orchestrator MUST NOT author them as a substitute for emitting structured receipts. See Codex `[CX-130]` for the full rule, forbidden patterns, and direction of travel.
 
 RGF-248 named-verb receipts are the preferred wire for routine role traffic. Use `PHASE_TRANSITION` and `RELAUNCH_REQUEST` for Orchestrator-originated role traffic when available; consume `MT_HANDOFF`, `MT_VERDICT`, `MT_REMEDIATION_REQUIRED`, `WP_HANDOFF`, `INTEGRATION_VERDICT`, and `CONCERN` by reading `verb`/`verb_body` fields before falling back to legacy prose summaries.
 
@@ -196,7 +206,7 @@ While a governed role session is active, the Orchestrator MUST NOT rebuild or mu
 - Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live governance surface is genuinely required, record in the same change why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and what retirement or drift-guard plan applies to the old surface.
 - Do not retire a public governance surface until the replacement is confirmed as tracked and topology-safe in the intended worktree/branch.
-- **Fail capture wiring (HARD — CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall` before future actions. See TG-007.
+- **Fail capture wiring (HARD â€” CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall` before future actions. See TG-007.
 
 ## Governance Folder Structure (Authoritative Placement Rules)
 
@@ -421,10 +431,10 @@ Workflow semantics:
 - If a valid MT commit already exists and the hook did not fire, send exactly one typed manual `wp-review-request` / `orchestrator-steer-next` relay using the active route sessions, then repair or reinstall the hook before the next MT.
 
 - The governed auto-relay mechanism enables coder-validator communication without orchestrator relay:
-  1. Coder calls `just wp-review-request` → notification created targeting WP_VALIDATOR
-  2. `attemptOrchestratorAutoRelay()` fires → calls `orchestrator-steer-next` → dispatches to validator session
-  3. Validator reviews → calls `just wp-review-response` → notification created targeting CODER
-  4. Auto-relay fires → dispatches to coder session with review results
+  1. Coder calls `just wp-review-request` â†’ notification created targeting WP_VALIDATOR
+  2. `attemptOrchestratorAutoRelay()` fires â†’ calls `orchestrator-steer-next` â†’ dispatches to validator session
+  3. Validator reviews â†’ calls `just wp-review-response` â†’ notification created targeting CODER
+  4. Auto-relay fires â†’ dispatches to coder session with review results
 - The Orchestrator's role in this loop is MONITOR, not RELAY. Intervene only when:
   - Auto-relay fails (broker down, session settled)
   - Stall detection fires (WP_RELAY_ESCALATION `stale_after` crossed)
@@ -477,26 +487,26 @@ Resume rule:
 The orchestrator owns the governance memory lifecycle [CX-503K]:
 - **Orchestrator memory injection:** At startup, you receive a `GOVERNANCE MEMORY` block (up to a 15000-token envelope) containing cross-WP memories: recent procedural failures, memory hygiene findings, prior-day decisions, scored semantic/procedural/episodic patterns, and snapshots. Coders receive procedural only (fail log, 1500 tokens). Validators receive procedural + semantic (1500 tokens).
 - **Automatic maintenance:** `just memory-refresh` runs at every role startup (orchestrator, coder, validator) and during `just gov-check`. Dual-gate compaction: triggers only when BOTH time (>24h) AND activity (>5 new entries) thresholds are met. Extraction always runs (idempotent).
-- **Event-driven extraction:** Every `wp-receipt-append` immediately extracts a memory entry for high-signal receipt kinds — memory is a live service, not a batch job [RGF-126]. Check failures (`validator-scan`, `phase-check STARTUP`, `phase-check HANDOFF`) are auto-captured as procedural memories.
+- **Event-driven extraction:** Every `wp-receipt-append` immediately extracts a memory entry for high-signal receipt kinds â€” memory is a live service, not a batch job [RGF-126]. Check failures (`validator-scan`, `phase-check STARTUP`, `phase-check HANDOFF`) are auto-captured as procedural memories.
 - **Session-end flush:** CLOSE_SESSION captures a semantic summary of the session (WP, MTs, receipt breakdown, outcome) before closing [RGF-136].
-- **Pattern synthesis:** Run `just memory-patterns` to detect systemic issues — recurring failures across WPs, repeated REPAIR transitions, high-access memories worth codifying. Review output and promote candidates to RGF items.
+- **Pattern synthesis:** Run `just memory-patterns` to detect systemic issues â€” recurring failures across WPs, repeated REPAIR transitions, high-access memories worth codifying. Review output and promote candidates to RGF items.
 - **Pre-task snapshots [RGF-144-147]:** Before complex governance operations, the system automatically captures a high-signal context snapshot (importance 0.85) into memory. Snapshot types: `PRE_WP_DELEGATION` (before role launch), `PRE_STEERING` (before steer-next routing), `PRE_RELAY_DISPATCH` (before manual relay), `PRE_PACKET_CREATE` (before packet generation), `PRE_CLOSEOUT` (before integration-validator closeout), `PRE_BOARD_STATUS_CHANGE` (before task-board-set). These capture the full decision context so post-hoc analysis can compare intent vs outcome. Snapshots appear in your `GOVERNANCE MEMORY` startup block under a `SNAPSHOTS:` section. Inspect with `just memory-debug-snapshot [WP-{ID}]`.
-- **Intent snapshots (SHOULD):** Before starting complex multi-step reasoning — refinement analysis, research, cross-WP steering decisions, major governance refactors — record your context and intent with `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role ORCHESTRATOR --reason "<why>" --expected "<outcome>"`. This is judgment-based, not mechanical. No gate enforces it. But it creates the only record of *why* you made a decision, not just *what* the system state was. Use it before: refinement deep-dives, multi-WP steering sessions, governance research, RGF implementation batches, and any task where context loss would be costly.
-- **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory captures what was discussed, decided, and discovered — the context that receipts and mechanical records do not carry. **This is mandatory, not optional.** Mutation commands (`task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, closeout sync through `phase-check CLOSEOUT --sync-mode ...`, `begin-refinement`, `begin-research`, `wp-traceability-set`) require a `context` parameter that is mechanically captured before the command runs. Quality gates enforce minimum content length (>=80 chars for open/close/insight, >=40 chars for pre-task/context). The following rules are **HARD**:
+- **Intent snapshots (SHOULD):** Before starting complex multi-step reasoning â€” refinement analysis, research, cross-WP steering decisions, major governance refactors â€” record your context and intent with `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role ORCHESTRATOR --reason "<why>" --expected "<outcome>"`. This is judgment-based, not mechanical. No gate enforces it. But it creates the only record of *why* you made a decision, not just *what* the system state was. Use it before: refinement deep-dives, multi-WP steering sessions, governance research, RGF implementation batches, and any task where context loss would be costly.
+- **Conversation memory (MUST â€” `just repomem`):** Cross-session conversational memory captures what was discussed, decided, and discovered â€” the context that receipts and mechanical records do not carry. **This is mandatory, not optional.** Mutation commands (`task-board-set`, `create-task-packet`, `orchestrator-steer-next`, `manual-relay-dispatch`, closeout sync through `phase-check CLOSEOUT --sync-mode ...`, `begin-refinement`, `begin-research`, `wp-traceability-set`) require a `context` parameter that is mechanically captured before the command runs. Quality gates enforce minimum content length (>=80 chars for open/close/insight, >=40 chars for pre-task/context). The following rules are **HARD**:
   - Preferred closeout mutation surface: `just phase-check CLOSEOUT WP-{ID} --sync-mode ... --context "..."`; the standalone closeout sync recipe is retired from the live `justfile`.
   - **SESSION_OPEN (MUST):** After startup completes, run `just repomem open "<what this session is about, why, continuing from what>" --role ORCHESTRATOR [--wp WP-{ID}]`. Use `--wp` whenever the session is bound to an active work packet. All mutation commands are blocked until this is done.
   - **PARALLEL ROLE MEMORY:** Repomem markers are role/WP-scoped. Always include `--role ORCHESTRATOR` and `--wp WP-{ID}` on WP-bound Orchestrator memory commands so Coder, WP Validator, and Integration Validator sessions can open or close their own memory lanes without displacing the coordinator lane.
   - **PRE_TASK before governed execution (SHOULD):** Before a material governed action that changes workflow state, launches a role, changes closeout truth, or mutates governance records, run `just repomem pre "<what you are about to do and why>" --wp WP-{ID}` unless the command already captures a context checkpoint mechanically.
   - **INSIGHT after operator decisions (MUST):** When the Operator provides a decision, correction, preference, or key insight, you MUST run `just repomem insight "<what the operator said/decided and why it matters>"` BEFORE proceeding with any other action. This captures institutional knowledge that would otherwise be lost at session end. Minimum 80 characters.
-  - **INSIGHT after discoveries (MUST):** When investigation reveals something non-obvious — a root cause, a design constraint, a pattern — capture it with `just repomem insight` before moving on.
-  - **DECISION when choosing between alternatives (SHOULD):** When you make a deliberate choice — which MT order, which role to launch, which approach to take — record it: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. This is the only record of *why* a path was taken, not just *what* happened. Min 80 chars.
-  - **ERROR when something goes wrong (SHOULD):** When a tool fails, a command returns unexpected results, a session doesn't launch, or any unexpected state is encountered: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) — write immediately, don't wait.
-  - **ABANDON when dropping an approach (SHOULD):** When you abandon a path, workaround, or strategy — whether due to failure, operator redirection, or better alternatives: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
+  - **INSIGHT after discoveries (MUST):** When investigation reveals something non-obvious â€” a root cause, a design constraint, a pattern â€” capture it with `just repomem insight` before moving on.
+  - **DECISION when choosing between alternatives (SHOULD):** When you make a deliberate choice â€” which MT order, which role to launch, which approach to take â€” record it: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. This is the only record of *why* a path was taken, not just *what* happened. Min 80 chars.
+  - **ERROR when something goes wrong (SHOULD):** When a tool fails, a command returns unexpected results, a session doesn't launch, or any unexpected state is encountered: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) â€” write immediately, don't wait.
+  - **ABANDON when dropping an approach (SHOULD):** When you abandon a path, workaround, or strategy â€” whether due to failure, operator redirection, or better alternatives: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
   - **CONCERN when flagging a risk (SHOULD):** When you identify a risk, a potential regression, a scope issue, or anything that could affect the WP or future work: `just repomem concern "<risk or issue flagged>" --wp WP-{ID}`. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout. Min 80 chars.
   - **ESCALATION when escalating to operator (SHOULD):** When you escalate a decision, blocker, or ambiguity to the operator or another role: `just repomem escalation "<what was escalated and to whom>" --wp WP-{ID}`. Fast capture (min 40 chars).
   - **SESSION_CLOSE (MUST):** Before session ends, run `just repomem close "<what happened this session>" --decisions "<key decisions made>"`. Both content and decisions are required.
   - **repomem log for continuity:** Use `just repomem log --session last` to review prior session context. Use `just repomem log --week` for recent history. Use `just repomem log --search "<topic>"` for subject retrieval.
-- **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --role ORCHESTRATOR`. Include the tool name, the failure mode, and what worked instead. These are surfaced automatically via `memory-recall` before future actions — preventing the same mistake from being repeated across sessions. Examples: patch tool size limits, path-length errors, session launch failures, command surface misuse.
+- **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --role ORCHESTRATOR`. Include the tool name, the failure mode, and what worked instead. These are surfaced automatically via `memory-recall` before future actions â€” preventing the same mistake from being repeated across sessions. Examples: patch tool size limits, path-length errors, session launch failures, command surface misuse.
 - **Hygiene commands:** `just memory-stats` (health), `just memory-search` (keyword), `just memory-recall <ACTION>` (action-scoped retrieval), `just memory-capture` (mid-session insight), `just memory-intent-snapshot` (pre-task context+intent), `just memory-flag <id> "<reason>"` (suppress bad memory), `just memory-debug-snapshot` (inspect snapshots), `just memory-patterns` (cross-WP synthesis), `just memory-compact --dry-run` (preview), `just memory-refresh --force-compact` (force cycle), `just repomem` (conversation memory).
 - **Backup:** `gov_runtime/` (including the memory DB) is included in backup snapshots via robocopy. `gov-flush` runs memory hygiene before backup to ensure a clean DB is captured.
 - **Memory is supplementary, not authoritative.** Work packets, receipts, and governance ledgers remain the source of truth.
@@ -517,8 +527,8 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 
 ## Deterministic Helpers
 
-- `just task-board-set WP-{ID} <STATUS> "<context>" ["reason"]` — context is captured as a conversation checkpoint before the status change
-- `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID "<context>"` — context captured before traceability update
+- `just task-board-set WP-{ID} <STATUS> "<context>" ["reason"]` â€” context is captured as a conversation checkpoint before the status change
+- `just wp-traceability-set BASE_WP_ID ACTIVE_PACKET_WP_ID "<context>"` â€” context captured before traceability update
 - `just wp-thread-append WP-{ID} ORCHESTRATOR <session> "<message>" [target] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`
 - `just wp-heartbeat WP-{ID} ORCHESTRATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
 - `just wp-heartbeat ...` is liveness-only. The route fields are assertions against current runtime truth; use receipts, notifications, or closeout projection to change next-actor routing.
@@ -535,11 +545,11 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `just wp-review-request WP-{ID} <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" [correlation_id] [spec_anchor] [packet_row_ref]`
 - `just wp-review-response WP-{ID} <ACTOR_ROLE> <session> <TARGET_ROLE> <target_session> "<summary>" <correlation_id> [spec_anchor] [packet_row_ref] [ack_for]`
 - `just operator-viewport` (`just operator-monitor` remains a compatibility alias)
-- `just send-mt WP-{ID} MT-001 "description" [PRIMARY|FALLBACK]` — auto-includes session keys, wp-review-request command, and STOP instruction
-- `just wp-lane-health WP-{ID}` — single-command diagnostic: session states, hook status, MT progress, notification queue, stall detection
-- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` — non-LLM relay watcher and safe re-wake helper for orchestrator-managed lanes; bounded by runtime relay-cycle budget plus a stricter worker-interrupt budget and conservative default-off restart policy
-- `just install-mt-hook WP-{ID}` — installs post-commit hook for auto-relay (auto-installed by orchestrator-prepare-and-packet)
-- `just wp-closeout-format WP-{ID} <MERGED_MAIN_COMMIT>` — automates packet status, containment fields, verdict, and clause closure matrix updates
+- `just send-mt WP-{ID} MT-001 "description" [PRIMARY|FALLBACK]` â€” auto-includes session keys, wp-review-request command, and STOP instruction
+- `just wp-lane-health WP-{ID}` â€” single-command diagnostic: session states, hook status, MT progress, notification queue, stall detection
+- `just wp-relay-watchdog [WP-{ID}] [--loop] [--interval-seconds N] [--no-watch-steer] [--allow-restart] [--restart-output-idle-seconds N]` â€” non-LLM relay watcher and safe re-wake helper for orchestrator-managed lanes; bounded by runtime relay-cycle budget plus a stricter worker-interrupt budget and conservative default-off restart policy
+- `just install-mt-hook WP-{ID}` â€” installs post-commit hook for auto-relay (auto-installed by orchestrator-prepare-and-packet)
+- `just wp-closeout-format WP-{ID} <MERGED_MAIN_COMMIT>` â€” automates packet status, containment fields, verdict, and clause closure matrix updates
 - `just coder-worktree-add WP-{ID}`
 - `just wp-validator-worktree-add WP-{ID}` (now reuses the coder worktree per [CX-503G]; no separate wtv-* worktree created)
 - `just integration-validator-worktree-add WP-{ID}`
@@ -618,7 +628,7 @@ Legacy flat compatibility:
 - `.GOV/task_packets/WP-{ID}.md`
 - `.GOV/refinements/WP-{ID}.md`
 
-[CX-212D] Work packets and refinements are committed on `gov_kernel`, not on WP feature branches. Coders do not commit `.GOV/` files on `feat/WP-*` branches — the governance kernel is the single source of truth, accessed via junction.
+[CX-212D] Work packets and refinements are committed on `gov_kernel`, not on WP feature branches. Coders do not commit `.GOV/` files on `feat/WP-*` branches â€” the governance kernel is the single source of truth, accessed via junction.
 
 ## Current Orchestrator Workflow (Authoritative)
 
@@ -747,7 +757,7 @@ Legacy flat compatibility:
 - `just workflow-dossier-judgment-check WP-{ID}` is the deterministic closeout judgment/rubric placeholder check. `phase-check CLOSEOUT` runs it and reports any unresolved placeholders or contradictory narrative as diagnostic governance debt; this does not override the Integration Validator's product verdict.
 - If Integration Validator returns FAIL, prefer same-WP remediation: preserve the FAIL report in the active WP artifact and route the Coder to repair those findings. Create a new remediation WP only for real scope expansion or explicit Operator choice; before splitting, append the old WP's terminal repomem snapshot to its dossier.
 - Use the Workflow Dossier rubric only at closeout when appending the Orchestrator post-mortem/review layer. Do not try to score the rubric continuously during execution.
-- **Dossier Telemetry vs Judgment Split:** The dossier contains two kinds of data: (1) **mechanical telemetry** — metrics (wall_clock, active, route_wait, tokens_in, turns), idle-ledger entries, receipt counts, ACP command traces — these are computed automatically by `wp-timeline-lib.mjs` and `workflow-dossier-sync` and are ground truth; (2) **orchestrator judgment** — rubric scores (0-10), silent-failure scan, drift lens, post-mortem — these are the orchestrator's best assessment after heavy autonomous work and may have drifted from reality. The operator cross-checks judgment against telemetry and external evidence. Both are valuable; neither alone is sufficient.
+- **Dossier Telemetry vs Judgment Split:** The dossier contains two kinds of data: (1) **mechanical telemetry** â€” metrics (wall_clock, active, route_wait, tokens_in, turns), idle-ledger entries, receipt counts, ACP command traces â€” these are computed automatically by `wp-timeline-lib.mjs` and `workflow-dossier-sync` and are ground truth; (2) **orchestrator judgment** â€” rubric scores (0-10), silent-failure scan, drift lens, post-mortem â€” these are the orchestrator's best assessment after heavy autonomous work and may have drifted from reality. The operator cross-checks judgment against telemetry and external evidence. Both are valuable; neither alone is sufficient.
 - Micro tasks (one per CLAUSE_CLOSURE_MATRIX row) are generated in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, etc.) during packet creation.
 - During the work-packet compatibility migration, scripts must resolve those packet/MT paths through `runtime-paths.mjs` rather than assuming the literal `task_packets` folder name.
 - Use only the packet-declared communication artifacts for shared session/runtime coordination.
@@ -755,7 +765,7 @@ Legacy flat compatibility:
   - starts governed sessions
   - steers on blockers only (not continuous polling)
   - keeps packet/runtime/thread artifacts current
-  - runs mechanical governance checks directly (phase-check, closeout-repair) — never through ACP
+  - runs mechanical governance checks directly (phase-check, closeout-repair) â€” never through ACP
 - The Orchestrator does not implement the WP and does not issue technical verdicts.
 - **Role-Split Workflow [RGF-190/191/192]:** The coder works through micro tasks in order and writes evidence per MT. WP Validator reviews completed MTs for boundary enforcement, scope containment, and code quality (bounded per-MT context). After all MTs pass WP Validator review, the Orchestrator must ensure a final whole-WP `CODER_HANDOFF` exists with committed handoff base/head/range, then run `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` before steering the Integration Validator. Per-MT PASS receipts are not the Integration Validator's committed target. The Integration Validator then performs whole-WP judgment against the master spec, writes the final review/verdict, and runs terminal closeout/merge on PASS.
 - **Orchestrator Closeout Prep (Mechanical) [RGF-189/193]:** Before launching the Integration Validator for whole-WP judgment, the Orchestrator MUST:
@@ -810,7 +820,7 @@ Legacy flat compatibility:
 - If new work is needed, create a new remediation WP instead of reopening the old packet as if it were still active execution.
 - If the old packet is blocked by `LEGACY_CLOSED_PACKET_REMEDIATION_REQUIRED`, treat that as a historical failure that requires a new remediation packet/version rather than an in-place revive.
 
-## Orchestrator Lean Mode (HARD RULE — Token Discipline)
+## Orchestrator Lean Mode (HARD RULE â€” Token Discipline)
 
 During active WP execution (any WP is IN_PROGRESS with live coder or validator sessions):
 
@@ -838,7 +848,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - **Per-MT Fix Loop Bound [RGF-100] (HARD):** Each MT is bounded to 3 fix cycles between coder and WP Validator. After 3 fix cycles on the same MT without PASS, the WP Validator MUST escalate to the Orchestrator with a failure summary. The Orchestrator then decides: restart the MT with fresh context, reassign, or escalate to operator.
 - **Heuristic-Risk Strategy Escalation [RGF-250] (HARD):** If `just heuristic-risk-check WP-{ID}` or the receipt microtask contract tags an MT as `HEURISTIC_RISK=YES`, repeated counterexamples require a strategy change before the generic 3-cycle cap. Treat `HEURISTIC_RISK_STRATEGY_ESCALATION` notifications as a workflow blocker: relaunch with corpus/property/negative-evidence direction, discriminator redesign, alternate model review, or human stop instead of another same-threshold repair.
 - **Named-Verb Receipts [RGF-248] (PREFERRED):** Use `--verb <NAME> --verb-body '<JSON>'` with `wp-receipt-append` for routine role traffic. The initial verb set is `MT_HANDOFF`, `MT_VERDICT`, `MT_REMEDIATION_REQUIRED`, `WP_HANDOFF`, `INTEGRATION_VERDICT`, `CONCERN`, `PHASE_TRANSITION`, and `RELAUNCH_REQUEST`. Routing readers prefer `verb_body`; legacy prose receipts remain compatibility fallback during rollout.
-- For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` requires all MTs to have WP_VALIDATOR PASS receipts and clean mechanical truth (per the Integration Validator protocol). The Integration Validator does NOT communicate directly with the coder — it judges the complete work product against the master spec.
+- For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` requires all MTs to have WP_VALIDATOR PASS receipts and clean mechanical truth (per the Integration Validator protocol). The Integration Validator does NOT communicate directly with the coder â€” it judges the complete work product against the master spec.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role, notify `ORCHESTRATOR` on validator-authored assessment receipts as a governance checkpoint, include the assessment result (`PASS`/`FAIL`/`ASSESSED`) plus the validator's reason in that checkpoint summary, and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
 - Before WP Validator handoff review begins, `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` MUST pass.
@@ -862,8 +872,8 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 
 - Maximum WP-specific worktrees per WP: 1 [CX-503G].
 - The Coder and WP Validator share the same worktree (`wtc-*` on `feat/WP-*`). The per-MT stop pattern is receipt-driven: coder emits `CODER_HANDOFF`/`REVIEW_REQUEST` which updates `RUNTIME_STATUS.json next_expected_actor` to WP_VALIDATOR via `deriveWpCommunicationAutoRoute()`; after WP Validator emits `REVIEW_RESPONSE`, runtime flips back to CODER. Governance uses the `.GOV/` junction to the kernel.
-- **Session Context Rotation:** If a Coder or WP Validator session exceeds its token budget (per `session-policy.mjs` role thresholds), the Orchestrator should close the session and start a fresh one. The new session receives the startup prompt plus current MT context — no need to replay prior MT history. This prevents the context bloat observed in prior runs.
-- The Integration Validator operates from `handshake_main` on branch `main` — no WP-specific worktree.
+- **Session Context Rotation:** If a Coder or WP Validator session exceeds its token budget (per `session-policy.mjs` role thresholds), the Orchestrator should close the session and start a fresh one. The new session receives the startup prompt plus current MT context â€” no need to replay prior MT history. This prevents the context bloat observed in prior runs.
+- The Integration Validator operates from `handshake_main` on branch `main` â€” no WP-specific worktree.
 - Do not create ad-hoc temp worktrees (detached checkouts, merge worktrees, revalidation worktrees) outside the governed naming scheme.
 - After a WP reaches VALIDATED or MERGED, require governed cleanup of WP-specific worktrees before starting new WPs.
 - All worktrees must be created under the shared worktree root so `just enumerate-cleanup-targets` can find them. Off-root worktree creation is forbidden.
@@ -889,7 +899,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - That Orchestrator exception is mechanical execution only. It does not grant final technical verdict authority or permission to invent a new product merge decision.
 - The `main` worktree retains a real (non-junction) `/.GOV/` copy as a stable backup.
 
-## Notification System (HARD RULE — Message Delivery)
+## Notification System (HARD RULE â€” Message Delivery)
 
 - Every thread message with a `@target` or explicit `target_role` writes a notification to `NOTIFICATIONS.jsonl` in the WP communications directory.
 - Every review exchange (REVIEW_REQUEST, VALIDATOR_QUERY, SPEC_GAP, etc.) writes a notification to the target role.
@@ -902,7 +912,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 ## Pre-Smoke Validation Gate (RECOMMENDED)
 
 Before launching an orchestrator-managed session with multiple parallel WPs, run:
-1. `just gov-check` — governance must be clean before starting
+1. `just gov-check` â€” governance must be clean before starting
 2. Verify all session control tooling paths resolve correctly
 3. Verify all required worktree base branches exist
 4. Verify the ACP broker is responsive or can be started
@@ -934,3 +944,5 @@ Do:
 - monitor pending notification counts and steer roles that ignore their notifications
 - run `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` before launching/steering Integration Validator
 - launch Integration Validator with fresh context only after committed handoff evidence and pre-verdict mechanical prep are complete
+
+

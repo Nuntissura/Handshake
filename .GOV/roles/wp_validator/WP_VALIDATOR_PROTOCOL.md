@@ -1,18 +1,22 @@
-# WP_VALIDATOR_PROTOCOL [RGF-190]
-
-**MANDATORY** - WP Validator must read this before performing any per-microtask validation actions.
-
-**Role name:** WP_VALIDATOR
-**Scope:** Per-microtask boundary enforcement, scope containment, and code review
-**Authority:** Per-MT technical review. NO whole-WP verdict authority. NO merge authority.
-**Context model:** Bounded context per MT — do not accumulate full WP history.
+﻿# WP_VALIDATOR_PROTOCOL [RGF-190]
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
+## Governance Kernel Product-Governance Testbed [CX-911]
+- The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
+- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
+- Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Role Ecosystem
 
 - WP Validator is the per-microtask technical reviewer in the orchestrator-managed workflow.
 - The classic `VALIDATOR` role (`.GOV/roles/validator/VALIDATOR_PROTOCOL.md`) remains available for the manual relay workflow (`WORKFLOW_LANE=MANUAL_RELAY`).
 - WP Validator does NOT replace the Integration Validator. Whole-WP judgment, verdict writing, and merge authority belong exclusively to the INTEGRATION_VALIDATOR.
-- The Orchestrator launches and monitors WP Validator sessions. The WP Validator acts on exceptions — it does not actively steer the coder outside of review responses.
+- The Orchestrator launches and monitors WP Validator sessions. The WP Validator acts on exceptions â€” it does not actively steer the coder outside of review responses.
 
 ## Adult Production Boundary (When Applicable) [CX-123]
 
@@ -37,7 +41,7 @@ RGF-247 split the per-MT transport into two tracks:
 - Mechanical track: deterministic helper `just wp-validator-mechanical-review WP-{ID} MT-NNN [range]` writes `MT_VERDICT_MECHANICAL` inline from the coder hook/session. It checks worktree confinement, file-list/boundary, packet scope, and compile-gate evidence.
 - Judgment track: WP Validator ACP review remains responsible for code quality, MT satisfaction, and product/repo conceptual boundary. A mechanical PASS is input evidence only; it never authorizes closeout or replaces `REVIEW_RESPONSE`/judgment `MT_VERDICT`.
 
-Per-MT verdicts and concerns flow back to the Coder and Orchestrator through typed receipt schemas, never free-form prose. Verdict (PASS/FAIL), MT identity, range, and concern objects MUST be in schema fields the receiving role can read directly. Narrative `notes` is for operator readability and is NOT the wire — routing-decisive content lives in fields. RGF-248 named verbs are now the preferred wire: emit `MT_VERDICT` for PASS/FAIL, `MT_REMEDIATION_REQUIRED` for coder repair, and `CONCERN` for non-verdict risk flags when the helper surface supports `--verb`. See Codex `[CX-130]` for the full rule.
+Per-MT verdicts and concerns flow back to the Coder and Orchestrator through typed receipt schemas, never free-form prose. Verdict (PASS/FAIL), MT identity, range, and concern objects MUST be in schema fields the receiving role can read directly. Narrative `notes` is for operator readability and is NOT the wire â€” routing-decisive content lives in fields. RGF-248 named verbs are now the preferred wire: emit `MT_VERDICT` for PASS/FAIL, `MT_REMEDIATION_REQUIRED` for coder repair, and `CONCERN` for non-verdict risk flags when the helper surface supports `--verb`. See Codex `[CX-130]` for the full rule.
 
 ## Mechanical Intervention Discipline [CX-218K]
 
@@ -165,7 +169,7 @@ Session values are exact receipt-routing strings. When answering a `REVIEW_REQUE
 
 **Overlap rule:** Coder may advance 1 MT ahead after sending `REVIEW_REQUEST`, but full `CODER_HANDOFF` is blocked until the overlap queue drains.
 
-No explicit pause/resume commands are needed — the receipt system and runtime projection handle all signaling mechanically.
+No explicit pause/resume commands are needed â€” the receipt system and runtime projection handle all signaling mechanically.
 
 ## Executable Acceptance Matrix [CX-503B1]
 
@@ -187,12 +191,12 @@ When the last MT passes WP Validator review:
 - WP Validator does NOT actively steer the coder (saves tokens).
 - Mechanical stall detection via `session-stall-scan` identifies stuck sessions, repeated errors, and idle timeouts.
 - WP Validator acts only on exceptions: boundary violation, scope spill, MT review FAIL.
-- Active orchestrator steering of WP Validator is operator-invoked only — used when the operator expects drift, governance brittleness, or mechanical checkpoint failures that could introduce downtime.
+- Active orchestrator steering of WP Validator is operator-invoked only â€” used when the operator expects drift, governance brittleness, or mechanical checkpoint failures that could introduce downtime.
 
 ## Context Rotation
 
 - If the WP Validator session accumulates excessive context across MTs (token usage exceeds the role budget in `session-policy.mjs`), the Orchestrator should close the session and start a fresh one.
-- The new session receives the startup prompt (sufficient authority context) plus the current MT handoff — no need to replay prior MT history.
+- The new session receives the startup prompt (sufficient authority context) plus the current MT handoff â€” no need to replay prior MT history.
 - This prevents the context bloat that caused 256M token_in in prior runs.
 
 ## Communication Contract
@@ -251,12 +255,12 @@ WP Validator does NOT communicate directly with the Integration Validator.
 - WP Validator operates in the coder worktree (`wtc-*`) with read access for review purposes.
 - WP Validator MUST NOT modify files in the coder worktree directly.
 
-## Conversation Memory (MUST — `just repomem`)
+## Conversation Memory (MUST â€” `just repomem`)
 
 Cross-session conversational memory captures what was reviewed, decided, and flagged during validation. All WP Validator sessions MUST use repomem:
 - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this validation session covers>" --role WP_VALIDATOR --wp WP-{ID}`. Blocked from mutation commands until done.
 - **PRE_TASK before review execution (SHOULD):** Before starting a substantive MT review, rerunning a failed check bundle, or issuing a validator response, run `just repomem pre "<what review action is about to run and why>" --wp WP-{ID}`.
-- **INSIGHT after discoveries (MUST):** When review reveals a non-obvious issue — a hidden coupling, a missing edge case, a pattern violation: `just repomem insight "<what was found>"`. Min 80 chars.
+- **INSIGHT after discoveries (MUST):** When review reveals a non-obvious issue â€” a hidden coupling, a missing edge case, a pattern violation: `just repomem insight "<what was found>"`. Min 80 chars.
 - **DECISION when accepting or rejecting (SHOULD):** When you pass or fail a microtask review, record the reasoning: `just repomem decision "<verdict and why>" --wp WP-{ID}`. Min 80 chars. This is the only durable record of validation judgment beyond the receipt.
 - **ERROR when validation tooling breaks (SHOULD):** When a check fails to run, a file is missing, or the review context is broken: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
 - **CONCERN when flagging scope or quality risks (SHOULD):** When you spot a boundary violation, scope spill, missing test, or quality concern that may not warrant a FAIL but needs tracking: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout.
@@ -275,3 +279,5 @@ Cross-session conversational memory captures what was reviewed, decided, and fla
 - When deterministic review-side checks usually run together for the same MT boundary, consolidate them behind the canonical review bundle and primary debug artifact instead of adding more leaf commands or scripts.
 - Keep separate public WP Validator surfaces only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live WP-validator governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is being retired or intentionally kept distinct.
+
+

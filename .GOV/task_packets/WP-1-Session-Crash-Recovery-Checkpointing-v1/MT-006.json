@@ -1,0 +1,62 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/MT-006.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/MT-006.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-005"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:01:56.073Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/MT-006.md",
+    "projection_hash": "bab4915a72d5020c",
+    "source_file": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.json",
+    "source_hash": "01900bc8fff8ce69",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-006",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "Anti-Pattern AP-008"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workflows.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test session_checkpoint"
+    ],
+    "risk_if_missed": "sessions proceed through risky operations without checkpoint safety net",
+    "summary": "Anti-Pattern AP-008"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Session-Crash-Recovery-Checkpointing-v1"
+}

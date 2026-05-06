@@ -118,6 +118,16 @@ function shortenDossierToken(value = "", prefix = 8, suffix = 6) {
   return `${text.slice(0, prefix)}..${text.slice(-suffix)}`;
 }
 
+function startupCapsuleDigest(capsule = null) {
+  if (!capsule || typeof capsule !== "object") return "";
+  return crypto.createHash("sha256").update(JSON.stringify(capsule), "utf8").digest("hex").slice(0, 16);
+}
+
+function microtaskLabel(item = null) {
+  if (!item || typeof item !== "object") return "NONE";
+  return [item.mt_id || "", item.state || ""].filter(Boolean).join(":") || "NONE";
+}
+
 function acpFlowRoute(stage = "", settledRole = role) {
   const normalizedStage = String(stage || "").trim().toLowerCase();
   if (normalizedStage === "terminal.reclaimed") {
@@ -176,6 +186,44 @@ function buildAcpUpdateLogLine({
   ].filter(Boolean);
   const suffix = parts.length > 0 ? ` | ${parts.join(" | ")}` : "";
   return `- [${whenIso}] [ORCHESTRATOR] [ACP_UPDATE] \`${route}\` ${settledCommandKind}/${stage}${suffix}`;
+}
+
+function buildAcpStartupCapsuleLogLine({
+  request,
+  when = new Date(),
+  settledRole = role,
+  targetWpId = wpId,
+}) {
+  const capsule = request?.role_startup_capsule;
+  if (!capsule || typeof capsule !== "object") return "";
+  const whenIso = formatWorkflowDossierTimestamp(when);
+  const packet = capsule.work_packet_contract || {};
+  const refinement = capsule.refinement_contract || {};
+  const microtask = capsule.microtask_contract || {};
+  const runtime = capsule.runtime_receipt_state || {};
+  const firstCommands = Array.isArray(capsule.first_commands) ? capsule.first_commands : [];
+  const authorityFiles = Array.isArray(capsule.authority_files) ? capsule.authority_files : [];
+  const parts = [
+    `digest=${startupCapsuleDigest(capsule)}`,
+    `schema=${capsule.schema_id || "<missing>"}`,
+    `generated=${capsule.generated_at || "<missing>"}`,
+    capsule.restart_reason ? `restart_reason=${String(capsule.restart_reason).slice(0, 160)}` : "",
+    `wp=${targetWpId}`,
+    `role=${settledRole}`,
+    packet.path ? `packet=${normalizePath(packet.path)}` : "",
+    packet.sha256_16 ? `packet_sha=${packet.sha256_16}` : "",
+    refinement.path ? `refinement=${normalizePath(refinement.path)}` : "",
+    refinement.sha256_16 ? `refinement_sha=${refinement.sha256_16}` : "",
+    `mt_declared=${microtask.declared_count ?? 0}`,
+    `mt_active=${microtaskLabel(microtask.active_microtask)}`,
+    `mt_next=${microtaskLabel(microtask.next_microtask)}`,
+    microtask.projection_error ? `mt_projection_error=${String(microtask.projection_error).slice(0, 120)}` : "",
+    `runtime=${runtime.runtime_exists ? "YES" : "NO"}`,
+    `receipt_sample=${runtime.receipt_count_sampled ?? 0}`,
+    `first_commands=${firstCommands.length}`,
+    `authority_files=${authorityFiles.map((entry) => `${entry.label || "FILE"}:${entry.sha256_16 || "missing"}`).join(",")}`,
+  ].filter(Boolean);
+  return `- [${whenIso}] [ORCHESTRATOR] [ACP_STARTUP_CAPSULE] \`ORCHESTRATOR -> ACP -> ${settledRole}\` ${request.command_kind || "START_SESSION"} | ${parts.join(" | ")}`;
 }
 
 function appendWorkflowDossierExecutionLog(targetWpId, summaryLine) {
@@ -716,6 +764,15 @@ const request = buildSessionControlRequest({
     : (session.reasoning_config_value || ""),
   busyIngressMode: commandKind === "SEND_PROMPT" ? "ENQUEUE_ON_BUSY" : "REJECT",
 });
+
+if (commandKind === "START_SESSION") {
+  appendWorkflowDossierExecutionLog(wpId, buildAcpStartupCapsuleLogLine({
+    request,
+    when: new Date(),
+    settledRole: role,
+    targetWpId: wpId,
+  }));
+}
 
 let acpResponse;
 try {

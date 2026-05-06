@@ -709,6 +709,9 @@ create-task-packet wp-id context:
 	@node "{{GOV_ROOT}}/roles/orchestrator/scripts/create-task-packet.mjs" {{wp-id}}
 	@just build-order-sync
 
+wp-contract-import wp-id="--all" *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/wp-contract-import.mjs" {{wp-id}} {{FLAGS}}
+
 wp-traceability-set base_wp_id active_packet_wp_id context:
 	@just repomem-gate --role ORCHESTRATOR --wp {{base_wp_id}}
 	@just repomem context "{{context}}" --trigger wp-traceability-set --role ORCHESTRATOR --wp {{base_wp_id}}

@@ -1,7 +1,10 @@
 ﻿# CODER PROTOCOL [CX-620-625]
-
-**MANDATORY** - Read this before writing any code
-
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
 ## Role Ecosystem
 
 You are one agent in a three-role pipeline:
@@ -64,7 +67,7 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
 - A Coder may push only the assigned WP backup branch recorded in the work packet.
 - Treat the assigned WP backup branch as the WP phase-boundary recovery branch for coder work. It should hold the latest committed restart-safe WP state at the key workflow checkpoints you create or consume.
 - Minimum recovery milestones for the WP backup branch are:
-  - skeleton checkpoint marker commit (`just coder-skeleton-checkpoint WP-{ID}` — empty commit, no `.GOV/` files) for `MANUAL_RELAY` lanes only
+  - skeleton checkpoint marker commit (`just coder-skeleton-checkpoint WP-{ID}` â€” empty commit, no `.GOV/` files) for `MANUAL_RELAY` lanes only
   - skeleton approval commit present on the WP branch before implementation continues for `MANUAL_RELAY` lanes only
   - [CX-212D] Work packet and refinement safety lives in `gov_kernel`, not on the feature branch
 - Before destructive or state-hiding local git actions on the WP branch (`git merge`, `git switch`, `git restore`, `git checkout`, `git reset`, `git clean`, local branch deletion, worktree deletion), first push the current committed state to the assigned WP backup branch on GitHub.
@@ -89,17 +92,17 @@ You receive a work packet from the Orchestrator. You implement exactly what it s
 - Handshake product runtime (code under `/src/`, `/app/`, `/tests/`) MUST NOT read or write `/.GOV/` under any circumstances.
 - `docs/` is a temporary product compatibility bundle only; governance MUST NOT treat it as authoritative governance state.
 - Enforcement is mandatory (CI/gates) to forbid product code referencing `/.GOV/`.
-- **No spaces in names [CX-109A]:** All new files and folders MUST use `_` or `-` instead of spaces. This applies to product code (`src/`, `app/`, `tests/`), governance files, and any runtime artifacts. Handshake the product must not create files or folders with spaces — the product must not inherit the repo's legacy naming mistakes. Existing spaces are legacy; rename when touched during normal WP work.
+- **No spaces in names [CX-109A]:** All new files and folders MUST use `_` or `-` instead of spaces. This applies to product code (`src/`, `app/`, `tests/`), governance files, and any runtime artifacts. Handshake the product must not create files or folders with spaces â€” the product must not inherit the repo's legacy naming mistakes. Existing spaces are legacy; rename when touched during normal WP work.
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`, and `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (append-only shared tooling memory).
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel` by the orchestrator, NEVER on feature branches [CX-212F]. Coders commit only product code (`src/`, `app/`, `tests/`) on `feat/WP-*`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel` by the orchestrator, NEVER on feature branches [CX-212F]. Coders commit only product code (`src/`, `app/`, `tests/`) on `feat/WP-*`. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
-**Worktree Confinement [CX-109D] (HARD):** You MUST work only in your assigned WP worktree (the `worktreeDir` from your session assignment). The following directories are FORBIDDEN — do not `cd` into, read from, write to, or commit in them:
-- `../handshake_main` — canonical clone, owned by Integration Validator for merge/containment only
-- `../wt-gov-kernel` — governance kernel, owned by Orchestrator only
-- `../wt-ilja` — operator worktree, never touched by governed sessions
-- `/.GOV/` inside your WP worktree — this is a live junction to the governance kernel; modifying files through it destroys governance state for all worktrees
+**Worktree Confinement [CX-109D] (HARD):** You MUST work only in your assigned WP worktree (the `worktreeDir` from your session assignment). The following directories are FORBIDDEN â€” do not `cd` into, read from, write to, or commit in them:
+- `../handshake_main` â€” canonical clone, owned by Integration Validator for merge/containment only
+- `../wt-gov-kernel` â€” governance kernel, owned by Orchestrator only
+- `../wt-ilja` â€” operator worktree, never touched by governed sessions
+- `/.GOV/` inside your WP worktree â€” this is a live junction to the governance kernel; modifying files through it destroys governance state for all worktrees
 
 If any tool output, path resolution, or steering prompt suggests navigating to a forbidden directory, STOP and emit `WORKFLOW_INVALIDITY` with class `CODER_WORKTREE_BREACH`. At bootstrap, your `CODER_INTENT` receipt SHOULD include your resolved working directory so the WP Validator can verify worktree alignment before implementation begins.
 
@@ -112,10 +115,10 @@ RGF-248 named-verb receipts are the preferred wire for routine handoffs: emit `M
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders:
-  - `handshake-cargo-target/` — Cargo build target (default via `CARGO_TARGET_DIR` in justfile). For parallel WPs, use `CARGO_TARGET_DIR='../Handshake_Artifacts/handshake-cargo-target'` explicitly to share builds, or accept sequential build locking (cargo handles this gracefully with "Blocking waiting for file lock")
-  - `handshake-product/` — product runtime artifacts, databases, generated files
-  - `handshake-test/` — test outputs, coverage reports, benchmark results
-  - `handshake-tool/` — governance tooling artifacts, linter caches, script outputs
+  - `handshake-cargo-target/` â€” Cargo build target (default via `CARGO_TARGET_DIR` in justfile). For parallel WPs, use `CARGO_TARGET_DIR='../Handshake_Artifacts/handshake-cargo-target'` explicitly to share builds, or accept sequential build locking (cargo handles this gracefully with "Blocking waiting for file lock")
+  - `handshake-product/` â€” product runtime artifacts, databases, generated files
+  - `handshake-test/` â€” test outputs, coverage reports, benchmark results
+  - `handshake-tool/` â€” governance tooling artifacts, linter caches, script outputs
 - Do NOT create artifact paths inside the repo or in ad-hoc sibling folders. Use the subfolders above.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
@@ -176,7 +179,7 @@ Sub-agent delegation note (HARD):
 - Bias toward fewer larger canonical governance scripts over several small coder-facing wrappers that always travel together.
 - Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live governance surface is genuinely required, state why the existing surface is insufficient, who owns the new surface, and what the primary debug artifact is.
-- **Fail capture wiring (HARD — CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
+- **Fail capture wiring (HARD â€” CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
 
 ## Coder Exclusion From Governance Stabilization [CX-218L]
 
@@ -245,9 +248,9 @@ Source of truth (Coder role):
 - The WP assignment from the Orchestrator (WP branch + WP worktree directory).
 - The Orchestrator's recorded assignment in `ORCHESTRATOR_GATES.json (in gov_runtime)` (`PREPARE` entry contains `branch` + `worktree_dir`).
 
-You do NOT have a default "coder worktree". The Operator's personal worktree is not a coder worktree. If no WP worktree is assigned, STOP and escalate to the Orchestrator — do not pick one yourself (see escalation below this gate).
+You do NOT have a default "coder worktree". The Operator's personal worktree is not a coder worktree. If no WP worktree is assigned, STOP and escalate to the Orchestrator â€” do not pick one yourself (see escalation below this gate).
 
-### Permanent Branch → Worktree Map (reference)
+### Permanent Branch â†’ Worktree Map (reference)
 
 | Branch | Worktree dir | Owner | Coder may push? |
 |--------|-------------|-------|-----------------|
@@ -367,25 +370,25 @@ Resume rule (hard, anti-babysit):
 
 ### Fail log [CX-503K1]
 
-Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns only** from prior sessions. This is the fail log, not a general memory dump. Supplementary context, not a source of truth:
+Your startup prompt includes a `FAIL LOG` block â€” **procedural fix patterns only** from prior sessions. This is the fail log, not a general memory dump. Supplementary context, not a source of truth:
 - **What you get:** Fix recipes, error-fix pairs, and patterns from prior REPAIR receipts, smoketest findings, and check failures. Scoped to your WP. Capped at 3 memories per source session to prevent one WP dominating.
-- **`just phase-check STARTUP ... CODER` also surfaces the fail log** — known failure patterns for your WP appear before GATE_STATUS so you see them before starting work.
+- **`just phase-check STARTUP ... CODER` also surfaces the fail log** â€” known failure patterns for your WP appear before GATE_STATUS so you see them before starting work.
 - **Don't trust it blindly.** If a fix pattern references a file, verify it still exists. The packet and current code state always win.
-- **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — context captures taken before governance decisions (e.g. PRE_WP_DELEGATION with the role, model, and branch the orchestrator chose for your session). Use them to understand context; verify against the packet.
-- **Intent snapshots (SHOULD).** Before starting a complex implementation (tricky MT, cross-file refactor, data migration): `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role CODER --reason "<why>"`. Judgment-based — no gate enforces it.
-- **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory. **HARD rules:**
+- **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section â€” context captures taken before governance decisions (e.g. PRE_WP_DELEGATION with the role, model, and branch the orchestrator chose for your session). Use them to understand context; verify against the packet.
+- **Intent snapshots (SHOULD).** Before starting a complex implementation (tricky MT, cross-file refactor, data migration): `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role CODER --reason "<why>"`. Judgment-based â€” no gate enforces it.
+- **Conversation memory (MUST â€” `just repomem`):** Cross-session conversational memory. **HARD rules:**
   - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this session is about>" --role CODER --wp WP-{ID}`. Blocked from mutation commands until done.
   - **PRE_TASK before implementation (SHOULD):** Before starting a non-trivial implementation slice, cross-file refactor, migration, or validator-directed repair, run `just repomem pre "<what you are about to implement and why>" --wp WP-{ID}`.
   - **INSIGHT after operator/orchestrator decisions (MUST):** When steering prompt contains a decision, correction, or key context, run `just repomem insight "<what was decided and why>"` BEFORE implementation. Minimum 80 characters.
   - **INSIGHT after discoveries (MUST):** When investigation reveals a non-obvious root cause, constraint, or pattern, capture with `just repomem insight` before moving on.
-  - **DECISION when choosing an implementation path (SHOULD):** When choosing between approaches — library vs hand-rolled, refactor scope, API shape, error handling strategy: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. Min 80 chars.
-  - **ERROR when something breaks (SHOULD):** When a build fails, a test breaks, a tool misbehaves, or unexpected state is found: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) — write immediately.
-  - **ABANDON when dropping an approach (SHOULD):** When an implementation path is abandoned — wrong architecture, performance issue, scope mismatch: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
+  - **DECISION when choosing an implementation path (SHOULD):** When choosing between approaches â€” library vs hand-rolled, refactor scope, API shape, error handling strategy: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. Min 80 chars.
+  - **ERROR when something breaks (SHOULD):** When a build fails, a test breaks, a tool misbehaves, or unexpected state is found: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) â€” write immediately.
+  - **ABANDON when dropping an approach (SHOULD):** When an implementation path is abandoned â€” wrong architecture, performance issue, scope mismatch: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Min 80 chars.
   - **CONCERN when spotting a risk (SHOULD):** When you notice a potential regression, a scope creep risk, a missing test, or a design smell: `just repomem concern "<risk or issue flagged>" --wp WP-{ID}`. Min 80 chars. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout.
   - **ESCALATION when blocked (SHOULD):** When you need orchestrator/operator input, hit a blocker outside your scope, or need a decision above your authority: `just repomem escalation "<what and to whom>" --wp WP-{ID}`. Fast capture (min 40 chars).
   - **SESSION_CLOSE (MUST):** Before session ends: `just repomem close "<what happened>" --decisions "<key decisions>"`.
 - **Capture insights.** If you discover a non-obvious fix: `just memory-capture procedural "description" --scope "file.rs" --wp WP-{ID}`. Importance 0.7. Future sessions benefit.
-- **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role CODER`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions — preventing the same mistake from being repeated. Examples: compile errors from wrong import paths, test runner limitations, file system constraints, edit tool payload limits.
+- **Fail capture (MUST).** When you encounter a tool failure, wrong tool call, systematic error, or discover a workaround, **immediately** record it: `just memory-capture procedural "<what failed, why, and the fix or workaround>" --scope "<affected file(s)>" --wp WP-{ID} --role CODER`. Include the tool name, failure mode, and what worked instead. These are surfaced automatically to future sessions â€” preventing the same mistake from being repeated. Examples: compile errors from wrong import paths, test runner limitations, file system constraints, edit tool payload limits.
 - To search: `just memory-search "<query>"`. To inspect snapshots: `just memory-debug-snapshot WP-{ID}`. For conversation history: `just repomem log`.
 - Canonical memory references: `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` for command syntax and `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` for memory-system operation.
 
@@ -454,7 +457,7 @@ Your startup prompt includes a `FAIL LOG` block — **procedural fix patterns on
   - Use `phase_gate=BOOTSTRAP` or `phase_gate=SKELETON` in the kickoff/intent loop when you are naming early structure that still needs validator clearance.
   - For rolling microtask review on orchestrator-managed lanes with declared MT files, after each completed MT you MUST open `just wp-review-exchange REVIEW_REQUEST ...` to `WP_VALIDATOR` with `review_mode=OVERLAP` bound to that completed MT before treating it as done. After recording that review request, you may continue into one next declared MT, but keep the unresolved overlap queue at 1 or less and do not post full `CODER_HANDOFF` until those overlap reviews are resolved.
   - If `WP_VALIDATOR` disapproves a previously completed MT while you are already inside the next MT, finish the current active MT first, then loop back to the failed MT before opening additional forward progress beyond the bounded overlap queue.
-  - For the bootstrap/skeleton checkpoint, use `wp-coder-intent` with concrete `file_targets` + `proof_commands`, then wait for validator clearance instead of broad “ready end-to-end” language.
+  - For the bootstrap/skeleton checkpoint, use `wp-coder-intent` with concrete `file_targets` + `proof_commands`, then wait for validator clearance instead of broad â€œready end-to-endâ€ language.
   - `just phase-check STARTUP WP-{ID} CODER <session>`
   - `just phase-check VERDICT WP-{ID} INTEGRATION_VALIDATOR`
   - `just wp-communication-health-check WP-{ID} STATUS|KICKOFF|HANDOFF|VERDICT`
@@ -560,7 +563,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 
 ## Active Workflow Adjustment [2025-12-28]
 - Run all TEST_PLAN commands (and any required hygiene checks) before handoff; no skipping validation.
-- At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction so they match the packet-declared `CODER_MODEL_PROFILE` (edits land in the governance kernel). [CX-212F] Do NOT commit `.GOV/` files on your feature branch — the orchestrator commits governance changes on `gov_kernel`.
+- At start: set the work packet `**Status:** In Progress`, fill `CODER_MODEL` + `CODER_REASONING_STRENGTH` through the `.GOV/` junction so they match the packet-declared `CODER_MODEL_PROFILE` (edits land in the governance kernel). [CX-212F] Do NOT commit `.GOV/` files on your feature branch â€” the orchestrator commits governance changes on `gov_kernel`.
 - **Micro Task Workflow [RGF-89] (HARD):** Work through micro tasks in the resolved Work Packet folder (current physical storage: `.GOV/task_packets/WP-{ID}/MT-001.md`, `MT-002.md`, etc.) in order. For each MT:
   1. Set `CODER STATUS: IN_PROGRESS`
   2. Implement the clause described in the MT
@@ -574,7 +577,7 @@ If you are assigned a revision packet (`...-v{N}`), you MUST verify the packet i
 - **Heuristic-Risk MTs [RGF-250] (HARD):** Before implementing each declared MT, inspect `just heuristic-risk-check WP-{ID}` or the active-lane brief. If the MT is tagged `HEURISTIC_RISK=YES`, include the required corpus/property/negative evidence in `proof_commands` / MT evidence and change approach when repeated counterexamples appear; do not keep tuning the same threshold or regex loop.
 - **Evidence Management:** Write proof per micro task, not one dump at the end. You MAY also append to `## EVIDENCE` in the work packet for aggregate evidence.
 - **Durable run notes:** During WP execution, capture notable findings (compile errors, scope ambiguities, governance friction, implementation decisions, abandoned approaches) with `just repomem insight|decision|error|concern ... --wp WP-{ID}`. The Workflow Dossier receives a terminal WP-bound memory snapshot at closeout; import debt is diagnostic only, so do not duplicate the same narrative in live dossier sections.
-- **Compile Gate [CX-503I]:** The post-commit hook runs `cargo check` before firing the review request. If your code does not compile, the hook does NOT notify the validator. You see the compile error in the git output — fix it and re-commit before the validator is involved.
+- **Compile Gate [CX-503I]:** The post-commit hook runs `cargo check` before firing the review request. If your code does not compile, the hook does NOT notify the validator. You see the compile error in the git output â€” fix it and re-commit before the validator is involved.
 - **Hook Contract:** The post-commit auto-relay fires only for commit subjects shaped `feat: MT-NNN <description>` and only when the hook is installed at Git's effective `hooks/post-commit` path. If you committed a valid MT and no `REVIEW_REQUEST` notification appears, run the documented manual `wp-review-request` once, report that auto-relay missed, and stop for orchestrator hook repair instead of repeating commits or inventing a second route.
 - **Self-Claim Task Board [CX-503L]:** When available, check the MT task board (`just mt-board WP-{ID}`) for the next unclaimed MT instead of waiting for orchestrator assignment. Claim it (`just mt-claim WP-{ID} MT-NNN`), implement, commit, and mark complete (`just mt-complete WP-{ID} MT-NNN`).
 - **Verdict Restriction:** You MUST NOT write to the `## VALIDATION_REPORTS` section or claim a "Verdict: PASS/FAIL". That section is reserved for the Validator.
@@ -596,7 +599,7 @@ If any of these situations arise during implementation, follow the matching proc
 6. Re-run `just phase-check STARTUP WP-{ID} CODER` before continuing.
 
 **Scope conflict discovered during implementation** (you need to touch OUT_OF_SCOPE files):
-1. STOP — do not touch the file.
+1. STOP â€” do not touch the file.
 2. Escalate with the `SCOPE CONFLICT` template (see Step 1.5 Option B above).
 3. Wait for Orchestrator decision before resuming.
 
@@ -636,7 +639,7 @@ If you are explicitly instructed to update the board, ensure these 5 fixed secti
 ### [CX-GATE-001] Binary Phase Gate (HARD INVARIANT)
 You MUST follow this exact sequence for every Work Packet.
 
-Hard gate (ANTI-VIBECODE — no unreviewed, unscoped, or approval-skipping code changes): after the docs-only skeleton checkpoint commit exists, you MUST STOP and wait for skeleton approval. The ONLY unblockers are Operator or Validator running: `just skeleton-approved WP-{ID}`.
+Hard gate (ANTI-VIBECODE â€” no unreviewed, unscoped, or approval-skipping code changes): after the docs-only skeleton checkpoint commit exists, you MUST STOP and wait for skeleton approval. The ONLY unblockers are Operator or Validator running: `just skeleton-approved WP-{ID}`.
 
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) before a docs-only skeleton checkpoint commit exists on the WP branch (enforced mechanically by `just phase-check HANDOFF ... CODER` / `post-work-check.mjs`).
 Forbidden: any product code changes (`src/`, `app/`, `tests/`) without a skeleton approval commit on the WP branch (enforced mechanically by `just phase-check HANDOFF ... CODER` / `post-work-check.mjs`).
@@ -1032,7 +1035,7 @@ Manual fallback:
 just coder-skeleton-checkpoint WP-{ID}
 ```
 
-[CX-212D] This creates an empty commit marker on the feature branch. The `## SKELETON` content lives in the work packet (governance kernel, via junction) — do NOT `git add` `.GOV/` files.
+[CX-212D] This creates an empty commit marker on the feature branch. The `## SKELETON` content lives in the work packet (governance kernel, via junction) â€” do NOT `git add` `.GOV/` files.
 
 STOP (`MANUAL_RELAY` only): request skeleton approval (Operator/Validator runs: `just skeleton-approved WP-{ID}`).
 After the approval commit exists (`docs: skeleton approved [WP-{ID}]`):
@@ -2154,3 +2157,4 @@ WARN ESCALATION: {WP-ID} [CX-620]
 
 **Awaiting Response By:** {date/time}
 ```
+

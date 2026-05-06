@@ -1,0 +1,32 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hsk.work_packet_contract@1",
+  "title": "Handshake Work Packet Contract",
+  "type": "object",
+  "required": ["schema_id", "schema_version", "contract_authority", "wp_id", "workflow", "lifecycle", "authority_files", "markdown_projection", "scope", "refinement", "microtasks", "red_team"],
+  "properties": {
+    "schema_id": { "const": "hsk.work_packet_contract@1" },
+    "schema_version": { "type": "string", "minLength": 1 },
+    "contract_authority": { "const": "PRIMARY_MACHINE_READABLE" },
+    "wp_id": { "type": "string", "pattern": "^WP-[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "base_wp_id": { "type": "string" },
+    "created_at_utc": { "type": "string" },
+    "updated_at_utc": { "type": ["string", "null"] },
+    "source_control": { "type": "object" },
+    "workflow": { "type": "object", "required": ["lane", "authority"], "properties": { "lane": { "enum": ["ORCHESTRATOR_MANAGED", "MANUAL_RELAY"] }, "authority": { "type": "string" } }, "additionalProperties": true },
+    "lifecycle": { "type": "object", "required": ["status", "risk_tier"], "properties": { "status": { "type": "string" }, "risk_tier": { "enum": ["LOW", "MEDIUM", "HIGH", "<pending>"] } }, "additionalProperties": true },
+    "authority_files": { "type": "object", "required": ["packet_contract", "packet_projection", "refinement_contract", "microtask_contract_glob"], "additionalProperties": { "type": "string" } },
+    "markdown_projection": { "$ref": "#/$defs/markdown_projection" },
+    "scope": { "type": "object" },
+    "refinement": { "type": "object" },
+    "microtasks": { "type": "object" },
+    "role_profiles": { "type": "object" },
+    "red_team": { "$ref": "#/$defs/red_team" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "markdown_projection": { "type": "object", "required": ["path", "status"], "properties": { "path": { "type": "string" }, "status": { "enum": ["GENERATED_PENDING", "GENERATED_IN_SYNC", "LEGACY_AUTHORITY", "BLOCKED"] }, "source_hash": { "type": ["string", "null"] }, "projection_hash": { "type": ["string", "null"] }, "source_file": { "type": ["string", "null"] }, "projection_hash": { "type": ["string", "null"] }, "source_file": { "type": ["string", "null"] }, "generated_at_utc": { "type": ["string", "null"] }, "generator": { "type": ["string", "null"] } }, "additionalProperties": true },
+    "red_team": { "type": "object", "required": ["required", "profile"], "properties": { "required": { "const": true }, "profile": { "const": "DETERMINISTIC_CONTRACT_MIGRATION_V1" }, "assumptions_to_attack": { "type": "array", "items": { "type": "string" } }, "minimum_controls": { "type": "array", "items": { "type": "string" } } }, "additionalProperties": true }
+  }
+}
+

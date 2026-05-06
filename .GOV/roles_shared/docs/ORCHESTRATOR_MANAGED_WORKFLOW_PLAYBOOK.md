@@ -1,4 +1,4 @@
-# Orchestrator-Managed Workflow Playbook
+﻿# Orchestrator-Managed Workflow Playbook
 
 Status: projection/reference
 Scope: `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`
@@ -80,11 +80,24 @@ This file is a human-readable projection of the machine workflow contract. It ex
    - Run `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why containment is now valid>"`.
    - Run `just gov-check`, then push `origin/main` only after contained-main closeout and governance checks pass.
 
+## Deterministic Contract Migration Red-Team
+
+This playbook is projection/reference. For RGF-286 and later contract migrations, treat the JSON contract as executable authority and treat Markdown as generated projection, frozen legacy reference, or short migration bridge.
+
+Red-team stance before launch or repair:
+
+- Assume projections are stale until source hash/provenance proves they were generated from the authoritative contract.
+- Assume sidecars drift when two manually maintained files claim the same authority; prefer one primary typed file per atomic lifecycle object instead.
+- Assume prose hides shadow authority; migrate lifecycle, scope, status, assignment, refinement, MT identity, and receipt-routing fields into typed contract keys.
+- Assume schema omissions create unsafe fallback behavior; unsupported fields must become explicit migration debt rather than silent Markdown parsing.
+- Assume Activation Manager and Classic Orchestrator diverge on prelaunch duties unless refinement, hydration, signature, worktree, backup, and MT preparation are encoded in the packet/refinement contracts.
 ## Key Artifacts
 
-- Packet: `.GOV/task_packets/WP-{ID}/packet.md`
-- Refinement: `.GOV/task_packets/WP-{ID}/refinement.md`
-- Microtasks: `.GOV/task_packets/WP-{ID}/MT-*.md`
+- Packet contract authority: `.GOV/task_packets/WP-{ID}/packet.json`
+- Refinement contract authority: `.GOV/task_packets/WP-{ID}/refinement.json`
+- Microtask contract authority: `.GOV/task_packets/WP-{ID}/MT-*.json`
+- Packet Markdown projection: `.GOV/task_packets/WP-{ID}/packet.md` generated from or reconciled to the packet contract; legacy Markdown authority must be explicitly classified as `LEGACY_AUTHORITY`.
+- Legacy import/repair: `just wp-contract-import WP-{ID}` or `just wp-contract-import --all --dry-run`; this is the governed path for stamping generated projection hashes instead of hand-editing packet/refinement/MT sidecars.
 - Communications: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`
 - Runtime: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/RUNTIME_STATUS.json`
 - Receipts: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/RECEIPTS.jsonl`
@@ -335,3 +348,4 @@ First actions:
 - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
 - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
 - `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
+

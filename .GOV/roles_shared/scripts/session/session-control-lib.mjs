@@ -59,11 +59,17 @@ import {
   buildWorkflowContractPromptCapsule,
   validateWorkflowContractEnvelopeShape,
 } from "../workflow/workflow-contract-lib.mjs";
+import {
+  deriveWpMicrotaskPlan,
+  listDeclaredWpMicrotasks,
+} from "../lib/wp-microtask-lib.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
 export const SESSION_CONTROL_RESULT_SCHEMA_ID = "hsk.session_control_result@1";
 export const SESSION_CONTROL_RESULT_SCHEMA_VERSION = "session_control_result_v1";
+export const ROLE_STARTUP_CAPSULE_SCHEMA_ID = "hsk.role_startup_capsule@1";
+export const ROLE_STARTUP_CAPSULE_SCHEMA_VERSION = "role_startup_capsule_v1";
 export const ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES = [
   "POLICY_CONFLICT",
   "AUTHORITY_OVERRIDE_REQUIRED",
@@ -97,6 +103,310 @@ function resolveAuthorityPacketPath(wpId) {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function capsulePath(value = "") {
+  return String(value || "").trim().replace(/\\/g, "/");
+}
+
+function readTextIfExists(absPath = "") {
+  try {
+    if (!absPath || !fs.existsSync(absPath)) return "";
+    return fs.readFileSync(absPath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function readJsonIfExists(absPath = "") {
+  const text = readTextIfExists(absPath);
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return null; }
+}
+
+function readJsonlIfExists(absPath = "", maxEntries = 25) {
+  const text = readTextIfExists(absPath);
+  if (!text) return [];
+  return text.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(-maxEntries)
+    .map((line) => {
+      try { return JSON.parse(line); } catch { return null; }
+    })
+    .filter(Boolean);
+}
+
+function sha256Short(text = "") {
+  const value = String(text || "");
+  if (!value) return "";
+  return crypto.createHash("sha256").update(value, "utf8").digest("hex").slice(0, 16);
+}
+
+function firstNonEmptyLine(text = "") {
+  return String(text || "").split(/\r?\n/).map((line) => line.trim()).find(Boolean) || "";
+}
+
+function parseMachineField(text = "", field = "") {
+  const expected = String(field || "").trim().toUpperCase();
+  if (!expected) return "";
+  for (const rawLine of String(text || "").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line.startsWith("-")) continue;
+    const stripped = line.replace(/^\s*-\s*/, "").replace(/\*\*/g, "");
+    const idx = stripped.indexOf(":");
+    if (idx < 0) continue;
+    const key = stripped.slice(0, idx).trim().toUpperCase();
+    if (key === expected) return stripped.slice(idx + 1).trim();
+  }
+  return "";
+}
+
+function sourceSnapshot(label, repoRelativePath, absPath) {
+  const text = readTextIfExists(absPath);
+  return {
+    label,
+    path: capsulePath(repoRelativePath),
+    exists: Boolean(text),
+    sha256_16: sha256Short(text),
+    first_line: firstNonEmptyLine(text).slice(0, 160),
+  };
+}
+
+function agentsAuthoritySnapshot() {
+  return sourceSnapshot(
+    "AGENTS",
+    "../handshake_main/AGENTS.md",
+    path.resolve(GOV_ROOT_ABS, "..", "..", "handshake_main", "AGENTS.md"),
+  );
+}
+
+function compactMicrotask(item = null) {
+  if (!item) return null;
+  return {
+    mt_id: item.mt_id || item.mtId || "",
+    clause: String(item.clause || "").slice(0, 240),
+    state: item.state || "",
+    packet_path: capsulePath(item.packet_path || item.packetPath || ""),
+    depends_on: item.depends_on || item.dependsOn || "",
+    code_surfaces: Array.isArray(item.code_surfaces || item.codeSurfaces)
+      ? (item.code_surfaces || item.codeSurfaces).slice(0, 8)
+      : [],
+    expected_tests: Array.isArray(item.expected_tests || item.expectedTests)
+      ? (item.expected_tests || item.expectedTests).slice(0, 8)
+      : [],
+    heuristic_risk: item.heuristic_risk || item.heuristicRisk || null,
+    last_receipt_kind: item.last_receipt_kind || null,
+    last_actor_role: item.last_actor_role || null,
+    correlation_id: item.correlation_id || null,
+    review_mode: item.review_mode || null,
+  };
+}
+
+function defaultFirstCommandsForCapsule({ role, wpId, roleConfig = null, commandKind = "" } = {}) {
+  const normalizedCommandKind = String(commandKind || "").trim().toUpperCase();
+  const resolvedRoleConfig = roleConfig || resolveRoleConfig(role, wpId);
+  if (!resolvedRoleConfig) return [];
+  if (normalizedCommandKind === "START_SESSION") {
+    return [
+      executableStartupCommand(role, wpId, resolvedRoleConfig),
+      executableNextCommand(role, wpId, resolvedRoleConfig),
+      ...(role === "INTEGRATION_VALIDATOR" ? [`just integration-validator-context-brief ${wpId}`] : []),
+      ...(role === "VALIDATOR" ? [`just external-validator-brief ${wpId}`] : []),
+    ];
+  }
+  return [executableNextCommand(role, wpId, resolvedRoleConfig)];
+}
+
+function refinementSnapshotForCapsule(wpId, packetInfo = {}) {
+  if (packetInfo.packetDirAbs && packetInfo.packetDir) {
+    const contractAbs = path.join(packetInfo.packetDirAbs, "refinement.json");
+    const contractRel = path.posix.join(capsulePath(packetInfo.packetDir), "refinement.json");
+    const contract = readJsonIfExists(contractAbs);
+    if (contract) {
+      const serialized = JSON.stringify(contract);
+      return {
+        path: capsulePath(contractRel),
+        projection_path: capsulePath(contract?.markdown_projection?.path || path.posix.join(packetInfo.packetDir, "refinement.md")),
+        authority: "PRIMARY_MACHINE_READABLE",
+        exists: true,
+        schema_id: contract.schema_id || "",
+        sha256_16: sha256Short(serialized),
+        signature_status: contract?.refinement?.user_signature && contract.refinement.user_signature !== "<pending>" ? "SIGNED" : "PENDING",
+        activation_manager_required: Boolean(contract?.activation_manager?.required),
+        activation_manager_status: String(contract?.activation_manager?.status || "").trim(),
+        spec_anchor_count: Array.isArray(contract?.refinement?.spec_anchors) ? contract.refinement.spec_anchors.length : 0,
+      };
+    }
+  }
+
+  const candidates = [];
+  if (packetInfo.packetDirAbs && packetInfo.packetDir) {
+    candidates.push({
+      rel: path.posix.join(capsulePath(packetInfo.packetDir), "refinement.md"),
+      abs: path.join(packetInfo.packetDirAbs, "refinement.md"),
+    });
+  }
+  candidates.push({
+    rel: path.posix.join(GOV_ROOT_REPO_REL, "refinements", `${wpId}.md`),
+    abs: repoPathAbs(path.posix.join(GOV_ROOT_REPO_REL, "refinements", `${wpId}.md`)),
+  });
+  const match = candidates.find((entry) => fs.existsSync(entry.abs)) || candidates[0];
+  const text = readTextIfExists(match?.abs);
+  return {
+    path: capsulePath(match?.rel || ""),
+    authority: "MARKDOWN_LEGACY",
+    exists: Boolean(text),
+    sha256_16: sha256Short(text),
+    spec_target_resolved: parseMachineField(text, "SPEC_TARGET_RESOLVED"),
+    signature_status: parseMachineField(text, "USER_SIGNATURE") && parseMachineField(text, "USER_SIGNATURE") !== "<pending>" ? "SIGNED" : "PENDING",
+    enrichment_needed: parseMachineField(text, "ENRICHMENT_NEEDED"),
+    stub_wp_ids: parseMachineField(text, "STUB_WP_IDS"),
+  };
+}
+
+export function buildRoleStartupCapsule({
+  role,
+  wpId,
+  roleConfig = null,
+  commandKind = "START_SESSION",
+  firstCommands = null,
+  restartReason = "",
+} = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const generatedAt = nowIso();
+  const packetResolved = resolveWorkPacketPath(wpId) || {};
+  const packetPath = packetResolved.packetPath || workPacketPath(wpId);
+  const packetAbsPath = packetResolved.packetAbsPath || repoPathAbs(packetPath);
+  const packetText = readTextIfExists(packetAbsPath);
+  const packetContractAbsPath = packetResolved?.isFolder && packetResolved.packetDirAbs ? path.join(packetResolved.packetDirAbs, "packet.json") : "";
+  const packetContractPath = packetResolved?.isFolder && packetResolved.packetDir ? path.posix.join(capsulePath(packetResolved.packetDir), "packet.json") : "";
+  const packetContract = readJsonIfExists(packetContractAbsPath);
+  const packetWorkflow = packetContract?.workflow && typeof packetContract.workflow === "object" ? packetContract.workflow : {};
+  const communicationDir = String(packetWorkflow.communication_dir || parseMachineField(packetText, "WP_COMMUNICATION_DIR") || "").trim();
+  const runtimeStatusPath = String(packetWorkflow.runtime_status_file || parseMachineField(packetText, "WP_RUNTIME_STATUS_FILE") || (communicationDir ? path.posix.join(communicationDir, "RUNTIME_STATUS.json") : "")).trim();
+  const receiptsPath = String(packetWorkflow.receipts_file || parseMachineField(packetText, "WP_RECEIPTS_FILE") || (communicationDir ? path.posix.join(communicationDir, "RECEIPTS.jsonl") : "")).trim();
+  const runtimeStatus = runtimeStatusPath ? readJsonIfExists(repoPathAbs(runtimeStatusPath)) : null;
+  const receipts = receiptsPath ? readJsonlIfExists(repoPathAbs(receiptsPath), 50) : [];
+  let microtaskProjectionError = "";
+  let declaredMicrotasks = [];
+  let microtaskPlan = {
+    declared_count: 0,
+    active_microtask: null,
+    suggested_next_microtask: null,
+    attention_microtask: null,
+    items: [],
+  };
+  try {
+    declaredMicrotasks = listDeclaredWpMicrotasks(wpId);
+    microtaskPlan = deriveWpMicrotaskPlan({
+      wpId,
+      receipts,
+      runtimeStatus: runtimeStatus || {},
+      microtasks: declaredMicrotasks,
+    });
+  } catch (error) {
+    microtaskProjectionError = String(error?.message || error || "").slice(0, 240);
+  }
+  const firstCommandList = Array.isArray(firstCommands) && firstCommands.length > 0
+    ? firstCommands
+    : defaultFirstCommandsForCapsule({ role: normalizedRole, wpId, roleConfig, commandKind });
+  const workflowLane = String(packetContract?.workflow?.lane || parseMachineField(packetText, "WORKFLOW_LANE") || "").trim();
+  return {
+    schema_id: ROLE_STARTUP_CAPSULE_SCHEMA_ID,
+    schema_version: ROLE_STARTUP_CAPSULE_SCHEMA_VERSION,
+    generated_at: generatedAt,
+    role: normalizedRole,
+    wp_id: wpId,
+    command_kind: String(commandKind || "").trim().toUpperCase(),
+    restart_reason: String(restartReason || "").trim(),
+    authority_boundary: "ACP_CONSUMES_ORCHESTRATOR_AUTHORED_TRUTH; ACP_IS_NOT_WORKFLOW_AUTHORITY",
+    prompt_capsule_label: "ROLE_STARTUP_CAPSULE",
+    request_field: "role_startup_capsule",
+    authority_files: [
+      agentsAuthoritySnapshot(),
+      sourceSnapshot("CODEX", CODEX_AUTHORITY_PATH, repoPathAbs(CODEX_AUTHORITY_PATH)),
+      sourceSnapshot("ROLE_PROTOCOL", roleProtocolPath(normalizedRole), repoPathAbs(roleProtocolPath(normalizedRole))),
+    ],
+    work_packet_contract: {
+      path: capsulePath(packetContract ? packetContractPath : packetPath),
+      projection_path: capsulePath(packetPath),
+      authority: packetContract ? "PRIMARY_MACHINE_READABLE" : "MARKDOWN_LEGACY",
+      exists: Boolean(packetContract || packetText),
+      schema_id: packetContract?.schema_id || "",
+      sha256_16: sha256Short(packetContract ? JSON.stringify(packetContract) : packetText),
+      wp_id: packetContract?.wp_id || parseMachineField(packetText, "WP_ID") || wpId,
+      base_wp_id: packetContract?.base_wp_id || parseMachineField(packetText, "BASE_WP_ID"),
+      status: packetContract?.lifecycle?.status || parseMachineField(packetText, "Status"),
+      workflow_lane: workflowLane,
+      execution_owner: packetContract?.workflow?.execution_owner || parseMachineField(packetText, "EXECUTION_OWNER"),
+      spec_anchor: Array.isArray(packetContract?.scope?.spec_anchors)
+        ? packetContract.scope.spec_anchors[0] || ""
+        : parseMachineField(packetText, "SPEC_ANCHOR") || parseMachineField(packetText, "SPEC_ANCHOR_PRIMARY"),
+      packet_format_version: packetContract?.lifecycle?.packet_format_version || parseMachineField(packetText, "PACKET_FORMAT_VERSION"),
+      communication_contract: packetContract?.workflow?.communication_contract || parseMachineField(packetText, "COMMUNICATION_CONTRACT"),
+      runtime_status_file: capsulePath(runtimeStatusPath),
+      receipts_file: capsulePath(receiptsPath),
+    },
+    refinement_contract: refinementSnapshotForCapsule(wpId, packetResolved),
+    microtask_contract: {
+      authority: declaredMicrotasks.some((item) => item?.contractAuthority === "PRIMARY_MACHINE_READABLE") ? "PRIMARY_MACHINE_READABLE" : "MARKDOWN_LEGACY",
+      declared_count: microtaskPlan.declared_count || 0,
+      projection_error: microtaskProjectionError,
+      active_microtask: compactMicrotask(microtaskPlan.active_microtask),
+      next_microtask: compactMicrotask(microtaskPlan.suggested_next_microtask),
+      attention_microtask: compactMicrotask(microtaskPlan.attention_microtask),
+      items: (microtaskPlan.items || []).slice(0, 20).map((item) => compactMicrotask(item)),
+    },
+    runtime_receipt_state: {
+      runtime_status_file: capsulePath(runtimeStatusPath),
+      receipts_file: capsulePath(receiptsPath),
+      runtime_exists: Boolean(runtimeStatus),
+      receipt_count_sampled: receipts.length,
+      next_expected_actor: runtimeStatus?.next_expected_actor || runtimeStatus?.next_expected_role || "",
+      waiting_on: runtimeStatus?.waiting_on || runtimeStatus?.waiting_on_role || "",
+      validator_trigger: runtimeStatus?.validator_trigger || "",
+      open_review_count: Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items.length : 0,
+      latest_receipts: receipts.slice(-5).map((entry) => ({
+        receipt_kind: entry.receipt_kind || "",
+        actor_role: entry.actor_role || "",
+        target_role: entry.target_role || "",
+        packet_row_ref: entry.packet_row_ref || "",
+        verb: entry.verb || "",
+        summary: String(entry.summary || "").slice(0, 180),
+      })),
+    },
+    first_commands: firstCommandList,
+    source_snapshots: {
+      generated_at: generatedAt,
+      packet_sha256_16: sha256Short(packetText),
+      refinement_sha256_16: refinementSnapshotForCapsule(wpId, packetResolved).sha256_16,
+      declared_microtasks: declaredMicrotasks.length,
+      sampled_receipts: receipts.length,
+    },
+  };
+}
+
+export function buildRoleStartupPromptCapsule(args = {}) {
+  return JSON.stringify(buildRoleStartupCapsule(args));
+}
+
+export function validateRoleStartupCapsuleShape(capsule, { allowMissing = false } = {}) {
+  if (!capsule) return allowMissing ? [] : ["role_startup_capsule is required"];
+  const errors = [];
+  if (typeof capsule !== "object" || Array.isArray(capsule)) return ["role_startup_capsule must be an object"];
+  if (capsule.schema_id !== ROLE_STARTUP_CAPSULE_SCHEMA_ID) errors.push(`role_startup_capsule.schema_id must be ${ROLE_STARTUP_CAPSULE_SCHEMA_ID}`);
+  if (capsule.schema_version !== ROLE_STARTUP_CAPSULE_SCHEMA_VERSION) errors.push(`role_startup_capsule.schema_version must be ${ROLE_STARTUP_CAPSULE_SCHEMA_VERSION}`);
+  if (!String(capsule.generated_at || "").trim()) errors.push("role_startup_capsule.generated_at is required");
+  if (!String(capsule.role || "").trim()) errors.push("role_startup_capsule.role is required");
+  if (!String(capsule.wp_id || "").trim()) errors.push("role_startup_capsule.wp_id is required");
+  if (!Array.isArray(capsule.authority_files) || capsule.authority_files.length === 0) errors.push("role_startup_capsule.authority_files must be non-empty");
+  if (!capsule.work_packet_contract || typeof capsule.work_packet_contract !== "object" || Array.isArray(capsule.work_packet_contract)) errors.push("role_startup_capsule.work_packet_contract must be an object");
+  if (!capsule.refinement_contract || typeof capsule.refinement_contract !== "object" || Array.isArray(capsule.refinement_contract)) errors.push("role_startup_capsule.refinement_contract must be an object");
+  if (!capsule.microtask_contract || typeof capsule.microtask_contract !== "object" || Array.isArray(capsule.microtask_contract)) errors.push("role_startup_capsule.microtask_contract must be an object");
+  if (!capsule.runtime_receipt_state || typeof capsule.runtime_receipt_state !== "object" || Array.isArray(capsule.runtime_receipt_state)) errors.push("role_startup_capsule.runtime_receipt_state must be an object");
+  if (!Array.isArray(capsule.first_commands)) errors.push("role_startup_capsule.first_commands must be an array");
+  return errors;
 }
 
 function writeJsonlEvent(outputStream, event) {
@@ -1466,10 +1776,18 @@ export function buildStartupPrompt({
   ...args
 } = {}) {
   const normalizedRole = String(args.role || "").trim().toUpperCase();
-  if (inlinePrompt || normalizedRole === "ORCHESTRATOR") {
-    return buildInlineStartupPrompt(args);
-  }
-  return buildHookStartupPrompt(args);
+  const basePrompt = (inlinePrompt || normalizedRole === "ORCHESTRATOR")
+    ? buildInlineStartupPrompt(args)
+    : buildHookStartupPrompt(args);
+  const capsuleLine = `ROLE_STARTUP_CAPSULE (ACP-CONSUMED): ${buildRoleStartupPromptCapsule({
+    role: normalizedRole,
+    wpId: args.wpId,
+    roleConfig: args.roleConfig,
+    commandKind: "START_SESSION",
+  })}`;
+  return basePrompt.includes("ROLE_STARTUP_CAPSULE (ACP-CONSUMED)")
+    ? basePrompt
+    : `${capsuleLine}\n${basePrompt}`;
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
@@ -1679,6 +1997,16 @@ export function buildSessionControlRequest({
     role,
     commandKind: COMMAND_KIND,
   });
+  const roleStartupCapsule = buildRoleStartupCapsule({
+    role,
+    wpId,
+    roleConfig: {
+      branch: localBranch,
+      worktreeDir: localWorktreeDir,
+    },
+    commandKind: COMMAND_KIND,
+    restartReason: summary,
+  });
   return {
     schema_id: SESSION_CONTROL_REQUEST_SCHEMA_ID,
     schema_version: SESSION_CONTROL_REQUEST_SCHEMA_VERSION,
@@ -1710,6 +2038,7 @@ export function buildSessionControlRequest({
     target_command_id: targetCommandId,
     governed_action: governedActionRequest,
     workflow_contract: workflowContract,
+    role_startup_capsule: roleStartupCapsule,
   };
 }
 
@@ -2376,6 +2705,7 @@ export function validateSessionControlRequestShape(request) {
   }
   errors.push(...validateGovernedActionRequestShape(request.governed_action, { allowMissing: true }));
   errors.push(...validateWorkflowContractEnvelopeShape(request.workflow_contract, { allowMissing: true }));
+  errors.push(...validateRoleStartupCapsuleShape(request.role_startup_capsule, { allowMissing: true }));
   return errors;
 }
 

@@ -1,0 +1,65 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v1/MT-005.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v1/MT-005.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-004"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:01:55.860Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v1/MT-005.md",
+    "projection_hash": "ada7b8df8fe8e5bd",
+    "source_file": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v1/packet.json",
+    "source_hash": "9626ebe29d618072",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-005",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MCP/provider adapter guidance plus read-only mode"
+    ],
+    "allowed_paths": [
+      "../handshake_main/src/backend/handshake_core/src/workflows.rs",
+      "../handshake_main/src/backend/handshake_core/mechanical_engines.json",
+      "../handshake_main/src/backend/handshake_core/tests/mex_tests.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests",
+      "cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml"
+    ],
+    "risk_if_missed": "provider access and write posture drift from the calendar law contract",
+    "summary": "MCP/provider adapter guidance plus read-only mode"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Calendar-Sync-Engine-v1"
+}

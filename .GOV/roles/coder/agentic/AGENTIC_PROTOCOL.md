@@ -1,11 +1,10 @@
-# AGENTIC_PROTOCOL (Coder)
-
-This is an **add-on** protocol for coder agents operating under an orchestrator-led, multi-agent ("agentic") workflow.
-
-It does not replace `/.GOV/roles/coder/CODER_PROTOCOL.md`; it adds constraints to prevent false progress and missing evidence.
-
----
-
+﻿# AGENTIC_PROTOCOL (Coder)
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
 ## 1) Authority and boundary (HARD)
 
 - Treat the active work packet as the executable contract.
@@ -121,3 +120,4 @@ Every sub-agent task MUST include:
 - Canonical artifacts (Codex, role protocol, SPEC_CURRENT + resolved spec, work packet, refinement)
 - SLICE_NAME + ALLOWED_PATHS + ACCEPTANCE_TARGETS (DONE_MEANS bullets and/or SPEC_ANCHORs)
 - Deliverables: PATCH + WHAT_CHANGED + COMMANDS_RUN + RISKS + NEXT_COMMANDS
+

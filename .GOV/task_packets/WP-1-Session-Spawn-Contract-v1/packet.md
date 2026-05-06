@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Session-Spawn-Contract-v1/packet.json source_hash=eb5edd76891317c9 projection_hash=7ab886ab37feddb1 generated_at_utc=2026-05-06T15:01:56.085Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

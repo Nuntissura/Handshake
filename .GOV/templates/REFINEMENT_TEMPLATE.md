@@ -20,6 +20,14 @@ Requirements (HARD):
 - USER_SIGNATURE: <pending>
 - USER_APPROVAL_EVIDENCE: <pending> (must equal: APPROVE REFINEMENT {{WP_ID}})
 - STUB_WP_IDS: <pending> (comma-separated WP-... IDs | NONE)
+- AUTHORITATIVE_CONTRACT_SCHEMA_ID: hsk.refinement_contract@1
+- AUTHORITATIVE_CONTRACT_FILE: .GOV/task_packets/{{WP_ID}}/refinement.json
+- MARKDOWN_PROJECTION_FILE: .GOV/task_packets/{{WP_ID}}/refinement.md
+- MARKDOWN_PROJECTION_STATUS: PENDING
+- RED_TEAM_REQUIRED: YES
+- RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
+<!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->
+- MACHINE_CONTRACT_AUTHORITY_RULE: When a matching machine contract exists, ACP, apps, and checks consume it first; this Markdown is the human/operator projection.
 
 ### REQUIRED SECTIONS (per the current ORCHESTRATOR_PROTOCOL refinement workflow)
 
@@ -396,3 +404,4 @@ Requirements (HARD):
   ```text
   <paste excerpt>
   ```
+

@@ -1,0 +1,63 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/MT-001.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/MT-001.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:01:55.866Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/MT-001.md",
+    "projection_hash": "1a6cb439ab9bd180",
+    "source_file": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v2/packet.json",
+    "source_hash": "108693ad3a1e18e3",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-001",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "surface mutation discipline plus write gate"
+    ],
+    "allowed_paths": [
+      "../handshake_main/src/backend/handshake_core/mechanical_engines.json",
+      "../handshake_main/src/backend/handshake_core/src/workflows.rs",
+      "../handshake_main/src/backend/handshake_core/src/storage/mod.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml mex_tests",
+      "cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml"
+    ],
+    "risk_if_missed": "direct helper or UI-side writes can still bypass governed execution",
+    "summary": "surface mutation discipline plus write gate"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Calendar-Sync-Engine-v2"
+}

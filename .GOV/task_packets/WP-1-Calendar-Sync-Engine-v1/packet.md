@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Calendar-Sync-Engine-v1/packet.json source_hash=cd3387f5e7d7d068 projection_hash=4e3ed324e0563879 generated_at_utc=2026-05-06T15:01:55.851Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

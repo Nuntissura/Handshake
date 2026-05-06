@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/packet.json source_hash=96d28e252c6cfe12 projection_hash=6e2e3c0d2946f685 generated_at_utc=2026-05-06T15:01:56.190Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

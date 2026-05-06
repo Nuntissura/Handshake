@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Storage-Trait-Purity-v1/packet.json source_hash=8ff5d3d85637db5a projection_hash=87250bf48eb7782a generated_at_utc=2026-05-06T15:01:56.133Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

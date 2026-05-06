@@ -1,5 +1,13 @@
 ﻿# TASK_PACKET_STUB_TEMPLATE
-
+## MACHINE_CONTRACT
+- AUTHORITATIVE_CONTRACT_SCHEMA_ID: hsk.work_packet_stub_contract@1
+- AUTHORITATIVE_CONTRACT_FILE: .GOV/task_packets/stubs/{{WP_ID}}.contract.json
+- MARKDOWN_PROJECTION_FILE: .GOV/task_packets/stubs/{{WP_ID}}.md
+- MARKDOWN_PROJECTION_STATUS: PENDING
+- RED_TEAM_REQUIRED: YES
+- RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
+<!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->
+- RULE: ACP, apps, and checks consume machine contracts when present; this stub Markdown is the human/operator projection.
 This is a BACKLOG STUB. It is NOT an executable Task Packet.
 
 Rules:
@@ -168,3 +176,4 @@ Rules:
 - [ ] Confirm `just create-task-packet {{WP_ID}}` also created the packet-declared `WP_COMMUNICATION_DIR` with `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`.
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/records/TASK_BOARD.md` entry from STUB to Ready for Dev.
+

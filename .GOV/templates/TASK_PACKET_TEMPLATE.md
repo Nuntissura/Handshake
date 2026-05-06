@@ -1,4 +1,4 @@
-# TASK_PACKET_TEMPLATE
+﻿# TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
 
@@ -193,6 +193,18 @@ Requirements:
 <!-- Required for WORKFLOW_LANE=ORCHESTRATOR_MANAGED packets with PACKET_FORMAT_VERSION >= 2026-03-21. -->
 - USER_SIGNATURE: {{USER_SIGNATURE}}
 - PACKET_FORMAT_VERSION: {{PACKET_FORMAT_VERSION}}
+- AUTHORITATIVE_CONTRACT_SCHEMA_ID: hsk.work_packet_contract@1
+- AUTHORITATIVE_CONTRACT_FILE: .GOV/task_packets/{{WP_ID}}/packet.json
+- GENERATED_MARKDOWN_PROJECTION_FILE: .GOV/task_packets/{{WP_ID}}/packet.md
+- REFINEMENT_CONTRACT_SCHEMA_ID: hsk.refinement_contract@1
+- REFINEMENT_CONTRACT_FILE: .GOV/task_packets/{{WP_ID}}/refinement.json
+- MICROTASK_CONTRACT_SCHEMA_ID: hsk.microtask_contract@1
+- MICROTASK_CONTRACT_GLOB: .GOV/task_packets/{{WP_ID}}/MT-*.json
+- MARKDOWN_PROJECTION_STATUS: GENERATED_PENDING
+<!-- Allowed: GENERATED_PENDING | GENERATED_IN_SYNC | LEGACY_AUTHORITY | BLOCKED. New packets use packet.json/refinement.json/MT-*.json as authoritative deterministic contracts; packet.md/refinement.md/MT-*.md are generated projections or frozen legacy references, not sidecar authority. -->
+- RED_TEAM_REQUIRED: YES
+- RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
+<!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and Activation Manager / Classic Orchestrator divergence until machine checks prove otherwise. -->
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
@@ -789,3 +801,4 @@ git revert <commit-sha>
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+

@@ -1,6 +1,15 @@
 ﻿# VALIDATOR_PROTOCOL [CX-570-573]
-
-**MANDATORY** - Validator must read this before performing any Validator actions (audit, review, remediation, or repo operations)
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
+## Governance Kernel Product-Governance Testbed [CX-911]
+- The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
+- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
+- Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
 ## Multi-Provider Model Awareness
 
@@ -77,7 +86,7 @@
 
 See: `.GOV/codex/Handshake_Codex_v1.4.md` ([CX-211], [CX-212]), `/.GOV/roles_shared/docs/BOUNDARY_RULES.md`, and `/.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md` (append-only shared tooling memory).
 
-**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree — edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The Integration Validator is the default owner for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. Root-level repo control files are separate from that kernel flow: `AGENTS.md` and the root `justfile` are authored only in `handshake_main` on local `main`, never from a role worktree or WP worktree. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
+**Governance Kernel [CX-212B/C/D/F]:** `/.GOV/` is a live junction to the governance kernel worktree â€” edits are immediately visible to all worktrees. `/.GOV/` files are committed on `gov_kernel`, never on feature branches [CX-212F]. Permanent non-main worktrees are created from `main`, so product code and root-level LLM files come from `main`, then their inherited `/.GOV/` is replaced with a kernel junction. The Integration Validator is the default owner for syncing governance to main (`just sync-gov-to-main`) before pushing to `origin/main`, but the Orchestrator may execute that mechanical sync/push path when explicitly instructed by the Operator. Root-level repo control files are separate from that kernel flow: `AGENTS.md` and the root `justfile` are authored only in `handshake_main` on local `main`, never from a role worktree or WP worktree. See Codex [CX-212B/C/D/F] for the full governance kernel architecture.
 
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
@@ -195,7 +204,7 @@ When the active workflow is `WORKFLOW_LANE=MANUAL_RELAY`, the `VALIDATOR` role i
 - Bias toward fewer larger canonical validator governance scripts over multiple small public wrappers.
 - Keep separate public scripts only when authority ownership, side-effect class, runtime/topology assumptions, primary debug artifact, or operator usefulness materially differs.
 - If a new live governance surface is genuinely required, record why the existing surface is insufficient, who owns the new surface, what the primary debug artifact is, and whether an older surface is retired or intentionally kept distinct.
-- **Fail capture wiring (HARD — CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
+- **Fail capture wiring (HARD â€” CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
 
 ## Governance Folder Structure (Authoritative Placement Rules)
 
@@ -373,19 +382,19 @@ Resume rule (hard, anti-babysit):
 
 ### Fail log + context [CX-503K1]
 
-Your startup prompt includes a `FAIL LOG` + `CONTEXT` block — **procedural fix patterns** (the fail log) plus **semantic governance facts** (context). This is supplementary, not a source of truth:
-- **What you get:** Fix recipes and error-fix pairs (procedural) plus distilled governance facts and positive controls (semantic). Scoped to your WP. No episodic events — those go to the orchestrator.
-- **Don't trust it blindly.** Memory may be stale. Always verify against the current code, packet, and diff. "No assumptions from memory" still applies — but injected memory gives you pointers worth checking.
+Your startup prompt includes a `FAIL LOG` + `CONTEXT` block â€” **procedural fix patterns** (the fail log) plus **semantic governance facts** (context). This is supplementary, not a source of truth:
+- **What you get:** Fix recipes and error-fix pairs (procedural) plus distilled governance facts and positive controls (semantic). Scoped to your WP. No episodic events â€” those go to the orchestrator.
+- **Don't trust it blindly.** Memory may be stale. Always verify against the current code, packet, and diff. "No assumptions from memory" still applies â€” but injected memory gives you pointers worth checking.
 - **Your work feeds memory automatically.** SMOKE-FIND and SMOKE-CONTROL entries in smoketest reviews are extracted. Validation receipts feed event-driven extraction. Check failures from `validator-scan`, `phase-check HANDOFF`, and `phase-check CLOSEOUT` are auto-captured as procedural memories.
-- **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section — high-signal context captures taken before governance decisions (e.g. PRE_CLOSEOUT before this WP entered final validation, PRE_WP_DELEGATION before your session was launched). Use them to understand what was planned; verify against the packet and current state.
-- **Intent snapshots (SHOULD).** Before starting a complex validation (deep multi-file review, cross-surface regression analysis), record your plan: `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR> --reason "<why>"`. Judgment-based — no gate enforces it.
-- **Conversation memory (MUST — `just repomem`):** Cross-session conversational memory captures what was reviewed, decided, and discovered — context that receipts and verdict records do not carry. **This is mandatory, not optional.** The following rules are **HARD**:
+- **Pre-task snapshots.** Your startup may include a `SNAPSHOTS:` section â€” high-signal context captures taken before governance decisions (e.g. PRE_CLOSEOUT before this WP entered final validation, PRE_WP_DELEGATION before your session was launched). Use them to understand what was planned; verify against the packet and current state.
+- **Intent snapshots (SHOULD).** Before starting a complex validation (deep multi-file review, cross-surface regression analysis), record your plan: `just memory-intent-snapshot "<what you are about to do>" --wp WP-{ID} --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR> --reason "<why>"`. Judgment-based â€” no gate enforces it.
+- **Conversation memory (MUST â€” `just repomem`):** Cross-session conversational memory captures what was reviewed, decided, and discovered â€” context that receipts and verdict records do not carry. **This is mandatory, not optional.** The following rules are **HARD**:
   - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this session is about, why, continuing from what>" --role <WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR> --wp WP-{ID}`. Blocked from mutation commands until done. Minimum 80 characters.
-  - **PRE_TASK before governed verdict (SHOULD):** Before a material verdict action — issuing PASS/FAIL, opening a steer/remediation request, or syncing closeout truth — run `just repomem pre "<what you are about to do and why>" --wp WP-{ID}` unless the command already captures a context checkpoint mechanically.
+  - **PRE_TASK before governed verdict (SHOULD):** Before a material verdict action â€” issuing PASS/FAIL, opening a steer/remediation request, or syncing closeout truth â€” run `just repomem pre "<what you are about to do and why>" --wp WP-{ID}` unless the command already captures a context checkpoint mechanically.
   - **INSIGHT after discoveries (MUST):** When validation reveals a non-obvious regression, spec gap, scope drift, contract gap, or systemic pattern, capture with `just repomem insight "<what was found and why it matters>"` before moving on. Minimum 80 characters.
-  - **DECISION when choosing between alternatives (SHOULD):** When you make a deliberate verdict-shaping choice — which evidence to weight, what to defer to a follow-on packet, whether to fail closed or steer back — record it: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. This is the only record of *why* a verdict took the shape it did. Minimum 80 characters.
-  - **ERROR when something goes wrong (SHOULD):** When a validation tool fails, a check returns unexpected results, a session doesn't launch, or any unexpected state is encountered: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) — write immediately, don't wait.
-  - **ABANDON when dropping an approach (SHOULD):** When you abandon a verification path, partial verdict draft, or workaround — whether due to failure, scope discovery, or a better alternative: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Minimum 80 characters.
+  - **DECISION when choosing between alternatives (SHOULD):** When you make a deliberate verdict-shaping choice â€” which evidence to weight, what to defer to a follow-on packet, whether to fail closed or steer back â€” record it: `just repomem decision "<what was chosen and why>" --wp WP-{ID} [--alternatives "rejected options"]`. This is the only record of *why* a verdict took the shape it did. Minimum 80 characters.
+  - **ERROR when something goes wrong (SHOULD):** When a validation tool fails, a check returns unexpected results, a session doesn't launch, or any unexpected state is encountered: `just repomem error "<what went wrong>" --wp WP-{ID} [--trigger "cmd"]`. Fast capture (min 40 chars) â€” write immediately, don't wait.
+  - **ABANDON when dropping an approach (SHOULD):** When you abandon a verification path, partial verdict draft, or workaround â€” whether due to failure, scope discovery, or a better alternative: `just repomem abandon "<what was abandoned and why>" --wp WP-{ID}`. Minimum 80 characters.
   - **CONCERN when flagging a risk (SHOULD):** When you identify a risk, a potential regression, a scope issue, or anything that could affect the WP, downstream WPs, or future closeout: `just repomem concern "<risk or issue flagged>" --wp WP-{ID}`. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout. Minimum 80 characters.
   - **ESCALATION when escalating to operator/orchestrator (SHOULD):** When you escalate a decision, blocker, or ambiguity to the Operator, Orchestrator, or another role: `just repomem escalation "<what was escalated and to whom>" --wp WP-{ID}`. Fast capture (min 40 chars).
   - **SESSION_CLOSE (MUST):** Before session ends, run `just repomem close "<what happened this session>" --decisions "<key findings and verdict>"`. Both content and decisions are required.
@@ -573,7 +582,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the WP Validator owns the first-pass judgement of coder BOOTSTRAP and SKELETON quality. Use the kickoff/intent loop to steer corrections directly instead of waiting for the Orchestrator to relay them.
 
 0A) Micro Task Early Review (WP Validator)
-- When micro tasks exist in the resolved Work Packet folder (current physical `.GOV/task_packets/WP-{ID}/MT-*.md`), the WP Validator reviews completed MTs as the coder works — do not wait for all MTs to be done.
+- When micro tasks exist in the resolved Work Packet folder (current physical `.GOV/task_packets/WP-{ID}/MT-*.md`), the WP Validator reviews completed MTs as the coder works â€” do not wait for all MTs to be done.
 - On orchestrator-managed lanes, treat governed coder `CODER_INTENT` / overlap `REVIEW_REQUEST` receipts without a declared-MT `microtask_contract` as invalid workflow, not merely weak evidence; the contract must resolve to one declared MT and keep `file_targets` inside that MT's `CODE_SURFACES`.
 - For each MT where `CODER STATUS: DONE`:
   - Read the MT file and verify the evidence (file:line proof, tests run)
@@ -585,7 +594,7 @@ If any governing spec or DONE_MEANS includes MUST record/audit/provenance OR the
 - **Per-Microtask Inspection [RGF-89] (HARD for orchestrator-managed lanes):** When the coder sends a `REVIEW_REQUEST` for a completed MT, the WP Validator MUST inspect that MT before the coder proceeds to the next one. Do not defer all inspection to end-of-WP handoff. Per-MT review catches issues early and prevents compounding errors across MTs.
 - After inspecting each MT, send a governed review response: `just wp-review-response WP-{ID} WP_VALIDATOR <session> CODER <target_session> "<summary>" <correlation_id>`
 - If the MT has issues, include specific fix instructions in the response so the coder can fix before starting the next MT.
-- **Adversarial Review [CX-503J]:** After confirming the code compiles and tests pass, actively try to break it. Look for race conditions, input validation gaps, error handling omissions, capability escalation paths, and spec requirements the coder missed. Your job is not to confirm the code works — it is to find where it does not. "Never trust subagent self-reports." [RGF-99]
+- **Adversarial Review [CX-503J]:** After confirming the code compiles and tests pass, actively try to break it. Look for race conditions, input validation gaps, error handling omissions, capability escalation paths, and spec requirements the coder missed. Your job is not to confirm the code works â€” it is to find where it does not. "Never trust subagent self-reports." [RGF-99]
 - **Tool-Call Boundary [CX-503H / RGF-105]:** The validator MUST NOT edit product code under `src/`, `app/`, or `tests/`. You may read any file but writing is reserved for governance surfaces (`.GOV/`, reports, receipts). If you find code that needs fixing, send fix instructions to the coder via `wp-review-response`, do not fix it yourself.
 - When ALL MTs are `VALIDATOR STATUS: CONFIRMED`, proceed to the Final WP Review below.
 - **WP Validator shares the coder worktree** (`wtc-*` on `feat/WP-{ID}`) per [CX-503G]. No separate `wtv-*` worktree. The per-MT stop ensures only one role is active at a time.
@@ -1172,3 +1181,5 @@ Work Packet Update (APPEND-ONLY):
 - Automated review scripts are optional; manual evidence-based validation is required.
 - If a check cannot be performed (env/tools unavailable), report as FAIL with reason - do not assume OK.
 - No "pass with debt" for hard invariants, security, traceability, or spec alignment; either fix or obtain explicit user waiver per protocol.
+
+

@@ -261,6 +261,8 @@
   "telemetry": {
     "request_field": "workflow_contract",
     "prompt_capsule_label": "WORKFLOW_CONTRACT_CAPSULE",
+    "startup_capsule_request_field": "role_startup_capsule",
+    "startup_capsule_prompt_label": "ROLE_STARTUP_CAPSULE",
     "failure_receipt_kind": "WORKFLOW_CONTRACT_BLOCKER",
     "status_projection": "ACP reads contract envelope before brokered manual relay wake/send"
   }

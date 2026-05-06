@@ -1,0 +1,69 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Project-Agnostic-Workflow-State-Registry-v1/MT-003.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Project-Agnostic-Workflow-State-Registry-v1/MT-003.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Project-Agnostic-Workflow-State-Registry-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-002"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:01:56.052Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Project-Agnostic-Workflow-State-Registry-v1/MT-003.md",
+    "projection_hash": "bb9082f3de5a161c",
+    "source_file": ".GOV/task_packets/WP-1-Project-Agnostic-Workflow-State-Registry-v1/packet.json",
+    "source_hash": "497db6f8a47666b7",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-003",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "Workflow Transition Matrix",
+      "Queue Automation",
+      "and Executor Eligibility [ADD v02.172]"
+    ],
+    "allowed_paths": [
+      "../handshake_main/src/backend/handshake_core/src/locus/types.rs",
+      "../handshake_main/src/backend/handshake_core/src/locus/task_board.rs",
+      "../handshake_main/src/backend/handshake_core/src/runtime_governance.rs",
+      "../handshake_main/src/backend/handshake_core/src/storage/locus_sqlite.rs",
+      "../handshake_main/src/backend/handshake_core/src/workflows.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml runtime_governance",
+      "cargo test --manifest-path ../handshake_main/src/backend/handshake_core/Cargo.toml"
+    ],
+    "risk_if_missed": "executor routing and automatic queue posture will remain social convention rather than durable product truth",
+    "summary": "Workflow Transition Matrix, Queue Automation, and Executor Eligibility [ADD v02.172]"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Project-Agnostic-Workflow-State-Registry-v1"
+}
