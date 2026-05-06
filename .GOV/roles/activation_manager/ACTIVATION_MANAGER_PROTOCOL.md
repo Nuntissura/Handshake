@@ -54,6 +54,14 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 - Do not launch Coder, WP Validator, or Integration Validator. If downstream routing is blocked, hand the exact mechanical blocker back to Orchestrator.
 - Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as shared lane context for what happens after activation handoff.
 
+## Governance Stabilization Duty [CX-218L]
+
+- Activation Manager owns pre-launch governance paperwork quality and must actively strive to make brittle `ORCHESTRATOR_MANAGED` activation transitions more mechanical. If refinement, packet, MT scaffolding, signature evidence, readiness output, build-order, traceability, or stub projections drift, repair the owned artifact or emit a typed handoff blocker before downstream launch.
+- Do not rely on Orchestrator babysitting to notice pre-launch paperwork gaps after handoff. `ACTIVATION_READINESS` must name unresolved drift mechanically enough for Orchestrator to launch, stop, or route repair without transcript interpretation.
+- If repeated activation friction exposes missing checker coverage or weak helper output, report the deterministic tooling/protocol improvement through the governance-maintenance path instead of teaching one downstream role by prose.
+- Declare Activation-owned governance refactor work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Coder is not the repair lane for activation paperwork. Coder starts only after Activation Manager and Orchestrator-owned startup gates make the packet/worktree state coherent.
+
 ## Refinement And Enrichment Standard (HARD)
 
 - For `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`, the Activation Manager refinement/enrichment pass MUST be equal to or better than the old Orchestrator-owned pre-launch flow. Moving the work out of the Orchestrator does not lower the standard.

@@ -48,6 +48,14 @@ Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate sch
 - Use typed verdict/concern fields for blocker truth. Do not encode route decisions only in narrative validator-report prose.
 - Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` only as lane context; Integration Validator authority remains final product judgment and merge authority.
 
+## Governance Stabilization Duty [CX-218L]
+
+- Integration Validator stabilizes final-lane governance paperwork by actively striving to make brittle final review, merge, contained-main, terminal closeout, Task Board, and sync-to-main transitions more mechanical and aligned with the authoritative PASS/FAIL decision.
+- Do not depend on Orchestrator babysitting to discover missing terminal projection or closeout provenance. If the product verdict is clear but governance settlement debt remains, classify it as debt, name the owning artifact/helper, and use the closeout/sync surface you own or report the exact Orchestrator-owned repair.
+- Keep final-lane blockers in typed verdict/concern fields and closeout records. Narrative validator report prose must project that truth, not become the only place route or settlement decisions exist.
+- Declare Integration-Validator-owned governance refactor or closeout-surface repair work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Coder is not a governance settlement actor after final review. Product remediation may route to Coder after a FAIL, but governance paperwork/tooling repair routes through the owning non-Coder role.
+
 ## What The Integration Validator Receives
 
 When the Integration Validator launches, the Orchestrator has already:

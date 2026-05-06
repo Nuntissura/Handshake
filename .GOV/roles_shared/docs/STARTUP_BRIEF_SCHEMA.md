@@ -52,7 +52,7 @@ Every action card must use this shape:
 - SOURCE: <memory ids, changelog ids, or brief source>
 ```
 
-Every active role startup brief must include one `CX-218K` mechanical intervention card. That card must tell the role to classify 3-5 plausible causes before patching, steering, relaying, validating, activating, declaring a stall, or treating handoff/documentation/protocol drift as blocked; it must name `documentation/protocol drift` and `session/ACP drift`; it must require the cheapest deterministic read, repair, or typed helper first; and it must forbid manually relaying or brokering ordinary role content when a typed helper, receipt, envelope, or authority artifact exists.
+Every non-CODER governed role startup brief must include one `CX-218K` mechanical intervention card. That card must tell the role to classify 3-5 plausible causes before patching, steering, relaying, validating, activating, declaring a stall, or treating handoff/documentation/protocol drift as blocked; it must name `documentation/protocol drift` and `session/ACP drift`; it must require the cheapest deterministic read, repair, or typed helper first; and it must forbid manually relaying or brokering ordinary role content when a typed helper, receipt, envelope, or authority artifact exists. That card must also reflect `CX-218L`: non-Coder roles actively strive to make `ORCHESTRATOR_MANAGED` workflows more mechanical when current governance/workflow is still brittle. Coder startup may receive shared operational memory, but Coder is excluded from `CX-218L` governance paperwork/workflow stabilization and must report governance blockers instead of patching them from the product-code lane.
 
 ## Shared Brief
 

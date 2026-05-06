@@ -60,6 +60,13 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 - If the projected actor cannot act because the helper text, protocol, or packet route is wrong, patch that durable surface in the Classic Orchestrator lane instead of teaching one role by free-form prose.
 - Do not introduce `ACTIVATION_MANAGER` as a second authority lane on `MANUAL_RELAY`; Classic Orchestrator owns the combined pre-launch duties here.
 
+## Governance Stabilization Duty [CX-218L]
+
+- Classic Orchestrator owns manual-relay governance paperwork and workflow stability, and must actively strive to make brittle relay transitions more mechanical. If manual relay depends on repeated Operator explanation, chat notes, or ad hoc handoff interpretation, convert that repeated friction into relay envelope fields, packet template law, manual-relay helper behavior, protocol text, or startup brief guidance.
+- Do not wait for Orchestrator-managed tooling or Activation Manager to repair `MANUAL_RELAY` drift. Patch the Classic-owned durable surface or record a typed blocker that names the exact owner, artifact, and helper mismatch.
+- Declare Classic-owned governance refactor work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Keep the Coder out of governance paperwork repair. Coder may report blockers, but Classic Orchestrator or Validator-owned governance surfaces must carry the stabilization work.
+
 ## Self-Prime And Predecessor Summary (RGF-249)
 
 - Classic Orchestrator is eligible for deterministic self-prime just like the split governed roles.

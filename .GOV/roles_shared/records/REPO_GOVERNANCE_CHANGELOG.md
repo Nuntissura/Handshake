@@ -21,6 +21,77 @@
 
 ## Entries
 
+### 2026.05.06.09 / GOV-CHANGE-20260506-09
+
+- STATUS: APPLIED
+- SUMMARY: folded immediate PostgreSQL-primary follow-on stubs into one microtask-sized bundle stub
+- CHANGE_TYPE: WORK_PACKET_PLANNING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-05-06 to start bundling related work packets while keeping coder execution split into microtasks.
+  - `WP-1-Postgres-Primary-Control-Plane-Foundation-v1` is `Validated (PASS)` and contained in `main`, with carry-over risks preserved for the next PostgreSQL tranche.
+- FOLLOW_ON_ITEMS:
+  - `WP-1-Postgres-Control-Plane-Shift-Bundle-v1`
+- FILES_CHANGED:
+  - `.GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-Postgres-Dev-Test-Container-Matrix-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Leases-Backpressure-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-ModelSession-Postgres-Queue-Workers-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-FEMS-Postgres-Memory-Store-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-Workflow-Engine-Postgres-Durable-Execution-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-DCC-Postgres-Control-Plane-Projections-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.md`
+  - `.GOV/roles_shared/records/TASK_BOARD.md`
+  - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
+  - `.GOV/roles_shared/records/BUILD_ORDER.md`
+  - `.GOV/roles_shared/scripts/build-order-sync.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: the immediate PostgreSQL-primary pivot follow-ons now have one activation target, `WP-1-Postgres-Control-Plane-Shift-Bundle-v1`, with seven draft MTs: live PostgreSQL dev/test proof, SQLite authority boundary enforcement, leases/backpressure, ModelSession queue workers, FEMS PostgreSQL memory store, workflow durable execution, and DCC PostgreSQL projections. The original seven stubs are marked superseded/folded outside the active traceability registry, and Loom/video/archive stubs remain separate. Build-order state precedence now treats `SUPERSEDED` before `STUB`, and the refactor board no longer uses a literal glob as a validated file reference.
+- VERIFICATION:
+  - `just build-order-sync`
+  - `node --check .GOV/roles_shared/scripts/build-order-sync.mjs`
+  - `node .GOV/roles_shared/scripts/build-order-sync.mjs --check`
+  - `just docs-check`
+  - `node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `just gov-check`
+
+### 2026.05.06.08 / GOV-CHANGE-20260506-08
+
+- STATUS: APPLIED
+- SUMMARY: imprinted non-Coder roles with active governance paperwork and workflow stabilization duty
+- CHANGE_TYPE: PROTOCOL_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260506-NON-CODER-GOVERNANCE-STABILIZATION`
+  - The Operator's mental model is that `ORCHESTRATOR_MANAGED` workflows must become more mechanical because current governance/workflow is still brittle.
+  - The Operator's recurring Orchestrator note about mechanical handoffs, stalled-lane cause triage, documentation drift, and autonomous swarm hardening needed to apply across all governed non-Coder roles instead of remaining an Orchestrator-only reminder.
+- FOLLOW_ON_ITEMS:
+  - `RGF-283`
+- FILES_CHANGED:
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md`
+  - `.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`
+  - `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/Audits/audits/AUDIT-20260506-NON-CODER-GOVERNANCE-STABILIZATION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: Codex now has `CX-218L` for non-Coder governance stabilization centered on making `ORCHESTRATOR_MANAGED` workflows more mechanical, active non-Coder protocols carry role-specific stabilization duties, Coder explicitly remains product-code focused and reports governance blockers through typed surfaces, startup/playbook text reflects the Coder boundary, refactor/stabilization work must be declared and kept current in the repo governance refactor taskboard, and `protocol-alignment-check` enforces the non-Coder duty plus Coder exclusion.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `node .GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `git diff --check`
+  - `just gov-check`
+
 ### 2026.05.06.07 / GOV-CHANGE-20260506-07
 
 - STATUS: APPLIED

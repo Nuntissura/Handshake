@@ -6,7 +6,7 @@ Authority: navigational only. If this playbook conflicts with role protocols, Co
 
 ## Purpose
 
-This file is the compact map for a healthy orchestrator-managed workflow and the first mechanical recovery moves when the lane stalls. It exists to reduce prompt-token relay, avoid manual transcript reconstruction, and make future parallel WP runs easier to babysit until the ACP/watchdog path is fully mechanical.
+This file is the compact map for a healthy orchestrator-managed workflow and the first mechanical recovery moves when the lane stalls. It exists to make `ORCHESTRATOR_MANAGED` workflows more mechanical because current governance/workflow can still be brittle under parallel autonomous work; reduce prompt-token relay, avoid manual transcript reconstruction, reduce Orchestrator babysitting, and harden autonomous parallel WP runs until the ACP/watchdog path is fully mechanical.
 
 ## Authority Boundaries
 
@@ -16,6 +16,8 @@ This file is the compact map for a healthy orchestrator-managed workflow and the
 - WP Validator owns per-MT advisory technical review and early intent checkpoint clearance.
 - Integration Validator owns final whole-WP technical verdict and merge authority.
 - Packet truth wins over runtime and session projections. `RECEIPTS.jsonl` and `RUNTIME_STATUS.json` are the primary communication runtime. `THREAD.md` is coordination prose only.
+- All non-Coder roles share `CX-218L` governance paperwork/workflow stabilization duty within their authority and must actively strive to make brittle handoffs, receipts, projections, and documentation transitions mechanical. Coder is excluded and reports governance blockers instead of patching `.GOV/` or workflow tooling from the product-code lane.
+- Governance refactor or stabilization work must be declared in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` with a stable item and current status, then updated as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
 
 ## Healthy Sequence
 
@@ -84,7 +86,7 @@ This file is the compact map for a healthy orchestrator-managed workflow and the
 
 ## Intervention Rule
 
-Before every Orchestrator patch, steer, or relay repair, classify 3-5 plausible causes and pick the cheapest mechanical action that proves or removes them. Record the durable part in repomem and governance records when it changes future behavior.
+Before every non-Coder role patch, steer, relay repair, validation blocker, activation repair, closeout settlement, or Memory Manager proposal, classify 3-5 plausible causes and pick the cheapest mechanical action that proves or removes them. Record the durable part in repomem and governance records when it changes future behavior.
 
 Common cause set:
 

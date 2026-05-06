@@ -47,6 +47,14 @@ Per-MT verdicts and concerns flow back to the Coder and Orchestrator through typ
 - If the Coder is waiting on a route the WP Validator cannot satisfy, report the exact helper/protocol drift through typed receipts or Orchestrator-visible findings instead of manually steering Coder outside review-response authority.
 - Treat `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as the shared lane map, but do not exceed WP Validator authority.
 
+## Governance Stabilization Duty [CX-218L]
+
+- WP Validator stabilizes governance workflow by actively striving to make brittle `ORCHESTRATOR_MANAGED` review transitions more mechanical through early boundary, scope, receipt, and handoff truth. If route/protocol/helper drift prevents review, emit a typed finding or blocker with the exact correlation, helper, and packet/runtime mismatch instead of waiting for Orchestrator to infer it from prose.
+- WP Validator does not patch `.GOV/` directly from the shared WP worktree. Stabilization means using review receipts, `CONCERN`, `SPEC_GAP`, `MT_REMEDIATION_REQUIRED`, or Orchestrator-visible findings to route the owning governance repair.
+- If Coder modified governance paperwork, reject the MT before code review and route the issue to Orchestrator. Do not normalize Coder as a governance repair role.
+- Declare WP-Validator-owned governance refactor proposals or validator-surface repair work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` through the owning coordinator before durable patches land, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Repeated review-route friction should become a proposed helper/check/protocol repair, not a standing expectation that Orchestrator manually brokers future reviews.
+
 ---
 
 ## Evaluation Criteria

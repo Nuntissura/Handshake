@@ -30,6 +30,14 @@ In the orchestrator-managed workflow, the Orchestrator:
 - For `ORCHESTRATOR_MANAGED`, use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as the healthy-lane map and first recovery checklist.
 - Repomem gates for Orchestrator mutation must be scoped with `--role ORCHESTRATOR --wp WP-{ID}` so active Coder/WP Validator memory sessions cannot satisfy Orchestrator authority by accident.
 
+## Governance Stabilization Duty [CX-218L]
+
+- The Orchestrator owns the `ORCHESTRATOR_MANAGED` workflow-control spine and must actively strive to make brittle governance paperwork and workflow transitions more mechanical. Recurring drift is not a chat note to keep resending; convert repeated Orchestrator steering notes into durable protocol law, startup brief cards, playbook entries, checks, typed helpers, or receipt/runtime projection fixes.
+- Do not normalize Orchestrator babysitting. If a lane only advances when the Orchestrator interprets prose or manually relays handoffs, treat that as a governance workflow defect and harden the mechanical surface that should have carried the transition.
+- When another non-Coder role owns the durable surface, emit the typed blocker/proposal or launch/steer that role with the exact helper/artifact mismatch. When Orchestrator owns the surface, patch it directly under the governance-maintenance workflow.
+- Declare Orchestrator-owned governance refactor work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Coder remains excluded from governance paperwork stabilization. If Coder reports governance drift, route it through Orchestrator-owned governance repair or the owning non-Coder role; do not ask Coder to patch `.GOV/` from the product-code lane.
+
 ## Adult Production Boundary (When Applicable) [CX-123]
 
 - When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."

@@ -78,6 +78,14 @@ Authority remains with the workflow coordinator. In `ORCHESTRATOR_MANAGED`, `ORC
 - Emit `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` receipts for coordinator review. Do not patch protocols, Codex law, packet truth, task-board truth, or validator outcomes from this lane.
 - When the proposal concerns `ORCHESTRATOR_MANAGED` stalls, cite `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as lane context instead of duplicating the playbook in memory prose.
 
+## Governance Stabilization Duty [CX-218L]
+
+- Memory Manager stabilizes governance workflow by actively striving to turn brittle repeated operator notes, repeated procedural failures, and recurring role friction into verified startup brief cards, deterministic tooling proposals, or `MEMORY_RGF_CANDIDATE` receipts for coordinator review.
+- Do not let the same governance paperwork or handoff-stall note stay passive in memory when it clearly applies to multiple non-Coder roles. Promote it to the narrowest durable surface Memory Manager owns, or emit a typed proposal naming the owner and proof.
+- When a Memory Manager proposal becomes accepted governance refactor work, ensure the owning coordinator declares it in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` and keeps that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Respect the Coder exclusion: do not turn governance-stabilization notes into Coder duties. If Coder-facing memory exists, keep it to product-lane boundary/reporting behavior unless the Operator explicitly assigns separate governance-only work.
+- Memory Manager does not patch Codex, protocols, task boards, packets, or verdicts directly; it makes the needed stabilization mechanically visible to the owning non-Coder role.
+
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
 Memory proposals, flags, and RGF candidates are emitted as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`) - these schemas are the wire to the active coordinator (`ORCHESTRATOR` for `ORCHESTRATOR_MANAGED`, `CLASSIC_ORCHESTRATOR` for `MANUAL_RELAY`). Do NOT author governance documents (recommendations, narrative summaries, ad-hoc reports) in lieu of emitting typed receipts; the coordinator reads typed receipts and decides. Startup brief updates are the narrow exception for verified anti-repeat operational memory; they do not carry protocol authority and must cite source memory/proposal evidence. The Memory Hygiene Report exists for operator readability and is a projection of receipt truth, not the wire. See Codex `[CX-130]` for the full rule.

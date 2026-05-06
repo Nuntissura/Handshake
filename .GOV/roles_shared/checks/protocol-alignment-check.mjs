@@ -41,6 +41,7 @@ const MEMORY_MANAGER_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "memo
 const ACTIVATION_MANAGER_PROTOCOL_PATH = path.join(GOV_ROOT_REPO_REL, "roles", "activation_manager", "ACTIVATION_MANAGER_PROTOCOL.md");
 const ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md");
 const SHARED_STARTUP_BRIEF_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "SHARED_STARTUP_BRIEF.md");
+const REPO_GOVERNANCE_REFACTOR_TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "records", "REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md");
 const COMMAND_SURFACE_REFERENCE_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "COMMAND_SURFACE_REFERENCE.md");
 const ROLE_WORKFLOW_QUICKREF_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "ROLE_WORKFLOW_QUICKREF.md");
 const ROLE_SESSION_ORCHESTRATION_PATH = path.join(GOV_ROOT_REPO_REL, "roles_shared", "docs", "ROLE_SESSION_ORCHESTRATION.md");
@@ -87,6 +88,7 @@ const ACTIVE_SURFACE_PATHS = [
   ACTIVATION_MANAGER_PROTOCOL_PATH,
   ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH,
   SHARED_STARTUP_BRIEF_PATH,
+  REPO_GOVERNANCE_REFACTOR_TASK_BOARD_PATH,
   COMMAND_SURFACE_REFERENCE_PATH,
   ROLE_WORKFLOW_QUICKREF_PATH,
   ROLE_SESSION_ORCHESTRATION_PATH,
@@ -221,6 +223,7 @@ const memoryManagerProtocol = contents.get(MEMORY_MANAGER_PROTOCOL_PATH);
 const activationManagerProtocol = contents.get(ACTIVATION_MANAGER_PROTOCOL_PATH);
 const orchestratorManagedWorkflowPlaybook = contents.get(ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH);
 const sharedStartupBrief = contents.get(SHARED_STARTUP_BRIEF_PATH);
+const repoGovernanceRefactorTaskBoard = contents.get(REPO_GOVERNANCE_REFACTOR_TASK_BOARD_PATH);
 const commandSurfaceReference = contents.get(COMMAND_SURFACE_REFERENCE_PATH);
 const roleWorkflowQuickref = contents.get(ROLE_WORKFLOW_QUICKREF_PATH);
 const roleSessionOrchestration = contents.get(ROLE_SESSION_ORCHESTRATION_PATH);
@@ -411,13 +414,12 @@ requireSubstring(errors, ORCHESTRATOR_PROTOCOL_PATH, orchestratorProtocol, "rout
 requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "do not ask the Operator for routine approval, \"proceed\", or checkpoint actions");
 requireSubstring(errors, VALIDATOR_PROTOCOL_PATH, validatorProtocol, "do not ask the Operator for routine approval, \"proceed\", or checkpoint actions");
 
-// CX-218K: mechanical intervention discipline must stay present on every role
-// that can patch, steer, relay, validate, activate, or propose workflow repairs.
+// CX-218K: mechanical intervention discipline must stay present on every non-Coder
+// governance role that can patch, steer, relay, validate, activate, or propose workflow repairs.
 const MECHANICAL_INTERVENTION_SURFACES = [
   { filePath: CODEX_PATH, content: codexContent, requirePlaybook: true },
   { filePath: ORCHESTRATOR_PROTOCOL_PATH, content: orchestratorProtocol, requirePlaybook: true },
   { filePath: CLASSIC_ORCHESTRATOR_PROTOCOL_PATH, content: classicOrchestratorProtocol, requirePlaybook: false },
-  { filePath: CODER_PROTOCOL_PATH, content: coderProtocol, requirePlaybook: true },
   { filePath: WP_VALIDATOR_PROTOCOL_PATH, content: wpValidatorProtocol, requirePlaybook: true },
   { filePath: INTEGRATION_VALIDATOR_PROTOCOL_PATH, content: integrationValidatorProtocol, requirePlaybook: true },
   { filePath: VALIDATOR_PROTOCOL_PATH, content: validatorProtocol, requirePlaybook: false },
@@ -441,6 +443,39 @@ for (const { filePath, content, requirePlaybook } of MECHANICAL_INTERVENTION_SUR
       "orchestrator-managed workflow playbook reference",
     );
   }
+}
+
+const GOVERNANCE_STABILIZATION_PROTOCOL_SURFACES = [
+  { filePath: ORCHESTRATOR_PROTOCOL_PATH, content: orchestratorProtocol },
+  { filePath: CLASSIC_ORCHESTRATOR_PROTOCOL_PATH, content: classicOrchestratorProtocol },
+  { filePath: ACTIVATION_MANAGER_PROTOCOL_PATH, content: activationManagerProtocol },
+  { filePath: WP_VALIDATOR_PROTOCOL_PATH, content: wpValidatorProtocol },
+  { filePath: INTEGRATION_VALIDATOR_PROTOCOL_PATH, content: integrationValidatorProtocol },
+  { filePath: VALIDATOR_PROTOCOL_PATH, content: validatorProtocol },
+  { filePath: MEMORY_MANAGER_PROTOCOL_PATH, content: memoryManagerProtocol },
+];
+
+requireSubstring(errors, CODEX_PATH, codexContent, "CX-218L", "non-Coder governance stabilization authority");
+requireSubstring(errors, CODEX_PATH, codexContent, "NON_CODER_GOVERNANCE_STABILIZATION_DUTY", "non-Coder governance stabilization codex title");
+requireSubstring(errors, CODEX_PATH, codexContent, "make `ORCHESTRATOR_MANAGED` workflows more mechanical", "orchestrator-managed mechanical workflow focus");
+requireSubstring(errors, CODEX_PATH, codexContent, "current governance/workflow can still be brittle", "brittle governance/workflow focus");
+requireSubstring(errors, CODEX_PATH, codexContent, "actively strive", "active non-Coder stabilization duty");
+requireSubstring(errors, CODEX_PATH, codexContent, "CODER is excluded from this governance-stabilization duty", "Coder exclusion from governance stabilization");
+requireSubstring(errors, CODEX_PATH, codexContent, "REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md", "governance refactor taskboard declaration requirement");
+requireSubstring(errors, CODEX_PATH, codexContent, "keep that status current until the work is DONE, HOLD, or explicitly superseded", "governance refactor status upkeep requirement");
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "Coder Exclusion From Governance Stabilization [CX-218L]", "Coder governance-stabilization exclusion");
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "Coder does not own governance paperwork or workflow stabilization", "Coder does not own governance stabilization");
+requireSubstring(errors, CODER_PROTOCOL_PATH, coderProtocol, "report the blocker through the packet-declared typed handoff/blocker surface", "Coder reports governance blockers through typed surfaces");
+
+for (const { filePath, content } of GOVERNANCE_STABILIZATION_PROTOCOL_SURFACES) {
+  requireSubstring(errors, filePath, content, "Governance Stabilization Duty [CX-218L]", "non-Coder governance stabilization section");
+  requireSubstring(errors, filePath, content, "governance paperwork", "governance paperwork stabilization");
+  requireSubstring(errors, filePath, content, "actively striv", "active stabilization posture");
+  requireSubstring(errors, filePath, content, "brittle", "brittle governance/workflow focus");
+  requireSubstring(errors, filePath, content, "mechanical", "mechanical workflow hardening focus");
+  requireSubstring(errors, filePath, content, "Coder", "Coder exclusion/routing boundary");
+  requireSubstring(errors, filePath, content, "REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md", "governance refactor taskboard declaration");
+  requireSubstring(errors, filePath, content, "status current", "governance refactor status upkeep");
 }
 
 const ROLE_STARTUP_BRIEF_MECHANICAL_SURFACES = [
@@ -469,9 +504,27 @@ requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestrat
 requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "Merge-Pending Terminal Projection");
 requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "Main Containment Drift");
 requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "TERMINAL_HISTORY_HIDDEN");
-requireSubstring(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, "Every active role startup brief must include one `CX-218K` mechanical intervention card");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "reduce Orchestrator babysitting");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "autonomous parallel WP runs");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "CX-218L");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "make `ORCHESTRATOR_MANAGED` workflows more mechanical");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "current governance/workflow can still be brittle");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "actively strive");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md");
+requireSubstring(errors, ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK_PATH, orchestratorManagedWorkflowPlaybook, "updated as the work moves through IN_PROGRESS, DONE, HOLD, or superseded");
+requireSubstring(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, "Every non-CODER governed role startup brief must include one `CX-218K` mechanical intervention card");
+requireSubstring(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, "non-Coder roles actively strive to make `ORCHESTRATOR_MANAGED` workflows more mechanical");
+requireSubstring(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, "current governance/workflow is still brittle");
+requireSubstring(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, "Coder is excluded from `CX-218L` governance paperwork/workflow stabilization");
 requireSubstring(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, "cheapest deterministic read, repair, or typed helper");
 requireRegex(errors, STARTUP_BRIEF_SCHEMA_PATH, startupBriefSchema, /manually\s+relaying\s+or\s+brokering\s+ordinary/i, "startup schema no manual ordinary-content relay");
+requireSubstring(errors, SHARED_STARTUP_BRIEF_PATH, sharedStartupBrief, "CX-218L_BOUNDARY");
+requireSubstring(errors, SHARED_STARTUP_BRIEF_PATH, sharedStartupBrief, "ORCHESTRATOR_MANAGED` workflows become more mechanical");
+requireSubstring(errors, SHARED_STARTUP_BRIEF_PATH, sharedStartupBrief, "current governance/workflow is still brittle");
+requireSubstring(errors, SHARED_STARTUP_BRIEF_PATH, sharedStartupBrief, "do not assign governance-paperwork stabilization to Coder");
+requireSubstring(errors, REPO_GOVERNANCE_REFACTOR_TASK_BOARD_PATH, repoGovernanceRefactorTaskBoard, "RGF-283", "non-Coder governance stabilization refactor-board row");
+requireSubstring(errors, REPO_GOVERNANCE_REFACTOR_TASK_BOARD_PATH, repoGovernanceRefactorTaskBoard, "Non-Coder Governance Stabilization Duty", "non-Coder governance stabilization refactor-board title");
+requireSubstring(errors, REPO_GOVERNANCE_REFACTOR_TASK_BOARD_PATH, repoGovernanceRefactorTaskBoard, "keep status current", "governance refactor status upkeep on board");
 
 const MECHANICAL_STARTUP_REFERENCE_SURFACES = [
   { filePath: SHARED_STARTUP_BRIEF_PATH, content: sharedStartupBrief, requirePlaybook: true },

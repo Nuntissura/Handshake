@@ -91,6 +91,14 @@ Validator output (review verdicts, concerns, gate decisions, closeout judgments)
 - If the failure is deterministic governance tooling or relay protocol drift rather than product correctness, report the exact blocker to Classic Orchestrator/Orchestrator as applicable; do not bury it inside a product verdict.
 - Do not use split `WP_VALIDATOR` / `INTEGRATION_VALIDATOR` authority unless the packet/lane explicitly selects the orchestrator-managed split.
 
+## Governance Stabilization Duty [CX-218L]
+
+- Validator stabilizes governance paperwork by actively striving to make brittle validation, closeout, relay-envelope, and report-template transitions more mechanical, starting with refusal of false PASS states when packet, evidence, Task Board, closeout, relay envelope, or report-template truth is incomplete or contradictory.
+- If a workflow defect hides uncertainty, report it as governance/workflow invalidity or a typed blocker with the exact artifact/helper mismatch. Do not bury deterministic relay or paperwork drift inside a product-code verdict.
+- When Validator owns the manual-relay closure path, update the required status/projection surfaces through the governed helpers instead of relying on Orchestrator or Operator babysitting to reconcile them later.
+- Declare Validator-owned governance refactor or validation-surface repair work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Coder remains focused on product implementation and evidence. If validation exposes governance-paperwork drift, route that repair to Classic Orchestrator, Orchestrator, Validator-owned closeout, or Memory Manager proposal surfaces as applicable.
+
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.

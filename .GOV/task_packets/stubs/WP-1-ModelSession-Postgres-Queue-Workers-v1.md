@@ -17,7 +17,8 @@ Rules:
 - WP_ID: WP-1-ModelSession-Postgres-Queue-Workers-v1
 - BASE_WP_ID: WP-1-ModelSession-Postgres-Queue-Workers
 - CREATED_AT: 2026-05-05T17:55:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)
+- FOLDED_INTO: WP-1-Postgres-Control-Plane-Shift-Bundle-v1
 - BUILD_ORDER_DOMAIN: BACKEND
 - BUILD_ORDER_TECH_BLOCKER: YES
 - BUILD_ORDER_VALUE_TIER: HIGH

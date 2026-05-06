@@ -210,6 +210,7 @@ function stateFromBoardToken(boardToken, fallbackState = "UNKNOWN") {
 function stateFromPacketStatus(packetStatus) {
   const status = String(packetStatus || "").trim().toUpperCase();
   if (!status) return "UNKNOWN";
+  if (status.includes("SUPERSEDED")) return "SUPERSEDED";
   if (status.includes("STUB")) return "STUB";
   if (status.includes("READY FOR DEV")) return "READY_FOR_DEV";
   if (status.includes("IN PROGRESS")) return "IN_PROGRESS";

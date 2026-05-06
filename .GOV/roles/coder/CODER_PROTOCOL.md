@@ -178,6 +178,12 @@ Sub-agent delegation note (HARD):
 - If a new live governance surface is genuinely required, state why the existing surface is insufficient, who owns the new surface, and what the primary debug artifact is.
 - **Fail capture wiring (HARD — CX-205N):** Every new governance script or check MUST import `registerFailCaptureHook` and `failWithMemory` from `fail-capture-lib.mjs`, register the hook after imports, and delegate `fail()` to `failWithMemory()`. This ensures script failures are captured to the governance memory DB and surfaced via `memory-recall`. See TG-007.
 
+## Coder Exclusion From Governance Stabilization [CX-218L]
+
+- During an active product Coder lane, Coder does not own governance paperwork or workflow stabilization. The Coder lane focuses on product implementation, tests, and product evidence inside the packet-declared worktree.
+- If Coder observes stale packets, route drift, missing notifications, helper/protocol mismatch, or other governance workflow defects, report the blocker through the packet-declared typed handoff/blocker surface and wait for the owning non-Coder role to repair it.
+- Coder MUST NOT patch `.GOV/`, governance protocols, task-board projections, workflow tooling, or startup prompts from the product-code lane unless the Operator explicitly reassigns the session to separate governance-only work.
+
 ## Governance Folder Structure (Authoritative Placement Rules)
 
 This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative placement rules for Coder-owned governance surfaces. README and onboarding files are navigational only.
