@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/packet.json source_hash=2646bdf08c973ae3 projection_hash=93a73ba203feaa6f generated_at_utc=2026-05-06T15:57:13.278Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/packet.json source_hash=2646bdf08c973ae3 projection_hash=93a73ba203feaa6f generated_at_utc=2026-05-06T16:33:39.365Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Postgres-MCP-Durable-Progress-v1
 
 ## METADATA

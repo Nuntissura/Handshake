@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/packet.json source_hash=c01004c80ea8c49f projection_hash=1ce68454b5246a03 generated_at_utc=2026-05-06T15:57:13.287Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/packet.json source_hash=c01004c80ea8c49f projection_hash=1ce68454b5246a03 generated_at_utc=2026-05-06T16:33:39.376Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

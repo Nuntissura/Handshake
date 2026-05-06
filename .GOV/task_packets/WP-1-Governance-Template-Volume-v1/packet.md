@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Governance-Template-Volume-v1/packet.json source_hash=3aa3a6604f23e93c projection_hash=0439122475f668d4 generated_at_utc=2026-05-06T15:57:13.110Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Governance-Template-Volume-v1/packet.json source_hash=3aa3a6604f23e93c projection_hash=419b2f8b94d51b60 generated_at_utc=2026-05-06T16:33:39.200Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Governance-Template-Volume-v1
 
 ## METADATA

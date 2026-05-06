@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Governance-Kernel-Conformance-v1/packet.json source_hash=21313f0d55d26d5b projection_hash=e40d1af1f0790055 generated_at_utc=2026-05-06T15:57:13.106Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Governance-Kernel-Conformance-v1/packet.json source_hash=21313f0d55d26d5b projection_hash=0df17c9cbb46a9af generated_at_utc=2026-05-06T16:33:39.198Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Governance-Kernel-Conformance-v1
 
 ## METADATA

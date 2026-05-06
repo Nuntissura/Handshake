@@ -18,10 +18,10 @@
     "user_signature": "ilja251220252005"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:57:12.990Z",
+    "generated_at_utc": "2026-05-06T16:33:39.105Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Capability-SSoT/packet.md",
-    "projection_hash": "974623ee8015efa9",
+    "projection_hash": "ccf9cd40e245947c",
     "source_file": ".GOV/task_packets/WP-1-Capability-SSoT/packet.json",
     "source_hash": "8e26663d4ff802cb",
     "status": "GENERATED_IN_SYNC"

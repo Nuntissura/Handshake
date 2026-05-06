@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Artifact-System-Foundations-v1/packet.json source_hash=c5abc7b66dee9077 projection_hash=12b36141b470ef7e generated_at_utc=2026-05-06T15:57:12.916Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Artifact-System-Foundations-v1/packet.json source_hash=c5abc7b66dee9077 projection_hash=83bd7080f9ccda44 generated_at_utc=2026-05-06T16:33:39.012Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Artifact-System-Foundations-v1
 
 ## METADATA

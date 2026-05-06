@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-PDF-Pipeline/packet.json source_hash=1478d890b59a296b projection_hash=d350bcc3232e326e generated_at_utc=2026-05-06T15:57:13.271Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-PDF-Pipeline/packet.json source_hash=1478d890b59a296b projection_hash=9972ff6a05ea28f2 generated_at_utc=2026-05-06T16:33:39.361Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-PDF-Pipeline
 
 ## Metadata

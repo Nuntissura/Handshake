@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Terminal-Integration-Baseline/packet.json source_hash=976ba86764076900 projection_hash=88be9fc65327ebe4 generated_at_utc=2026-05-06T15:57:13.504Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Terminal-Integration-Baseline/packet.json source_hash=976ba86764076900 projection_hash=d4642fe401497082 generated_at_utc=2026-05-06T16:33:39.606Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Terminal-Integration-Baseline
 
 ## Metadata

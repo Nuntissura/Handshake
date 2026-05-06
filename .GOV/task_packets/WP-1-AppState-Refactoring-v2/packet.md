@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AppState-Refactoring-v2/packet.json source_hash=a5ead925e307a254 projection_hash=8598e3c76cae5032 generated_at_utc=2026-05-06T15:57:12.908Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AppState-Refactoring-v2/packet.json source_hash=a5ead925e307a254 projection_hash=3c6bd4a075037b8b generated_at_utc=2026-05-06T16:33:39.008Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-AppState-Refactoring-v2
 
 ## Metadata

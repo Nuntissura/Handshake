@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Dual-Backend-Tests/packet.json source_hash=68d711f5756df2a1 projection_hash=73c050379ea29f7d generated_at_utc=2026-05-06T15:57:13.048Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Dual-Backend-Tests/packet.json source_hash=68d711f5756df2a1 projection_hash=fa845889db6df9b1 generated_at_utc=2026-05-06T16:33:39.159Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Dual-Backend-Tests
 
 ## Metadata

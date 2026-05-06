@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Storage-Abstraction-Layer/packet.json source_hash=26cfabf5107da55f projection_hash=d3d1da6b26b74297 generated_at_utc=2026-05-06T15:57:13.428Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Storage-Abstraction-Layer/packet.json source_hash=26cfabf5107da55f projection_hash=d3d1da6b26b74297 generated_at_utc=2026-05-06T16:33:39.515Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Storage-Abstraction-Layer
 
 ## Metadata

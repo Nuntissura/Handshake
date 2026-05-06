@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-OSS-Governance-v2/packet.json source_hash=eacc7d5b260023a5 projection_hash=5dfabc4c9261df54 generated_at_utc=2026-05-06T15:57:13.266Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-OSS-Governance-v2/packet.json source_hash=eacc7d5b260023a5 projection_hash=c5e3c6c296ab87c4 generated_at_utc=2026-05-06T16:33:39.320Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-OSS-Governance-v2
 
 ## METADATA

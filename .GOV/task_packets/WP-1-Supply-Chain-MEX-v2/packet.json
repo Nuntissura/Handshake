@@ -18,10 +18,10 @@
     "user_signature": "ilja170120262249"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:57:13.500Z",
+    "generated_at_utc": "2026-05-06T16:33:39.604Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Supply-Chain-MEX-v2/packet.md",
-    "projection_hash": "8df1ca2f8d6127b4",
+    "projection_hash": "b5e8ac002f0d0243",
     "source_file": ".GOV/task_packets/WP-1-Supply-Chain-MEX-v2/packet.json",
     "source_hash": "99e016054d45e7ae",
     "status": "GENERATED_IN_SYNC"

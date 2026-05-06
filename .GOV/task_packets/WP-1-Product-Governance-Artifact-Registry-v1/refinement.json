@@ -14,7 +14,7 @@
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": null,
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:57:13.297Z",
+    "generated_at_utc": "2026-05-06T16:33:39.386Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Product-Governance-Artifact-Registry-v1/refinement.md",
     "projection_hash": "d9bb21851cb7e79e",

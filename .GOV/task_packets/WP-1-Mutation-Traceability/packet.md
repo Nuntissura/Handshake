@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Mutation-Traceability/packet.json source_hash=8cb9bc481ceefa39 projection_hash=0191a1bf146a9522 generated_at_utc=2026-05-06T15:57:13.246Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Mutation-Traceability/packet.json source_hash=8cb9bc481ceefa39 projection_hash=0a791810a1babdee generated_at_utc=2026-05-06T16:33:39.310Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Mutation-Traceability
 
 ## Metadata

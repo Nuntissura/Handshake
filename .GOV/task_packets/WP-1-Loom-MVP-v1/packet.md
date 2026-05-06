@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Loom-MVP-v1/packet.json source_hash=5d2e158e40d1c4a1 projection_hash=ed614152bf300da5 generated_at_utc=2026-05-06T15:57:13.148Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Loom-MVP-v1/packet.json source_hash=5d2e158e40d1c4a1 projection_hash=ed614152bf300da5 generated_at_utc=2026-05-06T16:33:39.227Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Loom-MVP-v1
 
 ## METADATA

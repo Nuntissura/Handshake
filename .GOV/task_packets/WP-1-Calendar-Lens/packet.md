@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Calendar-Lens/packet.json source_hash=1500dc3d3f20686c projection_hash=f8812a7d92ea3661 generated_at_utc=2026-05-06T15:57:12.933Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Calendar-Lens/packet.json source_hash=1500dc3d3f20686c projection_hash=9ac825bf5ecaeb84 generated_at_utc=2026-05-06T16:33:39.025Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Calendar-Lens
 
 ## Metadata

@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Semantic-Catalog/packet.json source_hash=e1ffa3be20bd29d7 projection_hash=736e8116509faffb generated_at_utc=2026-05-06T15:57:13.357Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Semantic-Catalog/packet.json source_hash=e1ffa3be20bd29d7 projection_hash=f029628687523c5a generated_at_utc=2026-05-06T16:33:39.447Z generator=wp-contract-import.mjs -->
 # Work Packet: WP-1-Semantic-Catalog
 
 **Status:** READY FOR DEV ðŸ”´  

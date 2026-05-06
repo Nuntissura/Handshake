@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Editor-Hardening/packet.json source_hash=ac7ac82b9ea72603 projection_hash=92a95974f2aaaa6c generated_at_utc=2026-05-06T15:57:13.054Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Editor-Hardening/packet.json source_hash=ac7ac82b9ea72603 projection_hash=d273bf712abaff71 generated_at_utc=2026-05-06T16:33:39.167Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Editor-Hardening
 
 ## Metadata

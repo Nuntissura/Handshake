@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Distillation/packet.json source_hash=fc76f7fa8866d459 projection_hash=60ce7318cd1952b1 generated_at_utc=2026-05-06T15:57:13.033Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Distillation/packet.json source_hash=fc76f7fa8866d459 projection_hash=bac19c5a899d9d14 generated_at_utc=2026-05-06T16:33:39.143Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Distillation
 
 ## Metadata

@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Micro-Task-Executor-v1/packet.json source_hash=e593db498e97e7b1 projection_hash=c1f04677895604bb generated_at_utc=2026-05-06T15:57:13.222Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Micro-Task-Executor-v1/packet.json source_hash=e593db498e97e7b1 projection_hash=c85f37e3fe28f4e9 generated_at_utc=2026-05-06T16:33:39.299Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Micro-Task-Executor-v1
 
 ## METADATA

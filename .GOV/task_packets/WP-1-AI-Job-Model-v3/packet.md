@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AI-Job-Model-v3/packet.json source_hash=f5f5a82e5e6e9cbb projection_hash=08b3b14aa25b4cf2 generated_at_utc=2026-05-06T15:57:12.881Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AI-Job-Model-v3/packet.json source_hash=f5f5a82e5e6e9cbb projection_hash=5aef63f42c58f772 generated_at_utc=2026-05-06T16:33:38.980Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-AI-Job-Model-v3
 
 ## Metadata

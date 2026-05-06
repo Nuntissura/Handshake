@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Atelier-Lens/packet.json source_hash=2f3fcee4a321989c projection_hash=b907f5a9c34f7d55 generated_at_utc=2026-05-06T15:57:12.922Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Atelier-Lens/packet.json source_hash=2f3fcee4a321989c projection_hash=e1a84f9e37253a0c generated_at_utc=2026-05-06T16:33:39.017Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Atelier-Lens
 
 ## Metadata

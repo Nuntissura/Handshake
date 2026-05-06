@@ -51,6 +51,14 @@ function baseWpIdFromPacket(packetId, packetText) {
   return packetId.replace(/-v\d+$/, "").replace(/-\d{8}$/, "");
 }
 
+function normalizeBaseWpId(value, packetId, packetText) {
+  const raw = String(value || "")
+    .replace(/\s*\(.*/, "")
+    .trim();
+  if (raw && raw !== packetId) return raw;
+  return baseWpIdFromPacket(packetId, packetText);
+}
+
 function extractSection(text, heading) {
   const lines = String(text || "").split(/\r?\n/);
   const headingRe = new RegExp(`^##\\s+${heading}\\s*$`, "i");
@@ -176,7 +184,7 @@ function readPacketInventory(dir, kind) {
       packetId,
       packetText: text,
       contractAuthority: stubContractState?.ok ? stubContractState.source : (contractState?.source || "MARKDOWN_LEGACY"),
-      baseWpId: stubContract?.base_wp_id || contract?.base_wp_id || baseWpIdFromPacket(packetId, text),
+      baseWpId: normalizeBaseWpId(stubContract?.base_wp_id || contract?.base_wp_id, packetId, text),
       status: stubContract?.lifecycle?.status || contract?.lifecycle?.status || parseStatus(text),
     });
   }

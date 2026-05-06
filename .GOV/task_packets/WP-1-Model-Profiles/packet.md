@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Model-Profiles/packet.json source_hash=d25aeb9ca41973f2 projection_hash=83711530b8f3fcdb generated_at_utc=2026-05-06T15:57:13.236Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Model-Profiles/packet.json source_hash=d25aeb9ca41973f2 projection_hash=0e03d1c7cf10bbc1 generated_at_utc=2026-05-06T16:33:39.305Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Model-Profiles
 
 ## Metadata

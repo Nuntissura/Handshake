@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Calendar-Storage-v1/packet.json source_hash=287a956ecbc2e857 projection_hash=83b68b12d79a1ab0 generated_at_utc=2026-05-06T15:57:12.937Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Calendar-Storage-v1/packet.json source_hash=287a956ecbc2e857 projection_hash=83b68b12d79a1ab0 generated_at_utc=2026-05-06T16:33:39.027Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Calendar-Storage-v1
 
 ## METADATA

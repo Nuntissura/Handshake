@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Workflow-Engine-v2/packet.json source_hash=ea756ac6d62c06de projection_hash=3633341a5bc091d4 generated_at_utc=2026-05-06T15:57:13.536Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Workflow-Engine-v2/packet.json source_hash=ea756ac6d62c06de projection_hash=f8bd9b10b5a2fc5c generated_at_utc=2026-05-06T16:33:39.625Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Workflow-Engine-v2
 
 ## Metadata

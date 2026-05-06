@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MEX-v1.2-Runtime-v2/packet.json source_hash=4080a904cba518b6 projection_hash=fc67f7f8d9d2e347 generated_at_utc=2026-05-06T15:57:13.211Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MEX-v1.2-Runtime-v2/packet.json source_hash=4080a904cba518b6 projection_hash=cd3844ada52f43cd generated_at_utc=2026-05-06T16:33:39.296Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-MEX-v1.2-Runtime-v2
 
 ## Metadata

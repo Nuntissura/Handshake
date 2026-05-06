@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Tokenization-Service/packet.json source_hash=7a5d8541763257a5 projection_hash=0782828c03233835 generated_at_utc=2026-05-06T15:57:13.516Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Tokenization-Service/packet.json source_hash=7a5d8541763257a5 projection_hash=f95e00c2a706497f generated_at_utc=2026-05-06T16:33:39.612Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Tokenization-Service
 
 ## Metadata

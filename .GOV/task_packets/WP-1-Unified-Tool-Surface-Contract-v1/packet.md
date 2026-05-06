@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Unified-Tool-Surface-Contract-v1/packet.json source_hash=f1cf2a448f4ce044 projection_hash=388119bd6380edc5 generated_at_utc=2026-05-06T15:57:13.528Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Unified-Tool-Surface-Contract-v1/packet.json source_hash=f1cf2a448f4ce044 projection_hash=07a4633e872e8912 generated_at_utc=2026-05-06T16:33:39.621Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Unified-Tool-Surface-Contract-v1
 
 ## METADATA

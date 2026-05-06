@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MEX-Safety-Gates/packet.json source_hash=d4fd2faef2cb1c30 projection_hash=acfa720dde9de0f9 generated_at_utc=2026-05-06T15:57:13.203Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MEX-Safety-Gates/packet.json source_hash=d4fd2faef2cb1c30 projection_hash=cdd513a0a5ce56c1 generated_at_utc=2026-05-06T16:33:39.291Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-MEX-Safety-Gates
 
 ## Metadata

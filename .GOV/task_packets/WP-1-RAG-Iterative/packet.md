@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-RAG-Iterative/packet.json source_hash=10ea3578c61363de projection_hash=7018d819636465fa generated_at_utc=2026-05-06T15:57:13.327Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-RAG-Iterative/packet.json source_hash=10ea3578c61363de projection_hash=305ffeaf56b44c09 generated_at_utc=2026-05-06T16:33:39.425Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-RAG-Iterative
 
 ## Metadata

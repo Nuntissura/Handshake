@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MCP-End-to-End-v2/packet.json source_hash=a1f36a9e58515550 projection_hash=ee7366884616bfaf generated_at_utc=2026-05-06T15:57:13.178Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MCP-End-to-End-v2/packet.json source_hash=a1f36a9e58515550 projection_hash=ee7366884616bfaf generated_at_utc=2026-05-06T16:33:39.262Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-MCP-End-to-End-v2
 
 ## METADATA

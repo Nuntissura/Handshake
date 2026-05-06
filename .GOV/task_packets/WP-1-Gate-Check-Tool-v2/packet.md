@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Gate-Check-Tool-v2/packet.json source_hash=2a32bdb1e3c9e954 projection_hash=476337ea00a592c3 generated_at_utc=2026-05-06T15:57:13.098Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Gate-Check-Tool-v2/packet.json source_hash=2a32bdb1e3c9e954 projection_hash=81833bbda206b249 generated_at_utc=2026-05-06T16:33:39.194Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Gate-Check-Tool-v2
 
 ## METADATA

@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ACE-RAG-Plumbing/packet.json source_hash=f6be3b78ca9b6f49 projection_hash=8c8c881c60985ccb generated_at_utc=2026-05-06T15:57:12.803Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ACE-RAG-Plumbing/packet.json source_hash=f6be3b78ca9b6f49 projection_hash=5aafc13e86f1d0e6 generated_at_utc=2026-05-06T16:33:38.943Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-ACE-RAG-Plumbing
 
 ## Metadata

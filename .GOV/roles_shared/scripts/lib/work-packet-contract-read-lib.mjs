@@ -56,6 +56,14 @@ function splitList(value = "") {
     .filter(Boolean);
 }
 
+function normalizeBaseWpId(value = "", wpId = "") {
+  const raw = String(value || "").replace(/\s*\(.*/, "").trim();
+  const candidate = raw || wpId || "";
+  if (candidate === wpId && /-v\d+$/i.test(candidate)) return candidate.replace(/-v\d+$/i, "");
+  if (candidate === wpId && /-\d{8}$/.test(candidate)) return candidate.replace(/-\d{8}$/, "");
+  return candidate;
+}
+
 function markdownProjection(pathValue, status = "LEGACY_AUTHORITY") {
   return {
     path: normalizePath(pathValue),
@@ -111,7 +119,7 @@ export function buildLegacyWorkPacketContract({ wpId, packetText = "", packetPat
     schema_version: "work_packet_contract_v1",
     contract_authority: "LEGACY_AUTHORITY",
     wp_id: parsePacketSingleField(packetText, "WP_ID") || wpId,
-    base_wp_id: (parsePacketSingleField(packetText, "BASE_WP_ID") || wpId || "").replace(/\s*\(.*/, "").trim(),
+    base_wp_id: normalizeBaseWpId(parsePacketSingleField(packetText, "BASE_WP_ID"), wpId),
     created_at_utc: parsePacketSingleField(packetText, "DATE") || null,
     updated_at_utc: null,
     source_control: {
@@ -275,7 +283,7 @@ export function buildWorkPacketCommunicationView(wpId) {
     ok: true,
     source: state.source,
     wpId: contract.wp_id || parsePacketSingleField(packetText, "WP_ID") || wpId,
-    baseWpId: String(contract.base_wp_id || parsePacketSingleField(packetText, "BASE_WP_ID") || wpId || "").replace(/\s*\(.*/, "").trim(),
+    baseWpId: normalizeBaseWpId(contract.base_wp_id || parsePacketSingleField(packetText, "BASE_WP_ID"), wpId),
     packetPath,
     packetAbsPath: state.resolved?.packetAbsPath || (packetPath ? repoPathAbs(packetPath) : ""),
     packetText,

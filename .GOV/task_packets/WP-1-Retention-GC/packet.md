@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Retention-GC/packet.json source_hash=025abb2733b445bb projection_hash=203c1f4fdec47096 generated_at_utc=2026-05-06T15:57:13.334Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Retention-GC/packet.json source_hash=025abb2733b445bb projection_hash=b4bfe0ab5b103760 generated_at_utc=2026-05-06T16:33:39.429Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Retention-GC
 
 ## Metadata

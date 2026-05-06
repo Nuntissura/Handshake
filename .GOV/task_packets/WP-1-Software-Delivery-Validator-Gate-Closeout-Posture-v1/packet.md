@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.json source_hash=3eccc68d0ba9b053 projection_hash=b33cdff10d1c16b3 generated_at_utc=2026-05-06T15:57:13.402Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.json source_hash=3eccc68d0ba9b053 projection_hash=b33cdff10d1c16b3 generated_at_utc=2026-05-06T16:33:39.496Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

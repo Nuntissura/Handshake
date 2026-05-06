@@ -18,10 +18,10 @@
     "user_signature": "ilja300120262137"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:57:13.342Z",
+    "generated_at_utc": "2026-05-06T16:33:39.432Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Role-Registry-AppendOnly-v1/packet.md",
-    "projection_hash": "b6d55ebdafed2de8",
+    "projection_hash": "fadeb945c2b0d1f5",
     "source_file": ".GOV/task_packets/WP-1-Role-Registry-AppendOnly-v1/packet.json",
     "source_hash": "6a9cd1e0875a891c",
     "status": "GENERATED_IN_SYNC"

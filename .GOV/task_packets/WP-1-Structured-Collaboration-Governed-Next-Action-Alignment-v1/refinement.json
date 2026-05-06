@@ -14,7 +14,7 @@
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": null,
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:57:13.467Z",
+    "generated_at_utc": "2026-05-06T16:33:39.569Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/refinement.md",
     "projection_hash": "4bb4188042edbadd",
