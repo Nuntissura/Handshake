@@ -5,7 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { communicationTransactionLockPathForWp, normalize } from "../lib/wp-communications-lib.mjs";
-import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
+import { repoPathAbs } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 import { appendWpReceipt } from "./wp-receipt-append.mjs";
 import { appendWpNotification, resolveTargetRoleFromMention } from "./wp-notification-append.mjs";
@@ -114,13 +115,13 @@ export function parseThreadAppendCliArgs(argv = []) {
 }
 
 function loadThreadContext(wpId) {
-  const packetPath = workPacketPath(wpId);
-  const packetAbsPath = repoPathAbs(packetPath);
-  if (!fs.existsSync(packetAbsPath)) {
+  const packetContext = buildWorkPacketCommunicationView(wpId);
+  const packetPath = packetContext.packetPath || `.GOV/task_packets/${wpId}/packet.md`;
+  if (!packetContext.ok || !packetContext.packetAbsPath || !fs.existsSync(packetContext.packetAbsPath)) {
     throw new Error(`Official packet not found: ${normalize(packetPath)}`);
   }
-  const packetText = fs.readFileSync(packetAbsPath, "utf8");
-  const threadFile = parseSingleField(packetText, "WP_THREAD_FILE");
+  const packetAbsPath = packetContext.packetAbsPath;
+  const threadFile = packetContext.threadFile;
   if (!threadFile) {
     throw new Error(`${normalize(packetPath)} does not declare WP_THREAD_FILE`);
   }

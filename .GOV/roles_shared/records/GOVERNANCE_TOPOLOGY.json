@@ -1,0 +1,95 @@
+{
+  "schema_id": "handshake.gov.governance_topology",
+  "schema_version": "governance_topology_v0",
+  "status": "BOOTSTRAP_SEED",
+  "authority": {
+    "source_codex_clause": "CX-912",
+    "implementation_owner": "ORCHESTRATOR",
+    "maintenance_required_roles": [
+      "ORCHESTRATOR",
+      "CLASSIC_ORCHESTRATOR",
+      "ACTIVATION_MANAGER",
+      "WP_VALIDATOR",
+      "INTEGRATION_VALIDATOR",
+      "VALIDATOR",
+      "MEMORY_MANAGER"
+    ],
+    "excluded_roles": [
+      "CODER"
+    ]
+  },
+  "update_contract": {
+    "direct_update_required_when": [
+      "adding a governance script, check, test, public Just recipe, workflow artifact, role protocol, phase bundle, topology surface, session/runtime authority surface, or machine-readable governance contract",
+      "renaming or relocating a governance surface",
+      "retiring a leaf script or compatibility wrapper",
+      "changing the owner, phase, side-effect class, debug artifact, or public exposure of a governance surface"
+    ],
+    "proposal_required_when_direct_write_is_forbidden": true,
+    "proposal_fields": [
+      "surface_path",
+      "surface_kind",
+      "owner_role",
+      "phase",
+      "side_effect_class",
+      "public_exposure",
+      "replacement_bundle",
+      "primary_debug_artifact",
+      "reason"
+    ]
+  },
+  "planned_inventory_fields": [
+    "surface_id",
+    "path",
+    "surface_kind",
+    "owner_role",
+    "authority_boundary",
+    "phase",
+    "side_effect_class",
+    "public_exposure",
+    "just_recipes",
+    "entrypoint_status",
+    "replacement_bundle",
+    "primary_debug_artifact",
+    "contract_authority",
+    "validation_coverage",
+    "source_hash",
+    "last_verified_at_utc"
+  ],
+  "implementation_plan": [
+    {
+      "rgf_id": "RGF-291",
+      "title": "Script Surface Inventory and Public Entry Contract",
+      "status": "IN_PROGRESS",
+      "goal": "replace ad-hoc public script discovery with a deterministic machine-readable inventory and fail new public governance surfaces that lack topology metadata"
+    },
+    {
+      "rgf_id": "RGF-292",
+      "title": "Phase Checkpoint Bundle Runner",
+      "status": "PLANNED",
+      "goal": "collapse phase/checkpoint execution behind canonical bundle commands with structured substep diagnostics"
+    },
+    {
+      "rgf_id": "RGF-293",
+      "title": "Justfile Public Surface Consolidation",
+      "status": "PLANNED",
+      "goal": "route human-facing recipes through phase bundles and classify leaf recipes as compatibility aliases or retire candidates"
+    },
+    {
+      "rgf_id": "RGF-294",
+      "title": "Leaf Script Sunset/Compatibility Wrapper Policy",
+      "status": "PLANNED",
+      "goal": "make wrapper retention explicit, bounded, and mechanically checked instead of leaving duplicate public leaves active forever"
+    },
+    {
+      "rgf_id": "RGF-295",
+      "title": "Structured Failure Dossier for Phase Bundles",
+      "status": "PLANNED",
+      "goal": "emit compact terminal phase failures backed by durable structured diagnostics so large bundles reduce public surface without hiding root-cause detail"
+    }
+  ],
+  "notes": [
+    "This bootstrap seed is not yet the full script inventory.",
+    "RGF-291 owns population, schema hardening, validation, and public-surface enforcement."
+  ]
+}

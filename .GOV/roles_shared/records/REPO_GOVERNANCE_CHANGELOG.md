@@ -21,6 +21,33 @@
 
 ## Entries
 
+### 2026.05.06.33 / GOV-CHANGE-20260506-33
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Added CX-912 topology-ledger law, created the bootstrap machine-readable governance topology ledger, added non-Coder topology upkeep duties to role protocols, and recorded RGF-291 through RGF-295 for script-surface inventory, phase checkpoint bundles, Justfile consolidation, leaf-script sunset policy, and structured failure dossiers.
+- Contract impact: Non-Coder roles must update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` when they add, rename, retire, expose, or materially change governance scripts, public Just recipes, checks, workflow artifacts, role protocols, phase bundles, topology surfaces, session/runtime authority surfaces, or machine-readable governance contract surfaces. Coder is excluded and must not receive topology-ledger repair work.
+- Records updated: `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` now defines RGF-291, RGF-292, RGF-293, RGF-294, and RGF-295 with implementation-ready scope, dependencies, deliverables, acceptance requirements, and risks.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and non-Coder protocol files under `.GOV/roles/`.
+- Verification: NOT_RUN. The operator has not requested validation for this record slice.
+### 2026.05.06.32 / GOV-CHANGE-20260506-32
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by routing packet communication appenders through the shared contract-first packet view, so receipt, thread, and notification writes resolve communication files, workflow lane, branch/worktree claims, packet format, and communication gate fields from `packet.json` before Markdown projection fallback. Closed `RGF-287` and `RGF-289` after projection drift, flat import, and stub-contract checks passed in the packet truth bundle and full governance check.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-thread-append.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-notification-append.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- DRIVER_EVIDENCE:
+  - `RGF-287`
+  - `RGF-288`
+  - `RGF-289`
+  - Operator request to push `gov_kernel` and proceed with deterministic machine-readable workflow artifact migration.
+- VERIFICATION:
+  - NOT_RUN after this appender slice.
+- OUTCOME: packet communication writes are no longer Markdown-first consumers when a primary packet contract exists; flat official packet import and stub contract migration are recorded as done after the prior `just gov-check` pass.
+
 ### 2026.05.06.31 / GOV-CHANGE-20260506-31
 - STATUS: APPLIED
 - AREA: Repo Governance
@@ -5130,3 +5157,4 @@
 - FOLLOW_ON_ITEMS:
   - improve session-control fallback semantics so explicit `FALLBACK` can supersede a packet-declared primary profile without hand-editing the active packet
 - OUTCOME: `RGF-278` is implemented; the active packet now supersedes the Spark Coder waiver and records GPT-5.5 extra-high as the active Coder profile for this WP while Spark is unavailable.
+

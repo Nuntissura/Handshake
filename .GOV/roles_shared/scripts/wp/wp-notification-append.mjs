@@ -12,7 +12,8 @@ import {
   NOTIFICATIONS_FILE_NAME,
   ROUTABLE_ROLE_VALUES,
 } from "../lib/wp-communications-lib.mjs";
-import { repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
+import { repoPathAbs } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
 import { appendJsonlLine, withFileLockSync } from "../session/session-registry-lib.mjs";
 
 const ACTIVE_AUTO_RELAY_ROLE_VALUES = new Set(["CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"]);
@@ -32,13 +33,12 @@ function parseSingleField(text, label) {
 }
 
 function resolveNotificationsFile(wpId) {
-  const packetPath = workPacketPath(wpId);
-  const packetAbsPath = repoPathAbs(packetPath);
-  if (fs.existsSync(packetAbsPath)) {
-    const text = fs.readFileSync(packetAbsPath, "utf8");
-    const commDir = parseSingleField(text, "WP_COMMUNICATION_DIR");
-    if (commDir && fs.existsSync(repoPathAbs(commDir))) {
-      return normalize(path.join(commDir, NOTIFICATIONS_FILE_NAME));
+  const packetContext = buildWorkPacketCommunicationView(wpId);
+  if (packetContext.ok) {
+    const notificationsFile = packetContext.notificationsFile
+      || (packetContext.communicationDir ? path.posix.join(packetContext.communicationDir, NOTIFICATIONS_FILE_NAME) : "");
+    if (notificationsFile && fs.existsSync(path.dirname(repoPathAbs(notificationsFile)))) {
+      return normalize(notificationsFile);
     }
   }
   const paths = communicationPathsForWp(wpId);
@@ -46,11 +46,8 @@ function resolveNotificationsFile(wpId) {
 }
 
 function workflowLaneForWp(wpId) {
-  const packetPath = workPacketPath(wpId);
-  const packetAbsPath = repoPathAbs(packetPath);
-  if (!fs.existsSync(packetAbsPath)) return "";
-  const text = fs.readFileSync(packetAbsPath, "utf8");
-  return parseSingleField(text, "WORKFLOW_LANE") || "";
+  const packetContext = buildWorkPacketCommunicationView(wpId);
+  return packetContext.ok ? packetContext.workflowLane || "" : "";
 }
 
 function attemptOrchestratorAutoRelay({ wpId, notification }) {
