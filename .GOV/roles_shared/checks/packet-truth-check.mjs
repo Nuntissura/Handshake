@@ -5,6 +5,7 @@ import { packetRequiresMergeContainmentTruth } from "../scripts/session/session-
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import { runAbsorber } from "../scripts/lib/artifact-normalizers/index.mjs";
 import { readWorkPacketContract } from "../scripts/lib/work-packet-contract-read-lib.mjs";
+import { readStubContractForMarkdownPath } from "../scripts/wp/task-packet-stub-contracts.mjs";
 
 registerFailCaptureHook("packet-truth-check.mjs", { role: "SHARED" });
 
@@ -165,16 +166,18 @@ function readPacketInventory(dir, kind) {
       artifactKind: "packet",
       wpId: packetId,
     }).output;
-    const contractState = readWorkPacketContract(packetId);
+    const stubContractState = kind === "stub" ? readStubContractForMarkdownPath(filePath) : null;
+    const contractState = kind === "stub" ? null : readWorkPacketContract(packetId);
     const contract = contractState?.contract && typeof contractState.contract === "object" ? contractState.contract : null;
+    const stubContract = stubContractState?.contract && typeof stubContractState.contract === "object" ? stubContractState.contract : null;
     entries.push({
       kind,
       filePath,
       packetId,
       packetText: text,
-      contractAuthority: contractState?.source || "MARKDOWN_LEGACY",
-      baseWpId: contract?.base_wp_id || baseWpIdFromPacket(packetId, text),
-      status: contract?.lifecycle?.status || parseStatus(text),
+      contractAuthority: stubContractState?.ok ? stubContractState.source : (contractState?.source || "MARKDOWN_LEGACY"),
+      baseWpId: stubContract?.base_wp_id || contract?.base_wp_id || baseWpIdFromPacket(packetId, text),
+      status: stubContract?.lifecycle?.status || contract?.lifecycle?.status || parseStatus(text),
     });
   }
   return entries;

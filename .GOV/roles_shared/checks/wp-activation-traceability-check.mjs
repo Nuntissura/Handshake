@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath, repoPathAbs, resolveWorkPacketPath } from "../scripts/lib/runtime-paths.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+import { readStubContractForMarkdownPath } from "../scripts/wp/task-packet-stub-contracts.mjs";
 
 registerFailCaptureHook("wp-activation-traceability-check.mjs", { role: "SHARED" });
 
@@ -105,6 +106,16 @@ for (const [baseWpId, wpIds] of baseToRevisionPackets.entries()) {
   const activePacketId = packetIdFromPath(activePacketPath);
 
   if (isStubPacketPath(activePacketPath)) {
+    const stubContractState = readStubContractForMarkdownPath(activePacketPath);
+    if (!stubContractState.ok) {
+      violations.push(
+        `${TRACE_REGISTRY_PATH}:${registryRow.lineNumber}: ${baseWpId} points to stub ${activePacketPath} but typed stub contract is missing (${stubContractState.contractPath})`
+      );
+    } else if (stubContractState.contract?.execution_authority !== "NON_EXECUTION_STUB") {
+      violations.push(
+        `${stubContractState.contractPath}: stub contract for ${baseWpId} must declare execution_authority=NON_EXECUTION_STUB`
+      );
+    }
     const expectedOfficial = resolveWorkPacketPath(activePacketId)?.packetPath || `${TASK_PACKETS_DIR}/${activePacketId}.md`;
     if (exists(expectedOfficial)) {
       violations.push(

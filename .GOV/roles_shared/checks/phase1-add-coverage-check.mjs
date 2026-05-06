@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+import { readStubContractForMarkdownPath } from "../scripts/wp/task-packet-stub-contracts.mjs";
 
 registerFailCaptureHook("phase1-add-coverage-check.mjs", { role: "SHARED" });
 
@@ -114,6 +115,32 @@ function collectCoverageFromStubs(versionTag) {
 
   for (const fileName of stubFiles) {
     const fullPath = path.join(STUB_DIR, fileName);
+    const stubContractState = readStubContractForMarkdownPath(fullPath.replace(/\\/g, "/"));
+    if (stubContractState.ok) {
+      const coverageRaw = String(stubContractState.contract?.spec_trace?.roadmap_add_coverage || "").trim();
+      const match = coverageRaw.match(/^SPEC=(v\d+(?:\.\d+)*);\s*PHASE=(7\.6\.3);\s*LINES=(.+)$/);
+      if (!match) {
+        parseErrors.push(
+          `${stubContractState.contractPath}: invalid roadmap_add_coverage format. Expected: SPEC=vXX.XXX; PHASE=7.6.3; LINES=123,124-126`,
+        );
+        continue;
+      }
+      if (match[1] !== versionTag) continue;
+      try {
+        const lineSet = parseLineSet(match[3]);
+        for (const coveredLine of lineSet) {
+          const refs = coverage.get(coveredLine) ?? [];
+          refs.push(stubContractState.contractPath.replace(/\\/g, "/"));
+          coverage.set(coveredLine, refs);
+        }
+      } catch (error) {
+        parseErrors.push(
+          `${stubContractState.contractPath}: ${(error && error.message) || "invalid line set"}`,
+        );
+      }
+      continue;
+    }
+
     const lines = fs.readFileSync(repoPathAbs(fullPath), "utf8").split(/\r?\n/);
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index].trim();

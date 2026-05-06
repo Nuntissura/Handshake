@@ -21,6 +21,25 @@
 
 ## Entries
 
+### 2026.05.06.31 / GOV-CHANGE-20260506-31
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-289` by fixing the ES-module stub-contract helper defect and migrating build-order/stub consumers to prefer typed stub contracts before Markdown fallback. Build-order sync now hashes and consumes `.contract.json`, Phase 1 ADD coverage reads `spec_trace.roadmap_add_coverage`, packet truth reads stub base/status from contracts, and activation traceability requires active stubs to carry `execution_authority=NON_EXECUTION_STUB`.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs`
+  - `.GOV/roles_shared/scripts/build-order-sync.mjs`
+  - `.GOV/roles_shared/checks/phase1-add-coverage-check.mjs`
+  - `.GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `.GOV/roles_shared/checks/wp-activation-traceability-check.mjs`
+  - `.GOV/roles_shared/records/BUILD_ORDER.md`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: ran implementation command `just build-order-sync`; full `just gov-check` not run in this slice.
+- RISKS:
+  - Remaining stub consumers may exist in monitor/UI surfaces that classify by path only; these are lower authority than build-order/check paths.
+  - Stub contracts remain non-execution authority; activation must still create official packet contracts before role launch.
+
 ### 2026.05.06.30 / GOV-CHANGE-20260506-30
 - STATUS: APPLIED
 - AREA: Repo Governance

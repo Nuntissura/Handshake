@@ -1,3 +1,4 @@
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -65,6 +66,21 @@ async function exists(absPath) {
 
 function stubContractPathFor(stubMdAbsPath = "") {
   return stubMdAbsPath.replace(/\.md$/i, ".contract.json");
+}
+
+export function stubContractPathFromMarkdownPath(stubMdPath = "") {
+  return String(stubMdPath || "").replace(/\.md$/i, ".contract.json");
+}
+
+export function readStubContractForMarkdownPath(stubMdPath = "") {
+  const contractPath = stubContractPathFromMarkdownPath(stubMdPath);
+  const absPath = path.isAbsolute(contractPath) ? contractPath : path.resolve(REPO_ROOT, contractPath);
+  try {
+    const contract = JSON.parse(fsSync.readFileSync(absPath, "utf8"));
+    return { ok: true, source: "PRIMARY_MACHINE_READABLE_STUB", contract, contractPath };
+  } catch {
+    return { ok: false, source: "MISSING", contract: null, contractPath };
+  }
 }
 
 export function buildStubContract({ wpId = "", stubText = "", stubPath = "" } = {}) {
