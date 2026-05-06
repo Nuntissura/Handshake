@@ -5195,6 +5195,12 @@
 
 
 
+### GOV-CHANGE-20260506-41
+- TASKS: RGF-297
+- SUMMARY: Started the residual artifact writer migration audit by adding a deterministic scanner, generated machine-readable inventory, and gov-check enforcement. The baseline inventory classifies 143 governance writer calls with zero unclassified entries and four packet Markdown projection migration candidates.
+- FILES: .GOV/roles_shared/scripts/audit/residual-artifact-writer-inventory.mjs; .GOV/roles_shared/checks/residual-artifact-writer-inventory-check.mjs; .GOV/roles_shared/checks/governance-structure-bundle-check.mjs; .GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - residual-artifact-writer-inventory-check; just gov-check --sync-topology; just gov-check.
+
 ### GOV-CHANGE-20260506-40
 - TASKS: RGF-296
 - SUMMARY: Started projection hash enforcement closure by strengthening the existing contract projection validator. Generated packet/refinement/MT projections must now keep required Markdown projection metadata and header values in parity with the primary JSON contract, including path, source file, source hash, projection hash, generated timestamp, and generator.

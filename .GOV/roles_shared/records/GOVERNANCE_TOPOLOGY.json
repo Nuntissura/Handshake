@@ -151,19 +151,19 @@
     }
   ],
   "public_surface_summary": {
-    "total_surfaces": 777,
+    "total_surfaces": 780,
     "counts_by_kind": {
       "AGENTS_CONTRACT": 1,
-      "GOVERNANCE_CHECK": 87,
+      "GOVERNANCE_CHECK": 88,
       "GOVERNANCE_DOC": 74,
       "GOVERNANCE_RECORD": 20,
-      "GOVERNANCE_SCRIPT": 216,
+      "GOVERNANCE_SCRIPT": 217,
       "GOVERNANCE_TEMPLATE": 18,
       "GOVERNANCE_TEST": 126,
       "JUST_RECIPE": 208,
       "JUSTFILE": 1,
       "MACHINE_READABLE_CONTRACT": 13,
-      "MACHINE_READABLE_RECORD": 2,
+      "MACHINE_READABLE_RECORD": 3,
       "ROLE_PROTOCOL": 11
     },
     "counts_by_owner_role": {
@@ -178,7 +178,7 @@
       "OPERATOR": 4,
       "ORCHESTRATOR": 58,
       "README.MD": 1,
-      "SHARED": 623,
+      "SHARED": 626,
       "VALIDATOR": 39,
       "WP_VALIDATOR": 4
     },
@@ -188,7 +188,7 @@
       "CANONICAL_SUB_BUNDLE": 6,
       "COMPATIBILITY_ALIAS": 38,
       "CONTRACT_AUTHORITY": 12,
-      "INTERNAL_HELPER": 301,
+      "INTERNAL_HELPER": 304,
       "INTERNAL_TEST": 126,
       "MACHINE_PROJECTION": 1,
       "PUBLIC_LEAF_BASELINED": 120,
@@ -1384,7 +1384,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:f67cd2c0e3525f165946f4cccf56997e3773904e13c00d20ac8bc9ace21b06c2",
+      "source_hash": "sha256:c6fc40fcfb06b34a7e01eaea03e74f269bde1032c3cc7d239227c0fd55ddc24f",
       "last_verified_at_utc": null
     },
     {
@@ -1850,6 +1850,27 @@
         "governance-topology-check"
       ],
       "source_hash": "sha256:7b61d5ed525f1b0dd66d4baa7fa6010ad878d345c6b6d89e4a9675faaf910140",
+      "last_verified_at_utc": null
+    },
+    {
+      "surface_id": "file:.GOV/roles_shared/checks/residual-artifact-writer-inventory-check.mjs",
+      "path": ".GOV/roles_shared/checks/residual-artifact-writer-inventory-check.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "owner_role": "SHARED",
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "phase": "CHECK",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "GOV_CHECK_SUBSTEP_OR_DIRECT_CHECK",
+      "just_recipes": [],
+      "entrypoint_status": "INTERNAL_HELPER",
+      "replacement_bundle": "just gov-check",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:85560f2f0fecd6e9490fedeb918621a70f47e84a16af39079757ce079496dbe8",
       "last_verified_at_utc": null
     },
     {
@@ -3280,7 +3301,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:e7a9d0e3428aa03a5bdd3fbc63859a664d67286f2b2c428ceaa83e4aaa44a098",
+      "source_hash": "sha256:fa72c58a2a1ae8f137a31c535c3e085090ae4a6893d97bdec226df7d39f86a62",
       "last_verified_at_utc": null
     },
     {
@@ -3440,7 +3461,27 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:dadeb7d078e4aac0a30a8b4e8be18b092148fd7f33b328723357eff2ab35354b",
+      "source_hash": "sha256:3edd3d0ea4391e5e95e5385f01dfcbb5be2b13d4172323bb5f5e7d676e85cbcf",
+      "last_verified_at_utc": null
+    },
+    {
+      "surface_id": "file:.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json",
+      "path": ".GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json",
+      "surface_kind": "MACHINE_READABLE_RECORD",
+      "owner_role": "SHARED",
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "phase": "GENERAL",
+      "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
+      "public_exposure": "INTERNAL_PATH",
+      "just_recipes": [],
+      "entrypoint_status": "INTERNAL_HELPER",
+      "replacement_bundle": "just gov-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:eae8f283b80f4c993858fee6196c5bca25672eedc9de7dcbcca1dfb03a37c05b",
       "last_verified_at_utc": null
     },
     {
@@ -3563,6 +3604,26 @@
         "governance-topology-check"
       ],
       "source_hash": "sha256:912d81d431b292c42aa25ae98ecda3785a6e9c96b01b79aa9281fa8a0a03f5bb",
+      "last_verified_at_utc": null
+    },
+    {
+      "surface_id": "file:.GOV/roles_shared/scripts/audit/residual-artifact-writer-inventory.mjs",
+      "path": ".GOV/roles_shared/scripts/audit/residual-artifact-writer-inventory.mjs",
+      "surface_kind": "GOVERNANCE_SCRIPT",
+      "owner_role": "SHARED",
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "phase": "AUDIT",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "INTERNAL_PATH",
+      "just_recipes": [],
+      "entrypoint_status": "INTERNAL_HELPER",
+      "replacement_bundle": "just gov-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:a3583712d8adc24c87f1fd9a22cce167d215c99bc43bcc2e331c21017c372c1b",
       "last_verified_at_utc": null
     },
     {
@@ -17290,5 +17351,5 @@
       "last_verified_at_utc": null
     }
   ],
-  "projection_hash": "sha256:dae20b5bd06235dab1edc47f9ef9c7a06f838928e6edbf6f77690c64a2474c75"
+  "projection_hash": "sha256:5182167e134f187a54f861e28660a79055bff52cededc6b4547e5de75a1c9f24"
 }

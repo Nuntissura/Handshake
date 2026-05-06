@@ -9,6 +9,7 @@
  *   - prevention-ladder-check.mjs
  *   - deprecation-sunset-check.mjs
  *   - migration-path-truth-check.mjs
+ *   - residual-artifact-writer-inventory-check.mjs
  */
 
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
@@ -21,6 +22,7 @@ const failures = runBundledChecks(import.meta.url, [
   "prevention-ladder-check.mjs",
   "deprecation-sunset-check.mjs",
   "migration-path-truth-check.mjs",
+  "residual-artifact-writer-inventory-check.mjs",
 ]);
 
 if (failures.length > 0) {
