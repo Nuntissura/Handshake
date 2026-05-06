@@ -245,7 +245,11 @@ function recipeNamesByFile(recipes, filePaths) {
 function ownerRoleForPath(repoRelPath) {
   const parts = pathParts(repoRelPath);
   const rolesIndex = parts.indexOf("roles");
-  if (rolesIndex >= 0 && parts[rolesIndex + 1]) return parts[rolesIndex + 1].toUpperCase();
+  if (rolesIndex >= 0 && parts[rolesIndex + 1]) {
+    const rolePart = parts[rolesIndex + 1].toUpperCase();
+    if (rolePart === "README.MD") return "SHARED";
+    return rolePart;
+  }
   if (parts.includes("roles_shared")) return "SHARED";
   if (parts.includes("operator")) return "OPERATOR";
   if (parts.includes("codex")) return "CODEX";
@@ -452,6 +456,135 @@ function buildPublicLeafGroups(surfaces) {
     );
 }
 
+function isBlank(value) {
+  return value === undefined
+    || value === null
+    || String(value).trim() === ""
+    || (Array.isArray(value) && value.length === 0);
+}
+
+function hasSha256(value) {
+  return /^sha256:[0-9a-f]{64}$/u.test(String(value || ""));
+}
+
+function hasTopologySafeSourceHash(surface) {
+  if (surface.path === GOVERNANCE_TOPOLOGY_REPO_REL_PATH && surface.source_hash === null) return true;
+  return hasSha256(surface.source_hash);
+}
+
+function isPublicSurface(surface) {
+  return String(surface.public_exposure || "").includes("PUBLIC")
+    || String(surface.entrypoint_status || "").includes("PUBLIC")
+    || String(surface.entrypoint_status || "").includes("COMPATIBILITY");
+}
+
+export function validateGovernanceTopologyInventory(topology = buildGovernanceTopology()) {
+  const errors = [];
+  if (!topology || typeof topology !== "object" || Array.isArray(topology)) {
+    return ["governance topology must be an object"];
+  }
+  if (!Array.isArray(topology.surfaces)) {
+    return ["governance topology surfaces must be an array"];
+  }
+
+  const requiredFields = [
+    "surface_id",
+    "path",
+    "surface_kind",
+    "owner_role",
+    "authority_boundary",
+    "phase",
+    "side_effect_class",
+    "public_exposure",
+    "just_recipes",
+    "entrypoint_status",
+    "replacement_bundle",
+    "primary_debug_artifact",
+    "contract_authority",
+    "validation_coverage",
+    "source_hash",
+  ];
+  const seenSurfaceIds = new Set();
+  const seenPaths = new Map();
+  const scriptLikeKinds = new Set([
+    "GOVERNANCE_SCRIPT",
+    "GOVERNANCE_LIBRARY",
+    "GOVERNANCE_CHECK",
+    "GOVERNANCE_TEST",
+  ]);
+
+  for (const surface of topology.surfaces) {
+    const label = surface?.surface_id || surface?.path || "<surface>";
+    if (!surface || typeof surface !== "object" || Array.isArray(surface)) {
+      errors.push(`${label}: surface must be an object`);
+      continue;
+    }
+    for (const field of requiredFields) {
+      if (field === "source_hash" && surface.path === GOVERNANCE_TOPOLOGY_REPO_REL_PATH && surface.source_hash === null) continue;
+      if (field === "just_recipes") {
+        if (!Array.isArray(surface.just_recipes)) errors.push(`${label}: just_recipes must be an array`);
+        continue;
+      }
+      if (isBlank(surface[field])) errors.push(`${label}: missing required topology field ${field}`);
+    }
+    if (seenSurfaceIds.has(surface.surface_id)) {
+      errors.push(`${label}: duplicate surface_id`);
+    }
+    seenSurfaceIds.add(surface.surface_id);
+
+    if (String(surface.surface_id || "").startsWith("file:")) {
+      if (seenPaths.has(surface.path)) {
+        errors.push(`${label}: duplicate file path with ${seenPaths.get(surface.path)}`);
+      }
+      seenPaths.set(surface.path, label);
+      if (!fs.existsSync(repoPathAbs(surface.path))) {
+        errors.push(`${label}: file path missing on disk (${surface.path})`);
+      }
+    }
+
+    if (String(surface.owner_role || "").includes(".")) {
+      errors.push(`${label}: owner_role must be a role/authority token, found ${surface.owner_role}`);
+    }
+    if (["UNKNOWN", "<missing>"].includes(String(surface.owner_role || "").toUpperCase())) {
+      errors.push(`${label}: owner_role must be classified`);
+    }
+    if (["UNKNOWN", "<missing>"].includes(String(surface.phase || "").toUpperCase())) {
+      errors.push(`${label}: phase must be classified`);
+    }
+    if (!hasTopologySafeSourceHash(surface)) {
+      errors.push(`${label}: source_hash must be sha256:<64hex> except the topology self-row null policy`);
+    }
+    if (!Array.isArray(surface.validation_coverage) || surface.validation_coverage.length === 0) {
+      errors.push(`${label}: validation_coverage must be a non-empty array`);
+    }
+    if (!Array.isArray(surface.just_recipes)) {
+      errors.push(`${label}: just_recipes must be an array`);
+    }
+    if (surface.public_exposure === "PUBLIC_VIA_JUST_RECIPE" && (!Array.isArray(surface.just_recipes) || surface.just_recipes.length === 0)) {
+      errors.push(`${label}: PUBLIC_VIA_JUST_RECIPE requires at least one just recipe`);
+    }
+    if (surface.surface_kind === "JUST_RECIPE" && !String(surface.path || "").startsWith("justfile#")) {
+      errors.push(`${label}: JUST_RECIPE path must be justfile#<recipe>`);
+    }
+    if (isPublicSurface(surface) && isBlank(surface.replacement_bundle)) {
+      errors.push(`${label}: public surfaces require replacement_bundle metadata`);
+    }
+    if (scriptLikeKinds.has(surface.surface_kind)) {
+      for (const field of ["owner_role", "phase", "side_effect_class", "primary_debug_artifact", "entrypoint_status"]) {
+        if (isBlank(surface[field])) errors.push(`${label}: script inventory metadata missing ${field}`);
+      }
+    }
+  }
+
+  const surfaceCount = topology.surfaces.length;
+  const summaryCount = Number(topology.public_surface_summary?.total_surfaces ?? -1);
+  if (summaryCount !== surfaceCount) {
+    errors.push(`public_surface_summary.total_surfaces drift (expected ${surfaceCount}, found ${summaryCount})`);
+  }
+
+  return [...new Set(errors)];
+}
+
 export function buildGovernanceTopology() {
   const filePaths = collectSurfaceFilePaths();
   const recipes = parseJustRecipes();
@@ -525,6 +658,44 @@ export function buildGovernanceTopology() {
       self_source_hash_policy: "null_to_avoid_self-referential_projection_hash",
       check: "governance-topology-check",
       sync_command: "just gov-check --sync-topology",
+    },
+    script_inventory_reconciliation_contract: {
+      rgf_id: "RGF-298",
+      check: "governance-topology-check",
+      enforced_fields: [
+        "surface_id",
+        "path",
+        "surface_kind",
+        "owner_role",
+        "authority_boundary",
+        "phase",
+        "side_effect_class",
+        "public_exposure",
+        "entrypoint_status",
+        "replacement_bundle",
+        "primary_debug_artifact",
+        "contract_authority",
+        "validation_coverage",
+        "source_hash",
+      ],
+      coverage_scope: [
+        "governance scripts",
+        "governance checks",
+        "governance tests",
+        "governance libraries",
+        "public Just recipes",
+        "role protocols",
+        "machine-readable records",
+      ],
+      fail_closed_on: [
+        "duplicate surface ids",
+        "duplicate file rows",
+        "missing files",
+        "missing required metadata",
+        "unclassified owner roles",
+        "invalid source hashes",
+        "public recipe exposure without recipe linkage",
+      ],
     },
     phase_checkpoint_bundles: phaseBundles,
     leaf_script_sunset_policy: {
@@ -602,6 +773,7 @@ export function buildGovernanceTopology() {
     authority: topology.authority,
     update_contract: topology.update_contract,
     projection_contract: topology.projection_contract,
+    script_inventory_reconciliation_contract: topology.script_inventory_reconciliation_contract,
     phase_checkpoint_bundles: topology.phase_checkpoint_bundles,
     leaf_script_sunset_policy: topology.leaf_script_sunset_policy,
     failure_dossier_contract: topology.failure_dossier_contract,
@@ -653,6 +825,7 @@ export function compareGovernanceTopologyProjection(existing = readGovernanceTop
   if (existingText !== expectedText) {
     errors.push(`${GOVERNANCE_TOPOLOGY_REPO_REL_PATH} projection is stale; run just gov-check --sync-topology`);
   }
+  errors.push(...validateGovernanceTopologyInventory(expected));
   return {
     ok: errors.length === 0,
     errors: [...new Set(errors)],

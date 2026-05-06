@@ -348,15 +348,15 @@
     {
       "artifact_class": "TOPOLOGY_OR_SNAPSHOT_ARTIFACT",
       "authority_class": "STRUCTURED_GOVERNANCE_RECORD",
-      "id": "artifact-writer:513d72754d44b175",
-      "line": 629,
+      "id": "artifact-writer:a4793ea2515a5333",
+      "line": 801,
       "migration_status": "STRUCTURED_AUTHORITY_OR_PROJECTION",
       "operation": "WRITE",
       "owner_role": "SHARED",
       "path": ".GOV/roles_shared/scripts/lib/governance-topology-lib.mjs",
       "rationale": "Topology and snapshot writers are governed record/projection surfaces.",
       "risk_class": "LOW",
-      "source_hash": "3452473e2791f942",
+      "source_hash": "79ed26ca8fc7eb0d",
       "target_expression": "absPath",
       "write_call": "fs.writeFileSync"
     },
@@ -2133,7 +2133,7 @@
   ],
   "generated_at_utc": null,
   "generated_by": "residual-artifact-writer-inventory.mjs",
-  "inventory_hash": "sha256:1becef7a860175e2",
+  "inventory_hash": "sha256:5ef3393c28f8fe7f",
   "policy": {
     "deletion_rule": "This inventory does not authorize deleting scripts or artifacts.",
     "high_risk_rule": "Packet, refinement, and MT Markdown writes must be migrated to primary contract writers or carry an explicit contract-sync proof.",

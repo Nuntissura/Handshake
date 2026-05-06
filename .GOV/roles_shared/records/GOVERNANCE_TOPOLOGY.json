@@ -45,6 +45,44 @@
     "check": "governance-topology-check",
     "sync_command": "just gov-check --sync-topology"
   },
+  "script_inventory_reconciliation_contract": {
+    "rgf_id": "RGF-298",
+    "check": "governance-topology-check",
+    "enforced_fields": [
+      "surface_id",
+      "path",
+      "surface_kind",
+      "owner_role",
+      "authority_boundary",
+      "phase",
+      "side_effect_class",
+      "public_exposure",
+      "entrypoint_status",
+      "replacement_bundle",
+      "primary_debug_artifact",
+      "contract_authority",
+      "validation_coverage",
+      "source_hash"
+    ],
+    "coverage_scope": [
+      "governance scripts",
+      "governance checks",
+      "governance tests",
+      "governance libraries",
+      "public Just recipes",
+      "role protocols",
+      "machine-readable records"
+    ],
+    "fail_closed_on": [
+      "duplicate surface ids",
+      "duplicate file rows",
+      "missing files",
+      "missing required metadata",
+      "unclassified owner roles",
+      "invalid source hashes",
+      "public recipe exposure without recipe linkage"
+    ]
+  },
   "phase_checkpoint_bundles": [
     {
       "bundle_id": "gov-check",
@@ -177,8 +215,7 @@
       "MEMORY_MANAGER": 13,
       "OPERATOR": 4,
       "ORCHESTRATOR": 58,
-      "README.MD": 1,
-      "SHARED": 626,
+      "SHARED": 627,
       "VALIDATOR": 39,
       "WP_VALIDATOR": 4
     },
@@ -3301,7 +3338,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:392579ce9ce72ded41400e2993328c5d7e1b75c6d7d993d361662363ddf10cd6",
+      "source_hash": "sha256:05321790d7cba1baa3510459d11af1bcc5363f325c99ce99c0868ed529c8302a",
       "last_verified_at_utc": null
     },
     {
@@ -3461,7 +3498,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:e4f7a3d010dc89acb5a417072c605173a5a24ea7f3f93120eb9169902916a890",
+      "source_hash": "sha256:ae80d1a4c104882753a7223d385e33fec8d728cb28f78015e4598411663d206d",
       "last_verified_at_utc": null
     },
     {
@@ -3481,7 +3518,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:60a3750d9dbda30359afa7b4fcfdf4710440fed322d7ba939518c42943dab947",
+      "source_hash": "sha256:63afaf9ebb6d26da9e51614fa75a9987d5c966c0f9bd24820f8feed0c122d6c7",
       "last_verified_at_utc": null
     },
     {
@@ -4485,7 +4522,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:3452473e2791f942c0bacd40c9e2d4d196c3469b0e9449946b8b7286318e595d",
+      "source_hash": "sha256:79ed26ca8fc7eb0d2a66261e2e64a646ba321cc7c88dcd3fd1821390f09dff28",
       "last_verified_at_utc": null
     },
     {
@@ -11437,8 +11474,8 @@
       "surface_id": "file:.GOV/roles/README.md",
       "path": ".GOV/roles/README.md",
       "surface_kind": "GOVERNANCE_DOC",
-      "owner_role": "README.MD",
-      "authority_boundary": "ROLE_README.MD",
+      "owner_role": "SHARED",
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "phase": "GENERAL",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "public_exposure": "INTERNAL_PATH",
@@ -17351,5 +17388,5 @@
       "last_verified_at_utc": null
     }
   ],
-  "projection_hash": "sha256:f30f5dc5551226c05a0acae605e63ac4d966a3506bfdb5ed256f94ec155aa9f5"
+  "projection_hash": "sha256:81e0e62ae2fb3b5020f292666ab05cf40b79c03ec3e7082ef2c71535d2fbd755"
 }
