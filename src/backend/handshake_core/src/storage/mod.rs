@@ -36,6 +36,164 @@ pub enum StorageBackendKind {
     Postgres,
 }
 
+pub const DATABASE_URL_ENV: &str = "DATABASE_URL";
+pub const HANDSHAKE_STORAGE_MODE_ENV: &str = "HANDSHAKE_STORAGE_MODE";
+pub const HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES_ENV: &str =
+    "HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES";
+const DEFAULT_SQLITE_DATABASE_URL: &str = "sqlite://data/handshake.db";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlPlaneStorageMode {
+    PostgresPrimary,
+    SqliteCache,
+    SqliteOffline,
+    Test,
+}
+
+impl ControlPlaneStorageMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::PostgresPrimary => "postgres_primary",
+            Self::SqliteCache => "sqlite_cache",
+            Self::SqliteOffline => "sqlite_offline",
+            Self::Test => "test",
+        }
+    }
+
+    pub fn is_control_plane_authority(&self) -> bool {
+        matches!(self, Self::PostgresPrimary)
+    }
+
+    pub fn authority_label(&self) -> &'static str {
+        match self {
+            Self::PostgresPrimary => "primary_authority",
+            Self::SqliteCache => "cache_projection",
+            Self::SqliteOffline => "offline_snapshot",
+            Self::Test => "test_fixture",
+        }
+    }
+
+    pub fn freshness_label(&self) -> &'static str {
+        match self {
+            Self::PostgresPrimary => "current_source_of_truth",
+            Self::SqliteCache => "derived_or_stale",
+            Self::SqliteOffline => "offline_stale",
+            Self::Test => "test_controlled",
+        }
+    }
+}
+
+impl std::fmt::Display for ControlPlaneStorageMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for ControlPlaneStorageMode {
+    type Err = StorageError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "postgres_primary" => Ok(Self::PostgresPrimary),
+            "sqlite_cache" => Ok(Self::SqliteCache),
+            "sqlite_offline" => Ok(Self::SqliteOffline),
+            "test" => Ok(Self::Test),
+            _ => Err(StorageError::Validation("unsupported storage mode")),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ControlPlaneStorageConfig {
+    pub mode: ControlPlaneStorageMode,
+    pub database_url: String,
+}
+
+impl ControlPlaneStorageConfig {
+    pub fn from_env() -> Result<Self, StorageError> {
+        let mode = std::env::var(HANDSHAKE_STORAGE_MODE_ENV).ok();
+        let requires_postgres = std::env::var(HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES_ENV).ok();
+        let database_url = std::env::var(DATABASE_URL_ENV).ok();
+
+        Self::resolve(
+            mode.as_deref(),
+            requires_postgres.as_deref(),
+            database_url.as_deref(),
+        )
+    }
+
+    pub fn resolve(
+        mode: Option<&str>,
+        requires_postgres: Option<&str>,
+        database_url: Option<&str>,
+    ) -> Result<Self, StorageError> {
+        let mode = match non_empty(mode) {
+            Some(value) => ControlPlaneStorageMode::from_str(value)?,
+            None if parse_requires_postgres(requires_postgres)? => {
+                ControlPlaneStorageMode::PostgresPrimary
+            }
+            None if non_empty(database_url).is_some_and(is_postgres_url) => {
+                ControlPlaneStorageMode::PostgresPrimary
+            }
+            None => ControlPlaneStorageMode::PostgresPrimary,
+        };
+
+        let database_url = match mode {
+            ControlPlaneStorageMode::PostgresPrimary => {
+                let url = non_empty(database_url).ok_or(StorageError::Validation(
+                    "postgres_primary requires DATABASE_URL",
+                ))?;
+                if !is_postgres_url(url) {
+                    return Err(StorageError::Validation(
+                        "postgres_primary requires a PostgreSQL DATABASE_URL",
+                    ));
+                }
+                url.to_string()
+            }
+            ControlPlaneStorageMode::SqliteCache
+            | ControlPlaneStorageMode::SqliteOffline
+            | ControlPlaneStorageMode::Test => {
+                let url = non_empty(database_url).unwrap_or(DEFAULT_SQLITE_DATABASE_URL);
+                if !url.starts_with("sqlite://") {
+                    return Err(StorageError::Validation(
+                        "sqlite storage modes require a SQLite DATABASE_URL",
+                    ));
+                }
+                url.to_string()
+            }
+        };
+
+        Ok(Self { mode, database_url })
+    }
+}
+
+fn non_empty(value: Option<&str>) -> Option<&str> {
+    value.map(str::trim).filter(|value| !value.is_empty())
+}
+
+fn is_postgres_url(value: &str) -> bool {
+    value.starts_with("postgres://") || value.starts_with("postgresql://")
+}
+
+fn parse_requires_postgres(value: Option<&str>) -> Result<bool, StorageError> {
+    match non_empty(value).map(|value| value.to_ascii_lowercase()) {
+        None => Ok(false),
+        Some(value)
+            if matches!(
+                value.as_str(),
+                "1" | "true" | "yes" | "required" | "postgres_primary"
+            ) =>
+        {
+            Ok(true)
+        }
+        Some(value) if matches!(value.as_str(), "0" | "false" | "no" | "optional") => Ok(false),
+        Some(_) => Err(StorageError::Validation(
+            "invalid HANDSHAKE_CONTROL_PLANE_REQUIRES_POSTGRES value",
+        )),
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StorageCapabilitySnapshot {
     pub backend: StorageBackendKind,
@@ -2345,22 +2503,27 @@ where
 use std::sync::Arc;
 
 /// [CX-DBP-041] Initialize the storage backend based on environment configuration.
-/// Defaults to SQLite if DATABASE_URL is not provided or starts with sqlite://.
+/// Resolves the explicit control-plane storage mode before opening the backend.
 pub async fn init_storage() -> Result<Arc<dyn Database>, StorageError> {
-    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        // Fallback to local sqlite file if not configured via env
-        "sqlite://data/handshake.db".to_string()
-    });
+    let config = ControlPlaneStorageConfig::from_env()?;
+    init_storage_with_config(&config).await
+}
 
-    if db_url.starts_with("sqlite://") {
-        let db = sqlite::SqliteDatabase::connect(&db_url, 5).await?;
-        db.run_migrations().await?;
-        Ok(db.into_arc())
-    } else if db_url.starts_with("postgres://") || db_url.starts_with("postgresql://") {
-        let db = postgres::PostgresDatabase::connect(&db_url, 5).await?;
-        db.run_migrations().await?;
-        Ok(db.into_arc())
-    } else {
-        Err(StorageError::Validation("unsupported database protocol"))
+pub async fn init_storage_with_config(
+    config: &ControlPlaneStorageConfig,
+) -> Result<Arc<dyn Database>, StorageError> {
+    match config.mode {
+        ControlPlaneStorageMode::SqliteCache
+        | ControlPlaneStorageMode::SqliteOffline
+        | ControlPlaneStorageMode::Test => {
+            let db = sqlite::SqliteDatabase::connect(&config.database_url, 5).await?;
+            db.run_migrations().await?;
+            Ok(db.into_arc())
+        }
+        ControlPlaneStorageMode::PostgresPrimary => {
+            let db = postgres::PostgresDatabase::connect(&config.database_url, 5).await?;
+            db.run_migrations().await?;
+            Ok(db.into_arc())
+        }
     }
 }

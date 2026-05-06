@@ -3,13 +3,14 @@ use super::{
     postgres::PostgresDatabase, sqlite::SqliteDatabase, AccessMode, BlockUpdate,
     CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility,
     CalendarEventWindowQuery, CalendarSourceProviderType, CalendarSourceSyncState,
-    CalendarSourceUpsert, CalendarSourceWritePolicy, Database, DefaultStorageGuard, EntityRef,
-    GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType,
-    LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomSourceAnchor,
-    LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas,
-    NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution,
-    NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageError, StorageGuard,
-    StorageBackendKind, StorageCapabilityStore, StorageResult, WriteContext,
+    CalendarSourceUpsert, CalendarSourceWritePolicy, ControlPlaneStorageConfig,
+    ControlPlaneStorageMode, Database, DefaultStorageGuard, EntityRef, GuardError, JobKind,
+    JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockSearchResult,
+    LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomSourceAnchor, LoomViewFilters,
+    LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas, NewCanvasEdge,
+    NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution, NewWorkspace,
+    OperationType, PlannedOperation, SafetyMode, StorageBackendKind, StorageCapabilityStore,
+    StorageError, StorageGuard, StorageResult, WriteContext,
 };
 use chrono::Duration;
 use chrono::Utc;
@@ -3418,8 +3419,63 @@ async fn database_trait_purity_capability_snapshot_reports_sqlite() -> StorageRe
     Ok(())
 }
 
+#[test]
+fn storage_mode_defaults_to_postgres_primary_when_required() -> StorageResult<()> {
+    let database_url = "postgres://handshake:handshake@localhost:5432/handshake";
+    let config = ControlPlaneStorageConfig::resolve(None, Some("true"), Some(database_url))?;
+
+    assert_eq!(config.mode, ControlPlaneStorageMode::PostgresPrimary);
+    assert_eq!(config.mode.as_str(), "postgres_primary");
+    assert_eq!(config.database_url, database_url);
+
+    Ok(())
+}
+
+#[test]
+fn storage_mode_fails_closed_when_postgres_required_without_url() {
+    for requires_postgres in [Some("true"), None] {
+        let err =
+            ControlPlaneStorageConfig::resolve(None, requires_postgres, None).unwrap_err();
+
+        match err {
+            StorageError::Validation(message) => {
+                assert_eq!(message, "postgres_primary requires DATABASE_URL");
+            }
+            other => panic!("expected validation error, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn sqlite_cache_mode_is_not_control_plane_authority() -> StorageResult<()> {
+    let cache =
+        ControlPlaneStorageConfig::resolve(Some("sqlite_cache"), None, Some("sqlite://cache.db"))?;
+    assert_eq!(cache.mode, ControlPlaneStorageMode::SqliteCache);
+    assert!(!cache.mode.is_control_plane_authority());
+    assert_eq!(cache.mode.authority_label(), "cache_projection");
+    assert_eq!(cache.mode.freshness_label(), "derived_or_stale");
+
+    let offline = ControlPlaneStorageConfig::resolve(Some("sqlite_offline"), None, None)?;
+    assert_eq!(offline.mode, ControlPlaneStorageMode::SqliteOffline);
+    assert!(!offline.mode.is_control_plane_authority());
+    assert_eq!(offline.mode.authority_label(), "offline_snapshot");
+    assert_eq!(offline.mode.freshness_label(), "offline_stale");
+
+    Ok(())
+}
+
 #[tokio::test]
 async fn database_trait_purity_capability_snapshot_reports_postgres() -> StorageResult<()> {
+    assert!(ControlPlaneStorageMode::PostgresPrimary.is_control_plane_authority());
+    assert_eq!(
+        ControlPlaneStorageMode::PostgresPrimary.authority_label(),
+        "primary_authority"
+    );
+    assert_eq!(
+        ControlPlaneStorageMode::PostgresPrimary.freshness_label(),
+        "current_source_of_truth"
+    );
+
     if postgres_test_url().is_none() {
         return Ok(());
     }
