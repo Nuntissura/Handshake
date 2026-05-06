@@ -280,11 +280,6 @@ if ($injectAuthorityFiles) {
 }
 
 $startupWarning = ($script:startupExitCode -ne 0)
-$authorityFileStatus = if ($injectAuthorityFiles) {
-  "required authority files were injected"
-} else {
-  "required authority files were not embedded by option"
-}
 $exitCode = if ($script:authorityExitCode -ne 0) { $script:authorityExitCode } else { 0 }
 
 Write-Section "ORCSTART COMPLETE"
@@ -292,9 +287,19 @@ if ($script:authorityExitCode -ne 0) {
   Write-Output "Startup prompt was injected, but authority injection failed because at least one required authority file was missing."
   Write-Output "ROLE_STARTUP_CONTINUES: no"
 } elseif (-not $startupWarning) {
-  Write-Output ("Startup prompt, just orchestrator-startup output, authority-read contract, and {0} successfully." -f $authorityFileStatus)
+  if ($injectAuthorityFiles) {
+    Write-Output "Startup prompt, just orchestrator-startup output, authority-read contract, and required authority files were injected successfully."
+  } else {
+    Write-Output "Startup prompt, just orchestrator-startup output, and authority-read contract were injected successfully."
+    Write-Output "AUTHORITY_FILES_EMBEDDED: no (disabled by option)"
+  }
 } else {
-  Write-Output ("Startup prompt, startup warning, authority-read contract, and {0} successfully." -f $authorityFileStatus)
+  if ($injectAuthorityFiles) {
+    Write-Output "Startup prompt, startup warning, authority-read contract, and required authority files were injected successfully."
+  } else {
+    Write-Output "Startup prompt, startup warning, and authority-read contract were injected successfully."
+    Write-Output "AUTHORITY_FILES_EMBEDDED: no (disabled by option)"
+  }
   Write-Output ("FIRST_COMMAND_EXIT_CODE: {0}" -f $script:startupExitCode)
   Write-Output "ROLE_STARTUP_CONTINUES: yes"
 }
