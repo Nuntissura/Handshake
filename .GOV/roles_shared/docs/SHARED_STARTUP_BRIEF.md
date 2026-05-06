@@ -22,7 +22,7 @@ Read this as operational memory at startup. It shortens the path from repeated f
 - DO: classify 3-5 plausible causes first, including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper, and for non-Coder roles actively strive to turn repeated brittle governance/workflow friction into mechanical surfaces
 - DO_NOT: compensate with narrative relay, repeated broad rereads, or another prompt when packet/runtime/receipt truth can answer the next action; do not assign governance-paperwork stabilization to Coder
 - VERIFY: the chosen repair names the cause class and either updates the mechanical surface, writes a typed receipt, or records why no patch is needed
-- SOURCE: CX-218K, CX-218L, `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+- SOURCE: CX-218K, CX-218L, CX-218M, `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json`, `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
 
 ### RAM-SHARED-PATHING-001
 

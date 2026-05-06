@@ -27,7 +27,7 @@ In the orchestrator-managed workflow, the Orchestrator:
 - Before every patch, steer, relay repair, or stalled-lane wake, classify 3-5 plausible causes: runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/memory/worktree drift are the default set.
 - Pick the cheapest deterministic proof or repair first: `orchestrator-next`, `wp-lane-health`, `session-registry-status`, `check-notifications`, readiness refresh, receipt/runtime inspection, or a typed `orchestrator-steer-next` nudge.
 - Do not manually broker ordinary Coder/WP Validator technical content. Use the typed direct-review helpers and session-control envelopes. Patch the durable surface when the same stall or wrong helper can recur.
-- For `ORCHESTRATOR_MANAGED`, use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as the healthy-lane map and first recovery checklist.
+- For `ORCHESTRATOR_MANAGED`, own `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json` as the machine-readable lane contract. Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` only as a projection/reference.
 - Repomem gates for Orchestrator mutation must be scoped with `--role ORCHESTRATOR --wp WP-{ID}` so active Coder/WP Validator memory sessions cannot satisfy Orchestrator authority by accident.
 
 ## Governance Stabilization Duty [CX-218L]
@@ -37,6 +37,7 @@ In the orchestrator-managed workflow, the Orchestrator:
 - When another non-Coder role owns the durable surface, emit the typed blocker/proposal or launch/steer that role with the exact helper/artifact mismatch. When Orchestrator owns the surface, patch it directly under the governance-maintenance workflow.
 - Declare Orchestrator-owned governance refactor work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
 - Coder remains excluded from governance paperwork stabilization. If Coder reports governance drift, route it through Orchestrator-owned governance repair or the owning non-Coder role; do not ask Coder to patch `.GOV/` from the product-code lane.
+- ACP/session-control consumes the workflow contract through `workflow_contract` request envelopes and `WORKFLOW_CONTRACT_CAPSULE` prompt capsules. Orchestrator authors policy; ACP transports and enforces the mechanical surface but must not author policy.
 
 ## Adult Production Boundary (When Applicable) [CX-123]
 

@@ -66,6 +66,7 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 - Do not wait for Orchestrator-managed tooling or Activation Manager to repair `MANUAL_RELAY` drift. Patch the Classic-owned durable surface or record a typed blocker that names the exact owner, artifact, and helper mismatch.
 - Declare Classic-owned governance refactor work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
 - Keep the Coder out of governance paperwork repair. Coder may report blockers, but Classic Orchestrator or Validator-owned governance surfaces must carry the stabilization work.
+- Classic Orchestrator owns `.GOV/roles_shared/workflow_contracts/manual_relay.workflow.json` as the machine-readable manual-relay contract and reviews shared invariants with Orchestrator. ACP/session-control may consume the contract, but Classic Orchestrator authors manual-relay policy.
 
 ## Self-Prime And Predecessor Summary (RGF-249)
 

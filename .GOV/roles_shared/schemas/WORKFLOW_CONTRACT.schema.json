@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://handshake.local/schemas/WORKFLOW_CONTRACT.schema.json",
+  "title": "Handshake Workflow Contract",
+  "type": "object",
+  "required": [
+    "schema_id",
+    "schema_version",
+    "contract_id",
+    "contract_version",
+    "status",
+    "lane",
+    "authority",
+    "owner_roles",
+    "maintainer_roles",
+    "consumers",
+    "role_scopes",
+    "states",
+    "transitions",
+    "terminal_fences",
+    "failure_classes",
+    "telemetry"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "hsk.workflow_contract@1"
+    },
+    "schema_version": {
+      "const": "workflow_contract_v1"
+    },
+    "contract_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contract_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "const": "ACTIVE"
+    },
+    "lane": {
+      "enum": [
+        "ORCHESTRATOR_MANAGED",
+        "MANUAL_RELAY"
+      ]
+    },
+    "authority": {
+      "const": "MACHINE_CONTRACT"
+    },
+    "owner_roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "maintainer_roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "role_scopes": {
+      "type": "object"
+    },
+    "states": {
+      "type": "array",
+      "minItems": 1
+    },
+    "transitions": {
+      "type": "array"
+    },
+    "terminal_fences": {
+      "type": "array",
+      "minItems": 1
+    },
+    "failure_classes": {
+      "type": "array",
+      "minItems": 1
+    },
+    "telemetry": {
+      "type": "object"
+    }
+  }
+}

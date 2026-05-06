@@ -21,6 +21,66 @@
 
 ## Entries
 
+### 2026.05.06.13 / GOV-CHANGE-20260506-13
+
+- STATUS: APPLIED
+- SUMMARY: queued ACP role startup capsule and WP/MT injection contract refactor
+- CHANGE_TYPE: GOVERNANCE_REFACTOR_PLANNING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-05-06 that ACP should be able to close/restart fresh role sessions and inject protocol/Codex/AGENTS digest plus WP, refinement, and active MT truth so Orchestrator does not babysit ordinary rehydration.
+  - Operator clarification that ACP is not authoritative; Orchestrator and Classic Orchestrator remain workflow authorities, the Work Packet is the task contract, and Microtasks are execution details.
+  - Existing ACP/dossier mechanics already print session/control activity mechanically, so capsule digest, restart reason, and source-snapshot freshness should flow into dossier projection instead of a separate narrative log.
+- FOLLOW_ON_ITEMS:
+  - `RGF-285`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `RGF-285` is queued as the next governance refactor concept: ACP becomes a deterministic role rehydration and injection consumer of verified packet/refinement/MT truth while Orchestrator/Classic retain authority. The recorded target includes startup capsules, automatic restart injection, exact first commands, and dossier-visible capsule/restart telemetry.
+- VERIFICATION:
+  - `just docs-check`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `just gov-check`
+
+### 2026.05.06.12 / GOV-CHANGE-20260506-12
+
+- STATUS: APPLIED
+- SUMMARY: converted workflow playbook authority into ACP-consumed machine contracts
+- CHANGE_TYPE: ACP_WORKFLOW_CONTRACT_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260506-WORKFLOW-CONTRACT-REGISTRY`
+  - Operator directive on 2026-05-06 that the playbook is not human-facing and should be a machine-readable ACP-consumed surface authored by Orchestrator and Classic Orchestrator.
+- FOLLOW_ON_ITEMS:
+  - `RGF-284`
+- FILES_CHANGED:
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json`
+  - `.GOV/roles_shared/workflow_contracts/manual_relay.workflow.json`
+  - `.GOV/roles_shared/schemas/WORKFLOW_CONTRACT.schema.json`
+  - `.GOV/roles_shared/schemas/SESSION_CONTROL_REQUEST.schema.json`
+  - `.GOV/roles_shared/scripts/workflow/workflow-contract-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/checks/workflow-contract-check.mjs`
+  - `.GOV/roles_shared/checks/session-bundle-check.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/tests/workflow-contract-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`
+  - `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `.GOV/Audits/audits/AUDIT-20260506-WORKFLOW-CONTRACT-REGISTRY.md`
+- OUTCOME: the orchestrator-managed and manual-relay workflow playbooks now have machine-readable contracts owned by Orchestrator and Classic Orchestrator. ACP/session-control consumes those contracts by attaching a `workflow_contract` envelope to governed requests and injecting a compact `WORKFLOW_CONTRACT_CAPSULE` into startup/steering prompts. The markdown playbook is downgraded to projection/reference, and `workflow-contract-check` is part of the session bundle so contract drift fails `gov-check`.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/workflow/workflow-contract-lib.mjs`
+  - `node --check .GOV/roles_shared/checks/workflow-contract-check.mjs`
+  - `node .GOV/roles_shared/checks/workflow-contract-check.mjs`
+  - `node --test .GOV/roles_shared/tests/workflow-contract-lib.test.mjs`
+  - `node .GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `git diff --check`
+  - `just gov-check`
+
 ### 2026.05.06.11 / GOV-CHANGE-20260506-11
 
 - STATUS: APPLIED

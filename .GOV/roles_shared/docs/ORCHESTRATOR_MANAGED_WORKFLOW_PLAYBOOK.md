@@ -1,12 +1,12 @@
 # Orchestrator-Managed Workflow Playbook
 
-Status: operational playbook
+Status: projection/reference
 Scope: `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`
-Authority: navigational only. If this playbook conflicts with role protocols, Codex law, packet truth, receipts, runtime status, or command output, those sources win.
+Authority: navigational projection only. The machine-readable contract is `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json`; ACP/session-control consumes that contract through `workflow_contract` request envelopes and `WORKFLOW_CONTRACT_CAPSULE` prompts. If this playbook conflicts with the workflow contract, role protocols, Codex law, packet truth, receipts, runtime status, or command output, those sources win.
 
 ## Purpose
 
-This file is the compact map for a healthy orchestrator-managed workflow and the first mechanical recovery moves when the lane stalls. It exists to make `ORCHESTRATOR_MANAGED` workflows more mechanical because current governance/workflow can still be brittle under parallel autonomous work; reduce prompt-token relay, avoid manual transcript reconstruction, reduce Orchestrator babysitting, and harden autonomous parallel WP runs until the ACP/watchdog path is fully mechanical.
+This file is a human-readable projection of the machine workflow contract. It exists for audits and maintenance, not routine role context injection. Roles should receive compact `WORKFLOW_CONTRACT_CAPSULE` state from ACP/session-control rather than rereading this whole document. The machine contract exists to make `ORCHESTRATOR_MANAGED` workflows more mechanical because current governance/workflow can still be brittle, reduce Orchestrator babysitting, and harden autonomous parallel WP runs.
 
 ## Authority Boundaries
 

@@ -106,6 +106,47 @@
     },
     "governed_action": {
       "type": "object"
+    },
+    "workflow_contract": {
+      "type": "object",
+      "required": [
+        "schema_id",
+        "schema_version",
+        "contract_id",
+        "contract_version",
+        "lane",
+        "role",
+        "consumers"
+      ],
+      "properties": {
+        "schema_id": {
+          "const": "hsk.workflow_contract_envelope@1"
+        },
+        "schema_version": {
+          "const": "workflow_contract_envelope_v1"
+        },
+        "contract_id": {
+          "type": "string"
+        },
+        "contract_version": {
+          "type": "string"
+        },
+        "lane": {
+          "enum": [
+            "ORCHESTRATOR_MANAGED",
+            "MANUAL_RELAY"
+          ]
+        },
+        "role": {
+          "type": "string"
+        },
+        "consumers": {
+          "type": "array",
+          "contains": {
+            "const": "ACP_SESSION_CONTROL"
+          }
+        }
+      }
     }
   },
   "allOf": [

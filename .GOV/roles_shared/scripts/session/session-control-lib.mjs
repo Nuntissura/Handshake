@@ -54,6 +54,11 @@ import {
   formatProtectedWorktreeResolutionDiagnostics,
   resolveProtectedWorktree,
 } from "../topology/git-topology-lib.mjs";
+import {
+  buildWorkflowContractEnvelope,
+  buildWorkflowContractPromptCapsule,
+  validateWorkflowContractEnvelopeShape,
+} from "../workflow/workflow-contract-lib.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
@@ -1164,6 +1169,7 @@ export function buildInlineStartupPrompt({
     ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`
     : `MODEL PROFILE POLICY: ${ROLE_MODEL_PROFILE_POLICY} (legacy/default packet fields may omit explicit per-role profile ids).`;
   const repomemOpenCommand = roleRepomemOpenCommand(role, wpId);
+  const workflowContractCapsule = buildWorkflowContractPromptCapsule({ role, commandKind: "START_SESSION" });
   const contextDigestCommand = role === "ACTIVATION_MANAGER"
     ? `just activation-manager next ${wpId}`
     : role === "CLASSIC_ORCHESTRATOR"
@@ -1203,6 +1209,7 @@ export function buildInlineStartupPrompt({
     ),
     `MINIMAL LIVE READ SET (MANDATORY): After startup and assignment, work from startup output + active packet + active WP thread/notifications + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md when command choice is unclear.`,
     `STARTUP BRIEF (OPERATIONAL MEMORY): each role startup prints .GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md plus the role-specific STARTUP_BRIEF under that role's docs folder. Treat those cards as Memory-Manager-curated anti-repeat guidance, not protocol authority.`,
+    `WORKFLOW_CONTRACT_CAPSULE (ACP-CONSUMED): ${workflowContractCapsule}`,
     `MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper. For ORCHESTRATOR_MANAGED, use .GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md.`,
     `BUNDLED_WP_MT_RULE (HARD): large/folded bundled WPs are allowed only when official MT files keep work deterministic, restartable, independently reviewable, and small-model manageable. There is no upper MT-count bias; 20+ MTs are acceptable. Do not collapse MTs to reduce paperwork, and execute/review/launch by declared MT truth rather than broad WP prose.`,
     `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${contextDigestCommand} instead of rereading ${contextDigestSurface} surfaces separately.`,
@@ -1472,11 +1479,13 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   }
   const repomemOpenCommand = roleRepomemOpenCommand(role, wpId);
   const executableNext = executableNextCommand(role, wpId, resolvedRoleConfig);
+  const workflowContractLine = `WORKFLOW_CONTRACT_CAPSULE (ACP-CONSUMED): ${buildWorkflowContractPromptCapsule({ role, commandKind: "SEND_PROMPT" })}`;
   const turnBoundaryNudgeLines = drainTurnBoundaryNudgeLines({ role, wpId, boundary: "steer" });
   if (role === "MEMORY_MANAGER") {
     return [
       `RESUME GOVERNED ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      workflowContractLine,
       ...turnBoundaryNudgeLines,
       `Use gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md + .GOV/roles/memory_manager/proposals/ + synthetic WP communication files under WP_COMMUNICATIONS/${wpId} as the live truth surface. There is no official packet for this lane.`,
       `REPOMEM EXCEPTION: this synthetic hygiene lane is not a normal WP coverage target; if mutation is needed and no Memory Manager session is open, run ${repomemOpenCommand}.`,
@@ -1493,6 +1502,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     return [
       `RESUME MANUAL_RELAY ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      workflowContractLine,
       ...turnBoundaryNudgeLines,
       `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable run notes.`,
       `Use packet + runtime projection + task board + WP communications as live truth. Do not convert this manual lane into autonomous ORCHESTRATOR_MANAGED steering.`,
@@ -1509,6 +1519,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     return [
       `RESUME MANUAL_RELAY ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      workflowContractLine,
       ...turnBoundaryNudgeLines,
       `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable validation notes.`,
       `Operator is the relay for this lane. Do not assume autonomous split-validator steering unless the packet explicitly declares ORCHESTRATOR_MANAGED.`,
@@ -1542,6 +1553,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   return [
     `RESUME GOVERNED ${role} lane for ${wpId}.`,
     `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+    workflowContractLine,
     ...turnBoundaryNudgeLines,
     `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable run notes instead of live dossier narration.`,
     `Use ${role === "ACTIVATION_MANAGER" ? "refinement + packet (if present) + activation readiness artifact + current runtime/session projection" : "packet + active WP thread/notifications + current runtime projection"} as the live truth surface. Do not reread large governance documents if context is already stable.`,
@@ -1663,6 +1675,10 @@ export function buildSessionControlRequest({
     metadata: governedAction?.metadata || { output_jsonl_file: outputJsonlPath },
     requestedAt: createdAt,
   });
+  const workflowContract = buildWorkflowContractEnvelope({
+    role,
+    commandKind: COMMAND_KIND,
+  });
   return {
     schema_id: SESSION_CONTROL_REQUEST_SCHEMA_ID,
     schema_version: SESSION_CONTROL_REQUEST_SCHEMA_VERSION,
@@ -1693,6 +1709,7 @@ export function buildSessionControlRequest({
       : {},
     target_command_id: targetCommandId,
     governed_action: governedActionRequest,
+    workflow_contract: workflowContract,
   };
 }
 
@@ -2358,6 +2375,7 @@ export function validateSessionControlRequestShape(request) {
     errors.push("target_command_id is required for CANCEL_SESSION");
   }
   errors.push(...validateGovernedActionRequestShape(request.governed_action, { allowMissing: true }));
+  errors.push(...validateWorkflowContractEnvelopeShape(request.workflow_contract, { allowMissing: true }));
   return errors;
 }
 
