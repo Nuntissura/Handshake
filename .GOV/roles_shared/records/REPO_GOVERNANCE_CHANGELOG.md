@@ -5194,3 +5194,9 @@
 
 
 
+
+### GOV-CHANGE-20260506-38
+- TASKS: RGF-288
+- SUMMARY: Migrated remaining lifecycle-affecting packet repair and review-publication writers through contract lifecycle sync.
+- FILES: .GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs; .GOV/roles/orchestrator/scripts/closeout-repair.mjs; .GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs; .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - just gov-check --sync-topology; just gov-check.

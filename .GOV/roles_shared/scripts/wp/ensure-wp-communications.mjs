@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
+import {
+  execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,25 +25,29 @@ import {
   WORKFLOW_LANE_VALUES,
   EXECUTION_OWNER_VALUES,
   AGENTIC_MODE_VALUES,
-} from "../lib/wp-communications-lib.mjs";
+  } from "../lib/wp-communications-lib.mjs";
 import {
   deriveWpCommunicationAutoRoute,
   evaluateWpCommunicationHealth,
-} from "../lib/wp-communication-health-lib.mjs";
+  } from "../lib/wp-communication-health-lib.mjs";
 import {
   applyWpReviewPacketProjection,
   applyWpReviewRuntimeProjection,
   deriveWpReviewPacketProjection,
-} from "../lib/wp-review-projection-lib.mjs";
+  } from "../lib/wp-review-projection-lib.mjs";
 import { normalizeActiveClauseClosureMatrix } from "../lib/packet-closure-monitor-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
 import {
   derivePacketMilestone,
   parsePacketStatus,
   taskBoardStatusForPacketStatus,
-} from "../lib/wp-authority-projection-lib.mjs";
-import { GOV_ROOT_REPO_REL, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
-import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
+  } from "../lib/wp-authority-projection-lib.mjs";
+import { GOV_ROOT_REPO_REL,
+  repoPathAbs,
+  workPacketPath } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView,
+  writeWorkPacketProjectionWithLifecycleSync,
+} from "../lib/work-packet-contract-read-lib.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "../lib/merge-progression-truth-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 
@@ -663,7 +668,12 @@ function ensureWpCommunicationsCore({
     throw new Error(`Reconciled runtime status failed validation for ${WP_ID}: ${reconciledRuntimeErrors.join("; ")}`);
   }
   if (reconciliation.nextPacketText !== packetText) {
-    fs.writeFileSync(packetAbsPath, reconciliation.nextPacketText, "utf8");
+    writeWorkPacketProjectionWithLifecycleSync({
+      wpId,
+      projectionText: reconciliation.nextPacketText,
+      generator: "ensure-wp-communications.mjs",
+      fallbackAbsPath: packetAbsPath,
+    });
   }
   if (JSON.stringify(reconciliation.nextRuntimeStatus) !== JSON.stringify(runtimeStatus)) {
     fs.writeFileSync(repoPathAbs(runtimeStatusPath), `${JSON.stringify(reconciliation.nextRuntimeStatus, null, 2)}\n`, "utf8");

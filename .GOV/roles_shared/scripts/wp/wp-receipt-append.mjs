@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
+import {
+  execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,7 +18,7 @@ import {
   validateReceipt,
   validateRuntimeStatus,
   WORKFLOW_INVALIDITY_RECEIPT_KIND,
-} from "../lib/wp-communications-lib.mjs";
+  } from "../lib/wp-communications-lib.mjs";
 import { deriveNextActionFromReceipt } from "../lib/receipt-auto-progression-lib.mjs";
 import {
   classifyWpChangedPath,
@@ -26,7 +27,7 @@ import {
   isGovernanceOnlyPath,
   isTransientProofArtifactPath,
   normalizeRepoPath,
-} from "../lib/scope-surface-lib.mjs";
+  } from "../lib/scope-surface-lib.mjs";
 import {
   buildPhaseCheckCommand,
   buildPostWorkCommand,
@@ -35,7 +36,7 @@ import {
   preparedWorktreeSyncState,
   resolveCommittedCoderHandoffRange,
   resolvePrepareWorktreeAbs,
-} from "../lib/role-resume-utils.mjs";
+  } from "../lib/role-resume-utils.mjs";
 import {
   deriveLatestValidatorAssessment,
   deriveValidatorAssessmentVerdict,
@@ -45,15 +46,19 @@ import {
   isDuplicateDecisiveValidatorAssessment,
   isOverlapMicrotaskReviewItem,
   MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
-} from "../lib/wp-communication-health-lib.mjs";
+  } from "../lib/wp-communication-health-lib.mjs";
 import {
   deriveWpMicrotaskPlan,
   listDeclaredWpMicrotasks,
   resolveDeclaredWpMicrotaskByScopeRef,
   summarizeMicrotaskFileTargetBudget,
-} from "../lib/wp-microtask-lib.mjs";
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from "../lib/runtime-paths.mjs";
-import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
+  } from "../lib/wp-microtask-lib.mjs";
+import { GOV_ROOT_REPO_REL,
+  REPO_ROOT,
+  repoPathAbs } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView,
+  writeWorkPacketProjectionWithLifecycleSync,
+} from "../lib/work-packet-contract-read-lib.mjs";
 import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { runAbsorber } from "../lib/artifact-normalizers/index.mjs";
 import {
@@ -1295,7 +1300,12 @@ function syncReviewGovernanceTruth({
 
   try {
     if (reconciliation.nextPacketText !== originalPacketText) {
-      fs.writeFileSync(context.packetAbsPath, reconciliation.nextPacketText, "utf8");
+      writeWorkPacketProjectionWithLifecycleSync({
+        wpId,
+        projectionText: reconciliation.nextPacketText,
+        generator: "wp-receipt-append.mjs",
+        fallbackAbsPath: context.packetAbsPath,
+      });
     }
     if (context.runtimeStatusAbsPath) {
       fs.writeFileSync(

@@ -804,3 +804,87 @@ export function contractPathsForWp(wpId) {
     legacy_root: `${GOV_ROOT_REPO_REL}/task_packets/${wpId}/`,
   };
 }
+
+
+function cleanLifecyclePatch(patch = {}) {
+  const out = {};
+  for (const [key, value] of Object.entries(patch || {})) {
+    const normalized = String(value ?? "").trim();
+    if (normalized) out[key] = normalized;
+  }
+  return out;
+}
+
+export function inferLifecyclePatchFromPacketProjection(packetText = "") {
+  const text = String(packetText || "");
+  const patch = {};
+  const set = (key, value) => {
+    const normalized = String(value ?? "").trim();
+    if (normalized) patch[key] = normalized;
+  };
+
+  set("status", parseStatus(text) || parsePacketSingleField(text, "STATUS"));
+  set("current_wp_status", parsePacketSingleField(text, "CURRENT_WP_STATUS"));
+  set("main_containment_status", parsePacketSingleField(text, "MAIN_CONTAINMENT_STATUS"));
+  set("merged_main_commit", parsePacketSingleField(text, "MERGED_MAIN_COMMIT"));
+  set("main_containment_verified_at_utc", parsePacketSingleField(text, "MAIN_CONTAINMENT_VERIFIED_AT_UTC"));
+  set("current_main_compatibility_status", parsePacketSingleField(text, "CURRENT_MAIN_COMPATIBILITY_STATUS"));
+  set("current_main_compatibility_baseline_sha", parsePacketSingleField(text, "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA"));
+  set("current_main_compatibility_verified_at_utc", parsePacketSingleField(text, "CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC"));
+  set("packet_widening_decision", parsePacketSingleField(text, "PACKET_WIDENING_DECISION"));
+  set("packet_widening_evidence", parsePacketSingleField(text, "PACKET_WIDENING_EVIDENCE"));
+  set("wp_validator_of_record", parsePacketSingleField(text, "WP_VALIDATOR_OF_RECORD"));
+  set("integration_validator_of_record", parsePacketSingleField(text, "INTEGRATION_VALIDATOR_OF_RECORD"));
+  set("packet_format_version", parsePacketSingleField(text, "PACKET_FORMAT_VERSION"));
+  set("risk_tier", parsePacketSingleField(text, "RISK_TIER"));
+  set("user_signature", parsePacketSingleField(text, "USER_SIGNATURE"));
+
+  return patch;
+}
+
+export function writeWorkPacketProjectionWithLifecycleSync({
+  wpId = "",
+  projectionText = "",
+  generator = "work-packet-contract-read-lib.mjs",
+  lifecyclePatch = {},
+  fallbackAbsPath = "",
+} = {}) {
+  const text = String(projectionText || "");
+  const fallbackWrite = (reason = "fallback_projection_written") => {
+    if (!fallbackAbsPath) {
+      return { updated: false, reason, packetText: text };
+    }
+    fs.writeFileSync(fallbackAbsPath, text, "utf8");
+    return { updated: true, reason, packetText: text, fallbackAbsPath };
+  };
+
+  if (!String(wpId || "").trim()) {
+    return fallbackWrite("missing_wp_id_fallback_projection_written");
+  }
+
+  const mergedLifecyclePatch = {
+    ...inferLifecyclePatchFromPacketProjection(text),
+    ...cleanLifecyclePatch(lifecyclePatch),
+  };
+
+  const result = updateWorkPacketLifecycleContract({
+    wpId,
+    lifecyclePatch: mergedLifecyclePatch,
+    projectionText: text,
+    generator,
+  });
+
+  if (!result.updated) {
+    if (!fallbackAbsPath) return { ...result, packetText: result.packetText || text };
+    fs.writeFileSync(fallbackAbsPath, text, "utf8");
+    return {
+      ...result,
+      updated: true,
+      reason: `${result.reason || "contract_sync_skipped"};fallback_projection_written`,
+      packetText: text,
+      fallbackAbsPath,
+    };
+  }
+
+  return { ...result, packetText: result.packetText || text };
+}
