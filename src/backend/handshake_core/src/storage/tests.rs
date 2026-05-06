@@ -3,13 +3,14 @@ use super::{
     postgres::PostgresDatabase, sqlite::SqliteDatabase, AccessMode, BlockUpdate,
     CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert, CalendarEventVisibility,
     CalendarEventWindowQuery, CalendarSourceProviderType, CalendarSourceSyncState,
-    CalendarSourceUpsert, CalendarSourceWritePolicy, Database, DefaultStorageGuard, EntityRef,
-    GuardError, JobKind, JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType,
-    LoomBlockSearchResult, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomSourceAnchor,
-    LoomViewFilters, LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas,
-    NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution,
-    NewWorkspace, OperationType, PlannedOperation, SafetyMode, StorageError, StorageGuard,
-    StorageBackendKind, StorageCapabilityStore, StorageResult, WriteContext,
+    CalendarSourceUpsert, CalendarSourceWritePolicy, ControlPlaneStorageConfig,
+    ControlPlaneStorageMode, Database, DefaultStorageGuard, EntityRef, GuardError, JobKind,
+    JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockSearchResult,
+    LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters, LoomSourceAnchor, LoomViewFilters,
+    LoomViewResponse, LoomViewType, NewAiJob, NewAsset, NewBlock, NewCanvas, NewCanvasEdge,
+    NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewNodeExecution, NewWorkspace,
+    OperationType, PlannedOperation, SafetyMode, StorageBackendKind, StorageCapabilityStore,
+    StorageError, StorageGuard, StorageResult, WriteContext,
 };
 use chrono::Duration;
 use chrono::Utc;
@@ -3414,6 +3415,18 @@ async fn database_trait_purity_capability_snapshot_reports_sqlite() -> StorageRe
     assert!(caps.supports_structured_collab_artifacts);
     assert!(!caps.supports_loom_graph_filtering);
     assert_eq!(caps.loom_search_observability_tier(), 1);
+
+    Ok(())
+}
+
+#[test]
+fn storage_mode_defaults_to_postgres_primary_when_required() -> StorageResult<()> {
+    let database_url = "postgres://handshake:handshake@localhost:5432/handshake";
+    let config = ControlPlaneStorageConfig::resolve(None, Some("true"), Some(database_url))?;
+
+    assert_eq!(config.mode, ControlPlaneStorageMode::PostgresPrimary);
+    assert_eq!(config.mode.as_str(), "postgres_primary");
+    assert_eq!(config.database_url, database_url);
 
     Ok(())
 }

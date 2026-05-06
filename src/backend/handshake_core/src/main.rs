@@ -46,7 +46,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let storage = storage::init_storage().await?;
+    let storage_config = storage::ControlPlaneStorageConfig::from_env()?;
+    tracing::info!(
+        target: "handshake_core",
+        storage_mode = %storage_config.mode,
+        "control-plane storage mode resolved"
+    );
+    let storage = storage::init_storage_with_config(&storage_config).await?;
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
