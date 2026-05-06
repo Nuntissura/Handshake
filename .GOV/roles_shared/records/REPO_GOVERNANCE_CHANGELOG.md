@@ -5195,6 +5195,12 @@
 
 
 
+### GOV-CHANGE-20260506-39
+- TASKS: RGF-296; RGF-297; RGF-298; RGF-299; RGF-300
+- SUMMARY: Recorded the next governance-machine-readability implementation queue after the packet writer and topology bootstrap batches. The new taskboard items cover projection hash enforcement closure, residual artifact writer migration audit, full script inventory reconciliation, phase bundle diagnosis hardening, and Justfile/leaf surface reduction execution.
+- FILES: .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - just gov-check --sync-topology; just gov-check.
+
 ### GOV-CHANGE-20260506-38
 - TASKS: RGF-288
 - SUMMARY: Migrated remaining lifecycle-affecting packet repair and review-publication writers through contract lifecycle sync.
