@@ -60,6 +60,28 @@ impl ControlPlaneStorageMode {
             Self::Test => "test",
         }
     }
+
+    pub fn is_control_plane_authority(&self) -> bool {
+        matches!(self, Self::PostgresPrimary)
+    }
+
+    pub fn authority_label(&self) -> &'static str {
+        match self {
+            Self::PostgresPrimary => "primary_authority",
+            Self::SqliteCache => "cache_projection",
+            Self::SqliteOffline => "offline_snapshot",
+            Self::Test => "test_fixture",
+        }
+    }
+
+    pub fn freshness_label(&self) -> &'static str {
+        match self {
+            Self::PostgresPrimary => "current_source_of_truth",
+            Self::SqliteCache => "derived_or_stale",
+            Self::SqliteOffline => "offline_stale",
+            Self::Test => "test_controlled",
+        }
+    }
 }
 
 impl std::fmt::Display for ControlPlaneStorageMode {

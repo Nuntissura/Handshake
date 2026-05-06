@@ -3446,6 +3446,24 @@ fn storage_mode_fails_closed_when_postgres_required_without_url() {
     }
 }
 
+#[test]
+fn sqlite_cache_mode_is_not_control_plane_authority() -> StorageResult<()> {
+    let cache =
+        ControlPlaneStorageConfig::resolve(Some("sqlite_cache"), None, Some("sqlite://cache.db"))?;
+    assert_eq!(cache.mode, ControlPlaneStorageMode::SqliteCache);
+    assert!(!cache.mode.is_control_plane_authority());
+    assert_eq!(cache.mode.authority_label(), "cache_projection");
+    assert_eq!(cache.mode.freshness_label(), "derived_or_stale");
+
+    let offline = ControlPlaneStorageConfig::resolve(Some("sqlite_offline"), None, None)?;
+    assert_eq!(offline.mode, ControlPlaneStorageMode::SqliteOffline);
+    assert!(!offline.mode.is_control_plane_authority());
+    assert_eq!(offline.mode.authority_label(), "offline_snapshot");
+    assert_eq!(offline.mode.freshness_label(), "offline_stale");
+
+    Ok(())
+}
+
 #[tokio::test]
 async fn database_trait_purity_capability_snapshot_reports_postgres() -> StorageResult<()> {
     if postgres_test_url().is_none() {
