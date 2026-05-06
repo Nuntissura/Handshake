@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "base_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry",
+  "created_at_utc": "2026-01-29T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "abf2eca939395cf6544eb3f940457b9642b1866fa27f1976b31f4829a301827d",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.122.md 7.6.3 (Phase 1) -> [ADD v02.122 - Multi-Model Orchestration & Lifecycle Telemetry]",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement Phase 1 foundations for governed multi-model execution (DOCS_ONLY vs AI_ENABLED), strict file-scope locks across concurrent WPs/MTs, and compact lifecycle telemetry (HSK_STATUS + CX-MM codes) with Flight Recorder correlation.\n- Why: Enable safe parallelism and deterministic recovery without governance bypass, conflicting edits, or operator confusion.",
+    "scope_sketch": "- IN_SCOPE:\n  - Coordinator/runtime enforcement of ExecutionMode/DOCS_ONLY/AI_ENABLED and model readiness gates (min_ready_models=1).\n  - Implement INV-MM-003 / 5.6.1 strict non-overlap lock enforcement with canonical CX-MM-002 surface requirements.\n  - Emit and surface HSK_STATUS markers per 4.3.9.8.3 and correlate to Flight Recorder.\n  - Implement RoleExecutionIdentity logging fields and Work Profile routing hooks (ParameterClass, performance telemetry snapshot) as required by 4.3.9.\n  - MailboxKind taxonomy integration (Role Mailbox remains non-authoritative; do not treat it as a source of truth).\n- OUT_OF_SCOPE:\n  - GPU sharding / intra-model distributed inference.\n  - Phase 2+ retrieval caching / ContextPack work (ACE-RAG effectiveness).\n  - UI polish beyond the minimum required surfaces (visibility of READY models, lock states, and lifecycle status).",
+    "acceptance_criteria": "- Concurrent WP/MT execution with overlapping lock sets deterministically blocks with `code=CX-MM-002` and explicit conflicting paths.\n- HSK_STATUS is emitted on every phase/state change and shown immediately after gate output when gates run/block.\n- DOCS_ONLY disables model-backed actions with explicit FAILSTATE/softblock codes (no silent bypass).\n- RoleExecutionIdentity fields appear in outputs/telemetry sufficient to correlate role/model/backend/parameter_class for audit and debugging.",
+    "risks_unknowns": "- Risk: incomplete lock-set derivation for MTs leads to false negatives/positives.\n- Risk: status marker emission becomes inconsistent across roles/backends.\n- Risk: model readiness definitions drift across backends without deterministic normalization."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

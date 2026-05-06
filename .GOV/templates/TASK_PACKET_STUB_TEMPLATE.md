@@ -3,7 +3,7 @@
 - AUTHORITATIVE_CONTRACT_SCHEMA_ID: hsk.work_packet_stub_contract@1
 - AUTHORITATIVE_CONTRACT_FILE: .GOV/task_packets/stubs/{{WP_ID}}.contract.json
 - MARKDOWN_PROJECTION_FILE: .GOV/task_packets/stubs/{{WP_ID}}.md
-- MARKDOWN_PROJECTION_STATUS: PENDING
+- MARKDOWN_PROJECTION_STATUS: GENERATED_IN_SYNC
 - RED_TEAM_REQUIRED: YES
 - RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
 <!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->

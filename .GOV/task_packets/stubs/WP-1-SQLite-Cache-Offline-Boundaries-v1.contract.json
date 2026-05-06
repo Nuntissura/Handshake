@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-SQLite-Cache-Offline-Boundaries-v1",
+  "base_wp_id": "WP-1-SQLite-Cache-Offline-Boundaries",
+  "created_at_utc": "2026-05-05T17:55:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "e9d35da394ac86fc05e5ce2fd9eb7e7e41838f50f63826ed7690ebddf95a1450",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "WP-1-Storage-Abstraction-Layer"
+    ],
+    "blocks": [
+      "WP-1-DCC-Postgres-Control-Plane-Projections"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "SPEC_CURRENT local-first storage and storage portability anchors",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and implement the boundary between PostgreSQL-primary runtime authority and SQLite as cache, search index, embedded/offline mode, or rebuildable local projection.\n- Why: Moving early to PostgreSQL-primary should not remove local-first ergonomics, but SQLite must stop being an accidental second authority for self-hosted control-plane state.",
+    "scope_sketch": "- IN_SCOPE:\n  - Clear storage-mode policy for Postgres-primary, SQLite-cache, SQLite-offline, and test modes.\n  - Guardrails that prevent runtime control-plane writes from silently landing in SQLite when PostgreSQL authority is required.\n  - Rebuild/invalidation semantics for SQLite indexes and local projections derived from PostgreSQL or file authorities.\n  - Tests for mode detection, missing PostgreSQL behavior, and stale cache invalidation.\n- OUT_OF_SCOPE:\n  - Replacing PostgreSQL runtime storage.\n  - Implementing full offline sync conflict resolution.\n  - New UI beyond status/error surfaces needed for DCC projection.",
+    "acceptance_criteria": "- The app can report which storage mode is active and which surfaces are authoritative.\n- Runtime control-plane writes fail closed when PostgreSQL is required but unavailable.\n- SQLite indexes/projections are rebuildable and carry freshness/source metadata.\n- Tests prove SQLite fallback does not hide PostgreSQL outages for control-plane operations.",
+    "risks_unknowns": "- Risk: \"fallback\" can become silent split brain; activation should define explicit operator-visible degradation states.\n- Unknown: whether embedded single-user demos should allow SQLite-primary mode behind a clear non-control-plane profile."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Stage-ASR-Transcript-Lineage-v1",
+  "base_wp_id": "WP-1-Stage-ASR-Transcript-Lineage",
+  "created_at_utc": "2026-03-09T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "1637790ea3f0dd695037d2c5b368d6c1ce38ea8952b2ad31028fbd57a80d8069",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Handshake-Stage-MVP",
+      "WP-1-ASR-Transcribe-Media",
+      "WP-1-Media-Downloader",
+      "WP-1-Artifact-System-Foundations"
+    ],
+    "blocks": [
+      "WP-1-Video-Archive-Loom-Integration"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.158.md 7.6.3 (Phase 1) -> backend pillar expansion: Stage/Studio/Media/ASR lineage",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define the backend lineage contract from Stage-captured/imported media to governed ASR transcript artifacts, including stable source hashes, media-probe facts, timing anchors, and downstream Loom/Lens reuse posture.\n- Why: Stage and ASR are both explicit Phase 1 backend surfaces, but their transcript-lineage bridge is still under-modeled and should not remain implicit in helper code or UI assumptions.",
+    "scope_sketch": "- IN_SCOPE:\n  - Canonical lineage contract:\n    - Stage capture/import media artifact -> ASR job input -> transcript artifact -> searchable downstream consumer.\n    - Stable source hash, media-probe facts, capture/session provenance, and timing-anchor requirements.\n  - Backend evidence posture:\n    - Recorder-visible progress/failure/transcript creation events.\n    - Storage-portable manifest semantics for transcript and source-media linkage.\n  - Downstream assumptions:\n    - What Loom, video archive, and later Lens/Studio time-span consumers may rely on without inventing a second lineage model.\n- OUT_OF_SCOPE:\n  - Full Stage Studio UX.\n  - Live captioning or diarization product work.\n  - Full Lens transcript-semantic features beyond the backend lineage contract.",
+    "acceptance_criteria": "- Stage-captured/imported media and governed ASR transcripts are explicitly linked through a single backend lineage contract in Main Body and Appendix matrix.\n- Later implementation packets can reuse one source-media hash / timing-anchor / provenance contract across Stage, ASR, Loom, and archive flows.\n- Storage/backend swaps do not require redefining transcript-source linkage semantics.",
+    "risks_unknowns": "- Risk: Stage/media/ASR each invent separate source identity fields and later consumers cannot correlate transcripts to their origin deterministically.\n- Risk: transcript text survives, but timing anchors, source hashes, or capture provenance are lost, weakening replay, retrieval, and audit."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

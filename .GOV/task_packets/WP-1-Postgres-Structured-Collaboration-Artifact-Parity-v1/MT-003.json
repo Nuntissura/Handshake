@@ -22,7 +22,7 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:01:56.023Z",
+    "generated_at_utc": "2026-05-06T15:57:13.293Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/MT-003.md",
     "projection_hash": "4b33977aac1f2256",

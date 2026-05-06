@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Structured-Collaboration-Artifact-Family-v1",
+  "base_wp_id": "WP-1-Structured-Collaboration-Artifact-Family",
+  "created_at_utc": "2026-03-10T00:19:00.642Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "df7e42a9428af64279751cbecb852b53e5d8c10b9098adf6b564b90cce6ecb5c",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Locus-Phase1-Integration-Occupancy",
+      "WP-1-Role-Mailbox",
+      "WP-1-Micro-Task-Executor"
+    ],
+    "blocks": [
+      "WP-1-Markdown-Mirror-Sync-Drift-Guard",
+      "WP-1-Dev-Command-Center-Structured-Artifact-Viewer"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.167.md 7.6.3 (Phase 1) -> [ADD v02.167] Canonical structured artifact family",
+    "roadmap_add_coverage": "SPEC=v02.167; PHASE=7.6.3; LINES=46560"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and implement the canonical structured collaboration artifact family for Work Packets, Micro-Tasks, Task Board projections, and Role Mailbox exports using versioned JavaScript Object Notation or JavaScript Object Notation Lines plus bounded summary records and profile extensions.\n- Why: Smaller local models should consume compact structured state without parsing full Markdown packets, and the artifact family must stay reusable across future Handshake project kernels beyond repository-governance-heavy software delivery.",
+    "scope_sketch": "- IN_SCOPE:\n  - Canonical on-disk layout for `packet.json`, `summary.json`, `index.json`, and `thread.jsonl` artifacts.\n  - Versioned schema identifiers and schema-version handling for collaboration artifacts.\n  - Project-agnostic base envelope plus profile-extension rules.\n  - Compact summary contract for local-small-model ingestion.\n  - Validation and migration rules for converting existing Markdown-first records into canonical structured artifacts.\n- OUT_OF_SCOPE:\n  - Rich Dev Command Center viewer implementation details.\n  - Mirror regeneration and drift workflows beyond the interfaces they require.\n  - Full project-profile packs for non-software domains.",
+    "acceptance_criteria": "- A versioned structured file family is defined for Work Packets, Micro-Tasks, Task Board projections, and Role Mailbox exports.\n- Every canonical artifact exposes a compact summary usable by local small models without loading long Markdown by default.\n- Base-envelope fields are project-agnostic and profile extensions are explicitly separated.\n- Migration guidance exists for Markdown-first artifacts to become mirrors or sidecars instead of the only machine-readable authority.",
+    "risks_unknowns": "- Risk: overfitting the base schema to repository-centric software delivery. Mitigation: keep project-specific data in profile extensions.\n- Risk: summary records drift from canonical packet records. Mitigation: derive summaries mechanically and validate hash or update-time linkage.\n- Risk: premature migration complexity. Mitigation: keep the pass hybrid and Phase 1 focused rather than forcing a big-bang replacement."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

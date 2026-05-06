@@ -1,0 +1,100 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1/refinement.json"
+  },
+  "base_wp_id": "WP-1-Structured-Collaboration-Schema-Registry",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-03-14T00:36:43.121Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "current_wp_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "2026-03-12",
+    "risk_tier": "HIGH",
+    "status": "Done",
+    "user_signature": "ilja140320260133"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:57:13.473Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1/packet.md",
+    "projection_hash": "2336e4a9c16c7bc3",
+    "source_file": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1/packet.json",
+    "source_hash": "4894279af21a1316",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": true,
+    "contract_file": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v1/refinement.json",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "hydration_profile": "HYDRATED_RESEARCH_V1",
+    "status": "SIGNED_OR_LEGACY"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- src/backend/handshake_core/src/locus/types.rs"
+    ],
+    "forbidden_paths": [
+      "- Loom storage",
+      "search",
+      "source-anchor",
+      "and asset portability"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168]"
+    ],
+    "summary": "Implement the canonical schema registry, compatibility-reader policy, and deterministic validation outputs for the shared structured-collaboration envelope and compact summary contract used by Work Packets, Micro-Tasks, Task Board projections, and Role Mailbox exports.",
+    "why": "The spec already defines the shared record law, but runtime code still spreads schema ids and validation assumptions across emitters. This packet centralizes schema authority so downstream profile-extension, mirror-sync, and viewer work can build on one deterministic parser boundary."
+  },
+  "source_control": {
+    "backup_push_status": "REQUIRED_BEFORE_DESTRUCTIVE_OPS",
+    "canonical_branch": "main",
+    "merge_base_sha": "1a2568b0842ecc7b9b9aca4efcc9911cc2ce8cc8 (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)",
+    "remote_backup_branch": "feat/WP-1-Structured-Collaboration-Schema-Registry-v1",
+    "remote_backup_url": "https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Structured-Collaboration-Schema-Registry-v1",
+    "work_branch": "feat/WP-1-Structured-Collaboration-Schema-Registry-v1",
+    "worktree_dir": "../wt-WP-1-Structured-Collaboration-Schema-Registry-v1"
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1",
+    "communication_health_gate": "",
+    "execution_owner": "CODER_A",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "lane": "ORCHESTRATOR_MANAGED",
+    "notifications_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/NOTIFICATIONS.jsonl",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Structured-Collaboration-Schema-Registry-v1/THREAD.md"
+  },
+  "wp_id": "WP-1-Structured-Collaboration-Schema-Registry-v1"
+}

@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Artifact-System-Foundations-v1",
+  "base_wp_id": "WP-1-Artifact-System-Foundations",
+  "created_at_utc": "2026-01-30T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "197529159bf5266967a126872838e93579fe70bbf1a35f2387ad6efc3ba8f48a",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.123.md 7.6.3 (Phase 1) -> Artifact store bootstrap + Materialize API + Retention/pinning MVP (artifact system)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Ensure Phase 1 artifact system foundations are complete and consistently used across exports and jobs: artifact store bootstrap + single atomic Materialize API + retention/pinning/GC with visible reports.\n- Why: Prevent untraceable side effects, ensure reproducible evidence bundles, and avoid disk bloat/caches drifting silently.",
+    "scope_sketch": "- IN_SCOPE:\n  - Artifact store bootstrap (workspace tree + manifests; SHA-256 everywhere).\n  - A single â€œMaterializeâ€ API for all save/export-to-path writes (atomic tmp+rename; no UI bypass; capability-gated; Flight Recorder logged).\n  - Retention/pinning MVP (pin/unpin + TTL + deterministic GC job/command; never deletes pinned; emits a retention report artifact).\n  - Explicit enforcement that tooling/engines write via artifact-first outputs + materialize-only semantics (no random filesystem side effects).\n- OUT_OF_SCOPE:\n  - Multi-user sync/replication and remote blob storage GC.\n  - Phase 2+ archival/export formats beyond Phase 1 bundles.",
+    "acceptance_criteria": "- All export paths use a single atomic materialize implementation (no ad-hoc writes).\n- Artifacts and bundles have deterministic hashing (SHA-256) with manifests present and stable.\n- Retention/GC runs deterministically, never deletes pinned items, and produces a retention report artifact visible to Operator.",
+    "risks_unknowns": "- Risk: Multiple competing â€œexport/materializeâ€ implementations cause drift and bypass policies; must centralize.\n- Risk: GC/retention bugs can delete important data; require strict invariants, dry-run mode, and audit artifacts."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

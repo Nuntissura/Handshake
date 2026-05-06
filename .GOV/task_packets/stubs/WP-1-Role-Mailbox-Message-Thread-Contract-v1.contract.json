@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Role-Mailbox-Message-Thread-Contract-v1",
+  "base_wp_id": "WP-1-Role-Mailbox-Message-Thread-Contract",
+  "created_at_utc": "2026-03-10T17:08:16.615Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Message-Thread-Contract-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Message-Thread-Contract-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Message-Thread-Contract-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "bf325c9033b1daa42d68d433e1c56ef39efb05e36e9eef9cbd3ea6f593d9be00",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Role-Mailbox",
+      "WP-1-Structured-Collaboration-Artifact-Family",
+      "WP-1-Project-Agnostic-Workflow-State-Registry",
+      "WP-1-Workflow-Transition-Automation-Registry"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.173.md 7.6.3 (Phase 1) -> [ADD v02.173] Role Mailbox message contract, thread lifecycle, and authority boundary",
+    "roadmap_add_coverage": "SPEC=v02.173; PHASE=7.6.3; LINES=47158"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and later implement the typed Role Mailbox thread-lifecycle, message-delivery, allowed-response, and action-request contract that governs asynchronous collaboration across Work Packets, Micro-Tasks, Locus Work Tracking, Task Board projections, and Dev Command Center inbox triage.\n- Why: Handshake now has structured collaboration artifacts, portable workflow state, and transition law, but it still needs one durable mailbox contract so local small models, cloud models, operators, reviewers, and overseers can collaborate asynchronously without transcript order becoming authority.",
+    "scope_sketch": "- IN_SCOPE:\n  - Canonical `RoleMailboxThreadLifecycleState`, `RoleMailboxMessageDeliveryState`, `RoleMailboxAllowedResponse`, and `RoleMailboxActionRequestV1` contracts.\n  - Thread and message schemas for due posture, snooze posture, dead-letter posture, linked record identifiers, and governed action candidates.\n  - Mailbox-local versus governed-action boundaries for acknowledge, snooze, reply, escalate, delegate, resolve, and transcription-request flows.\n  - Typed Micro-Task collaboration message families for request, feedback, verification, escalation, and completion reporting.\n  - Dev Command Center triage requirements for thread-lifecycle badges, action-request previews, and dead-letter handling.\n- OUT_OF_SCOPE:\n  - External email or generic task-intake mailbox systems.\n  - Full cross-channel intake normalization from Slack, email, or Stage capture.\n  - Rich board design beyond the inbox and queue fields needed for lawful triage.",
+    "acceptance_criteria": "- Role Mailbox thread lifecycle and message delivery state are explicit, durable, and queryable without transcript parsing.\n- Allowed responses and action-request metadata are visible before a reply or quick action is offered.\n- Mailbox-local actions such as acknowledge or snooze never mutate linked authoritative records implicitly.\n- Micro-Task request, feedback, verification, escalation, and completion-report traffic can be queried by typed message family.\n- Dev Command Center triage distinguishes mailbox-local actions, governed actions, and transcription-required actions before linked work changes.",
+    "risks_unknowns": "- Too many message families or allowed responses could make the mailbox contract noisy for operators and smaller models.\n- If action-request metadata is optional everywhere, implementations may fall back to prose parsing and lose determinism.\n- If dead-letter posture is not visible, operators may misread mailbox failure as linked work failure."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Calendar-Storage-v2/packet.json source_hash=a5f9a935567dd692 projection_hash=49df3ff024cd9b6c generated_at_utc=2026-05-06T15:01:55.838Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Calendar-Storage-v2/packet.json source_hash=d32e32adbf01d8dd projection_hash=49df3ff024cd9b6c generated_at_utc=2026-05-06T15:57:12.942Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 
 Requirements (HARD):

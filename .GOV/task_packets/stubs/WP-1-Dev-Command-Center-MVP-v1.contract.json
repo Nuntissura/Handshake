@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Dev-Command-Center-MVP-v1",
+  "base_wp_id": "WP-1-Dev-Command-Center-MVP",
+  "created_at_utc": "2026-02-18T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-MVP-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-MVP-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-MVP-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "c08b0372b562475a0f45dd9374c1b21de90cb8dc0c0adc1053bf4821364e78b6",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "FRONTEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Dev-Command-Center-Control-Plane-Backend"
+    ],
+    "blocks": [
+      "WP-1-Dev-Command-Center-Layout-Projection-Registry",
+      "WP-1-Dev-Command-Center-Structured-Artifact-Viewer"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.131.md 7.6.3 (Phase 1) -> [ADD v02.127 - Dev Command Center (DCC) MVP (Sidecar-derived)]",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Deliver the Phase 1 Dev Command Center (DCC) MVP: a canonical control surface that binds Locus work (WP/MT) <-> git workspaces (worktrees) <-> execution sessions <-> approvals/logs/diffs, without bypassing Workflow Engine, gates, or Flight Recorder.\n- Why: Make governed development usable (approvals as inbox, VCS as panel, predictable traceable operations) while enabling safe parallel work and deterministic recovery/handoffs.\n- Backend-first rule: this UI packet activates only after the DCC control-plane backend exists. The DCC screen is not the authority; it is a projection and steering surface over backend artifacts.",
+    "scope_sketch": "- IN_SCOPE:\n  - DCC UI shell (kanban-first) with panels: Work Packets, Workspaces (worktrees), Sessions, Approvals, VCS (status/diff), Search, and a minimal Timeline.\n  - Workspace registry:\n    - list/add/open/close worktrees\n    - import existing worktrees\n    - link workspace <-> wp_id/mt_id (Locus remains authoritative)\n  - Worktree management as governed jobs/wrappers:\n    - create/open/prune with safe defaults\n    - destructive git worktree rewrites (reset/clean/rebase) require explicit same-turn approval (Codex CX-108)\n  - Execution Session Manager:\n    - show active sessions (role/model/backend), workspace binding, and capability grants\n    - deep-link to Job History + Flight Recorder timeline slices\n    - multi-session steering: session list + state machine + spawn tree + per-session budgets and controls (pause/resume/cancel)\n  - Approval Inbox:\n    - collect pending approvals from capability gate / Workflow Engine\n    - approve-once / approve-for-job / approve-for-workspace / deny (+ reason)\n    - log all decisions to Flight Recorder\n    - denied approvals deterministically block the job with explicit failure code and no partial side effects\n  - VCS review loop:\n    - show version.status + version.diff\n    - commit flow uses version.commit(paths[]) with commit message captured as an artifact (no implicit staging)\n    - dangerous ops require same-turn explicit approval (no silent reset/clean/rebase)\n  - Objective Anchor Store (minimal):\n    - create/view anchors and handoff records linked to wp_id/mt_id\n    - append-only notes; non-authoritative; MUST NOT override Locus status\n  - Storage foundation:\n    - ship `.handshake/workspace.json` schema v1.0 and `devcc.db` schema v1 (+ migrations)\n    - MUST be local-first, contain no secrets, and be safe to delete/rebuild from repo state + Locus\n    - default ignore patterns documented (gitignore posture)\n  - Conversation timeline (Phase A baseline):\n    - ingest Handshake-native conversations/events (roles + Flight Recorder) into a DCC timeline\n    - adapter contract stubbed for later external sources\n- OUT_OF_SCOPE:\n  - GitHub PR/comment sync.\n  - Multi-user workspace sync / shared approvals.\n  - Full external conversation ingestion (beyond adapter skeleton + at least one pilot, if any).\n  - Any UI commitment to Sidecar keybindings/TUI parity.\n  - Any ungoverned direct tool execution from UI (hard no-bypass).",
+    "acceptance_criteria": "- Operator can open DCC, select a WP, open its linked worktree, view diff, approve a needed capability, and run a governed commit without leaving Handshake.\n- Every stateful DCC action emits Flight Recorder events and is traceable to wp_id/mt_id/session_id/wsid.\n- Denied approvals block deterministically with an explicit failure code and no partial side effects.\n- `.handshake/workspace.json` and `devcc.db` can be deleted and rebuilt from repo state + Locus without corrupting canonical governance artifacts.\n- DCC kanban lanes for WP statuses (from Locus) exist, with deep links to worktree, sessions, approvals, and Flight Recorder slices.\n- Approvals UX exists as a single compact list with previews and scoping (once/job/workspace).\n- Vertical slice (Phase 1 roadmap): run one WP end-to-end using DCC:\n  - create/link worktree -> run job -> approval prompt -> review diff -> commit -> mark MT done\n  - confirm Task Board sync and Flight Recorder evidence.",
+    "risks_unknowns": "- Risk: authority drift (DCC becoming the source of truth). Mitigation: Locus remains canonical; DCC stores only references + non-authoritative anchors/handoffs.\n- Risk: unsafe git operations exposed via UI. Mitigation: enforce explicit same-turn approval for reset/clean/rebase; no implicit staging; artifact-first commit messages.\n- Risk: approval scoping semantics (once/job/workspace) and caching/TTL may be under-specified for MVP; must align with capability system rules.\n- Risk: rebuild semantics for devcc.db/workspace.json could leak secrets or diverge across platforms if not carefully specified and validated.\n- Risk: DCC timeline ingestion can balloon in scope; Phase 1 should restrict to Handshake-native events and an adapter stub."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

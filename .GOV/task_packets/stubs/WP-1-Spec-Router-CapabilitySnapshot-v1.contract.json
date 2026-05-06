@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Spec-Router-CapabilitySnapshot-v1",
+  "base_wp_id": "WP-1-Spec-Router-CapabilitySnapshot",
+  "created_at_utc": "2026-02-26T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Spec-Router-CapabilitySnapshot-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Spec-Router-CapabilitySnapshot-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Spec-Router-CapabilitySnapshot-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "577a5dff932f724160c77dca8f82a44e351b44cf84a4766e54ff90e88127d2ad",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.139.md 7.6.3 (Phase 1) -> [ADD v02.139] Prompt->Spec hardening quartet component 2/3: CapabilitySnapshot explicit allowlist enforcement.",
+    "roadmap_add_coverage": "SPEC=v02.139; PHASE=7.6.3; LINES=46156"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Add a machine-checkable CapabilitySnapshot artifact path so `spec_router` can only reference explicitly allowed capabilities/tools.\n- Why: Prevent spec hallucinations and non-executable plans caused by inventing unavailable tools, surfaces, or engines.",
+    "scope_sketch": "- IN_SCOPE:\n  - Define/generate CapabilitySnapshot artifact payload from active CapabilityRegistry + SemanticCatalog mapping.\n  - Wire `capability_snapshot_ref` into SpecIntent and SpecRouterDecision.\n  - Enforce allowlist-only references during spec authoring and downstream checks.\n  - Persist CapabilitySnapshot ref/hash in provenance/deep-link surfaces.\n- OUT_OF_SCOPE:\n  - Tool registry redesign beyond required snapshot extraction.\n  - SpecPromptCompiler implementation details (separate packet).\n  - SpecLint rule taxonomy implementation beyond snapshot-related failures.",
+    "acceptance_criteria": "- Every `spec_router` run emits exactly one CapabilitySnapshot artifact referenced by SpecIntent and SpecRouterDecision.\n- Snapshot contains only allowed capabilities/tools for the active route/mode and excludes forbidden entries.\n- Any spec reference outside the snapshot is detected as a deterministic failure path.\n- CapabilitySnapshot ref/hash appears in persisted provenance and deep links.",
+    "risks_unknowns": "- Risk: snapshot over-inclusion weakens safety by allowing accidental capability creep.\n- Risk: snapshot under-inclusion blocks legitimate routes unless generation rules are transparent and deterministic."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

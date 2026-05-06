@@ -1,0 +1,82 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Loom-Preview-VideoPosterFrames-v1",
+  "base_wp_id": "WP-1-Loom-Preview-VideoPosterFrames",
+  "created_at_utc": "2026-03-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Loom-Preview-VideoPosterFrames-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Loom-Preview-VideoPosterFrames-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Loom-Preview-VideoPosterFrames-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "2f2b066f9ac98a0a2e8fd161d1821e3a2a6401183409555c6687f8655679b8f9",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Loom-MVP",
+      "WP-1-MEX-v1.2-Runtime"
+    ],
+    "blocks": [
+      "WP-1-Media-Downloader-Loom-Bridge",
+      "WP-1-Video-Archive-Loom-Integration"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Loom MVP / Cache-tiered browsing vertical slice",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Support Tier-1 previews for video Assets by generating deterministic poster-frame thumbnails as a background mechanical job.\n- Why: Loom browsing and media archive value collapse without thumbnails for videos; spec requires poster frames at Tier-1 preview.",
+    "scope_sketch": "- IN_SCOPE:\n  - Poster-frame thumbnail generation for video/* MIME:\n    - Extract a representative frame (heuristic: first_non_black or configurable timestamp).\n    - Resize to ThumbnailSpec max_dimension.\n    - Encode to spec-preferred format.\n    - Store as derived preview Asset and link it to LoomBlock (thumbnail_asset_id + preview_status).\n  - Capability gating:\n    - If using external tooling (ffmpeg/ffprobe), require and log the appropriate `proc.exec:*` capabilities.\n  - Observability:\n    - Emit Flight Recorder events for preview generation start/finish/failure with leak-safe payload.\n- OUT_OF_SCOPE:\n  - Tier-2 proxy generation.\n  - Full audio waveform and document first-page previews (separate stubs if needed).",
+    "acceptance_criteria": "- Importing/promoting a video into Loom results in a LoomBlock whose preview_status becomes generated and thumbnail is retrievable.\n- Preview generation is non-blocking, resumable/idempotent, and emits Flight Recorder events.\n- Unsupported/invalid video files fail with clear error_code without crashing the workflow engine.",
+    "risks_unknowns": "- Determinism: frame selection heuristics may vary across ffmpeg versions; may need pinned versions and fixed flags.\n- Performance: large videos; extracting a frame should be bounded and cancellable."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-ContextPack-Recorder-Visibility-v1",
+  "base_wp_id": "WP-1-ContextPack-Recorder-Visibility",
+  "created_at_utc": "2026-03-09T06:33:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "9844a5c564c3cd977f6d064fe795a905f1849d1e1eab793a85d03f743283b77d",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Artifact-System-Foundations",
+      "WP-1-ACE-Persist-QueryPlan-Trace-v1"
+    ],
+    "blocks": [
+      "WP-1-Distillation-v2"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Section 9 Distillation Track + spec v02.157 backend learning-substrate visibility",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: make Context Pack build/select/refresh/freshness outcomes first-class Flight Recorder evidence with stable pack-hash linkage.\n- Why: distillation, replay, model onboarding, and prompt/context reuse cannot depend on hidden cache decisions or transient in-memory state.",
+    "scope_sketch": "- IN_SCOPE:\n  - emit bounded Flight Recorder events for:\n    - pack build\n    - pack reuse\n    - pack refresh\n    - freshness allow/deny/require-rebuild decisions\n  - persist stable pack hash / source-hash / freshness-policy linkage\n  - deep-link pack decisions into jobs/spec-router traces/debug bundles without dumping full payloads by default\n  - add targeted tests that fail if Context Pack visibility regresses\n- OUT_OF_SCOPE:\n  - broad UI polish\n  - changing Context Pack payload schema beyond what recorder visibility requires",
+    "acceptance_criteria": "- Context Pack build/select/refresh paths emit recorder-visible events with stable pack hashes and bounded policy metadata.\n- Replay/debug surfaces can correlate pack decisions to jobs/spec-router flows without reading hidden runtime state.\n- Tests fail if pack-visibility events or hash linkage disappear.",
+    "risks_unknowns": "- Full payload logging would leak too much retrieval context; event payloads must stay bounded and policy-safe.\n- Hash/link semantics must remain stable across SQLite-now / PostgreSQL-later portability."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

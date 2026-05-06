@@ -1,0 +1,99 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/refinement.json"
+  },
+  "base_wp_id": "WP-1-Postgres-MCP-Durable-Progress",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-03-05T23:22:55.018Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "current_wp_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "2026-02-01",
+    "risk_tier": "HIGH",
+    "status": "Done",
+    "user_signature": "ilja060320260004"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:57:13.278Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/packet.md",
+    "projection_hash": "93a73ba203feaa6f",
+    "source_file": ".GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/packet.json",
+    "source_hash": "2646bdf08c973ae3",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": false,
+    "contract_file": ".GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1/refinement.json",
+    "enforcement_profile": "",
+    "hydration_profile": "",
+    "status": "UNKNOWN"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- src/backend/handshake_core/src/storage/mod.rs"
+    ],
+    "forbidden_paths": [
+      "- One-time data backfill from legacy SQLite columns into the new side-table (no data transforms in this WP)"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.141.md 11.3.4 Implementation Target 3: Durable Progress Mapping (SQLite Integration)",
+      "2.3.13.1 Pillar 4: Dual-Backend Testing Early [CX-DBP-013]",
+      "2.3.13.1 Pillar 2: Portable Schema & Migrations [CX-DBP-011]"
+    ],
+    "summary": "Implement MCP durable progress token persistence + reverse lookup for PostgreSQL (and keep SQLite parity) by introducing a portable schema/migration-backed store (recommended: side-table `ai_job_mcp_fields`) and implementing the `Database` trait MCP methods for both backends.",
+    "why": "Under PostgreSQL, MCP tool-call flows that rely on `mcp_progress_token` durability fail because the Postgres `Database` impl returns NotImplemented for MCP durable fields; Master Spec 11.3.4 + portability pillars require durable mapping and dual-backend parity."
+  },
+  "source_control": {
+    "backup_push_status": "",
+    "canonical_branch": "main",
+    "merge_base_sha": "49442d61b03f52b4f11e2334933ef5b6283c7a94",
+    "remote_backup_branch": "",
+    "remote_backup_url": "",
+    "work_branch": "",
+    "worktree_dir": ""
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "",
+    "communication_health_gate": "",
+    "execution_owner": "",
+    "host_preference": "",
+    "lane": "",
+    "notifications_file": "",
+    "receipts_file": "",
+    "runtime_status_file": "",
+    "session_start_authority": "",
+    "thread_file": ""
+  },
+  "wp_id": "WP-1-Postgres-MCP-Durable-Progress-v1"
+}

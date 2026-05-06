@@ -1,0 +1,99 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/refinement.json"
+  },
+  "base_wp_id": "WP-1-Spec-Enrichment-MT-ContextPack-Defaults",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-02-14T17:05:24.845Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "current_wp_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "2026-02-01",
+    "risk_tier": "LOW",
+    "status": "Done (historical spec-enrichment capture)",
+    "user_signature": "ilja140220261758"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:57:13.418Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/packet.md",
+    "projection_hash": "ac829316958f66d3",
+    "source_file": ".GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/packet.json",
+    "source_hash": "c5a94c20ab59c6a4",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": false,
+    "contract_file": ".GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/refinement.json",
+    "enforcement_profile": "",
+    "hydration_profile": "",
+    "status": "UNKNOWN"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- Handshake_Master_Spec_v02.126.md"
+    ],
+    "forbidden_paths": [
+      "- Any product code changes under `src/",
+      "app/",
+      "or `tests/"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.126.md §2.6.6.7.14.7 / §2.6.6.7.14.11 / §2.6.6.8.8.2"
+    ],
+    "summary": "Land Master Spec v02.126 Phase 1 defaults for MT ContextPacks usage (SourceRef-first targeting, ContextPackPolicy knobs, stale handling semantics, anchors-first minimum payload) and bind MT Context Compilation Pipeline step 6 to these defaults + FreshnessGuard observability tokens.",
+    "why": "Removes ambiguity for MT Context compilation (ContextPacks vs Shadow Workspace fallback) and unblocks WP-1-Model-Onboarding-ContextPacks-v1 by making default targeting + staleness outcomes normative and observable."
+  },
+  "source_control": {
+    "backup_push_status": "",
+    "canonical_branch": "main",
+    "merge_base_sha": "fadbbeb81693b7aa82ecd7eb8eca78dfc28c0049",
+    "remote_backup_branch": "",
+    "remote_backup_url": "",
+    "work_branch": "",
+    "worktree_dir": ""
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "",
+    "communication_health_gate": "",
+    "execution_owner": "",
+    "host_preference": "",
+    "lane": "",
+    "notifications_file": "",
+    "receipts_file": "",
+    "runtime_status_file": "",
+    "session_start_authority": "",
+    "thread_file": ""
+  },
+  "wp_id": "WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2"
+}

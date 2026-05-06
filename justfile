@@ -715,6 +715,9 @@ wp-contract-import wp-id="--all" *FLAGS:
 flat-packet-legacy-inventory *FLAGS:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/flat-packet-legacy-inventory.mjs" {{FLAGS}}
 
+task-packet-stub-contracts *FLAGS:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/wp/task-packet-stub-contracts.mjs" {{FLAGS}}
+
 wp-traceability-set base_wp_id active_packet_wp_id context:
 	@just repomem-gate --role ORCHESTRATOR --wp {{base_wp_id}}
 	@just repomem context "{{context}}" --trigger wp-traceability-set --role ORCHESTRATOR --wp {{base_wp_id}}

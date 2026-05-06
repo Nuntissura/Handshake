@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Atelier-Collaboration-Panel-v1",
+  "base_wp_id": "WP-1-Atelier-Collaboration-Panel",
+  "created_at_utc": "2026-01-30T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "2b422126c968a8841eb5aadb0f6f15c18c57042af47c390c226412234222bfb6",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.123.md 7.6.3 (Phase 1) -> [ADD v02.123] Implement Atelier Collaboration Panel (selection-scoped) in the main text editor",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement an Atelier Collaboration Panel (selection-scoped) in text editor surfaces that runs role passes against the current selection and applies only range-bounded patches.\n- Why: Provide safe, auditable in-editor collaboration without silent edits outside the operatorâ€™s selected span.",
+    "scope_sketch": "- IN_SCOPE:\n  - A selection-scoped collaboration UI (panel/sidebar) that:\n    - Shows all roles.\n    - Allows each role to emit 0..n suggestions (multi-suggestion preferred).\n    - Supports selecting one or more suggestions and applying them.\n  - Strict range-bounded patch application for Monaco/Docs (byte-identical outside selection).\n  - Validator enforcement rejecting any patch that modifies outside the selection (except explicit boundary-normalization if enabled).\n  - Provenance logging for applied patches (role_id, contract_id, model_id/tool_id, evidence refs, before/after spans).\n- OUT_OF_SCOPE:\n  - True multi-user collaboration (CRDT, presence, conflict resolution).\n  - Auto-apply without operator review/selection.",
+    "acceptance_criteria": "- Applying suggestions never changes text outside the selected span (byte-identical outside the range).\n- Any patch that touches outside the selection is rejected by validators.\n- Every applied patch is recorded with provenance + evidence refs and is visible in audit surfaces (Flight Recorder / job history).",
+    "risks_unknowns": "- Risk: differing editor range semantics can create â€œoff-by-oneâ€ or normalization surprises; must define canonical span model.\n- Risk: boundary-normalization exceptions can become a loophole; must be explicit, minimal, and validated."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

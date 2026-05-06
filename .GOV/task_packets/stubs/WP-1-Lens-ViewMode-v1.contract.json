@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Lens-ViewMode-v1",
+  "base_wp_id": "WP-1-Lens-ViewMode",
+  "created_at_utc": "2026-01-30T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "67667688f33f234faf2c4e8c0fb7b3964efebf15ecf94feaae7005b3fb3c5169",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.123.md 7.6.3 (Phase 1) -> [ADD v02.123] Implement ViewMode UI + enforcement for Lens outputs (SFW hard-drop projection)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement `ViewMode` UI and runtime enforcement for Lens outputs, including strict SFW hard-drop projection.\n- Why: Provide operator-controlled projection without mutating stored raw artifacts and without â€œblur-but-revealableâ€ leakage.",
+    "scope_sketch": "- IN_SCOPE:\n  - `ViewMode` UI surface (NSFW default; explicit SFW toggle with clear labeling).\n  - Enforcement: in `ViewMode=\"SFW\"`, Lens outputs MUST exclude any non-`sfw` results (strict drop).\n  - Evidence preservation: internal evidence pointers remain intact; ViewMode switching does not mutate stored Raw/Derived artifacts.\n  - Traceability: ViewMode is treated as a metadata filter and recorded in traces.\n- OUT_OF_SCOPE:\n  - Rewriting/censoring stored descriptors/facts to satisfy SFW posture (explicitly forbidden).\n  - â€œCollapsed but revealableâ€ UX for non-sfw items in SFW mode (explicitly forbidden).",
+    "acceptance_criteria": "- In SFW ViewMode, non-sfw items never appear in Lens result sets (hard drop).\n- Switching ViewMode does not change stored artifacts; only affects projection/output.\n- QueryPlan/RetrievalTrace (or equivalent trace) records ViewMode as a filter.",
+    "risks_unknowns": "- Risk: inconsistent enforcement across surfaces (panel vs search vs exports); must centralize the projection filter.\n- Risk: accidental mutation of stored artifacts on toggle; must be prohibited and validated."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

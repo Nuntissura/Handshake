@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Unified-Tool-Surface-Contract-v1",
+  "base_wp_id": "WP-1-Unified-Tool-Surface-Contract",
+  "created_at_utc": "2026-02-23T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Unified-Tool-Surface-Contract-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Unified-Tool-Surface-Contract-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Unified-Tool-Surface-Contract-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "fddef412447d021db9046457ecaa9036dee9ab9efe548bcc10b827e5a0dc4c1d",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.137.md 7.6.3 (Phase 1) -> [ADD v02.136] Unify tool invocation: local tool calling and MCP MUST use the same Tool Registry + Tool Gate + Flight Recorder event model (no bypass).",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement the Unified Tool Surface Contract (HTC v1.0) as a single source of truth for tool identity/schemas/side-effects, and enforce that *all* tool calls (local + MEX + MCP) pass through a single Tool Gate with canonical Flight Recorder logging.\n- Why: Prevent “dual tool schema” drift and tool-call bypass paths that break determinism, capabilities/consent enforcement, secret redaction, and auditability across local and cloud-model orchestration.",
+    "scope_sketch": "- IN_SCOPE:\n  - Tool Registry SSoT:\n    - Single canonical tool definition store (HTC-1.0), including `tool_id`, `tool_version`, schemas, `side_effect`, idempotency semantics, and redaction metadata.\n    - MCP tool discovery/schemas generated from the Tool Registry (no parallel schema).\n  - Tool Gate (single enforcement point):\n    - Capability/consent enforcement for every tool invocation (local + MCP + MEX).\n    - Payload limits (incl. 32KB rule) + strict artifact-first args/results (hashes computed *after* redaction).\n    - Idempotency keys enforced where required.\n  - Observability:\n    - Every tool invocation emits FR-EVT-007 (ToolCallEvent) with correlation fields (`trace_id`, tool identity/version, transport, timing, capability_ids, redacted refs/hashes).\n  - Conformance:\n    - Tool contract conformance tests (Spec §6.0.2.9) in CI to fail any bypass or schema divergence.\n- OUT_OF_SCOPE:\n  - Phase 2+ “Design Studio shell/IA recontextualization” work.\n  - Full DCC Tool Call Ledger UX (coordinate with DCC WP; keep this WP focused on contract + enforcement + logging).\n  - Handshake-as-MCP-server (local) beyond the minimum needed to prove schema unification and Tool Gate enforcement.",
+    "acceptance_criteria": "- At least 10 tools are registered in the Tool Registry with stable `tool_id` + `tool_version` and correct `side_effect` + idempotency semantics.\n- Local tool calling and MCP tool calling use the same Tool Registry-derived schema and both route through Tool Gate (no bypass paths).\n- Every tool invocation emits FR-EVT-007 (ToolCallEvent) with redacted `args_ref`/`result_ref` + hashes computed after redaction, and is linkable to its parent job/workflow via `trace_id`.\n- Tool contract conformance tests exist and fail deterministically on:\n  - any tool call that bypasses Tool Gate\n  - any divergence between MCP-exposed schemas and Tool Registry schemas",
+    "risks_unknowns": "- Risk: introducing Tool Gate breaks existing tool paths if bypasses exist; must inventory and enforce centrally.\n- Risk: secret/PII leakage in tool args/results; requires strict redaction + artifact-first refs.\n- Risk: schema drift between local tools and MCP tools; requires generation and conformance tests."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

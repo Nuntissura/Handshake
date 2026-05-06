@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1",
+  "base_wp_id": "WP-1-Structured-Collaboration-Governed-Next-Action-Alignment",
+  "created_at_utc": "2026-03-25T14:15:34.0047668Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "84cdb64122bedd258473d6eb5fc9c46fe929c7d8d4becc0fa0dff0a6e1cf37c6",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "2026-03-16",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "MEDIUM",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Structured-Collaboration-Contract-Hardening",
+      "WP-1-Structured-Collaboration-Artifact-Family"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "Master-spec closure remediation after `AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW`",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "session_host_preference": "HANDSHAKE_ACP_BROKER",
+    "session_launch_policy": "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": "Coder-A..Coder-Z"
+  },
+  "draft_scope": {
+    "intent": "- What: Align live structured-collaboration `next_action` summary fields and related preview helpers to registered `GovernedActionDescriptorV1.action_id` values instead of ad hoc summary tokens or residual prose helpers.\n- Why: `WP-1-Structured-Collaboration-Contract-Hardening-v1` closed `allowed_action_ids`, Task Board authority, and mailbox leak-safety, but the closeout review still found remaining spec debt around governed next actions. Current summary emitters still publish `next_action` values that are not guaranteed to resolve through the governed action registry.",
+    "scope_sketch": "- IN_SCOPE:\n  - Align structured Work Packet and Micro-Task summary `next_action` emission to a deterministic governed-action rule backed by `GovernedActionDescriptorV1.action_id`.\n  - Decide and implement the canonical policy for ambiguous states: either emit one deterministic governed action id or omit `next_action`; do not emit ad hoc strings.\n  - Remove or align dead residual next-action helper paths so product code has one authoritative next-action contract.\n  - Harden validation and negative-path tests for in-scope summary records so unregistered `next_action` values are rejected or impossible.\n- OUT_OF_SCOPE:\n  - Broad workflow-state registry work.\n  - Broad workflow transition and automation registry work.\n  - Queue-reason or `allowed_action_ids` remediation already closed by `WP-1-Structured-Collaboration-Contract-Hardening-v1`.\n  - Repo-governance / ACP workflow-harness remediation.",
+    "acceptance_criteria": "- Every emitted `next_action` in the in-scope structured Work Packet and Micro-Task summaries is either:\n  - a registered `GovernedActionDescriptorV1.action_id` compatible with the record's current workflow posture, or\n  - omitted when no single deterministic governed next action is defensible.\n- No live emitter path in scope publishes ad hoc `next_action` tokens or prose-only next-action strings.\n- In-scope validation and tests prove that unregistered or drifted `next_action` values fail mechanically.\n- Dead or alternate next-action helper paths in scope are removed or aligned to the same governed-action rule so the codebase has one next-action contract.",
+    "risks_unknowns": "- For some workflow states, more than one governed action may be legal; forcing a single summary value can overstate certainty.\n- Hidden consumers may depend on the current `start_work_packet` / `start_micro_task` token vocabulary even though no product consumer is currently obvious from repo search.\n- If the summary contract remains too loose, the product can still look \"machine readable\" while hiding another registry split behind one unchecked string field."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

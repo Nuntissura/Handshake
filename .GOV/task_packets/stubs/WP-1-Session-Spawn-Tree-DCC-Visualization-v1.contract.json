@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Session-Spawn-Tree-DCC-Visualization-v1",
+  "base_wp_id": "WP-1-Session-Spawn-Tree-DCC-Visualization",
+  "created_at_utc": "2026-04-06T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "4ee8fcb66087a2a03bb37e2699ff3f5aa29ec175839e16786cea9501ab2517f0",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "FRONTEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Session-Spawn-Contract",
+      "WP-1-Dev-Command-Center-Control-Plane-Backend"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Dev Command Center session visualization panel",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Add a spawn tree visualization panel to the Dev Command Center showing parent-child session hierarchy, active children counts, spawn depth indicators, and cascade cancel controls.\n- Why: Operators need visual oversight of the session spawn tree to monitor delegation depth, identify stalled children, and trigger cascade cancels. Without this panel, the spawn tree is invisible except through Flight Recorder logs.",
+    "scope_sketch": "- IN_SCOPE:\n  - Expandable tree view of session parent-child hierarchy\n  - Active children count badge on session cards (e.g., \"3/4 children active\")\n  - Spawn depth indicator bar in session detail view\n  - Cascade cancel button with confirmation dialog\n  - Spawn mode indicator (ONE_SHOT vs SESSION_PERSISTENT)\n  - Announce-back notification badge in Role Mailbox inbox\n- OUT_OF_SCOPE:\n  - The spawn contract itself (WP-1-Session-Spawn-Contract-v1)\n  - DCC backend projections (WP-1-Dev-Command-Center-Control-Plane-Backend-v1)",
+    "acceptance_criteria": "",
+    "risks_unknowns": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

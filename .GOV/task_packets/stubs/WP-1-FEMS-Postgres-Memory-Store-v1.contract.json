@@ -1,0 +1,88 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-FEMS-Postgres-Memory-Store-v1",
+  "base_wp_id": "WP-1-FEMS-Postgres-Memory-Store",
+  "created_at_utc": "2026-05-05T17:55:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-FEMS-Postgres-Memory-Store-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-FEMS-Postgres-Memory-Store-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-FEMS-Postgres-Memory-Store-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "41af668f95ce93e48e70c25e8029352f06443463c786935b7a3d3b03cf15f9f9",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "WP-1-Postgres-Dev-Test-Container-Matrix",
+      "WP-1-Postgres-Control-Plane-Leases-Backpressure",
+      "WP-1-ModelSession-Postgres-Queue-Workers",
+      "WP-1-Front-End-Memory-System"
+    ],
+    "blocks": [
+      "WP-1-FEMS-Bitemporal-Indexing",
+      "WP-1-FEMS-Working-Memory-Checkpoint-Schema",
+      "WP-1-FEMS-Injection-Scoring-Graceful-Degradation",
+      "WP-1-FEMS-Outcome-Feedback-Loop",
+      "WP-1-FEMS-Pinned-Core-Memory"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "SPEC_CURRENT FEMS and storage portability anchors",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Make PostgreSQL the authoritative store for FEMS memory records, memory packs, write-time safeguards, memory job claims, and replayable memory selection metadata.\n- Why: Parallel models need shared memory systems that survive process boundaries and can be queried, replayed, compacted, and guarded without local SQLite becoming the runtime authority.",
+    "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL tables or storage capability APIs for MemoryItem, MemoryPack, memory-job, provenance, tombstone, and replay metadata.\n  - Parallel-safe memory write/read operations integrated with ModelSession IDs and memory policies.\n  - Hooks for bitemporal indexing, pinned core memory, injection scoring, and outcome feedback follow-up stubs.\n  - Tests for concurrent writes, duplicate prevention, tombstone/replay behavior, and failed memory-job recovery.\n- OUT_OF_SCOPE:\n  - Prompt-engineering changes to memory injection content.\n  - UI dashboard work beyond projection-ready status/evidence fields.\n  - Vector embedding optimization unless required for schema viability.",
+    "acceptance_criteria": "- Memory records written by one model session are visible to other eligible sessions through PostgreSQL authority.\n- Concurrent writes cannot silently overwrite or duplicate canonical memory items.\n- MemoryPack compilation records enough provenance for replay and later FEMS evaluation.\n- SQLite remains explicitly cache/offline/index scoped and is not the source of truth for runtime memory state.",
+    "risks_unknowns": "- Risk: memory poisoning protections may need to land with the first Postgres memory store slice rather than as a later refinement.\n- Unknown: whether pgvector is in scope for Phase 1 or whether embeddings remain a separate index/cache concern."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Product-Governance-Check-Runner-v1/packet.json source_hash=dd6c33ef26ce486d projection_hash=acecce8a905356f9 generated_at_utc=2026-05-06T15:01:56.036Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Product-Governance-Check-Runner-v1/packet.json source_hash=dd6c33ef26ce486d projection_hash=acecce8a905356f9 generated_at_utc=2026-05-06T15:57:13.302Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

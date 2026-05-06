@@ -1,0 +1,85 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-MCP-MEX-Evidence-Export-v1",
+  "base_wp_id": "WP-1-MCP-MEX-Evidence-Export",
+  "created_at_utc": "2026-03-08T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-MCP-MEX-Evidence-Export-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-MCP-MEX-Evidence-Export-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-MCP-MEX-Evidence-Export-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "a2884aacba46651a6421a287fa35df3a6d0c1efa9d6176fe987f08bae4fc7e0c",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-MCP-End-to-End",
+      "WP-1-MEX-v1.2-Runtime",
+      "WP-1-Flight-Recorder",
+      "WP-1-Debug-Bundle",
+      "WP-1-Artifact-System-Foundations",
+      "WP-1-Session-Scoped-Capabilities-Consent-Gate"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.152.md 7.6.3 (Phase 1) -> backend orchestration/projection/replay expansion: MCP/MEX evidence export",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define the bounded export and replay contract for MCP and MEX evidence, including redacted args/results, JSON-RPC envelopes, denial diagnostics, capability actions, and gate outcomes.\n- Why: MCP Gate and MEX Runtime already materialize high-value backend evidence, but export scope, replay semantics, and portability guarantees are still implicit.",
+    "scope_sketch": "- IN_SCOPE:\n  - Define canonical MCP/MEX evidence anchors for debug-bundle export and later replay tooling.\n  - Preserve redaction, retention, manifest, and bounded-scope semantics across tool-call payloads, results, and denial/governance diagnostics.\n  - Clarify how MCP and MEX share one export/evidence contract instead of diverging into separate ad hoc bundle formats.\n- OUT_OF_SCOPE:\n  - Frontend tool-call UI redesign.\n  - New mechanical tool adapters unrelated to evidence/export semantics.",
+    "acceptance_criteria": "- The spec explicitly names MCP/MEX redacted tool-call evidence as bounded export sources.\n- A later implementation packet can export and validate MCP/MEX evidence without inventing feature-local schemas.\n- Redaction and portability guarantees stay explicit across backend swaps and replay tooling.",
+    "risks_unknowns": "- Risk: payload/result exports leak too much tool-call context if redaction boundaries are not first-class.\n- Risk: MCP and MEX evolve incompatible evidence schemas, making replay and portability inconsistent."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

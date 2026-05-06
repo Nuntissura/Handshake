@@ -1,0 +1,82 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Structured-Collaboration-Schema-Registry-v4",
+  "base_wp_id": "WP-1-Structured-Collaboration-Schema-Registry",
+  "created_at_utc": "2026-03-24T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Schema-Registry-v4.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Schema-Registry-v4.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Schema-Registry-v4.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "2e546b281da300a149a308d404c930f211ac0c09ba3d74f1150c5fae7e4ee586",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Structured-Collaboration-Artifact-Family"
+    ],
+    "blocks": [
+      "WP-1-Project-Profile-Extension-Registry",
+      "WP-1-Markdown-Mirror-Sync-Drift-Guard",
+      "WP-1-Dev-Command-Center-Structured-Artifact-Viewer"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Governance remediation after AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Re-open the Schema Registry work as a remediation pass that hardens the shared validator and the negative-path proof surface instead of trusting the v3 happy-path closure.\n- Why: The 2026-03-21 audit found that v3 improved emitted artifacts but did not fully enforce required workflow fields, nested payload structure, or constrained string formats under the current Master Spec.",
+    "scope_sketch": "- IN_SCOPE:\n  - Enforce `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids` on canonical Work Packet, Micro-Task, and Task Board records.\n  - Add nested validation for Task Board `rows[]`, Role Mailbox `threads[]`, and `transcription_links[]`.\n  - Add validator checks for constrained string contracts where the spec treats fields as typed values rather than generic strings.\n  - Add validator-owned negative-path regression tests for the missing enforcement paths.\n- OUT_OF_SCOPE:\n  - Broad Dev Command Center UI expansion.\n  - Unrelated structured-collaboration product work outside the shared validator/export contract.",
+    "acceptance_criteria": "- The shared validator rejects missing required workflow-state fields on Work Packet, Micro-Task, and Task Board records.\n- Nested Task Board and Role Mailbox payloads are validated per item, not only by outer array presence.\n- Validator-owned negative-path tests fail when the newly required fields or nested contracts are removed or malformed.\n- Closure is based on adversarial proof, not only on emitted happy-path artifacts.",
+    "risks_unknowns": "- Changes touch shared validators and may expose previously hidden drift in downstream artifact readers.\n- The exact constrained-string checks should be narrowed during refinement so the remediation stays diff-scoped and auditable."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

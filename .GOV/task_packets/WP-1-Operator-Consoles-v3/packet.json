@@ -1,0 +1,101 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Operator-Consoles-v3/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Operator-Consoles-v3/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Operator-Consoles-v3/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Operator-Consoles-v3/refinement.json"
+  },
+  "base_wp_id": "WP-1-Operator-Consoles-v3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-01-02T21:35:06.121Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "current_wp_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "",
+    "risk_tier": "HIGH",
+    "status": "Done",
+    "user_signature": "ilja020120262232"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:57:13.261Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Operator-Consoles-v3/packet.md",
+    "projection_hash": "0309b4c6514e4df3",
+    "source_file": ".GOV/task_packets/WP-1-Operator-Consoles-v3/packet.json",
+    "source_hash": "0f5a8845f8d400ef",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Operator-Consoles-v3/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": false,
+    "contract_file": ".GOV/task_packets/WP-1-Operator-Consoles-v3/refinement.json",
+    "enforcement_profile": "",
+    "hydration_profile": "",
+    "status": "UNKNOWN"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- src/backend/handshake_core/src/diagnostics/mod.rs"
+    ],
+    "forbidden_paths": [
+      "- Implementing the Debug Bundle exporter contract itself (covered by WP-1-Debug-Bundle-v3",
+      "already VALIDATED)",
+      "only wire consoles to existing export surfaces/endpoints."
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.100.md 10.5.5.1-10.5.5.4",
+      "11.4 (DIAG-SCHEMA-001/002/003 + 11.4.2 + 11.4.3)",
+      "11.5 FR-EVT-003"
+    ],
+    "summary": "Bring Operator Consoles (Problems, Jobs, Timeline, Evidence Drawer) back into spec-compliant shape for Master Spec v02.100, including the canonical Diagnostics schema and FR linkage requirements that these consoles depend on.",
+    "why": "Operator Consoles are the debugging control room; if these surfaces are not deterministic and linkable (Diagnostics <-> Jobs <-> Timeline <-> Evidence), the project loses the ability to produce redaction-safe, deterministic evidence and development stalls."
+  },
+  "source_control": {
+    "backup_push_status": "",
+    "canonical_branch": "main",
+    "merge_base_sha": "",
+    "remote_backup_branch": "",
+    "remote_backup_url": "",
+    "work_branch": "",
+    "worktree_dir": ""
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "",
+    "communication_health_gate": "",
+    "execution_owner": "",
+    "host_preference": "",
+    "lane": "",
+    "notifications_file": "",
+    "receipts_file": "",
+    "runtime_status_file": "",
+    "session_start_authority": "",
+    "thread_file": ""
+  },
+  "wp_id": "WP-1-Operator-Consoles-v3"
+}

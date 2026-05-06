@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1",
+  "base_wp_id": "WP-1-Dev-Command-Center-Structured-Artifact-Viewer",
+  "created_at_utc": "2026-03-10T00:19:00.642Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "48d658515ebc042061fff0b2b72eee868e66af5b836a61d6bac424c5530953c4",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "FRONTEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Dev-Command-Center-MVP",
+      "WP-1-Structured-Collaboration-Artifact-Family"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.169.md 7.6.3 (Phase 1) -> [ADD v02.169] Canonical-to-mirror reconciliation and drift governance",
+    "roadmap_add_coverage": "SPEC=v02.169; PHASE=7.6.3; LINES=46775"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Build the Dev Command Center typed-field viewers and derived board or queue layouts over canonical structured collaboration artifacts.\n- Why: Operators should inspect and steer work through clean field-based surfaces instead of raw Markdown or raw JavaScript Object Notation blobs, and future Jira-like layouts should remain just alternate projections over the same authority.",
+    "scope_sketch": "- IN_SCOPE:\n  - Work Packet, Micro-Task, Task Board, and Role Mailbox typed-field viewers.\n  - Two or more derived layouts such as kanban, list, queue, or roadmap from the same structured records.\n  - Explicit display of authoritative fields versus Markdown mirrors.\n  - Raw JavaScript Object Notation drilldown as an advanced view, not the default operator surface.\n- OUT_OF_SCOPE:\n  - Defining the canonical backend artifact schemas.\n  - Full external board-platform integration.",
+    "acceptance_criteria": "- Dev Command Center can render typed Work Packet, Micro-Task, Task Board, and Role Mailbox views from canonical structured records.\n- At least two different board or queue layouts can be derived from the same record set without mutating authority.\n- The operator can distinguish canonical fields, mirror content, and mirror-drift state from one screen.",
+    "risks_unknowns": "- Risk: raw JavaScript Object Notation fallback becomes the default surface. Mitigation: typed-field-first rendering and advanced inspector separation.\n- Risk: board layouts smuggle in state edits. Mitigation: explicit governed record edits only, with visible field provenance."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

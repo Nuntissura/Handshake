@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Spec-Authoring-Rubric-v1",
+  "base_wp_id": "WP-1-Spec-Authoring-Rubric",
+  "created_at_utc": "2026-01-12T21:49:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Spec-Authoring-Rubric-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Spec-Authoring-Rubric-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Spec-Authoring-Rubric-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "741fdce6ea07947ee90303d096ecbd388ec6508d6d0ea7a81d0a8aef958e192b",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "AÂ§7.6.3 (Phase 1) -> Spec Router + governance session log (MVP)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Make Spec Router produce high-quality, audit-ready specs with deterministic required sections, minimal clarifying questions, and trinity enforcement for GOV_STANDARD/STRICT.\n- Why: Spec creation is a core omission in the governance kernel; without it, complex work devolves into prompt interpretation drift.",
+    "scope_sketch": "- IN_SCOPE:\n  - Spec template enforcement (required headings) for GOV_STANDARD and GOV_STRICT.\n  - Clarifying-question policy (3-7 max) + assumption recording (`NEEDS_CONFIRMATION`).\n  - Trinity enforcement in Spec Router decisions; block when missing roles.\n  - Spec artifacts are artifact-first (no reliance on chat transcripts).\n- OUT_OF_SCOPE:\n  - Implementing unrelated product features.\n  - Weakening governance modes to reduce friction (GOV_STANDARD/STRICT remain strict).",
+    "acceptance_criteria": "- GOV_STANDARD/STRICT spec outputs include all required headings and are mechanically checkable.\n- Spec Router sets `required_roles` to include ORCHESTRATOR+CODER+VALIDATOR and blocks otherwise.\n- Assumptions are explicitly captured and gated before execution when scope/safety relevant.",
+    "risks_unknowns": "- Over-constraining templates for creative tasks; ensure GOV_LIGHT remains available for small tasks.\n- Ambiguous prompts causing incorrect assumptions; must surface `NEEDS_CONFIRMATION`.\n- Consistency between spec rubric checks and validator expectations."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

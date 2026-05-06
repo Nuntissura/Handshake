@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
+  "base_wp_id": "WP-1-Markdown-Mirror-Sync-Drift-Guard",
+  "created_at_utc": "2026-03-10T00:19:00.642Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Markdown-Mirror-Sync-Drift-Guard-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Markdown-Mirror-Sync-Drift-Guard-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Markdown-Mirror-Sync-Drift-Guard-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "aa5ad6b368a1777ef33d4b41e78ac1bc0f5a3a1df9cadaf03863722be98ffa0b",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Structured-Collaboration-Artifact-Family",
+      "WP-1-Locus-Phase1-Integration-Occupancy"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.169.md 7.6.3 (Phase 1) -> [ADD v02.169] Canonical-to-mirror reconciliation and drift governance",
+    "roadmap_add_coverage": "SPEC=v02.169; PHASE=7.6.3; LINES=46775"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement deterministic Markdown mirror generation, drift detection, advisory-edit handling, and reconciliation status for structured collaboration artifacts.\n- Why: The product can keep readable Markdown without letting mirrors silently become the authority or diverge from the canonical JavaScript Object Notation records.",
+    "scope_sketch": "- IN_SCOPE:\n  - Mirror regeneration rules for Work Packets and Task Board outputs.\n  - Drift detection states such as synchronized, stale, advisory edit, and normalization required.\n  - Operator-visible evidence for why a mirror differs from its canonical record.\n  - Safe handling of manual Markdown edits without silent overwrite.\n- OUT_OF_SCOPE:\n  - Designing the canonical structured artifact schemas themselves.\n  - Rich board or typed-viewer presentation beyond the states they need to show.",
+    "acceptance_criteria": "- Markdown mirrors can be regenerated deterministically from canonical structured records.\n- Drift states are explicit and machine-readable.\n- Manual Markdown edits are surfaced as advisory until normalized back into canonical records.\n- Dev Command Center and planning views can distinguish synchronized versus stale mirrors without reading raw diffs first.",
+    "risks_unknowns": "- Risk: mirror generation clobbers useful human notes. Mitigation: keep note sidecars append-only and separate from generated mirrors.\n- Risk: drift signaling is too noisy. Mitigation: define bounded statuses and normalization paths instead of raw diff spam."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

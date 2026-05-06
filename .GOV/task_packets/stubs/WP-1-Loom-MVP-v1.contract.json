@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Loom-MVP-v1",
+  "base_wp_id": "WP-1-Loom-MVP",
+  "created_at_utc": "2026-02-19T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Loom-MVP-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Loom-MVP-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Loom-MVP-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "dfac6b94e89dbe75b26efcf33525a0adbd1fab4f28e84f64406657d2a1cc5885",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.131.md 7.6.3 (Phase 1) -> Loom MVP (Heaper-style library surface) [ADD v02.130]",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Deliver the Phase 1 Loom MVP: a local-first library surface powered by LoomBlocks (note/file/context) and LoomEdges (mentions/tags/backlinks), with fast browsing views and evidence-grade provenance via Flight Recorder.\n- Why: Provide a unified \"block-as-unit-of-meaning\" surface that ties together notes and files, unlocking link/tag organization, backlinks, and quick recall without importing external app constraints.",
+    "scope_sketch": "- IN_SCOPE:\n  - LoomBlock + LoomEdge foundations:\n    - Storage model + API plumbing for LoomBlocks and LoomEdges (UUID-stable; rename-stable identity independent of filenames).\n    - Inline token semantics for @mentions + #tags that create LoomEdges with stable UUID references (no text-based links).\n  - Loom views (Phase 1 subset):\n    - All / Unlinked / Sorted / Pins browsing projections over LoomBlocks.\n    - LoomBlock detail view with backlinks panel (with context snippets).\n  - Import + dedup:\n    - File import (folder drag/drop + file picker).\n    - SHA-256-based dedup: importing the same file twice must route to the existing LoomBlock (no duplicates).\n  - Media previews:\n    - Tier-1 preview generation (thumbnails, lightweight proxies where needed) implemented as governed Mechanical jobs.\n    - Attach thumbnail/proxy asset refs to LoomBlocks; ensure outputs survive restart.\n  - Search (Tier-1):\n    - Basic Loom search with facets sufficient to support the MVP browse loops.\n  - Observability:\n    - Emit FR-EVT-LOOM-* events and surface them in Operator Consoles / Job History.\n- OUT_OF_SCOPE:\n  - AI auto-tagging / auto-caption and semantic/hybrid retrieval (Phase 2+ / Phase 4 per Master Spec).\n  - Multi-user Loom collaboration/sync and Postgres-backed Loom query engines (Phase 3+ / Phase 4).",
+    "acceptance_criteria": "- Importing files creates LoomBlocks; dedup prevents duplicates on re-import.\n- All/Unlinked/Sorted/Pins views operate correctly on the same LoomBlock dataset.\n- @mentions and #tags create LoomEdges with UUID-stable references; tag targets are TAG_HUB LoomBlocks.\n- Backlinks panel updates correctly (with snippets) based on LoomEdges.\n- Tier-1 search works with basic facets for LoomBlocks.\n- FR-EVT-LOOM-* events are emitted and visible in Operator Consoles / Job History for the key Loom flows.",
+    "risks_unknowns": "- Risk: anchor drift and inline token robustness during edits (must remain UUID-stable and not text-based).\n- Risk: dedup false positives/negatives and identity coupling to filenames.\n- Risk: background preview generation throughput degrading core UI responsiveness."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

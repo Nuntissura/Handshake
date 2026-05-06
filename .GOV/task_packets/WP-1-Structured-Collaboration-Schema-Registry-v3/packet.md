@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.json source_hash=e1209ade4dcd568d projection_hash=562b066d0883970b generated_at_utc=2026-05-06T15:01:56.159Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.json source_hash=e1209ade4dcd568d projection_hash=562b066d0883970b generated_at_utc=2026-05-06T15:57:13.478Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Structured-Collaboration-Schema-Registry-v3
 
 ## METADATA

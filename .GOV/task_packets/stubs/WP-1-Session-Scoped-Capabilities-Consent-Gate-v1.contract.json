@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Session-Scoped-Capabilities-Consent-Gate-v1",
+  "base_wp_id": "WP-1-Session-Scoped-Capabilities-Consent-Gate",
+  "created_at_utc": "2026-02-24T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "ffe519bbe64a4713ead4af705685d6a6c7733843cbd3db81a97484491d3af7e3",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.137.md 7.6.3 (Phase 1) -> items 31 (session-scoped capabilities) + 4.3.9.14 consent gate + 4.3.9.20 trust boundary rules",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Enforce session-scoped capability intersection and consent gating for cloud calls across parallel sessions, and implement inbound trust boundary rules for cross-session/system message provenance.\n- Why: Parallel orchestration is unsafe without deny-by-default per-session effective capabilities, durable consent receipts for fan-out, and strict inbound provenance/anti-bypass constraints.",
+    "scope_sketch": "- IN_SCOPE:\n  - Session-scoped effective capabilities:\n    - ModelSession `capability_grants` and `capability_token_ids` wired to CapabilityRegistry receipts/tokens.\n    - Tool Gate enforcement uses per-session capability intersection (not global grants).\n    - Child sessions have equal-or-narrower tool permissions than parent (TRUST-003).\n  - Cloud consent gate lifecycle:\n    - ProjectionPlan + ConsentReceipt binding to session_ids, with scopes (single call / session / WP / broadcast).\n    - Scheduler verification of valid receipts before dispatching cloud `model_run`.\n    - Revocation cancels pending jobs and blocks sessions deterministically.\n  - Inbound trust boundary rules:\n    - SYSTEM message provenance restriction (runtime-only).\n    - Cross-session routed messages carry source attribution + hashes + trusted/untrusted flags.\n    - No global bypass flags for sandbox/approvals/capabilities (session-scoped debug only, logged).\n- OUT_OF_SCOPE:\n  - Provider tool calling adapters (tracked in WP-1-Provider-Feature-Coverage-Agentic-Ready-v1).\n  - Scheduler mechanics (tracked in WP-1-ModelSession-Core-Scheduler-v1).",
+    "acceptance_criteria": "- Tool Gate evaluates required_capabilities against the per-session effective grants; missing grant blocks with explicit reason and Flight Recorder evidence.\n- A broadcast to N cloud sessions requires a BROADCAST_SCOPED receipt enumerating session_ids; adding sessions requires a new receipt.\n- Revoking consent cancels pending model_run jobs and transitions affected sessions to BLOCKED deterministically.\n- SYSTEM message injection is runtime-only; any external source attempting SYSTEM injection is rejected and recorded.",
+    "risks_unknowns": "- Risk: inconsistent enforcement between local/MCP/Stage Bridge transports; Tool Gate must be single enforcement point."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

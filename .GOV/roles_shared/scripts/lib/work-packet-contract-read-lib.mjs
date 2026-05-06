@@ -76,16 +76,31 @@ function contractPathFor(resolved, fileName) {
   };
 }
 
+function folderPacketPathsForWp(wpId) {
+  const packetDir = normalizePath(path.posix.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, wpId));
+  const packetDirAbs = repoPathAbs(packetDir);
+  return {
+    packetDir,
+    packetDirAbs,
+    packetPath: normalizePath(path.posix.join(packetDir, "packet.md")),
+    packetAbsPath: path.join(packetDirAbs, "packet.md"),
+    packetContractPath: normalizePath(path.posix.join(packetDir, "packet.json")),
+    packetContractAbsPath: path.join(packetDirAbs, "packet.json"),
+  };
+}
+
 export function listWorkPacketIdsForContractImport() {
   const rootAbs = repoPathAbs(WORK_PACKET_STORAGE_ROOT_REPO_REL);
   if (!fs.existsSync(rootAbs)) return [];
-  const ids = [];
+  const ids = new Set();
   for (const entry of fs.readdirSync(rootAbs, { withFileTypes: true })) {
     if (entry.isDirectory() && /^WP-/.test(entry.name) && fs.existsSync(path.join(rootAbs, entry.name, "packet.md"))) {
-      ids.push(entry.name);
+      ids.add(entry.name);
+    } else if (entry.isFile() && /^WP-[A-Za-z0-9._-]+\.md$/.test(entry.name)) {
+      ids.add(entry.name.replace(/\.md$/i, ""));
     }
   }
-  return ids.sort((left, right) => left.localeCompare(right));
+  return [...ids].sort((left, right) => left.localeCompare(right, "en", { numeric: true }));
 }
 
 export function buildLegacyWorkPacketContract({ wpId, packetText = "", packetPath = "", packetDir = "" } = {}) {
@@ -475,8 +490,32 @@ function writeImportedContractPair({ contract, contractAbsPath, projectionAbsPat
 
 export function importWorkPacketContracts(wpId, { dryRun = false, repair = true } = {}) {
   const state = readWorkPacketContract(wpId);
-  if (!state.ok || !state.resolved?.isFolder) {
-    return { wp_id: wpId, ok: false, action: "SKIPPED", reason: "missing folder-based packet" };
+  if (!state.ok) {
+    return { wp_id: wpId, ok: false, action: "SKIPPED", reason: "missing packet" };
+  }
+  if (!state.resolved?.isFolder) {
+    const folderPaths = folderPacketPathsForWp(wpId);
+    const packetExists = fs.existsSync(folderPaths.packetContractAbsPath);
+    const actions = [
+      { kind: packetExists ? "REPAIR_IMPORTED_FLAT_PACKET_PROJECTION" : "IMPORT_FLAT_PACKET_TO_FOLDER_CONTRACT", path: folderPaths.packetContractPath },
+      { kind: "FREEZE_FLAT_LEGACY_REFERENCE", path: state.resolved?.packetPath || "" },
+    ];
+    if (!dryRun) {
+      fs.mkdirSync(folderPaths.packetDirAbs, { recursive: true });
+      fs.writeFileSync(folderPaths.packetAbsPath, stripGeneratedProjectionHeader(state.packetText), "utf8");
+      writeImportedContractPair({
+        contract: buildLegacyWorkPacketContract({
+          wpId,
+          packetText: state.packetText,
+          packetPath: folderPaths.packetPath,
+          packetDir: folderPaths.packetDir,
+        }),
+        contractAbsPath: folderPaths.packetContractAbsPath,
+        projectionAbsPath: folderPaths.packetAbsPath,
+        projectionRel: folderPaths.packetPath,
+      });
+    }
+    return { wp_id: wpId, ok: true, dry_run: dryRun, actions };
   }
   const actions = [];
   const packetContractPath = contractPathFor(state.resolved, "packet.json");

@@ -9,8 +9,8 @@ import {
 import {
   repoPathAbs,
   REPO_ROOT,
-  resolveWorkPacketPath,
 } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
 import { resolveValidatorGatePath } from "../lib/validator-gate-paths.mjs";
 import { renderInterRoleVerbReceipt } from "../lib/inter-role-verb-lib.mjs";
 import {
@@ -1010,19 +1010,19 @@ function turnUsageCount(entries = []) {
 }
 
 export function loadWpTimelineArtifacts(repoRoot, wpId) {
-  const packet = resolveWorkPacketPath(wpId);
-  if (!packet?.packetPath) {
+  const packet = buildWorkPacketCommunicationView(wpId);
+  if (!packet.ok || !packet.packetPath) {
     throw new Error(`Official packet not found for ${wpId}`);
   }
-  const packetText = fs.readFileSync(packet.packetAbsPath, "utf8");
-  const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE");
-  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  const threadFile = parseSingleField(packetText, "WP_THREAD_FILE");
-  const communicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
-  const notificationsFile = communicationDir
+  const packetText = packet.packetText || fs.readFileSync(packet.packetAbsPath, "utf8");
+  const workflowLane = packet.workflowLane || parseSingleField(packetText, "WORKFLOW_LANE");
+  const runtimeStatusFile = packet.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsFile = packet.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const threadFile = packet.threadFile || parseSingleField(packetText, "WP_THREAD_FILE");
+  const communicationDir = packet.communicationDir || parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+  const notificationsFile = packet.notificationsFile || (communicationDir
     ? normalizePath(path.join(communicationDir, "NOTIFICATIONS.jsonl"))
-    : "";
+    : "");
 
   const runtimeStatus = runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
     ? parseJsonFile(runtimeStatusFile)

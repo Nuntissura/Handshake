@@ -1,0 +1,84 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Session-Spawn-Contract-v1",
+  "base_wp_id": "WP-1-Session-Spawn-Contract",
+  "created_at_utc": "2026-02-24T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Session-Spawn-Contract-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Session-Spawn-Contract-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Session-Spawn-Contract-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "5fb166b37935b166a4a25b4d315cf749b3f68bb8d64ebaaa717be24b48447ecb",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-ModelSession-Core-Scheduler",
+      "WP-1-Session-Scoped-Capabilities-Consent-Gate",
+      "WP-1-Role-Mailbox"
+    ],
+    "blocks": [
+      "WP-1-Workspace-Safety-Parallel-Sessions",
+      "WP-1-Session-Observability-Spans-FR",
+      "WP-1-Dev-Command-Center-Control-Plane-Backend"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.137.md 7.6.3 (Phase 1) -> item 30 (Session spawn contract / OpenClaw pattern)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement the session spawn lifecycle (SessionSpawnRequest/Response), enforce hard depth + active-children caps, and provide announce-back via Role Mailbox with summary artifacts.\n- Why: Prevent runaway delegation storms and make sub-session work auditable, bounded, and safely mergeable back into primary flows.",
+    "scope_sketch": "- IN_SCOPE:\n  - Spawn request/response contract and validation (depth limits, per-session spawn caps, role assignment).\n  - Spawn lane isolation semantics (primary vs subagent/background) and cascade cancel behavior.\n  - Announce-back and status reporting:\n    - summary artifacts and mailbox message correlation.\n  - Flight Recorder event coverage for spawn events (family FR-EVT-SESS-SPAWN-*).\n- OUT_OF_SCOPE:\n  - Provider tool calling/streaming capabilities (tracked in WP-1-Provider-Feature-Coverage-Agentic-Ready-v1).\n  - Workspace/file isolation mechanics (tracked in WP-1-Workspace-Safety-Parallel-Sessions-v1).",
+    "acceptance_criteria": "- Spawn depth and max-children caps are enforced (hard block with explicit reason and Flight Recorder evidence).\n- A child session can run, produce a summary artifact, and announce-back to the requester via Role Mailbox with deterministic correlation.\n- Cascade cancel cancels children deterministically and records the set of cancelled session_ids.",
+    "risks_unknowns": "- Risk: spawn without strict tool narrowing becomes a remote action pipeline; must integrate with session-scoped capability intersection and tool narrowing rules."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

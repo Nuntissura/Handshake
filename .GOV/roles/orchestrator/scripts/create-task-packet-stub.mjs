@@ -42,6 +42,7 @@ import {
   STUB_FORMAT_VERSION,
 } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { GOV_ROOT_REPO_REL, WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { writeStubContractForPath } from "../../../roles_shared/scripts/wp/task-packet-stub-contracts.mjs";
 
 const WP_ID = process.argv[2];
 const ROADMAP_POINTER = process.argv[3] || "<fill>";
@@ -114,6 +115,7 @@ content = fill(content, "{{INTEGRATION_VALIDATOR_MODEL_PROFILE}}", DEFAULT_ROLE_
 content = fill(content, "{{EXECUTION_OWNER_RANGE_HELP}}", EXECUTION_OWNER_RANGE_HELP);
 
 fs.writeFileSync(filePath, content, "utf8");
+await writeStubContractForPath(path.resolve(filePath));
 
 console.log(`task-packet-stub created: ${filePath.replace(/\\/g, "/")}`);
 console.log("");

@@ -1,0 +1,97 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/refinement.json"
+  },
+  "base_wp_id": "WP-1-Model-Onboarding-ContextPacks",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-02-12T03:19:22.509Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "current_wp_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "2026-02-01",
+    "risk_tier": "HIGH",
+    "status": "Done",
+    "user_signature": "ilja120220260341"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:57:13.233Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/packet.md",
+    "projection_hash": "5e36273d02a2105b",
+    "source_file": ".GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/packet.json",
+    "source_hash": "f6fcec45835e5b4c",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": false,
+    "contract_file": ".GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/refinement.json",
+    "enforcement_profile": "",
+    "hydration_profile": "",
+    "status": "UNKNOWN"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- .GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1.md"
+    ],
+    "forbidden_paths": [
+      "- Provider registry / cloud adapters (handled by WP-1-LLM-Provider-Registry-v1)"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.125.md 2.6.6.7.14.7 (ContextPacks freshness + provenance binding) + 4.3.3.4 (ModelSwapRequest fresh context recompile requirement)"
+    ],
+    "summary": "Implement deterministic model onboarding via ContextPacks (artifact-backed, hashable, provenance-bound) and enforce freshness + swap-safe context recompilation. Ensure stale ContextPacks are detected and the runtime deterministically regenerates or falls back per spec; ensure ModelSwapRequest enforces a fresh context compile boundary.",
+    "why": "Without deterministic onboarding artifacts, multi-model execution is non-reproducible and governance constraints can drift across swaps/escalations; the Master Spec requires ContextPacks freshness/provenance rules and requires fresh context compilation on ModelSwapRequest resume."
+  },
+  "source_control": {
+    "backup_push_status": "",
+    "canonical_branch": "main",
+    "merge_base_sha": "4618ed73838c01071f766c19721fc33534d6db4f",
+    "remote_backup_branch": "",
+    "remote_backup_url": "",
+    "work_branch": "",
+    "worktree_dir": ""
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "",
+    "communication_health_gate": "",
+    "execution_owner": "",
+    "host_preference": "",
+    "lane": "",
+    "notifications_file": "",
+    "receipts_file": "",
+    "runtime_status_file": "",
+    "session_start_authority": "",
+    "thread_file": ""
+  },
+  "wp_id": "WP-1-Model-Onboarding-ContextPacks-v1"
+}

@@ -14,12 +14,12 @@
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": null,
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:01:55.894Z",
+    "generated_at_utc": "2026-05-06T15:57:13.020Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/refinement.md",
     "projection_hash": "1435392140610d8e",
     "source_file": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/packet.json",
-    "source_hash": "70e200270fbcbc6d",
+    "source_hash": "402c904efdc91d94",
     "status": "GENERATED_IN_SYNC"
   },
   "red_team": {
@@ -36,7 +36,9 @@
     "acceptance_criteria": [],
     "approved_spec_enrichment": [],
     "assumptions": [],
+    "clearly_covers_verdict": "PASS",
     "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "enrichment_needed": "NO",
     "microtask_plan": [],
     "non_goals": [],
     "operator_request": "WP-1-Dev-Command-Center-Control-Plane-Backend-v1",
@@ -44,6 +46,9 @@
     "spec_anchors": [
       "Handshake_Master_Spec_v02.180.md 10.11 Dev Command Center control-plane state [ADD v02.160]"
     ],
+    "stub_wp_ids": "NONE",
+    "user_approval_evidence": "APPROVE REFINEMENT WP-1-Dev-Command-Center-Control-Plane-Backend-v1",
+    "user_review_status": "APPROVED",
     "user_signature": "ilja110420260528"
   },
   "schema_id": "hsk.refinement_contract@1",

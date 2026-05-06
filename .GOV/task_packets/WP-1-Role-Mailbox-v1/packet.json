@@ -1,0 +1,97 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Role-Mailbox-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Role-Mailbox-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Role-Mailbox-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Role-Mailbox-v1/refinement.json"
+  },
+  "base_wp_id": "WP-1-Role-Mailbox",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-01-15T02:24:12.241Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "current_wp_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "",
+    "risk_tier": "HIGH",
+    "status": "Done",
+    "user_signature": "ilja150120260254"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T15:57:13.339Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Role-Mailbox-v1/packet.md",
+    "projection_hash": "4478c426574f1226",
+    "source_file": ".GOV/task_packets/WP-1-Role-Mailbox-v1/packet.json",
+    "source_hash": "d299332baebe8d10",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Role-Mailbox-v1/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": false,
+    "contract_file": ".GOV/task_packets/WP-1-Role-Mailbox-v1/refinement.json",
+    "enforcement_profile": "",
+    "hydration_profile": "",
+    "status": "UNKNOWN"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- app/.dependency-cruiser.cjs"
+    ],
+    "forbidden_paths": [
+      "- Full mail client features (see Master Spec 10.3 / 11.7.3)"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.112.md \\u00a72.6.8.10 (Role Mailbox) + \\u00a72.6.8.8 (Spec Session Log) + \\u00a711.5.3 (FR-EVT-GOV-MAILBOX-001/002/003 schemas)"
+    ],
+    "summary": "Implement Role Mailbox threads/messages with deterministic repo export to `.GOV/ROLE_MAILBOX/`, dedicated Flight Recorder event schemas (`FR-EVT-GOV-MAILBOX-001/002/003`) with strict payload-shape validation, and a leak-safe mechanical gate (`RoleMailboxExportGate`).",
+    "why": "Reduce role-to-role coordination friction while preserving \"chat is not state\" governance, auditability, and secret-leak prevention."
+  },
+  "source_control": {
+    "backup_push_status": "",
+    "canonical_branch": "main",
+    "merge_base_sha": "",
+    "remote_backup_branch": "",
+    "remote_backup_url": "",
+    "work_branch": "",
+    "worktree_dir": ""
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "",
+    "communication_health_gate": "",
+    "execution_owner": "",
+    "host_preference": "",
+    "lane": "",
+    "notifications_file": "",
+    "receipts_file": "",
+    "runtime_status_file": "",
+    "session_start_authority": "",
+    "thread_file": ""
+  },
+  "wp_id": "WP-1-Role-Mailbox-v1"
+}

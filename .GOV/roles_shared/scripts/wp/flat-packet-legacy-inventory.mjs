@@ -68,6 +68,12 @@ async function listFlatPacketMarkdown(dir, kind) {
     const text = await fs.readFile(absPath, "utf8");
     const pairedContractAbs = path.join(TASK_PACKETS_DIR, wpId, "packet.json");
     const pairedContract = (await exists(pairedContractAbs)) ? toRepoPath(pairedContractAbs) : null;
+    const pairedStubContractAbs = kind === "FLAT_PACKET_STUB"
+      ? absPath.replace(/\.md$/i, ".contract.json")
+      : "";
+    const pairedStubContract = pairedStubContractAbs && (await exists(pairedStubContractAbs))
+      ? toRepoPath(pairedStubContractAbs)
+      : null;
 
     artifacts.push({
       wp_id: wpId,
@@ -76,8 +82,9 @@ async function listFlatPacketMarkdown(dir, kind) {
       sha256: hashText(text),
       bytes: Buffer.byteLength(text, "utf8"),
       paired_folder_contract: pairedContract,
-      authority_status: authorityStatus(kind, pairedContract),
-      disposition: disposition(kind, pairedContract),
+      paired_stub_contract: pairedStubContract,
+      authority_status: authorityStatus(kind, pairedContract, pairedStubContract),
+      disposition: disposition(kind, pairedContract, pairedStubContract),
       migration_refactor_id: "RGF-289",
     });
   }
@@ -85,8 +92,11 @@ async function listFlatPacketMarkdown(dir, kind) {
   return artifacts;
 }
 
-function authorityStatus(kind, pairedContract) {
+function authorityStatus(kind, pairedContract, pairedStubContract = null) {
   if (kind === "FLAT_PACKET_STUB") {
+    if (pairedStubContract) {
+      return "TYPED_NON_EXECUTION_STUB_CONTRACT";
+    }
     return "STUB_NOT_EXECUTION_AUTHORITY";
   }
   if (pairedContract) {
@@ -95,8 +105,11 @@ function authorityStatus(kind, pairedContract) {
   return "LEGACY_MARKDOWN_AUTHORITY_PENDING_CONTRACT_MIGRATION";
 }
 
-function disposition(kind, pairedContract) {
+function disposition(kind, pairedContract, pairedStubContract = null) {
   if (kind === "FLAT_PACKET_STUB") {
+    if (pairedStubContract) {
+      return "KEEP_TYPED_STUB_CONTRACT_AS_NON_EXECUTION_PLANNING_AUTHORITY";
+    }
     return "CLASSIFY_THEN_IMPORT_OR_SUPERSEDE_STUB_WITHOUT_DUPLICATE_AUTHORITY";
   }
   if (pairedContract) {
@@ -115,6 +128,7 @@ export async function buildFlatPacketLegacyInventory() {
     flat_official_packets: artifacts.filter((entry) => entry.artifact_kind === "FLAT_OFFICIAL_PACKET").length,
     flat_packet_stubs: artifacts.filter((entry) => entry.artifact_kind === "FLAT_PACKET_STUB").length,
     paired_folder_contracts: artifacts.filter((entry) => entry.paired_folder_contract).length,
+    paired_stub_contracts: artifacts.filter((entry) => entry.paired_stub_contract).length,
     unpaired_legacy_authority: artifacts.filter(
       (entry) => entry.authority_status === "LEGACY_MARKDOWN_AUTHORITY_PENDING_CONTRACT_MIGRATION",
     ).length,

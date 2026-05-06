@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Loom-Storage-Portability-v1",
+  "base_wp_id": "WP-1-Loom-Storage-Portability",
+  "created_at_utc": "2026-03-09T05:28:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "39ea724bbcd151c5d14f742fb420d28b4dfcb549a778d272a0dea011423fb95f",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Loom-MVP",
+      "WP-1-Storage-Abstraction-Layer",
+      "WP-1-Artifact-System-Foundations"
+    ],
+    "blocks": [
+      "WP-1-Media-Downloader-Loom-Bridge",
+      "WP-1-Video-Archive-Loom-Integration"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.156.md 7.6.3 (Phase 1) -> [ADD v02.156] Knowledge/retrieval pillar backend sweep / Loom storage portability",
+    "roadmap_add_coverage": "SPEC=v02.156; PHASE=7.6.3; LINES=46350,46828"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define the canonical portable backend contract for Loom block-edge records, search/view filters, source anchors, and derived asset bindings.\n- Why: Loom already behaves like a backend library substrate, but its storage/export/replay semantics cannot stay implicit if later library, retrieval, and media bridges are expected to remain stable across backend changes.",
+    "scope_sketch": "- IN_SCOPE:\n  - Unify Loom block, edge, search, view, and source-anchor semantics under portable backend contracts.\n  - Preserve stable meaning across SQLite-now / PostgreSQL-ready storage, export, replay, and bounded artifact transfer.\n  - Clarify what downstream Loom-consuming packets may assume about portable block-edge/search/view/source-anchor behavior.\n- OUT_OF_SCOPE:\n  - Full Loom product expansion.\n  - Media-to-Loom bridge feature work beyond the backend portability contract.",
+    "acceptance_criteria": "- Loom storage/export/replay semantics are explicitly linked to Storage Portability in the Main Body and Appendix matrix.\n- Loom block-edge/search/view/source-anchor contracts preserve stable meaning across backend swaps and evidence transfer.\n- Downstream Loom bridge packets can reuse one canonical portability contract instead of redefining library/export semantics.",
+    "risks_unknowns": "- Risk: Loom blocks, edges, search filters, and source anchors diverge into storage-specific behavior that breaks export or replay.\n- Risk: downstream bridge packets assume stable library portability semantics that are not yet codified."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

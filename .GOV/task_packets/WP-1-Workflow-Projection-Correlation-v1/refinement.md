@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Workflow-Projection-Correlation-v1/packet.json source_hash=01a55cb001a3dd0b projection_hash=2c8e93733ba4c30e generated_at_utc=2026-05-06T15:01:56.182Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Workflow-Projection-Correlation-v1/packet.json source_hash=362d7949ec65fa6f projection_hash=2c8e93733ba4c30e generated_at_utc=2026-05-06T15:57:13.545Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 
 Requirements (HARD):

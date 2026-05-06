@@ -1,0 +1,86 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-DCC-Postgres-Control-Plane-Projections-v1",
+  "base_wp_id": "WP-1-DCC-Postgres-Control-Plane-Projections",
+  "created_at_utc": "2026-05-05T17:55:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-DCC-Postgres-Control-Plane-Projections-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-DCC-Postgres-Control-Plane-Projections-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-DCC-Postgres-Control-Plane-Projections-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "b77d08036d19edf0537b7231ebbde472e2c78cda29ad5fcac1407ac626259730",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "WP-1-Postgres-Control-Plane-Leases-Backpressure",
+      "WP-1-ModelSession-Postgres-Queue-Workers",
+      "WP-1-Workflow-Engine-Postgres-Durable-Execution",
+      "WP-1-Dev-Command-Center-Control-Plane-Backend"
+    ],
+    "blocks": [
+      "WP-1-Dev-Command-Center-MVP",
+      "WP-1-Session-Spawn-Tree-DCC-Visualization",
+      "WP-1-Dev-Command-Center-Layout-Projection-Registry"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "SPEC_CURRENT DCC, work-tracking, and storage portability anchors",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Project PostgreSQL-primary runtime truth into Dev Command Center views for sessions, queues, leases, workflows, memory jobs, and blocked/stalled control-plane work.\n- Why: Self-hosting is not operational if the Operator cannot see the actual database-backed runtime state and intervene without reading logs or role terminals.",
+    "scope_sketch": "- IN_SCOPE:\n  - Backend projection endpoints or query services that read authoritative PostgreSQL runtime/control-plane state.\n  - DCC-ready state models for queue depth, active leases, stalled work, model sessions, workflow instances, memory jobs, and dead-letter items.\n  - Action affordance contracts for retry, cancel, release lease, requeue, and inspect evidence, even if some actions remain disabled.\n  - Tests that verify UI projections do not infer truth from stale mirrors or local process state.\n- OUT_OF_SCOPE:\n  - Full DCC visual redesign.\n  - Implementing every operator action mutation.\n  - Replacing Flight Recorder evidence storage.",
+    "acceptance_criteria": "- DCC projection data comes from PostgreSQL authority or a declared derived projection with source/version metadata.\n- Stale, missing, and conflicting runtime states are represented explicitly.\n- Projection tests cover at least empty, healthy, saturated/backpressured, stalled, and dead-letter states.\n- The UI contract distinguishes read-only evidence from governed mutation actions.",
+    "risks_unknowns": "- Risk: mixing mirrors with canonical PostgreSQL state can create false operator confidence; activation should require source labels and projection freshness.\n- Unknown: whether DCC should poll, subscribe, or consume NOTIFY-backed projection updates in Phase 1."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

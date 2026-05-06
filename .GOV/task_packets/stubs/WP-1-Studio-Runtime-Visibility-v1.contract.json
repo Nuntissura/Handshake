@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Studio-Runtime-Visibility-v1",
+  "base_wp_id": "WP-1-Studio-Runtime-Visibility",
+  "created_at_utc": "2026-03-08T03:20:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "990e531faf1cbc022edafe2a114728e0d7cd9f6e0b3c8a117c5bd13e7bb11a54",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Photo-Studio",
+      "WP-1-Atelier-Lens",
+      "WP-1-Dev-Command-Center-MVP",
+      "WP-1-Locus-Work-Tracking-System-Phase1"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.143.md 7.6.3 (Phase 1) -> [ADD v02.143] Primitive index coverage contract and unresolved Mail/Studio runtime coverage",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Make Studio/Design Studio surfaces explicit runtime citizens by defining how Studio jobs, tools, Command Center visibility, Flight Recorder evidence, and Locus correlations work across the current Photo Studio and Atelier/Lens surfaces.\n- Why: Studio is currently spec-rich and UI-present but under-modeled as a governed runtime surface. That blocks reliable local/cloud tool use, operator visibility, and later matrix expansion.",
+    "scope_sketch": "- IN_SCOPE:\n  - Canonical runtime mapping for Studio-adjacent surfaces:\n    - Canvas / Excalidraw surface.\n    - Lens / Atelier collaboration panel.\n    - Studio-specific job kinds, workflow nodes, and tool surfaces.\n  - Visibility requirements:\n    - DCC / operator surface projection.\n    - Flight Recorder event linkage.\n    - Locus / task-board / WP linkage for Studio-originated work.\n  - Storage posture:\n    - SQLite-now / PostgreSQL-ready persistence expectations for Studio runtime state and evidence.\n- OUT_OF_SCOPE:\n  - Full Photo Studio feature completion.\n  - Final UI consolidation or visual polish.\n  - New creative-tool capabilities beyond the runtime visibility/traceability contract.",
+    "acceptance_criteria": "- Studio-adjacent surfaces have explicit job/workflow/tool-call mappings.\n- Studio runtime activity is visible in Command Center / operator surfaces and Flight Recorder.\n- Locus can correlate Studio-originated work with work packets/microtasks.\n- SQLite-now / PostgreSQL-ready posture is specified for Studio runtime state and evidence.",
+    "risks_unknowns": "- Risk: Studio stays fragmented into unrelated UI panels without a canonical runtime identity.\n- Risk: operator surfaces show only partial evidence, leading to hidden Studio side effects.\n- Risk: storage posture diverges across SQLite and PostgreSQL if the runtime contract is not made explicit early."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-ACE-Persist-QueryPlan-Trace-v1",
+  "base_wp_id": "WP-1-ACE-Persist-QueryPlan-Trace",
+  "created_at_utc": "2026-03-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-ACE-Persist-QueryPlan-Trace-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-ACE-Persist-QueryPlan-Trace-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-ACE-Persist-QueryPlan-Trace-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "cddf6e66a6208d2df99664ce325655fdc4498ff13a84d555fd79d849e5ba495e",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "MEDIUM",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-ACE-Runtime",
+      "WP-1-Artifact-System-Foundations"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Audit remediation against Handshake_Master_Spec_v02.139.md (ACE retrieval traceability persistence)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Persist ACE artifacts (QueryPlan, RetrievalTrace, ContextSnapshot) for doc jobs so retrieval-backed calls are auditable and deep-linkable.\n- Why: Current doc job paths leave candidate_list/context_snapshot refs null, which breaks traceability requirements in v02.139.",
+    "scope_sketch": "- IN_SCOPE:\n  - Persist artifacts:\n    - ace_query_plan.json\n    - ace_retrieval_trace.json\n    - context_snapshot.json\n  - Populate the previously-null artifact refs in job records.\n  - Add targeted tests asserting the artifacts exist and are linked.\n- OUT_OF_SCOPE:\n  - New UI surfaces (Operator Consoles can display raw artifacts first).",
+    "acceptance_criteria": "- Running DocSummarize/DocEdit produces persisted ACE artifacts and links them in job records.\n- A targeted test fails if the artifacts are not persisted/linked.",
+    "risks_unknowns": "- Privacy: ContextSnapshot must obey minimization and redaction rules; must be leak-safe by default."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/packet.json source_hash=1a62e93708050b99 projection_hash=33bc4cf94970541d generated_at_utc=2026-05-06T15:01:56.008Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/packet.json source_hash=0f83a89ccaf6a242 projection_hash=33bc4cf94970541d generated_at_utc=2026-05-06T15:57:13.282Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 
 Requirements (HARD):

@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Model-Onboarding-ContextPacks-v1",
+  "base_wp_id": "WP-1-Model-Onboarding-ContextPacks",
+  "created_at_utc": "2026-02-11T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Model-Onboarding-ContextPacks-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Model-Onboarding-ContextPacks-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Model-Onboarding-ContextPacks-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "393098f6c6904a51f83696cb1f8909ef26153c87077174ac69f8426f8f55e521",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and implement deterministic \"Context Packs\" used to onboard any model instance to a\n  role + task, including on swap/escalation, with strict provenance, hashing, and auditability.\n- Why: Without deterministic onboarding artifacts, multi-model execution becomes non-reproducible\n  and governance enforcement drifts per provider/model.",
+    "scope_sketch": "- IN_SCOPE:\n  - Context Pack schema:\n    - Stable, versioned schema for \"RoleContextPack\" and \"WorkUnitContextPack\".\n    - Includes: role_id, codex/protocol references, governance mode, allowed tools, lock-set,\n      task identifiers (WP/MT IDs), and required verification contract.\n  - Deterministic assembly:\n    - Canonical ordering rules, stable hashing, and redacted exports (no secrets).\n    - Packs emitted as artifacts so they can be replayed for audit/debug.\n  - Runtime integration:\n    - On job start: build a Context Pack and bind it to the job/workflow run.\n    - On ModelSwap/escalation: rebuild pack (or explicitly reuse if byte-identical) and record\n      \"requested vs effective\" pack hashes.\n  - Provider neutrality:\n    - Context Pack must be usable for local and cloud providers; no provider-specific prompt magic.\n  - Operator UX (minimum viable):\n    - Show a compact summary: role, model/provider, pack_hash, lock paths, and whether cloud tier is used.\n- OUT_OF_SCOPE:\n  - Full UI design polish.\n  - Training/distillation flows (Phase 2+).",
+    "acceptance_criteria": "- Every model invocation in a governed workflow can be traced to:\n  - a RoleExecutionIdentity and\n  - a Context Pack artifact (hash + storage ref).\n- ModelSwap/escalation cannot proceed without a valid Context Pack for the target role.\n- Context Pack assembly is deterministic: same inputs -> same pack hash.\n- Context Packs do not embed repo-absolute paths or host-specific drive letters.",
+    "risks_unknowns": "- Risk: pack content becomes too large for small models. Mitigation: pack must separate \"strict rules\"\n  (small, always included) from \"context payload\" (retrieval-assembled per request) with explicit budgets.\n- Risk: spec ambiguity about where codex/protocol material lives for arbitrary projects. Mitigation:\n  coordinate with spec enrichment WP to define canonical sources and avoid repo coupling."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

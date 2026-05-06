@@ -1,0 +1,80 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-FEMS-Write-Time-Safeguards-v1",
+  "base_wp_id": "WP-1-FEMS-Write-Time-Safeguards",
+  "created_at_utc": "2026-04-08T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-FEMS-Write-Time-Safeguards-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-FEMS-Write-Time-Safeguards-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-FEMS-Write-Time-Safeguards-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "478b61d701afed3d04e4ac4224bc6299c998f74271adb4fe170ac9be577a4701",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Front-End-Memory-System"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "",
+    "roadmap_add_coverage": "SPEC=v02.179; PHASE=7.6.3; LINES=TBD"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement four mechanical write-time safeguards in the FEMS validation step that run without LLM calls: novelty scoring, supersession, contradiction detection, and dedup. Ports battle-tested patterns from repo governance memory write-time guards.\n- Why: Without write-time guards, the LongTermMemory store bloats with duplicates, contradictions accumulate silently, and stale procedural items persist alongside their replacements. These checks are cheap (FTS5 + metadata comparison), fast, and prevent problems that are expensive to fix later in consolidation.",
+    "scope_sketch": "- IN_SCOPE:\n  - Novelty scoring: FTS5 near-duplicate check at MemoryWriteProposal validation time. If a proposed item closely matches an existing item (same scope_ref, high FTS5 similarity), apply a 0.3x importance penalty. Log in MemoryCommitReport warnings.\n  - Supersession: when a new procedural item targets the same scope_ref as an existing one, automatically mark the old item as superseded (status change via FR-EVT-MEM-005). The old item remains in store but is excluded from MemoryPack compilation.\n  - Contradiction detection: when a new item has the same scope_ref but different content/summary than an existing item, flag both as conflicted. Route to DCC conflict queue rather than silently overwriting.\n  - Dedup: exact match on (memory_class + type + scope_refs + summary hash) → skip the write entirely. Log as skipped in MemoryCommitReport.\n  - All four guards run in the validate step of the FEMS write path, before any LLM-based consolidation.\n  - Auto-validation against current state (VS Code Copilot pattern): at pack-build time, check that scope_refs still resolve to existing entities. If referenced file/entity is deleted or substantially changed, auto-flag the memory item. Cheap (file existence + mtime check), prevents injecting memories about deleted features.\n  - JSONL audit trail (BEADS dual-layer pattern): every memory mutation (write, supersede, flag, tombstone) emits a JSONL line alongside the SQLite write. JSONL log is includable in debug bundles and Flight Recorder evidence exports. SQLite is speed, JSONL is audit.\n- OUT_OF_SCOPE:\n  - LLM-based consolidation (that's the consolidate step, not validate).\n  - Anti-poisoning trust segmentation (WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1).\n  - Hygiene manager scheduling (WP-1-FEMS-Hygiene-Manager-Job-v1).",
+    "acceptance_criteria": "- Duplicate MemoryWriteProposal ops are skipped with logged rationale.\n- Near-duplicate items receive novelty penalty visible in MemoryCommitReport.\n- Superseded items are excluded from subsequent MemoryPack compilations.\n- Contradictions are flagged and routed to DCC conflict queue, not silently overwritten.\n- All four guards execute without LLM calls (pure mechanical).\n- Write path latency increase from guards is <10ms per proposal.",
+    "risks_unknowns": "- Risk: over-aggressive novelty scoring suppresses legitimately similar but distinct items. Threshold needs tuning.\n- Risk: FTS5 similarity may not catch semantic duplicates that use different wording. Acceptable for Phase 1; embedding-based dedup is Phase 2."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

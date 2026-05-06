@@ -1,0 +1,82 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Software-Delivery-Governance-Overlay-Boundary-v1",
+  "base_wp_id": "WP-1-Software-Delivery-Governance-Overlay-Boundary",
+  "created_at_utc": "2026-04-17T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Governance-Overlay-Boundary-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Governance-Overlay-Boundary-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Governance-Overlay-Boundary-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "949cb0143adb074ec46d5c84bfe200987103e23c442a4b5e7530a5e07e06ed09",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Product-Governance-Artifact-Registry",
+      "WP-1-Product-Governance-Check-Runner",
+      "WP-1-Governance-Pack"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.181.md 7.6.3 (Phase 1) -> [ADD v02.181] Software-delivery governance overlay boundary",
+    "roadmap_add_coverage": "SPEC=v02.181; PHASE=7.6.3; LINES=47940,48043"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and later implement the boundary that keeps repository `/.GOV/**` artifacts as imported software-delivery overlay source material or evidence while product-owned runtime records and workflow-backed governed actions remain the live authority.\n- Why: The new software-delivery overlay law in `v02.181` is explicit that repo governance material may be imported, projected, exported, and evidenced, but it may not silently become the operational source of truth inside Handshake runtime.",
+    "scope_sketch": "- IN_SCOPE:\n  - Imported-overlay boundary rules for repository `/.GOV/**` artifacts used by software-delivery governance flows.\n  - Canonical distinction between:\n    - imported overlay source material\n    - imported overlay evidence\n    - product-owned runtime authority\n  - Governance Pack import/export behavior that preserves imported overlay artifacts without bypassing workflow-backed runtime law.\n  - Projection and audit rules that let Dev Command Center and related surfaces show imported overlay posture without elevating repo paths into live authority.\n- OUT_OF_SCOPE:\n  - Executing imported governance checks or scripts.\n  - Replacing Handshake-native governance with repository files.\n  - Generalized non-software governance-pack work outside the software-delivery overlay boundary.",
+    "acceptance_criteria": "- At least one workflow-backed software-delivery flow preserves repository `/.GOV/**` artifacts as imported overlay source material or evidence instead of live runtime truth.\n- Governance Pack import/export preserves those overlay artifacts without allowing them to bypass product-owned workflow and gate law.\n- Runtime and UI projections can explain which overlay artifacts were imported and why, while still treating product-owned records and governed actions as operational authority.",
+    "risks_unknowns": "- Risk: imported repo artifacts leak back into product runtime as de facto authority because a projection or export path reuses repo state directly.\n- Risk: the software-delivery overlay flattens broader Handshake governance layers if the boundary is defined as a one-way import rather than an additive profile-specific overlay."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

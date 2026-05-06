@@ -1,0 +1,84 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Software-Delivery-Overlay-Coordination-Records-v1",
+  "base_wp_id": "WP-1-Software-Delivery-Overlay-Coordination-Records",
+  "created_at_utc": "2026-04-17T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Overlay-Coordination-Records-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Overlay-Coordination-Records-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Overlay-Coordination-Records-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "34cb80503244efcc8d71f552feec11a806ffea9d30acf39cfd508c4b56a88527",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Role-Mailbox-Executor-Routing-Claim-Lease",
+      "WP-1-Role-Mailbox-Triage-Queue-Controls",
+      "WP-1-Project-Agnostic-Workflow-State-Registry",
+      "WP-1-Workflow-Transition-Automation-Registry",
+      "WP-1-Governance-Workflow-Mirror"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.181.md 7.6.3 (Phase 1) -> [ADD v02.181] Overlay coordination records",
+    "roadmap_add_coverage": "SPEC=v02.181; PHASE=7.6.3; LINES=47944,48047"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and later implement explicit software-delivery overlay coordination records for claim/lease posture and queued steering or follow-up posture so takeover, deferred steering, and actor-eligibility decisions are modeled by stable identifiers.\n- Why: `v02.181` adds a software-delivery overlay layer for ownership and queued follow-up semantics. Those decisions can no longer hide in comments, thread order, or ad hoc operator memory.",
+    "scope_sketch": "- IN_SCOPE:\n  - Coordination-record schemas for:\n    - claimant identity and actor kind\n    - claim mode and lease posture\n    - takeover legality\n    - queued steering or follow-up instructions\n    - deferred escalation and renewal posture\n  - Joins from coordination records into Work Packet, Task Board, Role Mailbox, and DCC projections.\n  - Stable-id rules that keep transcript order and advisory comments from becoming ownership truth.\n- OUT_OF_SCOPE:\n  - General mailbox feature work already owned by triage or executor-routing stubs.\n  - Free-form human assignment comments as authority.\n  - Non-software project kernels.",
+    "acceptance_criteria": "- At least one software-delivery work item exposes overlay claim/lease posture and queued steering or follow-up posture by stable identifiers.\n- Operators can determine who may act next, whether takeover is legal, and which deferred instruction remains pending without replaying mailbox chronology.\n- Task Board, Role Mailbox, and DCC projections can explain coordination posture without owning it.",
+    "risks_unknowns": "- Risk: claim/lease state and queued follow-up state drift apart if they are modeled in separate surfaces without one canonical coordination record.\n- Risk: software-delivery coordination rules get overfit to current repo workflows and fail to remain additive over the broader Handshake runtime."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

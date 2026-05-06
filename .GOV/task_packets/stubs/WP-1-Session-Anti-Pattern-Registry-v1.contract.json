@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Session-Anti-Pattern-Registry-v1",
+  "base_wp_id": "WP-1-Session-Anti-Pattern-Registry",
+  "created_at_utc": "2026-02-25T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Session-Anti-Pattern-Registry-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Session-Anti-Pattern-Registry-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Session-Anti-Pattern-Registry-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "207ae7c5a6f3080155c1ad1a7f6ab3a484f2618d202c37c2ef9fb616020aaa36",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.138.md 7.6.3 (Phase 1) -> key risk hardening for ADD v02.137 multi-session orchestration.",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Convert the session anti-pattern list into a concrete Phase 1 guardrail registry with deterministic IDs, detection signals, and clear policy outcomes.\n- Why: Without a machine-readable anti-pattern registry, spawn/permission/session safety risks can reappear as silent regressions.",
+    "scope_sketch": "- IN_SCOPE:\n  - Define a canonical anti-pattern registry format for session orchestration risks.\n  - Map each anti-pattern to detection source(s): scheduler checks, trust-boundary validation, and capability-gate outcomes.\n  - Define required policy outcomes per anti-pattern (deny, downgrade, require consent, force stop) and required Flight Recorder evidence.\n- OUT_OF_SCOPE:\n  - Full runtime implementation of all detectors.\n  - Cross-workspace or multi-operator session routing enablement.\n  - Phase 2+ autonomy expansions.",
+    "acceptance_criteria": "- A versioned anti-pattern registry exists with stable IDs and severity levels for each session anti-pattern.\n- Each anti-pattern entry includes: trigger condition, enforcement action, and required event evidence.\n- Registry coverage explicitly includes spawn abuse, trust-boundary violations, and unauthorized escalation patterns.",
+    "risks_unknowns": "- Risk: over-broad rules can block legitimate workflows unless policy outcomes are tiered.\n- Risk: under-specified triggers create non-deterministic enforcement between local and CI checks."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -14,12 +14,12 @@
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": null,
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:01:55.944Z",
+    "generated_at_utc": "2026-05-06T15:57:13.081Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-FR-ModelSessionId-v1/refinement.md",
     "projection_hash": "fd176eb250704577",
     "source_file": ".GOV/task_packets/WP-1-FR-ModelSessionId-v1/packet.json",
-    "source_hash": "76be40be7aeab017",
+    "source_hash": "8296d65c37457f53",
     "status": "GENERATED_IN_SYNC"
   },
   "red_team": {
@@ -36,7 +36,9 @@
     "acceptance_criteria": [],
     "approved_spec_enrichment": [],
     "assumptions": [],
+    "clearly_covers_verdict": "PASS",
     "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "enrichment_needed": "NO",
     "microtask_plan": [],
     "non_goals": [],
     "operator_request": "WP-1-FR-ModelSessionId-v1",
@@ -44,6 +46,9 @@
     "spec_anchors": [
       "Handshake_Master_Spec_v02.179.md 11.5.1 FlightRecorderEventBase (model_session_id field)"
     ],
+    "stub_wp_ids": "NONE",
+    "user_approval_evidence": "APPROVE REFINEMENT WP-1-FR-ModelSessionId-v1",
+    "user_review_status": "APPROVED",
     "user_signature": "ilja060420260754"
   },
   "schema_id": "hsk.refinement_contract@1",

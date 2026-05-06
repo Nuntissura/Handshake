@@ -14,12 +14,12 @@
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": null,
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:01:56.087Z",
+    "generated_at_utc": "2026-05-06T15:57:13.382Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Session-Spawn-Contract-v1/refinement.md",
     "projection_hash": "986f95aabdc4f9af",
     "source_file": ".GOV/task_packets/WP-1-Session-Spawn-Contract-v1/packet.json",
-    "source_hash": "c0e1d4026ea2bf52",
+    "source_hash": "26267df5e6075ca7",
     "status": "GENERATED_IN_SYNC"
   },
   "red_team": {
@@ -36,7 +36,9 @@
     "acceptance_criteria": [],
     "approved_spec_enrichment": [],
     "assumptions": [],
+    "clearly_covers_verdict": "PASS",
     "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "enrichment_needed": "NO",
     "microtask_plan": [],
     "non_goals": [],
     "operator_request": "WP-1-Session-Spawn-Contract-v1",
@@ -44,6 +46,9 @@
     "spec_anchors": [
       "Handshake_Master_Spec_v02.179.md 4.3.9.15 Session Spawn Contract and Lifecycle (Normative) [ADD v02.137]"
     ],
+    "stub_wp_ids": "WP-1-Session-Spawn-Tree-DCC-Visualization-v1, WP-1-Session-Spawn-Conversation-Distillation-v1",
+    "user_approval_evidence": "APPROVE REFINEMENT WP-1-Session-Spawn-Contract-v1",
+    "user_review_status": "APPROVED",
     "user_signature": "ilja060420260114"
   },
   "schema_id": "hsk.refinement_contract@1",

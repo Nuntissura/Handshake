@@ -1,0 +1,85 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-ModelSession-Postgres-Queue-Workers-v1",
+  "base_wp_id": "WP-1-ModelSession-Postgres-Queue-Workers",
+  "created_at_utc": "2026-05-05T17:55:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-ModelSession-Postgres-Queue-Workers-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-ModelSession-Postgres-Queue-Workers-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-ModelSession-Postgres-Queue-Workers-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "0f4384ad4ca7ea487b4b3a977c3b0462991ee3a03d1633e7b65347b38222003f",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "WP-1-Postgres-Dev-Test-Container-Matrix",
+      "WP-1-Postgres-Control-Plane-Leases-Backpressure",
+      "WP-1-ModelSession-Core-Scheduler"
+    ],
+    "blocks": [
+      "WP-1-FEMS-Postgres-Memory-Store",
+      "WP-1-DCC-Postgres-Control-Plane-Projections",
+      "WP-1-Session-Spawn-Tree-DCC-Visualization"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "SPEC_CURRENT ModelSession scheduler and storage portability anchors",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Move ModelSession scheduling work queues, worker claims, session run state, and message/checkpoint persistence onto PostgreSQL as the authoritative runtime store.\n- Why: The control plane must run multiple GPT, Claude, local, and memory-worker sessions in parallel without relying on process-local state or SQLite-only assumptions.",
+    "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL persistence for queued model runs, active workers, session state, messages, checkpoints, and terminal outcomes.\n  - Worker claim/reclaim integration with the shared lease/backpressure primitives.\n  - Provider/model profile fields stored as catalog profile IDs, not ambient CLI aliases.\n  - Tests for parallel workers, cancellation, crash resume, duplicate message prevention, and budget/limit metadata preservation.\n- OUT_OF_SCOPE:\n  - New provider adapters.\n  - UI beyond projection-ready status fields.\n  - FEMS memory content storage, except for linking ModelSession IDs to memory-policy requests.",
+    "acceptance_criteria": "- Multiple worker processes can claim distinct ModelSession queue items without duplicate execution.\n- Session resume reads canonical PostgreSQL state and does not rely on local process memory.\n- Profile IDs, reasoning strength, provider family, and fallback profile are persisted with each session/run.\n- Crash and cancellation paths leave enough state for deterministic DCC and Flight Recorder projection.",
+    "risks_unknowns": "- Risk: current scheduler tests may encode SQLite/local assumptions; activation should include negative-path tests before implementation.\n- Unknown: whether each provider worker should own a separate queue partition or use a shared queue with profile filters."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Postgres-MCP-Durable-Progress-v1",
+  "base_wp_id": "WP-1-Postgres-MCP-Durable-Progress",
+  "created_at_utc": "2026-03-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Postgres-MCP-Durable-Progress-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Postgres-MCP-Durable-Progress-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Postgres-MCP-Durable-Progress-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "2dbf437b5c060e89a31e291cce80a4292d135515e30bf584f407a9258070e29e",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Storage-Abstraction-Layer",
+      "WP-1-Migration-Framework",
+      "WP-1-Dual-Backend-Tests"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Audit remediation against Handshake_Master_Spec_v02.139.md (dual-backend + MCP durability)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Make MCP durable progress mapping work on Postgres (and portable across DBs) so MCP tool calls do not fail under Postgres.\n- Why: Current Postgres backend returns NotImplemented for MCP durable fields; the MCP gate requires these updates, creating a hard protocol failure risk in a dual-backend world.",
+    "scope_sketch": "- IN_SCOPE:\n  - Add a portable side-table (recommended) to store MCP job fields, avoiding backend-specific ALTER TABLE:\n    - `ai_job_mcp_fields(job_id PRIMARY KEY REFERENCES ai_jobs(id), mcp_server_id, mcp_call_id, mcp_progress_token)`\n  - Implement the `Database` trait methods for BOTH backends:\n    - update_ai_job_mcp_fields(job_id, update)\n    - get_ai_job_mcp_fields(job_id)\n    - find_ai_job_id_by_mcp_progress_token(token)\n  - Add conformance tests that run under sqlite + postgres CI to prevent regressions.\n- OUT_OF_SCOPE:\n  - Broader MCP schema refactors unrelated to durable progress mapping.",
+    "acceptance_criteria": "- Under Postgres, MCP tool-call flows that require progress token durability succeed end-to-end.\n- The new schema is migration-backed and portable (no runtime DDL).\n- A targeted test fails if Postgres durable mapping is removed or returns NotImplemented.",
+    "risks_unknowns": "- Backward compatibility: existing SQLite columns may require a one-time data backfill into side-table."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

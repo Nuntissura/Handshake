@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-MTE-LoRA-Wiring-v1",
+  "base_wp_id": "WP-1-MTE-LoRA-Wiring",
+  "created_at_utc": "2026-03-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-MTE-LoRA-Wiring-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-MTE-LoRA-Wiring-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-MTE-LoRA-Wiring-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "bb0d26332c46560630b28342cfedfd57ed9d7da617aa98bd31e0eedf99d07e68",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "MEDIUM",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Micro-Task-Executor",
+      "WP-1-LLM-Core"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Audit remediation against Handshake_Master_Spec_v02.139.md (LoRA selection must be effective)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Make LoRA selection actually affect the provider request path by adding an optional lora_id field and plumbing it end-to-end.\n- Why: Current code tracks lora_id in state but the LLM request has no LoRA field, making selection a no-op and violating spec intent.",
+    "scope_sketch": "- IN_SCOPE:\n  - Extend the LLM completion request envelope with optional lora_id (or equivalent adapter identifier).\n  - Plumb through provider clients and logs (leak-safe).\n  - Add targeted tests asserting the selected LoRA is included in requests (or mocked provider receives it).\n- OUT_OF_SCOPE:\n  - Training/build automation and LoRA lifecycle management (separate track).",
+    "acceptance_criteria": "- Selecting a LoRA at runtime results in a request annotated with that LoRA.\n- A targeted test fails if lora_id is dropped before reaching the client boundary.",
+    "risks_unknowns": "- Provider feature parity: some providers may not support LoRA; must be explicit and test-gated."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Global-Silent-Edit-Guard",
+  "base_wp_id": "WP-1-Global-Silent-Edit-Guard",
+  "created_at_utc": "2026-01-08",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Global-Silent-Edit-Guard.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Global-Silent-Edit-Guard.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Global-Silent-Edit-Guard.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "4f2970e78039f7757e4ade07f4224e2cf9927a9217ad244f4ecdbe718067f9ba",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.102.md 7.6.3 item 23 ([ADD v02.102] Global Silent Edit Guard (WP-1-Global-Silent-Edit-Guard))",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Enforce the \"No Silent Edits\" invariant at the storage boundary so AI-authored writes are rejected unless they carry valid job/workflow context and persisted MutationMetadata.\n- Why: Prevent untraceable AI mutations; make audit/debug bundles and provenance reliable and enforceable.",
+    "scope_sketch": "- IN_SCOPE:\n  - Implement/finish the StorageGuard policy enforcement for all persistence writes (documents/blocks/canvas/etc):\n    - If actor is AI, require non-null job_id and workflow_id.\n    - Generate and persist a unique edit_event_id per mutation.\n    - Emit normalized diagnostics on rejection (`HSK-403-SILENT-EDIT`).\n  - Ensure required MutationMetadata columns exist and are populated on every write path (schema + application enforcement).\n  - Ensure violations surface in Operator Consoles Problems/Evidence (diagnostics + trace linkage).\n- OUT_OF_SCOPE:\n  - User-facing editor UX work beyond minimal error surfacing.\n  - Multi-user attribution rules (Phase 4).",
+    "acceptance_criteria": "- Any attempted AI write without job_id/workflow_id is rejected deterministically with `HSK-403-SILENT-EDIT`.\n- All AI-authored content rows contain non-null last_job_id/last_workflow_id and a stable edit_event_id.\n- At least one end-to-end rewrite flow shows MutationMetadata persisted and discoverable via diagnostics and Flight Recorder linkage.",
+    "risks_unknowns": "- Cross-cutting surface area: multiple write paths may bypass a single guard call if not audited carefully.\n- Schema requirements may differ between SQLite and PostgreSQL; must remain portable."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

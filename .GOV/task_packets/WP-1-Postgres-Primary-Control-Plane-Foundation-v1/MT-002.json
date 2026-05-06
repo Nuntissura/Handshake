@@ -22,7 +22,7 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:01:56.011Z",
+    "generated_at_utc": "2026-05-06T15:57:13.284Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/MT-002.md",
     "projection_hash": "431dead1db3e2793",

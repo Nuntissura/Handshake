@@ -6,8 +6,8 @@ import { spawn, spawnSync } from "node:child_process";
 import {
   REPO_ROOT,
   repoPathAbs,
-  resolveWorkPacketPath,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../../../roles_shared/scripts/lib/work-packet-contract-read-lib.mjs";
 import {
   parseJsonFile,
   parseJsonlFile,
@@ -101,18 +101,18 @@ function loadRescueGuardContext(targetWpId = "") {
       guardContextStatus: "NO_WP_SCOPE",
     };
   }
-  const resolved = resolveWorkPacketPath(normalizedWpId);
-  if (!resolved?.packetAbsPath || !fs.existsSync(resolved.packetAbsPath)) {
+  const packetContext = buildWorkPacketCommunicationView(normalizedWpId);
+  if (!packetContext.ok || !packetContext.packetAbsPath || !fs.existsSync(packetContext.packetAbsPath)) {
     return {
       downtimeEvaluation: null,
       pendingNotifications: [],
       guardContextStatus: "PACKET_MISSING",
     };
   }
-  const packetText = fs.readFileSync(resolved.packetAbsPath, "utf8");
-  const workflowLane = parseSingleField(packetText, "WORKFLOW_LANE");
-  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const packetText = packetContext.packetText || fs.readFileSync(packetContext.packetAbsPath, "utf8");
+  const workflowLane = packetContext.workflowLane || parseSingleField(packetText, "WORKFLOW_LANE");
+  const runtimeStatusFile = packetContext.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsFile = packetContext.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
   const runtimeStatus = runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
     ? parseJsonFile(runtimeStatusFile)
     : {};

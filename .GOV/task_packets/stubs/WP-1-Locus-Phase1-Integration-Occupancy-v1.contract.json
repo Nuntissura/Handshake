@@ -1,0 +1,85 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Locus-Phase1-Integration-Occupancy-v1",
+  "base_wp_id": "WP-1-Locus-Phase1-Integration-Occupancy",
+  "created_at_utc": "2026-03-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Locus-Phase1-Integration-Occupancy-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Locus-Phase1-Integration-Occupancy-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Locus-Phase1-Integration-Occupancy-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "383b499ee8ab23d97fcea1016b7040897db64d6a0da4c51653119054cd2903d9",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Micro-Task-Executor",
+      "WP-1-Spec-Router-SpecPromptCompiler",
+      "WP-1-Workflow-Engine",
+      "WP-1-Flight-Recorder",
+      "WP-1-Storage-Abstraction-Layer"
+    ],
+    "blocks": [
+      "WP-1-Locus-Phase1-QueryContract-Autosync",
+      "WP-1-Locus-Phase1-Medallion-Search"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Audit remediation against Handshake_Master_Spec_v02.139.md (Locus integration points + MT occupancy)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Wire Locus into Spec Router and Micro-Task Executor and implement MT occupancy tracking for parallel sessions.\n- Why: Without integration, Locus is an unused side subsystem; occupancy is required to make parallel sessions safe and observable.",
+    "scope_sketch": "- IN_SCOPE:\n  - Add `active_session_ids: string[]` to tracked micro-task state.\n  - Add mechanical ops: locus_bind_session_v1 / locus_unbind_session_v1.\n  - Spec Router integration: auto locus_create_wp (and updates) for created/updated WPs.\n  - Micro-Task Executor integration: locus_start_mt / locus_record_iteration / locus_complete_mt calls in the loop.\n- OUT_OF_SCOPE:\n  - Postgres Locus parity (separate decision/strategy stub).\n  - Medallion and hybrid search (separate stub).",
+    "acceptance_criteria": "- Running a WP through Spec Router + MT Executor produces Locus storage rows for WP/MT/iterations.\n- active_session_ids reflects reality for parallel sessions (bind/unbind on session start/end).",
+    "risks_unknowns": "- Event ordering and idempotency across crashes; must be designed as replay-safe operations."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

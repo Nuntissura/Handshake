@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Workspace-Safety-Parallel-Sessions-v1",
+  "base_wp_id": "WP-1-Workspace-Safety-Parallel-Sessions",
+  "created_at_utc": "2026-02-24T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Workspace-Safety-Parallel-Sessions-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Workspace-Safety-Parallel-Sessions-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Workspace-Safety-Parallel-Sessions-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "c27cad434b935d1e650b969980700681e97286b61ca54eee9aaa9e32e301440f",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Session-Spawn-Contract",
+      "WP-1-Session-Scoped-Capabilities-Consent-Gate",
+      "WP-1-Terminal-LAW",
+      "WP-1-Unified-Tool-Surface-Contract"
+    ],
+    "blocks": [
+      "WP-1-Dev-Command-Center-Control-Plane-Backend"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.137.md 7.6.3 (Phase 1) -> item 33 (workspace safety boundaries for parallel writes)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Enforce workspace safety boundaries for parallel sessions: worktree isolation and/or strict file-scope locks, deny-by-default cross-session access, command denylist, and merge-back discipline.\n- Why: Parallel sessions touching the same repo/workspace can silently overwrite or conflict without deterministic isolation and fail-closed execution rules.",
+    "scope_sketch": "- IN_SCOPE:\n  - Isolation strategy:\n    - Support worktree isolation (preferred) and/or file-scope lock isolation (fallback).\n  - Enforcement:\n    - INV-WS-001 in-scope path enforcement (no writes outside declared IN_SCOPE_PATHS).\n    - INV-WS-003 deny cross-session access to another session’s uncommitted worktree by default.\n    - Command denylist enforced by Tool Gate for spawned/background sessions (destructive git ops, rm -rf outside scope, and governance artifact modification bypass).\n  - Merge-back discipline:\n    - Session produces merge-ready diff/patch artifact with provenance.\n    - Merge-back is explicit operator-governed action with Flight Recorder logging; conflicts surface as BLOCKED with explicit conflict report.\n- OUT_OF_SCOPE:\n  - Non-git worksurface isolation (Design Studio entity locking) (Phase 2+).",
+    "acceptance_criteria": "- With 2 sessions on the same workspace, overlapping writes are deterministically prevented (worktree isolation or lock block) with explicit errors and evidence.\n- Spawned/background sessions cannot run denied destructive commands without per-invocation approval.\n- Merge-back is explicit and produces Flight Recorder evidence; merge conflicts are not silently resolved.",
+    "risks_unknowns": "- Risk: incomplete scope derivation for sessions/MTs makes enforcement noisy; may require explicit scoping UX/workflow in DCC."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

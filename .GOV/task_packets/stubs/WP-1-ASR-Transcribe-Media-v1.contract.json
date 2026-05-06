@@ -1,0 +1,82 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-ASR-Transcribe-Media-v1",
+  "base_wp_id": "WP-1-ASR-Transcribe-Media",
+  "created_at_utc": "2026-03-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "c4e7d7ec2dda81946d45c4f7d99e7091e1469b6229291151397683cfa7ba94cf",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "MEDIUM",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Workflow-Engine",
+      "WP-1-MEX-v1.2-Runtime",
+      "WP-1-Artifact-System-Foundations"
+    ],
+    "blocks": [
+      "WP-1-Video-Archive-Loom-Integration"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "N/A (Enables transcript search and video archive utility)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement a local-first ASR transcription job for audio/video media, producing time-aligned transcripts that become searchable workspace entities.\n- Why: Video archive value depends on searchability; captions are often missing or low quality, so an ASR fallback is required.",
+    "scope_sketch": "- IN_SCOPE:\n  - JobKind + workflow execution:\n    - Implement `asr_transcribe` as a Workflow Engine job (no UI bypass).\n    - Extract audio from video deterministically (ffmpeg) as needed.\n  - Outputs:\n    - Persist transcript outputs as artifacts (e.g., JSON + readable text) with provenance and timing metadata.\n    - Provide a path to attach transcript text to LoomBlocks (Document link or derived.full_text_index) to support Loom search.\n  - Safety:\n    - Capability gating for `proc.exec:*` and any model/tool invocation.\n    - No cloud transcription by default (opt-in only).\n  - Observability:\n    - Flight Recorder events for job lifecycle, segment/chunk progress, and output artifact refs.\n- OUT_OF_SCOPE:\n  - Real-time/live captioning.\n  - Accessibility-grade caption guarantees (WCAG compliance requires human review).",
+    "acceptance_criteria": "- Given a video file with no captions, running ASR produces a transcript artifact with timestamps and makes it searchable via Loom search.\n- Given a video with captions, the system can skip ASR and ingest captions into searchable text (optional fast-path).\n- Jobs are cancellable, resumable where feasible, capability-gated, and leak-safe in logs/events.",
+    "risks_unknowns": "- Performance and memory for long videos; need chunking strategy and bounded resources.\n- Transcript size/indexing cost; may require chunked indexing and retention policy."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

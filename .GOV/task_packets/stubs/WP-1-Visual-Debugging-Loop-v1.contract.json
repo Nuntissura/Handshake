@@ -1,0 +1,80 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Visual-Debugging-Loop-v1",
+  "base_wp_id": "WP-1-Visual-Debugging-Loop",
+  "created_at_utc": "2026-04-06T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "e7c521856929e4d96a23046d1f3d10ee2793010d61785cf7e69ce4db8ecf542a",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Product-Screenshot-Visual-Validation"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Visual validation loop for GUI-bearing WPs",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement the generate-capture-compare-fix visual debugging loop for GUI WPs. After a coder commits GUI changes, the post-commit hook captures a screenshot, compares against the design baseline or previous screenshot, identifies visual discrepancies, and sends the visual diff to the validator alongside the code diff. The validator reviews both code and visual output. If visual mismatch exceeds threshold, the coder receives STEER with visual regression details.\n- Why: Based on Kimi K2.5 visual debugging loop pattern. Code diffs alone cannot reveal visual regressions. Governed coders working on GUI WPs need automated visual feedback to catch layout breaks, styling mismatches, and rendering issues that pass code review but fail visual inspection. This loop closes the gap between code correctness and visual correctness.",
+    "scope_sketch": "- IN_SCOPE:\n  - Post-commit screenshot capture trigger for GUI-bearing WPs.\n  - Visual comparison against baseline (pixel diff or structural comparison).\n  - Visual diff artifact stored in governance artifact system.\n  - Validator receives visual evidence alongside code diff.\n  - Visual quality threshold configuration per WP.\n  - Tauri app headless/test mode for automated screenshots.\n- OUT_OF_SCOPE:\n  - Screenshot capture tool itself (WP-1-Product-Screenshot-Visual-Validation-v1).\n  - Design library or component registry.\n  - Video recording or screen recording.",
+    "acceptance_criteria": "- Post-commit hook triggers screenshot capture for WPs tagged as GUI-bearing.\n- Visual comparison produces a diff artifact highlighting discrepancies against the baseline.\n- Visual diff artifact is stored in the governance artifact system with WP and commit metadata.\n- Validator session receives both code diff and visual diff for review.\n- Visual mismatch exceeding the configured threshold triggers a STEER to the coder with regression details.\n- Visual quality threshold is configurable per WP in the task packet or refinement.",
+    "risks_unknowns": "- Risk: Pixel-level comparison may produce false positives from anti-aliasing, font rendering differences, or minor layout shifts across runs.\n- Risk: Headless/test-mode rendering in Tauri may differ from interactive rendering, causing phantom regressions.\n- Risk: Visual threshold tuning may require significant iteration to balance sensitivity vs. noise.\n- Unknown: Whether structural comparison (DOM-based) or pixel comparison is more reliable for detecting meaningful visual regressions in the Tauri + React stack."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

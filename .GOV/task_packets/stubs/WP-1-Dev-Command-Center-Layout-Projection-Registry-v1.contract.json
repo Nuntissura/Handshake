@@ -1,0 +1,83 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Dev-Command-Center-Layout-Projection-Registry-v1",
+  "base_wp_id": "WP-1-Dev-Command-Center-Layout-Projection-Registry",
+  "created_at_utc": "2026-03-10T01:53:38.217Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Layout-Projection-Registry-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Layout-Projection-Registry-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Layout-Projection-Registry-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "35a4dad6c2a6463b0ba2bf28309a9f410c2eef8e7c45c92463bb76c60b464c71",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "FRONTEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Dev-Command-Center-MVP",
+      "WP-1-Dev-Command-Center-Structured-Artifact-Viewer",
+      "WP-1-Structured-Collaboration-Artifact-Family",
+      "WP-1-Structured-Collaboration-Schema-Registry"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.170.md 7.6.3 (Phase 1) -> [ADD v02.170] Dev Command Center typed viewer, board layout, and queue projection",
+    "roadmap_add_coverage": "SPEC=v02.170; PHASE=7.6.3; LINES=46844"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and later implement the registry of Dev Command Center layout presets, lane definitions, grouping rules, and governed action bindings for board, queue, list, roadmap, inbox-triage, and execution-queue operating views.\n- Why: Handshake needs a typed layout layer so Jira-like or novel operator boards can evolve without turning drag behavior, queue ordering, or quick actions into hidden workflow authority.",
+    "scope_sketch": "- IN_SCOPE:\n  - Versioned `DevCommandCenterViewPresetV1` preset registry for board, queue, list, roadmap, inbox-triage, and execution-queue layouts.\n  - Stable `TaskBoardLaneDefinitionV1` and `ProjectionActionBindingV1` registration, validation, and lookup.\n  - Dev Command Center layout switching that reveals the authoritative fields, grouping keys, lane rules, and governed action previews behind each view.\n  - Local-small-model execution queues and mailbox triage layouts that stay compact-summary-first and field-addressable.\n- OUT_OF_SCOPE:\n  - Replacing the canonical structured collaboration schema family.\n  - Direct synchronization with external products such as Jira.\n  - Ad hoc layout-local mutations that bypass workflow, approval, or evidence rules.",
+    "acceptance_criteria": "- Versioned presets exist for board, queue, list, roadmap, inbox triage, and execution queue layouts over the same canonical record family.\n- Drag, reorder, quick, and bulk actions show explicit action bindings, target records, approvals, and evidence posture before state changes.\n- Layout fallback remains usable when only the base structured-collaboration envelope is available.\n- Local-small-model queues remain compact-summary-first and expose mailbox blockers, escalation needs, and validation posture without long-form record ingestion.",
+    "risks_unknowns": "- Layout sprawl can recreate hidden state if preset ids and action bindings are not versioned and linted.\n- Board metaphors from Jira or other products can overfit software-delivery projects and weaken project-agnostic reuse.\n- Queue and board views may diverge unless preset fallbacks and group-by rules are centralized in one registry."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

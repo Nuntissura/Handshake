@@ -22,7 +22,7 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T15:01:55.900Z",
+    "generated_at_utc": "2026-05-06T15:57:13.024Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/MT-004.md",
     "projection_hash": "8ee2848e1e801107",

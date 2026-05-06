@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/packet.json source_hash=66d6c8b3cee18fe2 projection_hash=84a2975146b3d223 generated_at_utc=2026-05-06T15:01:56.101Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/packet.json source_hash=66d6c8b3cee18fe2 projection_hash=84a2975146b3d223 generated_at_utc=2026-05-06T15:57:13.393Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

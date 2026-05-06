@@ -21,6 +21,62 @@
 
 ## Entries
 
+### 2026.05.06.30 / GOV-CHANGE-20260506-30
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-289` by adding typed machine-readable packet-stub contracts, wiring new stub creation to emit `.contract.json`, generating contracts for all existing stubs, adding a drift check to the packet truth bundle, and updating the flat legacy inventory so stubs are classified as typed non-execution planning authority.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs`
+  - `.GOV/roles_shared/checks/task-packet-stub-contract-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles_shared/checks/packet-truth-bundle-check.mjs`
+  - `.GOV/task_packets/stubs/WP-*.contract.json`
+  - `.GOV/roles_shared/scripts/wp/flat-packet-legacy-inventory.mjs`
+  - `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `justfile`
+- VALIDATION: ran implementation commands `just task-packet-stub-contracts --all` and `just flat-packet-legacy-inventory`; full `just gov-check` not run in this slice.
+- RISKS:
+  - Stub contracts are non-execution authority by design; apps must not activate Coder/Validator from them.
+  - Existing build-order/stub checks may still parse stub Markdown until migrated to the new stub contracts.
+
+### 2026.05.06.29 / GOV-CHANGE-20260506-29
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-287`/`RGF-289` by extending the contract importer to include flat official packets, running `just wp-contract-import --all`, and regenerating the flat legacy inventory. All flat official packets now have folder-based `packet.json` authority plus generated `packet.md` projections; frozen flat Markdown remains as legacy reference. The inventory now reports `0` unpaired legacy-authority flat packets.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/task_packets/WP-*/packet.json`
+  - `.GOV/task_packets/WP-*/packet.md`
+  - `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: ran implementation commands `just wp-contract-import --all` and `just flat-packet-legacy-inventory`; full `just gov-check` not run in this slice.
+- RISKS:
+  - Packet stubs remain classified as `STUB_NOT_EXECUTION_AUTHORITY` and still need a typed stub/import/freeze policy.
+  - The importer repaired existing folder projections while importing flat packets, so the diff is broad and should be validated before closure.
+
+### 2026.05.06.28 / GOV-CHANGE-20260506-28
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by migrating rescue guard context, WP timeline artifact loading, workflow dossier sync/timeline data, and post-run audit skeleton generation to resolve packet communication fields through the shared contract-first packet view before Markdown projection fallback.
+- CHANGED:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - These paths still pass packet projection text into downstream evaluators where evaluator APIs have not yet accepted contract-native inputs.
+  - Alternate-root dossier execution keeps legacy fallback for compatibility until a repo-root aware contract reader exists.
+
 ### 2026.05.06.27 / GOV-CHANGE-20260506-27
 - STATUS: APPLIED
 - AREA: Repo Governance

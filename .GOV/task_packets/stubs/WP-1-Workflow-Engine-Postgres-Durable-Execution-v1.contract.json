@@ -1,0 +1,86 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Workflow-Engine-Postgres-Durable-Execution-v1",
+  "base_wp_id": "WP-1-Workflow-Engine-Postgres-Durable-Execution",
+  "created_at_utc": "2026-05-05T17:55:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Workflow-Engine-Postgres-Durable-Execution-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Workflow-Engine-Postgres-Durable-Execution-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Workflow-Engine-Postgres-Durable-Execution-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "d9f04ec880f0430bac96ec7bf129307dd789bd00c1878499cb5f8cfab58cdf2a",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "WP-1-Postgres-Dev-Test-Container-Matrix",
+      "WP-1-Postgres-Control-Plane-Leases-Backpressure",
+      "WP-1-Workflow-Engine",
+      "WP-1-Migration-Framework"
+    ],
+    "blocks": [
+      "WP-1-DCC-Postgres-Control-Plane-Projections",
+      "WP-1-Workflow-Transition-Automation-Registry",
+      "WP-1-Workflow-Projection-Correlation"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "SPEC_CURRENT workflow durable execution and storage portability anchors",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Move workflow-engine durable execution state, checkpoints, node outcomes, retries, and resumability metadata onto PostgreSQL-primary storage.\n- Why: The self-hosting control plane needs workflows and AI jobs to survive process restarts and coordinate with ModelSession queues through the same authoritative database.",
+    "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL persistence for workflow instance state, node execution state, checkpoint payloads, retry counters, and terminal outcomes.\n  - Integration with shared lease/backpressure primitives for runnable workflow work.\n  - Migration-backed schema and tests for crash recovery, resume idempotence, retry bounds, and stale-lease recovery.\n  - Explicit retention and artifact-link fields for Flight Recorder and DCC projections.\n- OUT_OF_SCOPE:\n  - New workflow node types.\n  - Operator UI redesign.\n  - Replacing structured collaboration artifact mirrors.",
+    "acceptance_criteria": "- Workflow execution can stop and resume from PostgreSQL state without replaying completed nodes incorrectly.\n- Parallel workflow workers cannot execute the same node claim concurrently.\n- Retry and terminal failure states are queryable for DCC/runtime truth projection.\n- SQLite use, if any, is cache/offline/index scoped and not the workflow runtime authority.",
+    "risks_unknowns": "- Risk: existing workflow contracts may still say SQLite durable execution; activation should include spec enrichment before code work if the Master Spec is not yet updated.\n- Unknown: checkpoint payload size and retention policy may require artifact indirection rather than storing all payload bytes in PostgreSQL."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}
