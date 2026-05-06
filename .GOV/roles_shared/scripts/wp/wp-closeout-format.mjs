@@ -13,10 +13,13 @@
  */
 
 import fs from "node:fs";
-import { REPO_ROOT, repoPathAbs } from "../lib/runtime-paths.mjs";
+import {
+  REPO_ROOT,
+  repoPathAbs } from "../lib/runtime-paths.mjs";
 import {
   buildWorkPacketCommunicationView,
   updateWorkPacketLifecycleContract,
+  writeWorkPacketProjectionWithLifecycleSync,
 } from "../lib/work-packet-contract-read-lib.mjs";
 import { parseJsonFile, validateRuntimeStatus } from "../lib/wp-communications-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
@@ -183,7 +186,12 @@ if (closureCount > 0) {
   changes++;
 }
 
-fs.writeFileSync(packetAbsPath, content, "utf8");
+writeWorkPacketProjectionWithLifecycleSync({
+  wpId,
+  projectionText: content,
+  generator: "wp-closeout-format.mjs",
+  fallbackAbsPath: packetAbsPath,
+});
 const packetLifecycleWrite = updateWorkPacketLifecycleContract({
   wpId,
   projectionText: content,

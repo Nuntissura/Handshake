@@ -5195,6 +5195,12 @@
 
 
 
+### GOV-CHANGE-20260506-42
+- TASKS: RGF-297
+- SUMMARY: Resolved the residual packet Markdown writer candidates from the generated inventory. The closeout formatter now writes packet projections through the shared lifecycle-sync helper, and the inventory records shared helper projection/fallback writes as explicit contract-sync or legacy fallback boundaries. The residual writer inventory now reports 142 writer calls, zero unclassified entries, and zero migration candidates.
+- FILES: .GOV/roles_shared/scripts/audit/residual-artifact-writer-inventory.mjs; .GOV/roles_shared/scripts/wp/wp-closeout-format.mjs; .GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - residual-artifact-writer-inventory-check; just gov-check --sync-topology; just gov-check.
+
 ### GOV-CHANGE-20260506-41
 - TASKS: RGF-297
 - SUMMARY: Started the residual artifact writer migration audit by adding a deterministic scanner, generated machine-readable inventory, and gov-check enforcement. The baseline inventory classifies 143 governance writer calls with zero unclassified entries and four packet Markdown projection migration candidates.

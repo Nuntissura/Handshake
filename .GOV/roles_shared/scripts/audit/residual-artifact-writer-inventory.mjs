@@ -142,6 +142,26 @@ function classifyWriter({ relPath = "", line = "", context = "", operation = "",
     };
   }
 
+  if (normalizedPath.endsWith("/work-packet-contract-read-lib.mjs") && haystack.includes("folderpaths.packetabspath")) {
+    return {
+      artifact_class: "PACKET_CONTRACT_IMPORT_PROJECTION",
+      authority_class: "CONTRACT_SYNC_PROJECTION_WRITER",
+      risk_class: "MEDIUM",
+      migration_status: "PROVEN_CONTRACT_SYNC_HELPER",
+      rationale: "The import helper writes packet.md as a generated projection paired with packet.json contract metadata.",
+    };
+  }
+
+  if (normalizedPath.endsWith("/work-packet-contract-read-lib.mjs") && haystack.includes("fallbackabspath")) {
+    return {
+      artifact_class: "LEGACY_PACKET_MARKDOWN_FALLBACK",
+      authority_class: "EXPLICIT_LEGACY_COMPATIBILITY_FALLBACK",
+      risk_class: "MEDIUM",
+      migration_status: "PROVEN_LEGACY_FALLBACK_BOUNDARY",
+      rationale: "The shared contract writer falls back to Markdown only when a primary folder contract cannot be resolved; this is the governed legacy boundary.",
+    };
+  }
+
   if (haystack.includes("fallbackabspath") || haystack.includes("packetabspath") || haystack.includes("packet.md") || haystack.includes("nextpackettext")) {
     return {
       artifact_class: "WORK_PACKET_MARKDOWN_PROJECTION",
