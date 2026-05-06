@@ -11,6 +11,7 @@
  *   - merge-progression-truth-check.mjs
  *   - task-packet-claim-check.mjs
  *   - packet-contract-projection-check.mjs
+ *   - flat-packet-legacy-inventory-check.mjs
  */
 
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
@@ -25,6 +26,7 @@ const failures = runBundledChecks(import.meta.url, [
   "merge-progression-truth-check.mjs",
   "task-packet-claim-check.mjs",
   "packet-contract-projection-check.mjs",
+  "flat-packet-legacy-inventory-check.mjs",
 ]);
 
 if (failures.length > 0) {
