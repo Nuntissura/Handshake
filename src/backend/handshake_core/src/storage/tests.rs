@@ -3466,6 +3466,16 @@ fn sqlite_cache_mode_is_not_control_plane_authority() -> StorageResult<()> {
 
 #[tokio::test]
 async fn database_trait_purity_capability_snapshot_reports_postgres() -> StorageResult<()> {
+    assert!(ControlPlaneStorageMode::PostgresPrimary.is_control_plane_authority());
+    assert_eq!(
+        ControlPlaneStorageMode::PostgresPrimary.authority_label(),
+        "primary_authority"
+    );
+    assert_eq!(
+        ControlPlaneStorageMode::PostgresPrimary.freshness_label(),
+        "current_source_of_truth"
+    );
+
     if postgres_test_url().is_none() {
         return Ok(());
     }
