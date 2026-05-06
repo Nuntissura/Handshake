@@ -5195,6 +5195,12 @@
 
 
 
+### GOV-CHANGE-20260506-40
+- TASKS: RGF-296
+- SUMMARY: Started projection hash enforcement closure by strengthening the existing contract projection validator. Generated packet/refinement/MT projections must now keep required Markdown projection metadata and header values in parity with the primary JSON contract, including path, source file, source hash, projection hash, generated timestamp, and generator.
+- FILES: .GOV/roles_shared/scripts/lib/packet-contract-lib.mjs; .GOV/roles_shared/checks/packet-contract-projection-check.mjs; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - packet-contract-projection-check; just gov-check --sync-topology; just gov-check.
+
 ### GOV-CHANGE-20260506-39
 - TASKS: RGF-296; RGF-297; RGF-298; RGF-299; RGF-300
 - SUMMARY: Recorded the next governance-machine-readability implementation queue after the packet writer and topology bootstrap batches. The new taskboard items cover projection hash enforcement closure, residual artifact writer migration audit, full script inventory reconciliation, phase bundle diagnosis hardening, and Justfile/leaf surface reduction execution.

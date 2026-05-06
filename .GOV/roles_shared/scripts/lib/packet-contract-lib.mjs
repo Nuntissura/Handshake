@@ -109,15 +109,38 @@ export function parseGeneratedProjectionHeader(markdown = "") {
   return values;
 }
 
+function requiredMetadataError(field, location) {
+  return `${location}: markdown_projection.${field} is required for enforced generated projection checks`;
+}
+
+function isIsoTimestamp(value = "") {
+  const text = String(value || "").trim();
+  return Boolean(text && !Number.isNaN(Date.parse(text)) && /\d{4}-\d{2}-\d{2}T/.test(text));
+}
+
 export function validateContractProjectionPair({ contract = {}, projectionText = "", contractPath = "", projectionPath = "" } = {}) {
   const errors = [];
   if (!contract || typeof contract !== "object" || Array.isArray(contract)) {
     return ["contract must be an object"];
   }
   const projection = contract.markdown_projection || {};
+  const normalizedProjectionPath = normalizeContractPath(projectionPath || projection.path || "");
+  const normalizedProjectionPathFromContract = normalizeContractPath(projection.path || "");
+  const normalizedSourceFile = normalizeContractPath(projection.source_file || "");
   const status = String(projection.status || "").trim().toUpperCase();
   if (status !== "GENERATED_IN_SYNC") {
     errors.push(`${contractPath}: markdown_projection.status must be GENERATED_IN_SYNC for enforced projection checks`);
+  }
+  for (const field of ["path", "source_file", "source_hash", "projection_hash", "generated_at_utc", "generator"]) {
+    if (!String(projection[field] || "").trim()) {
+      errors.push(requiredMetadataError(field, contractPath || "<contract>"));
+    }
+  }
+  if (normalizedProjectionPath && normalizedProjectionPathFromContract && normalizedProjectionPathFromContract !== normalizedProjectionPath) {
+    errors.push(`${contractPath}: markdown_projection.path drift (expected ${normalizedProjectionPath}, found ${normalizedProjectionPathFromContract})`);
+  }
+  if (!isIsoTimestamp(projection.generated_at_utc)) {
+    errors.push(`${contractPath}: markdown_projection.generated_at_utc must be an ISO timestamp`);
   }
   const expectedSourceHash = contractSourceHash(contract);
   const expectedProjectionHash = projectionBodyHash(projectionText);
@@ -134,11 +157,20 @@ export function validateContractProjectionPair({ contract = {}, projectionText =
     if (header.schema_id !== String(contract.schema_id || "")) {
       errors.push(`${projectionPath || projection.path || "<projection>"}: header schema_id drift (expected ${contract.schema_id || "<missing>"}, found ${header.schema_id || "<missing>"})`);
     }
+    if (header.source_file !== normalizedSourceFile) {
+      errors.push(`${projectionPath || projection.path || "<projection>"}: header source_file drift (expected ${normalizedSourceFile || "<missing>"}, found ${header.source_file || "<missing>"})`);
+    }
     if (header.source_hash !== expectedSourceHash) {
       errors.push(`${projectionPath || projection.path || "<projection>"}: header source_hash drift (expected ${expectedSourceHash}, found ${header.source_hash || "<missing>"})`);
     }
     if (header.projection_hash !== expectedProjectionHash) {
       errors.push(`${projectionPath || projection.path || "<projection>"}: header projection_hash drift (expected ${expectedProjectionHash}, found ${header.projection_hash || "<missing>"})`);
+    }
+    if (header.generated_at_utc !== String(projection.generated_at_utc || "").trim()) {
+      errors.push(`${projectionPath || projection.path || "<projection>"}: header generated_at_utc drift (expected ${projection.generated_at_utc || "<missing>"}, found ${header.generated_at_utc || "<missing>"})`);
+    }
+    if (header.generator !== String(projection.generator || "").trim()) {
+      errors.push(`${projectionPath || projection.path || "<projection>"}: header generator drift (expected ${projection.generator || "<missing>"}, found ${header.generator || "<missing>"})`);
     }
   }
   return errors;

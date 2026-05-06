@@ -75,7 +75,7 @@ for (const contractAbs of contracts) {
 }
 
 if (violations.length > 0) {
-  failWithMemory("packet-contract-projection-check.mjs", "Packet contract projection drift detected", {
+  failWithMemory("packet-contract-projection-check.mjs", "Generated contract projection drift detected", {
     role: "SHARED",
     details: violations,
   });
