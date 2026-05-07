@@ -201,19 +201,19 @@
     }
   ],
   "public_surface_summary": {
-    "total_surfaces": 782,
+    "total_surfaces": 785,
     "counts_by_kind": {
       "AGENTS_CONTRACT": 1,
-      "GOVERNANCE_CHECK": 89,
+      "GOVERNANCE_CHECK": 90,
       "GOVERNANCE_DOC": 74,
       "GOVERNANCE_RECORD": 20,
-      "GOVERNANCE_SCRIPT": 218,
+      "GOVERNANCE_SCRIPT": 219,
       "GOVERNANCE_TEMPLATE": 18,
       "GOVERNANCE_TEST": 126,
       "JUST_RECIPE": 208,
       "JUSTFILE": 1,
       "MACHINE_READABLE_CONTRACT": 13,
-      "MACHINE_READABLE_RECORD": 3,
+      "MACHINE_READABLE_RECORD": 4,
       "ROLE_PROTOCOL": 11
     },
     "counts_by_owner_role": {
@@ -227,7 +227,7 @@
       "MEMORY_MANAGER": 13,
       "OPERATOR": 4,
       "ORCHESTRATOR": 58,
-      "SHARED": 629,
+      "SHARED": 632,
       "VALIDATOR": 39,
       "WP_VALIDATOR": 4
     },
@@ -237,7 +237,7 @@
       "CANONICAL_SUB_BUNDLE": 6,
       "COMPATIBILITY_ALIAS": 38,
       "CONTRACT_AUTHORITY": 12,
-      "INTERNAL_HELPER": 306,
+      "INTERNAL_HELPER": 309,
       "INTERNAL_TEST": 126,
       "MACHINE_PROJECTION": 1,
       "PUBLIC_LEAF_BASELINED": 120,
@@ -1840,6 +1840,27 @@
       "last_verified_at_utc": null
     },
     {
+      "surface_id": "file:.GOV/roles_shared/checks/public-surface-consolidation-check.mjs",
+      "path": ".GOV/roles_shared/checks/public-surface-consolidation-check.mjs",
+      "surface_kind": "GOVERNANCE_CHECK",
+      "owner_role": "SHARED",
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "phase": "CHECK",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "GOV_CHECK_SUBSTEP_OR_DIRECT_CHECK",
+      "just_recipes": [],
+      "entrypoint_status": "INTERNAL_HELPER",
+      "replacement_bundle": "just gov-check",
+      "primary_debug_artifact": "gov_runtime/check_details.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "just gov-check",
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:54bbdb7b4feb5d5a7b94d5f637b3d3b18594160bda91366eb4bd86f511072680",
+      "last_verified_at_utc": null
+    },
+    {
       "surface_id": "file:.GOV/roles_shared/checks/README.md",
       "path": ".GOV/roles_shared/checks/README.md",
       "surface_kind": "GOVERNANCE_DOC",
@@ -2326,7 +2347,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:bc3ff8be5ddcb7ab3e7878900aeaf30abebe1678d46e2411af172b5d6603bf29",
+      "source_hash": "sha256:d05b0691defdf593301e15e69344645744c98c1e598825c2908a24aecb99ef53",
       "last_verified_at_utc": null
     },
     {
@@ -3355,6 +3376,26 @@
       "last_verified_at_utc": null
     },
     {
+      "surface_id": "file:.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json",
+      "path": ".GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json",
+      "surface_kind": "MACHINE_READABLE_RECORD",
+      "owner_role": "SHARED",
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "phase": "GENERAL",
+      "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
+      "public_exposure": "INTERNAL_PATH",
+      "just_recipes": [],
+      "entrypoint_status": "INTERNAL_HELPER",
+      "replacement_bundle": "just gov-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:f93a0f7d29378e8cd09dcc953fe9e0eabb1886946f8f52b0c4b9ce31f413b4dc",
+      "last_verified_at_utc": null
+    },
+    {
       "surface_id": "file:.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md",
       "path": ".GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md",
       "surface_kind": "GOVERNANCE_RECORD",
@@ -3371,7 +3412,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:4daa4ca2e98b1e2271ac726719a603e3e229e7789ff20b72a78170f4597458ae",
+      "source_hash": "sha256:6a9d6300e2af392b49a620fe0e952528434e4902a987fb8f62b11190477f1a5d",
       "last_verified_at_utc": null
     },
     {
@@ -3531,7 +3572,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:b70706887aeef00e05e7601492b9e4001706969bb15cc26c6323c2f9649e2544",
+      "source_hash": "sha256:b4d350cf3c2da021a49bd5a0c35aa30e50155044fc31f93ea3cd3e5fd28f0fde",
       "last_verified_at_utc": null
     },
     {
@@ -3551,7 +3592,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:0808cd03fd5dc70c6fd840aff6995a3fe348f228ecbc328d7294008d4c8acdf3",
+      "source_hash": "sha256:36082e8480cb140271ca8b5aed4fe922297af7723e13ff29a2c970f880d5a282",
       "last_verified_at_utc": null
     },
     {
@@ -6716,6 +6757,26 @@
         "governance-topology-check"
       ],
       "source_hash": "sha256:206af6a697137c7725f7bd5a39937c9af0e0ebcc26dd05695a602a936a31a214",
+      "last_verified_at_utc": null
+    },
+    {
+      "surface_id": "file:.GOV/roles_shared/scripts/topology/public-surface-consolidation.mjs",
+      "path": ".GOV/roles_shared/scripts/topology/public-surface-consolidation.mjs",
+      "surface_kind": "GOVERNANCE_SCRIPT",
+      "owner_role": "SHARED",
+      "authority_boundary": "REPO_GOVERNANCE_SHARED",
+      "phase": "TOPOLOGY",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "public_exposure": "INTERNAL_PATH",
+      "just_recipes": [],
+      "entrypoint_status": "INTERNAL_HELPER",
+      "replacement_bundle": "just gov-check",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "contract_authority": "CX-912_TOPOLOGY_INVENTORY",
+      "validation_coverage": [
+        "governance-topology-check"
+      ],
+      "source_hash": "sha256:bad196b4b131da08756fb467419f022e3b8de4ab1b71b80990fe19aa36072e4e",
       "last_verified_at_utc": null
     },
     {
@@ -17441,5 +17502,5 @@
       "last_verified_at_utc": null
     }
   ],
-  "projection_hash": "sha256:a6ea1ae3362dc57432a1db0f0bcabc7a43e193545204166c7aa5079d0dbd037b"
+  "projection_hash": "sha256:dedc89c1e752b353932f5eeb3f207646425d669657b79e300b9148d7f95ec9e7"
 }

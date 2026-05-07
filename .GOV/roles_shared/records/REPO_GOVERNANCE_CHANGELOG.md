@@ -21,6 +21,15 @@
 
 ## Entries
 
+### 2026.05.07.03 / GOV-CHANGE-20260507-03
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Started RGF-300 Justfile/public leaf surface reduction execution by adding a deterministic public surface consolidation ledger and topology-bundle check. The ledger classifies canonical entries, compatibility aliases, baselined public recipes/leaves, contract authorities, consolidation groups, replacement bundles, primary debug artifacts, and removal gates before any public command is retired.
+- Contract impact: New public governance surfaces now have a generated consolidation ledger that gov-check can enforce. Public recipes/leaves are kept usable while touched surfaces are routed toward canonical bundles or explicitly retained with metadata.
+- Files changed: `.GOV/roles_shared/scripts/topology/public-surface-consolidation.mjs`, `.GOV/roles_shared/checks/public-surface-consolidation-check.mjs`, `.GOV/roles_shared/checks/topology-bundle-check.mjs`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
 ### 2026.05.06.37 / GOV-CHANGE-20260506-37
 
 - Status: RECORDED
