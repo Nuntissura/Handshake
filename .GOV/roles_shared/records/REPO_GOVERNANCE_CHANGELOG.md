@@ -21,6 +21,15 @@
 
 ## Entries
 
+### 2026.05.07.06 / GOV-CHANGE-20260507-06
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Hardened RGF-299 phase-bundle failure dossiers by making topology row ids and memory-capture status explicit required fields on every failure dossier row.
+- Contract impact: `appendFailureDossierEntry` now validates the required dossier schema before appending JSONL, renders topology/memory status into the Markdown projection, and `runSubprocessCheckStep` records that bundle-level memory capture is delegated to subcheck fail-capture hooks rather than duplicating raw logs into memory.
+- Files changed: `.GOV/roles_shared/scripts/lib/check-result-lib.mjs`, `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/tests/check-result-lib.test.mjs`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node --test .GOV/roles_shared/tests/check-result-lib.test.mjs`; `just gov-check --sync-topology`; `just gov-check`.
+
 ### 2026.05.07.05 / GOV-CHANGE-20260507-05
 
 - Status: APPLIED

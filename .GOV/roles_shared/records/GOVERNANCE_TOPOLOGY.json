@@ -165,7 +165,9 @@
       "invariant",
       "suspected_cause_category",
       "remediation_hint",
-      "related_topology_rows"
+      "related_topology_rows",
+      "topology_row_ids",
+      "memory_capture_status"
     ]
   },
   "implementation_plan": [
@@ -3426,7 +3428,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:ada3daa4655c21d04ca5e3072540b76ecb751809ba94a2c2164342ec7e93a647",
+      "source_hash": "sha256:5fb753a017b0cc83050e902d873a7d22d2b376b1fd5b6c22284881d54c083d20",
       "last_verified_at_utc": null
     },
     {
@@ -3586,7 +3588,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:587db882da0ea81f2dde38c784e4cce293fb46ad1958e4e5d460987c2f866dde",
+      "source_hash": "sha256:6a500b008ea61a4cf646cfde52baea63b082cde26cf607f8ad09601465f5b5ae",
       "last_verified_at_utc": null
     },
     {
@@ -3606,7 +3608,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:76fa207740bd64645d7e01c9ddf7a6a31b042bee2256be27cbf796b482a44455",
+      "source_hash": "sha256:72056d434eae4151db16e644e7615d0a3b5e710030706e6600ecdc5f4975485a",
       "last_verified_at_utc": null
     },
     {
@@ -4490,7 +4492,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:12e18577cdc4b25a59f8117c2de9c1a9e488d5211b775929c6efe79d7aa291db",
+      "source_hash": "sha256:fcbee2e0e368dcbe96b00bb04a593da96d694d52f8b60b7aa3dff9bb09d5841b",
       "last_verified_at_utc": null
     },
     {
@@ -4630,7 +4632,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:8d4ca9bc0cdfb1850408ac03fbb4cd9b34208c7e567833c2a6e2fbc49e0ac2b4",
+      "source_hash": "sha256:eb29f0a4b7602fbf0e13f02f1dfb149b6b1bbc7761541aa4cd36100f866df38e",
       "last_verified_at_utc": null
     },
     {
@@ -7688,7 +7690,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:5ed0be5fbafb413ca35a244c0412569138400954dfe7b6e5fbcaf4d615962332",
+      "source_hash": "sha256:b99ea14f65ae3284d2a07c61d50616d8ced9d596b9ca60fc89b81d7c1704e874",
       "last_verified_at_utc": null
     },
     {
@@ -17516,5 +17518,5 @@
       "last_verified_at_utc": null
     }
   ],
-  "projection_hash": "sha256:8105639a1a753e364c1608061562c1969affad72577f617044e468ee837d08fb"
+  "projection_hash": "sha256:dc5ac1447219a05d5920591f78d989b6293186ff63f0440f615b45eb14aa82cb"
 }

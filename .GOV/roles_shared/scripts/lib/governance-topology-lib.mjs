@@ -760,6 +760,8 @@ export function buildGovernanceTopology() {
         "suspected_cause_category",
         "remediation_hint",
         "related_topology_rows",
+        "topology_row_ids",
+        "memory_capture_status",
       ],
     },
     implementation_plan: [

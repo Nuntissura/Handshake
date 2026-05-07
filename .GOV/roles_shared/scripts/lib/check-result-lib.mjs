@@ -12,6 +12,34 @@ export const CHECK_RESULT_VERDICTS = new Set(["OK", "WARN", "FAIL"]);
 export const CHECK_RESULT_SUMMARY_MAX_CHARS = 120;
 export const PHASE_BUNDLE_FAILURE_DOSSIER_SCHEMA_ID = "handshake.gov.phase_bundle_failure_dossier";
 export const PHASE_BUNDLE_FAILURE_DOSSIER_SCHEMA_VERSION = "phase_bundle_failure_dossier_v1";
+export const PHASE_BUNDLE_FAILURE_DOSSIER_REQUIRED_FIELDS = [
+  "run_id",
+  "timestamp",
+  "wp_id",
+  "phase",
+  "bundle",
+  "substep_id",
+  "command",
+  "owner_role",
+  "side_effect_class",
+  "cwd",
+  "env_summary",
+  "exit_code",
+  "duration_ms",
+  "stdout_artifact",
+  "stderr_artifact",
+  "artifact_refs",
+  "wp_dossier_root",
+  "wp_dossier_index",
+  "workflow_postmortem_ref",
+  "debug_artifact",
+  "invariant",
+  "suspected_cause_category",
+  "remediation_hint",
+  "related_topology_rows",
+  "topology_row_ids",
+  "memory_capture_status",
+];
 
 function normalizeVerdict(verdict) {
   const normalized = String(verdict || "").trim().toUpperCase();
@@ -188,6 +216,39 @@ function boundedText(value = "", maxChars = 2000) {
   return `${text.slice(0, Math.max(0, limit - 3))}...`;
 }
 
+function normalizeMemoryCaptureStatus(value = null) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return {
+      status: String(value.status || "UNKNOWN").trim() || "UNKNOWN",
+      owner: String(value.owner || "").trim() || null,
+      detail: String(value.detail || "").trim() || null,
+    };
+  }
+  return {
+    status: "NOT_ATTEMPTED_BY_BUNDLE_RUNNER",
+    owner: "SUBCHECK_FAIL_CAPTURE_HOOKS_OR_OPERATOR_REVIEW",
+    detail: "The bundle failure dossier records artifact refs and bounded excerpts; high-signal memory capture is owned by subcheck fail hooks or explicit operator/session capture.",
+  };
+}
+
+export function validateFailureDossierEntry(entry = {}) {
+  const missing = PHASE_BUNDLE_FAILURE_DOSSIER_REQUIRED_FIELDS
+    .filter((field) => !Object.prototype.hasOwnProperty.call(entry, field));
+  if (missing.length > 0) {
+    throw new Error(`failure dossier entry missing required field(s): ${missing.join(", ")}`);
+  }
+  if (!entry.memory_capture_status || typeof entry.memory_capture_status !== "object" || Array.isArray(entry.memory_capture_status)) {
+    throw new Error("failure dossier entry memory_capture_status must be an object");
+  }
+  if (!String(entry.memory_capture_status.status || "").trim()) {
+    throw new Error("failure dossier entry memory_capture_status.status is required");
+  }
+  if (!Array.isArray(entry.topology_row_ids)) {
+    throw new Error("failure dossier entry topology_row_ids must be an array");
+  }
+  return true;
+}
+
 export function failureDossierRootPath({ runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS } = {}) {
   return path.join(path.resolve(runtimeRootAbs), "roles_shared", "failure_dossiers");
 }
@@ -271,6 +332,8 @@ function renderFailureDossierMarkdown(entries = []) {
     lines.push(`- Exit code: ${entry.exit_code}`);
     lines.push(`- Duration ms: ${entry.duration_ms}`);
     lines.push(`- Debug artifact: ${entry.debug_artifact || "NONE"}`);
+    lines.push(`- Topology rows: ${(entry.topology_row_ids || entry.related_topology_rows || []).join(", ") || "NONE"}`);
+    lines.push(`- Memory capture: ${entry.memory_capture_status?.status || "UNKNOWN"}`);
     lines.push(`- Suspected cause: ${entry.suspected_cause_category || "UNKNOWN"}`);
     lines.push(`- Remediation hint: ${entry.remediation_hint || "Inspect the JSONL row and linked artifacts."}`);
     lines.push("");
@@ -392,6 +455,7 @@ export function appendFailureDossierEntry({
   suspectedCauseCategory = "CHECK_FAILURE",
   remediationHint = "Inspect the linked stdout/stderr artifacts and the related topology rows.",
   relatedTopologyRows = [],
+  memoryCaptureStatus = null,
   runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS,
   wpId = "",
 } = {}) {
@@ -406,6 +470,7 @@ export function appendFailureDossierEntry({
     stdoutArtifact ? { kind: "stdout", path: stdoutArtifact } : null,
     stderrArtifact ? { kind: "stderr", path: stderrArtifact } : null,
   ].filter(Boolean);
+  const topologyRowIds = Array.isArray(relatedTopologyRows) ? relatedTopologyRows.map((row) => String(row)) : [];
   const entry = {
     schema_id: PHASE_BUNDLE_FAILURE_DOSSIER_SCHEMA_ID,
     schema_version: PHASE_BUNDLE_FAILURE_DOSSIER_SCHEMA_VERSION,
@@ -435,8 +500,11 @@ export function appendFailureDossierEntry({
     invariant: String(invariant || "").trim() || null,
     suspected_cause_category: String(suspectedCauseCategory || "").trim() || "CHECK_FAILURE",
     remediation_hint: String(remediationHint || "").trim() || null,
-    related_topology_rows: Array.isArray(relatedTopologyRows) ? relatedTopologyRows.map((row) => String(row)) : [],
+    related_topology_rows: topologyRowIds,
+    topology_row_ids: topologyRowIds,
+    memory_capture_status: normalizeMemoryCaptureStatus(memoryCaptureStatus),
   };
+  validateFailureDossierEntry(entry);
   entry.entry_id = crypto.createHash("sha256").update(JSON.stringify(entry)).digest("hex").slice(0, 16);
   fs.mkdirSync(path.dirname(failureDossierLogPath({ runtimeRootAbs, wpId })), { recursive: true });
   fs.appendFileSync(failureDossierLogPath({ runtimeRootAbs, wpId }), `${JSON.stringify(entry)}\n`, "utf8");
@@ -528,6 +596,11 @@ export function runSubprocessCheckStep({
         suspectedCauseCategory,
         remediationHint,
         relatedTopologyRows,
+        memoryCaptureStatus: {
+          status: "DELEGATED_TO_SUBCHECK_FAIL_CAPTURE_HOOKS",
+          owner: "SUBCHECK_OR_FAIL_CAPTURE_HOOK",
+          detail: "Bundle runner stores artifacts and bounded excerpts in the dossier; subchecks with fail hooks capture procedural memory without duplicating stdout/stderr logs.",
+        },
         runtimeRootAbs,
         wpId,
       });
