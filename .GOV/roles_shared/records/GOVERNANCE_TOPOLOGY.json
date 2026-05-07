@@ -233,7 +233,7 @@
     },
     "counts_by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
-      "CANONICAL_PUBLIC_ENTRY": 10,
+      "CANONICAL_PUBLIC_ENTRY": 14,
       "CANONICAL_SUB_BUNDLE": 6,
       "COMPATIBILITY_ALIAS": 20,
       "CONTRACT_AUTHORITY": 12,
@@ -241,7 +241,7 @@
       "INTERNAL_TEST": 126,
       "MACHINE_PROJECTION": 1,
       "PUBLIC_LEAF_BASELINED": 120,
-      "PUBLIC_RECIPE_BASELINED": 178
+      "PUBLIC_RECIPE_BASELINED": 174
     },
     "public_recipe_count": 208,
     "public_leaf_groups": [
@@ -612,13 +612,10 @@
           "just:launch-coder-session",
           "just:launch-memory-manager",
           "just:launch-memory-manager-session",
-          "just:session-cancel",
-          "just:session-close",
-          "just:session-start",
           "just:wp-receipt-append",
           "just:wp-thread-append"
         ],
-        "count": 9
+        "count": 6
       },
       {
         "owner_role": "SHARED",
@@ -658,7 +655,6 @@
           "just:session-reclaim-terminals",
           "just:session-registry-status",
           "just:session-scan-orphan-terminals",
-          "just:session-send",
           "just:session-stall-scan",
           "just:wp-communication-health-check",
           "just:wp-invalidity-flag",
@@ -673,7 +669,7 @@
           "just:wp-token-usage",
           "just:wp-token-usage-settle"
         ],
-        "count": 45
+        "count": 44
       },
       {
         "owner_role": "SHARED",
@@ -1875,7 +1871,7 @@
         "just gov-check",
         "governance-topology-check"
       ],
-      "source_hash": "sha256:4c16f4908008c162525ac0c8148665ad240c6f291af2625764266c719a0389ad",
+      "source_hash": "sha256:9fc920db198a07a1692ac0ff54dbd755e563db489a8f9f8f5fd0d7208045af1b",
       "last_verified_at_utc": null
     },
     {
@@ -2682,7 +2678,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:49e84361f6cef5a8344e36b1e0e099539f623218ac83144b5de2ffb670525b48",
+      "source_hash": "sha256:5b8ea4a3c9e5a59827c3874681b964cdb87fda354c87038150ee96354b75d97c",
       "last_verified_at_utc": null
     },
     {
@@ -3022,7 +3018,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:5cc243d427c4bc8ecd7549d6deb05302252acde2e1c929dda670d624b9d499f6",
+      "source_hash": "sha256:20e0c8656ef259c8810305bccb1b671d0c66055b0afeb7fb37f2619b1b28daa0",
       "last_verified_at_utc": null
     },
     {
@@ -3042,7 +3038,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:016372b370abaca06abbddcab84544fd6a93dc3e015ee7bdcdf0f855059144e2",
+      "source_hash": "sha256:1e2be5d6a4d903158bc60f91db57ec1fbd0c458c8c4ab19c2743c7344607da03",
       "last_verified_at_utc": null
     },
     {
@@ -3410,7 +3406,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:ba1c2c6d61485f266507357f88fefd9327e2a0b785f8d3bdec79d7ca54eec3eb",
+      "source_hash": "sha256:614c92b498c2d71ade48380e52e5be4fa657bff37653bf2762608b1c8920d4c1",
       "last_verified_at_utc": null
     },
     {
@@ -3430,7 +3426,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:1155eb47edae05a438b5f8eb8ed147a67ee6221c31e18b9aec2ce5924d1669a7",
+      "source_hash": "sha256:ada3daa4655c21d04ca5e3072540b76ecb751809ba94a2c2164342ec7e93a647",
       "last_verified_at_utc": null
     },
     {
@@ -3590,7 +3586,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:1d486a8f87190a563e9624aeed0dfd568d8f790d761dc5ee03946502c10344d3",
+      "source_hash": "sha256:587db882da0ea81f2dde38c784e4cce293fb46ad1958e4e5d460987c2f866dde",
       "last_verified_at_utc": null
     },
     {
@@ -3610,7 +3606,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:33404203120ff42b2b8db3310bd8320b9e1abb9cd8003d9bee9359023ba5c3b4",
+      "source_hash": "sha256:76fa207740bd64645d7e01c9ddf7a6a31b042bee2256be27cbf796b482a44455",
       "last_verified_at_utc": null
     },
     {
@@ -4634,7 +4630,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:eb707ffabc125d225d227cbd7930548f563a0eb1d495ddf181b30138fcc52e2a",
+      "source_hash": "sha256:8d4ca9bc0cdfb1850408ac03fbb4cd9b34208c7e567833c2a6e2fbc49e0ac2b4",
       "last_verified_at_utc": null
     },
     {
@@ -9474,7 +9470,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:fecbb87c1a722e0c95956ab96aae521739d3992188a28ffa83381e66e9c6f254",
+      "source_hash": "sha256:02bfae99c8b7586c3debaba76c50c43fc00644b0cfa00dfc9f01f44928b57ae4",
       "last_verified_at_utc": null
     },
     {
@@ -9514,7 +9510,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:1d6342a1ea202cdb83bcc9e67feddc5441c7506811c162c87a81c61702041f50",
+      "source_hash": "sha256:33bfe2b63ddc43d4c8ed121e674dfed90e97dc68b49645795b7125486ee11cd4",
       "last_verified_at_utc": null
     },
     {
@@ -9726,7 +9722,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:ba4c34fdb3deb4551fb6ac391bfa4fd7b170fa8b3498344780c3d23426b3b021",
+      "source_hash": "sha256:2777bfe11dabcd3af1eee87f079536faf9431c05e52cca78e8af508be860d62f",
       "last_verified_at_utc": null
     },
     {
@@ -10552,7 +10548,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:243a8d54cb9ec02b49002f5a3eed444bc08cabf88496fb24791a9efba4830920",
+      "source_hash": "sha256:cf622299e7057a2e80ec05a7499fe21f2f9fa74cc0a9f366c2084991d1bacfb9",
       "last_verified_at_utc": null
     },
     {
@@ -12449,7 +12445,7 @@
       "validation_coverage": [
         "governance-topology-check"
       ],
-      "source_hash": "sha256:dd1968b5b5ad1d5b413ca32a31e7d33aae6cf605cd047a3ddb0575a7d7ea30c3",
+      "source_hash": "sha256:bf3806e403dd33a4bc2e0e1f6bac477d9edb5c7b60b316471808e1de4f627de3",
       "last_verified_at_utc": null
     },
     {
@@ -15617,7 +15613,7 @@
       "just_recipes": [
         "session-cancel"
       ],
-      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
       "replacement_bundle": "just phase-check",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "contract_authority": "CX-912_PUBLIC_SURFACE_CONTRACT",
@@ -15639,7 +15635,7 @@
       "just_recipes": [
         "session-close"
       ],
-      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
       "replacement_bundle": "just phase-check",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "contract_authority": "CX-912_PUBLIC_SURFACE_CONTRACT",
@@ -15749,7 +15745,7 @@
       "just_recipes": [
         "session-send"
       ],
-      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
       "replacement_bundle": "just phase-check",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "contract_authority": "CX-912_PUBLIC_SURFACE_CONTRACT",
@@ -15793,7 +15789,7 @@
       "just_recipes": [
         "session-start"
       ],
-      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
       "replacement_bundle": "just phase-check",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "contract_authority": "CX-912_PUBLIC_SURFACE_CONTRACT",
@@ -17520,5 +17516,5 @@
       "last_verified_at_utc": null
     }
   ],
-  "projection_hash": "sha256:d562cb09a7889073bb712077a507a20cf19acfb1c50072a260cef4fe4f7cead9"
+  "projection_hash": "sha256:8105639a1a753e364c1608061562c1969affad72577f617044e468ee837d08fb"
 }

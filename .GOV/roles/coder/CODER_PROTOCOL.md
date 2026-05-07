@@ -469,9 +469,10 @@ Your startup prompt includes a `FAIL LOG` block â€” **procedural fix patter
 - Orchestrator-only governed session controls (reference only; do not run these from inside a Coder session):
   - `just launch-coder-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]`
   - `AUTO` is the ordinary headless/direct ACP launch path; `SYSTEM_TERMINAL` is a hidden-process repair surface; `CURRENT` and `VSCODE_PLUGIN` are disabled
-  - `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
-  - `just steer-coder-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
-  - `just cancel-coder-session WP-{ID}`
+  - `just session-start CODER WP-{ID} [PRIMARY|FALLBACK]`
+  - `just session-send CODER WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+  - `just session-cancel CODER WP-{ID}`
+  - role-specific coder session recipes remain compatibility aliases for the canonical `session-*` controls
 - Keep authoritative work state in the packet:
   - packet `**Status:**`
   - `## CURRENT_STATE`

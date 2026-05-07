@@ -85,6 +85,10 @@ const CANONICAL_RECIPE_NAMES = new Set([
   "memory-manager-startup",
   "role-startup-topology-check",
   "activation-manager",
+  "session-start",
+  "session-send",
+  "session-cancel",
+  "session-close",
 ]);
 
 const CANONICAL_SCRIPT_BASENAMES = new Set([

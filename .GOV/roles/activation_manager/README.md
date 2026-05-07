@@ -15,10 +15,11 @@ Authoritative folder-placement law for the Activation Manager bundle lives in `.
 
 - governed session-control support now exists for orchestrator-managed pre-launch work:
   - `just launch-activation-manager-session WP-{ID}`
-  - `just start-activation-manager-session WP-{ID}`
-  - `just steer-activation-manager-session WP-{ID} "<prompt>"`
-  - `just cancel-activation-manager-session WP-{ID}`
-  - `just close-activation-manager-session WP-{ID}`
+  - `just session-start ACTIVATION_MANAGER WP-{ID}`
+  - `just session-send ACTIVATION_MANAGER WP-{ID} "<prompt>"`
+  - `just session-cancel ACTIVATION_MANAGER WP-{ID}`
+  - `just session-close ACTIVATION_MANAGER WP-{ID}`
+  - role-specific Activation Manager session recipes remain compatibility aliases for the canonical `session-*` controls
 - the role-local action surface now stays under one recipe: `just activation-manager <startup|prompt|next|readiness|record-refinement|record-signature|record-role-model-profiles|record-prepare|create-task-packet|task-board-set|wp-traceability-set|prepare-and-packet> [WP-{ID}] [...]`
 - current preparation mechanics still live under shared or orchestrator-owned commands
 - manual workflow keeps pre-launch work under the Orchestrator; Activation Manager is the governed pre-launch lane for orchestrator-managed workflow, not a second manual authority path

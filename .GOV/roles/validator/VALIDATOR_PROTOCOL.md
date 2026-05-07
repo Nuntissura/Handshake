@@ -486,12 +486,10 @@ Your startup prompt includes a `FAIL LOG` + `CONTEXT` block â€” **procedura
 - `just launch-wp-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` (operates from the shared coder/WP-validator worktree; the governed launcher reuses that declared worktree if missing)
 - `just launch-integration-validator-session WP-{ID} [AUTO|PRINT|SYSTEM_TERMINAL] [PRIMARY|FALLBACK]` (operates from handshake_main; no worktree-add needed)
 - `AUTO` is the ordinary headless/direct ACP launch path; `SYSTEM_TERMINAL` is hidden-process repair only; `CURRENT` and `VSCODE_PLUGIN` are disabled
-  - `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
-  - `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
-  - `just steer-wp-validator-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
-  - `just steer-integration-validator-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
-  - `just cancel-wp-validator-session WP-{ID}`
-  - `just cancel-integration-validator-session WP-{ID}`
+  - `just session-start WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID} [PRIMARY|FALLBACK]`
+  - `just session-send WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+  - `just session-cancel WP_VALIDATOR|INTEGRATION_VALIDATOR WP-{ID}`
+  - role-specific validator session recipes remain compatibility aliases for the canonical `session-*` controls
 - Hard rule: packet truth still wins. Validation authority remains in the packet, especially `## VALIDATION`, `## EVIDENCE`, and `## VALIDATION_REPORTS`.
 - Do not treat `THREAD.md` or `RUNTIME_STATUS.json` as authority for scope, verdict, or PREPARE assignment.
 

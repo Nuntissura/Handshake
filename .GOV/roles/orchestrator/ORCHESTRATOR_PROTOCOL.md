@@ -578,21 +578,18 @@ The orchestrator owns the governance memory lifecycle [CX-503K]:
 - `VSCODE_PLUGIN` is disabled for governed role launches under the headless-only policy
 - `just manual-relay-next WP-{ID} [--debug]` (`CLASSIC_ORCHESTRATOR` / `MANUAL_RELAY` only)
 - `just manual-relay-dispatch WP-{ID} [PRIMARY|FALLBACK] [--debug]` (`CLASSIC_ORCHESTRATOR` / `MANUAL_RELAY` only)
-- supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `start-*` remains the explicit repair surface when launch could not complete autonomously
+- supported launch hosts must auto-issue the first governed `START_SESSION` on the ordinary path; `session-start` remains the explicit repair surface when launch could not complete autonomously
 - when `session-start` / `session-send` complete or fail, read the printed `outcome_state=` line before assuming launch/steer succeeded or needs another attempt. Treat `ALREADY_READY`, `ACCEPTED_RUNNING`, `ACCEPTED_QUEUED`, and `BUSY_ACTIVE_RUN` as machine states, not prose to reinterpret manually. `ACCEPTED_PENDING` is legacy historical output and should be read as the older pre-split accepted state.
 - Busy `session-send` is now queue-backed: when the broker returns `status=queued` and `outcome_state=ACCEPTED_QUEUED`, the follow-up prompt has already been accepted into the durable busy-session queue. Do not resend the same steer request just because the target lane is still busy.
 - `just orchestrator-steer-next` is queue-aware as well: if it prints `queue_pending=` for the target governed session, treat that as successful duplicate suppression. The queued follow-up already exists; inspect monitor/status surfaces instead of resending another steer.
 - `just orchestrator-next` is queue-aware too: when the projected next actor already has queued governed follow-up, it must classify that as an accepted wait state and point you to status/monitor surfaces instead of recommending another relay wake command.
 - After the single-attempt recovery slice, a surviving `BUSY_ACTIVE_RUN` should be interpreted as a real competing live run for non-queueable operations. Dead-child and expired-timeout residue should no longer require a second operator retry to clear.
 - `session-start` now waits briefly for READY when the first outcome is `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY`; if the lane was already becoming steerable in the same attempt, expect `ALREADY_READY` instead of reflexively retrying launch.
-- `just start-activation-manager-session WP-{ID} [PRIMARY|FALLBACK]`
-- `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
-- `just start-wp-validator-session WP-{ID} [PRIMARY|FALLBACK]`
-- `just start-integration-validator-session WP-{ID} [PRIMARY|FALLBACK]`
-- `just steer-activation-manager-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
-- `just cancel-activation-manager-session WP-{ID}`
+- `just session-start <ROLE> WP-{ID} [PRIMARY|FALLBACK]`
 - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just session-cancel <ROLE> WP-{ID}`
+- `just session-close <ROLE> WP-{ID}`
+- Role-specific `start-*`, `steer-*`, `cancel-*`, and `close-*` session recipes remain compatibility aliases for operator ergonomics; prefer the canonical `session-*` controls in new docs and steering text.
 - `just session-registry-status [WP-{ID}]`
 - `just active-lane-brief <CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR> WP-{ID} [--json]`
 - `just active-lane-brief ...` now also surfaces the declared microtask plan (`active` / `next`) so coder and validator lanes do not have to infer the current MT from scattered receipts.

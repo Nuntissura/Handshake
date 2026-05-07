@@ -237,10 +237,11 @@ ACTIVATION_READINESS
 
 - Governed session-control support now exists for orchestrator-managed pre-launch work through:
   - `just launch-activation-manager-session WP-{ID}`
-  - `just start-activation-manager-session WP-{ID}`
-  - `just steer-activation-manager-session WP-{ID} "<prompt>"`
-  - `just cancel-activation-manager-session WP-{ID}`
-  - `just close-activation-manager-session WP-{ID}`
+  - `just session-start ACTIVATION_MANAGER WP-{ID}`
+  - `just session-send ACTIVATION_MANAGER WP-{ID} "<prompt>"`
+  - `just session-cancel ACTIVATION_MANAGER WP-{ID}`
+  - `just session-close ACTIVATION_MANAGER WP-{ID}`
+  - role-specific Activation Manager session recipes remain compatibility aliases for the canonical `session-*` controls
 - Manual/prompt role-local action surface now exists through one canonical dispatcher:
   - `just activation-manager <startup|prompt|next|readiness> [WP-{ID}] [--write|--json]`
   - `just activation-manager record-refinement WP-{ID} [detail]`

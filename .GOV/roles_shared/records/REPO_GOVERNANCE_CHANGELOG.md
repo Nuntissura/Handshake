@@ -21,6 +21,15 @@
 
 ## Entries
 
+### 2026.05.07.05 / GOV-CHANGE-20260507-05
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Continued RGF-300 by promoting generic governed session controls (`session-start`, `session-send`, `session-cancel`, `session-close`) to canonical public entries while retaining role-specific session recipes as compatibility aliases.
+- Contract impact: New operator, Orchestrator, Activation Manager, Coder, and Validator guidance now points steering/recovery text at the canonical `session-*` controls. `public-surface-consolidation-check` now fails if those controls lose retained-canonical status or if role-specific session aliases stop targeting the canonical session controls.
+- Files changed: `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/checks/public-surface-consolidation-check.mjs`, `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`, `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/activation_manager/README.md`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, and `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`.
+- Verification: PASS - `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
 ### 2026.05.07.04 / GOV-CHANGE-20260507-04
 
 - Status: APPLIED

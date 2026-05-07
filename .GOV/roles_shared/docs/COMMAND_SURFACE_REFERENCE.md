@@ -610,41 +610,19 @@ If the Operator explicitly authorizes separate governance-only helper work outsi
   - launch selection resolves through the packet-declared role-model profile bundle when present; Activation Manager falls back to the governed repo default because pre-launch work may begin before packet hydration
   - on the ordinary orchestrator-managed path, supported launch hosts now auto-issue the first governed `START_SESSION` so launch does not stop at a launch-only false green
   - governed launch/control must preserve kernel governance authority with `HANDSHAKE_GOV_ROOT=<wt-gov-kernel>/.GOV`; `handshake_main/.GOV` is not valid live governance for orchestrator-managed integration validation
-- `just start-activation-manager-session WP-{ID} [PRIMARY|FALLBACK]`
-- `just start-coder-session WP-{ID} [PRIMARY|FALLBACK]`
-- `just start-wp-validator-session WP-{ID} ...`
-- `just start-integration-validator-session WP-{ID} ...`
-  - `runtime-write`
-  - explicit governed ACP start / recovery helper when a launch host could not complete the first start automatically
-- `just steer-activation-manager-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
-- `just steer-coder-session WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
-- `just steer-wp-validator-session WP-{ID} ...`
-- `just steer-integration-validator-session WP-{ID} ...`
-  - `runtime-write`
-  - governed ACP resume/send
-- `just cancel-activation-manager-session WP-{ID}`
-- `just cancel-coder-session WP-{ID}`
-- `just cancel-wp-validator-session WP-{ID}`
-- `just cancel-integration-validator-session WP-{ID}`
-  - `runtime-write`
-  - cancel the current governed command for that lane
-- `just close-activation-manager-session WP-{ID}`
-- `just close-coder-session WP-{ID}`
-- `just close-wp-validator-session WP-{ID}`
-- `just close-integration-validator-session WP-{ID}`
-  - `runtime-write`
-  - retire steerable thread registration for that lane and attempt deterministic reclaim of any governed hidden repair process owned by that exact session
-- Generic wrappers:
 - `just session-start <ROLE> WP-{ID} [PRIMARY|FALLBACK]`
 - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
 - `just session-cancel <ROLE> WP-{ID}`
 - `just session-close <ROLE> WP-{ID}`
-    - `<ROLE>` may now be `ACTIVATION_MANAGER`, `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`
-    - these governed helpers now attempt deterministic self-settlement for their own request ids when a broker dispatch or wait path returns without a terminal result row
-    - `session-start` / `session-send` print a machine-readable `outcome_state=` line so operator/orchestrator surfaces can distinguish accepted transport states such as `ACCEPTED_RUNNING` and `ACCEPTED_QUEUED`, steady-state conditions such as `ALREADY_READY`, and rejection/recovery states such as `BUSY_ACTIVE_RUN`, `REQUIRES_START`, and `REQUIRES_RECOVERY` from generic `FAILED`
-    - if a stale same-session broker run only lingers because its child process died or its timeout already expired, the broker now repairs that stale run inside the same request path before returning `BUSY_ACTIVE_RUN`
-    - before refusing a broker restart because `active_runs` still exist, the ACP client now prunes/self-settles recoverable broker-state residue so only truly live active runs block restart
-    - `session-start` now waits briefly for READY after a `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY` outcome and settles as `ALREADY_READY` when the role was already becoming steerable in the same attempt
+  - `runtime-write`
+  - canonical governed ACP start, send, cancel, and close controls
+  - `<ROLE>` may now be `ACTIVATION_MANAGER`, `CODER`, `WP_VALIDATOR`, or `INTEGRATION_VALIDATOR`
+  - these governed helpers now attempt deterministic self-settlement for their own request ids when a broker dispatch or wait path returns without a terminal result row
+  - `session-start` / `session-send` print a machine-readable `outcome_state=` line so operator/orchestrator surfaces can distinguish accepted transport states such as `ACCEPTED_RUNNING` and `ACCEPTED_QUEUED`, steady-state conditions such as `ALREADY_READY`, and rejection/recovery states such as `BUSY_ACTIVE_RUN`, `REQUIRES_START`, and `REQUIRES_RECOVERY` from generic `FAILED`
+  - if a stale same-session broker run only lingers because its child process died or its timeout already expired, the broker now repairs that stale run inside the same request path before returning `BUSY_ACTIVE_RUN`
+  - before refusing a broker restart because `active_runs` still exist, the ACP client now prunes/self-settles recoverable broker-state residue so only truly live active runs block restart
+  - `session-start` now waits briefly for READY after a `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY` outcome and settles as `ALREADY_READY` when the role was already becoming steerable in the same attempt
+  - role-specific `start-*`, `steer-*`, `cancel-*`, and `close-*` recipes remain compatibility aliases for these canonical controls
 - `just session-reclaim-terminals WP-{ID} [ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
   - `runtime-write`
   - manual repair helper that reclaims only registry-owned governed hidden repair processes for the selected WP/session scope; it defaults to `CURRENT_BATCH` so older batch processes are left alone unless `ALL_BATCHES` or an exact `BATCH_ID` is requested
@@ -831,8 +809,12 @@ These are orchestrator/operator/topology commands, not ordinary coder commands.
 
 ## Command-surface rules
 
-- Prefer the role-specific wrapper when one exists.
-  - Example: use `just start-wp-validator-session ...` instead of the generic `just session-start WP_VALIDATOR ...` unless you specifically need the generic form.
+- Prefer the canonical generic governed-session controls for start, send, cancel, and close:
+  - `just session-start <ROLE> WP-{ID} [PRIMARY|FALLBACK]`
+  - `just session-send <ROLE> WP-{ID} "<prompt>" [PRIMARY|FALLBACK]`
+  - `just session-cancel <ROLE> WP-{ID}`
+  - `just session-close <ROLE> WP-{ID}`
+- Role-specific `start-*`, `steer-*`, `cancel-*`, and `close-*` session recipes remain compatibility aliases for operator ergonomics and older docs; do not remove them without a tracked RGF-300 retirement step and replacement proof.
 - `product-scan` is an alias for `validator-scan`.
 - `THREAD.md` commands are not substitutes for required structured review receipts.
 - A command being available in `just --list` does not mean every role may run it. Role protocols still define ownership.

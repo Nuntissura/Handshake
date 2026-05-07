@@ -79,6 +79,46 @@ if (malformedAliases.length > 0) {
   );
 }
 
+const canonicalSessionControls = new Set([
+  "just:session-start",
+  "just:session-send",
+  "just:session-cancel",
+  "just:session-close",
+]);
+
+const nonCanonicalSessionControls = expected.entries.filter(
+  (entry) =>
+    canonicalSessionControls.has(entry.surface_id) &&
+    (entry.entrypoint_status !== "CANONICAL_PUBLIC_ENTRY" || entry.consolidation_status !== "RETAIN_CANONICAL"),
+);
+
+if (nonCanonicalSessionControls.length > 0) {
+  violations.push(
+    `Public surface consolidation has ${nonCanonicalSessionControls.length} session control row(s) that are not retained canonical public entries: ${nonCanonicalSessionControls
+      .map((entry) => `${entry.surface_id}:${entry.entrypoint_status}/${entry.consolidation_status}`)
+      .join("; ")}`,
+  );
+}
+
+const sessionAliasTargetErrors = expected.entries.filter((entry) => {
+  if (entry.consolidation_status !== "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT") return false;
+  const recipeName = Array.isArray(entry.just_recipes) ? entry.just_recipes[0] : "";
+  if (!/^(start|steer|cancel|close)-(activation-manager|coder|wp-validator|integration-validator)-session$/u.test(recipeName)) {
+    return false;
+  }
+  const [target] = Array.isArray(entry.alias_target_recipes) ? entry.alias_target_recipes : [];
+  return !canonicalSessionControls.has(`just:${target}`);
+});
+
+if (sessionAliasTargetErrors.length > 0) {
+  violations.push(
+    `Public surface consolidation has ${sessionAliasTargetErrors.length} session alias row(s) not targeting canonical session controls: ${sessionAliasTargetErrors
+      .slice(0, 10)
+      .map((entry) => `${entry.surface_id}->${(entry.alias_target_recipes || []).join(",") || "none"}`)
+      .join("; ")}`,
+  );
+}
+
 const destructiveRemovalCandidates = expected.entries.filter(
   (entry) =>
     entry.removal_gate !== "NOT_A_REMOVAL_CANDIDATE" &&

@@ -1,7 +1,7 @@
 {
   "consolidation_groups": [
     {
-      "count": 49,
+      "count": 48,
       "group_id": "public-surface-group:25aa5f7f409663ef",
       "owner_role": "SHARED",
       "phase": "SESSION_CONTROL",
@@ -40,7 +40,6 @@
         "just:session-reclaim-terminals",
         "just:session-registry-status",
         "just:session-scan-orphan-terminals",
-        "just:session-send",
         "just:session-stall-scan",
         "just:steer-activation-manager-session",
         "just:steer-coder-session",
@@ -253,32 +252,6 @@
     },
     {
       "count": 15,
-      "group_id": "public-surface-group:ca583937cb040d6b",
-      "owner_role": "SHARED",
-      "phase": "SESSION_CONTROL",
-      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
-      "replacement_bundle": "just phase-check",
-      "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
-      "surfaces": [
-        "just:cancel-activation-manager-session",
-        "just:cancel-coder-session",
-        "just:close-activation-manager-session",
-        "just:close-coder-session",
-        "just:launch-activation-manager-session",
-        "just:launch-coder-session",
-        "just:launch-memory-manager",
-        "just:launch-memory-manager-session",
-        "just:session-cancel",
-        "just:session-close",
-        "just:session-start",
-        "just:start-activation-manager-session",
-        "just:start-coder-session",
-        "just:wp-receipt-append",
-        "just:wp-thread-append"
-      ]
-    },
-    {
-      "count": 15,
       "group_id": "public-surface-group:d47bb1f252969b2e",
       "owner_role": "VALIDATOR",
       "phase": "VALIDATION",
@@ -301,6 +274,29 @@
         "file:.GOV/roles/validator/checks/validator-traceability.mjs",
         "file:.GOV/roles/validator/scripts/lib/integration-validator-context-brief-lib.mjs",
         "file:.GOV/roles/validator/scripts/validator-next.mjs"
+      ]
+    },
+    {
+      "count": 12,
+      "group_id": "public-surface-group:ca583937cb040d6b",
+      "owner_role": "SHARED",
+      "phase": "SESSION_CONTROL",
+      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
+      "replacement_bundle": "just phase-check",
+      "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
+      "surfaces": [
+        "just:cancel-activation-manager-session",
+        "just:cancel-coder-session",
+        "just:close-activation-manager-session",
+        "just:close-coder-session",
+        "just:launch-activation-manager-session",
+        "just:launch-coder-session",
+        "just:launch-memory-manager",
+        "just:launch-memory-manager-session",
+        "just:start-activation-manager-session",
+        "just:start-coder-session",
+        "just:wp-receipt-append",
+        "just:wp-thread-append"
       ]
     },
     {
@@ -770,16 +766,16 @@
       ]
     }
   ],
-  "consolidation_hash": "sha256:293a4936001ea24e",
+  "consolidation_hash": "sha256:6099d39ce7cd4c83",
   "counts": {
     "by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
-      "CANONICAL_PUBLIC_ENTRY": 10,
+      "CANONICAL_PUBLIC_ENTRY": 14,
       "COMPATIBILITY_ALIAS": 20,
       "CONTRACT_AUTHORITY": 9,
       "INTERNAL_HELPER": 1,
       "PUBLIC_LEAF_BASELINED": 120,
-      "PUBLIC_RECIPE_BASELINED": 178
+      "PUBLIC_RECIPE_BASELINED": 174
     },
     "by_owner_role": {
       "ACTIVATION_MANAGER": 2,
@@ -815,9 +811,9 @@
       "READ_ONLY_OR_DIAGNOSTIC": 264
     },
     "by_status": {
-      "CONSOLIDATE_WHEN_TOUCHED": 298,
+      "CONSOLIDATE_WHEN_TOUCHED": 294,
       "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT": 20,
-      "RETAIN_CANONICAL": 14,
+      "RETAIN_CANONICAL": 18,
       "RETAIN_CONTRACT_AUTHORITY": 9
     }
   },
@@ -6809,8 +6805,8 @@
       "alias_target_count": 0,
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
-      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "consolidation_status": "RETAIN_CANONICAL",
+      "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
       "just_recipes": [
         "session-cancel"
       ],
@@ -6819,7 +6815,7 @@
       "phase": "SESSION_CONTROL",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "removal_gate": "NOT_A_REMOVAL_CANDIDATE",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
       "surface_id": "just:session-cancel",
@@ -6832,8 +6828,8 @@
       "alias_target_count": 0,
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
-      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "consolidation_status": "RETAIN_CANONICAL",
+      "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
       "just_recipes": [
         "session-close"
       ],
@@ -6842,7 +6838,7 @@
       "phase": "SESSION_CONTROL",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "removal_gate": "NOT_A_REMOVAL_CANDIDATE",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
       "surface_id": "just:session-close",
@@ -6947,8 +6943,8 @@
       "alias_target_count": 0,
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
-      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "consolidation_status": "RETAIN_CANONICAL",
+      "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
       "just_recipes": [
         "session-send"
       ],
@@ -6957,7 +6953,7 @@
       "phase": "SESSION_CONTROL",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "removal_gate": "NOT_A_REMOVAL_CANDIDATE",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:session-send",
@@ -6993,8 +6989,8 @@
       "alias_target_count": 0,
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
-      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "consolidation_status": "RETAIN_CANONICAL",
+      "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
       "just_recipes": [
         "session-start"
       ],
@@ -7003,7 +6999,7 @@
       "phase": "SESSION_CONTROL",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "removal_gate": "NOT_A_REMOVAL_CANDIDATE",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
       "surface_id": "just:session-start",
@@ -8838,11 +8834,11 @@
   },
   "schema_id": "handshake.gov.public_surface_consolidation",
   "schema_version": "public_surface_consolidation_v1",
-  "source_topology_projection_hash": "sha256:e7b6b104ee258b19c750ad27add4471d3c36ff518ab23075f51430418c982a61",
+  "source_topology_projection_hash": "sha256:fe052c4b2dec162ba3057e59c4385c8a4735cdedea5a60884a136cc259c80fba",
   "totals": {
-    "canonical": 14,
+    "canonical": 18,
     "compatibility_aliases": 20,
-    "consolidate_when_touched": 298,
+    "consolidate_when_touched": 294,
     "consolidation_groups": 41,
     "contract_authority": 9,
     "public_surfaces": 341,
