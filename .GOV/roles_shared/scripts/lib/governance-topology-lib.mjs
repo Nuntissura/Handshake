@@ -357,6 +357,14 @@ export function justCallTargetsForRecipe(recipe) {
     .filter(Boolean);
 }
 
+export function justCallInvocationsForRecipe(recipe) {
+  return String(recipe?.body || "")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => /^@?just\s+[A-Za-z0-9_][A-Za-z0-9_-]*\b/u.test(line))
+    .map((line) => line.replace(/^@?just\s+/u, "just "));
+}
+
 export function isSimpleJustCompatibilityAlias(recipe) {
   const meaningfulLines = String(recipe?.body || "")
     .split(/\r?\n/u)

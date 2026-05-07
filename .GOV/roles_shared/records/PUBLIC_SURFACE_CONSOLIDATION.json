@@ -766,7 +766,7 @@
       ]
     }
   ],
-  "consolidation_hash": "sha256:6099d39ce7cd4c83",
+  "consolidation_hash": "sha256:0c47a029d6904889",
   "counts": {
     "by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
@@ -820,6 +820,8 @@
   "entries": [
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROOT_AGENT_CONTRACT",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -848,6 +850,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "OPERATOR_INTERFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -874,6 +878,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -898,6 +904,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -922,6 +930,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -946,6 +956,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -970,6 +982,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -994,6 +1008,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1018,6 +1034,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -1042,6 +1060,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1066,6 +1086,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1090,6 +1112,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1114,6 +1138,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1138,6 +1164,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1162,6 +1190,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1186,6 +1216,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1210,6 +1242,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1238,6 +1272,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1261,6 +1297,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1289,6 +1327,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1312,6 +1352,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1336,6 +1378,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1359,6 +1403,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1382,6 +1428,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1405,6 +1453,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1428,6 +1478,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1451,6 +1503,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1492,6 +1546,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1526,6 +1582,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1549,6 +1607,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1572,6 +1632,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1595,6 +1657,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1618,6 +1682,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1641,6 +1707,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1666,6 +1734,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1689,6 +1759,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1712,6 +1784,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1735,6 +1809,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1758,6 +1834,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1783,6 +1861,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1806,6 +1886,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1829,6 +1911,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1853,6 +1937,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1876,6 +1962,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1899,6 +1987,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1922,6 +2012,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1947,6 +2039,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1970,6 +2064,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -1993,6 +2089,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2016,6 +2114,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2039,6 +2139,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2062,6 +2164,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2085,6 +2189,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2108,6 +2214,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2131,6 +2239,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2154,6 +2264,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2177,6 +2289,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2200,6 +2314,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2223,6 +2339,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2246,6 +2364,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2270,6 +2390,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2293,6 +2415,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2316,6 +2440,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2339,6 +2465,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2362,6 +2490,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2385,6 +2515,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2409,6 +2541,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2432,6 +2566,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2458,6 +2594,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2481,6 +2619,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2505,6 +2645,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2528,6 +2670,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2551,6 +2695,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2574,6 +2720,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2597,6 +2745,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2620,6 +2770,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2643,6 +2795,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2674,6 +2828,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2697,6 +2853,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2720,6 +2878,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2743,6 +2903,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ACTIVATION_MANAGER",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
@@ -2766,6 +2928,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ACTIVATION_MANAGER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2789,6 +2953,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_CLASSIC_ORCHESTRATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
@@ -2812,6 +2978,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_CODER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2836,6 +3004,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_CODER",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
@@ -2859,6 +3029,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_CODER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2882,6 +3054,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_CODER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2905,6 +3079,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_INTEGRATION_VALIDATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
@@ -2928,6 +3104,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_MEMORY_MANAGER",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
@@ -2951,6 +3129,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_MEMORY_MANAGER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2974,6 +3154,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_MEMORY_MANAGER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -2999,6 +3181,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3026,6 +3210,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3050,6 +3236,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
@@ -3073,6 +3261,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3096,6 +3286,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3119,6 +3311,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3146,6 +3340,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3169,6 +3365,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3192,6 +3390,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3215,6 +3415,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3238,6 +3440,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3261,6 +3465,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3284,6 +3490,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3307,6 +3515,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3330,6 +3540,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3355,6 +3567,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3379,6 +3593,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3402,6 +3618,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3427,6 +3645,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3450,6 +3670,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3473,6 +3695,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3496,6 +3720,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3519,6 +3745,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3543,6 +3771,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3572,6 +3802,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3596,6 +3828,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3620,6 +3854,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3644,6 +3880,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3668,6 +3906,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3692,6 +3932,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3716,6 +3958,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3740,6 +3984,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3764,6 +4010,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3788,6 +4036,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3812,6 +4062,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3836,6 +4088,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3859,6 +4113,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3882,6 +4138,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
@@ -3905,6 +4163,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_WP_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -3928,6 +4188,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROLE_WP_VALIDATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
@@ -3951,6 +4213,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "ROOT_AGENT_CONTRACT",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
@@ -3979,6 +4243,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -4000,6 +4266,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4023,6 +4291,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -4046,6 +4316,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4069,6 +4341,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4092,6 +4366,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4115,6 +4391,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4138,6 +4416,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4161,6 +4441,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4184,6 +4466,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4207,6 +4491,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4230,6 +4516,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4253,6 +4541,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4276,6 +4566,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-cancel ACTIVATION_MANAGER {{wp-id}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-cancel"
       ],
@@ -4301,6 +4595,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-cancel CODER {{wp-id}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-cancel"
       ],
@@ -4326,6 +4624,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-cancel INTEGRATION_VALIDATOR {{wp-id}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-cancel"
       ],
@@ -4351,6 +4653,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-cancel WP_VALIDATOR {{wp-id}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-cancel"
       ],
@@ -4376,6 +4682,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4399,6 +4707,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4422,6 +4732,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4445,6 +4757,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -4468,6 +4782,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-close ACTIVATION_MANAGER {{wp-id}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-close"
       ],
@@ -4493,6 +4811,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-close CODER {{wp-id}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-close"
       ],
@@ -4518,6 +4840,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-close INTEGRATION_VALIDATOR {{wp-id}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-close"
       ],
@@ -4543,6 +4869,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4566,6 +4894,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-close WP_VALIDATOR {{wp-id}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-close"
       ],
@@ -4591,6 +4923,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4614,6 +4948,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4637,6 +4973,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4660,6 +4998,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4683,6 +5023,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -4706,6 +5048,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4729,6 +5073,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4752,6 +5098,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4775,6 +5123,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4798,6 +5148,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -4821,6 +5173,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4844,6 +5198,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4867,6 +5223,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4890,6 +5248,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4913,6 +5273,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4936,6 +5298,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4959,6 +5323,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -4982,6 +5348,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5005,6 +5373,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -5028,6 +5398,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5051,6 +5423,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5074,6 +5448,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5097,6 +5473,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5120,6 +5498,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5143,6 +5523,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5166,6 +5548,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5189,6 +5573,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5212,6 +5598,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5235,6 +5623,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5258,6 +5648,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5281,6 +5673,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5304,6 +5698,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5327,6 +5723,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5350,6 +5748,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5373,6 +5773,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just workflow-dossier-init {{wp-id}} {{output}}"
+      ],
       "alias_target_recipes": [
         "workflow-dossier-init"
       ],
@@ -5398,6 +5802,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5421,6 +5827,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5444,6 +5852,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5467,6 +5877,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5490,6 +5902,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5513,6 +5927,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5536,6 +5952,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5559,6 +5977,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5582,6 +6002,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5605,6 +6027,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5628,6 +6052,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5651,6 +6077,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5674,6 +6102,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5697,6 +6127,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5720,6 +6152,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5743,6 +6177,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5766,6 +6202,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -5789,6 +6227,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5812,6 +6252,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5835,6 +6277,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5858,6 +6302,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5881,6 +6327,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5904,6 +6352,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5927,6 +6377,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5950,6 +6402,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5973,6 +6427,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -5996,6 +6452,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6019,6 +6477,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6042,6 +6502,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6065,6 +6527,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6088,6 +6552,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6111,6 +6577,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6134,6 +6602,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6157,6 +6627,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6180,6 +6652,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6203,6 +6677,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6226,6 +6702,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6249,6 +6727,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6272,6 +6752,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6295,6 +6777,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6318,6 +6802,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -6341,6 +6827,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6364,6 +6852,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6387,6 +6877,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -6410,6 +6902,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6433,6 +6927,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just validator-scan"
+      ],
       "alias_target_recipes": [
         "validator-scan"
       ],
@@ -6458,6 +6956,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6481,6 +6981,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6504,6 +7006,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6527,6 +7031,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6550,6 +7056,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6573,6 +7081,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6596,6 +7106,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6619,6 +7131,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6642,6 +7156,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6665,6 +7181,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6688,6 +7206,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6711,6 +7231,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6734,6 +7256,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6757,6 +7281,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -6780,6 +7306,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6803,6 +7331,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -6826,6 +7356,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -6849,6 +7381,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6872,6 +7406,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6895,6 +7431,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6918,6 +7456,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6941,6 +7481,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -6964,6 +7506,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -6987,6 +7531,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -7010,6 +7556,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7033,6 +7581,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7056,6 +7606,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7079,6 +7631,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7102,6 +7656,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7125,6 +7681,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-start ACTIVATION_MANAGER {{wp-id}} {{model}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-start"
       ],
@@ -7150,6 +7710,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-start CODER {{wp-id}} {{model}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-start"
       ],
@@ -7175,6 +7739,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-start INTEGRATION_VALIDATOR {{wp-id}} {{model}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-start"
       ],
@@ -7200,6 +7768,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-start WP_VALIDATOR {{wp-id}} {{model}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-start"
       ],
@@ -7225,6 +7797,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-send ACTIVATION_MANAGER {{wp-id}} \"{{prompt}}\" {{model}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-send"
       ],
@@ -7250,6 +7826,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-send CODER {{wp-id}} \"{{prompt}}\" {{model}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-send"
       ],
@@ -7275,6 +7855,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-send INTEGRATION_VALIDATOR {{wp-id}} \"{{prompt}}\" {{model}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-send"
       ],
@@ -7300,6 +7884,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just session-send WP_VALIDATOR {{wp-id}} \"{{prompt}}\" {{model}} {{FLAGS}}"
+      ],
       "alias_target_recipes": [
         "session-send"
       ],
@@ -7325,6 +7913,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7348,6 +7938,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7371,6 +7963,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7394,6 +7988,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7417,6 +8013,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7440,6 +8038,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7463,6 +8063,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7486,6 +8088,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7509,6 +8113,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7532,6 +8138,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7555,6 +8163,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7578,6 +8188,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7601,6 +8213,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7624,6 +8238,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7647,6 +8263,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7670,6 +8288,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7693,6 +8313,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7716,6 +8338,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7739,6 +8363,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7762,6 +8388,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7785,6 +8413,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7808,6 +8438,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7831,6 +8463,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7854,6 +8488,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
@@ -7877,6 +8513,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7900,6 +8538,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7923,6 +8563,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7946,6 +8588,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7969,6 +8613,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -7992,6 +8638,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8015,6 +8663,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8038,6 +8688,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8061,6 +8713,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8084,6 +8738,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8107,6 +8763,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8130,6 +8788,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8153,6 +8813,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8176,6 +8838,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8199,6 +8863,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8222,6 +8888,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8245,6 +8913,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8268,6 +8938,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8291,6 +8963,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8314,6 +8988,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8337,6 +9013,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8360,6 +9038,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8383,6 +9063,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8406,6 +9088,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8429,6 +9113,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8452,6 +9138,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8475,6 +9163,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just wp-review-exchange SPEC_CONFIRMATION {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} \"{{summary}}\" \"{{correlation_id}}\" \"{{spec_anchor}}\" \"{{packet_row_ref}}\" \"{{ack_for}}\" '{{microtask_json}}'"
+      ],
       "alias_target_recipes": [
         "wp-review-exchange"
       ],
@@ -8500,6 +9192,10 @@
     },
     {
       "alias_target_count": 1,
+      "alias_target_invocation_count": 1,
+      "alias_target_invocations": [
+        "just wp-review-exchange SPEC_GAP {{wp-id}} {{actor_role}} {{actor_session}} {{target_role}} {{target_session}} \"{{summary}}\" \"{{correlation_id}}\" \"{{spec_anchor}}\" \"{{packet_row_ref}}\" \"\" '{{microtask_json}}'"
+      ],
       "alias_target_recipes": [
         "wp-review-exchange"
       ],
@@ -8525,6 +9221,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8548,6 +9246,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8571,6 +9271,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8594,6 +9296,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8617,6 +9321,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8640,6 +9346,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8663,6 +9371,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8686,6 +9396,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8709,6 +9421,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8732,6 +9446,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8755,6 +9471,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8778,6 +9496,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8801,6 +9521,8 @@
     },
     {
       "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
       "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
@@ -8834,7 +9556,7 @@
   },
   "schema_id": "handshake.gov.public_surface_consolidation",
   "schema_version": "public_surface_consolidation_v1",
-  "source_topology_projection_hash": "sha256:fe052c4b2dec162ba3057e59c4385c8a4735cdedea5a60884a136cc259c80fba",
+  "source_topology_projection_hash": "sha256:7cd345f51db2607c90d2375cc127ac7ac45882021510dd405ec830d956ac95e0",
   "totals": {
     "canonical": 18,
     "compatibility_aliases": 20,

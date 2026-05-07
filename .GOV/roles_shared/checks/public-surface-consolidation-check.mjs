@@ -65,14 +65,17 @@ const recipeIds = new Set(expected.entries
 const malformedAliases = expected.entries.filter((entry) => {
   if (entry.consolidation_status !== "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT") return false;
   if (!Array.isArray(entry.alias_target_recipes) || entry.alias_target_recipes.length !== 1) return true;
+  if (!Array.isArray(entry.alias_target_invocations) || entry.alias_target_invocations.length !== 1) return true;
   const [target] = entry.alias_target_recipes;
+  const [invocation] = entry.alias_target_invocations;
   if (!target || target === entry.just_recipes?.[0]) return true;
+  if (!invocation || !invocation.startsWith(`just ${target}`)) return true;
   return !recipeIds.has(`just:${target}`);
 });
 
 if (malformedAliases.length > 0) {
   violations.push(
-    `Public surface consolidation has ${malformedAliases.length} compatibility alias row(s) without exactly one concrete target recipe: ${malformedAliases
+    `Public surface consolidation has ${malformedAliases.length} compatibility alias row(s) without exactly one concrete target recipe and invocation: ${malformedAliases
       .slice(0, 10)
       .map((entry) => entry.surface_id)
       .join("; ")}`,

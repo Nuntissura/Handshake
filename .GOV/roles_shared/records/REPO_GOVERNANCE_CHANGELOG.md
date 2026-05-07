@@ -21,6 +21,15 @@
 
 ## Entries
 
+### 2026.05.07.07 / GOV-CHANGE-20260507-07
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Extended RGF-300 compatibility-alias tracking so the public-surface consolidation ledger records the exact canonical `just ...` invocation for each one-line alias.
+- Contract impact: `public-surface-consolidation-check` now fails if an alias lacks exactly one concrete target recipe and exactly one matching invocation. This preserves operator ergonomics while making replacement commands machine-visible before any alias retirement decision.
+- Files changed: `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/scripts/topology/public-surface-consolidation.mjs`, `.GOV/roles_shared/checks/public-surface-consolidation-check.mjs`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
 ### 2026.05.07.06 / GOV-CHANGE-20260507-06
 
 - Status: APPLIED

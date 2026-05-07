@@ -9,6 +9,7 @@ import {
 import {
   buildGovernanceTopology,
   isSimpleJustCompatibilityAlias,
+  justCallInvocationsForRecipe,
   justCallTargetsForRecipe,
   parseJustRecipes,
 } from "../lib/governance-topology-lib.mjs";
@@ -60,6 +61,9 @@ function publicEntry(surface = {}, recipeByName = new Map()) {
   const aliasTargetRecipes = recipe && isSimpleJustCompatibilityAlias(recipe)
     ? justCallTargetsForRecipe(recipe)
     : [];
+  const aliasTargetInvocations = recipe && isSimpleJustCompatibilityAlias(recipe)
+    ? justCallInvocationsForRecipe(recipe)
+    : [];
   return {
     surface_id: surface.surface_id,
     path: surface.path,
@@ -78,6 +82,8 @@ function publicEntry(surface = {}, recipeByName = new Map()) {
     removal_gate: removalGate(surface),
     alias_target_recipes: aliasTargetRecipes,
     alias_target_count: aliasTargetRecipes.length,
+    alias_target_invocations: aliasTargetInvocations,
+    alias_target_invocation_count: aliasTargetInvocations.length,
   };
 }
 
@@ -136,6 +142,7 @@ function sourceTopologyProjectionHash(entries = []) {
     authority_boundary: entry.authority_boundary,
     entrypoint_status: entry.entrypoint_status,
     alias_target_recipes: entry.alias_target_recipes,
+    alias_target_invocations: entry.alias_target_invocations,
     just_recipes: entry.just_recipes,
     owner_role: entry.owner_role,
     path: entry.path,
