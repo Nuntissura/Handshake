@@ -66,6 +66,10 @@ const malformedAliases = expected.entries.filter((entry) => {
   if (entry.consolidation_status !== "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT") return false;
   if (!Array.isArray(entry.alias_target_recipes) || entry.alias_target_recipes.length !== 1) return true;
   if (!Array.isArray(entry.alias_target_invocations) || entry.alias_target_invocations.length !== 1) return true;
+  if (!entry.alias_retirement_policy || typeof entry.alias_retirement_policy !== "object") return true;
+  if (!Array.isArray(entry.alias_retirement_policy.removal_criteria) || entry.alias_retirement_policy.removal_criteria.length < 3) return true;
+  if (entry.alias_retirement_policy.destructive_cleanup_allowed_without_operator_approval !== false) return true;
+  if (entry.alias_retirement_policy.archive_required_before_deletion !== true) return true;
   const [target] = entry.alias_target_recipes;
   const [invocation] = entry.alias_target_invocations;
   if (!target || target === entry.just_recipes?.[0]) return true;
@@ -75,7 +79,7 @@ const malformedAliases = expected.entries.filter((entry) => {
 
 if (malformedAliases.length > 0) {
   violations.push(
-    `Public surface consolidation has ${malformedAliases.length} compatibility alias row(s) without exactly one concrete target recipe and invocation: ${malformedAliases
+    `Public surface consolidation has ${malformedAliases.length} compatibility alias row(s) without exactly one concrete target recipe/invocation and guarded retirement policy: ${malformedAliases
       .slice(0, 10)
       .map((entry) => entry.surface_id)
       .join("; ")}`,

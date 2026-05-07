@@ -53,6 +53,22 @@ function removalGate(surface = {}) {
   return "REQUIRES_EXPLICIT_TOPOLOGY_EXCEPTION";
 }
 
+function aliasRetirementPolicy(surface = {}, aliasTargetInvocations = []) {
+  if (consolidationStatus(surface) !== "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT") return null;
+  return {
+    first_tracked_date: "2026-05-07",
+    replacement_invocations: aliasTargetInvocations,
+    removal_criteria: [
+      "canonical replacement invocation is documented in operator-facing command surfaces",
+      "active startup/protocol docs no longer prefer the alias",
+      "gov-check verifies the alias still targets exactly one canonical replacement before any retirement proposal",
+      "Operator explicitly approves the exact retirement action and target after a deterministic action list is presented",
+    ],
+    destructive_cleanup_allowed_without_operator_approval: false,
+    archive_required_before_deletion: true,
+  };
+}
+
 function publicEntry(surface = {}, recipeByName = new Map()) {
   const recipeName = surface.surface_kind === "JUST_RECIPE" && Array.isArray(surface.just_recipes)
     ? surface.just_recipes[0]
@@ -84,6 +100,7 @@ function publicEntry(surface = {}, recipeByName = new Map()) {
     alias_target_count: aliasTargetRecipes.length,
     alias_target_invocations: aliasTargetInvocations,
     alias_target_invocation_count: aliasTargetInvocations.length,
+    alias_retirement_policy: aliasRetirementPolicy(surface, aliasTargetInvocations),
   };
 }
 
@@ -143,6 +160,7 @@ function sourceTopologyProjectionHash(entries = []) {
     entrypoint_status: entry.entrypoint_status,
     alias_target_recipes: entry.alias_target_recipes,
     alias_target_invocations: entry.alias_target_invocations,
+    alias_retirement_policy: entry.alias_retirement_policy,
     just_recipes: entry.just_recipes,
     owner_role: entry.owner_role,
     path: entry.path,
