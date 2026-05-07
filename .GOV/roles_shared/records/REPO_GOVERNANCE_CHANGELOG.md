@@ -21,6 +21,15 @@
 
 ## Entries
 
+### 2026.05.07.09 / GOV-CHANGE-20260507-09
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Closed the 2026-05-07 RGF-299 and RGF-300 task-board items after their accepted governance-only slices passed full validation.
+- Contract impact: RGF-299 now has per-WP dossier runtime enforcement plus required topology-row and memory-capture-status fields. RGF-300 now has a generated public-surface consolidation ledger, canonical session-control classification, exact alias replacement invocations, guarded alias-retirement policy, and gov-check drift enforcement without destructive alias removal.
+- Files changed: `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, and `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`.
+- Verification: PASS - `repo-governance-board-check`; `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
 ### 2026.05.07.08 / GOV-CHANGE-20260507-08
 
 - Status: APPLIED
