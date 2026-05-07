@@ -6,7 +6,12 @@ import {
   GOV_ROOT_REPO_REL,
   repoPathAbs,
 } from "../lib/runtime-paths.mjs";
-import { buildGovernanceTopology } from "../lib/governance-topology-lib.mjs";
+import {
+  buildGovernanceTopology,
+  isSimpleJustCompatibilityAlias,
+  justCallTargetsForRecipe,
+  parseJustRecipes,
+} from "../lib/governance-topology-lib.mjs";
 import { sha256Short, stableStringify } from "../lib/packet-contract-lib.mjs";
 
 export const PUBLIC_SURFACE_CONSOLIDATION_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`;
@@ -47,7 +52,14 @@ function removalGate(surface = {}) {
   return "REQUIRES_EXPLICIT_TOPOLOGY_EXCEPTION";
 }
 
-function publicEntry(surface = {}) {
+function publicEntry(surface = {}, recipeByName = new Map()) {
+  const recipeName = surface.surface_kind === "JUST_RECIPE" && Array.isArray(surface.just_recipes)
+    ? surface.just_recipes[0]
+    : null;
+  const recipe = recipeName ? recipeByName.get(recipeName) : null;
+  const aliasTargetRecipes = recipe && isSimpleJustCompatibilityAlias(recipe)
+    ? justCallTargetsForRecipe(recipe)
+    : [];
   return {
     surface_id: surface.surface_id,
     path: surface.path,
@@ -64,6 +76,8 @@ function publicEntry(surface = {}) {
     validation_coverage: Array.isArray(surface.validation_coverage) ? surface.validation_coverage : [],
     consolidation_status: consolidationStatus(surface),
     removal_gate: removalGate(surface),
+    alias_target_recipes: aliasTargetRecipes,
+    alias_target_count: aliasTargetRecipes.length,
   };
 }
 
@@ -121,6 +135,7 @@ function sourceTopologyProjectionHash(entries = []) {
   const sourceProjection = entries.map((entry) => ({
     authority_boundary: entry.authority_boundary,
     entrypoint_status: entry.entrypoint_status,
+    alias_target_recipes: entry.alias_target_recipes,
     just_recipes: entry.just_recipes,
     owner_role: entry.owner_role,
     path: entry.path,
@@ -144,9 +159,10 @@ function sourceTopologyProjectionHash(entries = []) {
 }
 
 export function buildPublicSurfaceConsolidation(topology = buildGovernanceTopology()) {
+  const recipeByName = new Map(parseJustRecipes().map((recipe) => [recipe.name, recipe]));
   const entries = (topology.surfaces || [])
     .filter(isPublicLikeSurface)
-    .map(publicEntry)
+    .map((surface) => publicEntry(surface, recipeByName))
     .sort((left, right) => left.surface_id.localeCompare(right.surface_id));
   const groups = buildGroups(entries);
   const totals = {

@@ -347,9 +347,24 @@ function entrypointStatusForFile({ repoRelPath, kind, recipeNames = [] } = {}) {
   return "INTERNAL_HELPER";
 }
 
+export function justCallTargetsForRecipe(recipe) {
+  return [...String(recipe?.body || "").matchAll(/^\s*@?just\s+([A-Za-z0-9_][A-Za-z0-9_-]*)\b/gm)]
+    .map((match) => match[1])
+    .filter(Boolean);
+}
+
+export function isSimpleJustCompatibilityAlias(recipe) {
+  const meaningfulLines = String(recipe?.body || "")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  return meaningfulLines.length === 1
+    && /^@?just\s+[A-Za-z0-9_][A-Za-z0-9_-]*\b/u.test(meaningfulLines[0]);
+}
+
 function entrypointStatusForRecipe(recipe) {
   if (CANONICAL_RECIPE_NAMES.has(recipe.name)) return "CANONICAL_PUBLIC_ENTRY";
-  if (/^\s*@?just\s+/m.test(String(recipe.body || ""))) return "COMPATIBILITY_ALIAS";
+  if (isSimpleJustCompatibilityAlias(recipe)) return "COMPATIBILITY_ALIAS";
   return "PUBLIC_RECIPE_BASELINED";
 }
 

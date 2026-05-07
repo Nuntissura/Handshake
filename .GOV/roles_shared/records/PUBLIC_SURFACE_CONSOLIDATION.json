@@ -770,16 +770,16 @@
       ]
     }
   ],
-  "consolidation_hash": "sha256:3c2a1387811ce5b3",
+  "consolidation_hash": "sha256:293a4936001ea24e",
   "counts": {
     "by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
       "CANONICAL_PUBLIC_ENTRY": 10,
-      "COMPATIBILITY_ALIAS": 38,
+      "COMPATIBILITY_ALIAS": 20,
       "CONTRACT_AUTHORITY": 9,
       "INTERNAL_HELPER": 1,
       "PUBLIC_LEAF_BASELINED": 120,
-      "PUBLIC_RECIPE_BASELINED": 160
+      "PUBLIC_RECIPE_BASELINED": 178
     },
     "by_owner_role": {
       "ACTIVATION_MANAGER": 2,
@@ -815,14 +815,16 @@
       "READ_ONLY_OR_DIAGNOSTIC": 264
     },
     "by_status": {
-      "CONSOLIDATE_WHEN_TOUCHED": 280,
-      "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT": 38,
+      "CONSOLIDATE_WHEN_TOUCHED": 298,
+      "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT": 20,
       "RETAIN_CANONICAL": 14,
       "RETAIN_CONTRACT_AUTHORITY": 9
     }
   },
   "entries": [
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROOT_AGENT_CONTRACT",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -849,6 +851,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "OPERATOR_INTERFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -873,6 +877,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -895,6 +901,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -917,6 +925,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -939,6 +949,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_BUNDLE_OR_CHECKPOINT",
@@ -961,6 +973,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_BUNDLE_OR_CHECKPOINT",
@@ -983,6 +997,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1005,6 +1021,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_BUNDLE_OR_CHECKPOINT",
@@ -1027,6 +1045,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1049,6 +1069,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1071,6 +1093,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1093,6 +1117,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1115,6 +1141,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1137,6 +1165,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1159,6 +1189,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1181,6 +1213,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1207,6 +1241,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1228,6 +1264,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1254,6 +1292,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1275,6 +1315,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1297,6 +1339,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1318,6 +1362,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1339,6 +1385,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1360,6 +1408,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1381,6 +1431,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1402,6 +1454,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1441,6 +1495,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1473,6 +1529,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1494,6 +1552,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1515,6 +1575,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1536,6 +1598,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1557,6 +1621,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1578,6 +1644,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1601,6 +1669,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1622,6 +1692,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1643,6 +1715,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1664,6 +1738,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1685,6 +1761,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1708,6 +1786,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1729,6 +1809,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1750,6 +1832,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1772,6 +1856,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1793,6 +1879,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1814,6 +1902,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1835,6 +1925,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1858,6 +1950,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1879,6 +1973,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1900,6 +1996,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1921,6 +2019,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1942,6 +2042,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1963,6 +2065,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -1984,6 +2088,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2005,6 +2111,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2026,6 +2134,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2047,6 +2157,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2068,6 +2180,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2089,6 +2203,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2110,6 +2226,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2131,6 +2249,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2153,6 +2273,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2174,6 +2296,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2195,6 +2319,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2216,6 +2342,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2237,6 +2365,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2258,6 +2388,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2280,6 +2412,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2301,6 +2435,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2325,6 +2461,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2346,6 +2484,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2368,6 +2508,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2389,6 +2531,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2410,6 +2554,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2431,6 +2577,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2452,6 +2600,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2473,6 +2623,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2494,6 +2646,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2523,6 +2677,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2544,6 +2700,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2565,6 +2723,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2586,6 +2746,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ACTIVATION_MANAGER",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -2607,6 +2769,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ACTIVATION_MANAGER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2628,6 +2792,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_CLASSIC_ORCHESTRATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -2649,6 +2815,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_CODER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2671,6 +2839,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_CODER",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -2692,6 +2862,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_CODER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2713,6 +2885,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_CODER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2734,6 +2908,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_INTEGRATION_VALIDATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -2755,6 +2931,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_MEMORY_MANAGER",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -2776,6 +2954,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_MEMORY_MANAGER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2797,6 +2977,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_MEMORY_MANAGER",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2820,6 +3002,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2845,6 +3029,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2867,6 +3053,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -2888,6 +3076,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2909,6 +3099,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2930,6 +3122,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2955,6 +3149,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2976,6 +3172,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -2997,6 +3195,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3018,6 +3218,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3039,6 +3241,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3060,6 +3264,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3081,6 +3287,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3102,6 +3310,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3123,6 +3333,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3146,6 +3358,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3168,6 +3382,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3189,6 +3405,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3212,6 +3430,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3233,6 +3453,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3254,6 +3476,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3275,6 +3499,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_ORCHESTRATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3296,6 +3522,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3318,6 +3546,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3345,6 +3575,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3367,6 +3599,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3389,6 +3623,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3411,6 +3647,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3433,6 +3671,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3455,6 +3695,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3477,6 +3719,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3499,6 +3743,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3521,6 +3767,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3543,6 +3791,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3565,6 +3815,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3587,6 +3839,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3608,6 +3862,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3629,6 +3885,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_VALIDATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -3650,6 +3908,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_WP_VALIDATOR",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
@@ -3671,6 +3931,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_WP_VALIDATOR",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -3692,6 +3954,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "ROOT_AGENT_CONTRACT",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -3718,6 +3982,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "REPO_GOVERNANCE_SHARED",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "INTERNAL_HELPER",
@@ -3737,6 +4003,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -3758,6 +4026,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -3779,6 +4049,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -3800,6 +4072,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -3821,6 +4095,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -3842,6 +4118,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -3863,6 +4141,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -3884,6 +4164,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -3905,6 +4187,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -3926,9 +4210,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "begin-refinement"
       ],
@@ -3937,7 +4223,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:begin-refinement",
@@ -3947,9 +4233,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "begin-research"
       ],
@@ -3958,7 +4246,7 @@
       "phase": "MEMORY",
       "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just memory-refresh plus just gov-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:begin-research",
@@ -3968,6 +4256,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -3989,6 +4279,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-cancel"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -4010,6 +4304,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-cancel"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -4031,6 +4329,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-cancel"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -4052,6 +4354,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-cancel"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -4073,6 +4379,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4094,6 +4402,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4115,6 +4425,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4136,6 +4448,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -4157,6 +4471,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-close"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -4178,6 +4496,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-close"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -4199,6 +4521,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-close"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -4220,6 +4546,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4241,6 +4569,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-close"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -4262,6 +4594,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4283,9 +4617,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "coder-next"
       ],
@@ -4294,7 +4630,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:coder-next",
@@ -4304,9 +4640,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "coder-preflight"
       ],
@@ -4315,7 +4653,7 @@
       "phase": "STARTUP",
       "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "role startup recipes plus just gov-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:coder-preflight",
@@ -4325,6 +4663,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4346,6 +4686,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -4367,6 +4709,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4388,6 +4732,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4409,9 +4755,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "create-task-packet"
       ],
@@ -4420,7 +4768,7 @@
       "phase": "TOPOLOGY",
       "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just gov-check",
       "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
       "surface_id": "just:create-task-packet",
@@ -4430,6 +4778,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4451,6 +4801,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -4472,6 +4824,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4493,6 +4847,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4514,6 +4870,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4535,6 +4893,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4556,6 +4916,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4577,6 +4939,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4598,6 +4962,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4619,6 +4985,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4640,6 +5008,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -4661,6 +5031,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4682,6 +5054,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4703,6 +5077,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4724,6 +5100,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4745,6 +5123,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4766,6 +5146,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4787,6 +5169,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4808,6 +5192,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4829,6 +5215,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4850,6 +5238,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4871,6 +5261,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4892,6 +5284,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4913,6 +5307,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4934,9 +5330,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "launch-memory-manager-session"
       ],
@@ -4945,7 +5343,7 @@
       "phase": "SESSION_CONTROL",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
       "surface_id": "just:launch-memory-manager-session",
@@ -4955,6 +5353,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -4976,6 +5376,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "workflow-dossier-init"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -4997,9 +5401,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "manual-relay-dispatch"
       ],
@@ -5008,7 +5414,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
       "surface_id": "just:manual-relay-dispatch",
@@ -5018,9 +5424,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "manual-relay-next"
       ],
@@ -5029,7 +5437,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:manual-relay-next",
@@ -5039,6 +5447,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5060,6 +5470,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5081,6 +5493,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5102,6 +5516,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5123,6 +5539,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5144,6 +5562,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5165,6 +5585,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5186,6 +5608,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5207,6 +5631,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5228,6 +5654,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5249,6 +5677,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5270,6 +5700,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5291,6 +5723,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5312,6 +5746,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5333,6 +5769,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -5354,6 +5792,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5375,6 +5815,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5396,6 +5838,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5417,6 +5861,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5438,6 +5884,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5459,6 +5907,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5480,6 +5930,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5501,6 +5953,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5522,6 +5976,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5543,6 +5999,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5564,6 +6022,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5585,6 +6045,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5606,6 +6068,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5627,6 +6091,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5648,6 +6114,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5669,6 +6137,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5690,6 +6160,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5711,6 +6183,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5732,9 +6206,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "orchestrator-health"
       ],
@@ -5743,7 +6219,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:orchestrator-health",
@@ -5753,9 +6229,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "orchestrator-next"
       ],
@@ -5764,7 +6242,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:orchestrator-next",
@@ -5774,9 +6252,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "orchestrator-preflight"
       ],
@@ -5785,7 +6265,7 @@
       "phase": "STARTUP",
       "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "role startup recipes plus just gov-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:orchestrator-preflight",
@@ -5795,9 +6275,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "orchestrator-prepare-and-packet"
       ],
@@ -5806,7 +6288,7 @@
       "phase": "SESSION_CONTROL",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:orchestrator-prepare-and-packet",
@@ -5816,9 +6298,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "orchestrator-rescue"
       ],
@@ -5827,7 +6311,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:orchestrator-rescue",
@@ -5837,6 +6321,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -5858,6 +6344,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5879,9 +6367,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "orchestrator-steer-next"
       ],
@@ -5890,7 +6380,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:orchestrator-steer-next",
@@ -5900,6 +6390,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -5921,6 +6413,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5942,6 +6436,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "validator-scan"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -5963,6 +6461,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -5984,6 +6484,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6005,6 +6507,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6026,6 +6530,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6047,6 +6553,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6068,6 +6576,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6089,6 +6599,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6110,6 +6622,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6131,6 +6645,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6152,6 +6668,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6173,6 +6691,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6194,6 +6714,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6215,6 +6737,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6236,6 +6760,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -6257,6 +6783,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6278,6 +6806,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6299,6 +6829,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6320,6 +6852,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6341,6 +6875,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6362,6 +6898,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6383,6 +6921,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6404,6 +6944,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6425,6 +6967,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6446,6 +6990,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6467,6 +7013,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6488,6 +7036,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6509,6 +7059,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6530,6 +7082,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6551,6 +7105,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6572,6 +7128,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-start"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -6593,6 +7153,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-start"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -6614,6 +7178,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-start"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -6635,6 +7203,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-start"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -6656,6 +7228,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-send"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -6677,6 +7253,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-send"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -6698,6 +7278,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-send"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -6719,6 +7303,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "session-send"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -6740,6 +7328,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6761,6 +7351,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6782,9 +7374,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "task-board-set"
       ],
@@ -6793,7 +7387,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:task-board-set",
@@ -6803,6 +7397,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6824,6 +7420,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6845,6 +7443,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6866,6 +7466,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6887,6 +7489,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6908,6 +7512,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6929,6 +7535,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6950,6 +7558,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6971,6 +7581,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -6992,6 +7604,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7013,6 +7627,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7034,6 +7650,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7055,6 +7673,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7076,9 +7696,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "validator-next"
       ],
@@ -7087,7 +7709,7 @@
       "phase": "VALIDATION",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:validator-next",
@@ -7097,6 +7719,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7118,6 +7742,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7139,9 +7765,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "validator-preflight"
       ],
@@ -7150,7 +7778,7 @@
       "phase": "STARTUP",
       "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "role startup recipes plus just gov-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:validator-preflight",
@@ -7160,6 +7788,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7181,6 +7811,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7202,6 +7834,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7223,6 +7857,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "RETAIN_CANONICAL",
       "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
@@ -7244,6 +7880,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7265,6 +7903,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7286,6 +7926,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7307,6 +7949,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7328,6 +7972,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7349,6 +7995,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7370,6 +8018,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7391,6 +8041,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7412,6 +8064,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7433,6 +8087,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7454,6 +8110,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7475,6 +8133,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7496,6 +8156,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7517,6 +8179,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7538,6 +8202,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7559,6 +8225,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7580,6 +8248,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7601,6 +8271,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7622,6 +8294,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7643,6 +8317,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7664,6 +8340,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7685,6 +8363,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7706,6 +8386,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7727,6 +8409,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7748,6 +8432,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7769,6 +8455,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7790,6 +8478,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "wp-review-exchange"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -7811,6 +8503,10 @@
       ]
     },
     {
+      "alias_target_count": 1,
+      "alias_target_recipes": [
+        "wp-review-exchange"
+      ],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
       "entrypoint_status": "COMPATIBILITY_ALIAS",
@@ -7832,6 +8528,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7853,6 +8551,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7874,6 +8574,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7895,6 +8597,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7916,9 +8620,11 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
-      "consolidation_status": "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
-      "entrypoint_status": "COMPATIBILITY_ALIAS",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
         "wp-traceability-set"
       ],
@@ -7927,7 +8633,7 @@
       "phase": "WORK_PACKET",
       "primary_debug_artifact": "gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/check_details.jsonl",
       "public_exposure": "PUBLIC_JUST_RECIPE",
-      "removal_gate": "MAY_REMOVE_ONLY_AFTER_REPLACEMENT_IS_TRACKED_USABLE_AND_OPERATOR_ERGONOMICS_ARE_PRESERVED",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
       "replacement_bundle": "just phase-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "just:wp-traceability-set",
@@ -7937,6 +8643,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7958,6 +8666,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -7979,6 +8689,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -8000,6 +8712,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -8021,6 +8735,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -8042,6 +8758,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -8063,6 +8781,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -8084,6 +8804,8 @@
       ]
     },
     {
+      "alias_target_count": 0,
+      "alias_target_recipes": [],
       "authority_boundary": "PUBLIC_JUST_SURFACE",
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
@@ -8116,11 +8838,11 @@
   },
   "schema_id": "handshake.gov.public_surface_consolidation",
   "schema_version": "public_surface_consolidation_v1",
-  "source_topology_projection_hash": "sha256:338aff58ad50cfae10123cf17c7a6c387dc44e1c214174f8c803a30791226da6",
+  "source_topology_projection_hash": "sha256:e7b6b104ee258b19c750ad27add4471d3c36ff518ab23075f51430418c982a61",
   "totals": {
     "canonical": 14,
-    "compatibility_aliases": 38,
-    "consolidate_when_touched": 280,
+    "compatibility_aliases": 20,
+    "consolidate_when_touched": 298,
     "consolidation_groups": 41,
     "contract_authority": 9,
     "public_surfaces": 341,

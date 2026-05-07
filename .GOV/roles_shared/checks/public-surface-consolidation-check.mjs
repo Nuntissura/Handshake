@@ -58,6 +58,43 @@ if (newPublicNoPolicy.length > 0) {
   );
 }
 
+const recipeIds = new Set(expected.entries
+  .filter((entry) => entry.surface_kind === "JUST_RECIPE")
+  .map((entry) => entry.surface_id));
+
+const malformedAliases = expected.entries.filter((entry) => {
+  if (entry.consolidation_status !== "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT") return false;
+  if (!Array.isArray(entry.alias_target_recipes) || entry.alias_target_recipes.length !== 1) return true;
+  const [target] = entry.alias_target_recipes;
+  if (!target || target === entry.just_recipes?.[0]) return true;
+  return !recipeIds.has(`just:${target}`);
+});
+
+if (malformedAliases.length > 0) {
+  violations.push(
+    `Public surface consolidation has ${malformedAliases.length} compatibility alias row(s) without exactly one concrete target recipe: ${malformedAliases
+      .slice(0, 10)
+      .map((entry) => entry.surface_id)
+      .join("; ")}`,
+  );
+}
+
+const destructiveRemovalCandidates = expected.entries.filter(
+  (entry) =>
+    entry.removal_gate !== "NOT_A_REMOVAL_CANDIDATE" &&
+    String(entry.removal_gate || "").toUpperCase().includes("REMOVE") &&
+    entry.consolidation_status !== "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT",
+);
+
+if (destructiveRemovalCandidates.length > 0) {
+  violations.push(
+    `Public surface consolidation has ${destructiveRemovalCandidates.length} non-alias row(s) with removal-oriented gates: ${destructiveRemovalCandidates
+      .slice(0, 10)
+      .map((entry) => entry.surface_id)
+      .join("; ")}`,
+  );
+}
+
 if (violations.length > 0) {
   failWithMemory(
     "public-surface-consolidation-check.mjs",
