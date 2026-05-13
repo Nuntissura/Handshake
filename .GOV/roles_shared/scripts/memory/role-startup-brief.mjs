@@ -13,7 +13,7 @@ const role = String(process.argv[2] || "").trim().toUpperCase();
 
 if (!role || !startupBriefPathForRole(role)) {
   fail("Usage: node .GOV/roles_shared/scripts/memory/role-startup-brief.mjs <ROLE>", [
-    "Valid roles: ORCHESTRATOR, CLASSIC_ORCHESTRATOR, ACTIVATION_MANAGER, CODER, WP_VALIDATOR, INTEGRATION_VALIDATOR, VALIDATOR, MEMORY_MANAGER",
+    "Valid roles: ORCHESTRATOR, KERNEL_BUILDER, CLASSIC_ORCHESTRATOR, ACTIVATION_MANAGER, CODER, WP_VALIDATOR, INTEGRATION_VALIDATOR, VALIDATOR, MEMORY_MANAGER",
   ]);
 }
 

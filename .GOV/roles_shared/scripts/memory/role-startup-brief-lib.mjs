@@ -4,6 +4,7 @@ import { GOV_ROOT_ABS } from "../lib/runtime-paths.mjs";
 
 export const ROLE_STARTUP_BRIEF_PATHS = Object.freeze({
   ORCHESTRATOR: ".GOV/roles/orchestrator/docs/ORCHESTRATOR_STARTUP_BRIEF.md",
+  KERNEL_BUILDER: ".GOV/roles/kernel_builder/docs/KERNEL_BUILDER_STARTUP_BRIEF.md",
   CLASSIC_ORCHESTRATOR: ".GOV/roles/classic_orchestrator/docs/CLASSIC_ORCHESTRATOR_STARTUP_BRIEF.md",
   ACTIVATION_MANAGER: ".GOV/roles/activation_manager/docs/ACTIVATION_MANAGER_STARTUP_BRIEF.md",
   CODER: ".GOV/roles/coder/docs/CODER_STARTUP_BRIEF.md",

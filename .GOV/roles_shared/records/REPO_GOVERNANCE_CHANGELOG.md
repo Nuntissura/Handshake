@@ -21,6 +21,781 @@
 
 ## Entries
 
+### 2026.05.13.08 / GOV-CHANGE-20260513-08
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Marked legacy Markdown governance artifacts as migration safety rails only and blocked them from becoming the future model-created artifact pattern.
+- Contract impact: New model-created WP/refinement/MT authority starts from typed JSON/JSONL/YAML-compatible contracts; generated Markdown is legal only as on-demand projection, explicit report/projection contract, operator-created note/research/audit, or frozen legacy reference. Packet/refinement/MT contracts now carry `artifact_policy` metadata with `legacy_markdown_policy=SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD`.
+- Driver evidence: Operator correction on 2026-05-13 that existing operator-facing/Markdown artifacts came from the recent transition to machine-readable governance and should remain a safety net, not be copied into future work.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`, `.GOV/roles/kernel_builder/docs/KERNEL_BUILDER_STARTUP_BRIEF.md`, `.GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE.json`, `.GOV/templates/REFINEMENT_CONTRACT_TEMPLATE.json`, `.GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json`, `.GOV/templates/TASK_PACKET_TEMPLATE.md`, `.GOV/templates/REFINEMENT_TEMPLATE.md`, `.GOV/templates/MICRO_TASK_TEMPLATE.md`, `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`, `.GOV/roles_shared/scripts/lib/packet-contract-lib.mjs`, `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`, `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`, `.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs`, packet contract schemas, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node --check` for packet contract libs/generators; `just task-packet-stub-contracts --check`; `node .GOV/roles_shared/checks/build-order-check.mjs`; `node .GOV/roles_shared/checks/governance-structure-bundle-check.mjs`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.13.07 / GOV-CHANGE-20260513-07
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Activated the first copy-first versioned indexed Master Spec bundle as `v02.183`.
+- Contract impact: `.GOV/spec/SPEC_CURRENT.md` now resolves to `.GOV/spec/master-spec-v02.183/indexed-spec-manifest.json` and `.GOV/spec/master-spec-v02.183/INDEX.json`; the prior `.GOV/spec/indexed_spec/` folder is archived as `.GOV/spec/spec_archive/master-spec-v02.182/`; active spec modules carry uniform `spec_version: v02.183` frontmatter; the active manifest declares `spec-changelog.jsonl`; Appendix machine-readable `spec_version` fields were updated; internal Master Spec references that described latest-monolith/version-file workflows were refreshed; and Codex plus role protocols now require internal-reference refresh on future version bumps.
+- Driver evidence: Operator approval to create a new identical copy and apply the versioned-bundle rules, including updated internal references inside the Master Spec, 2026-05-13.
+- Files changed: `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/master-spec-v02.183/**`, `.GOV/spec/spec_archive/master-spec-v02.182/**`, `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles_shared/records/BUILD_ORDER.md`, `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node .GOV/roles_shared/scripts/spec-current-check.mjs`; `node .GOV/roles_shared/checks/spec-bundle-check.mjs`; inline versioned-spec integrity check; `just validator-spec-regression`; `node --test .GOV/roles_shared/tests/spec-current-lib.test.mjs`; `just flat-packet-legacy-inventory`; `just gov-check --sync-topology`; `just gov-check`. Note: `role-resume-utils.test.mjs` had one unrelated runtime-root gate-log readiness failure when run beside `spec-current-lib.test.mjs`; the spec resolver test passed alone and full `gov-check` passed.
+
+### 2026.05.13.06 / GOV-CHANGE-20260513-06
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Added copy-first versioned indexed Master Spec bundle law across Codex and role protocols.
+- Contract impact: Future Master Spec changes must resolve `SPEC_CURRENT.md`, copy the active indexed bundle into the next versioned `master-spec-vNN.NNN` bundle before mutation, keep every active module on the same machine-readable `spec_version`, update a manifest-declared machine-readable changelog module on every version change, update `SPEC_CURRENT.md` after bundle consistency is proven, and move or keep non-current versioned spec folders under `.GOV/spec/spec_archive/`.
+- Driver evidence: Operator direction to preserve the old Master Spec copy/bump/apply behavior after modularization, require folder versioning, require identical module version numbers, split the changelog into a required machine-readable module, and update Codex plus Orchestrator, Classic Orchestrator, Activation Manager, Kernel Builder, Validator, and Classic Validator protocols, 2026-05-13.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PARTIAL - `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles_shared/checks/spec-bundle-check.mjs`, `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`, and `node .GOV/roles_shared/checks/build-order-check.mjs` pass. Full `just gov-check` is blocked by unrelated active packet drift for `WP-KERNEL-001-Event-Ledger-Session-Broker-v1` (missing closure/semantic/session-policy fields, missing WP communication runtime files, and traceability still pointing at the stub while an official packet exists).
+
+### 2026.05.13.05 / GOV-CHANGE-20260513-05
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Aligned the new Kernel Builder protocol and startup prompt with the module-resolver and non-operator-facing repo-surface corrections.
+- Contract impact: Kernel Builder now resolves `SPEC_CURRENT.md` through `current_spec.entrypoint_path` and `current_spec.resolver_index_path`; treats `INDEX.json` as a tool/LLM module resolver, not a repo viewer or operator surface; uses the roadmap module as build-order guidance only; and avoids repo-local indexes/viewers/projection docs unless explicitly requested in the current task.
+- Driver evidence: Operator note that the newly created Kernel Builder protocol also needed updating, 2026-05-13.
+- Files changed: `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`, `.GOV/roles/kernel_builder/docs/KERNEL_BUILDER_STARTUP_BRIEF.md`, `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `just build-order-sync`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.13.04 / GOV-CHANGE-20260513-04
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Corrected the indexed-spec index contract so `INDEX.json` is a machine-readable module resolver, not an operator surface or repo document-viewing surface.
+- Contract impact: `SPEC_CURRENT.md` now uses `resolver_index_path`; `INDEX.json` now uses `handshake.indexed_spec.module_resolver@1`, `current-module-resolver`, and explicit `not_a_document_viewer` / `not_operator_facing` flags. Viewing/projection remains an on-demand LLM response or future Handshake Product viewer concern, not a repo document surface.
+- Driver evidence: Operator correction that the index should not be operator-facing and viewing/projections are only needed by explicit request or a future Handshake viewer, 2026-05-13.
+- Files changed: `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/indexed_spec/INDEX.json`, `.GOV/spec/indexed_spec/indexed-spec-manifest.json`, `.GOV/spec/indexed_spec/README.md`, `.GOV/spec/indexed_spec/spec-modules/README.md`, `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles_shared/scripts/lib/spec-current-lib.mjs`, `.GOV/roles_shared/tests/spec-current-lib.test.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node .GOV/roles_shared/scripts/spec-current-check.mjs`; `node --test .GOV/roles_shared/tests/spec-current-lib.test.mjs`; `just build-order-sync`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.13.03 / GOV-CHANGE-20260513-03
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Corrected active repo-governance guidance so repo surfaces default to machine-facing and role-facing contracts, not operator-facing documents.
+- Contract impact: Codex now carries `CX-130A`, which requires operator-readable projections only when explicitly requested or required by an explicit report/projection contract; active startup and architecture guidance now says projection artifacts are not the wire and are not default operator surfaces.
+- Driver evidence: Operator correction that the repo should not be operator-facing unless explicitly requested, 2026-05-13.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/spec/indexed_spec/spec-modules/README.md`, `.GOV/spec/indexed_spec/_transfer/README.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `just build-order-sync`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.13.02 / GOV-CHANGE-20260513-02
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Cleaned the indexed Master Spec folder and extracted the roadmap into a dedicated module.
+- Contract impact: `.GOV/spec/indexed_spec/INDEX.json` is now the machine-readable module resolver; transfer/inventory/concordance/workspace artifacts live under `_transfer`; the roadmap is `spec-modules/07-6-development-roadmap.md` with an explicit boundary that it guides Task Board, Work Packet, and micro-task scheduling but does not replace topical Master Spec authority for implementation intent, techniques, anchors, done-means, or validation proof.
+- Driver evidence: Operator indexed-spec cleanup and roadmap extraction direction, 2026-05-13.
+- Files changed: `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/indexed_spec/**`, `.GOV/codex/Handshake_Codex_v1.4.md`, spec-writer role protocols, `.GOV/roles_shared/tests/spec-current-lib.test.mjs`, `.GOV/roles_shared/records/BUILD_ORDER.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node .GOV/roles_shared/scripts/spec-current-check.mjs`; `just validator-spec-regression`; `just spec-eof-appendices-check`; `node --test .GOV/roles_shared/tests/spec-current-lib.test.mjs`; `just build-order-sync`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.13.01 / GOV-CHANGE-20260513-01
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Completed the build-reset / indexed Master Spec transfer tranche and recorded it as `RGF-307` through `RGF-312`.
+- Contract impact: `SPEC_CURRENT.md` is now the machine-readable current-spec entrypoint; shared spec resolvers/checks consume the indexed manifest instead of regexing the old monolith filename; writer authority is explicit across role protocols/startup prompts/ACP injection; Codex law now targets indexed modules plus manifest metadata for future Master Spec edits.
+- Driver evidence: Operator build-reset and indexed-spec direction, 2026-05-13.
+- Files changed: `.GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md`, `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/indexed_spec/**`, `.GOV/roles_shared/scripts/lib/spec-current-lib.mjs`, `.GOV/roles_shared/scripts/spec-current-check.mjs`, role protocols, ACP startup scripts, `.GOV/codex/Handshake_Codex_v1.4.md`, governance ledgers, and related checks/templates.
+- Verification: PASS - targeted spec-current/spec-regression/spec-appendix/spec-governance checks; `node --test .GOV/roles_shared/tests/spec-current-lib.test.mjs .GOV/roles_shared/tests/role-resume-utils.test.mjs`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.08.01 / GOV-CHANGE-20260508-01
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Recorded machine-readability sanity-check follow-ons before implementation.
+- Contract impact: Added queued `RGF-301` through `RGF-306` for topology coverage of machine contracts, session-control schema/runtime role parity, workflow contract semantic validation, primary contract schema validation, residual writer classifier strictness, and failure dossier evidence strictness. Existing open rows remain `IN_PROGRESS` or `HOLD`; the review findings are recorded as queued hardening work rather than task-board `FAIL` states.
+- Driver evidence: `AUDIT-20260508-GOV-MACHINE-READABILITY-SANITY-CHECK`
+- Files changed: `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, `.GOV/Audits/audits/AUDIT-20260508-GOV-MACHINE-READABILITY-SANITY-CHECK.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`.
+- Verification: PASS - `repo-governance-board-check`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.07.09 / GOV-CHANGE-20260507-09
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Closed the 2026-05-07 RGF-299 and RGF-300 task-board items after their accepted governance-only slices passed full validation.
+- Contract impact: RGF-299 now has per-WP dossier runtime enforcement plus required topology-row and memory-capture-status fields. RGF-300 now has a generated public-surface consolidation ledger, canonical session-control classification, exact alias replacement invocations, guarded alias-retirement policy, and gov-check drift enforcement without destructive alias removal.
+- Files changed: `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, and `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`.
+- Verification: PASS - `repo-governance-board-check`; `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.07.08 / GOV-CHANGE-20260507-08
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Added guarded retirement-policy metadata to RGF-300 compatibility alias rows without deleting or retiring any alias.
+- Contract impact: The public-surface consolidation ledger now records first-tracked date, replacement invocation, removal criteria, operator-approval requirement, and archive requirement for each compatibility alias. `public-surface-consolidation-check` fails if an alias lacks that non-destructive retirement policy.
+- Files changed: `.GOV/roles_shared/scripts/topology/public-surface-consolidation.mjs`, `.GOV/roles_shared/checks/public-surface-consolidation-check.mjs`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.07.07 / GOV-CHANGE-20260507-07
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Extended RGF-300 compatibility-alias tracking so the public-surface consolidation ledger records the exact canonical `just ...` invocation for each one-line alias.
+- Contract impact: `public-surface-consolidation-check` now fails if an alias lacks exactly one concrete target recipe and exactly one matching invocation. This preserves operator ergonomics while making replacement commands machine-visible before any alias retirement decision.
+- Files changed: `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/scripts/topology/public-surface-consolidation.mjs`, `.GOV/roles_shared/checks/public-surface-consolidation-check.mjs`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.07.06 / GOV-CHANGE-20260507-06
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Hardened RGF-299 phase-bundle failure dossiers by making topology row ids and memory-capture status explicit required fields on every failure dossier row.
+- Contract impact: `appendFailureDossierEntry` now validates the required dossier schema before appending JSONL, renders topology/memory status into the Markdown projection, and `runSubprocessCheckStep` records that bundle-level memory capture is delegated to subcheck fail-capture hooks rather than duplicating raw logs into memory.
+- Files changed: `.GOV/roles_shared/scripts/lib/check-result-lib.mjs`, `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/tests/check-result-lib.test.mjs`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node --test .GOV/roles_shared/tests/check-result-lib.test.mjs`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.07.05 / GOV-CHANGE-20260507-05
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Continued RGF-300 by promoting generic governed session controls (`session-start`, `session-send`, `session-cancel`, `session-close`) to canonical public entries while retaining role-specific session recipes as compatibility aliases.
+- Contract impact: New operator, Orchestrator, Activation Manager, Coder, and Validator guidance now points steering/recovery text at the canonical `session-*` controls. `public-surface-consolidation-check` now fails if those controls lose retained-canonical status or if role-specific session aliases stop targeting the canonical session controls.
+- Files changed: `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/checks/public-surface-consolidation-check.mjs`, `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`, `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`, `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/activation_manager/README.md`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, and `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`.
+- Verification: PASS - `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.07.04 / GOV-CHANGE-20260507-04
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Tightened RGF-300 public-surface consolidation by distinguishing simple Just compatibility aliases from multi-step public recipes and recording concrete alias target recipes in the generated consolidation ledger.
+- Contract impact: Compatibility aliases are now only one-line `just <target>` wrappers, and `public-surface-consolidation-check` fails if an alias lacks exactly one concrete target recipe. Multi-step recipes that call other recipes remain public baselined surfaces for future consolidation when touched.
+- Files changed: `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/scripts/topology/public-surface-consolidation.mjs`, `.GOV/roles_shared/checks/public-surface-consolidation-check.mjs`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.07.03 / GOV-CHANGE-20260507-03
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Started RGF-300 Justfile/public leaf surface reduction execution by adding a deterministic public surface consolidation ledger and topology-bundle check. The ledger classifies canonical entries, compatibility aliases, baselined public recipes/leaves, contract authorities, consolidation groups, replacement bundles, primary debug artifacts, and removal gates before any public command is retired.
+- Contract impact: New public governance surfaces now have a generated consolidation ledger that gov-check can enforce. Public recipes/leaves are kept usable while touched surfaces are routed toward canonical bundles or explicitly retained with metadata.
+- Files changed: `.GOV/roles_shared/scripts/topology/public-surface-consolidation.mjs`, `.GOV/roles_shared/checks/public-surface-consolidation-check.mjs`, `.GOV/roles_shared/checks/topology-bundle-check.mjs`, `.GOV/roles_shared/records/PUBLIC_SURFACE_CONSOLIDATION.json`, `.GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `public-surface-consolidation-check`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.06.37 / GOV-CHANGE-20260506-37
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Advanced RGF-288/RGF-286 writer migration by adding a shared primary packet lifecycle writer and migrating closeout writer paths to update `packet.json` before Markdown projection. Integration Validator closeout sync now writes status, validator-of-record, signed-scope compatibility, merge-containment, validation verdict, and current WP status into primary lifecycle contract fields with rollback support. `wp-closeout-format` uses the same helper for contained-main PASS formatting.
+- Contract impact: Closeout/signed-scope truth is no longer only a packet Markdown mutation on the primary closeout path. `packet.md` remains a stamped projection generated from the primary lifecycle contract when a folder-based packet contract exists; flat legacy packets remain fallback-only.
+- Files changed: `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`, `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`, `.GOV/roles_shared/scripts/wp/wp-closeout-format.mjs`, `.GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, and regenerated `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` after validation sync.
+- Verification: PENDING. Run `just gov-check --sync-topology`, then `just gov-check`.
+### 2026.05.06.36 / GOV-CHANGE-20260506-36
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Advanced RGF-288/RGF-286 by adding contract-native packet lifecycle parsing for signed-scope compatibility, merge-progression truth, and runtime projection evaluators. The WP truth bundle now uses primary `packet.json` lifecycle fields directly when the complete evaluator field set exists, otherwise it falls back to the generated compatibility projection rather than failing on older partial contracts.
+- Contract impact: `packet.json` lifecycle fields are now the preferred closeout/signed-scope evaluator authority for `MAIN_CONTAINMENT_*`, `MERGED_MAIN_COMMIT`, `CURRENT_MAIN_COMPATIBILITY_*`, `PACKET_WIDENING_*`, validator-of-record, and status projection data. Older contracts remain safe through explicit fallback until writer migration fills the complete lifecycle field set.
+- Files changed: `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`, `.GOV/roles_shared/scripts/lib/signed-scope-compatibility-lib.mjs`, `.GOV/roles_shared/scripts/lib/merge-progression-truth-lib.mjs`, `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`, `.GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, and regenerated `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` after validation sync.
+- Verification: PENDING. Run `just gov-check --sync-topology`, then `just gov-check`.
+### 2026.05.06.35 / GOV-CHANGE-20260506-35
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Advanced RGF-288 by adding a contract-derived packet evaluator view and migrating downstream evaluator paths away from requiring raw packet Markdown. WP mechanical MT validation now resolves packet communications, worktree, branch, and scope from `packet.json` first, and WP truth bundles consume the contract-derived evaluator view before Markdown projection fallback.
+- Contract impact: Legacy packet text remains available only as fallback compatibility. Evaluators that still parse Markdown can now receive deterministic in-memory projection text generated from the primary machine-readable contract, reducing dependence on stale operator-facing packet Markdown.
+- Files changed: `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`, `.GOV/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs`, `.GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, and regenerated `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` after validation sync.
+- Verification: PENDING. Run `just gov-check --sync-topology`, then `just gov-check`.
+### 2026.05.06.34 / GOV-CHANGE-20260506-34
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Implemented the RGF-291 through RGF-295 script-surface consolidation batch. The governance topology ledger is now a deterministic generated projection, topology drift is enforced by `gov-check`, `gov-check` exposes checkpoint bundle runner flags, public Just recipes and leaf scripts are classified with replacement-bundle policy, and bundle failures write structured failure dossiers.
+- Contract impact: CX-913 now makes `just gov-check` and `just phase-check` the canonical public checkpoint surfaces for repo-governance bundle execution. New public governance recipes or leaf scripts are forbidden unless represented in the topology ledger with owner, phase, side-effect class, debug artifact, replacement bundle, validation coverage, and entrypoint status.
+- Files changed: `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/checks/governance-topology-check.mjs`, `.GOV/roles_shared/checks/gov-check.mjs`, `.GOV/roles_shared/checks/topology-bundle-check.mjs`, `.GOV/roles_shared/scripts/lib/check-result-lib.mjs`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/codex/Handshake_Codex_v1.4.md`, non-Coder role protocols, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, and the kernel `justfile`.
+- Verification: PENDING. Run `just gov-check --sync-topology`, then `just gov-check`.
+### 2026.05.06.33 / GOV-CHANGE-20260506-33
+
+- Status: RECORDED
+- Scope: Repo Governance
+- Summary: Added CX-912 topology-ledger law, created the bootstrap machine-readable governance topology ledger, added non-Coder topology upkeep duties to role protocols, and recorded RGF-291 through RGF-295 for script-surface inventory, phase checkpoint bundles, Justfile consolidation, leaf-script sunset policy, and structured failure dossiers.
+- Contract impact: Non-Coder roles must update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` when they add, rename, retire, expose, or materially change governance scripts, public Just recipes, checks, workflow artifacts, role protocols, phase bundles, topology surfaces, session/runtime authority surfaces, or machine-readable governance contract surfaces. Coder is excluded and must not receive topology-ledger repair work.
+- Records updated: `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` now defines RGF-291, RGF-292, RGF-293, RGF-294, and RGF-295 with implementation-ready scope, dependencies, deliverables, acceptance requirements, and risks.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and non-Coder protocol files under `.GOV/roles/`.
+- Verification: NOT_RUN. The operator has not requested validation for this record slice.
+### 2026.05.06.32 / GOV-CHANGE-20260506-32
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by routing packet communication appenders through the shared contract-first packet view, so receipt, thread, and notification writes resolve communication files, workflow lane, branch/worktree claims, packet format, and communication gate fields from `packet.json` before Markdown projection fallback. Closed `RGF-287` and `RGF-289` after projection drift, flat import, and stub-contract checks passed in the packet truth bundle and full governance check.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-thread-append.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-notification-append.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- DRIVER_EVIDENCE:
+  - `RGF-287`
+  - `RGF-288`
+  - `RGF-289`
+  - Operator request to push `gov_kernel` and proceed with deterministic machine-readable workflow artifact migration.
+- VERIFICATION:
+  - NOT_RUN after this appender slice.
+- OUTCOME: packet communication writes are no longer Markdown-first consumers when a primary packet contract exists; flat official packet import and stub contract migration are recorded as done after the prior `just gov-check` pass.
+
+### 2026.05.06.31 / GOV-CHANGE-20260506-31
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-289` by fixing the ES-module stub-contract helper defect and migrating build-order/stub consumers to prefer typed stub contracts before Markdown fallback. Build-order sync now hashes and consumes `.contract.json`, Phase 1 ADD coverage reads `spec_trace.roadmap_add_coverage`, packet truth reads stub base/status from contracts, and activation traceability requires active stubs to carry `execution_authority=NON_EXECUTION_STUB`.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs`
+  - `.GOV/roles_shared/scripts/build-order-sync.mjs`
+  - `.GOV/roles_shared/checks/phase1-add-coverage-check.mjs`
+  - `.GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `.GOV/roles_shared/checks/wp-activation-traceability-check.mjs`
+  - `.GOV/roles_shared/records/BUILD_ORDER.md`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: ran implementation command `just build-order-sync`; full `just gov-check` not run in this slice.
+- RISKS:
+  - Remaining stub consumers may exist in monitor/UI surfaces that classify by path only; these are lower authority than build-order/check paths.
+  - Stub contracts remain non-execution authority; activation must still create official packet contracts before role launch.
+
+### 2026.05.06.30 / GOV-CHANGE-20260506-30
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-289` by adding typed machine-readable packet-stub contracts, wiring new stub creation to emit `.contract.json`, generating contracts for all existing stubs, adding a drift check to the packet truth bundle, and updating the flat legacy inventory so stubs are classified as typed non-execution planning authority.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs`
+  - `.GOV/roles_shared/checks/task-packet-stub-contract-check.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet-stub.mjs`
+  - `.GOV/roles_shared/checks/packet-truth-bundle-check.mjs`
+  - `.GOV/task_packets/stubs/WP-*.contract.json`
+  - `.GOV/roles_shared/scripts/wp/flat-packet-legacy-inventory.mjs`
+  - `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `justfile`
+- VALIDATION: ran implementation commands `just task-packet-stub-contracts --all` and `just flat-packet-legacy-inventory`; full `just gov-check` not run in this slice.
+- RISKS:
+  - Stub contracts are non-execution authority by design; apps must not activate Coder/Validator from them.
+  - Existing build-order/stub checks may still parse stub Markdown until migrated to the new stub contracts.
+
+### 2026.05.06.29 / GOV-CHANGE-20260506-29
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-287`/`RGF-289` by extending the contract importer to include flat official packets, running `just wp-contract-import --all`, and regenerating the flat legacy inventory. All flat official packets now have folder-based `packet.json` authority plus generated `packet.md` projections; frozen flat Markdown remains as legacy reference. The inventory now reports `0` unpaired legacy-authority flat packets.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/task_packets/WP-*/packet.json`
+  - `.GOV/task_packets/WP-*/packet.md`
+  - `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: ran implementation commands `just wp-contract-import --all` and `just flat-packet-legacy-inventory`; full `just gov-check` not run in this slice.
+- RISKS:
+  - Packet stubs remain classified as `STUB_NOT_EXECUTION_AUTHORITY` and still need a typed stub/import/freeze policy.
+  - The importer repaired existing folder projections while importing flat packets, so the diff is broad and should be validated before closure.
+
+### 2026.05.06.28 / GOV-CHANGE-20260506-28
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by migrating rescue guard context, WP timeline artifact loading, workflow dossier sync/timeline data, and post-run audit skeleton generation to resolve packet communication fields through the shared contract-first packet view before Markdown projection fallback.
+- CHANGED:
+  - `.GOV/roles/orchestrator/scripts/orchestrator-rescue.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-timeline-lib.mjs`
+  - `.GOV/roles_shared/scripts/audit/workflow-dossier.mjs`
+  - `.GOV/roles_shared/scripts/audit/generate-post-run-audit-skeleton.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - These paths still pass packet projection text into downstream evaluators where evaluator APIs have not yet accepted contract-native inputs.
+  - Alternate-root dossier execution keeps legacy fallback for compatibility until a repo-root aware contract reader exists.
+
+### 2026.05.06.27 / GOV-CHANGE-20260506-27
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by migrating closeout formatting and closeout repair packet context resolution to the shared contract-first packet communication view for kernel-local operations.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/wp/wp-closeout-format.mjs`
+  - `.GOV/roles/orchestrator/scripts/closeout-repair.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Closeout internals still mutate Markdown projections directly; future work should update primary contracts and regenerate projections instead of editing projections first.
+  - Timeline, dossier, rescue, and remaining audit/projection paths still need contract-first migration.
+
+### 2026.05.06.26 / GOV-CHANGE-20260506-26
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by adding a contract-first refinement reader and migrating Activation Manager readiness to prefer `packet.json` and `refinement.json` fields for workflow lane, packet claims, worktree/backup claims, signatures, approval evidence, enrichment verdicts, and stub IDs before Markdown projection fallback.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/roles/activation_manager/scripts/activation-manager.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Activation still validates the Markdown refinement projection because existing refinement checks have not yet accepted primary JSON contracts directly.
+  - Existing imported contracts may lack some newer fields until projection/contract repair runs again.
+
+### 2026.05.06.25 / GOV-CHANGE-20260506-25
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by migrating classic/manual-relay next and dispatch entrypoints to resolve packet lane and communication fields through the contract-first packet communication view before Markdown projection fallback.
+- CHANGED:
+  - `.GOV/roles/orchestrator/scripts/manual-relay-next.mjs`
+  - `.GOV/roles/orchestrator/scripts/manual-relay-dispatch.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Manual-relay drift evaluation still receives packet projection text; future work should pass contract-derived views into downstream evaluators directly.
+  - Remaining high-value migrations are closeout, activation, timeline, and dossier consumers.
+
+### 2026.05.06.24 / GOV-CHANGE-20260506-24
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by migrating session-facing packet consumers to the contract-first packet communication view for lane health, active-lane briefs, and orchestrator session-registry status. The shared view now also derives deterministic notification paths from the packet communication contract.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
+  - `.GOV/roles_shared/scripts/session/active-lane-brief-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Session diagnostics still pass packet projection text into downstream evaluators until those evaluators accept contract objects directly.
+  - Closeout, activation, timeline, dossier, and manual-relay paths still need migration.
+
+### 2026.05.06.23 / GOV-CHANGE-20260506-23
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-288` by introducing a shared contract-first packet communication view and migrating WP communication provisioning, communication health, and communications drift checks to prefer `packet.json` workflow/lifecycle/source-control fields before Markdown projection fallback.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/roles_shared/checks/wp-communication-health-check.mjs`
+  - `.GOV/roles_shared/checks/wp-communications-check.mjs`
+  - `.GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- VALIDATION: not run in this slice.
+- RISKS:
+  - Markdown projection remains a fallback for fields not present in older imported contracts.
+  - Future slices still need to migrate closeout, lane-health, timeline, dossier, activation, and manual-relay consumers.
+
+### 2026.05.06.22 / GOV-CHANGE-20260506-22
+- STATUS: APPLIED
+- AREA: Repo Governance
+- SUMMARY: advanced `RGF-289` by adding a deterministic machine-readable inventory and drift check for legacy flat official packet and packet-stub Markdown artifacts, plus `just flat-packet-legacy-inventory` as the governed entrypoint. Repaired duplicate changelog projections so each change ID remains an atomic record.
+- CHANGED:
+  - `.GOV/roles_shared/scripts/wp/flat-packet-legacy-inventory.mjs`
+  - `.GOV/roles_shared/checks/flat-packet-legacy-inventory-check.mjs`
+  - `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`
+  - `.GOV/roles_shared/checks/packet-truth-bundle-check.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `justfile`
+- VALIDATION: generated `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`; full `just gov-check` not run in this slice.
+- RISKS:
+  - The inventory intentionally does not move or retire flat packet files; it only makes the remaining migration surface deterministic.
+  - Next RGF-289 work must import, freeze, or archive each manifest class without creating parallel packet authority.
+
+### 2026.05.06.21 / GOV-CHANGE-20260506-21
+
+- STATUS: APPLIED
+- SUMMARY: opened `RGF-290` and declared the governance kernel as the deterministic testbed for future Handshake Product governance artifacts, so workflow files move toward machine-readable atomic contracts consumable by ACP, external apps/tools, and product runtime surfaces instead of repo-local operator-facing prose.
+- CHANGE_TYPE: GOVERNANCE_STANCE_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator direction that governance workflow and artifacts should become machine-readable preparation for Handshake Product governance reuse.
+- SURFACES:
+  - `../handshake_main/AGENTS.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/README.md`
+  - `.GOV/task_packets/README.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - Continue `RGF-289` flat/stub packet classification without creating duplicate Markdown/JSON authority.
+  - Continue `RGF-288` contract-first consumer migration across activation, closeout, communication, and workflow projection surfaces.
+- VERIFICATION: NOT_RUN after this stance slice.
+- OUTCOME: non-Coder role authorities now explicitly treat machine-readable governance artifacts as product-governance prototype contracts; Coder protocol was intentionally left unchanged to preserve the product-code role boundary.
+
+### 2026.05.06.20 / GOV-CHANGE-20260506-20
+
+- STATUS: APPLIED
+- SUMMARY: advanced `RGF-287`/`RGF-288` by dry-running then executing all folder-based official WP contract imports, wiring additional packet checks through contract-first lifecycle/workflow/scope fields, updating the workflow playbook with the governed import/repair command, and opening `RGF-289` for the remaining flat packet and stub migration class.
+- CHANGE_TYPE: GOVERNANCE_CONTRACT_MIGRATION
+- DRIVER_EVIDENCE:
+  - `RGF-287`
+  - `RGF-288`
+  - `RGF-289`
+  - `just wp-contract-import --all --dry-run` reported 30 folder-based WPs and no failures.
+  - `just wp-contract-import --all` imported those 30 folder-based WPs and reported no failures.
+- SURFACES:
+  - `.GOV/task_packets/WP-*/packet.json`
+  - `.GOV/task_packets/WP-*/refinement.json`
+  - `.GOV/task_packets/WP-*/MT-*.json`
+  - `.GOV/task_packets/WP-*/packet.md`
+  - `.GOV/task_packets/WP-*/refinement.md`
+  - `.GOV/task_packets/WP-*/MT-*.md`
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/roles_shared/checks/task-packet-claim-check.mjs`
+  - `.GOV/roles_shared/checks/packet-closure-monitor-check.mjs`
+  - `.GOV/roles_shared/checks/merge-progression-truth-check.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - `RGF-289`: classify/import/archive flat official packets and packet stubs without creating duplicate authority.
+  - Continue routing remaining packet lifecycle consumers through shared contract-first helpers.
+- VERIFICATION: NOT_RUN after this slice.
+- OUTCOME: folder-based official WPs now have typed contracts plus generated projection headers; the remaining flat/stub Markdown debt is explicitly tracked instead of hidden under the RGF-287 completion claim.
+
+### 2026.05.06.19 / GOV-CHANGE-20260506-19
+
+- STATUS: APPLIED
+- SUMMARY: split the remaining `RGF-286` migration into `RGF-287` legacy import/repair and `RGF-288` contract-first consumer migration, then started both by adding a shared work-packet contract reader/importer, a governed `wp-contract-import` command, and packet-truth inventory JSON-first consumption.
+- CHANGE_TYPE: GOVERNANCE_CONTRACT_MIGRATION
+- DRIVER_EVIDENCE:
+  - `RGF-287`
+  - `RGF-288`
+  - Operator request to create governance refactor board items first, then start implementing legacy import/repair and contract-first consumers.
+- SURFACES:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`
+  - `.GOV/roles_shared/scripts/wp/wp-contract-import.mjs`
+  - `.GOV/roles_shared/checks/packet-truth-check.mjs`
+  - `justfile`
+- FOLLOW_ON_ITEMS:
+  - Run targeted dry-run/import on selected legacy packets after operator picks scope or a migration wave is opened.
+  - Continue replacing Markdown field parsing in claim, closure, and merge-progression checks with shared contract-first helpers.
+- VERIFICATION: NOT_RUN after this slice.
+- OUTCOME: legacy packet import/repair and contract-first packet inventory are now active implementation items rather than umbrella debt; existing packets can be imported deliberately without inventing manual sidecars.
+
+### 2026.05.06.18 / GOV-CHANGE-20260506-18
+
+- STATUS: APPLIED
+- SUMMARY: continued `RGF-286` by wiring packet creation to emit primary `packet.json`, `refinement.json`, and `MT-*.json` contracts, stamping generated Markdown projections with source/projection hashes, making MT parsing prefer JSON contracts, making ACP role startup capsules consume packet/refinement JSON first, and adding a gov-check packet projection drift check.
+- CHANGE_TYPE: GOVERNANCE_CONTRACT_MIGRATION
+- DRIVER_EVIDENCE:
+  - `RGF-286`
+  - Operator request to implement generator/parser rewiring, projection hash enforcement, and generated Markdown drift checks before validation.
+- SURFACES:
+  - `.GOV/roles_shared/scripts/lib/packet-contract-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`
+  - `.GOV/roles_shared/scripts/lib/wp-microtask-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/checks/packet-contract-projection-check.mjs`
+  - `.GOV/roles_shared/checks/packet-truth-bundle-check.mjs`
+  - `.GOV/roles_shared/schemas/WORK_PACKET_CONTRACT.schema.json`
+  - `.GOV/roles_shared/schemas/REFINEMENT_CONTRACT.schema.json`
+  - `.GOV/roles_shared/schemas/MICRO_TASK_CONTRACT.schema.json`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - Migrate remaining packet consumers that still parse Markdown-only fields to contract-first helpers.
+  - Add importer/round-trip repair for legacy packets explicitly classified as `LEGACY_AUTHORITY`.
+- VERIFICATION: REQUESTED_AFTER_CHANGE
+- OUTCOME: new packet creation now has a primary machine-readable contract path with deterministic generated-projection drift detection; legacy Markdown remains compatibility input only where no JSON contract exists.
+
+### 2026.05.06.17 / GOV-CHANGE-20260506-17
+
+- STATUS: APPLIED
+- SUMMARY: started `RGF-286` implementation by replacing sidecar-shaped packet/refinement/MT template language with primary deterministic JSON contract authority, adding contract templates/schemas, updating all role protocol stance, fixing the packet-template formatting defect, and recording a red-team migration posture for stale projections, sidecar drift, shadow prose authority, schema omissions, round-trip loss, and Activation Manager / Classic Orchestrator divergence.
+- CHANGE_TYPE: GOVERNANCE_CONTRACT_MIGRATION
+- DRIVER_EVIDENCE:
+  - `RGF-286`
+  - Operator direction to move away from operator-facing documents toward machine-readable deterministic atomic files.
+- SURFACES:
+  - `../handshake_main/AGENTS.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/**/**/*PROTOCOL.md`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/templates/MICRO_TASK_TEMPLATE.md`
+  - `.GOV/templates/REFINEMENT_TEMPLATE.md`
+  - `.GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE.json`
+  - `.GOV/templates/REFINEMENT_CONTRACT_TEMPLATE.json`
+  - `.GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json`
+  - `.GOV/roles_shared/schemas/WORK_PACKET_CONTRACT.schema.json`
+  - `.GOV/roles_shared/schemas/REFINEMENT_CONTRACT.schema.json`
+  - `.GOV/roles_shared/schemas/MICRO_TASK_CONTRACT.schema.json`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- FOLLOW_ON_ITEMS:
+  - Wire packet/refinement/MT creation and parsing to read/write the primary JSON contracts and generate Markdown projections with source hashes.
+  - Add deterministic checks for projection drift and legacy-authority classification.
+- VERIFICATION: NOT_RUN after this slice.
+- OUTCOME: `RGF-286` now has concrete primary contract schemas/templates and repo-wide protocol law that rejects manually maintained sidecars as co-authority; Markdown remains allowed only as generated projection, frozen legacy authority, or migration bridge.
+
+### 2026.05.06.15 / GOV-CHANGE-20260506-15
+
+- STATUS: APPLIED
+- SUMMARY: started RGF-285 ACP role startup capsule implementation
+- CHANGE_TYPE: GOVERNANCE_REFACTOR_IMPLEMENTATION
+- DRIVER_EVIDENCE:
+  - Operator directive to start `RGF-285`.
+  - `RGF-284` is already `DONE`, so ACP/session-control can consume machine-readable workflow contracts.
+  - `RGF-286` now covers the broader packet/refinement/microtask sidecar migration; this change keeps `RGF-285` focused on startup/restart capsule injection.
+- FOLLOW_ON_ITEMS:
+  - `RGF-285`
+  - `RGF-286`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `.GOV/roles_shared/schemas/SESSION_CONTROL_REQUEST.schema.json`
+  - `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json`
+  - `.GOV/roles_shared/workflow_contracts/manual_relay.workflow.json`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `ROLE_STARTUP_CAPSULE` is now built into session-control requests and prefixed into startup prompts. The capsule carries compact authority-file snapshots, work-packet fields, refinement snapshot, declared/active/next MT state, sampled runtime/receipt state, exact first commands, and deterministic restart reason while preserving ACP as a consumer rather than workflow authority. START_SESSION also projects capsule digest/source freshness into the existing workflow dossier ACP trace.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `node --check .GOV/roles/orchestrator/scripts/session-control-command.mjs`
+  - `just gov-check`
+
+### 2026.05.06.14 / GOV-CHANGE-20260506-14
+
+- STATUS: APPLIED
+- SUMMARY: established deterministic atomic governance-file stance and queued machine-readable packet/refinement/MT contract migration
+- CHANGE_TYPE: GOVERNANCE_REFACTOR_PLANNING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-05-06 that work packets and microtasks should be machine-readable so ACP and other apps/tools can ingest and act on them better.
+  - Operator clarification that Activation Manager refinement output belongs in the same machine-readable contract direction.
+  - Operator preference to step away from prose-first operator-facing repo/workflow documents and move toward deterministic atomic files.
+- FOLLOW_ON_ITEMS:
+  - `RGF-286`
+  - `RGF-285`
+- FILES_CHANGED:
+  - `../handshake_main/AGENTS.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/**/**PROTOCOL.md`
+  - `.GOV/templates/TASK_PACKET_TEMPLATE.md`
+  - `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`
+  - `.GOV/templates/MICRO_TASK_TEMPLATE.md`
+  - `.GOV/templates/REFINEMENT_TEMPLATE.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `CX-908` records the repo stance that new or substantially refactored governance workflow surfaces should expose deterministic atomic machine-readable contracts, with Markdown treated as human/operator projection when those contracts exist. `RGF-286` is queued for machine-readable packet/refinement/microtask sidecar generation and validation migration, and `RGF-285` should consume those contracts in ACP startup capsules.
+- VERIFICATION:
+  - NOT_RUN (operator did not request validation in that turn)
+
+### 2026.05.06.16 / GOV-CHANGE-20260506-16
+
+- STATUS: APPLIED
+- SUMMARY: corrected deterministic atomic governance stance away from editable sidecars and added workflow playbook upkeep law
+- CHANGE_TYPE: GOVERNANCE_LAW_REFINEMENT
+- DRIVER_EVIDENCE:
+  - Operator concern on 2026-05-06 that sidecars are busywork and introduce extra drift surface.
+  - Operator directive to update Codex first, then `AGENTS.md`.
+  - Operator directive that workflow playbook upkeep must be encoded in Codex and `AGENTS.md`.
+- FOLLOW_ON_ITEMS:
+  - `RGF-286`
+- FILES_CHANGED:
+  - `../handshake_main/AGENTS.md`
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `CX-908` now requires one deterministic machine-readable authority file where possible, with Markdown as generated projection/frozen legacy/short migration bridge rather than an editable sidecar. `CX-909` requires workflow playbook projections to be updated or regenerated when workflow contracts, role protocol workflow law, session-control behavior, lifecycle rules, or ACP workflow capsules change. `RGF-286` now targets authoritative machine contracts plus generated projections rather than sidecar drift.
+- VERIFICATION:
+  - NOT_RUN (planning/update pass only)
+
+### 2026.05.06.13 / GOV-CHANGE-20260506-13
+
+- STATUS: APPLIED
+- SUMMARY: queued ACP role startup capsule and WP/MT injection contract refactor
+- CHANGE_TYPE: GOVERNANCE_REFACTOR_PLANNING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-05-06 that ACP should be able to close/restart fresh role sessions and inject protocol/Codex/AGENTS digest plus WP, refinement, and active MT truth so Orchestrator does not babysit ordinary rehydration.
+  - Operator clarification that ACP is not authoritative; Orchestrator and Classic Orchestrator remain workflow authorities, the Work Packet is the task contract, and Microtasks are execution details.
+  - Existing ACP/dossier mechanics already print session/control activity mechanically, so capsule digest, restart reason, and source-snapshot freshness should flow into dossier projection instead of a separate narrative log.
+- FOLLOW_ON_ITEMS:
+  - `RGF-285`
+- FILES_CHANGED:
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: `RGF-285` is queued as the next governance refactor concept: ACP becomes a deterministic role rehydration and injection consumer of verified packet/refinement/MT truth while Orchestrator/Classic retain authority. The recorded target includes startup capsules, automatic restart injection, exact first commands, and dossier-visible capsule/restart telemetry.
+- VERIFICATION:
+  - `just docs-check`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `just gov-check`
+
+### 2026.05.06.12 / GOV-CHANGE-20260506-12
+
+- STATUS: APPLIED
+- SUMMARY: converted workflow playbook authority into ACP-consumed machine contracts
+- CHANGE_TYPE: ACP_WORKFLOW_CONTRACT_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260506-WORKFLOW-CONTRACT-REGISTRY`
+  - Operator directive on 2026-05-06 that the playbook is not human-facing and should be a machine-readable ACP-consumed surface authored by Orchestrator and Classic Orchestrator.
+- FOLLOW_ON_ITEMS:
+  - `RGF-284`
+- FILES_CHANGED:
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json`
+  - `.GOV/roles_shared/workflow_contracts/manual_relay.workflow.json`
+  - `.GOV/roles_shared/schemas/WORKFLOW_CONTRACT.schema.json`
+  - `.GOV/roles_shared/schemas/SESSION_CONTROL_REQUEST.schema.json`
+  - `.GOV/roles_shared/scripts/workflow/workflow-contract-lib.mjs`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/checks/workflow-contract-check.mjs`
+  - `.GOV/roles_shared/checks/session-bundle-check.mjs`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/tests/workflow-contract-lib.test.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`
+  - `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+  - `.GOV/Audits/audits/AUDIT-20260506-WORKFLOW-CONTRACT-REGISTRY.md`
+- OUTCOME: the orchestrator-managed and manual-relay workflow playbooks now have machine-readable contracts owned by Orchestrator and Classic Orchestrator. ACP/session-control consumes those contracts by attaching a `workflow_contract` envelope to governed requests and injecting a compact `WORKFLOW_CONTRACT_CAPSULE` into startup/steering prompts. The markdown playbook is downgraded to projection/reference, and `workflow-contract-check` is part of the session bundle so contract drift fails `gov-check`.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/scripts/workflow/workflow-contract-lib.mjs`
+  - `node --check .GOV/roles_shared/checks/workflow-contract-check.mjs`
+  - `node .GOV/roles_shared/checks/workflow-contract-check.mjs`
+  - `node --test .GOV/roles_shared/tests/workflow-contract-lib.test.mjs`
+  - `node .GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `git diff --check`
+  - `just gov-check`
+
+### 2026.05.06.11 / GOV-CHANGE-20260506-11
+
+- STATUS: APPLIED
+- SUMMARY: propagated large-bundle MT granularity law across ACP, Orchestrator, Classic Orchestrator, and playbook surfaces
+- CHANGE_TYPE: ACP_PROTOCOL_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-05-06 asking what can improve large bundled WP handling so ACP, Activation Manager, Orchestrator, and Classic Orchestrator are on the same level.
+- FOLLOW_ON_ITEMS:
+  - `RGF-281`
+  - `RGF-283`
+- FILES_CHANGED:
+  - `.GOV/roles/activation_manager/scripts/activation-manager.mjs`
+  - `.GOV/roles/activation_manager/tests/activation-manager.test.mjs`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: Activation readiness now emits `MICROTASK_GRANULARITY`, ACP startup prompts tell all governed roles that large/folded bundles must execute from official MT truth with no upper MT-count bias, Activation Manager and Classic Orchestrator prompts carry role-specific decomposition duties, Orchestrator must reject/relaunch broad readiness before downstream launch, and the shared playbook names healthy large-bundle MT discipline plus 3-5 likely causes for low MT count drift.
+- VERIFICATION:
+  - `node --check .GOV/roles/activation_manager/scripts/activation-manager.mjs`
+  - `node --check .GOV/roles_shared/scripts/session/session-control-lib.mjs`
+  - `node --test .GOV/roles/activation_manager/tests/activation-manager.test.mjs`
+  - `just docs-check`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `just gov-check`
+
+### 2026.05.06.10 / GOV-CHANGE-20260506-10
+
+- STATUS: APPLIED
+- SUMMARY: expanded PostgreSQL bundle microtask granularity and made Activation Manager decomposition stance explicit
+- CHANGE_TYPE: WORK_PACKET_PLANNING_PROTOCOL_HARDENING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-05-06 that consolidated PostgreSQL packets may be large only when split into enough deterministic MTs for trackable, recoverable execution by smaller local or lower-cost cloud coding models.
+- FOLLOW_ON_ITEMS:
+  - `WP-1-Postgres-Control-Plane-Shift-Bundle-v1`
+  - `RGF-283`
+- FILES_CHANGED:
+  - `.GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: the PostgreSQL control-plane shift stub now states that 20+ MTs are acceptable and preferred when they improve deterministic execution, recovery, review targeting, or small-model suitability. The draft minimum split is expanded to 27 MTs covering live-service proof, migration/fixture paths, storage authority, SQLite boundaries, shared leases/backpressure, ModelSession, FEMS, workflow durable execution, DCC projections, integration proof, and final debt mapping. Activation Manager protocol now forbids compressing large bundled WPs just to reduce paperwork and requires `ACTIVATION_READINESS` to report the declared MT count or block launch when the split is too broad.
+- VERIFICATION:
+  - `just build-order-sync`
+  - `node .GOV/roles_shared/scripts/build-order-sync.mjs --check`
+  - `just docs-check`
+  - `node .GOV/roles_shared/checks/build-order-check.mjs`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `just gov-check`
+
+### 2026.05.06.09 / GOV-CHANGE-20260506-09
+
+- STATUS: APPLIED
+- SUMMARY: folded immediate PostgreSQL-primary follow-on stubs into one microtask-sized bundle stub
+- CHANGE_TYPE: WORK_PACKET_PLANNING
+- DRIVER_EVIDENCE:
+  - Operator directive on 2026-05-06 to start bundling related work packets while keeping coder execution split into microtasks.
+  - `WP-1-Postgres-Primary-Control-Plane-Foundation-v1` is `Validated (PASS)` and contained in `main`, with carry-over risks preserved for the next PostgreSQL tranche.
+- FOLLOW_ON_ITEMS:
+  - `WP-1-Postgres-Control-Plane-Shift-Bundle-v1`
+- FILES_CHANGED:
+  - `.GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-Postgres-Dev-Test-Container-Matrix-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Leases-Backpressure-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-ModelSession-Postgres-Queue-Workers-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-FEMS-Postgres-Memory-Store-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-Workflow-Engine-Postgres-Durable-Execution-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-DCC-Postgres-Control-Plane-Projections-v1.md`
+  - `.GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.md`
+  - `.GOV/roles_shared/records/TASK_BOARD.md`
+  - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
+  - `.GOV/roles_shared/records/BUILD_ORDER.md`
+  - `.GOV/roles_shared/scripts/build-order-sync.mjs`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+- OUTCOME: the immediate PostgreSQL-primary pivot follow-ons now have one activation target, `WP-1-Postgres-Control-Plane-Shift-Bundle-v1`, with an initial seven draft MT groups: live PostgreSQL dev/test proof, SQLite authority boundary enforcement, leases/backpressure, ModelSession queue workers, FEMS PostgreSQL memory store, workflow durable execution, and DCC PostgreSQL projections. The original seven stubs are marked superseded/folded outside the active traceability registry, and Loom/video/archive stubs remain separate. Build-order state precedence now treats `SUPERSEDED` before `STUB`, and the refactor board no longer uses a literal glob as a validated file reference.
+- VERIFICATION:
+  - `just build-order-sync`
+  - `node --check .GOV/roles_shared/scripts/build-order-sync.mjs`
+  - `node .GOV/roles_shared/scripts/build-order-sync.mjs --check`
+  - `just docs-check`
+  - `node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs`
+  - `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`
+  - `just gov-check`
+
+### 2026.05.06.08 / GOV-CHANGE-20260506-08
+
+- STATUS: APPLIED
+- SUMMARY: imprinted non-Coder roles with active governance paperwork and workflow stabilization duty
+- CHANGE_TYPE: PROTOCOL_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT-20260506-NON-CODER-GOVERNANCE-STABILIZATION`
+  - The Operator's mental model is that `ORCHESTRATOR_MANAGED` workflows must become more mechanical because current governance/workflow is still brittle.
+  - The Operator's recurring Orchestrator note about mechanical handoffs, stalled-lane cause triage, documentation drift, and autonomous swarm hardening needed to apply across all governed non-Coder roles instead of remaining an Orchestrator-only reminder.
+- FOLLOW_ON_ITEMS:
+  - `RGF-283`
+- FILES_CHANGED:
+  - `.GOV/codex/Handshake_Codex_v1.4.md`
+  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
+  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
+  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
+  - `.GOV/roles/coder/CODER_PROTOCOL.md`
+  - `.GOV/roles/orchestrator/agentic/AGENTIC_PROTOCOL.md`
+  - `.GOV/roles/validator/agentic/AGENTIC_PROTOCOL.md`
+  - `.GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `.GOV/roles_shared/docs/STARTUP_BRIEF_SCHEMA.md`
+  - `.GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md`
+  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
+  - `.GOV/Audits/audits/AUDIT-20260506-NON-CODER-GOVERNANCE-STABILIZATION.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
+  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
+- OUTCOME: Codex now has `CX-218L` for non-Coder governance stabilization centered on making `ORCHESTRATOR_MANAGED` workflows more mechanical, active non-Coder protocols carry role-specific stabilization duties, Coder explicitly remains product-code focused and reports governance blockers through typed surfaces, startup/playbook text reflects the Coder boundary, refactor/stabilization work must be declared and kept current in the repo governance refactor taskboard, and `protocol-alignment-check` enforces the non-Coder duty plus Coder exclusion.
+- VERIFICATION:
+  - `node --check .GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `node .GOV/roles_shared/checks/protocol-alignment-check.mjs`
+  - `git diff --check`
+  - `just gov-check`
+
 ### 2026.05.06.07 / GOV-CHANGE-20260506-07
 
 - STATUS: APPLIED
@@ -3335,25 +4110,6 @@
   - `RGF-163`
 - OUTCOME: governance law now makes per-MT direct review and validator-owned steering explicit on orchestrator-managed lanes, clarifies deferred loop-back repair after validator disapproval, and reaffirms that the Orchestrator should only step in for governance workflow defects rather than relay ordinary coder/validator traffic
 
-### 2026.04.09.3 / GOV-CHANGE-20260409-03
-
-- STATUS: APPLIED
-- SUMMARY: made governed memory injection visibly auditable and restored bounded startup prompt memory injection
-- CHANGE_TYPE: TOOLING_HARDENING
-- DRIVER_EVIDENCE:
-  - `AUDIT-20260409-VISIBLE-MEMORY-INJECTION-AND-STARTUP-BOUNDS`
-- SURFACES:
-  - `.GOV/roles_shared/scripts/memory/memory-recall.mjs`
-  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
-  - `.GOV/roles_shared/tests/memory-recall.test.mjs`
-  - `.GOV/roles_shared/tests/session-control-lib.test.mjs`
-  - `.GOV/Audits/audits/AUDIT_20260409_VISIBLE_MEMORY_INJECTION_AND_STARTUP_BOUNDS.md`
-  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
-  - `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`
-- FOLLOW_ON_ITEMS:
-  - `NONE`
-- OUTCOME: governed `memory-recall` now prints a compact `MEMORY_INJECTION_APPLIED` summary for operator visibility, and governed startup prompts once again carry a small bounded fail/context block instead of leaving the startup loader code disconnected from the active prompt builder
-
 ### 2026.04.09.4 / GOV-CHANGE-20260409-04
 
 - STATUS: APPLIED
@@ -4542,37 +5298,6 @@
   - none
 - OUTCOME: the operator cheat sheet now uses repo-relative workspace anchors instead of host absolute paths, documents `gov-flush`, `classic-orchestrator-startup`, and `orchestrator-steer-next`, clarifies main-only ownership of the canonical root `AGENTS.md` and root `justfile`, and aligns `record-role-model-profiles` with the live five-argument command contract including `ACTIVATION_MANAGER_MODEL_PROFILE`.
 
-### 2026.04.25.01 / GOV-CHANGE-20260425-01
-
-- STATUS: APPLIED
-- SUMMARY: made governed ACP/role launch headless-only so role starts and repair launches cannot steal operator keyboard focus
-- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
-- DRIVER_EVIDENCE:
-  - Operator request on 2026-04-25: ACP and role launches were hijacking keyboard input by focusing visible windows
-  - Calendar Sync v3 workflow-proof startup exposed stale broker/runtime handling at the same control-plane boundary
-- SURFACES:
-  - `.GOV/roles/orchestrator/scripts/launch-cli-session.mjs`
-  - `.GOV/roles_shared/scripts/session/terminal-ownership-lib.mjs`
-  - `.GOV/roles_shared/scripts/session/session-governance-state-lib.mjs`
-  - `.GOV/roles_shared/scripts/session/session-control-self-settle-lib.mjs`
-  - `.GOV/tools/handshake-acp-bridge/agent.mjs`
-  - `.GOV/roles/memory_manager/scripts/launch-memory-manager-session.mjs`
-  - `.GOV/roles_shared/tests/terminal-ownership-lib.test.mjs`
-  - `.GOV/roles/orchestrator/tests/session-launch-governance.test.mjs`
-  - `.GOV/roles_shared/tests/session-control-self-settle-lib.test.mjs`
-  - `.GOV/codex/Handshake_Codex_v1.4.md`
-  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
-  - `.GOV/roles_shared/docs/ROLE_SESSION_ORCHESTRATION.md`
-  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
-  - `.GOV/roles_shared/docs/ROLE_WORKTREES.md`
-  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
-  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
-  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
-  - `justfile`
-- FOLLOW_ON_ITEMS:
-  - none
-- OUTCOME: `AUTO` stays on the headless ACP path, `SYSTEM_TERMINAL` repair launches are hidden owned processes, `VSCODE_PLUGIN` governed launches fail closed instead of queueing the VS Code bridge, Memory Manager defaults to the same headless launch path, historical terminal task-board tokens now block governed role starts before runtime artifacts are created, dead-child active runs self-settle, and ACP broker client socket resets are logged instead of crashing the broker.
-
 ### 2026.04.26.08 / GOV-CHANGE-20260426-08
 
 - STATUS: APPLIED
@@ -4601,80 +5326,6 @@
   - `RGF-233` through `RGF-241` remain queued from the closeout-canonicalization tranche
 - OUTCOME: `RGF-242` is implemented: active-session route, relay, and microtask context now uses a shared `<governance-context>` user-message fence instead of any system-prompt rebuild, the Codex and Orchestrator protocol carry cache-stability law, and `gov-check` now includes `cache-stability-check`.
 
-### 2026.05.04.01 / GOV-CHANGE-20260504-01
-
-- STATUS: APPLIED
-- SUMMARY: hardened refinement activation checks after the validator-gate closeout activation stalled in ACP recovery
-- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
-- DRIVER_EVIDENCE:
-  - `WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1` activation recovery on 2026-05-04
-  - `record-refinement` rejected canonical pillar names containing commas inside force-multiplier `Pillars:` fields
-  - `record-refinement` rejected the template-shaped `Tooltip: text` UI control rows
-  - refinement template/checker drift on `Spec to prompt`
-- SURFACES:
-  - `.GOV/roles_shared/checks/refinement-check.mjs`
-  - `.GOV/templates/REFINEMENT_TEMPLATE.md`
-  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
-- FOLLOW_ON_ITEMS:
-  - none
-- OUTCOME: `RGF-267` is implemented; future refinement files can use canonical pillar names such as `Task board (product, not repo)` in force-multiplier rows, UI controls with `Tooltip: text` pass as intended, and the template now matches the checker-canonical `Spec to prompt` pillar name.
-
-### 2026.05.04.02 / GOV-CHANGE-20260504-02
-
-- STATUS: APPLIED
-- SUMMARY: hardened direct-review communication helpers against optional metadata field shifts
-- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
-- DRIVER_EVIDENCE:
-  - `WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1` validator kickoff stored `spec_anchor=...`, `packet_row_ref=...`, and `microtask_json=...` in shifted receipt fields after named optional arguments crossed the Just/Windows shell boundary
-  - The same kickoff surfaced `../handshake_main` product paths in coder startup review metadata even though the assigned WP worktree was `../wtc-closeout-posture-v1`
-- SURFACES:
-  - `justfile`
-  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
-  - `.GOV/roles_shared/scripts/wp/wp-thread-append.mjs`
-  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
-  - `.GOV/roles_shared/tests/wp-review-exchange.test.mjs`
-  - `.GOV/roles_shared/tests/wp-thread-append.test.mjs`
-  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
-  - `.GOV/Audits/audits/AUDIT-20260504-WP1-ACP-COMMUNICATION-CLI-HARDENING.md`
-- FOLLOW_ON_ITEMS:
-  - none
-- OUTCOME: `RGF-272` is implemented; direct-review wrappers pass optional metadata as stable key=value tokens, the shared parsers recover both wrapper-forwarded and model-authored named arguments, tests cover sparse/nested metadata routing, and generated coder/WP-validator startup prompts now hard-route product surface discovery through the assigned WP worktree instead of `handshake_main`.
-
-### 2026.05.04.03 / GOV-CHANGE-20260504-03
-
-- STATUS: APPLIED
-- SUMMARY: hardened coder-intent ack defaults and duplicate-kickoff reconciliation during the validator-gate closeout posture run
-- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
-- DRIVER_EVIDENCE:
-  - `WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1` coder bootstrap hit a `CODER_INTENT` wrapper failure because `ack_for` was required but the role helper did not expose it
-  - the canonical `CODER_INTENT` closed the canonical kickoff but left the earlier malformed duplicate kickoff open, keeping the lane routed to CODER instead of WP_VALIDATOR
-- SURFACES:
-  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
-  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
-  - `.GOV/roles_shared/tests/wp-review-exchange.test.mjs`
-  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
-  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
-  - `.GOV/Audits/audits/AUDIT-20260504-WP1-DIRECT-REVIEW-INTENT-RECONCILIATION.md`
-- FOLLOW_ON_ITEMS:
-  - none
-- OUTCOME: `RGF-273` is implemented; `CODER_INTENT` now auto-acks its correlation when the wrapper omits `ack_for`, and receipt runtime reconciliation retires stale duplicate validator-kickoff items for the same target coder session and microtask after a canonical coder-intent response.
-
-### 2026.05.04.04 / GOV-CHANGE-20260504-04
-
-- STATUS: APPLIED
-- SUMMARY: fixed UI tooltip detection in the coder pre-work gate during validator-gate closeout posture startup
-- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
-- DRIVER_EVIDENCE:
-  - `just phase-check STARTUP WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1 CODER coder:wp-1-software-delivery-validator-gate-closeout-posture-v1 --verbose` failed `pre-work-check` even though the packet listed concrete `Tooltip: text` entries under `UI_CONTROLS`
-  - the pre-work regex required a word boundary after `Tooltip:`, which cannot match the normal colon-space-text form used by the task packet template
-- SURFACES:
-  - `.GOV/roles/coder/checks/pre-work-check.mjs`
-  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
-  - `.GOV/Audits/audits/AUDIT-20260504-WP1-PREWORK-TOOLTIP-CHECK-HARDENING.md`
-- FOLLOW_ON_ITEMS:
-  - none
-- OUTCOME: `RGF-274` is implemented; valid `Tooltip: text` UI control entries satisfy the coder pre-work gate while `<fill>` placeholders remain rejected.
-
 ### 2026.05.04.10 / GOV-CHANGE-20260504-10
 
 - STATUS: APPLIED
@@ -4692,84 +5343,56 @@
   - improve session-control fallback semantics so explicit `FALLBACK` can supersede a packet-declared primary profile without hand-editing the active packet
 - OUTCOME: `RGF-278` is implemented; the active packet now supersedes the Spark Coder waiver and records GPT-5.5 extra-high as the active Coder profile for this WP while Spark is unavailable.
 
-### 2026.05.05.01 / GOV-CHANGE-20260505-01
 
-- STATUS: APPLIED
-- SUMMARY: hardened the PostgreSQL-primary orchestrator-managed ACP startup path for heavy host load and parallel-role recovery
-- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
-- DRIVER_EVIDENCE:
-  - `WP-1-Postgres-Primary-Control-Plane-Foundation-v1` resumed after a broken Activation Manager/spec-enrichment session under heavy host load
-  - Master Spec v02.182 was verified against the main-worktree v02.181 backup before downstream launch
-  - startup mesh checks initially failed from `wt-gov-kernel` because coder gates ran against the orchestrator worktree and runtime sessions were not projected into `active_role_sessions`
-  - `repomem open` in a WP Validator session auto-closed the active Orchestrator memory session
-  - a fresh `VALIDATOR_KICKOFF` inherited old `stale_after` runtime timestamps and looked escalated immediately
-- SURFACES:
-  - `.GOV/roles/activation_manager/scripts/activation-manager.mjs`
-  - `.GOV/codex/Handshake_Codex_v1.4.md`
-  - `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`
-  - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`
-  - `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`
-  - `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`
-  - `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`
-  - `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`
-  - `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`
-  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
-  - `.GOV/roles/orchestrator/scripts/lib/workflow-lane-guidance-lib.mjs`
-  - `.GOV/roles/orchestrator/scripts/session-registry-status.mjs`
-  - `.GOV/roles_shared/checks/phase-check.mjs`
-  - `.GOV/roles_shared/checks/wp-communication-health-check.mjs`
-  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
-  - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
-  - `.GOV/roles_shared/docs/ROLE_WORKFLOW_QUICKREF.md`
-  - `.GOV/roles_shared/scripts/lib/wp-relay-escalation-lib.mjs`
-  - `.GOV/roles_shared/scripts/memory/governance-memory-lib.mjs`
-  - `.GOV/roles_shared/scripts/memory/repomem.mjs`
-  - `.GOV/roles_shared/scripts/session/session-health-projection-lib.mjs`
-  - `.GOV/roles_shared/scripts/session/session-control-lib.mjs`
-  - `.GOV/roles_shared/scripts/session/wp-lane-health.mjs`
-  - `.GOV/roles_shared/scripts/session/wp-token-usage-lib.mjs`
-  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
-  - `justfile`
-  - `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`
-  - `.GOV/roles_shared/tests/session-health-projection-lib.test.mjs`
-  - `.GOV/roles_shared/tests/phase-check.test.mjs`
-  - `.GOV/roles_shared/tests/repomem-parallel-session-cli.test.mjs`
-  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
-  - `.GOV/roles_shared/tests/wp-relay-escalation-lib.test.mjs`
-  - `.GOV/roles_shared/tests/wp-token-usage-lib.test.mjs`
-  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
-  - `.GOV/roles/orchestrator/tests/workflow-lane-guidance-lib.test.mjs`
-  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
-  - `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`
-- FOLLOW_ON_ITEMS:
-  - Continue moving role progress through direct-review receipts after the settled intent checkpoint; next live route is Coder MT-001 implementation/handoff.
-- OUTCOME: `RGF-281` remains active but now has the core startup/handoff hardening slice applied: activation readiness is machine-readable, prelaunch relay residue is suppressed, phase-check resolves packet-declared worktrees, registry-backed startup mesh accepts active governed sessions and lower-case actor aliases, active raw command token drift is diagnostic instead of failure, `orchestrator-next` does not relaunch already active downstream roles, repomem uses strict role/WP-scoped markers, Orchestrator mutation wrappers pass explicit memory scope, fresh routes get a receipt grace window when old runtime clocks are stale, the early `CODER_INTENT` checkpoint mechanically distinguishes `wp-validator-response` from `wp-review-response`, session health marks missing active-run output as degraded, READY stalled routes drain queued nudges into one direct safe-boundary steer, Coder steering no longer treats notification ack as satisfying `CODER_HANDOFF`, and Codex/protocols now require 3-5-cause mechanical intervention triage using the orchestrator-managed playbook.
 
-### 2026.05.06.02 / GOV-CHANGE-20260506-02
 
-- STATUS: APPLIED
-- SUMMARY: closed the PostgreSQL-primary orchestrator-managed lane to merge-pending while hardening final-review and closeout projection mechanics
-- CHANGE_TYPE: GOVERNANCE_IMPLEMENTATION
-- DRIVER_EVIDENCE:
-  - `WP-1-Postgres-Primary-Control-Plane-Foundation-v1` final Integration Validator PASS was recorded as a `wp-review-response`, which initially re-routed the lane back to Coder/microtask truth instead of resolving the final direct review.
-  - `phase-check CLOSEOUT --sync-mode MERGE_PENDING` then exposed deterministic closeout brittleness: missing signed-scope report materialization, bullet-shaped split-report fields, parser list bleed into report instructions, and `orchestrator-next` treating stale Activation readiness as Coder delegation after terminal merge-pending truth.
-- SURFACES:
-  - `.GOV/roles_shared/scripts/wp/wp-review-exchange.mjs`
-  - `.GOV/roles_shared/scripts/wp/wp-receipt-append.mjs`
-  - `.GOV/roles_shared/scripts/lib/wp-communication-health-lib.mjs`
-  - `.GOV/roles_shared/scripts/lib/packet-runtime-projection-lib.mjs`
-  - `.GOV/roles_shared/scripts/lib/computed-policy-gate-lib.mjs`
-  - `.GOV/roles/validator/scripts/lib/validator-governance-lib.mjs`
-  - `.GOV/roles/validator/scripts/integration-validator-closeout-sync.mjs`
-  - `.GOV/roles/orchestrator/scripts/orchestrator-next.mjs`
-  - `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md`
-  - `.GOV/roles_shared/tests/wp-communication-health-lib.test.mjs`
-  - `.GOV/roles_shared/tests/wp-review-exchange.test.mjs`
-  - `.GOV/roles_shared/tests/wp-receipt-append.test.mjs`
-  - `.GOV/roles_shared/tests/packet-runtime-projection-lib.test.mjs`
-  - `.GOV/roles_shared/tests/computed-policy-gate-lib.test.mjs`
-  - `.GOV/roles/orchestrator/tests/orchestrator-next.test.mjs`
-  - `.GOV/Audits/audits/AUDIT-20260505-POSTGRES-PRIMARY-ACP-SWARM-HARDENING.md`
-- FOLLOW_ON_ITEMS:
-  - After local `main` actually contains the product branch, Integration Validator should run `just phase-check CLOSEOUT WP-1-Postgres-Primary-Control-Plane-Foundation-v1 --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why contained-main closure is now valid, >=40 chars>"`.
-- OUTCOME: `RGF-281` now includes terminal-lane hardening: final Integration Validator review responses resolve the final direct-review lane without Coder ack debt, closeout sync can materialize a parser-compliant validation report from the final Integration Validator PASS receipt, failed closeout self-validation rolls back instead of persisting partial packet edits, split-report parsers stop lists at inline scalar labels, merge-pending runtime projection is not mistaken for stale `VERDICT` drift, and `orchestrator-next` treats `MERGE_PENDING`/`DONE_MERGE_PENDING` as terminal history rather than stale Activation-readiness-driven Coder delegation.
+
+
+### GOV-CHANGE-20260507-02
+- TASKS: RGF-299
+- SUMMARY: Added deterministic WP dossier runtime initialization and validation. The internal initializer creates the external WP_DOSSIERS/WP-{ID}/ tree for active WP communication folders, and the wp-comm bundle now fails when required dossier dirs/files or index/manifest contracts are missing. Runtime dossier payloads remain outside git.
+- FILES: .GOV/roles_shared/scripts/audit/wp-dossier-runtime.mjs; .GOV/roles_shared/checks/wp-dossier-runtime-check.mjs; .GOV/roles_shared/checks/wp-comm-bundle-check.mjs; .GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- RUNTIME: Initialized 34 external WP dossier trees under ../gov_runtime/roles_shared/WP_DOSSIERS/.
+- VALIDATION: PASS - wp-dossier-runtime-check; residual-artifact-writer-inventory-check; just gov-check --sync-topology; just gov-check.
+
+### GOV-CHANGE-20260507-01
+- TASKS: RGF-299
+- SUMMARY: Started phase bundle diagnosis hardening by declaring the per-WP external dossier archive and making failure dossier writes WP-aware. WP dossiers live under the external governance runtime root at roles_shared/WP_DOSSIERS/WP-{ID}/, preserve raw ACP/repomem/command/bundle logs for posterity, and expose index.json as the first machine/model lookup surface.
+- FILES: .GOV/codex/Handshake_Codex_v1.4.md; .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md; .GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md; .GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md; .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md; .GOV/roles_shared/scripts/lib/runtime-paths.mjs; .GOV/roles_shared/scripts/lib/check-result-lib.mjs; .GOV/roles_shared/scripts/lib/governance-topology-lib.mjs; .GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - residual-artifact-writer-inventory-check; governance-topology-check; just gov-check --sync-topology; just gov-check.
+
+### GOV-CHANGE-20260506-43
+- TASKS: RGF-298
+- SUMMARY: Started full script inventory reconciliation by hardening the generated governance topology checker. The topology check now validates required metadata, duplicate surface ids and file paths, file existence, source hashes, public Just linkage, and classified owner/phase metadata, and the generated topology ledger records the RGF-298 reconciliation contract.
+- FILES: .GOV/roles_shared/scripts/lib/governance-topology-lib.mjs; .GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - governance-topology-check; just gov-check --sync-topology; just gov-check.
+
+### GOV-CHANGE-20260506-42
+- TASKS: RGF-297
+- SUMMARY: Resolved the residual packet Markdown writer candidates from the generated inventory. The closeout formatter now writes packet projections through the shared lifecycle-sync helper, and the inventory records shared helper projection/fallback writes as explicit contract-sync or legacy fallback boundaries. The residual writer inventory now reports 142 writer calls, zero unclassified entries, and zero migration candidates.
+- FILES: .GOV/roles_shared/scripts/audit/residual-artifact-writer-inventory.mjs; .GOV/roles_shared/scripts/wp/wp-closeout-format.mjs; .GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - residual-artifact-writer-inventory-check; just gov-check --sync-topology; just gov-check.
+
+### GOV-CHANGE-20260506-41
+- TASKS: RGF-297
+- SUMMARY: Started the residual artifact writer migration audit by adding a deterministic scanner, generated machine-readable inventory, and gov-check enforcement. The baseline inventory classifies 143 governance writer calls with zero unclassified entries and four packet Markdown projection migration candidates.
+- FILES: .GOV/roles_shared/scripts/audit/residual-artifact-writer-inventory.mjs; .GOV/roles_shared/checks/residual-artifact-writer-inventory-check.mjs; .GOV/roles_shared/checks/governance-structure-bundle-check.mjs; .GOV/roles_shared/records/RESIDUAL_ARTIFACT_WRITER_INVENTORY.json; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - residual-artifact-writer-inventory-check; just gov-check --sync-topology; just gov-check.
+
+### GOV-CHANGE-20260506-40
+- TASKS: RGF-296
+- SUMMARY: Started projection hash enforcement closure by strengthening the existing contract projection validator. Generated packet/refinement/MT projections must now keep required Markdown projection metadata and header values in parity with the primary JSON contract, including path, source file, source hash, projection hash, generated timestamp, and generator.
+- FILES: .GOV/roles_shared/scripts/lib/packet-contract-lib.mjs; .GOV/roles_shared/checks/packet-contract-projection-check.mjs; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - packet-contract-projection-check; just gov-check --sync-topology; just gov-check.
+
+### GOV-CHANGE-20260506-39
+- TASKS: RGF-296; RGF-297; RGF-298; RGF-299; RGF-300
+- SUMMARY: Recorded the next governance-machine-readability implementation queue after the packet writer and topology bootstrap batches. The new taskboard items cover projection hash enforcement closure, residual artifact writer migration audit, full script inventory reconciliation, phase bundle diagnosis hardening, and Justfile/leaf surface reduction execution.
+- FILES: .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - just gov-check --sync-topology; just gov-check.
+
+### GOV-CHANGE-20260506-38
+- TASKS: RGF-288
+- SUMMARY: Migrated remaining lifecycle-affecting packet repair and review-publication writers through contract lifecycle sync.
+- FILES: .GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs; .GOV/roles/orchestrator/scripts/closeout-repair.mjs; .GOV/roles_shared/scripts/wp/ensure-wp-communications.mjs; .GOV/roles_shared/scripts/wp/wp-receipt-append.mjs; .GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md
+- VALIDATION: PASS - just gov-check --sync-topology; just gov-check.

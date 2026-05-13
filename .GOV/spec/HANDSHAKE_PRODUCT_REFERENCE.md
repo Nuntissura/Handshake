@@ -25,9 +25,9 @@ Handshake is a local-first, AI-native desktop application combining Notion-like 
 | Spreadsheet engine | Wolf-Table + HyperFormula | §7.1.0, §2.2.1.13 |
 | Code editor | Monaco + Monarch grammar | §10.2 |
 | Canvas | Excalidraw | §6.3.3.5 |
-| Storage (local) | SQLite (primary) | §2.3.13 |
-| Storage (cloud) | PostgreSQL (multi-user ready) | §2.3.13 |
-| Storage boundary | Database trait — portable SQL, dual-backend tested | §2.3.13 |
+| Control-plane storage | PostgreSQL (primary runtime authority) | §2.3.13 |
+| Collaboration state | Yjs CRDTs and PostgreSQL-backed authoritative records | §1.1.3, §2.3.13 |
+| Storage boundary | PostgreSQL authority with CRDT collaboration boundaries | §2.3.13 |
 | Observability DB | DuckDB (Flight Recorder) | §11.5 |
 | Collaboration | Yjs CRDTs | §1.1.3 |
 | Embedding (local) | nomic-embed-text via Ollama | §2.3.14 |
@@ -55,9 +55,9 @@ The 22 product pillars. Every WP refinement forces a status declaration against 
 | 10 | MicroTask | Atomic work unit executor with claim/validate/escalate lifecycle | AI Job profile, iteration budgets (per-MT + total + wall-clock), smart drop-back, LoRA-aware escalation | §2.6.6.8.5 |
 | 11 | Command Center (DCC) | Operator visibility surface for sessions, governance, artifacts, approvals | Panels: project registry, worktrees, execution sessions, approval inbox, conversation timeline, tool call ledger | §10.11 |
 | 12 | Front End Memory System | Bounded provenance-first memory for the front-end model | 4 classes (working/episodic/semantic/procedural), MemoryPack ≤500 tokens ≤24 items, review-gated procedural writes, replay-grade | §2.6.6.7.6.2 |
-| 13 | Execution / Job Runtime | AI Job Model, Workflow Engine, ModelSession, session scheduling | Typed workflow DAGs, durable SQLite-backed state, crash recovery, lane-based priority, cooperative cancellation | §2.6, §4.3.9 |
+| 13 | Execution / Job Runtime | AI Job Model, Workflow Engine, ModelSession, session scheduling | Typed workflow DAGs, durable PostgreSQL-backed control-plane state, crash recovery, lane-based priority, cooperative cancellation | §2.6, §4.3.9 |
 | 14 | Spec to prompt | Transforms spec sections into deterministic prompt envelopes | SpecPromptCompiler loads SpecPromptPacks, injects CapabilitySnapshots, records pack SHA-256 + token counts | §2.6.8.5.2 |
-| 15 | SQL to PostgreSQL shift readiness | Storage portability via Database trait boundary | Portable SQL only, dual-backend migration testing, rebuildable indexes, no DB-specific syntax | §2.3.13 |
+| 15 | PostgreSQL + CRDT authority | Runtime authority and collaborative state boundary | PostgreSQL-primary control-plane records, CRDT collaboration semantics, fail-closed authoritative writes, explicit source/freshness metadata | §2.3.13 |
 | 16 | LLM-friendly data | All data structured for model consumption | Bronze/Silver/Gold medallion, hybrid indexing (vector+keyword+graph), semantic chunking (AST-aware code, header-recursive docs) | §2.3.14 |
 | 17 | Stage | Evidence-grade media capture/import pipeline | Browser surface with Stage Apps, capture jobs through Workflow Engine, artifact bundles + SHA-256 manifests | §10.13 |
 | 18 | Studio | Creative shell — Canvas, Photo, Lens, design surfaces | Cross-surface runtime orchestration, Darkroom photo engines, explicit lineage between Stage/ASR/Lens artifacts | §6.3.3.5, §10.10 |
@@ -141,7 +141,7 @@ Primitives are the atomic building blocks. The interaction matrix (§6) connects
 
 | Primitive ID | Name | Kind |
 |---|---|---|
-| PRIM-Database | Database trait boundary | rust_trait |
+| PRIM-Database | PostgreSQL authority boundary | rust_trait |
 | PRIM-AiReadyDataPipeline | Bronze/Silver/Gold ingestion pipeline | rust_struct |
 | PRIM-EmbeddingRegistry | Embedding model versioning | rust_struct |
 | PRIM-HybridWeights | Vector/keyword fusion weights | rust_struct |
@@ -282,7 +282,7 @@ Designed-in pillar × pillar interactions. These are intentional architectural c
 | Loom × FR | Loom, FR | Loom operations emit FR-EVT-LOOM-* events | IMX-008 |
 | Media Downloader × Stage | Stage, Loom | Media downloads reuse Stage sessions for auth | IMX-009 |
 | Role Mailbox × AI-Ready Data | Execution, RAG | Message content indexed for retrieval | IMX-016 |
-| Storage Portability × FR | SQL→PG, FR | Artifact lineage logging across storage backends | IMX-020 |
+| PostgreSQL Authority × FR | PostgreSQL, FR | Artifact lineage and runtime authority logging for PostgreSQL-backed control-plane records | IMX-020 |
 | Locus × Debug Bundle | Locus, FR | WP export anchor for debug bundles | IMX-019 |
 | Spec Router × Capabilities | Spec to prompt, ACE | CapabilitySnapshot injected into compiled prompts | IMX-018 |
 

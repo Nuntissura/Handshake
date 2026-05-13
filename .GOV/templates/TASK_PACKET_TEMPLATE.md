@@ -1,6 +1,6 @@
-# TASK_PACKET_TEMPLATE
+﻿# TASK_PACKET_TEMPLATE
 
-Copy this into each new task packet and fill all fields.
+Generated projection template for `packet.md` during the contract migration. Do not hand-copy this Markdown into future work as authority; author or update `packet.json` / `WORK_PACKET_CONTRACT_TEMPLATE.json` first, then generate a projection only when a current contract or explicit Operator request requires one.
 
 Requirements:
 - Keep packets ASCII-only (required by deterministic gates).
@@ -8,7 +8,8 @@ Requirements:
 - Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually .GOV/spec/SPEC_CURRENT.md).
 - WP_ID and filename MUST NOT include date/time stamps; use `-v{N}` for revisions (e.g., `WP-1-Tokenization-Service-v3`).
 - If multiple packets exist for the same Base WP, update `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet).
-- Packet metadata is the authoritative lifecycle truth. `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and `BUILD_ORDER.md` are projections and must reconcile to this header.
+- `packet.json` is the authoritative lifecycle truth; this generated packet metadata is a compatibility projection. `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and `BUILD_ORDER.md` are projections and must reconcile to the contract.
+- Legacy Markdown packets remain migration safety rails only. They must not be copied forward as the model-created artifact pattern for new packets, refinements, or microtasks.
 - Active packet rule: the packet mapped by `BASE_WP_ID` in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` is the current contract. Any other official packet with the same `BASE_WP_ID` is older history and must be tracked as `SUPERSEDED` on the Task Board.
 - For `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, this packet is auto-hydrated from the signed refinement; manual drift is forbidden and `just phase-check STARTUP ... CODER` enforces alignment.
 
@@ -193,6 +194,18 @@ Requirements:
 <!-- Required for WORKFLOW_LANE=ORCHESTRATOR_MANAGED packets with PACKET_FORMAT_VERSION >= 2026-03-21. -->
 - USER_SIGNATURE: {{USER_SIGNATURE}}
 - PACKET_FORMAT_VERSION: {{PACKET_FORMAT_VERSION}}
+- AUTHORITATIVE_CONTRACT_SCHEMA_ID: hsk.work_packet_contract@1
+- AUTHORITATIVE_CONTRACT_FILE: .GOV/task_packets/{{WP_ID}}/packet.json
+- GENERATED_MARKDOWN_PROJECTION_FILE: .GOV/task_packets/{{WP_ID}}/packet.md
+- REFINEMENT_CONTRACT_SCHEMA_ID: hsk.refinement_contract@1
+- REFINEMENT_CONTRACT_FILE: .GOV/task_packets/{{WP_ID}}/refinement.json
+- MICROTASK_CONTRACT_SCHEMA_ID: hsk.microtask_contract@1
+- MICROTASK_CONTRACT_GLOB: .GOV/task_packets/{{WP_ID}}/MT-*.json
+- MARKDOWN_PROJECTION_STATUS: GENERATED_PENDING
+<!-- Allowed: GENERATED_PENDING | GENERATED_IN_SYNC | LEGACY_AUTHORITY | BLOCKED. New packets use packet.json/refinement.json/MT-*.json as authoritative deterministic contracts; packet.md/refinement.md/MT-*.md are generated projections or frozen legacy references, not sidecar authority. -->
+- RED_TEAM_REQUIRED: YES
+- RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
+<!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and Activation Manager / Classic Orchestrator divergence until machine checks prove otherwise. -->
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
@@ -319,7 +332,7 @@ Next: N/A
 - SUB_AGENT_REASONING_ASSUMPTION: LOW (HARD)
 - NOTE: `AGENTIC_MODE: YES` means sub-agent use is explicitly authorized for this WP; `AGENTIC_MODE: NO` means all roles remain single-session.
 - RULES (if SUB_AGENT_DELEGATION=ALLOWED):
-  - Sub-agents produce draft code only; Primary Coder verifies against SPEC_CURRENT + task packet acceptance criteria before applying.
+  - Sub-agents produce draft code only; Primary Coder verifies against resolved SPEC_CURRENT + task packet acceptance criteria before applying.
   - Sub-agents MUST NOT edit any governance surface (`.GOV/**`, including task packets/refinements and `## VALIDATION_REPORTS`).
   - Only Primary Coder runs gates, records EVIDENCE/EVIDENCE_MAPPING/VALIDATION manifest, commits, and hands off.
   - See: `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.
@@ -588,7 +601,7 @@ git revert <commit-sha>
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> .GOV/spec/indexed_spec/indexed-spec-manifest.json
 - **Notes**:
 
 ## STATUS_HANDOFF
@@ -789,3 +802,4 @@ git revert <commit-sha>
 - Rule: for `VALIDATOR_RISK_TIER=HIGH`, include at least 2 `INDEPENDENT_CHECKS_RUN` items and at least 2 `COUNTERFACTUAL_CHECKS` items.
 - Rule: for `VALIDATOR_RISK_TIER=MEDIUM|HIGH`, include at least 1 `BOUNDARY_PROBES` item and at least 1 `NEGATIVE_PATH_CHECKS` item.
 - Rule: `NEGATIVE_PROOF` must list at least one spec requirement verified as NOT fully implemented. This is the strongest anti-gaming measure.
+

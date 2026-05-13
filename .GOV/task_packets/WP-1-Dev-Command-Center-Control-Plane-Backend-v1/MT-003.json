@@ -1,0 +1,65 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/MT-003.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/MT-003.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-002"
+    ],
+    "status": "DONE",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.136Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/MT-003.md",
+    "projection_hash": "e547f346b5242549",
+    "source_file": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/packet.json",
+    "source_hash": "20c8065e0a889123",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-003",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "10.11 [ADD v02.166] Dev Command Center collaboration state"
+    ],
+    "allowed_paths": [
+      "role_mailbox.rs",
+      "api/role_mailbox.rs",
+      "locus/task_board.rs",
+      "workflows.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "role-mailbox and structured-collaboration projection tests"
+    ],
+    "risk_if_missed": "DCC triage and handoff remain prose-heavy and non-deterministic",
+    "summary": "10.11 [ADD v02.166] Dev Command Center collaboration state"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Dev-Command-Center-Control-Plane-Backend-v1"
+}

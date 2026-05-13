@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Project-Profile-Extension-Registry-v1/packet.json source_hash=de4133e554402ee8 projection_hash=278d4b78b7a197bd generated_at_utc=2026-05-06T16:33:39.419Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

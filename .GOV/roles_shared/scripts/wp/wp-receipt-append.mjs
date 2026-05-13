@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
+import {
+  execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,7 +18,7 @@ import {
   validateReceipt,
   validateRuntimeStatus,
   WORKFLOW_INVALIDITY_RECEIPT_KIND,
-} from "../lib/wp-communications-lib.mjs";
+  } from "../lib/wp-communications-lib.mjs";
 import { deriveNextActionFromReceipt } from "../lib/receipt-auto-progression-lib.mjs";
 import {
   classifyWpChangedPath,
@@ -26,7 +27,7 @@ import {
   isGovernanceOnlyPath,
   isTransientProofArtifactPath,
   normalizeRepoPath,
-} from "../lib/scope-surface-lib.mjs";
+  } from "../lib/scope-surface-lib.mjs";
 import {
   buildPhaseCheckCommand,
   buildPostWorkCommand,
@@ -35,7 +36,7 @@ import {
   preparedWorktreeSyncState,
   resolveCommittedCoderHandoffRange,
   resolvePrepareWorktreeAbs,
-} from "../lib/role-resume-utils.mjs";
+  } from "../lib/role-resume-utils.mjs";
 import {
   deriveLatestValidatorAssessment,
   deriveValidatorAssessmentVerdict,
@@ -45,14 +46,19 @@ import {
   isDuplicateDecisiveValidatorAssessment,
   isOverlapMicrotaskReviewItem,
   MAX_OVERLAP_MICROTASK_REVIEW_ITEMS,
-} from "../lib/wp-communication-health-lib.mjs";
+  } from "../lib/wp-communication-health-lib.mjs";
 import {
   deriveWpMicrotaskPlan,
   listDeclaredWpMicrotasks,
   resolveDeclaredWpMicrotaskByScopeRef,
   summarizeMicrotaskFileTargetBudget,
-} from "../lib/wp-microtask-lib.mjs";
-import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
+  } from "../lib/wp-microtask-lib.mjs";
+import { GOV_ROOT_REPO_REL,
+  REPO_ROOT,
+  repoPathAbs } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView,
+  writeWorkPacketProjectionWithLifecycleSync,
+} from "../lib/work-packet-contract-read-lib.mjs";
 import { isInvokedAsMain } from "../lib/invocation-path-lib.mjs";
 import { runAbsorber } from "../lib/artifact-normalizers/index.mjs";
 import {
@@ -584,17 +590,18 @@ function updateOpenReviewItems(runtimeStatus, entry) {
 }
 
 function loadPacketContext(wpId) {
-  const packetPath = workPacketPath(wpId);
-  const packetAbsPath = repoPathAbs(packetPath);
-  if (!fs.existsSync(packetAbsPath)) {
+  const packetContext = buildWorkPacketCommunicationView(wpId);
+  const packetPath = packetContext.packetPath || `.GOV/task_packets/${wpId}/packet.md`;
+  if (!packetContext.ok || !packetContext.packetAbsPath || !fs.existsSync(packetContext.packetAbsPath)) {
     throw new Error(`Official packet not found: ${normalize(packetPath)}`);
   }
-  const packetText = fs.readFileSync(packetAbsPath, "utf8");
-  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  const threadFile = parseSingleField(packetText, "WP_THREAD_FILE");
-  const branch = parseSingleField(packetText, "LOCAL_BRANCH") || null;
-  const worktreeDir = parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || null;
+  const packetAbsPath = packetContext.packetAbsPath;
+  const packetText = packetContext.packetText || fs.readFileSync(packetAbsPath, "utf8");
+  const receiptsFile = packetContext.receiptsFile;
+  const runtimeStatusFile = packetContext.runtimeStatusFile;
+  const threadFile = packetContext.threadFile;
+  const branch = packetContext.localBranch || null;
+  const worktreeDir = packetContext.localWorktreeDir || null;
 
   if (!receiptsFile) {
     throw new Error(`${normalize(packetPath)} does not declare WP_RECEIPTS_FILE`);
@@ -616,10 +623,10 @@ function loadPacketContext(wpId) {
     threadAbsPath: threadFile ? normalize(repoPathAbs(threadFile)) : "",
     branch: branch ? normalize(branch) : null,
     worktreeDir: worktreeDir ? normalize(worktreeDir) : null,
-    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE") || "",
-    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION") || "",
-    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT") || "",
-    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE") || "",
+    workflowLane: packetContext.workflowLane || "",
+    packetFormatVersion: packetContext.packetFormatVersion || "",
+    communicationContract: packetContext.communicationContract || "",
+    communicationHealthGate: packetContext.communicationHealthGate || "",
   };
 }
 
@@ -1293,7 +1300,12 @@ function syncReviewGovernanceTruth({
 
   try {
     if (reconciliation.nextPacketText !== originalPacketText) {
-      fs.writeFileSync(context.packetAbsPath, reconciliation.nextPacketText, "utf8");
+      writeWorkPacketProjectionWithLifecycleSync({
+        wpId,
+        projectionText: reconciliation.nextPacketText,
+        generator: "wp-receipt-append.mjs",
+        fallbackAbsPath: context.packetAbsPath,
+      });
     }
     if (context.runtimeStatusAbsPath) {
       fs.writeFileSync(

@@ -1,0 +1,108 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Dev-Command-Center-Control-Plane-Backend-v1",
+  "base_wp_id": "WP-1-Dev-Command-Center-Control-Plane-Backend",
+  "created_at_utc": "2026-04-05T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Control-Plane-Backend-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Control-Plane-Backend-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Control-Plane-Backend-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "abf9ac0f3756e05a0e8ed1976bbc03648a482cd701b27db4ec67edf17cff0a37",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Governance-Workflow-Mirror",
+      "WP-1-Session-Spawn-Contract",
+      "WP-1-Workspace-Safety-Parallel-Sessions",
+      "WP-1-Session-Crash-Recovery-Checkpointing",
+      "WP-1-Session-Observability-Spans-FR",
+      "WP-1-Locus-Phase1-QueryContract-Autosync",
+      "WP-1-Role-Mailbox",
+      "WP-1-Workflow-Projection-Correlation",
+      "WP-1-Structured-Collaboration-Artifact-Family",
+      "WP-1-Structured-Collaboration-Schema-Registry"
+    ],
+    "blocks": [
+      "WP-1-Dev-Command-Center-MVP",
+      "WP-1-Dev-Command-Center-Layout-Projection-Registry",
+      "WP-1-Dev-Command-Center-Structured-Artifact-Viewer",
+      "WP-1-Consent-Audit-Projection"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Backend-first self-hosting split for Dev Command Center control-plane completion",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Build the backend projection and API layer that turns existing runtime systems into one Dev Command Center control plane inside Handshake.\n- Why: Handshake already has major backend pieces, but they are not yet unified as one product-side control plane for work packets, micro-tasks, sessions, approvals, governance overlay state, role-mailbox coordination, VCS posture, and recorder-linked evidence. Without this layer, DCC UI work would be another thin shell over disconnected APIs.",
+    "scope_sketch": "- IN_SCOPE:\n  - Backend projections and APIs for:\n    - Work Packets\n    - Micro-Tasks\n    - Task Board freshness and ready-query state\n    - session scheduler state\n    - approval and capability state\n    - role-mailbox coordination state\n    - governance overlay execution state\n    - VCS/worktree binding state\n    - recorder/evidence joins\n  - Stable projection identifiers and correlation contracts.\n  - Compact-summary-first control-plane payloads suitable for local-small-model routing and operator views.\n  - No-bypass rule: DCC backend remains a projection/steering layer over authoritative backend artifacts, not a second authority.\n- OUT_OF_SCOPE:\n  - Full DCC frontend shell.\n  - Monaco editor shell and terminal shell polish.\n  - New repo-governance files becoming runtime authority.",
+    "acceptance_criteria": "- Product backend exposes one coherent control-plane API/projection surface for DCC over work, session, approval, mailbox, governance, and evidence state.\n- DCC UI packets can consume this backend without inventing local authority or repo-path coupling.\n- Local-small-model routing can read compact readiness, blockers, queue reasons, and session state from the DCC backend without transcript or Markdown replay.",
+    "risks_unknowns": "- Risk: jumping straight to UI would hide missing backend joins behind ad hoc frontend state and create rework.\n- Risk: if DCC backend treats repo-governance overlay as universal authority, it will collapse non-software and broader Handshake governance layers into software-delivery assumptions.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

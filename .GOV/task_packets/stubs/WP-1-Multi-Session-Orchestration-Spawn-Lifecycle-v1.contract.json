@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Multi-Session-Orchestration-Spawn-Lifecycle-v1",
+  "base_wp_id": "WP-1-Multi-Session-Orchestration-Spawn-Lifecycle",
+  "created_at_utc": "2026-02-23T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Multi-Session-Orchestration-Spawn-Lifecycle-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Multi-Session-Orchestration-Spawn-Lifecycle-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Multi-Session-Orchestration-Spawn-Lifecycle-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "cc885ed1422e66a64ca0df7e1bb7fb0944169464bcea9620245639b815b10109",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "SUPERSEDED (ARCHIVED; split into smaller stubs; do not activate)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.137.md 7.6.3 (Phase 1) -> items 28-37 (Multi-Session Orchestration: ModelSession + Scheduler + spawn lifecycle + observability)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement Phase 1 baseline for multi-session orchestration: persisted ModelSessions, queued `model_run` scheduling, governed spawn lifecycle, session-scoped capability enforcement, workspace safety boundaries for parallel sessions, crash recovery/checkpointing, and end-to-end observability (Flight Recorder + spans).\n- Why: Prevent runaway parallelism (budget blowups), unsafe concurrent writes, and non-auditable “ghost sessions” as multi-model execution scales beyond single-threaded chat.",
+    "scope_sketch": "- IN_SCOPE (aligns to Roadmap 7.6.3 items 28-37):\n  - **ModelSession + persistence (items 28-29):**\n    - ModelSession is the persisted unit of multi-turn orchestration; stored in local workspace DB.\n    - Messages are stored artifact-first with explicit content-hash discipline.\n    - Add/define `model_run` job_kind and a session scheduler with queueing, cancellation, and concurrency limits.\n  - **Spawn lifecycle (item 30):**\n    - Implement SessionSpawnRequest/Response, depth limits, per-session spawn caps.\n    - Announce-back via Role Mailbox (SessionAnnounceBack) with summary artifacts.\n  - **Session-scoped capabilities (item 31):**\n    - Add ModelSession `capability_token_ids`.\n    - Enforce deny-by-default session-scoped capability intersection in Tool Gate.\n  - **Provider adapters (item 32):**\n    - Provider adapters translate the Unified Tool Surface registry into provider tool schemas and back (no parallel ToolDefinition schema).\n  - **Workspace safety boundaries (item 33):**\n    - Deterministic policy for concurrent sessions on same workspace: worktree isolation and/or file locking; explicit conflict handling.\n  - **Crash recovery / resume (item 34):**\n    - Session checkpointing and idempotent recovery flow for interrupted `model_run`.\n  - **DCC steering panel (item 35):**\n    - Multi-session panel shows session list + state machine + spawn tree + cost/budget per session and controls (pause/resume/cancel).\n  - **Observability (items 36-37):**\n    - Register + emit FR-EVT-SESS-*, FR-EVT-SESS-SCHED-*, FR-EVT-SESS-SPAWN-*.\n    - Add `model_session_id` correlation to base Flight Recorder event schema.\n    - Implement ModelSessionSpan lifecycle and ActivitySpan linkage so session-wide queries work via model_session_id even without spans.\n- OUT_OF_SCOPE:\n  - Full AutomationLevel.AUTONOMOUS loops (explicitly Phase 2+).\n  - Cross-workspace or multi-operator session routing (Phase 2+/4).\n  - Multi-tenant “apps spawning sessions” hard isolation (Phase 4).",
+    "acceptance_criteria": "- The vertical slice for multi-session runs end-to-end:\n  - Create a ModelSession, enqueue multiple `model_run` jobs, observe queueing/dispatch, and cancel at least one deterministically.\n  - Spawn a child session via SessionSpawnRequest/Response; enforce depth/cap limits; announce-back with summary artifact.\n  - Tool calls executed within a ModelSession carry the correct session correlation and are capability-gated with deny-by-default session intersection.\n  - Concurrent sessions touching the same workspace are blocked or isolated deterministically with explicit conflict reasons.\n  - Crash/restart resumes (or deterministically fails) without partial side effects, using checkpointing.\n  - Flight Recorder shows FR-EVT-SESS-* families and every event has correct `model_session_id` correlation where applicable.",
+    "risks_unknowns": "- Risk: budget/runaway spawn without strict caps and explicit operator controls.\n- Risk: cross-session side effects without session-scoped capabilities (Tool Gate must be the single enforcement point).\n- Risk: crash recovery correctness (idempotency + checkpoints) is easy to get wrong; requires deterministic replayability.\n- Risk: observability drift if new event families are not included in the Flight Recorder schema registry/validator.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

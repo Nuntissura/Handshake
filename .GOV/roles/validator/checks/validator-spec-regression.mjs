@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /**
- * Spec regression check: ensure SPEC_CURRENT points to an existing spec and required anchors are present.
+ * Spec regression check: ensure SPEC_CURRENT resolves and required anchors are present.
  */
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { GOV_ROOT_REPO_REL, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { GOV_ROOT_REPO_REL, REPO_ROOT } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  readResolvedSpecTextAtRepo,
+  resolveSpecCurrentAtRepo,
+} from "../../../roles_shared/scripts/lib/spec-current-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 registerFailCaptureHook("validator-spec-regression.mjs", { role: "WP_VALIDATOR" });
 
@@ -22,40 +24,22 @@ function fail(message) {
 }
 
 function main() {
-  let specPointer;
-  try {
-    specPointer = readFileSync(repoPathAbs(specPointerPath), "utf8");
-  } catch (error) {
-    fail(`cannot read ${specPointerPath}: ${error.message}`);
-  }
-
-  const match = specPointer.match(/\*\*([^*\r\n]*Handshake_Master_Spec_[^*]+)\*\*/);
-  if (!match) {
-    fail("SPEC_CURRENT does not reference a Master Spec filename.");
-  }
-
-  const specRef = match[1].trim();
-  const specFile = specRef.split("/").pop();
-  const specPath = path.isAbsolute(specRef)
-    ? specRef
-    : specRef.startsWith(".GOV/")
-      ? repoPathAbs(specRef)
-      : repoPathAbs(path.join(GOV_ROOT_REPO_REL, "spec", specRef));
-
+  let resolved;
   let spec;
   try {
-    spec = readFileSync(specPath, "utf8");
+    resolved = resolveSpecCurrentAtRepo(REPO_ROOT, { allowLegacy: false });
+    spec = readResolvedSpecTextAtRepo(REPO_ROOT, resolved);
   } catch (error) {
-    fail(`cannot read referenced spec ${specPath}: ${error.message}`);
+    fail(`cannot resolve current spec from ${specPointerPath}: ${error.message}`);
   }
 
   for (const anchor of requiredAnchors) {
     if (!spec.includes(anchor)) {
-      fail(`required spec anchor "${anchor}" missing in ${specFile}`);
+      fail(`required spec anchor "${anchor}" missing in ${resolved.specTargetLabel}`);
     }
   }
 
-  console.log(`validator-spec-regression: PASS - ${specFile} present with required anchors.`);
+  console.log(`validator-spec-regression: PASS - ${resolved.specTargetLabel} resolves with required anchors.`);
 }
 
 main();

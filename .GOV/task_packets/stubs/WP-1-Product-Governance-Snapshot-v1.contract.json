@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Product-Governance-Snapshot-v1",
+  "base_wp_id": "WP-1-Product-Governance-Snapshot",
+  "created_at_utc": "2026-02-05",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Product-Governance-Snapshot-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Product-Governance-Snapshot-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Product-Governance-Snapshot-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "86f0420866d82441cb91d8f5882eb556664b8370bdf2f2dfd38fe5b244a62226",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "§7.5.4.8–§7.5.4.9 (Governance Pack: Instantiation + Template Volume)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- NOTE: The WP ID includes the word \"Snapshot\" for historical naming reasons. This WP is about a **compatibility `docs/` bundle** (short-term) and a migration to **product-embedded governance resources** (end state). Do not rename the file.\n- What: Maintain a short-term **compatibility governance bundle** under `docs/` (matching current runtime/tests), and implement an end-state where governance defaults/templates are shipped **inside the product** (not in repo folders).\n- Why: Repo governance in `.GOV/` is evolving rapidly and must remain decoupled from runtime. Product behavior must be deterministic and portable without depending on `.GOV/` or repo-local `docs/` at runtime.",
+    "scope_sketch": "- IN_SCOPE:\n  - Identify the minimal runtime-critical governance surface currently hardcoded by runtime/tests (e.g., `docs/SPEC_CURRENT.md`, `docs/TASK_BOARD.md`, `docs/OSS_REGISTER.md`, `docs/ROLE_MAILBOX/**`, plus any other required files).\n  - Define `docs/` as a **compatibility bundle only** (short-term): it exists to keep the current product working while we migrate.\n  - Implement product-embedded governance resources (templates/defaults) so Handshake can bootstrap/validate governance without reading repo folders.\n  - Replace runtime/test dependencies on `docs/**` with product-embedded resources + product-owned state/config (portable, deterministic).\n  - Add a hard guardrail: runtime MUST NOT touch `.GOV/` (no reads, no writes), enforced by CI/gates.\n- OUT_OF_SCOPE:\n  - Rewriting governance workflows in `.GOV/` (this WP is product/runtime decoupling work, not governance authoring refactors).\n  - Changing WP/task-packet lifecycle semantics.",
+    "acceptance_criteria": "- Short-term (compatibility):\n  - A fresh clone/build of Handshake can run current tests/flows that still expect `docs/**` to exist.\n- End-state (required for completion):\n  - Handshake runtime does not require repo `docs/` to exist for governance-critical behavior.\n  - Handshake runtime does not read/write `.GOV/` (hard enforcement).\n  - Governance defaults/templates used by the product are shipped inside the product (embedded/bundled resources) and versioned with the code.\n  - Any governance *state* is stored in product-owned storage (DB/workspace data dir), not in repo folders.",
+    "risks_unknowns": "- Confusion between “governance workspace” (`.GOV/`) and “compatibility bundle” (`docs/`) without hard guardrails.\n- Existing code paths may assume repo-root relative paths; must be migrated to embedded resources/configured data dirs.\n- Cross-platform path/case differences and packaging differences (Windows dev vs Linux CI).",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

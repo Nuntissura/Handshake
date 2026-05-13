@@ -6,7 +6,7 @@ This document is intended to be copied into other projects as a starting point. 
 
 ## What we did (summary)
 - Created a canonical navigation pack in `.GOV/` so any model can orient fast.
-- Added an explicit spec pointer (`.GOV/spec/SPEC_CURRENT.md`) and a check to prevent drift.
+- Added an explicit machine-readable spec entrypoint (`.GOV/spec/SPEC_CURRENT.md`) and a check to prevent drift.
 - Established a debug runbook with a first-5-minutes flow and CI failure triage.
 - Added ownership + agent registry so reviews and traceability have a target.
 - Introduced a Quality Gate with risk tiers and required validation commands.
@@ -21,7 +21,7 @@ This document is intended to be copied into other projects as a starting point. 
 - Debuggability: stable log anchors and runbooks shorten incident triage.
 
 ## Canonical inputs and precedence (template)
-1) `.GOV/spec/SPEC_CURRENT.md` (points to current master spec)
+1) `.GOV/spec/SPEC_CURRENT.md` (machine-readable current spec entrypoint)
 2) Codex (repo root)
 3) Task Board (`.GOV/roles_shared/records/TASK_BOARD.md`) + the resolved Work Packet for the WP
 4) Logger (optional; milestones/hard bugs only, root or `log_archive/`)
@@ -32,7 +32,7 @@ This document is intended to be copied into other projects as a starting point. 
 | File | Purpose | Why it matters |
 | --- | --- | --- |
 | `.GOV/roles_shared/docs/START_HERE.md` | Entry point + commands | Fast orientation for new models |
-| `.GOV/spec/SPEC_CURRENT.md` | Canonical spec pointer | Prevents spec drift |
+| `.GOV/spec/SPEC_CURRENT.md` | Canonical spec entrypoint | Prevents spec drift |
 | `.GOV/roles_shared/docs/ARCHITECTURE.md` | Module map + allowed deps | Avoids architectural entropy |
 | `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` | Debug flow + log map | Consistent incident handling |
 | `.GOV/roles_shared/docs/QUALITY_GATE.md` | Risk tiers + required checks | Sets minimum hygiene |
@@ -84,7 +84,7 @@ git config core.hooksPath .GOV/roles_shared/scripts/hooks
 ## Validation and enforcement (defaults)
 These checks are designed to run in CI or locally:
 - `docs-check`: ensures navigation pack exists.
-- `codex-check`: disallow direct `fetch(` outside API layer; disallow `println!/eprintln!` in backend; ensure SPEC_CURRENT points to latest spec; enforce TODO tagging.
+- `codex-check`: disallow direct `fetch(` outside API layer; disallow `println!/eprintln!` in backend; ensure SPEC_CURRENT resolves to the current indexed spec; enforce TODO tagging.
 - `depcruise`: frontend layer boundaries.
 - `cargo-deny`: backend dependency audit.
 - `gitleaks`: secret scanning.
@@ -102,7 +102,7 @@ Task Board + Work Packet act as the micro-log; the Handshake logger is for miles
 
 ## How to reuse this template in a new repo
 1) Copy the navigation pack files listed above into the new repo.
-2) Create a codex and point `.GOV/spec/SPEC_CURRENT.md` to the master spec.
+2) Create a codex and write `.GOV/spec/SPEC_CURRENT.md` as the machine-readable entrypoint for the current master spec.
 3) Populate `.GOV/roles_shared/docs/ARCHITECTURE.md` with real entrypoints.
 4) Add `.GOV/roles_shared/docs/RUNBOOK_DEBUG.md` with log locations and first-5-minutes flow.
 5) Add scaffolding scripts and wire `justfile` targets.

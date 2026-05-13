@@ -1,0 +1,62 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/MT-002.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/MT-002.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-001"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.572Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/MT-002.md",
+    "projection_hash": "48d208c349dde35c",
+    "source_file": ".GOV/task_packets/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/packet.json",
+    "source_hash": "08062541ab988a8c",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-002",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "Every state-changing operator or model action SHOULD resolve through a registered GovernedActionDescriptorV1"
+    ],
+    "allowed_paths": [
+      "governed next-action mapping helper in `workflows.rs` and validator legality checks in `locus/types.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "mutation-based rejection of unregistered `next_action` values in `micro_task_executor_tests"
+    ],
+    "risk_if_missed": "summary actions drift from canonical registry law",
+    "summary": "Every state-changing operator or model action SHOULD resolve through a registered GovernedActionDescriptorV1"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1"
+}

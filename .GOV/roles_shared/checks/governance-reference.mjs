@@ -3,16 +3,16 @@
  * Governance reference resolver (SSoT).
  *
  * Single source of truth:
- * - .GOV/spec/SPEC_CURRENT.md -> "The current authoritative Governance Reference is:" -> **<codex filename>**
+ * - .GOV/spec/SPEC_CURRENT.md JSON -> governance_reference.path
  *
  * This helper is used by CI / hooks to avoid hardcoding legacy filenames (e.g. Codex v0.8).
  */
 
-import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { resolveGovernanceReferenceFromSpecCurrentAtRepo } from "../scripts/lib/spec-current-lib.mjs";
 
 const SPEC_CURRENT_REL = path.join(GOV_ROOT_REPO_REL, "spec", "SPEC_CURRENT.md");
 const FILE_RELATIVE_REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -28,45 +28,11 @@ function tryGitRepoRoot() {
   }
 }
 
-function extractBoldFilenameFromSection({ specCurrentText, sectionMarkerRe, specCurrentPath }) {
-  const lines = specCurrentText.split(/\r?\n/);
-  const markerIdx = lines.findIndex((l) => sectionMarkerRe.test(l));
-  if (markerIdx === -1) {
-    throw new Error(
-      `Could not find governance reference section marker in ${specCurrentPath} (expected line matching ${sectionMarkerRe}).`
-    );
-  }
-
-  for (let i = markerIdx + 1; i < Math.min(lines.length, markerIdx + 30); i += 1) {
-    const line = (lines[i] || "").trim();
-    if (!line) continue;
-    const m = line.match(/\*\*(.+?)\*\*/);
-    if (m && m[1]) return m[1].trim();
-  }
-
-  throw new Error(
-    `Could not parse governance reference filename from ${specCurrentPath} (expected **<filename>** line after marker).`
-  );
-}
-
 export function resolveGovernanceReference(options = {}) {
   const repoRoot = options.repoRoot || tryGitRepoRoot() || FILE_RELATIVE_REPO_ROOT;
-  let specCurrentPathAbs = path.resolve(repoRoot, options.specCurrentPath || SPEC_CURRENT_REL);
-  if (!options.specCurrentPath && !fs.existsSync(specCurrentPathAbs)) {
-    // Legacy compatibility bundle (should not be treated as governance SSoT).
-    const compat = path.resolve(repoRoot, "docs", "SPEC_CURRENT.md");
-    if (fs.existsSync(compat)) specCurrentPathAbs = compat;
-  }
-  const specCurrentText = fs.readFileSync(specCurrentPathAbs, "utf8");
-
-  const codexFilename = extractBoldFilenameFromSection({
-    specCurrentText,
-    sectionMarkerRe: /the current authoritative governance reference is\s*:/i,
-    specCurrentPath: specCurrentPathAbs,
+  return resolveGovernanceReferenceFromSpecCurrentAtRepo(repoRoot, {
+    specCurrentPath: options.specCurrentPath || SPEC_CURRENT_REL,
   });
-
-  const codexPathAbs = path.resolve(repoRoot, codexFilename);
-  return { codexFilename, codexPathAbs, specCurrentPathAbs };
 }
 
 function printUsageAndExit() {

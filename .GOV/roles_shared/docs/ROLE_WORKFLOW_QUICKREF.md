@@ -130,7 +130,7 @@ Product-scanning / product-boundary enforcement:
 ## Role: Orchestrator
 
 Authoritative inputs:
-- `.GOV/spec/SPEC_CURRENT.md` (current binding spec pointer)
+- `.GOV/spec/SPEC_CURRENT.md` (machine-readable current indexed spec entrypoint)
 - `.GOV/roles_shared/records/TASK_BOARD.md`
 - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
 - `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` (mechanical gate state)
@@ -177,21 +177,11 @@ Primary commands:
 - `just manual-relay-next WP-... [--debug]`
 - `just manual-relay-dispatch WP-... [PRIMARY|FALLBACK] [--debug]`
 - those manual-relay helpers are Classic-Orchestrator-owned surfaces for `MANUAL_RELAY`
-- `just start-activation-manager-session WP-... [PRIMARY|FALLBACK]`
-- `just start-coder-session WP-... [PRIMARY|FALLBACK]`
-- `just start-wp-validator-session WP-... [PRIMARY|FALLBACK]`
-- `just start-integration-validator-session WP-... [PRIMARY|FALLBACK]`
-- `just steer-activation-manager-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
-- `just cancel-activation-manager-session WP-...`
-- `just steer-coder-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
-- `just cancel-coder-session WP-...`
-- `just steer-wp-validator-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
-- `just cancel-wp-validator-session WP-...`
-- `just steer-integration-validator-session WP-... "<prompt>" [PRIMARY|FALLBACK]`
-- `just cancel-integration-validator-session WP-...`
 - `just session-start <ROLE> WP-... [PRIMARY|FALLBACK]`
 - `just session-send <ROLE> WP-... "<prompt>" [PRIMARY|FALLBACK]`
 - `just session-cancel <ROLE> WP-...`
+- `just session-close <ROLE> WP-...`
+- Role-specific `start-*`, `steer-*`, `cancel-*`, and `close-*` session recipes remain compatibility aliases for the canonical `session-*` controls.
 - `just session-registry-status [WP-...]`
 - `just active-lane-brief <ROLE> WP-... [--json]`
 - `just session-scan-orphan-terminals [args]`
@@ -225,7 +215,7 @@ Primary commands:
 - Implement only within `IN_SCOPE_PATHS`
 - Hygiene: `just product-scan`, `just validator-dal-audit`, `just validator-git-hygiene`
 - Workflow closure evidence: `just phase-check HANDOFF WP-... CODER`
-- Session start/steering: `just start-coder-session WP-...`, `just steer-coder-session WP-... "<prompt>"`
+- Session start/steering reference: Orchestrator uses `just session-start CODER WP-...` and `just session-send CODER WP-... "<prompt>"`; role-specific coder session recipes are compatibility aliases.
 - `just active-lane-brief CODER WP-... [--json]`
 - `just wp-heartbeat WP-... CODER <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir]`
 - `just wp-receipt-append WP-... CODER <session> <receipt_kind> "<summary>"`
@@ -255,7 +245,7 @@ Primary commands (per WP validation):
 - `just validator-dal-audit`
 - `just validator-git-hygiene`
 - `just product-scan` (product boundary enforcement)
-- Session start/steering: `just start-wp-validator-session WP-...`, `just steer-wp-validator-session WP-... "<prompt>"`
+- Session start/steering reference: Orchestrator uses `just session-start WP_VALIDATOR|INTEGRATION_VALIDATOR WP-...` and `just session-send WP_VALIDATOR|INTEGRATION_VALIDATOR WP-... "<prompt>"`; role-specific validator session recipes are compatibility aliases.
 - `just active-lane-brief WP_VALIDATOR|INTEGRATION_VALIDATOR WP-... [--json]`
 - `just wp-heartbeat WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <phase> <runtime_status> <next_actor> "<waiting_on>" [validator_trigger] [last_event] [worktree_dir] [next_expected_session] [waiting_on_session]`
 - `just wp-receipt-append WP-... WP_VALIDATOR|INTEGRATION_VALIDATOR <session> <receipt_kind> "<summary>" [state_before] [state_after] [target_role] [target_session] [correlation_id] [requires_ack] [ack_for]`

@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import crypto from "node:crypto";
 import { captureFailure } from "./fail-capture-lib.mjs";
+import { resolveSpecCurrentAtRepo } from "./spec-current-lib.mjs";
 import {
   GOV_ROOT_REPO_REL,
   GOVERNANCE_RUNTIME_ROOT_REPO_REL,
@@ -384,22 +384,12 @@ function traceabilityPacketPathAtRepo(repoRoot, baseWpId) {
 }
 
 function resolveSpecSnapshotAtRepo(repoRoot) {
-  const specCurrentPath = path.join(repoRoot, LOCAL_GOV_ROOT_REPO_REL, "spec", "SPEC_CURRENT.md");
-  if (!exists(specCurrentPath)) {
-    return { ok: false, error: `Missing ${specCurrentPath}` };
+  try {
+    const resolved = resolveSpecCurrentAtRepo(repoRoot);
+    return { ok: true, specTargetLabel: resolved.specTargetLabel, sha1: resolved.sha1 };
+  } catch (error) {
+    return { ok: false, error: String(error?.message || error) };
   }
-  const specCurrent = readUtf8(specCurrentPath);
-  const match = specCurrent.match(/Handshake_Master_Spec_v[0-9._]+\.md/);
-  if (!match) {
-    return { ok: false, error: `Could not resolve spec filename from ${specCurrentPath}` };
-  }
-  const specFileName = match[0];
-  const specFilePath = path.join(path.dirname(specCurrentPath), specFileName);
-  if (!exists(specFilePath)) {
-    return { ok: false, error: `Resolved spec file does not exist: ${specFilePath}` };
-  }
-  const sha1 = crypto.createHash("sha1").update(fs.readFileSync(specFilePath)).digest("hex");
-  return { ok: true, specFileName, sha1 };
 }
 
 function lastPrepareEntryAtRepo(repoRoot, wpId) {
@@ -592,11 +582,11 @@ export function preparedWorktreeSyncState(wpId, prepareEntry, referenceRepoRoot)
   } else if (!worktreeSpec.ok) {
     issues.push(worktreeSpec.error);
   } else if (
-    referenceSpec.specFileName !== worktreeSpec.specFileName
+    referenceSpec.specTargetLabel !== worktreeSpec.specTargetLabel
     || referenceSpec.sha1 !== worktreeSpec.sha1
   ) {
     issues.push(
-      `Assigned worktree SPEC_CURRENT snapshot is stale: expected ${referenceSpec.specFileName} @ ${referenceSpec.sha1}, got ${worktreeSpec.specFileName} @ ${worktreeSpec.sha1}`,
+      `Assigned worktree SPEC_CURRENT snapshot is stale: expected ${referenceSpec.specTargetLabel} @ ${referenceSpec.sha1}, got ${worktreeSpec.specTargetLabel} @ ${worktreeSpec.sha1}`,
     );
   }
 

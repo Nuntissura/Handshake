@@ -8,4 +8,4 @@ Rules:
 - Preferred workflow: use `just spec-debt-open`, `just spec-debt-sync`, and `just spec-debt-close` instead of manual freehand edits.
 
 ## DEBT_ROWS
-- NONE
+- DEBT_ID: SPECDEBT-KERNEL-001 | WP_ID: WP-KERNEL-001-Event-Ledger-Session-Broker-v1 | STATUS: OPEN | BLOCKING: YES | CLAUSE: Kernel V1 product authority is a Postgres EventLedger and must not use SQLite authority, cache, offline, fallback, or test authority for the first kernel slice | NOTES: Reset brief and product inspection require no-SQLite kernel authority, but indexed Master Spec modules still contain older SQLite-local-primary and cache/offline/fallback language. Resolve by enriching the split indexed spec modules before coder launch.

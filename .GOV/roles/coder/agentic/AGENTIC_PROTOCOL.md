@@ -1,11 +1,10 @@
-# AGENTIC_PROTOCOL (Coder)
-
-This is an **add-on** protocol for coder agents operating under an orchestrator-led, multi-agent ("agentic") workflow.
-
-It does not replace `/.GOV/roles/coder/CODER_PROTOCOL.md`; it adds constraints to prevent false progress and missing evidence.
-
----
-
+﻿# AGENTIC_PROTOCOL (Coder)
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
 ## 1) Authority and boundary (HARD)
 
 - Treat the active work packet as the executable contract.
@@ -88,7 +87,7 @@ If any of the above is missing: DO NOT use sub-agents.
 
 - The Primary Coder remains solely accountable for:
   - correctness,
-  - Master Spec conformance (SPEC_CURRENT + SPEC_ANCHOR),
+  - Master Spec conformance (SPEC_CURRENT JSON -> resolved indexed spec + SPEC_ANCHOR),
   - WP scope discipline (IN_SCOPE_PATHS / OUT_OF_SCOPE),
   - and all work packet paperwork (EVIDENCE, EVIDENCE_MAPPING, VALIDATION manifest).
 
@@ -109,7 +108,7 @@ Sub-agents MUST NOT:
 
 Only the Primary Coder may:
 - integrate sub-agent patches,
-- verify each change against `.GOV/spec/SPEC_CURRENT.md` + WP acceptance criteria before applying,
+- verify each change against `.GOV/spec/SPEC_CURRENT.md` resolved to the indexed manifest/module slices + WP acceptance criteria before applying,
 - run the WP TEST_PLAN and required gates,
 - record canonical evidence in the work packet,
 - and perform final commit + handoff.
@@ -118,6 +117,7 @@ Only the Primary Coder may:
 
 Every sub-agent task MUST include:
 - WP_ID + branch + repo-relative worktree_dir
-- Canonical artifacts (Codex, role protocol, SPEC_CURRENT + resolved spec, work packet, refinement)
+- Canonical artifacts (Codex, role protocol, SPEC_CURRENT JSON + resolved indexed spec, work packet, refinement)
 - SLICE_NAME + ALLOWED_PATHS + ACCEPTANCE_TARGETS (DONE_MEANS bullets and/or SPEC_ANCHORs)
 - Deliverables: PATCH + WHAT_CHANGED + COMMANDS_RUN + RISKS + NEXT_COMMANDS
+

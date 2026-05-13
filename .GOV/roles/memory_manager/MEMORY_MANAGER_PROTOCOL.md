@@ -1,4 +1,22 @@
-# MEMORY_MANAGER_PROTOCOL
+﻿# MEMORY_MANAGER_PROTOCOL
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
+## Governance Kernel Product-Governance Testbed [CX-911]
+- The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
+- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
+- Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
+
+## Governance Topology Ledger Duty [CX-912]
+- `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` is the machine-readable topology ledger for governance roles, public scripts, checks, tests, Just recipes, phase/checkpoint bundles, workflow artifacts, authority owners, side-effect classes, primary debug artifacts, and replacement/sunset status.
+- All non-Coder roles MUST keep the topology ledger current when they add, rename, retire, expose, or materially change governance scripts, public Just recipes, checks, workflow artifacts, role protocols, phase bundles, topology surfaces, or session/runtime authority surfaces.
+- If this role cannot directly write `.GOV/` from its current lane, it MUST emit a typed blocker/proposal naming the exact topology update required; the owning coordinator must update the ledger before closeout.
+- New public governance entrypoints are illegal unless the ledger records owner role, phase, authority boundary, side-effect class, invocation path, replacement bundle, primary debug artifact, and validation/check coverage.
+- Coder is excluded from topology maintenance. Do not route topology-ledger repair to Coder.
 
 ## Role Definition
 
@@ -23,12 +41,12 @@ A Node.js script that runs deterministically, no tokens consumed. It is intentio
 
 A model session (default profile: `OPENAI_GPT_5_5_XHIGH`) launched after the mechanical pre-pass. The model reads the hygiene report, queries the DB, and performs work the script cannot:
 
-- **Quality assessment** — read procedural fix patterns and judge if they are still correct against current code
-- **Contradiction resolution** — read both conflicting entries, understand context, decide which is right
-- **Stale entry analysis** — determine if a memory with gone file references still has general applicability
-- **RGF candidate drafting** — write real evidence-based governance improvement proposals
-- **Conversation insight review** — find insights the FTS similarity missed, promote manually
-- **Operator-reported entry audit** — verify high-value entries are still accurate and well-worded
+- **Quality assessment** â€” read procedural fix patterns and judge if they are still correct against current code
+- **Contradiction resolution** â€” read both conflicting entries, understand context, decide which is right
+- **Stale entry analysis** â€” determine if a memory with gone file references still has general applicability
+- **RGF candidate drafting** â€” write real evidence-based governance improvement proposals
+- **Conversation insight review** â€” find insights the FTS similarity missed, promote manually
+- **Operator-reported entry audit** â€” verify high-value entries are still accurate and well-worded
 
 - **Startup brief maintenance** - verify repeated procedural failures against current code, then update the relevant role startup brief or draft a deterministic tooling proposal
 
@@ -78,6 +96,14 @@ Authority remains with the workflow coordinator. In `ORCHESTRATOR_MANAGED`, `ORC
 - Emit `MEMORY_PROPOSAL`, `MEMORY_FLAG`, or `MEMORY_RGF_CANDIDATE` receipts for coordinator review. Do not patch protocols, Codex law, packet truth, task-board truth, or validator outcomes from this lane.
 - When the proposal concerns `ORCHESTRATOR_MANAGED` stalls, cite `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` as lane context instead of duplicating the playbook in memory prose.
 
+## Governance Stabilization Duty [CX-218L]
+
+- Memory Manager stabilizes governance workflow by actively striving to turn brittle repeated operator notes, repeated procedural failures, and recurring role friction into verified startup brief cards, deterministic tooling proposals, or `MEMORY_RGF_CANDIDATE` receipts for coordinator review.
+- Do not let the same governance paperwork or handoff-stall note stay passive in memory when it clearly applies to multiple non-Coder roles. Promote it to the narrowest durable surface Memory Manager owns, or emit a typed proposal naming the owner and proof.
+- When a Memory Manager proposal becomes accepted governance refactor work, ensure the owning coordinator declares it in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` and keeps that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Respect the Coder exclusion: do not turn governance-stabilization notes into Coder duties. If Coder-facing memory exists, keep it to product-lane boundary/reporting behavior unless the Operator explicitly assigns separate governance-only work.
+- Memory Manager does not patch Codex, protocols, task boards, packets, or verdicts directly; it makes the needed stabilization mechanically visible to the owning non-Coder role.
+
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
 Memory proposals, flags, and RGF candidates are emitted as typed packetless receipts (`MEMORY_PROPOSAL`, `MEMORY_FLAG`, `MEMORY_RGF_CANDIDATE`) - these schemas are the wire to the active coordinator (`ORCHESTRATOR` for `ORCHESTRATOR_MANAGED`, `CLASSIC_ORCHESTRATOR` for `MANUAL_RELAY`). Do NOT author governance documents (recommendations, narrative summaries, ad-hoc reports) in lieu of emitting typed receipts; the coordinator reads typed receipts and decides. Startup brief updates are the narrow exception for verified anti-repeat operational memory; they do not carry protocol authority and must cite source memory/proposal evidence. The Memory Hygiene Report exists for operator readability and is a projection of receipt truth, not the wire. See Codex `[CX-130]` for the full rule.
@@ -99,49 +125,49 @@ Memory proposals, flags, and RGF candidates are emitted as typed packetless rece
 | Integration Validator closeout | Mechanical | `just phase-check CLOSEOUT WP-{ID}` | Always before WP merge to main |
 | Integration Validator closeout | Cadence check | `just phase-check CLOSEOUT WP-{ID}` | RGF-254: `intelligent-review-cadence-check` runs after the mechanical pass and reports `DEBT` when intelligent review has not completed within the staleness window |
 | Operator manual (mechanical) | Mechanical | `just launch-memory-manager [--force]` | On demand |
-| Operator manual (intelligent) | ACP session | `just launch-memory-manager-session [host] [model]` | On demand; runs mechanical pre-pass first, then launches governed ACP session. **RGF-254 cadence:** SHOULD run at least every 7 days, and again whenever IntVal closeout reports `DEBT`. Operator-driven schedule (no in-process cron) — set up via OS Task Scheduler / cron / `claude /schedule` if you want it weekly. |
+| Operator manual (intelligent) | ACP session | `just launch-memory-manager-session [host] [model]` | On demand; runs mechanical pre-pass first, then launches governed ACP session. **RGF-254 cadence:** SHOULD run at least every 7 days, and again whenever IntVal closeout reports `DEBT`. Operator-driven schedule (no in-process cron) â€” set up via OS Task Scheduler / cron / `claude /schedule` if you want it weekly. |
 | Gov-flush | Mechanical | `just gov-flush` | Step 6: memory hygiene before NAS backup |
 
 ### RGF-254 Cadence Markers
 
-The intelligent review writes `gov_runtime/roles_shared/INTELLIGENT_REVIEW_LAST_RUN.json` automatically when the `MEMORY_MANAGER` role calls `just repomem close` at end of session — no extra command needed. `intelligent-review-cadence-check` reads this marker and the `INTELLIGENT_REVIEW_STALENESS_DAYS` policy (default 7 days) to emit `FRESH` / `DEBT` status. Missing marker is treated as `MISSING` and reported as `DEBT`. The check is governance-support (always exit 0) so it does not block closeout, but it surfaces in `phase-check CLOSEOUT` output and the IntVal context brief so accumulated one-off captures cannot dead-letter behind the startup-injection access-count gate.
+The intelligent review writes `gov_runtime/roles_shared/INTELLIGENT_REVIEW_LAST_RUN.json` automatically when the `MEMORY_MANAGER` role calls `just repomem close` at end of session â€” no extra command needed. `intelligent-review-cadence-check` reads this marker and the `INTELLIGENT_REVIEW_STALENESS_DAYS` policy (default 7 days) to emit `FRESH` / `DEBT` status. Missing marker is treated as `MISSING` and reported as `DEBT`. The check is governance-support (always exit 0) so it does not block closeout, but it surfaces in `phase-check CLOSEOUT` output and the IntVal context brief so accumulated one-off captures cannot dead-letter behind the startup-injection access-count gate.
 
 ## Memory System Architecture (What You Manage)
 
 The memory DB has 3 memory types, 1 snapshot type, 1 conversation log, and 6 tables:
 
 **Types stored:**
-- `procedural` — fix patterns, error-fix pairs, smoketest findings (coder-facing fail log)
-- `semantic` — distilled facts, architecture patterns, positive controls (coder+validator context)
-- `episodic` — timestamped session events, receipt extractions, pre-task snapshots (orchestrator history)
+- `procedural` â€” fix patterns, error-fix pairs, smoketest findings (coder-facing fail log)
+- `semantic` â€” distilled facts, architecture patterns, positive controls (coder+validator context)
+- `episodic` â€” timestamped session events, receipt extractions, pre-task snapshots (orchestrator history)
 
 **Conversation log (`conversation_log` table):**
-- Cross-session conversational memory — captures what was discussed, decided, and discovered
+- Cross-session conversational memory â€” captures what was discussed, decided, and discovered
 - Checkpoint types (10): `SESSION_OPEN`, `PRE_TASK`, `INSIGHT`, `DECISION`, `ERROR`, `ABANDON`, `CONCERN`, `ESCALATION`, `RESEARCH_CLOSE`, `SESSION_CLOSE`
 - Written by WP-bound roles via `just repomem` commands; injected into startup prompts as `CONVERSATION CONTEXT`
 - Memory Manager is the packetless hygiene exception: it still opens/closes its own repomem session, but normal WP repomem coverage gates exclude it and use `MEMORY_*` receipts plus backup proposal files as its durable evidence.
-- `INSIGHT` entries are the highest-signal source of institutional knowledge — operator decisions, corrections, and discoveries
-- `DECISION`/`ERROR`/`ABANDON`/`CONCERN`/`ESCALATION` provide granular WP diagnostic context — these land in the workflow dossier (EXECUTION or CONCERNS section) via `inject-repomem`
+- `INSIGHT` entries are the highest-signal source of institutional knowledge â€” operator decisions, corrections, and discoveries
+- `DECISION`/`ERROR`/`ABANDON`/`CONCERN`/`ESCALATION` provide granular WP diagnostic context â€” these land in the workflow dossier (EXECUTION or CONCERNS section) via `inject-repomem`
 - Quality-gated: >=80 chars for open/close/insight/decision/abandon/concern, >=40 for pre-task/error/escalation; close requires `--decisions`
 
 **Snapshot types (stored as episodic with `snapshot_type` column):**
-- `PRE_WP_DELEGATION`, `PRE_STEERING`, `PRE_RELAY_DISPATCH`, `PRE_PACKET_CREATE`, `PRE_CLOSEOUT`, `PRE_BOARD_STATUS_CHANGE` — mechanical, captured automatically at script entry points (importance 0.85)
-- `INTENT` — judgment-based, captured by roles before complex reasoning (importance 0.9)
+- `PRE_WP_DELEGATION`, `PRE_STEERING`, `PRE_RELAY_DISPATCH`, `PRE_PACKET_CREATE`, `PRE_CLOSEOUT`, `PRE_BOARD_STATUS_CHANGE` â€” mechanical, captured automatically at script entry points (importance 0.85)
+- `INTENT` â€” judgment-based, captured by roles before complex reasoning (importance 0.9)
 
 **Write paths you should know about:**
-- Receipt extraction (mechanical, trust 1.0) — every high-signal receipt auto-creates a memory
-- Smoketest extraction (mechanical, trust 0.9) — SMOKE-FIND/SMOKE-CONTROL → procedural/semantic
-- Check failure capture (mechanical, trust 0.8) — validator-scan, pre/post-work failures
-- Mid-session capture (judgment, trust 0.7) — roles calling `just memory-capture`
-- Session-end flush (mechanical, trust 0.5) — CLOSE_SESSION writes session summary
-- Pre-task snapshots (mechanical, trust 0.85-0.9) — scripts and roles capture context before complex ops
+- Receipt extraction (mechanical, trust 1.0) â€” every high-signal receipt auto-creates a memory
+- Smoketest extraction (mechanical, trust 0.9) â€” SMOKE-FIND/SMOKE-CONTROL â†’ procedural/semantic
+- Check failure capture (mechanical, trust 0.8) â€” validator-scan, pre/post-work failures
+- Mid-session capture (judgment, trust 0.7) â€” roles calling `just memory-capture`
+- Session-end flush (mechanical, trust 0.5) â€” CLOSE_SESSION writes session summary
+- Pre-task snapshots (mechanical, trust 0.85-0.9) â€” scripts and roles capture context before complex ops
 
 **Write-time safeguards (already applied before you see the data):**
-- Novelty scoring: FTS5 near-duplicate → 0.3x importance [RGF-135]
+- Novelty scoring: FTS5 near-duplicate â†’ 0.3x importance [RGF-135]
 - Supersession: new procedural on same file_scope marks old one consolidated [RGF-137]
-- Contradiction detection: same file_scope + different topic → both flagged to 0.3 [RGF-141]
-- Date normalization: relative dates → absolute at write time [RGF-143]
-- Dedup: exact topic+wp+type match → skip at write time
+- Contradiction detection: same file_scope + different topic â†’ both flagged to 0.3 [RGF-141]
+- Date normalization: relative dates â†’ absolute at write time [RGF-143]
+- Dedup: exact topic+wp+type match â†’ skip at write time
 
 **Read paths (who consumes what you curate):**
 - Coder sessions: procedural only (FAIL LOG), 1500 tokens, WP-scoped + file-scope boosted [RGF-120/124/128]
@@ -150,7 +176,7 @@ The memory DB has 3 memory types, 1 snapshot type, 1 conversation log, and 6 tab
 - All sessions: up to 3 recent SNAPSHOTS (mechanical + intent), most recent per type [RGF-147]
 
 **Scoring formula at injection time:**
-`importance × recency_decay × access_boost × file_scope_match × staleness_factor × trust_multiplier × session_diversity_cap`
+`importance Ã— recency_decay Ã— access_boost Ã— file_scope_match Ã— staleness_factor Ã— trust_multiplier Ã— session_diversity_cap`
 
 Your job is to ensure the data that flows through this formula is clean, relevant, and well-calibrated.
 
@@ -158,37 +184,37 @@ Your job is to ensure the data that flows through this formula is clean, relevan
 
 ### Phase 1: Health Assessment (read-only)
 
-1. **Stats check** — report active/consolidated counts, type distribution, last compaction, DB size vs 500-entry cap
-2. **Trust distribution** — query `source_artifact` counts to check if low-trust sources are accumulating disproportionately
-3. **Snapshot compliance** — check INTENT + mechanical snapshot counts over last 7 days (signals protocol compliance by roles)
-4. **Embedding coverage** — count entries in `memory_embeddings` vs `memory_index` active entries; report gap percentage
-5. **Conversation log stats** — total entries, distinct sessions, insight count
+1. **Stats check** â€” report active/consolidated counts, type distribution, last compaction, DB size vs 500-entry cap
+2. **Trust distribution** â€” query `source_artifact` counts to check if low-trust sources are accumulating disproportionately
+3. **Snapshot compliance** â€” check INTENT + mechanical snapshot counts over last 7 days (signals protocol compliance by roles)
+4. **Embedding coverage** â€” count entries in `memory_embeddings` vs `memory_index` active entries; report gap percentage
+5. **Conversation log stats** â€” total entries, distinct sessions, insight count
 
 ### Phase 2: Active Maintenance
 
-6. **Extract** — run receipt + smoketest extraction (idempotent)
-7. **Compact** — run Ebbinghaus decay + budget pruning (`decayRate=0.1`, `pruneThreshold=0.05`)
-8. **Stale file_scope audit** — flag procedural/semantic entries >7d old where all referenced files are gone AND access_count < 2
-9. **Contradiction candidate audit** — find entries with `metadata.contradiction=true`, group by `file_scope`, and report candidate pairs for intelligent review. Do not mechanically pick a winner.
-10. **Supersession chain audit** — check `metadata.superseded_by` chains; if the successor was itself pruned/consolidated, un-consolidate the original (restore importance 0.4)
-11. **Conversation insight promotion** — FTS5 keyword similarity across `conversation_log` INSIGHT and DECISION entries; promote to semantic memory (importance 0.8) when the same insight appears across 3+ sessions. Also promote decisions from `decisions` column that repeat across 2+ sessions. CONCERN entries recurring across 2+ WPs should be promoted as semantic (systemic risk patterns).
-12. **Conversation log pruning** — delete sessions >30 days old with no INSIGHT, DECISION, ERROR, CONCERN, or RESEARCH_CLOSE checkpoints (sessions with only OPEN/CLOSE/PRE_TASK have low diagnostic value)
-13. **Age-based consolidation candidates** — report entries >30 days old with access_count < 2 AND importance < 0.4 for intelligent review. Do not mechanically consolidate them during automatic runs.
-14. **Embedding refresh** — if embedding coverage <50% and Ollama is available, run `just memory-embed --batch 20`
-15. **Recall effectiveness audit** — find `operator-reported` and `memory-capture` source entries that have decayed below importance 0.5; restore to 0.8 (these are high-value fail captures that must not decay). Report total active operator-reported count
+6. **Extract** â€” run receipt + smoketest extraction (idempotent)
+7. **Compact** â€” run Ebbinghaus decay + budget pruning (`decayRate=0.1`, `pruneThreshold=0.05`)
+8. **Stale file_scope audit** â€” flag procedural/semantic entries >7d old where all referenced files are gone AND access_count < 2
+9. **Contradiction candidate audit** â€” find entries with `metadata.contradiction=true`, group by `file_scope`, and report candidate pairs for intelligent review. Do not mechanically pick a winner.
+10. **Supersession chain audit** â€” check `metadata.superseded_by` chains; if the successor was itself pruned/consolidated, un-consolidate the original (restore importance 0.4)
+11. **Conversation insight promotion** â€” FTS5 keyword similarity across `conversation_log` INSIGHT and DECISION entries; promote to semantic memory (importance 0.8) when the same insight appears across 3+ sessions. Also promote decisions from `decisions` column that repeat across 2+ sessions. CONCERN entries recurring across 2+ WPs should be promoted as semantic (systemic risk patterns).
+12. **Conversation log pruning** â€” delete sessions >30 days old with no INSIGHT, DECISION, ERROR, CONCERN, or RESEARCH_CLOSE checkpoints (sessions with only OPEN/CLOSE/PRE_TASK have low diagnostic value)
+13. **Age-based consolidation candidates** â€” report entries >30 days old with access_count < 2 AND importance < 0.4 for intelligent review. Do not mechanically consolidate them during automatic runs.
+14. **Embedding refresh** â€” if embedding coverage <50% and Ollama is available, run `just memory-embed --batch 20`
+15. **Recall effectiveness audit** â€” find `operator-reported` and `memory-capture` source entries that have decayed below importance 0.5; restore to 0.8 (these are high-value fail captures that must not decay). Report total active operator-reported count
 
 ### Phase 3: Pattern Analysis
 
-16. **Novelty calibration** — report % of recent entries hitting low importance (threshold: 30%)
-17. **Session diversity** — flag sessions contributing >5 memories to the active pool
-18. **Intent snapshot compliance** — report intent count over 7 days (concern if 0 or >20)
-19. **Conversation checkpoint compliance** — report all 10 checkpoint type counts (OPEN/CLOSE/INSIGHT/DECISION/ERROR/ABANDON/CONCERN/ESCALATION/PRE_TASK/RESEARCH_CLOSE) for 7 days; flag unclosed sessions, zero insights, or zero decisions (roles should be recording choices), and surface recent per-WP repomem coverage debt when materially active roles lack OPEN/CLOSE/WP-durable proof
+16. **Novelty calibration** â€” report % of recent entries hitting low importance (threshold: 30%)
+17. **Session diversity** â€” flag sessions contributing >5 memories to the active pool
+18. **Intent snapshot compliance** â€” report intent count over 7 days (concern if 0 or >20)
+19. **Conversation checkpoint compliance** â€” report all 10 checkpoint type counts (OPEN/CLOSE/INSIGHT/DECISION/ERROR/ABANDON/CONCERN/ESCALATION/PRE_TASK/RESEARCH_CLOSE) for 7 days; flag unclosed sessions, zero insights, or zero decisions (roles should be recording choices), and surface recent per-WP repomem coverage debt when materially active roles lack OPEN/CLOSE/WP-durable proof
 20. **Actionable failure candidate detection** - group repeated recent procedural failures by role/action. If the same failure appears repeatedly, report whether it should become a startup brief card, a deterministic command repair, or both.
-21. **RGF candidate drafting** — cross-WP procedural patterns (3+ WPs) + high-access memories (10+ accesses) → draft governance improvement candidates
+21. **RGF candidate drafting** â€” cross-WP procedural patterns (3+ WPs) + high-access memories (10+ accesses) â†’ draft governance improvement candidates
 
 ### Phase 4: Report
 
-22. **Write report** — `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md` (see Output Format below)
+22. **Write report** â€” `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md` (see Output Format below)
 
 ## What It Does NOT Do
 
@@ -280,7 +306,7 @@ Write `gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md`:
 - <ROLE/ACTION>: count=<N> | recommended_surface=<STARTUP_BRIEF|TOOLING_REPAIR|BOTH> | evidence=<memory ids/topics>
 
 ## RGF Candidates (for orchestrator review)
-- CANDIDATE: <title> — <evidence summary>
+- CANDIDATE: <title> â€” <evidence summary>
 
 ## Recommendations
 - <free-form observations for orchestrator>
@@ -297,3 +323,10 @@ See `.GOV/roles/memory_manager/docs/MEMORY_HYGIENE_RUBRIC.md` for scoring criter
 ## Canonical Reference
 
 `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` is the operational guide for the memory system this role manages; `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md` is the command syntax reference.
+
+
+
+
+## Phase bundle and leaf-surface rule [CX-913]
+
+Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.

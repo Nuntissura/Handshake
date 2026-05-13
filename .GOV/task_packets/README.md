@@ -1,5 +1,16 @@
 ﻿# Task Packets Directory
 
+## Machine-Readable Packet Artifact Contract
+
+Task packets are moving to primary machine-readable authority because the governance kernel is the testbed for Handshake Product governance ingestion. New and imported folder-based packets should prefer:
+- `packet.json` for packet lifecycle, workflow lane, scope, role profiles, communication paths, and red-team controls
+- `refinement.json` for approved refinement, Activation Manager readiness/prelaunch fields, and spec-anchor planning
+- `MT-*.json` for microtask identity, dependencies, scope, proof targets, and handoff state
+- generated Markdown projections with `HANDSHAKE_GENERATED_PROJECTION` headers carrying source/projection hashes
+
+Flat `WP-*.md` files and stubs are legacy authority until `RGF-289` classifies, imports, archives, or supersedes them. Do not create new manual Markdown-only packet authority.
+
+
 This directory contains task packets for AI-autonomous workflow enforcement.
 
 ## Purpose
@@ -64,5 +75,6 @@ just validate-workflow WP-{ID}
 - [ORCHESTRATOR_PROTOCOL.md](../ORCHESTRATOR_PROTOCOL.md) - Orchestrator checklist
 - [CODER_PROTOCOL.md](../CODER_PROTOCOL.md) - Coder checklist
 - [QUALITY_GATE.md](../QUALITY_GATE.md) - Gate 0 and Gate 1 requirements
+
 
 

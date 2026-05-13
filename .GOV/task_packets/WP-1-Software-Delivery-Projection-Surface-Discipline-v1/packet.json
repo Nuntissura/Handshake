@@ -1,0 +1,91 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/refinement.json"
+  },
+  "base_wp_id": "WP-1-Software-Delivery-Projection-Surface-Discipline",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-04-27T16:46:05.420Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "COMPATIBLE",
+    "main_containment_status": "CONTAINED_IN_MAIN",
+    "packet_format_version": "2026-04-06",
+    "risk_tier": "HIGH",
+    "status": "Validated (PASS)",
+    "user_signature": "ilja270420261840"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.480Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/packet.md",
+    "projection_hash": "84a2975146b3d223",
+    "source_file": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/packet.json",
+    "source_hash": "66d6c8b3cee18fe2",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": true,
+    "contract_file": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/refinement.json",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "hydration_profile": "HYDRATED_RESEARCH_V1",
+    "status": "SIGNED_OR_LEGACY"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- ../handshake_main/src/backend/handshake_core/src/workflows.rs"
+    ],
+    "forbidden_paths": [
+      "- Cosmetic UI redesign or broad layout registry work."
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.181.md 10.11 Dev Command Center integration [ADD v02.181]"
+    ],
+    "summary": "Implement and prove the software-delivery projection-discipline contract that keeps Dev Command Center, Task Board, and Role Mailbox as projections over one runtime-backed truth.",
+    "why": "v02.181 forbids DCC layout position, Task Board mirrors, Role Mailbox chronology, packet prose, or repo /.GOV artifacts from becoming hidden authority for validation, ownership, recovery, queued steering, or closeout posture."
+  },
+  "source_control": {
+    "canonical_branch": "main",
+    "merge_base_sha": "facce56f879d4ee990f62566b12a8b26d8bc61d7 (git merge-base main HEAD at creation time; use for deterministic `just phase-check HANDOFF ... CODER --range` evidence)",
+    "remote_backup_branch": "feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1",
+    "work_branch": "feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1",
+    "worktree_dir": "../wtc-surface-discipline-v1"
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "DIRECT_REVIEW_V1",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Projection-Surface-Discipline-v1",
+    "execution_owner": "CODER_A",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "lane": "ORCHESTRATOR_MANAGED",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY"
+  },
+  "wp_id": "WP-1-Software-Delivery-Projection-Surface-Discipline-v1"
+}

@@ -40,7 +40,9 @@ import {
   resolveOrchestratorGatesPath,
   resolveRefinementPath,
   resolveWorkPacketPath,
+  REPO_ROOT,
 } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
 import { getCurrentSession } from "../memory/governance-memory-lib.mjs";
 import { checkAllNotifications } from "../wp/wp-check-notifications.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../lib/fail-capture-lib.mjs";
@@ -220,9 +222,9 @@ function listMicrotasks(packetAbsPath) {
   const packetDir = path.dirname(packetAbsPath);
   if (!fs.existsSync(packetDir)) return [];
   return fs.readdirSync(packetDir)
-    .filter((entry) => /^MT-\d+\.md$/i.test(entry))
+    .filter((entry) => /^MT-\d+\.(json|md)$/i.test(entry))
     .sort((left, right) => left.localeCompare(right, "en", { numeric: true }))
-    .map((entry) => entry.replace(/\.md$/i, ""));
+    .map((entry) => entry.replace(/\.(json|md)$/i, ""));
 }
 
 function buildPerMicrotaskSeedRows(microtasks) {
@@ -1116,21 +1118,22 @@ function buildLiveReview({
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const now = new Date();
-  const resolvedPacket = resolveWorkPacketPath(options.wpId);
+  const contractPacket = buildWorkPacketCommunicationView(options.wpId);
+  const resolvedPacket = contractPacket.ok ? contractPacket : resolveWorkPacketPath(options.wpId);
   if (!resolvedPacket?.packetPath || !fs.existsSync(resolvedPacket.packetAbsPath || "")) {
     fail(`Packet not found for ${options.wpId}`);
   }
 
   const packetPath = resolvedPacket.packetPath;
   const packetAbsPath = resolvedPacket.packetAbsPath;
-  const governanceRepoRoot = path.resolve(path.dirname(packetAbsPath), "..", "..", "..");
+  const governanceRepoRoot = REPO_ROOT;
   const repoRoot = governanceRepoRoot;
   const refinementPath = resolveRefinementPath(options.wpId) || "";
-  const packetText = fs.readFileSync(packetAbsPath, "utf8");
-  const runtimePath = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
-  const commDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+  const packetText = resolvedPacket.packetText || fs.readFileSync(packetAbsPath, "utf8");
+  const runtimePath = resolvedPacket.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsPath = resolvedPacket.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const threadPath = resolvedPacket.threadFile || parseSingleField(packetText, "WP_THREAD_FILE");
+  const commDir = resolvedPacket.communicationDir || parseSingleField(packetText, "WP_COMMUNICATION_DIR");
   const runtime = runtimePath && fs.existsSync(repoPathAbs(runtimePath)) ? parseJsonFile(runtimePath) : null;
   const runtimePublication = readPublicationStatusView({
     governanceRepoRoot,
@@ -1153,10 +1156,10 @@ function main() {
     wpId: options.wpId,
     packetPath,
     packetContent: packetText,
-    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
-    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
-    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
-    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+    workflowLane: resolvedPacket.workflowLane || parseSingleField(packetText, "WORKFLOW_LANE"),
+    packetFormatVersion: resolvedPacket.packetFormatVersion || parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+    communicationContract: resolvedPacket.communicationContract || parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+    communicationHealthGate: resolvedPacket.communicationHealthGate || parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
     receipts,
     runtimeStatus: runtimeView || {},
   };

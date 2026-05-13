@@ -1,0 +1,64 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/MT-002.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/MT-002.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-001"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.485Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/MT-002.md",
+    "projection_hash": "3d4be1d2891bc2a3",
+    "source_file": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/packet.json",
+    "source_hash": "0c2d134e9a5e6ec7",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-002",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "Software-delivery overlay runtime truth specialization"
+    ],
+    "allowed_paths": [
+      "locus/types.rs",
+      "locus/task_board.rs",
+      "workflows.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "task_board_software_delivery_projection_cannot_override_runtime_truth"
+    ],
+    "risk_if_missed": "Board or packet edits can mask invalid runtime state.",
+    "summary": "Software-delivery overlay runtime truth specialization"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Software-Delivery-Projection-Surface-Discipline-v1"
+}

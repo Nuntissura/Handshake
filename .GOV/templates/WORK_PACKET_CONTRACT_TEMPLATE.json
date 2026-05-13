@@ -1,0 +1,99 @@
+﻿{
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "{{WP_ID}}",
+  "base_wp_id": "{{BASE_WP_ID}}",
+  "created_at_utc": "{{DATE_ISO}}T00:00:00Z",
+  "updated_at_utc": null,
+  "source_control": {
+    "merge_base_sha": "{{MERGE_BASE_SHA}}",
+    "canonical_branch": "main",
+    "work_branch": "{{LOCAL_BRANCH}}",
+    "worktree_dir": "{{LOCAL_WORKTREE_DIR}}",
+    "remote_backup_branch": "{{REMOTE_BACKUP_BRANCH}}"
+  },
+  "workflow": {
+    "lane": "{{WORKFLOW_LANE}}",
+    "authority": "{{WORKFLOW_AUTHORITY}}",
+    "session_start_authority": "{{SESSION_START_AUTHORITY}}",
+    "host_preference": "{{SESSION_HOST_PREFERENCE}}",
+    "communication_dir": "{{WP_COMMUNICATION_DIR}}",
+    "communication_contract": "DIRECT_REVIEW_V1"
+  },
+  "lifecycle": {
+    "status": "Ready for Dev",
+    "main_containment_status": "NOT_STARTED",
+    "current_main_compatibility_status": "NOT_RUN",
+    "risk_tier": "{{RISK_TIER}}",
+    "user_signature": "{{USER_SIGNATURE}}"
+  },
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/{{WP_ID}}/packet.json",
+    "packet_projection": ".GOV/task_packets/{{WP_ID}}/packet.md",
+    "refinement_contract": ".GOV/task_packets/{{WP_ID}}/refinement.json",
+    "microtask_contract_glob": ".GOV/task_packets/{{WP_ID}}/MT-*.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/{{WP_ID}}/packet.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "scope": {
+    "summary": "{{SCOPE_SUMMARY}}",
+    "allowed_paths": [],
+    "forbidden_paths": [],
+    "spec_anchors": [],
+    "acceptance_criteria": []
+  },
+  "refinement": {
+    "contract_file": ".GOV/task_packets/{{WP_ID}}/refinement.json",
+    "status": "PENDING",
+    "activation_manager_required": true
+  },
+  "microtasks": {
+    "contract_glob": ".GOV/task_packets/{{WP_ID}}/MT-*.json",
+    "declared_ids": [],
+    "active_id": null,
+    "next_id": null
+  },
+  "role_profiles": {
+    "activation_manager": "{{ACTIVATION_MANAGER_MODEL_PROFILE}}",
+    "orchestrator": "{{ORCHESTRATOR_MODEL_PROFILE}}",
+    "coder": "{{CODER_MODEL_PROFILE}}",
+    "wp_validator": "{{WP_VALIDATOR_MODEL_PROFILE}}",
+    "integration_validator": "{{INTEGRATION_VALIDATOR_MODEL_PROFILE}}"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "Markdown projection may be stale or manually edited.",
+      "Legacy packet fields may hide shadow authority outside the typed contract.",
+      "Missing schema fields may trigger unsafe prose fallback.",
+      "Activation Manager and Classic Orchestrator may diverge unless prelaunch ownership is encoded."
+    ],
+    "minimum_controls": [
+      "Fail closed on contract/projection hash mismatch once generator enforcement is active.",
+      "Keep legacy Markdown read-only during migration unless explicitly classified as LEGACY_AUTHORITY.",
+      "Record every unsupported fallback as RGF migration debt."
+    ]
+  }
+}

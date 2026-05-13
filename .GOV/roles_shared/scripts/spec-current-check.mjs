@@ -3,22 +3,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL } from "./lib/runtime-paths.mjs";
-
-function parseVersion(name) {
-  const match = name.match(/_v(\d+(?:\.\d+)*)\.md$/);
-  if (!match) return null;
-  return match[1].split(".").map((part) => Number(part));
-}
-
-function compareVersions(a, b) {
-  const maxLen = Math.max(a.length, b.length);
-  for (let i = 0; i < maxLen; i += 1) {
-    const left = a[i] ?? 0;
-    const right = b[i] ?? 0;
-    if (left !== right) return left - right;
-  }
-  return 0;
-}
+import { findLatestMasterSpecAtRepo, resolveSpecCurrentAtRepo } from "./lib/spec-current-lib.mjs";
 
 function resolveRepoRoot() {
   const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -36,27 +21,6 @@ function resolveRepoRoot() {
 }
 
 const repoRoot = resolveRepoRoot();
-const specDir = path.join(repoRoot, GOV_ROOT_REPO_REL, "spec");
-const specFiles = fs
-  .readdirSync(specDir)
-  .filter((name) => name.startsWith("Handshake_Master_Spec_v") && name.endsWith(".md"));
-
-if (specFiles.length === 0) {
-  console.error(`No Handshake_Master_Spec_v*.md files found in ${GOV_ROOT_REPO_REL}/spec/`);
-  process.exit(1);
-}
-
-const parsed = specFiles
-  .map((name) => ({ name, version: parseVersion(name) }))
-  .filter((item) => Array.isArray(item.version));
-
-if (parsed.length === 0) {
-  console.error("Failed to parse spec versions from Handshake_Master_Spec_v*.md.");
-  process.exit(1);
-}
-
-parsed.sort((a, b) => compareVersions(a.version, b.version));
-const latest = parsed[parsed.length - 1].name;
 
 const specCurrentCanonicalPath = path.join(repoRoot, GOV_ROOT_REPO_REL, "spec", "SPEC_CURRENT.md");
 if (!fs.existsSync(specCurrentCanonicalPath)) {
@@ -64,10 +28,16 @@ if (!fs.existsSync(specCurrentCanonicalPath)) {
   process.exit(1);
 }
 
-const specCurrentCanonical = fs.readFileSync(specCurrentCanonicalPath, "utf8");
-if (!specCurrentCanonical.includes(latest)) {
-  console.error(`${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md does not reference latest spec: ${latest}`);
+const latest = findLatestMasterSpecAtRepo(repoRoot);
+const resolved = resolveSpecCurrentAtRepo(repoRoot, { allowLegacy: false });
+if (resolved.entrypointType !== "indexed_manifest") {
+  console.error(`${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md must resolve to an indexed spec manifest.`);
   process.exit(1);
 }
 
-console.log(`SPEC_CURRENT ok: ${latest}`);
+if (resolved.sourceBaselineFileName !== latest.name) {
+  console.error(`${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md source baseline is not latest spec: ${latest.name}`);
+  process.exit(1);
+}
+
+console.log(`SPEC_CURRENT ok: ${resolved.specTargetLabel} (source baseline ${latest.name})`);

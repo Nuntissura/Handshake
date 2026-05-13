@@ -1,0 +1,141 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/refinement.json"
+  },
+  "base_wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-13T14:50:53Z",
+  "lifecycle": {
+    "current_main_compatibility_baseline_sha": "",
+    "current_main_compatibility_status": "NOT_RUN",
+    "current_main_compatibility_verified_at_utc": "",
+    "current_wp_status": "BLOCKED_PENDING_OPERATOR_SIGNATURE_AND_SPEC_ENRICHMENT",
+    "integration_validator_of_record": "INTEGRATION_VALIDATOR:WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+    "main_containment_status": "NOT_STARTED",
+    "main_containment_verified_at_utc": "",
+    "merged_main_commit": "NONE",
+    "packet_format_version": "2026-04-06",
+    "packet_widening_decision": "NOT_REQUIRED",
+    "packet_widening_evidence": "",
+    "risk_tier": "HIGH",
+    "status": "Blocked",
+    "user_signature": "PENDING_OPERATOR_SIGNATURE",
+    "wp_validator_of_record": "WP_VALIDATOR:WP-KERNEL-001-Event-Ledger-Session-Broker-v1"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-13T19:45:38.366Z",
+    "generator": "master-spec-correction-sync.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.md",
+    "projection_hash": "fdefb512122955be",
+    "source_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json",
+    "source_hash": "1d9d99349e283775",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": true,
+    "contract_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/refinement.json",
+    "enforcement_profile": "KERNEL_BUILDER_HYDRATED_RESEARCH_V1",
+    "hydration_profile": "KERNEL_BUILDER_HYDRATED_RESEARCH_V1",
+    "status": "SIGNED_OR_LEGACY"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/**",
+      "src/backend/handshake_core/src/storage/mod.rs",
+      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/mcp/gate.rs",
+      "src/backend/handshake_core/src/llm/**",
+      "src/backend/handshake_core/src/flight_recorder/**",
+      "src/backend/handshake_core/src/runtime_governance.rs",
+      "src/backend/handshake_core/tests/**",
+      "app/src-tauri/src/**",
+      "app/package.json"
+    ],
+    "forbidden_paths": [
+      "full Dev Command Center UI",
+      "full CRDT workspace implementation",
+      "sandboxed patch runner",
+      "full FEMS/local memory runtime",
+      "creative/media/calendar/document/lens/presentation runtime backfills",
+      "repo-governance implementation changes outside this packet's governance artifacts"
+    ],
+    "spec_anchors": [
+      ".GOV/spec/master-spec-v02.183/spec-modules/02-system-architecture.md",
+      ".GOV/spec/master-spec-v02.183/spec-modules/03-local-first-infrastructure.md",
+      ".GOV/spec/master-spec-v02.183/spec-modules/04-llm-infrastructure.md",
+      ".GOV/spec/master-spec-v02.183/spec-modules/05-security-and-observability.md",
+      ".GOV/spec/master-spec-v02.183/spec-modules/10-product-surfaces.md",
+      ".GOV/spec/master-spec-v02.183/spec-modules/11-shared-dev-platform-and-oss-foundations.md"
+    ],
+    "summary": "",
+    "why": ""
+  },
+  "source_control": {
+    "backup_push_status": "REQUIRED_BEFORE_DESTRUCTIVE_OPS",
+    "canonical_branch": "main",
+    "merge_base_sha": "",
+    "remote_backup_branch": "feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+    "remote_backup_url": "https://github.com/Nuntissura/Handshake/tree/feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+    "work_branch": "feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+    "worktree_dir": "../wtc-kernel-001-event-ledger-session-broker-v1"
+  },
+  "updated_at_utc": "2026-05-13T19:45:38.363Z",
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+    "communication_health_gate": "",
+    "execution_owner": "CODER_A",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "lane": "ORCHESTRATOR_MANAGED",
+    "notifications_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/NOTIFICATIONS.jsonl",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/THREAD.md"
+  },
+  "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"
+}

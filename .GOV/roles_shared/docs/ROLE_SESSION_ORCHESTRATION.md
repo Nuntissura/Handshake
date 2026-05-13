@@ -152,27 +152,12 @@ Use these rules when governed runtime/session truth drifts or looks stale.
 - normal supported launch paths now auto-issue the first governed `START_SESSION`; keep `start-*` for explicit recovery or exceptional manual repair
 - when a direct `START_SESSION` finds an already steerable thread, it should settle as `outcome_state=ALREADY_READY` rather than a generic wrapper failure.
 - when `START_SESSION` reports `BUSY_ACTIVE_RUN` or `REQUIRES_RECOVERY`, the wrapper should still wait briefly for the session to become READY before failing. The common case is a same-attempt convergence race, not an Operator-worthy second launch.
-- Orchestrator-only steering commands:
-  - `just start-activation-manager-session WP-{ID}`
-  - `just steer-activation-manager-session WP-{ID} "<prompt>"`
-  - `just cancel-activation-manager-session WP-{ID}`
-  - `just close-activation-manager-session WP-{ID}`
-  - `just start-coder-session WP-{ID}`
-  - `just start-wp-validator-session WP-{ID}`
-  - `just start-integration-validator-session WP-{ID}`
-  - `just steer-coder-session WP-{ID} "<prompt>"`
-  - `just cancel-coder-session WP-{ID}`
-  - `just close-coder-session WP-{ID}`
-  - `just steer-wp-validator-session WP-{ID} "<prompt>"`
-  - `just cancel-wp-validator-session WP-{ID}`
-  - `just close-wp-validator-session WP-{ID}`
-  - `just steer-integration-validator-session WP-{ID} "<prompt>"`
-  - `just cancel-integration-validator-session WP-{ID}`
-  - `just close-integration-validator-session WP-{ID}`
+- Orchestrator-only canonical steering commands:
   - `just session-start <ROLE> WP-{ID}`
   - `just session-send <ROLE> WP-{ID} "<prompt>"`
   - `just session-cancel <ROLE> WP-{ID}`
   - `just session-close <ROLE> WP-{ID}`
+  - Role-specific `start-*`, `steer-*`, `cancel-*`, and `close-*` recipes remain compatibility aliases that forward to these canonical controls.
   - `just session-reclaim-terminals WP-{ID} [ROLE] [CURRENT_BATCH|ALL_BATCHES|<BATCH_ID>]`
   - `just handshake-acp-broker-status`
   - `just handshake-acp-broker-stop`

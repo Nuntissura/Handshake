@@ -1,0 +1,97 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Presentations-Decks-Backfill-v1",
+  "base_wp_id": "WP-1-Presentations-Decks-Backfill",
+  "created_at_utc": "2026-03-08T05:54:32.875Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Presentations-Decks-Backfill-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Presentations-Decks-Backfill-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Presentations-Decks-Backfill-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "71bdf9b160b98e9c302f47f334f61f3bb68911847fb4be28b783520f49f1b0f7",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "MEDIUM",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Charts-Dashboards-Backfill",
+      "WP-1-Docs-Sheets-Runtime-Backfill"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.144.md 7.6.3 (Phase 1) -> [ADD v02.144] Second-pass feature-family coverage / coverage sweep",
+    "roadmap_add_coverage": "SPEC=v02.144; PHASE=7.6.3; LINES=46234,46699"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Backfill Decks as a governed composition/export surface with explicit slide sources, runtime identity, and operator evidence.\n- Why: Decks are a natural force multiplier over Docs, Charts, and Project Brain, but current appendix coverage is too sparse.",
+    "scope_sketch": "- IN_SCOPE:\n  - DeckSpec runtime coverage.\n  - Source-linking from docs/charts.\n- OUT_OF_SCOPE:\n  - Final deck-authoring UX polish.\n  - Broad presentation design system work.",
+    "acceptance_criteria": "- Decks have explicit runtime mapping and source-linking coverage.\n- Appendix coverage makes deck generation deterministic for later model/tool use.",
+    "risks_unknowns": "- Risk: deck output becomes detached from source evidence and impossible to reason over later.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

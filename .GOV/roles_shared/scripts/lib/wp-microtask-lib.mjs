@@ -9,7 +9,8 @@ import {
 import { normalizePath, resolveWorkPacketPath } from "./runtime-paths.mjs";
 import { classifyHeuristicRiskText } from "./heuristic-risk-lib.mjs";
 
-const MICROTASK_FILE_RE = /^MT-\d{3}\.md$/i;
+const MICROTASK_MARKDOWN_FILE_RE = /^MT-\d{3}\.md$/i;
+const MICROTASK_JSON_FILE_RE = /^MT-\d{3}\.json$/i;
 
 function normalizeRole(value) {
   return String(value || "").trim().toUpperCase();
@@ -66,6 +67,40 @@ function parseDelimitedList(rawValue, { normalizeAsRepoPath = false } = {}) {
   return normalizeScopeEntries(entries);
 }
 
+function parseMicrotaskContract(mtAbsPath, mtRelPath) {
+  const contract = JSON.parse(fs.readFileSync(mtAbsPath, "utf8"));
+  const mtId = String(contract?.mt_id || "").trim().toUpperCase();
+  if (!mtId) {
+    throw new Error(`Malformed microtask contract ${normalizePath(mtRelPath)}: missing mt_id`);
+  }
+  const scope = contract?.scope && typeof contract.scope === "object" ? contract.scope : {};
+  const lifecycle = contract?.lifecycle && typeof contract.lifecycle === "object" ? contract.lifecycle : {};
+  const clause = String(scope.summary || contract?.clause || mtId).trim();
+  const codeSurfaces = normalizeScopeEntries(Array.isArray(scope.allowed_paths) ? scope.allowed_paths : []);
+  const expectedTests = Array.isArray(scope.proof_targets)
+    ? scope.proof_targets.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
+  const dependsOnList = Array.isArray(lifecycle.depends_on)
+    ? lifecycle.depends_on.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
+  const dependsOn = dependsOnList.length > 0 ? dependsOnList.join(", ") : "NONE";
+  const heuristicRisk = classifyHeuristicRiskText(JSON.stringify(contract));
+  const aliases = new Set([mtId, clause]);
+  for (const entry of codeSurfaces) aliases.add(entry);
+  return {
+    mtId,
+    clause,
+    codeSurfaces,
+    expectedTests,
+    dependsOn,
+    heuristicRisk,
+    packetPath: normalizePath(contract?.markdown_projection?.path || mtRelPath),
+    contractPath: normalizePath(mtRelPath),
+    contractAuthority: "PRIMARY_MACHINE_READABLE",
+    scopeRefKeys: Array.from(aliases).map((value) => normalizeScopeRefKey(value)).filter(Boolean),
+  };
+}
+
 function parseMicrotaskDefinition(mtAbsPath, mtRelPath) {
   const text = fs.readFileSync(mtAbsPath, "utf8");
   const mtId = String(parsePacketSingleField(text, "MT_ID") || "").trim();
@@ -112,14 +147,27 @@ export function listDeclaredWpMicrotasks(wpId) {
     return [];
   }
 
-  return fs.readdirSync(resolved.packetDirAbs, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && MICROTASK_FILE_RE.test(entry.name))
-    .sort((left, right) => left.name.localeCompare(right.name))
-    .map((entry) => {
-      const mtAbsPath = path.join(resolved.packetDirAbs, entry.name);
-      const mtRelPath = path.posix.join(resolved.packetDir, entry.name);
-      return parseMicrotaskDefinition(mtAbsPath, mtRelPath);
-    });
+  const entries = fs.readdirSync(resolved.packetDirAbs, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && (MICROTASK_JSON_FILE_RE.test(entry.name) || MICROTASK_MARKDOWN_FILE_RE.test(entry.name)))
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  const byId = new Map();
+  for (const entry of entries.filter((item) => MICROTASK_JSON_FILE_RE.test(item.name))) {
+    const mtAbsPath = path.join(resolved.packetDirAbs, entry.name);
+    const mtRelPath = path.posix.join(resolved.packetDir, entry.name);
+    const parsed = parseMicrotaskContract(mtAbsPath, mtRelPath);
+    byId.set(parsed.mtId, parsed);
+  }
+  for (const entry of entries.filter((item) => MICROTASK_MARKDOWN_FILE_RE.test(item.name))) {
+    const expectedId = entry.name.replace(/\.md$/i, "").toUpperCase();
+    if (byId.has(expectedId)) continue;
+    const mtAbsPath = path.join(resolved.packetDirAbs, entry.name);
+    const mtRelPath = path.posix.join(resolved.packetDir, entry.name);
+    const parsed = parseMicrotaskDefinition(mtAbsPath, mtRelPath);
+    parsed.contractAuthority = "MARKDOWN_LEGACY";
+    byId.set(parsed.mtId, parsed);
+  }
+  return Array.from(byId.values()).sort((left, right) => left.mtId.localeCompare(right.mtId));
 }
 
 export function resolveDeclaredWpMicrotaskByScopeRef(wpId, scopeRef, microtasks = null) {

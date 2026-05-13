@@ -27,7 +27,8 @@ import {
   parseJsonlFile,
 } from "../lib/wp-communications-lib.mjs";
 import { readExecutionProjectionView } from "../lib/wp-execution-state-lib.mjs";
-import { resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import { resolveWorkPacketPath, REPO_ROOT } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
 import { checkAllNotifications } from "../wp/wp-check-notifications.mjs";
 import {
   activeRunsForSession,
@@ -418,16 +419,19 @@ function runNote(rootDir, options) {
 function runSync(rootDir, options) {
   const nowMs = Date.now();
   const now = new Date(nowMs);
-  const resolvedPacket = resolveWorkPacketPath(options.wpId);
+  const contractPacket = path.resolve(rootDir) === path.resolve(REPO_ROOT)
+    ? buildWorkPacketCommunicationView(options.wpId)
+    : null;
+  const resolvedPacket = contractPacket?.ok ? contractPacket : resolveWorkPacketPath(options.wpId);
   if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPath)) {
     fail(`Packet not found for ${options.wpId}`);
   }
 
-  const packetText = fs.readFileSync(resolvedPacket.packetAbsPath, "utf8");
-  const runtimePath = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
-  const commDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+  const packetText = resolvedPacket.packetText || fs.readFileSync(resolvedPacket.packetAbsPath, "utf8");
+  const runtimePath = resolvedPacket.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsPath = resolvedPacket.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const threadPath = resolvedPacket.threadFile || parseSingleField(packetText, "WP_THREAD_FILE");
+  const commDir = resolvedPacket.communicationDir || parseSingleField(packetText, "WP_COMMUNICATION_DIR");
   const rawRuntimeStatus = runtimePath && fs.existsSync(path.resolve(rootDir, runtimePath))
     ? parseJsonFile(path.resolve(rootDir, runtimePath))
     : {};
@@ -719,15 +723,18 @@ function runInjectRepomem(rootDir, options) {
 
 // RGF-187: Autofill Cost Attribution and Comparison Table from live timeline data.
 function loadWpTimelineData(rootDir, wpId) {
-  const resolvedPacket = resolveWorkPacketPath(wpId);
+  const contractPacket = path.resolve(rootDir) === path.resolve(REPO_ROOT)
+    ? buildWorkPacketCommunicationView(wpId)
+    : null;
+  const resolvedPacket = contractPacket?.ok ? contractPacket : resolveWorkPacketPath(wpId);
   if (!resolvedPacket?.packetAbsPath || !fs.existsSync(resolvedPacket.packetAbsPath)) {
     fail(`Packet not found for ${wpId}`);
   }
-  const packetText = fs.readFileSync(resolvedPacket.packetAbsPath, "utf8");
-  const runtimePath = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  const receiptsPath = parseSingleField(packetText, "WP_RECEIPTS_FILE");
-  const threadPath = parseSingleField(packetText, "WP_THREAD_FILE");
-  const commDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+  const packetText = resolvedPacket.packetText || fs.readFileSync(resolvedPacket.packetAbsPath, "utf8");
+  const runtimePath = resolvedPacket.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsPath = resolvedPacket.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const threadPath = resolvedPacket.threadFile || parseSingleField(packetText, "WP_THREAD_FILE");
+  const commDir = resolvedPacket.communicationDir || parseSingleField(packetText, "WP_COMMUNICATION_DIR");
   const runtimeProjection = runtimePath && fs.existsSync(path.resolve(rootDir, runtimePath))
     ? readExecutionProjectionView(parseJsonFile(path.resolve(rootDir, runtimePath)))
     : readExecutionProjectionView({});

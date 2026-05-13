@@ -1,0 +1,101 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1",
+  "base_wp_id": "WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back",
+  "created_at_utc": "2026-03-11T08:20:00.000Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "7bc0a81a45d5ddd5d60bca63fc7e56f959bf641b2de8a7b10abfac8ce6f9557f",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Role-Mailbox",
+      "WP-1-Role-Mailbox-Message-Thread-Contract",
+      "WP-1-Role-Mailbox-Micro-Task-Loop-Control",
+      "WP-1-Role-Mailbox-Executor-Routing-Claim-Lease",
+      "WP-1-Structured-Collaboration-Schema-Registry",
+      "WP-1-Project-Agnostic-Workflow-State-Registry"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.177.md 7.6.3 (Phase 1) -> [ADD v02.177] Role Mailbox handoff bundle, note transcription, and announce-back provenance",
+    "roadmap_add_coverage": "SPEC=v02.177; PHASE=7.6.3; LINES=47289"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and later implement the structured handoff-bundle, note-transcription, and announce-back provenance contract that lets Role Mailbox hand work across actors without forcing Work Packet, Micro-Task, Task Board, Locus, or Dev Command Center consumers to replay full threads.\n- Why: Handshake now has mailbox message law, verifier-loop control, triage queues, and claim-or-lease posture, but it still needs one durable handoff artifact so parallel actors can resume safely and so advisory announce-back summaries do not get mistaken for authoritative completion.",
+    "scope_sketch": "- IN_SCOPE:\n  - Canonical `RoleMailboxHandoffBundleV1` and `RoleMailboxAnnounceBackProvenanceV1` contracts.\n  - Required handoff fields for remaining work, unresolved blockers, changed scope, evidence refs, recommended next actor, risk, confidence, and transcription targets.\n  - Announce-back provenance kinds that distinguish advisory status, completion notice, escalation summary, scope-change notice, handoff-ready posture, and transcription-confirmed outcomes.\n  - Normalized Work Packet note transcription and Locus join posture so handoff state remains queryable without transcript replay.\n  - Dev Command Center and Task Board projection rules for handoff-ready, transcription-pending, and advisory announce-back posture.\n- OUT_OF_SCOPE:\n  - External email or chat intake.\n  - Replacing Locus authority, Work Packet authority, or generic workflow-state law.\n  - Final export or audit portability of mailbox threads beyond the handoff fields required for Phase 1.",
+    "acceptance_criteria": "",
+    "risks_unknowns": "",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

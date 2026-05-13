@@ -17,7 +17,10 @@ Rules:
 - WP_ID: WP-1-DCC-Postgres-Control-Plane-Projections-v1
 - BASE_WP_ID: WP-1-DCC-Postgres-Control-Plane-Projections
 - CREATED_AT: 2026-05-05T17:55:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)
+- FOLDED_INTO: WP-1-Postgres-Control-Plane-Shift-Bundle-v1
+- KERNEL_RESET_TRANSFERRED_TO: WP-KERNEL-001-Event-Ledger-Session-Broker-v1
+- KERNEL_RESET_TRANSFER_SCOPE: Minimal TraceProjection/DCC-inspector proof moved into Kernel001; full DCC PostgreSQL projection UI/backend scope remains downstream residual scope.
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: NO
 - BUILD_ORDER_VALUE_TIER: HIGH

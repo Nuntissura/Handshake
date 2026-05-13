@@ -1,0 +1,97 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Workflow-Transition-Automation-Registry-v1",
+  "base_wp_id": "WP-1-Workflow-Transition-Automation-Registry",
+  "created_at_utc": "2026-03-10T16:10:41.644Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Workflow-Transition-Automation-Registry-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Workflow-Transition-Automation-Registry-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Workflow-Transition-Automation-Registry-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "31e8380e93c8dff47d2ac1b8d93a89984ac9db32e6d9d08ba8112f15caa65b59",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Project-Agnostic-Workflow-State-Registry",
+      "WP-1-Governance-Workflow-Mirror"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.172.md 7.6.3 (Phase 1) -> [ADD v02.172] Workflow transition matrix, queue automation, and executor eligibility contracts",
+    "roadmap_add_coverage": "SPEC=v02.172; PHASE=7.6.3; LINES=47071"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and later implement the registry of `WorkflowTransitionRuleV1`, `QueueAutomationRuleV1`, and `ExecutorEligibilityPolicyV1` records that govern lawful state changes across Work Packets, Micro-Tasks, Task Board projections, Role Mailbox-linked waits, and Dev Command Center action previews.\n- Why: Handshake now has canonical structured records, shared workflow-state families, and typed Dev Command Center views, but it still needs one portable transition-and-automation law so local small models, cloud models, reviewers, validators, and operators can mutate work only through inspectable, approval-aware transitions.",
+    "scope_sketch": "- IN_SCOPE:\n  - Canonical registry entries for allowed transition edges, transition-triggering governed actions, queue automation triggers, and executor eligibility policies.\n  - Portable automation rules for mailbox replies, dependency clearance, validation outcomes, retry scheduling, approval decisions, and escalation acknowledgements.\n  - Dev Command Center action-preview requirements that explain whether an action is automatic, approval-bound, actor-ineligible, or ready.\n  - Validation and linting expectations for Locus, Micro-Task Executor, Task Board projections, Work Packet views, and Role Mailbox-linked queue changes.\n- OUT_OF_SCOPE:\n  - Full project-profile-specific board or interface design beyond the transition metadata needed for previews.\n  - Replacing the broader workflow-state family registry or the structured-collaboration schema registry.\n  - Freeform heuristics that derive transition legality from lane names, thread order, or prose-only notes.",
+    "acceptance_criteria": "- Every canonical workflow state mutation has an explicit transition rule, governed action source, and eligible actor set.\n- Queue automation triggers are explicit, machine-readable, and cannot silently cross approval boundaries.\n- Role Mailbox replies, expiries, and escalation acknowledgements can influence queues only through explicit automation rules tied to stable identifiers.\n- Dev Command Center previews explain whether a move is view-only, automatic, actor-ineligible, or lawful before authoritative state changes occur.\n- Local small model routing derives from workflow family, queue reason, transition legality, and executor eligibility without parsing long-form Markdown.",
+    "risks_unknowns": "- Too many transition rules or automation triggers would make the registry noisy for operators and smaller models.\n- If approval boundaries are not encoded directly in transition rules, automation may silently overreach.\n- If mailbox or board views are allowed to invent legal moves, the registry becomes advisory instead of authoritative.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

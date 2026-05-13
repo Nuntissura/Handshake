@@ -1,0 +1,96 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-FEMS-Bitemporal-Indexing-v1",
+  "base_wp_id": "WP-1-FEMS-Bitemporal-Indexing",
+  "created_at_utc": "2026-04-08T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-FEMS-Bitemporal-Indexing-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-FEMS-Bitemporal-Indexing-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-FEMS-Bitemporal-Indexing-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "2daea5e47e4b343d020a8fee335b2632418844acba7535f1eb41edbdce77a8dc",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Front-End-Memory-System"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Add bi-temporal timestamps to MemoryItem — `valid_from`/`valid_until` (when the fact was true in the world) and `recorded_at`/`invalidated_at` (when we recorded/invalidated it). Ports the Graphiti/Zep temporal knowledge graph pattern.\n- Why: FEMS has `created_at` and `last_verified_at` but cannot answer \"what did the model know at time T?\" Replay mode (FEMS-EVAL-001.4) requires reconstructing the exact MemoryPack from a past session — which means knowing which memories existed AND were considered valid at that moment. Without bi-temporal indexing, replay can't distinguish between \"memory existed but was superseded\" and \"memory didn't exist yet\".",
+    "scope_sketch": "- IN_SCOPE:\n  - Add `valid_from: ISO timestamp` (when the fact became true) and `valid_until: Option<ISO timestamp>` (when superseded/invalidated; null = still valid) to MemoryItem.\n  - Add `recorded_at: ISO timestamp` (when we stored it) and `invalidated_at: Option<ISO timestamp>` (when tombstoned; null = active) as transaction-time fields.\n  - MemoryPack compilation in replay mode filters by both valid_time AND transaction_time at the target timestamp — reconstructing the exact memory state the model saw.\n  - Supersession (from Write-Time-Safeguards) sets `valid_until` on the old item when the new one is committed.\n  - Tombstoning sets `invalidated_at` rather than deleting rows — preserving history for audit/replay.\n  - Calendar pillar interaction: temporal memory queries can correlate with Calendar time windows (\"what did the model remember during this work block?\").\n- OUT_OF_SCOPE:\n  - Temporal knowledge graph (GraphRAG overlay — separate, higher effort).\n  - Migration of existing MemoryItems (backfill valid_from from created_at).",
+    "acceptance_criteria": "- MemoryItem has valid_from, valid_until, recorded_at, invalidated_at fields.\n- Replay mode MemoryPack compilation at timestamp T produces the same pack as the original session at time T.\n- Superseded items have valid_until set; tombstoned items have invalidated_at set.\n- No rows are physically deleted — all history preserved for audit.\n- FEMS-EVAL-001.4 replay tests pass with bi-temporal filtering.",
+    "risks_unknowns": "- Risk: storage growth from never-delete policy. Mitigated by hygiene manager archiving very old invalidated rows.\n- Risk: bi-temporal queries are more complex than single-timestamp. Need clean query helpers.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

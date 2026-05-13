@@ -21,6 +21,10 @@ function parseSingleField(packetText, label) {
   return match ? match[1].trim() : "";
 }
 
+function isContractLike(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
 function replaceSingleField(packetText, label, nextValue) {
   const re = new RegExp(`^(\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*)(.+)\\s*$`, "mi");
   if (!re.test(String(packetText || ""))) {
@@ -39,6 +43,17 @@ export function packetRequiresSignedScopeCompatibility(packetFormatVersion) {
 }
 
 export function parseSignedScopeCompatibilityTruth(packetText) {
+  if (isContractLike(packetText)) {
+    const lifecycle = packetText.lifecycle || {};
+    return {
+      packetFormatVersion: String(lifecycle.packet_format_version || "").trim(),
+      currentMainCompatibilityStatus: String(lifecycle.current_main_compatibility_status || "").trim().toUpperCase(),
+      currentMainCompatibilityBaselineSha: String(lifecycle.current_main_compatibility_baseline_sha || "").trim(),
+      currentMainCompatibilityVerifiedAtUtc: String(lifecycle.current_main_compatibility_verified_at_utc || "").trim(),
+      packetWideningDecision: String(lifecycle.packet_widening_decision || "").trim().toUpperCase(),
+      packetWideningEvidence: String(lifecycle.packet_widening_evidence || "").trim(),
+    };
+  }
   return {
     packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
     currentMainCompatibilityStatus: String(parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS") || "").trim().toUpperCase(),

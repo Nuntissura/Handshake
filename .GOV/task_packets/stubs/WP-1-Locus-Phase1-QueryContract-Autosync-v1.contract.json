@@ -1,0 +1,97 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Locus-Phase1-QueryContract-Autosync-v1",
+  "base_wp_id": "WP-1-Locus-Phase1-QueryContract-Autosync",
+  "created_at_utc": "2026-03-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Locus-Phase1-QueryContract-Autosync-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Locus-Phase1-QueryContract-Autosync-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Locus-Phase1-QueryContract-Autosync-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "fce6b3715d722a350d78e246d764d3c45371220704e7126b05862acfc46cec75",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "MEDIUM",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Locus-Phase1-Integration-Occupancy",
+      "WP-1-Flight-Recorder"
+    ],
+    "blocks": [
+      "WP-1-Dev-Command-Center-Control-Plane-Backend"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Audit remediation against Handshake_Master_Spec_v02.139.md (Locus query interface + autosync)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Align Locus query endpoints with the current spec contract and implement deterministic task-board autosync on relevant state changes.\n- Why: Query shape drift breaks downstream tools and UIs; autosync prevents governance drift and manual \"sync\" toil.",
+    "scope_sketch": "- IN_SCOPE:\n  - Expand query filters (status, dependencies, facets) per spec examples.\n  - Align output shape (full WP objects vs ids-only) as required by spec.\n  - Auto-trigger locus_sync_task_board_v1 (or equivalent) on WP/MT state transitions.\n  - Ensure Flight Recorder emits leak-safe events for query + sync paths.\n- OUT_OF_SCOPE:\n  - Realtime collaborative views and CRDT state (later phases).",
+    "acceptance_criteria": "- Spec example queries execute and return the expected contract.\n- Task Board stays consistent without manual sync calls after state changes.",
+    "risks_unknowns": "- Autosync must be bounded to avoid event storms; needs batching/throttling semantics.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

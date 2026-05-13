@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Storage-Trait-Purity-v1/packet.json source_hash=d7d4c2a4c7a62455 projection_hash=c661038e73daaf90 generated_at_utc=2026-05-06T16:33:39.538Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 
 Requirements (HARD):

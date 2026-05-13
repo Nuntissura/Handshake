@@ -9,7 +9,6 @@ import {
   REPO_ROOT,
   refinementAbsPath,
   resolveRefinementPath,
-  resolveWorkPacketPath,
   taskBoardPathAtRepo,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
 import {
@@ -19,6 +18,10 @@ import {
   parseCurrentWpStatus,
   parseStatus,
 } from "../../../roles_shared/scripts/lib/role-resume-utils.mjs";
+import {
+  buildWorkPacketCommunicationView,
+  readWorkPacketRefinementContract,
+} from "../../../roles_shared/scripts/lib/work-packet-contract-read-lib.mjs";
 import { validateRefinementFile } from "../../../roles_shared/checks/refinement-check.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
 registerFailCaptureHook("activation-manager.mjs", { role: "ACTIVATION_MANAGER" });
@@ -174,6 +177,8 @@ function readTaskBoardStatus(wpId) {
 }
 
 function readRefinementText(wpId) {
+  const refinementState = readWorkPacketRefinementContract(wpId);
+  if (refinementState.ok && refinementState.refinementText) return refinementState.refinementText;
   const refinementPath = refinementAbsPath(wpId);
   if (!fs.existsSync(refinementPath)) return "";
   try {
@@ -189,24 +194,27 @@ function parseMetadataField(text, label) {
 }
 
 function readPacketContext(wpId) {
-  const resolvedPacket = resolveWorkPacketPath(wpId);
-  const packetPath = resolvedPacket?.packetPath || "";
-  const packetContent = packetPath ? loadPacket(wpId) : "";
+  const packetContext = buildWorkPacketCommunicationView(wpId);
+  const packetPath = packetContext.packetPath || "";
+  const packetContent = packetContext.packetText || (packetPath ? loadPacket(wpId) : "");
+  const sourceControl = packetContext.contract?.source_control || {};
+  const lifecycle = packetContext.contract?.lifecycle || {};
+  const refinement = packetContext.contract?.refinement || {};
   return {
     packetPath,
-    packetExists: Boolean(packetPath && packetContent),
+    packetExists: Boolean(packetContext.ok && packetPath && packetContent),
     packetContent,
-    packetStatus: packetContent ? parseStatus(packetContent) : "",
-    currentWpStatus: packetContent ? parseCurrentWpStatus(packetContent) : "",
-    workflowLane: packetContent ? parseClaimField(packetContent, "WORKFLOW_LANE") : "",
-    executionOwner: packetContent ? parseClaimField(packetContent, "EXECUTION_OWNER") : "",
-    userSignature: packetContent ? parseClaimField(packetContent, "USER_SIGNATURE") : "",
-    refinementProfile: packetContent ? parseClaimField(packetContent, "REFINEMENT_ENFORCEMENT_PROFILE") : "",
-    localBranch: packetContent ? parseClaimField(packetContent, "LOCAL_BRANCH") : "",
-    localWorktreeDir: packetContent ? parseClaimField(packetContent, "LOCAL_WORKTREE_DIR") : "",
-    remoteBackupBranch: packetContent ? parseClaimField(packetContent, "REMOTE_BACKUP_BRANCH") : "",
-    remoteBackupUrl: packetContent ? parseClaimField(packetContent, "REMOTE_BACKUP_URL") : "",
-    backupPushStatus: packetContent ? parseClaimField(packetContent, "BACKUP_PUSH_STATUS") : "",
+    packetStatus: packetContext.packetStatus || (packetContent ? parseStatus(packetContent) : ""),
+    currentWpStatus: lifecycle.current_wp_status || (packetContent ? parseCurrentWpStatus(packetContent) : ""),
+    workflowLane: packetContext.workflowLane || (packetContent ? parseClaimField(packetContent, "WORKFLOW_LANE") : ""),
+    executionOwner: packetContext.executionOwner || (packetContent ? parseClaimField(packetContent, "EXECUTION_OWNER") : ""),
+    userSignature: lifecycle.user_signature || (packetContent ? parseClaimField(packetContent, "USER_SIGNATURE") : ""),
+    refinementProfile: refinement.enforcement_profile || (packetContent ? parseClaimField(packetContent, "REFINEMENT_ENFORCEMENT_PROFILE") : ""),
+    localBranch: packetContext.localBranch || (packetContent ? parseClaimField(packetContent, "LOCAL_BRANCH") : ""),
+    localWorktreeDir: packetContext.localWorktreeDir || (packetContent ? parseClaimField(packetContent, "LOCAL_WORKTREE_DIR") : ""),
+    remoteBackupBranch: sourceControl.remote_backup_branch || (packetContent ? parseClaimField(packetContent, "REMOTE_BACKUP_BRANCH") : ""),
+    remoteBackupUrl: sourceControl.remote_backup_url || (packetContent ? parseClaimField(packetContent, "REMOTE_BACKUP_URL") : ""),
+    backupPushStatus: sourceControl.backup_push_status || (packetContent ? parseClaimField(packetContent, "BACKUP_PUSH_STATUS") : ""),
   };
 }
 
@@ -220,10 +228,19 @@ function countDeclaredMicrotasks(packetPath) {
   const packetDir = path.dirname(packetPath);
   if (!fs.existsSync(packetDir)) return 0;
   try {
-    return fs.readdirSync(packetDir).filter((entry) => /^MT-\d+\.md$/i.test(entry)).length;
+    return fs.readdirSync(packetDir).filter((entry) => /^MT-\d+\.(json|md)$/i.test(entry)).length;
   } catch {
     return 0;
   }
+}
+
+function microtaskGranularityLine(count) {
+  if (count <= 0) return "NONE";
+  const stance = "NO_UPPER_COUNT_BIAS";
+  if (count < 8) {
+    return `DECLARED:${count} | ${stance} | LOW_COUNT_REQUIRES_RATIONALE_FOR_BUNDLED_WP`;
+  }
+  return `DECLARED:${count} | ${stance} | MT_SPLIT_VISIBLE`;
 }
 
 function inspectGovKernelLink(localWorktreeDir) {
@@ -270,20 +287,22 @@ function inspectGovKernelLink(localWorktreeDir) {
 function collectActivationState(wpId) {
   const gitContext = currentGitContext();
   const packet = readPacketContext(wpId);
-  const refinementPath = resolveRefinementPath(wpId) || `${GOV_ROOT_REPO_REL}/refinements/${wpId}.md`;
-  const refinementAbs = refinementAbsPath(wpId);
-  const refinementExists = fs.existsSync(refinementAbs);
-  const refinementText = refinementExists ? readRefinementText(wpId) : "";
+  const refinementState = readWorkPacketRefinementContract(wpId);
+  const refinementPath = refinementState.refinementPath || resolveRefinementPath(wpId) || `${GOV_ROOT_REPO_REL}/refinements/${wpId}.md`;
+  const refinementAbs = refinementState.refinementAbsPath || refinementAbsPath(wpId);
+  const refinementExists = Boolean(refinementState.ok || fs.existsSync(refinementAbs));
+  const refinementText = refinementExists ? (refinementState.refinementText || readRefinementText(wpId)) : "";
+  const refinementContract = refinementState.contract?.refinement || {};
   const refinementValidation = refinementExists
     ? validateRefinementFile(refinementAbs, { expectedWpId: wpId, requireSignature: false })
     : { ok: false, errors: [`Missing refinement file: ${refinementPath}`] };
 
-  const enrichmentNeeded = parseMetadataField(refinementText, "ENRICHMENT_NEEDED").toUpperCase();
-  const clearlyCoversVerdict = parseMetadataField(refinementText, "CLEARLY_COVERS_VERDICT").toUpperCase();
-  const userApprovalEvidence = parseMetadataField(refinementText, "USER_APPROVAL_EVIDENCE");
-  const refinementSignature = parseMetadataField(refinementText, "USER_SIGNATURE");
-  const refinementReviewStatus = parseMetadataField(refinementText, "USER_REVIEW_STATUS").toUpperCase();
-  const stubWpIds = parseMetadataField(refinementText, "STUB_WP_IDS");
+  const enrichmentNeeded = String(refinementContract.enrichment_needed || parseMetadataField(refinementText, "ENRICHMENT_NEEDED")).toUpperCase();
+  const clearlyCoversVerdict = String(refinementContract.clearly_covers_verdict || parseMetadataField(refinementText, "CLEARLY_COVERS_VERDICT")).toUpperCase();
+  const userApprovalEvidence = refinementContract.user_approval_evidence || parseMetadataField(refinementText, "USER_APPROVAL_EVIDENCE");
+  const refinementSignature = refinementContract.user_signature || parseMetadataField(refinementText, "USER_SIGNATURE");
+  const refinementReviewStatus = String(refinementContract.user_review_status || parseMetadataField(refinementText, "USER_REVIEW_STATUS")).toUpperCase();
+  const stubWpIds = refinementContract.stub_wp_ids || parseMetadataField(refinementText, "STUB_WP_IDS");
   const specEnrichmentBlocking = refinementExists && (enrichmentNeeded === "YES" || clearlyCoversVerdict === "FAIL");
 
   const claimCheck = runNode(`${GOV_ROOT_REPO_REL}/roles_shared/checks/task-packet-claim-check.mjs`);
@@ -369,7 +388,7 @@ function collectActivationState(wpId) {
 
   if (specEnrichmentBlocking) {
     verdict = "BLOCKED_BY_SPEC_ENRICHMENT";
-    nextAction = "Perform the approved spec-enrichment pass, advance SPEC_CURRENT if needed, then refresh the same WP refinement.";
+    nextAction = "Perform the approved spec-enrichment pass, update indexed modules plus manifest/SPEC_CURRENT JSON if needed, then refresh the same WP refinement.";
   } else if (!refinementExists || !packet.packetExists) {
     verdict = "REPAIR_REQUIRED";
     nextAction = "Repair or create the missing packet/refinement artifacts before activation can proceed.";
@@ -446,6 +465,7 @@ function renderReadinessReport(state) {
     `- REMOTE_BACKUP_BRANCH: ${state.packet.remoteBackupBranch || "<missing>"}`,
     `- BACKUP_PUSH_STATUS: ${state.packet.backupPushStatus || "<missing>"}`,
     `- MICROTASK_STATUS: ${state.microtaskCount > 0 ? `DECLARED:${state.microtaskCount}` : "NONE"}`,
+    `- MICROTASK_GRANULARITY: ${microtaskGranularityLine(state.microtaskCount)}`,
     `- REFINEMENT_PATH: ${state.refinementPath}`,
     `- REFINEMENT_REVIEW_STATUS: ${state.refinementReviewStatus || "<missing>"}`,
     `- CLEARLY_COVERS_VERDICT: ${state.clearlyCoversVerdict || "<missing>"}`,
@@ -500,6 +520,8 @@ function printStartup() {
     "- SCOPE: refinement, approved spec enrichment, signature normalization/recording, packet hydration, microtask preparation, worktree preparation, activation readiness",
     "- REFINEMENT_STANDARD: match or exceed the old Orchestrator pre-launch quality bar, including research, primitive-index upkeep, matrix upkeep, appendix follow-through, and force-multiplier expansion.",
     "- STUB_DISCOVERY_RULE: create or update stubs when refinement, enrichment, or matrix upkeep discovers new required follow-up items.",
+    "- SPEC_AUTHORITY: resolve .GOV/spec/SPEC_CURRENT.md as handshake.spec_current@1 JSON to the indexed manifest/modules before editing or relying on spec text; do not patch the old monolith.",
+    "- SPEC_WRITE_AUTHORITY: allowed current Master Spec writer for approved pre-launch enrichment; patch spec-modules, update manifest hashes/metadata, and verify with spec-current/spec-regression/spec-eof/gov-check.",
     "- HARD_STOP: no product code edits; no coder/validator launch; no final workflow authority",
     "- WORKFLOW_SPLIT: orchestrator-managed workflow requires ACTIVATION_MANAGER as the mandatory temporary pre-launch worker and governed pre-launch lane; manual workflow keeps pre-launch on CLASSIC_ORCHESTRATOR.",
     "- HANDOFF_MODE: file-first refinement/spec handoff. Return the written file path plus a compact REFINEMENT_HANDOFF_SUMMARY; do not paste the full refinement/spec text by default.",
@@ -533,6 +555,8 @@ function printPrompt(state) {
     `WP_ID: ${state.wpId}`,
     `AUTHORITY: ${GOV_ROOT_REPO_REL}/codex/Handshake_Codex_v1.4.md + ../handshake_main/AGENTS.md + ${GOV_ROOT_REPO_REL}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`,
     "FOCUS: refinement, approved spec enrichment drafting, signature normalization/recording, packet hydration, microtask preparation, worktree preparation, and activation readiness.",
+    "SPEC AUTHORITY: resolve .GOV/spec/SPEC_CURRENT.md as handshake.spec_current@1 JSON to the indexed manifest/modules before editing or relying on spec text; do not patch the old monolith.",
+    "SPEC WRITE AUTHORITY: allowed current Master Spec writer for approved pre-launch enrichment; patch spec-modules, update manifest hashes/metadata, and verify with spec-current/spec-regression/spec-eof/gov-check.",
     "WORKFLOW SPLIT: ORCHESTRATOR_MANAGED requires ACTIVATION_MANAGER as the mandatory temporary pre-launch worker and governed pre-launch authoring lane; MANUAL_RELAY keeps pre-launch on ORCHESTRATOR.",
     "REFINEMENT STANDARD: match or exceed the old Orchestrator pre-launch quality bar, including research, primitive-index upkeep, matrix upkeep, appendix follow-through, force-multiplier expansion, and stub creation for new high-ROI discoveries.",
     "FILE-FIRST HANDOFF RULE: write the refinement/spec file, run checks, and return only the file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text by default.",

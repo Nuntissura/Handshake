@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Layerwise-Inference-Foundations-v1",
+  "base_wp_id": "WP-1-Layerwise-Inference-Foundations",
+  "created_at_utc": "2026-01-29T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "442b47db4b302e34e734e171b1db5d9ad27e955dbde24a2b4734816df21918a3",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.122.md 7.6.3 (Phase 1) -> [ADD v02.122 - Layer-wise Inference Foundations (Hooks + Governance + Observability)]",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Ship Phase 1 dynamic-compute foundations: accept `settings.exec_policy` in the runtime contract, govern per-role compute presets (standard / fast_exact / fast_approx) with waiver-required approximation, and emit Flight Recorder telemetry for requested vs effective policy.\n- Why: Enable future experimentation without silent quality regressions or audit gaps; keep default posture \"standard exact\".",
+    "scope_sketch": "- IN_SCOPE:\n  - Schema hooks: runtime `settings` accepts `exec_policy`; Work Profiles accept per-role compute presets + approximate control (waiver_ref required when enabled).\n  - Deterministic downgrade semantics when requested policy is unsupported or waiver missing (requested vs effective recorded).\n  - Flight Recorder event `llm_exec_policy` (FR-EVT-LLM-EXEC-001) emission rules + trace artifact reference handling (`hsk.layerwise_trace@0.1`).\n  - Operator UX/config surface for per-role `speed_preset` and waiver-bound \"approximate\" toggle (minimum viable).\n- OUT_OF_SCOPE:\n  - Implementing true layer-wise inference algorithms (early exit, block skipping, etc).\n  - Multi-device/sharded inference.",
+    "acceptance_criteria": "- If `approximate.allowed=false` or waiver is missing/expired, approximate execution cannot occur; system downgrades to exact and logs the downgrade.\n- When `settings.exec_policy` is present, Flight Recorder contains `llm_exec_policy` capturing requested vs effective policy (hashes + summary fields).\n- If approximate execution occurs, the event includes `waiver_ref` and a trace artifact reference (or explicit null with reason).",
+    "risks_unknowns": "- Risk: scope creep into \"real\" layer-wise inference features in Phase 1 (explicitly out of scope).\n- Risk: privacy leakage via high-volume traces; enforce \"no raw prompts; no token IDs by default\".",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

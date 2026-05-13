@@ -9,7 +9,9 @@ import {
   checkDetailsLogPath,
   compactCheckSummary,
   createCheckResult,
+  failureDossierLogPath,
   formatCheckResultSummary,
+  PHASE_BUNDLE_FAILURE_DOSSIER_REQUIRED_FIELDS,
   readCheckDetails,
   recordCheckResult,
   runSubprocessCheckStep,
@@ -94,6 +96,48 @@ test("runSubprocessCheckStep captures stdout and stderr into structured details"
     assert.equal(rows.length, 1);
     assert.equal(rows[0].details.stdout.trim(), "sample stdout");
     assert.equal(rows[0].details.stderr.trim(), "sample stderr");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runSubprocessCheckStep writes RGF-299 failure dossier fields on failure", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "check-result-failure-dossier-"));
+  const scriptPath = path.join(root, "failing-check.mjs");
+  fs.writeFileSync(scriptPath, [
+    "console.log('short stdout');",
+    "console.error('short stderr');",
+    "process.exit(7);",
+  ].join("\n"), "utf8");
+
+  try {
+    const step = runSubprocessCheckStep({
+      check: "failing-check",
+      scriptPath,
+      cwd: root,
+      phase: "TOPOLOGY",
+      bundle: "gov-check",
+      ownerRole: "SHARED",
+      sideEffectClass: "READ_ONLY_OR_DIAGNOSTIC",
+      relatedTopologyRows: ["file:.GOV/roles_shared/checks/failing-check.mjs"],
+      runtimeRootAbs: root,
+    });
+
+    assert.equal(step.ok, false);
+    assert.equal(step.status, 7);
+    const dossierRows = fs.readFileSync(failureDossierLogPath({ runtimeRootAbs: root }), "utf8")
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => JSON.parse(line));
+    assert.equal(dossierRows.length, 1);
+    const [entry] = dossierRows;
+    for (const field of PHASE_BUNDLE_FAILURE_DOSSIER_REQUIRED_FIELDS) {
+      assert.ok(Object.prototype.hasOwnProperty.call(entry, field), `missing ${field}`);
+    }
+    assert.deepEqual(entry.topology_row_ids, ["file:.GOV/roles_shared/checks/failing-check.mjs"]);
+    assert.equal(entry.memory_capture_status.status, "DELEGATED_TO_SUBCHECK_FAIL_CAPTURE_HOOKS");
+    assert.match(entry.stderr_excerpt, /short stderr/);
+    assert.ok(fs.existsSync(entry.stderr_artifact));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

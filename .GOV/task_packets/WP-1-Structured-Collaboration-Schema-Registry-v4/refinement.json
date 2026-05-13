@@ -1,0 +1,58 @@
+{
+  "activation_manager": {
+    "handoff_summary": null,
+    "readiness_status": "UNKNOWN",
+    "required": false,
+    "session_id": null,
+    "status": "LEGACY_IMPORT"
+  },
+  "authority_files": {
+    "packet_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/refinement.json",
+    "refinement_projection": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/refinement.md"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.593Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/refinement.md",
+    "projection_hash": "6123e3944021275b",
+    "source_file": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/packet.json",
+    "source_hash": "93a2a5048491de3a",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Use this contract as migration scaffold and preserve original projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported refinement contract is a legacy synthesis and may not capture all prose-only decisions."
+    ]
+  },
+  "refinement": {
+    "acceptance_criteria": [],
+    "approved_spec_enrichment": [],
+    "assumptions": [],
+    "clearly_covers_verdict": "PASS",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "enrichment_needed": "NO",
+    "microtask_plan": [],
+    "non_goals": [],
+    "operator_request": "WP-1-Structured-Collaboration-Schema-Registry-v4",
+    "scope_edges": [],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.178.md Base structured schema and project-profile extension contract [ADD v02.168]"
+    ],
+    "stub_wp_ids": "NONE",
+    "user_approval_evidence": "APPROVE REFINEMENT WP-1-Structured-Collaboration-Schema-Registry-v4",
+    "user_review_status": "APPROVED",
+    "user_signature": "ilja240320262335"
+  },
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Structured-Collaboration-Schema-Registry-v4"
+}

@@ -1,0 +1,98 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Structured-Collaboration-Schema-Registry-v1",
+  "base_wp_id": "WP-1-Structured-Collaboration-Schema-Registry",
+  "created_at_utc": "2026-03-10T00:55:02.792Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Schema-Registry-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Schema-Registry-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Schema-Registry-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "54d7cccddf9f310bd6d1b5768de87892dd6ed673de906eabe11648d1cb277e23",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Structured-Collaboration-Artifact-Family"
+    ],
+    "blocks": [
+      "WP-1-Project-Profile-Extension-Registry",
+      "WP-1-Markdown-Mirror-Sync-Drift-Guard",
+      "WP-1-Dev-Command-Center-Structured-Artifact-Viewer"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.168.md 7.6.3 (Phase 1) -> [ADD v02.168] Base structured schema and project-profile contracts",
+    "roadmap_add_coverage": "SPEC=v02.168; PHASE=7.6.3; LINES=46713"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and implement the canonical schema registry, validators, compatibility rules, and summary-schema checks for the shared structured-collaboration envelope used by Work Packets, Micro-Tasks, Task Board projections, and Role Mailbox exports.\n- Why: Handshake now requires one reusable base envelope and compact summary contract. Without a registry and deterministic validation path, each implementation surface will drift into slightly different field names, versions, and parser assumptions.",
+    "scope_sketch": "- IN_SCOPE:\n  - Canonical schema identifiers and versions for the shared base envelope and summary contract.\n  - Validation rules for `packet.json`, `summary.json`, `index.json`, and `thread.jsonl` collaboration artifacts.\n  - Compatibility and migration policy for base-envelope changes and backward-compatible readers.\n  - Deterministic validation outputs consumable by Dev Command Center and governance gates.\n- OUT_OF_SCOPE:\n  - Rich Dev Command Center rendering logic beyond the validation data it needs.\n  - Project-specific extension payload definitions beyond the hooks they must satisfy.",
+    "acceptance_criteria": "- A canonical schema registry exists for the shared structured-collaboration envelope and compact summary contract.\n- Work Packet, Micro-Task, Task Board projection, and Role Mailbox export validators reject missing required base-envelope fields deterministically.\n- Unknown or incompatible schema versions surface machine-readable validation results instead of silent fallback.\n- Dev Command Center and local-small-model ingestion can rely on the compact summary contract without record-shape guessing.",
+    "risks_unknowns": "- If the base envelope is too repository-specific, the later governance-kernel refresh will need a breaking rewrite.\n- If summary schemas drift from detail schemas, smaller local models will get cheap but misleading state.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

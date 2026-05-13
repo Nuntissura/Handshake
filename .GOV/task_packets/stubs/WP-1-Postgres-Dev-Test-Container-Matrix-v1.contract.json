@@ -1,0 +1,102 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Postgres-Dev-Test-Container-Matrix-v1",
+  "base_wp_id": "WP-1-Postgres-Dev-Test-Container-Matrix",
+  "created_at_utc": "2026-05-05T17:55:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Postgres-Dev-Test-Container-Matrix-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Postgres-Dev-Test-Container-Matrix-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Postgres-Dev-Test-Container-Matrix-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "fa7d06125f95851335964035492d67096e8e3051ebd80bab9557fca7eccbfb5e",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "WP-1-Migration-Framework",
+      "WP-1-Dual-Backend-Tests"
+    ],
+    "blocks": [
+      "WP-1-Postgres-Control-Plane-Leases-Backpressure",
+      "WP-1-ModelSession-Postgres-Queue-Workers",
+      "WP-1-FEMS-Postgres-Memory-Store",
+      "WP-1-Workflow-Engine-Postgres-Durable-Execution",
+      "WP-1-DCC-Postgres-Control-Plane-Projections"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "SPEC_CURRENT storage portability, dual-backend test, and PostgreSQL readiness anchors",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Establish a reproducible PostgreSQL developer/test container matrix for the PostgreSQL-primary pivot, including local startup, migration reset, seeded fixtures, and CI-ready smoke profiles.\n- Why: Follow-on PostgreSQL control-plane packets need a reliable database target under high script load; otherwise each WP re-discovers container setup, connection strings, migration order, and backend parity failure modes.",
+    "scope_sketch": "- IN_SCOPE:\n  - Docker or equivalent local PostgreSQL test service with stable environment variables and reset helpers.\n  - Test profiles for migration-only, storage-conformance, ModelSession, FEMS, workflow, and DCC projection slices.\n  - Documentation for operator/developer startup that keeps generated data outside the repo artifact roots.\n  - Clear skip semantics when PostgreSQL is unavailable, with CI treating PostgreSQL-required lanes as required.\n- OUT_OF_SCOPE:\n  - Product schema design beyond test harness tables and fixtures.\n  - Replacing SQLite cache/index tests.\n  - Production deployment hardening.",
+    "acceptance_criteria": "- A clean checkout can start the PostgreSQL test service, run migrations, seed fixtures, run targeted storage tests, and reset state mechanically.\n- Test commands clearly separate required PostgreSQL-primary checks from optional SQLite cache/offline checks.\n- Runtime artifact output stays under the external `../Handshake_Artifacts/` roots.\n- Failure messages identify service-down, migration-failed, schema-drift, and fixture-drift states separately.",
+    "risks_unknowns": "- Risk: container startup under heavy host load may be slow; activation should define generous but bounded timeouts.\n- Unknown: whether current CI should run PostgreSQL tests always or as a gated required job until host capacity is stable.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

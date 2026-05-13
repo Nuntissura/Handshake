@@ -1,0 +1,101 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Migration-Framework-v2/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Migration-Framework-v2/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Migration-Framework-v2/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Migration-Framework-v2/refinement.json"
+  },
+  "base_wp_id": "WP-1-Migration-Framework",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-01-12T00:10:22.422Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "current_wp_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "",
+    "risk_tier": "HIGH",
+    "status": "Done",
+    "user_signature": "ilja120120260049"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.302Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Migration-Framework-v2/packet.md",
+    "projection_hash": "250aa484f6430004",
+    "source_file": ".GOV/task_packets/WP-1-Migration-Framework-v2/packet.json",
+    "source_hash": "004ce311fcd41d8d",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Migration-Framework-v2/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": false,
+    "contract_file": ".GOV/task_packets/WP-1-Migration-Framework-v2/refinement.json",
+    "enforcement_profile": "",
+    "hydration_profile": "",
+    "status": "UNKNOWN"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- src/backend/handshake_core/migrations/0001_init.sql"
+    ],
+    "forbidden_paths": [
+      "- New product features or schema expansions not required by existing migrations"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.106.md sections 2.3.12.4 (CX-DBP-022)",
+      "2.3.12.4.1 (CX-DBP-022A)",
+      "2.3.12.4.2 (CX-DBP-022B)",
+      "and 2.3.12.5 (CX-DBP-030)",
+      "Roadmap acceptance criteria \"Migrations validated\" (Handshake_Master_Spec_v02.106.md:20702)"
+    ],
+    "summary": "Upgrade the migration framework to meet Master Spec v02.106 [CX-DBP-022]: (1) enforce heavy per-file replay-safe migrations (tracking-independent) and (2) require concrete down migrations in Phase 1, with tests proving both on SQLite and PostgreSQL.",
+    "why": "Non-idempotent migrations can brick startup and block Phase 1 closure; Phase 1 acceptance criteria now requires forward/backward fixture tests (up+down) and replay-safety (spec [CX-DBP-022], Phase 1 closure [CX-DBP-030])."
+  },
+  "source_control": {
+    "backup_push_status": "",
+    "canonical_branch": "main",
+    "merge_base_sha": "",
+    "remote_backup_branch": "",
+    "remote_backup_url": "",
+    "work_branch": "",
+    "worktree_dir": ""
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "",
+    "communication_health_gate": "",
+    "execution_owner": "",
+    "host_preference": "",
+    "lane": "",
+    "notifications_file": "",
+    "receipts_file": "",
+    "runtime_status_file": "",
+    "session_start_authority": "",
+    "thread_file": ""
+  },
+  "wp_id": "WP-1-Migration-Framework-v2"
+}

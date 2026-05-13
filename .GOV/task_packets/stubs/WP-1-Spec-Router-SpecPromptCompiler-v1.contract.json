@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Spec-Router-SpecPromptCompiler-v1",
+  "base_wp_id": "WP-1-Spec-Router-SpecPromptCompiler",
+  "created_at_utc": "2026-02-26T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Spec-Router-SpecPromptCompiler-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Spec-Router-SpecPromptCompiler-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Spec-Router-SpecPromptCompiler-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "39989415051ecaa06f0f8e429390eebd71434eefd8ae97c9e8d067c8c5297225",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.139.md 7.6.3 (Phase 1) -> [ADD v02.139] Prompt->Spec hardening quartet component 1/3: deterministic SpecPromptPack + SpecPromptCompiler compilation.",
+    "roadmap_add_coverage": "SPEC=v02.139; PHASE=7.6.3; LINES=46156"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement deterministic prompt compilation for `spec_router` using a versioned SpecPromptPack, producing reproducible PromptEnvelope hashes and ContextSnapshot lineage.\n- Why: Prompt->Spec routing must be replayable and auditable; deterministic compilation prevents hidden prompt drift.",
+    "scope_sketch": "- IN_SCOPE:\n  - Add/validate SpecPromptPack asset location + loading contract for `spec_router`.\n  - Implement deterministic SpecPromptCompiler rules (stable prefix/suffix assembly, token caps, truncation flags).\n  - Emit compilation provenance fields (pack id/sha, context snapshot id, envelope hashes) to required artifacts/events.\n  - Ensure PromptEnvelope + ContextSnapshot linkage is preserved for downstream validation.\n- OUT_OF_SCOPE:\n  - Capability allowlist generation logic (separate CapabilitySnapshot packet).\n  - SpecLint rule execution engine (separate SpecLint packet).\n  - Non-`spec_router` prompt compiler expansion.",
+    "acceptance_criteria": "- `spec_router` uses a SpecPromptPack artifact and records both pack id and pack SHA-256 per run.\n- PromptEnvelope compilation is deterministic for identical inputs (same stable/variable hashes + truncation outcomes).\n- ContextSnapshot includes every compilation input handle/hash required by the spec.\n- Provenance fields are visible in Flight Recorder and linked surfaces per integration hooks.",
+    "risks_unknowns": "- Risk: pack/template drift can silently change model behavior if hash capture is incomplete.\n- Risk: non-deterministic token truncation can break replay guarantees if compiler ordering/rules are not fixed.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/MT-003.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/MT-003.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-002"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.454Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/MT-003.md",
+    "projection_hash": "ed4c4f082b563096",
+    "source_file": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.json",
+    "source_hash": "0cb61783012a88c6",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-003",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "Checkpoint creation at boundaries"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workflows.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test session_checkpoint"
+    ],
+    "risk_if_missed": "sessions run without checkpoints and crash recovery has nothing to recover from",
+    "summary": "Checkpoint creation at boundaries"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Session-Crash-Recovery-Checkpointing-v1"
+}

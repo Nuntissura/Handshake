@@ -1,0 +1,98 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Media-Downloader-Loom-Bridge-v1",
+  "base_wp_id": "WP-1-Media-Downloader-Loom-Bridge",
+  "created_at_utc": "2026-03-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "9a8ab8237d0307cffb49d61f8fa1334a3c6e29bc6e7ed0f0d5e680f700590507",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "WP-1-Media-Downloader",
+      "WP-1-Loom-MVP",
+      "WP-1-Artifact-System-Foundations"
+    ],
+    "blocks": [
+      "WP-1-Video-Archive-Loom-Integration"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "N/A (Bridges existing surfaces; unlocks Loom value for archived media)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Make Media Downloader outputs promotable into Loom as LoomBlocks (with stable IDs, dedup, previews, and searchable text when captions/transcripts exist).\n- Why: Media Downloader creates a local archive, but without a Loom wrapper the library is not browsable/searchable in the Loom surface and does not compose with tags/mentions/backlinks.",
+    "scope_sketch": "- IN_SCOPE:\n  - Bridge primitive:\n    - Given a completed Media Downloader item (artifact_handles + materialized_paths), create or update:\n      - Asset record(s) in the workspace graph (content-hash stable).\n      - LoomBlock wrapper for the primary media file (video/audio/image) with imported_at and source metadata.\n  - Dedup:\n    - Repeated promotion MUST be idempotent and deduplicate by content_hash (workspace-scoped).\n  - Sidecars:\n    - Captions (`.vtt`) + captions metadata (`captions.metadata.json`) are preserved as sidecars and linked to the LoomBlock (no duplication).\n    - `info.json` (when present) is stored and linked as provenance/tool-output.\n  - Preview:\n    - Promotion SHOULD enqueue Tier-1 preview generation for the LoomBlock (thumbnail/poster frame).\n  - Search:\n    - When a caption track exists, ingest captions into a searchable text layer (either a Document linked to LoomBlock or LoomBlock.derived.full_text_index).\n  - Evidence:\n    - Emit Flight Recorder events for: promotion requested, dedup hit, assets created/linked, captions ingested, preview queued/completed.\n- OUT_OF_SCOPE:\n  - Full Loom UI delivery (grid/list, detail view) unless minimally needed to validate the bridge.\n  - Cloud transcription by default (opt-in and capability-gated only).",
+    "acceptance_criteria": "- After a YouTube archive job completes, a user can promote the downloaded video into Loom:\n  - LoomBlock exists, points at the media Asset, and is dedup-stable across repeated promotions.\n  - Captions sidecars (when present) are linked and preserved.\n  - Loom search can find text from captions/transcript for that video.\n  - Preview generation is queued and results in a thumbnail/poster frame.\n- All operations are capability-gated and emit Flight Recorder events without secret leakage.",
+    "risks_unknowns": "- Data model alignment: risk of parallel \"artifact\" vs \"asset\" stores creating duplication or confusing identity semantics.\n- Large file handling: avoid base64-in-JSON or other non-streaming imports for multi-GB videos.\n- Caption variability: multiple languages/tracks, auto-captions quality, and track selection UX.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

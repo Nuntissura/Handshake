@@ -1,0 +1,101 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/refinement.json"
+  },
+  "base_wp_id": "WP-1-Locus-Phase1-Integration-Occupancy",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-03-06T19:48:58.823Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "current_wp_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "2026-03-06",
+    "risk_tier": "HIGH",
+    "status": "Done",
+    "user_signature": "ilja060320261915"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.225Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/packet.md",
+    "projection_hash": "a4d1a62c928305d0",
+    "source_file": ".GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/packet.json",
+    "source_hash": "3ee3be8fc2d67de1",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": false,
+    "contract_file": ".GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/refinement.json",
+    "enforcement_profile": "",
+    "hydration_profile": "",
+    "status": "UNKNOWN"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- src/backend/handshake_core/src/workflows.rs"
+    ],
+    "forbidden_paths": [
+      "- PostgreSQL parity or backend migration strategy work"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.141.md 2.3.15.2-2.3.15.6 (TrackedMicroTask.active_session_ids",
+      "locus_bind_session/locus_unbind_session",
+      "Spec Router auto locus_create_wp",
+      "MT Executor lifecycle integration",
+      "Flight Recorder event catalog FR-EVT-WP-001 and FR-EVT-MT-001..004)"
+    ],
+    "summary": "Wire Locus into the Spec Router and Micro-Task Executor paths and add replay-safe micro-task occupancy tracking so routed work packets and MT lifecycle events materialize inside Locus.",
+    "why": "The spec already defines Locus as the authoritative work-tracking plane for routed WPs, MT lifecycle state, and occupancy. The current product code still treats those paths as local-only artifacts, which leaves Locus under-integrated and parallel ModelSession occupancy untracked."
+  },
+  "source_control": {
+    "backup_push_status": "",
+    "canonical_branch": "main",
+    "merge_base_sha": "21ee7c29d34a1f0e5a22f989756973aca15e65fc (git merge-base main HEAD at creation time; use for deterministic `just post-work --range` evidence)",
+    "remote_backup_branch": "",
+    "remote_backup_url": "",
+    "work_branch": "",
+    "worktree_dir": ""
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "",
+    "communication_health_gate": "",
+    "execution_owner": "",
+    "host_preference": "",
+    "lane": "",
+    "notifications_file": "",
+    "receipts_file": "",
+    "runtime_status_file": "",
+    "session_start_authority": "",
+    "thread_file": ""
+  },
+  "wp_id": "WP-1-Locus-Phase1-Integration-Occupancy-v1"
+}

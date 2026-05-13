@@ -4,12 +4,14 @@
  * Bundled check that runs all worktree/topology/placement checks in one pass
  * and collects ALL failures instead of failing on the first one.
  *
- * Replaces 5 individual gov-check imports:
+ * Replaces 7 individual gov-check imports:
  *   - worktree-concurrency-check.mjs
  *   - drive-agnostic-check.mjs
  *   - runtime-placement-check.mjs
  *   - role-worktree-surface-check.mjs
  *   - topology-registry-check.mjs
+ *   - governance-topology-check.mjs
+ *   - public-surface-consolidation-check.mjs
  */
 
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
@@ -23,6 +25,8 @@ const failures = runBundledChecks(import.meta.url, [
   "runtime-placement-check.mjs",
   "role-worktree-surface-check.mjs",
   "topology-registry-check.mjs",
+  "governance-topology-check.mjs",
+  "public-surface-consolidation-check.mjs",
 ]);
 
 if (failures.length > 0) {

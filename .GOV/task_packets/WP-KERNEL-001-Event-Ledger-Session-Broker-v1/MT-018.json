@@ -1,0 +1,81 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-018.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-018.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-017"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-13T16:22:07.804Z",
+    "generator": "artifact-policy-backfill.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-018.md",
+    "projection_hash": "94e9a856edf40bea",
+    "source_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-018.json",
+    "source_hash": "0b131d43b52d7d68",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-018",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "Implement PromotionGate as the sole authority transition for approve",
+      "reject",
+      "and promote decisions."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/promotion.rs",
+      "src/backend/handshake_core/src/kernel/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test -p handshake_core promotion_gate_contract"
+    ],
+    "risk_if_missed": "Authority changes happen without a promotion event.",
+    "summary": "Implement PromotionGate as the sole authority transition for approve, reject, and promote decisions."
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"
+}

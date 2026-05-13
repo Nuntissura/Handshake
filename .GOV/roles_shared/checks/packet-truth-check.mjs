@@ -4,6 +4,8 @@ import { parseMergeProgressionTruth } from "../scripts/lib/merge-progression-tru
 import { packetRequiresMergeContainmentTruth } from "../scripts/session/session-policy.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 import { runAbsorber } from "../scripts/lib/artifact-normalizers/index.mjs";
+import { readWorkPacketContract } from "../scripts/lib/work-packet-contract-read-lib.mjs";
+import { readStubContractForMarkdownPath } from "../scripts/wp/task-packet-stub-contracts.mjs";
 
 registerFailCaptureHook("packet-truth-check.mjs", { role: "SHARED" });
 
@@ -47,6 +49,14 @@ function baseWpIdFromPacket(packetId, packetText) {
     .trim();
   if (raw) return raw;
   return packetId.replace(/-v\d+$/, "").replace(/-\d{8}$/, "");
+}
+
+function normalizeBaseWpId(value, packetId, packetText) {
+  const raw = String(value || "")
+    .replace(/\s*\(.*/, "")
+    .trim();
+  if (raw && raw !== packetId) return raw;
+  return baseWpIdFromPacket(packetId, packetText);
 }
 
 function extractSection(text, heading) {
@@ -164,13 +174,18 @@ function readPacketInventory(dir, kind) {
       artifactKind: "packet",
       wpId: packetId,
     }).output;
+    const stubContractState = kind === "stub" ? readStubContractForMarkdownPath(filePath) : null;
+    const contractState = kind === "stub" ? null : readWorkPacketContract(packetId);
+    const contract = contractState?.contract && typeof contractState.contract === "object" ? contractState.contract : null;
+    const stubContract = stubContractState?.contract && typeof stubContractState.contract === "object" ? stubContractState.contract : null;
     entries.push({
       kind,
       filePath,
       packetId,
       packetText: text,
-      baseWpId: baseWpIdFromPacket(packetId, text),
-      status: parseStatus(text),
+      contractAuthority: stubContractState?.ok ? stubContractState.source : (contractState?.source || "MARKDOWN_LEGACY"),
+      baseWpId: normalizeBaseWpId(stubContract?.base_wp_id || contract?.base_wp_id, packetId, text),
+      status: stubContract?.lifecycle?.status || contract?.lifecycle?.status || parseStatus(text),
     });
   }
   return entries;

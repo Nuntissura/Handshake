@@ -225,7 +225,7 @@ if (action === 'refine') {
         wpId,
         type: 'REFINEMENT',
         refinement_path: refinementPath.replace(/\\/g, '/'),
-        spec_target_resolved: resolved ? `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${resolved.specFileName}` : `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> <unresolved>`,
+        spec_target_resolved: resolved ? `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${resolved.specTargetLabel}` : `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> <unresolved>`,
         spec_target_sha1: resolved ? resolved.sha1 : '<unresolved>',
         timestamp: new Date().toISOString(),
     });
@@ -251,7 +251,7 @@ if (action === 'refine') {
                 `# Paste the FULL Technical Refinement Block from ${refinementPath.replace(/\\/g, '/')} in chat as assistant-authored text (verbatim; no summary). Tool/terminal output does NOT count.`,
                 `# If approved, preserve this exact evidence in the refreshed refinement: APPROVE REFINEMENT ${wpId}`,
                 `just activation-manager next ${wpId}`,
-                `# Steer Activation Manager to apply the approved spec enrichment, advance SPEC_CURRENT, refresh the same refinement, and verify follow-up stubs.`,
+                `# Steer Activation Manager to apply the approved spec enrichment, update indexed modules plus manifest/SPEC_CURRENT JSON as needed, refresh the same refinement, and verify follow-up stubs.`,
                 `# After refresh reports ENRICHMENT_NEEDED=NO, run: just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
             ],
         });
@@ -352,7 +352,7 @@ if (action === 'sign') {
         const enrichmentNeeded = (m?.[1] || '').toUpperCase();
         if (enrichmentNeeded === 'YES') {
             v2Fail('Refinement declares ENRICHMENT_NEEDED=YES; packet signature is forbidden.', [
-                `Run the spec enrichment workflow first (new spec version + update ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md).`,
+                `Run the spec enrichment workflow first (indexed module edits plus manifest/SPEC_CURRENT JSON update when entrypoint, version, or baseline changes).`,
                 'Then refresh the SAME WP refinement against the updated spec and record a fresh same-WP signature.',
                 'Create a NEW WP variant only when scope materially widened or explicit remediation/splitting is required.',
                 'The supplied signature was NOT written to the refinement or SIGNATURE_AUDIT.',
@@ -432,8 +432,7 @@ if (action === 'sign') {
         const hh = ts.slice(8, 10);
         const min = ts.slice(10, 12);
         const dateTime = `${yyyy}-${mm}-${dd} ${hh}:${min}`;
-        const verMatch = resolved.specFileName.match(/v([0-9.]+)\.md/);
-        const specVer = verMatch ? `v${verMatch[1]}` : resolved.specFileName;
+        const specVer = resolved.versionTag || resolved.specTargetLabel;
 
         const row = `| ${signature} | Orchestrator | ${dateTime} | Work packet creation: ${wpId} | ${specVer} | Approved after Technical Refinement (see ${refinementPath.replace(/\\\\/g, '/')} ). |`;
         const updatedAudit = v2InsertSignatureAuditRow(audit, row);

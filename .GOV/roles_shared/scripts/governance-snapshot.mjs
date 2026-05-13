@@ -15,6 +15,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { resolveSpecCurrentAtRepo } from './lib/spec-current-lib.mjs';
 import { listValidatorGateStateFiles } from './lib/validator-gate-paths.mjs';
 import {
   GOVERNANCE_RUNTIME_ROOT_REPO_REL,
@@ -62,11 +63,16 @@ const shaHex = (algorithm, buf) => crypto.createHash(algorithm).update(buf).dige
 
 export const resolveSpecFileRelPathFromSpecCurrent = (specCurrentText) => {
   const text = specCurrentText ?? '';
-  const bold = text.match(/\*\*([^\*]*Handshake_Master_Spec_v[0-9]+\.[0-9]+\.md)\*\*/);
-  if (bold?.[1]) return normalizeRelPath(bold[1]);
-  const plain = text.match(/\b(?:\.GOV\/spec\/)?Handshake_Master_Spec_v[0-9]+\.[0-9]+\.md\b/);
-  if (plain?.[0]) return normalizeRelPath(plain[0]);
-  throw new Error('SPEC_CURRENT_UNPARSEABLE: no Handshake_Master_Spec_vNN.NNN.md found');
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`SPEC_CURRENT_UNPARSEABLE: expected handshake.spec_current@1 JSON (${error.message})`);
+  }
+  if (parsed?.schema !== 'handshake.spec_current@1' || !parsed?.current_spec?.entrypoint_path) {
+    throw new Error('SPEC_CURRENT_UNPARSEABLE: missing handshake.spec_current@1 current_spec.entrypoint_path');
+  }
+  return normalizeRelPath(parsed.current_spec.entrypoint_path);
 };
 
 const listValidatorGateJsonRelPaths = () => {
@@ -80,12 +86,16 @@ export const computeWhitelistedInputRelPaths = () => {
     throw new Error(`INPUT_MISSING: ${specCurrentRel}`);
   }
 
-  const specCurrentText = fs.readFileSync(specCurrentAbs, 'utf8');
-  const specFileRel = resolveSpecFileRelPathFromSpecCurrent(specCurrentText);
+  const resolvedSpec = resolveSpecCurrentAtRepo(REPO_ROOT, { allowLegacy: false });
+  const specInputRels = [
+    resolvedSpec.specEntryPointPath,
+    ...resolvedSpec.modulePaths,
+  ];
+  if (resolvedSpec.sourceBaselinePath) specInputRels.push(resolvedSpec.sourceBaselinePath);
 
   const fixed = [
     specCurrentRel,
-    specFileRel,
+    ...specInputRels,
     `${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`,
     `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`,
     `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`,
@@ -101,7 +111,7 @@ export const computeWhitelistedInputRelPaths = () => {
     if (!fs.existsSync(abs)) throw new Error(`INPUT_MISSING: ${rel}`);
   });
 
-  return { inputsRelPaths: all, specFileRelPath: specFileRel };
+  return { inputsRelPaths: all, specFileRelPath: resolvedSpec.specEntryPointPath, specSha1: resolvedSpec.sha1 };
 };
 
 const parseTaskBoardEntries = (taskBoardText) => {
@@ -248,7 +258,7 @@ const getHeadSha = () => {
 };
 
 export const buildProductGovernanceSnapshot = ({ includeHeadSha = false } = {}) => {
-  const { inputsRelPaths, specFileRelPath } = computeWhitelistedInputRelPaths();
+  const { inputsRelPaths, specFileRelPath, specSha1 } = computeWhitelistedInputRelPaths();
   const allowedAbs = new Set(inputsRelPaths.map((rel) => absFromRel(rel)));
 
   const fileBufCache = new Map();
@@ -266,8 +276,6 @@ export const buildProductGovernanceSnapshot = ({ includeHeadSha = false } = {}) 
 
   const readTextStrict = (rel) => readBufferStrict(rel).toString('utf8');
   const sha256Strict = (rel) => shaHex('sha256', readBufferStrict(rel));
-
-  const specSha1 = shaHex('sha1', readBufferStrict(specFileRelPath));
 
   const taskBoardText = readTextStrict(`${GOV_ROOT_REPO_REL}/roles_shared/records/TASK_BOARD.md`);
   const traceabilityText = readTextStrict(`${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`);

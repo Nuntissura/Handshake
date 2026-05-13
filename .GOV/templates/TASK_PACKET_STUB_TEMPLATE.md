@@ -1,5 +1,15 @@
 ﻿# TASK_PACKET_STUB_TEMPLATE
-
+## MACHINE_CONTRACT
+- AUTHORITATIVE_CONTRACT_SCHEMA_ID: hsk.work_packet_stub_contract@1
+- AUTHORITATIVE_CONTRACT_FILE: .GOV/task_packets/stubs/{{WP_ID}}.contract.json
+- MARKDOWN_PROJECTION_FILE: .GOV/task_packets/stubs/{{WP_ID}}.md
+- MARKDOWN_PROJECTION_STATUS: GENERATED_IN_SYNC
+- RED_TEAM_REQUIRED: YES
+- RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
+<!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->
+- RULE: ACP, apps, and checks consume machine contracts when present; this stub Markdown is the human/operator projection.
+- LEGACY_MARKDOWN_POLICY: SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD
+- FUTURE_WORK_RULE: Do not copy this Markdown stub pattern into new authoritative WP/refinement/MT artifacts. New model-created artifacts start from machine contracts; Markdown is an explicit projection only.
 This is a BACKLOG STUB. It is NOT an executable Task Packet.
 
 Rules:
@@ -8,7 +18,7 @@ Rules:
 - Coder/Validator MUST NOT start work from a stub.
 - When activating a stub into a real WP, follow `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (Technical Refinement Block + USER_SIGNATURE + refinement + `just create-task-packet`).
 - If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
-- A stub is the authoritative backlog contract before activation. Task Board, traceability, and Build Order are projections over this stub metadata.
+- The adjacent `.contract.json` is the authoritative backlog contract before activation. This Markdown stub is a generated projection/safety rail. Task Board, traceability, and Build Order are projections over contract metadata.
 - When a real packet replaces a stub or older packet, the new active packet is whichever file the traceability registry maps for the shared `BASE_WP_ID`.
 - For any stub covering current-spec Phase 1 roadmap additions (`[ADD v<current>]`), `ROADMAP_ADD_COVERAGE` MUST enumerate the exact spec line numbers so governance checks can verify no additions were missed.
 
@@ -160,7 +170,7 @@ Rules:
 - [ ] Confirm the requirement exists in Master Spec Main Body (not just Roadmap).
 - [ ] Draft research scouting across BIG_TECH, UNIVERSITY/PAPER, and GITHUB/OSS sources unless the work is strictly internal/mechanical.
 - [ ] Draft pillar force multipliers and primitive-matrix combo candidates; create extra stubs instead of guessing.
-- [ ] If refinement is likely to grow the primitive index, feature registry, UI guidance, or interaction matrix, treat activation as a spec-version update flow first, then re-activate the WP against the new `SPEC_CURRENT`.
+- [ ] If refinement is likely to grow the primitive index, feature registry, UI guidance, or interaction matrix, treat activation as an indexed-spec update flow first, then re-activate the WP against the refreshed `SPEC_CURRENT`.
 - [ ] Produce the in-chat Technical Refinement Block (per `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
 - [ ] Obtain USER_SIGNATURE for the WP.
 - [ ] Create `.GOV/refinements/{{WP_ID}}.md` (approved/signed).
@@ -168,3 +178,4 @@ Rules:
 - [ ] Confirm `just create-task-packet {{WP_ID}}` also created the packet-declared `WP_COMMUNICATION_DIR` with `THREAD.md`, `RUNTIME_STATUS.json`, and `RECEIPTS.jsonl`.
 - [ ] Copy relevant scope/acceptance notes from this stub into the official packet.
 - [ ] Move `.GOV/roles_shared/records/TASK_BOARD.md` entry from STUB to Ready for Dev.
+

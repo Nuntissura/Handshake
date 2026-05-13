@@ -1,0 +1,100 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Video-Archive-Loom-Integration-v1",
+  "base_wp_id": "WP-1-Video-Archive-Loom-Integration",
+  "created_at_utc": "2026-02-20T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "7056d0ff73d9caf76c38c9fcba4a9d5b77308cb943a36e2122326d249ad388e0",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Media-Downloader",
+      "WP-1-Loom-MVP",
+      "WP-1-Media-Downloader-Loom-Bridge",
+      "WP-1-Loom-Preview-VideoPosterFrames",
+      "WP-1-ASR-Transcribe-Media"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "N/A (Operator request; unlocks Loom/Lens value for video assets)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Turn archived/imported video files (from YouTube or elsewhere) into first-class Loom library objects with searchable transcripts, captions sidecars, and tag/mention organization that composes with Lens/Atelier.\n- Why: Downloading is only half the problem; the archive must be browsable, searchable, and meaningfully organized across a large family library.",
+    "scope_sketch": "- IN_SCOPE:\n  - Loom-first modeling:\n    - Each video Asset gets a LoomBlock wrapper (title, imported_at, source metadata).\n    - Captions (`.vtt`) and transcript Documents attach as referenced entities (no duplication).\n  - Transcript generation:\n    - If captions are present: ingest captions as a timing sidecar and derive a readable transcript Document.\n    - If captions are missing: offer local-first ASR job to produce transcript + timing sidecars (per Section 6.2).\n  - Smart organization (user-safe):\n    - Manual tags become RawContent `TAG` edges.\n    - AI-suggested tags remain DerivedContent (`AI_SUGGESTED` edges) until user confirmation (LM-TAG-005).\n  - Browsing + retrieval:\n    - Loom views show videos with thumbnails/proxies and allow filtering by tags/date/source.\n    - Lens queries can filter by tag facets and hit transcript/caption text.\n  - Evidence + observability:\n    - All ingestion/transcript/tagging jobs emit Flight Recorder events and are visible in Operator Consoles / Job History.\n- OUT_OF_SCOPE:\n  - Full video editor/timeline authoring UI (Director render pipelines are separate).\n  - Cloud transcription by default (cloud is opt-in and capability-gated).",
+    "acceptance_criteria": "- Importing a folder of videos + captions results in LoomBlocks with stable IDs, thumbnails, and attached captions/transcripts.\n- Transcripts are searchable and link back to the source video (time offsets preserved).\n- Tags/mentions work through LoomEdges; AI suggestions require explicit user confirmation before becoming Raw tags.\n- A large library (100s+ videos) remains usable (batch jobs, progress, resume; no UI lockups).",
+    "risks_unknowns": "- Transcript size + indexing cost; need chunking strategy for long videos.\n- UX complexity: presenting captions vs ASR vs both; avoiding duplicate/conflicting transcripts.\n- Privacy: ensure no default cloud sends; clear UI for capability/consent.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Flight-Recorder-v4/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Flight-Recorder-v4/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Flight-Recorder-v4/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Flight-Recorder-v4/refinement.json"
+  },
+  "base_wp_id": "WP-1-Flight-Recorder",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-02-11T22:32:58.696Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "",
+    "current_wp_status": "",
+    "main_containment_status": "",
+    "packet_format_version": "2026-02-01",
+    "risk_tier": "MEDIUM",
+    "status": "Done",
+    "user_signature": "ilja110220262332"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.179Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Flight-Recorder-v4/packet.md",
+    "projection_hash": "41f52f690aaacd00",
+    "source_file": ".GOV/task_packets/WP-1-Flight-Recorder-v4/packet.json",
+    "source_hash": "2618e6f0de5b6fd7",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Flight-Recorder-v4/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": false,
+    "contract_file": ".GOV/task_packets/WP-1-Flight-Recorder-v4/refinement.json",
+    "enforcement_profile": "",
+    "hydration_profile": "",
+    "status": "UNKNOWN"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- src/backend/handshake_core/src/flight_recorder/duckdb.rs"
+    ],
+    "forbidden_paths": [
+      "- Any changes to FR-EVT schemas / event taxonomy"
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.125.md 11.5 Flight Recorder Event Shapes & Retention (Trace Invariant",
+      "DuckDB sink) + Handshake_Master_Spec_v02.125.md [CX-224] BACKEND_STORAGE (persistence logic + migrations)"
+    ],
+    "summary": "Make Flight Recorder DuckDB schema initialization tolerant of legacy on-disk DBs (missing newer columns like `events.trace_id`) by running additive migrations before creating indexes (or retrying index creation after migration). Add a regression test that opens a legacy DB and asserts `DuckDbFlightRecorder::new_on_path(...)` succeeds.",
+    "why": "Prevent repeatable hard boot failures when an existing `data/flight_recorder.db` was created with an older schema. This removes the need for manual DB nuking and makes `pnpm -C app tauri dev` reliable while Phase 1 work continues."
+  },
+  "source_control": {
+    "backup_push_status": "",
+    "canonical_branch": "main",
+    "merge_base_sha": "8e3092d65fc485d8b4497adc51da703c3f9678da",
+    "remote_backup_branch": "",
+    "remote_backup_url": "",
+    "work_branch": "",
+    "worktree_dir": ""
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "",
+    "communication_dir": "",
+    "communication_health_gate": "",
+    "execution_owner": "",
+    "host_preference": "",
+    "lane": "",
+    "notifications_file": "",
+    "receipts_file": "",
+    "runtime_status_file": "",
+    "session_start_authority": "",
+    "thread_file": ""
+  },
+  "wp_id": "WP-1-Flight-Recorder-v4"
+}

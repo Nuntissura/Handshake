@@ -1,0 +1,607 @@
+{
+  "schema_id": "hsk.workflow_contract@1",
+  "schema_version": "workflow_contract_v1",
+  "contract_id": "workflow.orchestrator_managed.v1",
+  "contract_version": "2026-05-06.1",
+  "status": "ACTIVE",
+  "lane": "ORCHESTRATOR_MANAGED",
+  "authority": "MACHINE_CONTRACT",
+  "owner_roles": [
+    "ORCHESTRATOR"
+  ],
+  "maintainer_roles": [
+    "ORCHESTRATOR",
+    "CLASSIC_ORCHESTRATOR"
+  ],
+  "consumers": [
+    "ACP_SESSION_CONTROL",
+    "ORCHESTRATOR_NEXT",
+    "WP_LANE_HEALTH",
+    "WP_RELAY_WATCHDOG",
+    "ACTIVE_LANE_BRIEF"
+  ],
+  "projection_files": [
+    ".GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md"
+  ],
+  "role_scopes": {
+    "ORCHESTRATOR": {
+      "allowed_command_kinds": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CANCEL_SESSION",
+        "CLOSE_SESSION"
+      ],
+      "allowed_next_commands": [
+        "just orchestrator-next {wp_id} --debug",
+        "just wp-lane-health {wp_id}",
+        "just wp-relay-watchdog {wp_id} --observe-only"
+      ],
+      "forbidden_actions": [
+        "manual ordinary role-content relay when typed helper exists",
+        "launch downstream roles before Activation Manager readiness",
+        "wake terminal WP roles after MERGE_PENDING"
+      ],
+      "failure_class_ids": [
+        "runtime_route_drift",
+        "notification_cursor_drift",
+        "session_acp_drift",
+        "documentation_protocol_drift",
+        "clock_staleness_drift",
+        "scope_memory_worktree_drift",
+        "terminal_wp_rewake",
+        "stale_activation_readiness"
+      ]
+    },
+    "ACTIVATION_MANAGER": {
+      "allowed_command_kinds": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CLOSE_SESSION"
+      ],
+      "allowed_next_commands": [
+        "just activation-manager next {wp_id}",
+        "just activation-manager readiness {wp_id} --write"
+      ],
+      "forbidden_actions": [
+        "launch Coder or validators",
+        "compress large bundled WPs to reduce paperwork",
+        "create manual-relay authority lane"
+      ],
+      "failure_class_ids": [
+        "stale_activation_readiness",
+        "large_bundle_mt_compression",
+        "packet_task_board_drift",
+        "missing_worktree_preparation",
+        "documentation_protocol_drift"
+      ]
+    },
+    "CODER": {
+      "allowed_command_kinds": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CLOSE_SESSION"
+      ],
+      "allowed_next_commands": [
+        "just coder-next {wp_id}",
+        "just phase-check STARTUP {wp_id} CODER",
+        "just check-notifications {wp_id} CODER <session>"
+      ],
+      "forbidden_actions": [
+        "patch governance workflow contracts",
+        "patch .GOV protocols from product lane",
+        "treat notification ack as final handoff"
+      ],
+      "failure_class_ids": [
+        "coder_ack_vs_handoff",
+        "post_commit_relay_miss",
+        "formatter_cleanup_spillover",
+        "large_bundle_mt_compression",
+        "scope_memory_worktree_drift"
+      ]
+    },
+    "WP_VALIDATOR": {
+      "allowed_command_kinds": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CLOSE_SESSION"
+      ],
+      "allowed_next_commands": [
+        "just active-lane-brief WP_VALIDATOR {wp_id}",
+        "just check-notifications {wp_id} WP_VALIDATOR <session>",
+        "just wp-validator-response {wp_id} WP_VALIDATOR <session> CODER <target> '<response>'",
+        "just wp-review-response {wp_id} WP_VALIDATOR <session> CODER <target> '<response>'"
+      ],
+      "forbidden_actions": [
+        "use wp-review-response for CODER_INTENT checkpoint",
+        "patch .GOV directly from WP worktree",
+        "normalize Coder governance edits"
+      ],
+      "failure_class_ids": [
+        "wrong_review_helper",
+        "final_review_route_regression",
+        "runtime_route_drift",
+        "notification_cursor_drift",
+        "documentation_protocol_drift"
+      ]
+    },
+    "INTEGRATION_VALIDATOR": {
+      "allowed_command_kinds": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CLOSE_SESSION"
+      ],
+      "allowed_next_commands": [
+        "just integration-validator-context-brief {wp_id}",
+        "just phase-check VERDICT {wp_id} INTEGRATION_VALIDATOR <session>",
+        "just check-notifications {wp_id} INTEGRATION_VALIDATOR <session>"
+      ],
+      "forbidden_actions": [
+        "run CLOSEOUT before final review verdict",
+        "treat per-MT PASS as whole-WP handoff",
+        "merge without approved target containment proof"
+      ],
+      "failure_class_ids": [
+        "final_handoff_missing",
+        "closeout_before_verdict",
+        "final_review_route_regression",
+        "closeout_report_shape_drift",
+        "main_containment_drift"
+      ]
+    },
+    "MEMORY_MANAGER": {
+      "allowed_command_kinds": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CLOSE_SESSION"
+      ],
+      "allowed_next_commands": [
+        "just memory-manager-next {wp_id}",
+        "just memory-manager-proposal {wp_id} <session> '<summary>' '<backup_ref>'"
+      ],
+      "forbidden_actions": [
+        "patch Codex or protocols directly",
+        "edit workflow contracts directly",
+        "turn governance-stabilization notes into Coder duties"
+      ],
+      "failure_class_ids": [
+        "memory_scope_drift",
+        "documentation_protocol_drift",
+        "repeated_stall_only_in_chat",
+        "scope_memory_worktree_drift"
+      ]
+    }
+  },
+  "states": [
+    {
+      "id": "prelaunch",
+      "next_actor": "ACTIVATION_MANAGER",
+      "required_proof": "ACTIVATION_READINESS"
+    },
+    {
+      "id": "bootstrap_review",
+      "next_actor": "WP_VALIDATOR",
+      "required_proof": "VALIDATOR_KICKOFF plus CODER_INTENT checkpoint"
+    },
+    {
+      "id": "mt_loop",
+      "next_actor": "CODER_OR_WP_VALIDATOR",
+      "required_proof": "MT receipts and review responses"
+    },
+    {
+      "id": "final_handoff",
+      "next_actor": "CODER",
+      "required_proof": "whole-WP CODER_HANDOFF with base/head"
+    },
+    {
+      "id": "final_validation",
+      "next_actor": "INTEGRATION_VALIDATOR",
+      "required_proof": "VERDICT receipt resolving final handoff"
+    },
+    {
+      "id": "merge_pending",
+      "next_actor": "ORCHESTRATOR",
+      "required_proof": "MERGE_PENDING closeout truth"
+    },
+    {
+      "id": "contained_in_main",
+      "next_actor": "ORCHESTRATOR",
+      "required_proof": "target head ancestor of local main"
+    },
+    {
+      "id": "terminal",
+      "next_actor": "NONE",
+      "required_proof": "terminal packet/task-board truth"
+    }
+  ],
+  "transitions": [
+    {
+      "from": "prelaunch",
+      "to": "bootstrap_review",
+      "trigger": "ACTIVATION_READINESS_READY",
+      "required_probe": "just phase-check STARTUP {wp_id} CODER"
+    },
+    {
+      "from": "bootstrap_review",
+      "to": "mt_loop",
+      "trigger": "WP_VALIDATOR_INTENT_CHECKPOINT_PASS",
+      "required_probe": "just active-lane-brief WP_VALIDATOR {wp_id}"
+    },
+    {
+      "from": "mt_loop",
+      "to": "final_handoff",
+      "trigger": "ALL_MT_PASS",
+      "required_probe": "just wp-communication-health-check {wp_id} STATUS --verbose"
+    },
+    {
+      "from": "final_handoff",
+      "to": "final_validation",
+      "trigger": "CODER_HANDOFF_COMMITTED",
+      "required_probe": "just phase-check HANDOFF {wp_id} WP_VALIDATOR --range <base>..<head>"
+    },
+    {
+      "from": "final_validation",
+      "to": "merge_pending",
+      "trigger": "INTEGRATION_VALIDATOR_PASS",
+      "required_probe": "just phase-check CLOSEOUT {wp_id} --sync-mode MERGE_PENDING"
+    },
+    {
+      "from": "merge_pending",
+      "to": "contained_in_main",
+      "trigger": "APPROVED_TARGET_MERGED",
+      "required_probe": "git -C ../handshake_main merge-base --is-ancestor <target_head> HEAD"
+    },
+    {
+      "from": "contained_in_main",
+      "to": "terminal",
+      "trigger": "CONTAINED_MAIN_CLOSEOUT",
+      "required_probe": "just phase-check CLOSEOUT {wp_id} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <sha>"
+    }
+  ],
+  "terminal_fences": [
+    {
+      "id": "terminal_role_wake_suppression",
+      "if_state": [
+        "merge_pending",
+        "contained_in_main",
+        "terminal"
+      ],
+      "forbid": [
+        "START_SESSION CODER",
+        "SEND_PROMPT CODER",
+        "START_SESSION WP_VALIDATOR",
+        "SEND_PROMPT WP_VALIDATOR",
+        "START_SESSION INTEGRATION_VALIDATOR",
+        "SEND_PROMPT INTEGRATION_VALIDATOR"
+      ]
+    },
+    {
+      "id": "closeout_after_verdict_only",
+      "if_missing": [
+        "INTEGRATION_VALIDATOR_VERDICT_RECEIPT"
+      ],
+      "forbid": [
+        "phase-check CLOSEOUT"
+      ]
+    },
+    {
+      "id": "activation_before_downstream",
+      "if_missing": [
+        "ACTIVATION_READINESS_READY"
+      ],
+      "forbid": [
+        "START_SESSION CODER",
+        "START_SESSION WP_VALIDATOR"
+      ]
+    }
+  ],
+  "failure_classes": [
+    {
+      "id": "runtime_route_drift",
+      "symptom": "runtime next actor or receipt kind disagrees with latest receipt truth",
+      "probes": [
+        "just wp-lane-health {wp_id}",
+        "inspect RUNTIME_STATUS.json",
+        "replay latest RECEIPTS.jsonl"
+      ],
+      "repairs": [
+        "write typed ORCHESTRATOR REPAIR receipt",
+        "refresh runtime projection from receipt truth"
+      ]
+    },
+    {
+      "id": "notification_cursor_drift",
+      "symptom": "target role has stale or missing notification acknowledgement cursor",
+      "probes": [
+        "just check-notifications {wp_id} <role> <session>",
+        "inspect notification cursor"
+      ],
+      "repairs": [
+        "send one role-scoped notification nudge",
+        "ack consumed notification with exact actor session"
+      ]
+    },
+    {
+      "id": "session_acp_drift",
+      "symptom": "session registry, ACP broker state, or output file disagree",
+      "probes": [
+        "just session-registry-status {wp_id}",
+        "inspect SESSION_CONTROL_RESULTS.jsonl",
+        "inspect latest output_jsonl_file"
+      ],
+      "repairs": [
+        "self-settle recoverable requests",
+        "emit ACP_HEALTH_ALERT"
+      ]
+    },
+    {
+      "id": "documentation_protocol_drift",
+      "symptom": "role prompt or doc names the wrong helper or omits required helper",
+      "probes": [
+        "protocol-alignment-check",
+        "role startup brief check"
+      ],
+      "repairs": [
+        "patch owning protocol/startup/check surface",
+        "declare RGF item"
+      ]
+    },
+    {
+      "id": "clock_staleness_drift",
+      "symptom": "old heartbeat or stale_after makes a fresh route look escalated",
+      "probes": [
+        "inspect heartbeat_due_at",
+        "compare latest receipt timestamp"
+      ],
+      "repairs": [
+        "refresh route projection",
+        "treat stale clock as diagnostic until receipt proof agrees"
+      ]
+    },
+    {
+      "id": "scope_memory_worktree_drift",
+      "symptom": "role uses another role, WP, or worktree as context authority",
+      "probes": [
+        "just active-lane-brief <role> {wp_id}",
+        "git status --short",
+        "repomem open-session status"
+      ],
+      "repairs": [
+        "reopen role-scoped repomem",
+        "route typed blocker to owning role"
+      ]
+    },
+    {
+      "id": "stale_activation_readiness",
+      "symptom": "readiness is old, blocked, or disagrees with packet/worktree truth",
+      "probes": [
+        "just activation-manager readiness {wp_id} --write",
+        "just activation-manager next {wp_id}"
+      ],
+      "repairs": [
+        "wake Activation Manager only if refreshed readiness still requires model repair"
+      ]
+    },
+    {
+      "id": "large_bundle_mt_compression",
+      "symptom": "large/folded WP has too few broad MTs or no fold map",
+      "probes": [
+        "inspect ACTIVATION_READINESS MICROTASK_GRANULARITY",
+        "count MT files",
+        "check fold map"
+      ],
+      "repairs": [
+        "return to Activation Manager for MT decomposition",
+        "block downstream launch"
+      ]
+    },
+    {
+      "id": "projected_lane_idle",
+      "symptom": "runtime waits on a role but no receipt progress appears",
+      "probes": [
+        "just wp-lane-health {wp_id}",
+        "just active-lane-brief <role> {wp_id}"
+      ],
+      "repairs": [
+        "send one orchestrator-steer-next only when route truth still points at that role"
+      ]
+    },
+    {
+      "id": "nudge_queue_backlog",
+      "symptom": "queue depth remains nonzero while session is READY",
+      "probes": [
+        "just session-registry-status {wp_id}",
+        "just nudge-depth <session_id>"
+      ],
+      "repairs": [
+        "drain queued nudges into one safe-boundary SEND_PROMPT"
+      ]
+    },
+    {
+      "id": "post_commit_relay_miss",
+      "symptom": "Coder committed MT but no REVIEW_REQUEST appears",
+      "probes": [
+        "git rev-parse --git-path hooks/post-commit",
+        "inspect latest commit subject",
+        "inspect COMPILE_GATE_LOG.jsonl"
+      ],
+      "repairs": [
+        "send one manual wp-review-request with exact sessions",
+        "fix hook before next MT"
+      ]
+    },
+    {
+      "id": "coder_ack_vs_handoff",
+      "symptom": "Coder acknowledges a notification or validator response but does not emit the required implementation handoff",
+      "probes": [
+        "just active-lane-brief CODER {wp_id}",
+        "just check-notifications {wp_id} CODER <session>",
+        "inspect latest CODER_HANDOFF or REVIEW_REQUEST receipt"
+      ],
+      "repairs": [
+        "steer Coder to implement the cleared MT and emit the required handoff",
+        "keep ack receipts separate from work-completion receipts"
+      ]
+    },
+    {
+      "id": "active_run_no_output",
+      "symptom": "registry says COMMAND_RUNNING but output/events are stale",
+      "probes": [
+        "just wp-relay-watchdog {wp_id} --no-watch-steer",
+        "inspect active run timeout guard"
+      ],
+      "repairs": [
+        "bounded restart only when watchdog policy allows it"
+      ]
+    },
+    {
+      "id": "formatter_cleanup_spillover",
+      "symptom": "scoped role dirties files outside packet-cleared targets",
+      "probes": [
+        "git diff --name-only",
+        "compare packet target files"
+      ],
+      "repairs": [
+        "stop and emit typed blocker",
+        "prefer file-targeted formatter next time"
+      ]
+    },
+    {
+      "id": "wrong_review_helper",
+      "symptom": "validator uses review helper while runtime waits on intent checkpoint",
+      "probes": [
+        "inspect route_anchor_kind",
+        "just active-lane-brief WP_VALIDATOR {wp_id}"
+      ],
+      "repairs": [
+        "use wp-validator-response for CODER_INTENT",
+        "patch fail message if unclear"
+      ]
+    },
+    {
+      "id": "final_handoff_missing",
+      "symptom": "all MTs passed but no whole-WP CODER_HANDOFF exists",
+      "probes": [
+        "just wp-communication-health-check {wp_id} STATUS --verbose",
+        "inspect committed_handoff_head_sha"
+      ],
+      "repairs": [
+        "steer Coder to publish final handoff with base/head/range"
+      ]
+    },
+    {
+      "id": "closeout_before_verdict",
+      "symptom": "Integration Validator tries CLOSEOUT before final review/verdict",
+      "probes": [
+        "inspect final handoff correlation",
+        "just phase-check VERDICT {wp_id} INTEGRATION_VALIDATOR <session>"
+      ],
+      "repairs": [
+        "route final review response before CLOSEOUT",
+        "repair inversion receipt"
+      ]
+    },
+    {
+      "id": "final_review_route_regression",
+      "symptom": "final PASS routes back to Coder or old MT instead of Orchestrator",
+      "probes": [
+        "just wp-communication-health-check {wp_id} STATUS --verbose",
+        "inspect integration_final_open/resolution"
+      ],
+      "repairs": [
+        "patch route projection",
+        "notify Orchestrator for checkpoint truth"
+      ]
+    },
+    {
+      "id": "closeout_report_shape_drift",
+      "symptom": "closeout sync writes malformed validation report fields",
+      "probes": [
+        "phase-check CLOSEOUT --verbose",
+        "validator-packet-complete"
+      ],
+      "repairs": [
+        "rollback failed sync",
+        "fix report shape before retry"
+      ]
+    },
+    {
+      "id": "terminal_wp_rewake",
+      "symptom": "terminal MERGE_PENDING/DONE WP still suggests role wake",
+      "probes": [
+        "just orchestrator-next {wp_id}",
+        "just wp-lane-health {wp_id}"
+      ],
+      "repairs": [
+        "apply terminal fence",
+        "suppress closed-session and stale-receipt history"
+      ]
+    },
+    {
+      "id": "main_containment_drift",
+      "symptom": "final PASS exists but local main does not contain target head",
+      "probes": [
+        "git -C ../handshake_main merge-base --is-ancestor <target_head> HEAD",
+        "git -C ../handshake_main branch --show-current"
+      ],
+      "repairs": [
+        "merge from handshake_main only",
+        "rerun contained-main closeout"
+      ]
+    },
+    {
+      "id": "memory_scope_drift",
+      "symptom": "mutation context writes under wrong role or WP memory lane",
+      "probes": [
+        "just repomem status --role <role> --wp {wp_id}",
+        "inspect latest repomem checkpoint"
+      ],
+      "repairs": [
+        "open correct role/WP memory session",
+        "record correction decision"
+      ]
+    },
+    {
+      "id": "repeated_stall_only_in_chat",
+      "symptom": "same stall requires repeated operator or orchestrator prose",
+      "probes": [
+        "search changelog/RGF for existing helper",
+        "inspect latest failure receipts"
+      ],
+      "repairs": [
+        "promote to contract/check/helper/startup card",
+        "declare refactor-board item"
+      ]
+    },
+    {
+      "id": "packet_task_board_drift",
+      "symptom": "packet, task board, traceability, or build order disagree",
+      "probes": [
+        "node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs",
+        "node .GOV/roles_shared/checks/build-order-check.mjs"
+      ],
+      "repairs": [
+        "run canonical sync helper",
+        "patch authoritative packet/task-board projection"
+      ]
+    },
+    {
+      "id": "missing_worktree_preparation",
+      "symptom": "downstream launch would start without declared branch/worktree/backups",
+      "probes": [
+        "just wp-declared-topology-check {wp_id}",
+        "just backup-status"
+      ],
+      "repairs": [
+        "return to Activation Manager for worktree/backup preparation"
+      ]
+    }
+  ],
+  "telemetry": {
+    "request_field": "workflow_contract",
+    "prompt_capsule_label": "WORKFLOW_CONTRACT_CAPSULE",
+    "startup_capsule_request_field": "role_startup_capsule",
+    "startup_capsule_prompt_label": "ROLE_STARTUP_CAPSULE",
+    "failure_receipt_kind": "WORKFLOW_CONTRACT_BLOCKER",
+    "status_projection": "ACP reads contract envelope before wake/send/nudge/cancel"
+  }
+}

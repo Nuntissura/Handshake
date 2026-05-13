@@ -1,0 +1,61 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/MT-001.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/MT-001.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.582Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/MT-001.md",
+    "projection_hash": "6d3c877c0deac96d",
+    "source_file": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v3/packet.json",
+    "source_hash": "edc4a5c52cbc33b5",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-001",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "[ADD v02.168] Base envelope MUST expose updated_at"
+    ],
+    "allowed_paths": [
+      "locus/types.rs (ensure_schema_registry_fields_work_packet",
+      "ensure_schema_registry_fields_micro_task)"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test -p handshake_core schema_registry updated_at"
+    ],
+    "risk_if_missed": "base envelope validation accepts records without freshness tracking, breaking summary-first routing",
+    "summary": "[ADD v02.168] Base envelope MUST expose updated_at"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Structured-Collaboration-Schema-Registry-v3"
+}

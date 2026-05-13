@@ -1,0 +1,63 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/MT-002.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/MT-002.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-001"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.462Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/MT-002.md",
+    "projection_hash": "dad7649e1d900ece",
+    "source_file": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.json",
+    "source_hash": "121970985f5f0484",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-002",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "4.3.9.18.2 Span Binding (Normative)"
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/flight_recorder/mod.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test session_observability_spans_bind_model_runs_and_tool_calls --manifest-path src/backend/handshake_core/Cargo.toml"
+    ],
+    "risk_if_missed": "session and activity spans remain decorative fields with no runtime truth",
+    "summary": "4.3.9.18.2 Span Binding (Normative)"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Session-Observability-Spans-FR-v1"
+}

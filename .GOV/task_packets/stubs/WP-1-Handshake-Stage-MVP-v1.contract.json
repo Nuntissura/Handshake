@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Handshake-Stage-MVP-v1",
+  "base_wp_id": "WP-1-Handshake-Stage-MVP",
+  "created_at_utc": "2026-02-19T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "8498b5e3f39abe9fe00f3d5438a89c002c8c0ef06d3fbcbc7f65563ddba0c7aa",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.131.md 7.6.3 (Phase 1) -> Handshake Stage MVP (governed browser + Stage Apps) [ADD v02.131]",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Deliver the Phase 1 Handshake Stage MVP: a governed in-app browser surface with isolated sessions/tabs, Stage Apps, and a Stage Bridge API that can request privileged actions only via Workflow Engine + gates + Flight Recorder (no bypass).\n- Why: Enable evidence-grade capture/import of external web/PDF/3D inputs into workspace artifacts while preventing session bleed, origin confusion, and unlogged side effects.",
+    "scope_sketch": "- IN_SCOPE:\n  - Stage surface (MVP):\n    - Embedded browser UI for External Web navigation.\n    - Stage Apps rendered in WebViews under a dedicated scheme (handshake-stage://), with bridge enabled only for Stage Apps.\n  - Isolation + security model:\n    - Multiple Stage sessions supported; no cookie/storage/cache bleed across sessions/tabs.\n    - Stage Bridge injection only on handshake-stage://; External Web must never receive the bridge.\n    - Every bridge call is capability-gated and emits allow/deny events into Flight Recorder / Operator Consoles.\n  - Capture/import workflows (Phase 1 slice):\n    - stage.capture_webpage.v1: evidence-grade web capture (Archivist) producing artifact.snapshot bundles (HTML + assets + screenshots) with manifests + SHA-256.\n    - stage.clip_selection.v1: clip selected DOM ranges into artifact.clip (markdown + selectors), linked to the originating snapshot.\n    - stage.import_pdf.v1: attach/import PDF bytes as artifacts and produce a document stub; structured Docling conversion remains Phase 2.\n    - 3D Mechanical Assist Pack Phase 1 slice: stage.3d.import_gltf.v1 + stage.3d.validate_gltf.v1 producing artifact.scene_ir + validator/physics reports.\n    - Minimal read-only 3D viewport/inspector to view 3D assets and reports (Stage Studio deferred).\n  - Observability:\n    - All Stage privileged actions are Jobs/Workflows with auditable artifacts and Flight Recorder trails; outputs survive restart and are discoverable.\n- OUT_OF_SCOPE:\n  - Docling-backed structured PDF conversion (Phase 2).\n  - Browser-extension ecosystem, third-party Stage App marketplace/plugins, bulk crawling/mirroring.\n  - Stage Studio authoring/editor UX and advanced 3D editing/collaboration (Phase 3+ / Phase 4).",
+    "acceptance_criteria": "- External Web and Stage Apps run in isolated sessions/tabs with no cookie/storage bleed.\n- Stage Bridge is injected only on handshake-stage:// and denies calls from External Web; every allow/deny is visible in Flight Recorder/Operator Consoles.\n- stage.capture_webpage.v1 produces artifact.snapshot bundles with manifests + SHA-256 + provenance.\n- stage.clip_selection.v1 produces artifact.clip linked to snapshot selectors.\n- stage.import_pdf.v1 preserves original PDF bytes as artifacts and produces a document stub linked to the bytes.\n- stage.3d.import_gltf.v1 + stage.3d.validate_gltf.v1 produce artifact.scene_ir + validator reports; Stage viewport refuses to render without a passing validation report.\n- All outputs survive restart and are discoverable through Job History / artifact browsing surfaces.",
+    "risks_unknowns": "- Risk: origin isolation bugs (External Web vs Stage Apps) and session bleed across profiles.\n- Risk: private-network access and SSRF-style exposure if network policy is not enforced by capabilities/gates.\n- Risk: evidence integrity drift (missing hashes/manifests/provenance) for capture outputs.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

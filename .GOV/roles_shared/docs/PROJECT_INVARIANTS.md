@@ -15,7 +15,9 @@ Project-specific invariants for Governance Pack instantiation (spec §7.5.4.9).
 
 ## 2) Naming policy
 
-- MASTER_SPEC_PATTERN: `Handshake_Master_Spec_vNN.NNN.md` (repo root)
+- MASTER_SPEC_CURRENT_ENTRYPOINT: `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON)
+- MASTER_SPEC_INDEXED_MANIFEST: `.GOV/spec/indexed_spec/indexed-spec-manifest.json`
+- MASTER_SPEC_SOURCE_BASELINE_PATTERN: `.GOV/spec/Handshake_Master_Spec_vNN.NNN.md` (provenance/source baseline, not the active edit target)
 - CODEX_FILENAME: `.GOV/codex/Handshake_Codex_v1.4.md` (repo root)
 - CODEX_PATTERN: `Handshake Codex vX.Y.md` (repo root)
 

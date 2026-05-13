@@ -1,0 +1,99 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Role-Mailbox-Triage-Queue-Controls-v1",
+  "base_wp_id": "WP-1-Role-Mailbox-Triage-Queue-Controls",
+  "created_at_utc": "2026-03-11T00:08:00.000Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Triage-Queue-Controls-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Triage-Queue-Controls-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Triage-Queue-Controls-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "3206b9b86e84af4e8bcc431bc342adb9b4f40f3818db5c03d71bad4a4eca8f9f",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Role-Mailbox",
+      "WP-1-Role-Mailbox-Message-Thread-Contract",
+      "WP-1-Workflow-Transition-Automation-Registry",
+      "WP-1-Project-Agnostic-Workflow-State-Registry"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.175.md 7.6.3 (Phase 1) -> [ADD v02.175] Role Mailbox triage, queue aging, and remediation controls",
+    "roadmap_add_coverage": "SPEC=v02.175; PHASE=7.6.3; LINES=47234"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and later implement the durable Role Mailbox triage queue, reminder, snooze, expiry, and dead-letter remediation contract across Role Mailbox, Dev Command Center, Task Board, Work Packet views, and Locus joins.\n- Why: Handshake now has typed mailbox messages and Micro-Task loop control, but it still needs one portable queue-management layer so async collaboration pressure, stale work, and delivery failures do not collapse back into unread badges, thread order, or operator memory.",
+    "scope_sketch": "- IN_SCOPE:\n  - Canonical `RoleMailboxTriageQueueState`, `RoleMailboxReminderScheduleV1`, and `RoleMailboxDeadLetterDisposition` contracts.\n  - Queue-aging fields, reminder cadence, snooze posture, expiry posture, and dead-letter remediation metadata for Role Mailbox threads.\n  - Dev Command Center remediation queue requirements for reminder, unsnooze, retry-delivery, reroute, archive, and transcription-aware controls.\n  - Task Board pressure overlays and Work Packet follow-up summaries that project mailbox backlog without becoming authority.\n  - Locus joins that make mailbox-derived waiting, snooze, expiry, and dead-letter posture queryable by stable identifiers.\n- OUT_OF_SCOPE:\n  - External email, Slack, or generic ticket-ingest channels.\n  - Rich issue-tracker redesign beyond the queue and remediation fields needed for lawful triage.\n  - Replacing the Role Mailbox export or Flight Recorder baseline contracts.",
+    "acceptance_criteria": "- Role Mailbox triage queue state, reminder schedule, snooze posture, expiry posture, and dead-letter disposition are explicit, durable, and queryable without transcript parsing.\n- Dev Command Center can distinguish mailbox-local reminder or archive actions from governed follow-up before execution.\n- Task Board and Work Packet views can explain mailbox-derived waiting pressure and remediation posture without becoming authority for mailbox state.\n- Local small models can ingest bounded triage state before replaying long-form mailbox threads.",
+    "risks_unknowns": "- Too many queue states or remediation controls could create operator noise and make local-small-model routing harder.\n- If reminder schedules are optional, stale collaboration debt may hide behind “active” state.\n- If dead-letter disposition is not explicit, delivery failure can be mistaken for linked work failure.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

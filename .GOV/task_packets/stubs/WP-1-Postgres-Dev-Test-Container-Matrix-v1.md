@@ -17,7 +17,10 @@ Rules:
 - WP_ID: WP-1-Postgres-Dev-Test-Container-Matrix-v1
 - BASE_WP_ID: WP-1-Postgres-Dev-Test-Container-Matrix
 - CREATED_AT: 2026-05-05T17:55:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)
+- FOLDED_INTO: WP-1-Postgres-Control-Plane-Shift-Bundle-v1
+- KERNEL_RESET_TRANSFERRED_TO: WP-KERNEL-001-Event-Ledger-Session-Broker-v1
+- KERNEL_RESET_TRANSFER_SCOPE: Postgres dev/test profile and migration proof requirements for Kernel V1 EventLedger/SessionBroker; use Kernel001 packet/refinement/MTs for activation.
 - BUILD_ORDER_DOMAIN: BACKEND
 - BUILD_ORDER_TECH_BLOCKER: YES
 - BUILD_ORDER_VALUE_TIER: HIGH

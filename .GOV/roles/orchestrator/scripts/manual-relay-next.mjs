@@ -7,7 +7,8 @@ import { loadSessionRegistry } from "../../../roles_shared/scripts/session/sessi
 import { resolveRoleConfig } from "../../../roles_shared/scripts/session/session-control-lib.mjs";
 import { sessionKey } from "../../../roles_shared/scripts/session/session-policy.mjs";
 import { parseJsonFile, parseJsonlFile } from "../../../roles_shared/scripts/lib/wp-communications-lib.mjs";
-import { repoPathAbs, resolveWorkPacketPath, REPO_ROOT, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { repoPathAbs, REPO_ROOT, WORK_PACKET_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../../../roles_shared/scripts/lib/work-packet-contract-read-lib.mjs";
 import { checkNotifications } from "../../../roles_shared/scripts/wp/wp-check-notifications.mjs";
 import { steerActionForSession } from "./lib/orchestrator-steer-lib.mjs";
 import { deriveManualRelayEnvelope, preferredTargetSession } from "./lib/manual-relay-envelope-lib.mjs";
@@ -48,25 +49,25 @@ if (debugMode) {
   console.log("[MANUAL_RELAY_NEXT] debug_mode=enabled");
 }
 
-const packetPath = resolveWorkPacketPath(wpId)?.packetPath
-  || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
-const packetAbsPath = repoPathAbs(packetPath);
-if (!fs.existsSync(packetAbsPath)) {
+const packetContext = buildWorkPacketCommunicationView(wpId);
+const packetPath = packetContext.packetPath || path.join(WORK_PACKET_STORAGE_ROOT_REPO_REL, `${wpId}.md`);
+const packetAbsPath = packetContext.packetAbsPath || repoPathAbs(packetPath);
+if (!packetContext.ok || !fs.existsSync(packetAbsPath)) {
   fail("Packet file is missing", [packetPath]);
 }
 
-const packetText = fs.readFileSync(packetAbsPath, "utf8");
-const workflowLane = normalizeRole(parseSingleField(packetText, "WORKFLOW_LANE"));
+const packetText = packetContext.packetText || fs.readFileSync(packetAbsPath, "utf8");
+const workflowLane = normalizeRole(packetContext.workflowLane || parseSingleField(packetText, "WORKFLOW_LANE"));
 if (workflowLane !== "MANUAL_RELAY") {
   fail("manual-relay-next is only valid for MANUAL_RELAY lanes", [`WORKFLOW_LANE=${workflowLane || "<missing>"}`]);
 }
 
-const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+const runtimeStatusFile = packetContext.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
 if (!runtimeStatusFile || !fs.existsSync(repoPathAbs(runtimeStatusFile))) {
   fail("WP runtime status file is missing", [runtimeStatusFile || "<missing>"]);
 }
 
-const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+const receiptsFile = packetContext.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
 const runtimeStatus = parseJsonFile(runtimeStatusFile);
 const receipts = receiptsFile && fs.existsSync(repoPathAbs(receiptsFile)) ? parseJsonlFile(receiptsFile) : [];
 const communicationEvaluation = evaluateWpCommunicationHealth({
@@ -75,9 +76,9 @@ const communicationEvaluation = evaluateWpCommunicationHealth({
   packetPath,
   packetContent: packetText,
   workflowLane,
-  packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
-  communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
-  communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+  packetFormatVersion: packetContext.packetFormatVersion || parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+  communicationContract: packetContext.communicationContract || parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+  communicationHealthGate: packetContext.communicationHealthGate || parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
   receipts,
   runtimeStatus,
 });

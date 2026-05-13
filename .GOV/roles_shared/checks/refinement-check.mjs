@@ -1,28 +1,18 @@
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
-import { GOV_ROOT_REPO_REL, repoPathAbs, resolveRefinementPath, resolveWorkPacketPath } from '../scripts/lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs, resolveRefinementPath, resolveWorkPacketPath } from '../scripts/lib/runtime-paths.mjs';
+import { readResolvedSpecTextAtRepo, resolveSpecCurrentAtRepo } from '../scripts/lib/spec-current-lib.mjs';
 
 const SPEC_CURRENT_PATH = path.join(GOV_ROOT_REPO_REL, 'spec', 'SPEC_CURRENT.md');
 const TASK_BOARD_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'TASK_BOARD.md');
 const TRACEABILITY_PATH = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'WP_TRACEABILITY_REGISTRY.md');
 
 export function resolveSpecCurrent() {
-  if (!fs.existsSync(repoPathAbs(SPEC_CURRENT_PATH))) {
-    throw new Error(`Missing ${SPEC_CURRENT_PATH}`);
-  }
-  const specCurrent = fs.readFileSync(repoPathAbs(SPEC_CURRENT_PATH), 'utf8');
-  const m = specCurrent.match(/Handshake_Master_Spec_v[0-9._]+\.md/);
-  if (!m) {
-    throw new Error(`Could not resolve spec filename from ${SPEC_CURRENT_PATH}`);
-  }
-  const specFileName = m[0];
-  const specFilePath = path.join(path.dirname(SPEC_CURRENT_PATH), specFileName);
-  if (!fs.existsSync(repoPathAbs(specFilePath))) {
-    throw new Error(`Resolved spec file does not exist: ${specFilePath}`);
-  }
-  const sha1 = crypto.createHash('sha1').update(fs.readFileSync(repoPathAbs(specFilePath))).digest('hex');
-  return { specFileName, specFilePath, sha1 };
+  return resolveSpecCurrentAtRepo(REPO_ROOT, { allowLegacy: false });
+}
+
+function readCurrentSpecText(resolved) {
+  return readResolvedSpecTextAtRepo(REPO_ROOT, resolved);
 }
 
 export function defaultRefinementPath(wpId) {
@@ -878,7 +868,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     // Normalize to logical .GOV/ prefix so refinements are worktree-agnostic [CX-212D].
     // Handles: .GOV/..., ../wt-gov-kernel/.GOV/..., etc.
     const normalizeGovPrefix = (line) => String(line || '').replace(/^.*?\.GOV\//, '.GOV/');
-    const expectedResolvedLine = `.GOV/spec/SPEC_CURRENT.md -> ${resolved.specFileName}`;
+    const expectedResolvedLine = `.GOV/spec/SPEC_CURRENT.md -> ${resolved.specTargetLabel}`;
     if (normalizeGovPrefix(resolvedLine) !== expectedResolvedLine) {
       errors.push(`SPEC_TARGET_RESOLVED mismatch: expected "${expectedResolvedLine}", got "${resolvedLine || '<missing>'}"`);
     }
@@ -950,13 +940,13 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     const stubWpIdsRaw = getSingleField(content, 'STUB_WP_IDS');
     parsed.stubWpIdsRaw = stubWpIdsRaw;
     parsed.stubWpIds = validateStubIds(stubWpIdsRaw, errors, 'STUB_WP_IDS');
-    if (isHydratedResearchProfile && hasRuntimeAlignmentSections && resolved?.specFileName) {
+    if (isHydratedResearchProfile && hasRuntimeAlignmentSections && resolved?.specTargetLabel) {
       const buildOrderPath = path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'BUILD_ORDER.md');
       try {
         const buildOrderContent = fs.readFileSync(buildOrderPath, 'utf8');
         const specTarget = (buildOrderContent.match(/^\s*-\s*SPEC_TARGET\s*:\s*(.+)\s*$/mi) || [])[1]?.trim() || '';
-        if (specTarget !== resolved.specFileName) {
-          errors.push(`BUILD_ORDER.md SPEC_TARGET mismatch: expected ${resolved.specFileName}, got ${specTarget || '<missing>'}`);
+        if (specTarget !== resolved.specTargetLabel) {
+          errors.push(`BUILD_ORDER.md SPEC_TARGET mismatch: expected ${resolved.specTargetLabel}, got ${specTarget || '<missing>'}`);
         }
         for (const stubId of parsed.stubWpIds) {
           if (!buildOrderContent.includes(stubId)) {
@@ -1500,7 +1490,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     let specContent = null;
     if (resolved) {
       try {
-        specContent = fs.readFileSync(resolved.specFilePath, 'utf8');
+        specContent = readCurrentSpecText(resolved);
         const primTool = extractAppendixJson(specContent, 'HS-APPX-PRIMITIVE-TOOL-TECH-MATRIX');
         if (!primTool.ok) {
           errors.push(primTool.error);
@@ -2675,7 +2665,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
     errors.push('Inconsistent refinement: CLEARLY_COVERS_VERDICT=FAIL requires ENRICHMENT_NEEDED=YES');
   }
   if (parsed.appendixSpecUpdateRequired && !/^YES$/i.test(enrichmentNeeded || '')) {
-    errors.push('Appendix actions marked UPDATED require ENRICHMENT_NEEDED=YES so packet creation stays blocked until the new spec version exists');
+    errors.push('Appendix actions marked UPDATED require ENRICHMENT_NEEDED=YES so packet creation stays blocked until indexed modules plus manifest/SPEC_CURRENT JSON are refreshed as needed');
   }
   if (!parsed.appendixSpecUpdateRequired && /^NEEDS_SPEC_UPDATE$/i.test(parsed.appendixMaintenanceVerdict || '') && !/^YES$/i.test(enrichmentNeeded || '')) {
     errors.push('APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE requires ENRICHMENT_NEEDED=YES');
@@ -2762,7 +2752,7 @@ export function validateRefinementFile(refinementPath, { expectedWpId, requireSi
 
   let specLines = null;
   if (resolved) {
-    specLines = fs.readFileSync(resolved.specFilePath, 'utf8').split('\n');
+    specLines = readCurrentSpecText(resolved).split('\n');
   }
 
   anchors.forEach((a, idx) => {

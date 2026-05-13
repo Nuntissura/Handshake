@@ -1,0 +1,100 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Calendar-Storage-v1",
+  "base_wp_id": "WP-1-Calendar-Storage",
+  "created_at_utc": "2026-03-04T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Calendar-Storage-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Calendar-Storage-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Calendar-Storage-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "74b4cae3e627b605f455773e8038db82d2bf6ece8e479ce1d3ec17e22f38cfcd",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Migration-Framework",
+      "WP-1-Storage-Abstraction-Layer"
+    ],
+    "blocks": [
+      "WP-1-Calendar-Lens",
+      "WP-1-Calendar-Sync-Engine",
+      "WP-1-Calendar-Policy-Integration",
+      "WP-1-Calendar-Law-Compliance-Tests"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Audit remediation against Handshake_Master_Spec_v02.139.md (Calendar entities + persistence)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Add persistent storage for CalendarSource/CalendarEvent with portable migrations and a Database-trait-conformant DAL.\n- Why: Calendar lens and sync cannot be correct or auditable without durable, queryable event persistence.",
+    "scope_sketch": "- IN_SCOPE:\n  - Portable migrations for:\n    - calendar_sources (id, kind/provider, display_name, created_at, config/provenance)\n    - calendar_events (id, source_id, start_ts, end_ts, title, location, raw_ref/provenance)\n    - indexes for time-range queries (source_id + start/end).\n  - Storage API surface for:\n    - upsert/list sources\n    - upsert/query events (idempotent)\n    - delete-by-source (disconnect).\n- OUT_OF_SCOPE:\n  - Full-text indexing and embeddings for calendar notes (layer later).\n  - Complex recurrence expansion beyond a stored raw field in MVP.",
+    "acceptance_criteria": "- Calendar sources and events persist and can be queried by time window efficiently.\n- Migrations run cleanly on SQLite and Postgres (no runtime DDL hacks).\n- A small conformance test suite verifies portable schema + basic CRUD.",
+    "risks_unknowns": "- Recurrence and timezone normalization decisions can cause long-term drift; must be versioned.\n- Event privacy requires clear provenance and policy hooks (separate stub).",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

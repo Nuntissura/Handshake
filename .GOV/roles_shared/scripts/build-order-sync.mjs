@@ -21,6 +21,8 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath } from "./lib/runtime-paths.mjs";
 import { registerFailCaptureHook, failWithMemory } from "./lib/fail-capture-lib.mjs";
+import { resolveSpecCurrentAtRepo } from "./lib/spec-current-lib.mjs";
+import { readStubContractForMarkdownPath } from "./wp/task-packet-stub-contracts.mjs";
 
 registerFailCaptureHook("build-order-sync.mjs", { role: "SHARED" });
 
@@ -66,11 +68,6 @@ function normalizePath(p) {
 
 function packetIdFromPath(packetPath) {
   return inferWpIdFromPacketPath(normalizePath(packetPath));
-}
-
-function parseSpecTarget(specCurrentContent) {
-  const m = specCurrentContent.match(/Handshake_Master_Spec_v[0-9.]+\.md/);
-  return m ? m[0] : "Handshake_Master_Spec_vXX.XXX.md";
 }
 
 function parseRegistryRows(content) {
@@ -153,6 +150,31 @@ function parseBuildOrderMeta(packetText) {
   return meta;
 }
 
+function parseBuildOrderMetaFromStubContract(contract = {}) {
+  const buildOrder = contract.build_order || {};
+  const lifecycle = contract.lifecycle || {};
+  return {
+    domain: buildOrder.domain || "UNKNOWN",
+    techBlocker: buildOrder.tech_blocker || "UNKNOWN",
+    valueTier: buildOrder.value_tier || "UNKNOWN",
+    dependsOn: Array.isArray(buildOrder.depends_on) ? buildOrder.depends_on : [],
+    blocks: Array.isArray(buildOrder.blocks) ? buildOrder.blocks : [],
+    riskTier: buildOrder.risk_tier || "UNKNOWN",
+    packetStatus: lifecycle.status || "",
+  };
+}
+
+function parseBuildOrderMetaForPath(packetPath, packetText) {
+  const normalizedPath = normalizePath(packetPath);
+  if (normalizedPath.startsWith(`${GOV_ROOT_REPO_REL}/task_packets/stubs/`)) {
+    const stubContractState = readStubContractForMarkdownPath(normalizedPath);
+    if (stubContractState.ok) {
+      return parseBuildOrderMetaFromStubContract(stubContractState.contract);
+    }
+  }
+  return parseBuildOrderMeta(packetText);
+}
+
 function parsePacketStatus(packetText) {
   const statusLine =
     (packetText.match(/^\s*-\s*\*\*Status:\*\*\s*(.+)\s*$/mi) || [])[1] ||
@@ -210,6 +232,7 @@ function stateFromBoardToken(boardToken, fallbackState = "UNKNOWN") {
 function stateFromPacketStatus(packetStatus) {
   const status = String(packetStatus || "").trim().toUpperCase();
   if (!status) return "UNKNOWN";
+  if (status.includes("SUPERSEDED")) return "SUPERSEDED";
   if (status.includes("STUB")) return "STUB";
   if (status.includes("READY FOR DEV")) return "READY_FOR_DEV";
   if (status.includes("IN PROGRESS")) return "IN_PROGRESS";
@@ -510,7 +533,8 @@ const repoRoot = path.resolve(resolveRepoRoot());
 process.chdir(repoRoot);
 
 const specCurrent = normalizeLf(readText(SPEC_CURRENT_PATH));
-const specTarget = parseSpecTarget(specCurrent);
+const resolvedSpec = resolveSpecCurrentAtRepo(repoRoot, { allowLegacy: false });
+const specTarget = resolvedSpec.specTargetLabel;
 
 const registryContent = normalizeLf(readText(TRACE_REGISTRY_PATH));
 const registryRows = parseRegistryRows(registryContent);
@@ -524,6 +548,9 @@ const taskBoardTokens = parseTaskBoardTokens(taskBoardContent);
 const metaByBase = new Map();
 const inputsForHash = [];
 inputsForHash.push(`SPEC_CURRENT:\n${specCurrent}`);
+for (const specInputPath of [resolvedSpec.specEntryPointPath, ...resolvedSpec.modulePaths]) {
+  inputsForHash.push(`${specInputPath}:\n${normalizeLf(readText(specInputPath))}`);
+}
 inputsForHash.push(`WP_TRACEABILITY_REGISTRY:\n${registryContent}`);
 inputsForHash.push(`TASK_BOARD:\n${taskBoardContent}`);
 
@@ -536,7 +563,11 @@ for (const row of [...registryRows].sort((a, b) => a.baseWpId.localeCompare(b.ba
   }
   const text = normalizeLf(fs.readFileSync(packetPath, "utf8"));
   inputsForHash.push(`${packetPath}:\n${text}`);
-  metaByBase.set(row.baseWpId, parseBuildOrderMeta(text));
+  const stubContractState = readStubContractForMarkdownPath(packetPath);
+  if (stubContractState.ok && fs.existsSync(stubContractState.contractPath)) {
+    inputsForHash.push(`${stubContractState.contractPath}:\n${normalizeLf(fs.readFileSync(stubContractState.contractPath, "utf8"))}`);
+  }
+  metaByBase.set(row.baseWpId, parseBuildOrderMetaForPath(packetPath, text));
 }
 
 const inputsSha256 = sha256(inputsForHash.join("\n\n---\n\n"));

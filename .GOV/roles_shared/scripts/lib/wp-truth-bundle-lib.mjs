@@ -20,6 +20,7 @@ import { readWpTokenUsageLedger } from "../session/wp-token-usage-lib.mjs";
 import { evaluateWpRepomemCoverage } from "../memory/repomem-coverage-lib.mjs";
 import { resolveValidatorGatePath } from "./validator-gate-paths.mjs";
 import { readTerminalCloseoutRecord } from "./terminal-closeout-record-lib.mjs";
+import { buildWorkPacketEvaluatorView } from "./work-packet-contract-read-lib.mjs";
 
 export const WP_TRUTH_BUNDLE_SCHEMA_ID = "hsk.wp_truth_bundle@1";
 export const WP_TRUTH_BUNDLE_SCHEMA_VERSION = "wp_truth_bundle_v1";
@@ -61,6 +62,25 @@ function safeReadJsonl(filePath = "") {
   } catch {
     return [];
   }
+}
+
+function hasCompleteContractEvaluatorTruth(contract = null) {
+  const lifecycle = contract?.lifecycle || {};
+  return [
+    "packet_format_version",
+    "status",
+    "main_containment_status",
+    "merged_main_commit",
+    "main_containment_verified_at_utc",
+    "current_main_compatibility_status",
+    "current_main_compatibility_baseline_sha",
+    "current_main_compatibility_verified_at_utc",
+    "packet_widening_decision",
+    "packet_widening_evidence",
+  ].every((key) =>
+    Object.prototype.hasOwnProperty.call(lifecycle, key)
+    && String(lifecycle[key] ?? "").trim() !== ""
+  );
 }
 
 function latestByTimestamp(entries = [], field = "timestamp_utc") {
@@ -199,9 +219,10 @@ export function buildWpTruthBundle({
   }
 
   const resolvedPacket = resolveWorkPacketPath(normalizedWpId);
-  const packetPath = resolvedPacket?.packetPath || "";
-  const packetAbsPath = resolvedPacket?.packetAbsPath || "";
-  const hasPacket = packetText !== null || (packetAbsPath && fs.existsSync(packetAbsPath));
+  const packetView = packetText === null ? buildWorkPacketEvaluatorView(normalizedWpId) : null;
+  const packetPath = packetView?.packetPath || resolvedPacket?.packetPath || "";
+  const packetAbsPath = packetView?.packetAbsPath || resolvedPacket?.packetAbsPath || "";
+  const hasPacket = packetText !== null || Boolean(packetView?.ok) || (packetAbsPath && fs.existsSync(packetAbsPath));
   if (!hasPacket) {
     return {
       ok: false,
@@ -210,19 +231,20 @@ export function buildWpTruthBundle({
     };
   }
 
-  const text = packetText !== null ? String(packetText || "") : fs.readFileSync(packetAbsPath, "utf8");
-  const runtimePath = parseSingleField(text, "WP_RUNTIME_STATUS_FILE");
-  const receiptsPath = parseSingleField(text, "WP_RECEIPTS_FILE");
-  const notificationsPath = parseSingleField(text, "WP_NOTIFICATIONS_FILE");
+  const text = packetText !== null ? String(packetText || "") : (packetView?.packetText || fs.readFileSync(packetAbsPath, "utf8"));
+  const packetTruthSource = hasCompleteContractEvaluatorTruth(packetView?.contract) ? packetView.contract : text;
+  const runtimePath = packetView?.runtimeStatusFile || parseSingleField(text, "WP_RUNTIME_STATUS_FILE");
+  const receiptsPath = packetView?.receiptsFile || parseSingleField(text, "WP_RECEIPTS_FILE");
+  const notificationsPath = packetView?.notificationsFile || parseSingleField(text, "WP_NOTIFICATIONS_FILE");
   const runtime = runtimeStatus !== null ? (runtimeStatus || {}) : safeReadJson(runtimePath, {});
   const resolvedReceipts = receipts !== null ? receipts : safeReadJsonl(receiptsPath);
   const resolvedNotifications = notifications !== null ? notifications : safeReadJsonl(notificationsPath);
   const boardStatus = taskBoardStatus(normalizedWpId) || normalizeText(runtime?.current_task_board_status) || "UNKNOWN";
   const runtimeProjection = runtime && Object.keys(runtime).length > 0
-    ? evaluatePacketRuntimeProjectionDrift(text, runtime)
+    ? evaluatePacketRuntimeProjectionDrift(packetTruthSource, runtime)
     : null;
-  const signedScope = parseSignedScopeCompatibilityTruth(text);
-  const signedScopeValidation = validateSignedScopeCompatibilityTruth(text, {
+  const signedScope = parseSignedScopeCompatibilityTruth(packetTruthSource);
+  const signedScopeValidation = validateSignedScopeCompatibilityTruth(packetTruthSource, {
     packetPath: packetPath || `<${normalizedWpId}>`,
     requireReadyForPass: /^Validated\s+\(PASS\)|Done$/i.test(parseSingleField(text, "Status")),
   });
@@ -246,11 +268,11 @@ export function buildWpTruthBundle({
   const terminalCloseoutRecord = readTerminalCloseoutRecord({ wpId: normalizedWpId });
   const latestReceipt = latestByTimestamp(resolvedReceipts);
   const latestNotification = latestByTimestamp(resolvedNotifications);
-  const mergeTruth = parseMergeProgressionTruth(text);
+  const mergeTruth = parseMergeProgressionTruth(packetTruthSource);
   const finalVerdict = terminalCloseoutRecord.record?.verdict && terminalCloseoutRecord.record.verdict !== "UNKNOWN"
     ? terminalCloseoutRecord.record.verdict
     : deriveFinalVerdict({ packetText: text, runtimeStatus: runtime, taskBoard: boardStatus });
-  const projection = parseRuntimeProjectionFromPacket(text);
+  const projection = parseRuntimeProjectionFromPacket(packetTruthSource);
   const blockerSummary = deriveBlockers({
     signedScopeValidation,
     drift: runtimeProjection,
@@ -263,6 +285,8 @@ export function buildWpTruthBundle({
     generated_at_utc: timestamp,
     wp_id: normalizedWpId,
     packet_path: packetPath,
+    packet_contract_source: packetView?.contractSource || (packetText !== null ? "INJECTED_PACKET_TEXT" : "LEGACY_PROJECTION"),
+    packet_contract_authority: packetView?.contract?.contract_authority || null,
     packet_status: parseSingleField(text, "Status") || projection.current_packet_status || "UNKNOWN",
     runtime_status: normalizeText(runtime?.runtime_status || "UNKNOWN"),
     task_board_status: boardStatus,

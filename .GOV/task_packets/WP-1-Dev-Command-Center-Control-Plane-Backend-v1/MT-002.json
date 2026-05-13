@@ -1,0 +1,65 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/MT-002.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/MT-002.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-001"
+    ],
+    "status": "DONE",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.135Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/MT-002.md",
+    "projection_hash": "491f93278d2291c5",
+    "source_file": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/packet.json",
+    "source_hash": "fda0b94e22ac0402",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-002",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "10.11 [ADD v02.162] Dev Command Center work-orchestration state"
+    ],
+    "allowed_paths": [
+      "locus/task_board.rs",
+      "workflows.rs",
+      "runtime_governance.rs",
+      "terminal/session.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "task-board and micro-task projection tests plus scheduler-related cargo tests"
+    ],
+    "risk_if_missed": "routing and planning continue to depend on kanban-only or transcript-derived state",
+    "summary": "10.11 [ADD v02.162] Dev Command Center work-orchestration state"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Dev-Command-Center-Control-Plane-Backend-v1"
+}

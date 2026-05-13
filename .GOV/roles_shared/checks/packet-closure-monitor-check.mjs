@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import { validateClauseReportConsistency, validatePacketClosureMonitoring } from "../scripts/lib/packet-closure-monitor-lib.mjs";
-import { listOfficialWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { inferWpIdFromPacketPath, listOfficialWorkPacketPaths, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+import { readWorkPacketContract } from "../scripts/lib/work-packet-contract-read-lib.mjs";
 
 registerFailCaptureHook("packet-closure-monitor-check.mjs", { role: "SHARED" });
 
@@ -33,10 +34,14 @@ const files = listOfficialWorkPacketPaths();
 
 for (const rel of files) {
   const text = fs.readFileSync(repoPathAbs(rel), "utf8");
-  const packetFormatVersion = parseSingleField(text, "PACKET_FORMAT_VERSION");
+  const wpId = inferWpIdFromPacketPath(rel);
+  const contractState = wpId ? readWorkPacketContract(wpId) : null;
+  const contract = contractState?.contract && typeof contractState.contract === "object" ? contractState.contract : null;
+  const lifecycle = contract?.lifecycle && typeof contract.lifecycle === "object" ? contract.lifecycle : {};
+  const packetFormatVersion = lifecycle.packet_format_version || parseSingleField(text, "PACKET_FORMAT_VERSION");
   const closureMonitorProfile = parseSingleField(text, "CLAUSE_CLOSURE_MONITOR_PROFILE");
   const usesClauseMonitor = /^CLAUSE_MONITOR_V1$/i.test(closureMonitorProfile);
-  const status = parseStatus(text);
+  const status = lifecycle.status || parseStatus(text);
   const closed = isClosedStatus(status);
 
   if (packetFormatVersion >= "2026-03-15" && !closed && !usesClauseMonitor) {

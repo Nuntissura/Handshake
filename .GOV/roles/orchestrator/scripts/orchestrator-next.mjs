@@ -890,12 +890,12 @@ function main() {
         "SPEC_ENRICHMENT_REQUIRED_BEFORE_SIGNATURE",
       );
       printConfidence(confidence.level, confidenceDetail);
-      printState("Refinement recorded and reviewable, but it declares a Master Spec update is required. Packet signature is blocked until SPEC_CURRENT advances and the same refinement is refreshed.");
+      printState("Refinement recorded and reviewable, but it declares a current Master Spec update is required. Packet signature is blocked until the indexed spec/SPEC_CURRENT authority advances and the same refinement is refreshed.");
       printNextCommands([
         `# Paste the FULL Technical Refinement Block from ${refinementPath.replace(/\\/g, "/")} in chat (verbatim; no summary).`,
         `# When approved, preserve the approval evidence: APPROVE REFINEMENT ${wpId}`,
         `just activation-manager next ${wpId}`,
-        `# Steer Activation Manager to apply the approved spec enrichment, advance SPEC_CURRENT, refresh the same refinement, and verify follow-up stubs.`,
+        `# Steer Activation Manager to apply the approved spec enrichment, update indexed modules plus manifest/SPEC_CURRENT JSON as needed, refresh the same refinement, and verify follow-up stubs.`,
         `# After the refreshed refinement reports ENRICHMENT_NEEDED=NO and USER_APPROVAL_EVIDENCE is set, run:`,
         `just record-signature ${wpId} {usernameDDMMYYYYHHMM} {MANUAL_RELAY|ORCHESTRATOR_MANAGED} ${EXECUTION_OWNER_USAGE}`,
       ]);

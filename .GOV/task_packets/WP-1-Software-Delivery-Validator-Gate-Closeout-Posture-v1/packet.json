@@ -1,0 +1,91 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/refinement.json"
+  },
+  "base_wp_id": "WP-1-Software-Delivery-Validator-Gate-Closeout-Posture",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-04T00:01:00.947Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "COMPATIBLE",
+    "main_containment_status": "CONTAINED_IN_MAIN",
+    "packet_format_version": "2026-04-06",
+    "risk_tier": "HIGH",
+    "status": "Validated (PASS)",
+    "user_signature": "ilja040520260128"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.496Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.md",
+    "projection_hash": "b33cdff10d1c16b3",
+    "source_file": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.json",
+    "source_hash": "3eccc68d0ba9b053",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": true,
+    "contract_file": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/refinement.json",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "hydration_profile": "HYDRATED_RESEARCH_V1",
+    "status": "SIGNED_OR_LEGACY"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- ../handshake_main/src/backend/handshake_core/src/workflows.rs"
+    ],
+    "forbidden_paths": [
+      "- Rewriting historical packet reports or packet-local validator narratives."
+    ],
+    "spec_anchors": [
+      "Handshake_Master_Spec_v02.181.md Phase 1 validator-gate and closeout sweep"
+    ],
+    "summary": "Implement and prove runtime-visible validator-gate summaries, evidence-linked gate executions, and derived closeout posture for one workflow-backed software-delivery work item.",
+    "why": "v02.181 forbids packet surgery, raw check output, board reshuffling, mailbox chronology, or mirror freshness from deciding validator posture or closeout legality without canonical runtime gate and evidence state."
+  },
+  "source_control": {
+    "canonical_branch": "main",
+    "merge_base_sha": "040197df72b590f35034f3ec282dc4fb43515adc",
+    "remote_backup_branch": "feat/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
+    "work_branch": "feat/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
+    "worktree_dir": "../wtc-closeout-posture-v1"
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "DIRECT_REVIEW_V1",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
+    "execution_owner": "CODER_A",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "lane": "ORCHESTRATOR_MANAGED",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY"
+  },
+  "wp_id": "WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1"
+}

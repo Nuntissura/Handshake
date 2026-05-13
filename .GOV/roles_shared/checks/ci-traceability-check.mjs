@@ -51,9 +51,10 @@ const governanceOnlyPathAllowlist = [
   (p) => p.startsWith(".github/"),
   (p) => p.startsWith(".claude/"),
   (p) => p === "justfile",
+  (p) => p === "orcstart.cmd",
+  (p) => p === "kbstart.cmd",
   (p) => p === "AGENTS.md",
   (p) => p === ".GOV/codex/Handshake_Codex_v1.4.md",
-  (p) => /^\.GOV\/spec\/Handshake_Master_Spec_.*\.md$/.test(p),
   (p) => /^Handshake_logger_.*\.md$/.test(p),
 ];
 

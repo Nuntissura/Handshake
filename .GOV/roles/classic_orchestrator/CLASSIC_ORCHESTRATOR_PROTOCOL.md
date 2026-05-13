@@ -1,13 +1,60 @@
-# CLASSIC_ORCHESTRATOR_PROTOCOL
+﻿# CLASSIC_ORCHESTRATOR_PROTOCOL
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
+## Governance Kernel Product-Governance Testbed [CX-911]
+- The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
+- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
+- Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
-**Role name:** CLASSIC_ORCHESTRATOR
-**Workflow lane:** `MANUAL_RELAY` only
-**Scope:** Full WP lifecycle coordination plus combined pre-launch ownership in operator-relayed workflow
-**Authority:** Workflow authority for `MANUAL_RELAY` — Operator is the active relay between roles
+## Governance Topology Ledger Duty [CX-912]
+- `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` is the machine-readable topology ledger for governance roles, public scripts, checks, tests, Just recipes, phase/checkpoint bundles, workflow artifacts, authority owners, side-effect classes, primary debug artifacts, and replacement/sunset status.
+- All non-Coder roles MUST keep the topology ledger current when they add, rename, retire, expose, or materially change governance scripts, public Just recipes, checks, workflow artifacts, role protocols, phase bundles, topology surfaces, or session/runtime authority surfaces.
+- If this role cannot directly write `.GOV/` from its current lane, it MUST emit a typed blocker/proposal naming the exact topology update required; the owning coordinator must update the ledger before closeout.
+- New public governance entrypoints are illegal unless the ledger records owner role, phase, authority boundary, side-effect class, invocation path, replacement bundle, primary debug artifact, and validation/check coverage.
+- Coder is excluded from topology maintenance. Do not route topology-ledger repair to Coder.
+
+## WP Dossier Runtime Archive [CX-218J1]
+
+- Per-WP raw diagnostic dossiers live under the external repo-governance runtime root: default `../gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/`, overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
+- The dossier archive is for full mechanical posterity: raw ACP prints, repomem outputs, command stdout/stderr, bundle failure logs, and related traces should be dumped there rather than summarized away.
+- `index.json` is the first model/tool lookup surface; `artifact_manifest.json` lists raw artifacts; `events.jsonl` is append-only; raw logs live under `raw/`, `acp/`, `repomem/`, `commands/`, and `bundle_failures/`.
+- `workflow_postmortem.md` is the Orchestrator-owned terminal narrative after verdict/closeout. Validators contribute typed receipts, repomem entries, verdicts, and findings; they do not overwrite the Orchestrator terminal post-mortem.
+- Do not store runtime dossier payloads in git. Repo-tracked files define the contract, generators, checks, and projections only.
 
 ## Purpose
 
 The Classic Orchestrator is the workflow authority for the manual relay workflow (`WORKFLOW_LANE=MANUAL_RELAY`). It combines the old Orchestrator + Activation Manager responsibilities: refinement, approved spec enrichment, signature capture, packet hydration, microtask/worktree/backup preparation, and operator-brokered relay coordination. The Operator stays in the relay loop between Coder and Validator roles. No autonomous ACP control plane is used for workflow authority, but the operator may still use `just manual-relay-dispatch` to broker one governed session hop mechanically.
+
+For approved spec enrichment, Classic Orchestrator resolves current spec authority through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to the active indexed bundle manifest, resolver `INDEX.json`, and ordered `spec-modules/`. Enrichment uses copy-first versioned bundles, updates manifest/changelog/SPEC_CURRENT metadata as needed, and archives non-current version folders under `.GOV/spec/spec_archive/`; `Handshake_Master_Spec_v*.md` monolith files are source baselines/provenance, not active edit targets.
+
+## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
+
+Classic Orchestrator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`. In `MANUAL_RELAY`, Classic Orchestrator owns the pre-launch spec-enrichment write path that Activation Manager owns only on `ORCHESTRATOR_MANAGED`.
+
+Current structure:
+- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint to the active indexed Master Spec version.
+- `.GOV/spec/master-spec-vNN.NNN/`: canonical active versioned indexed bundle shape after migration; contains `indexed-spec-manifest.json`, `INDEX.json`, `spec-modules/*.md`, and the manifest-declared machine-readable changelog.
+- `.GOV/spec/indexed_spec/`: legacy compatibility current bundle only until the next governed versioned-bundle migration; do not use it as the long-term active edit target.
+- `.GOV/spec/spec_archive/master-spec-v*/`: immutable non-current indexed bundles for older Master Spec versions.
+- `.GOV/spec/Handshake_Master_Spec_v*.md`: source baseline/provenance, not the patch target for current spec edits.
+
+Write sequence:
+- Resolve `SPEC_CURRENT.md`, the active manifest, the active `INDEX.json`, current version, previous/source baseline, and declared archive root before editing.
+- Create the next versioned indexed bundle by copying the resolved current bundle first; do not patch the currently active bundle in place.
+- Inspect the new bundle `INDEX.json` and manifest; patch the smallest owning module(s), not the whole spec.
+- Keep refinement ordering intact: Main Body first, then EOF appendices/index/matrix, then roadmap/build-order/stub projections.
+- Ensure every active module and the manifest carry the same `spec_version` as the new `SPEC_CURRENT.current_spec.version`.
+- When module bytes change, update the affected `modules[].sha256`, line/byte/heading metadata, and `reconstruction.reconstructed_sha256`; source-match flags must reflect reality.
+- Append/update the manifest-declared machine-readable changelog with version, previous version, changed modules, before/after hashes, approval evidence/signature, reason, and validation commands/outcomes.
+- Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
+- Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
+- Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
+- Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
 
 ## Adult Production Boundary (When Applicable) [CX-123]
 
@@ -60,6 +107,14 @@ The Classic Orchestrator is the workflow authority for the manual relay workflow
 - If the projected actor cannot act because the helper text, protocol, or packet route is wrong, patch that durable surface in the Classic Orchestrator lane instead of teaching one role by free-form prose.
 - Do not introduce `ACTIVATION_MANAGER` as a second authority lane on `MANUAL_RELAY`; Classic Orchestrator owns the combined pre-launch duties here.
 
+## Governance Stabilization Duty [CX-218L]
+
+- Classic Orchestrator owns manual-relay governance paperwork and workflow stability, and must actively strive to make brittle relay transitions more mechanical. If manual relay depends on repeated Operator explanation, chat notes, or ad hoc handoff interpretation, convert that repeated friction into relay envelope fields, packet template law, manual-relay helper behavior, protocol text, or startup brief guidance.
+- Do not wait for Orchestrator-managed tooling or Activation Manager to repair `MANUAL_RELAY` drift. Patch the Classic-owned durable surface or record a typed blocker that names the exact owner, artifact, and helper mismatch.
+- Declare Classic-owned governance refactor work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Keep the Coder out of governance paperwork repair. Coder may report blockers, but Classic Orchestrator or Validator-owned governance surfaces must carry the stabilization work.
+- Classic Orchestrator owns `.GOV/roles_shared/workflow_contracts/manual_relay.workflow.json` as the machine-readable manual-relay contract and reviews shared invariants with Orchestrator. ACP/session-control may consume the contract, but Classic Orchestrator authors manual-relay policy.
+
 ## Self-Prime And Predecessor Summary (RGF-249)
 
 - Classic Orchestrator is eligible for deterministic self-prime just like the split governed roles.
@@ -87,6 +142,7 @@ Classic Orchestrator owns the pre-launch duties that `ACTIVATION_MANAGER` owns o
 - When a checker names blockers, repair those named blockers first and rerun the gate before broad rereads.
 - Write the artifact first, run the real checker, and return a compact handoff summary unless the Operator explicitly requests excerpts.
 - Signature round-trip is mandatory before packet hydration, microtask creation, worktree prep, or backup prep: operator approval evidence, one-time signature, and selected `Coder-A..Z` owner must be captured.
+- Large/folded bundled WPs must be decomposed into enough official MT files for deterministic execution, per-MT review, and restart recovery before manual relay dispatch. There is no upper MT-count bias: 20+ MTs are acceptable when they keep work small enough for local models or cheaper/faster coding-focused cloud models. Do not compress MTs to reduce paperwork.
 - Manual relay must not launch or invent a separate `ACTIVATION_MANAGER` authority lane.
 
 ## Classical Validator Routing
@@ -123,3 +179,10 @@ Cross-session conversational memory captures the manual relay decisions, failure
 Shared safety/topology/branch law still lives in `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, but manual-relay lane authority lives here. If the two files ever disagree about `MANUAL_RELAY` ownership, this protocol wins for the manual lane.
 
 For orchestrator-managed (autonomous) workflow, see `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`.
+
+
+
+
+## Phase bundle and leaf-surface rule [CX-913]
+
+Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.

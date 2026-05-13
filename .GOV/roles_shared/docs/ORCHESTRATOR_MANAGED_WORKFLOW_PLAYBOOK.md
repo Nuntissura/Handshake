@@ -1,12 +1,12 @@
-# Orchestrator-Managed Workflow Playbook
+﻿# Orchestrator-Managed Workflow Playbook
 
-Status: operational playbook
+Status: projection/reference
 Scope: `WORKFLOW_LANE=ORCHESTRATOR_MANAGED`
-Authority: navigational only. If this playbook conflicts with role protocols, Codex law, packet truth, receipts, runtime status, or command output, those sources win.
+Authority: navigational projection only. The machine-readable contract is `.GOV/roles_shared/workflow_contracts/orchestrator_managed.workflow.json`; ACP/session-control consumes that contract through `workflow_contract` request envelopes and `WORKFLOW_CONTRACT_CAPSULE` prompts. If this playbook conflicts with the workflow contract, role protocols, Codex law, packet truth, receipts, runtime status, or command output, those sources win.
 
 ## Purpose
 
-This file is the compact map for a healthy orchestrator-managed workflow and the first mechanical recovery moves when the lane stalls. It exists to reduce prompt-token relay, avoid manual transcript reconstruction, and make future parallel WP runs easier to babysit until the ACP/watchdog path is fully mechanical.
+This file is a human-readable projection of the machine workflow contract. It exists for audits and maintenance, not routine role context injection. Roles should receive compact `WORKFLOW_CONTRACT_CAPSULE` state from ACP/session-control rather than rereading this whole document. The machine contract exists to make `ORCHESTRATOR_MANAGED` workflows more mechanical because current governance/workflow can still be brittle, reduce Orchestrator babysitting, and harden autonomous parallel WP runs.
 
 ## Authority Boundaries
 
@@ -16,6 +16,8 @@ This file is the compact map for a healthy orchestrator-managed workflow and the
 - WP Validator owns per-MT advisory technical review and early intent checkpoint clearance.
 - Integration Validator owns final whole-WP technical verdict and merge authority.
 - Packet truth wins over runtime and session projections. `RECEIPTS.jsonl` and `RUNTIME_STATUS.json` are the primary communication runtime. `THREAD.md` is coordination prose only.
+- All non-Coder roles share `CX-218L` governance paperwork/workflow stabilization duty within their authority and must actively strive to make brittle handoffs, receipts, projections, and documentation transitions mechanical. Coder is excluded and reports governance blockers instead of patching `.GOV/` or workflow tooling from the product-code lane.
+- Governance refactor or stabilization work must be declared in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` with a stable item and current status, then updated as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
 
 ## Healthy Sequence
 
@@ -30,7 +32,15 @@ This file is the compact map for a healthy orchestrator-managed workflow and the
    - Activation Manager returns `REFINEMENT_HANDOFF_SUMMARY`.
    - Orchestrator reviews, gets operator approval/signature, and steers the bundle back.
    - Activation Manager writes packet, microtasks, worktree/backups, health evidence, and `ACTIVATION_READINESS`.
+   - For large/folded bundles, `ACTIVATION_READINESS` must expose `MICROTASK_STATUS` and `MICROTASK_GRANULARITY`; launch is not healthy if the packet compresses broad subsystem work into a few MTs just to reduce paperwork.
    - Before any model wake on stale readiness, run `just activation-manager readiness WP-{ID} --write` and inspect `just activation-manager next WP-{ID}`.
+
+### Large Bundle MT Discipline
+
+- Bundling related stubs into one WP is allowed when it removes repeated setup/schema/runtime-source decisions, but execution still resumes and validates through official MT files.
+- There is no upper MT-count bias. Prefer 20+ narrow MTs over a few broad MTs when that improves deterministic execution, crash/session recovery, validator targeting, or suitability for smaller local/cloud coding models.
+- A healthy bundle has a fold map from source stubs to MTs, one reviewable proof target per MT, dependency order that avoids reimplementation, and readiness output naming the declared MT count.
+- If a bundled packet has low MT count, think through 3-5 causes before launch: Activation Manager compressed to save paperwork, folded source stubs were not mapped, proof commands span unrelated boundaries, helper/schema work was not assigned to an early dependency MT, or readiness is stale and counting old files.
 
 3. Downstream launch
    - `just phase-check STARTUP WP-{ID} CODER`
@@ -70,11 +80,28 @@ This file is the compact map for a healthy orchestrator-managed workflow and the
    - Run `just phase-check CLOSEOUT WP-{ID} --sync-mode CONTAINED_IN_MAIN --merged-main-sha <MERGED_MAIN_SHA> --context "<why containment is now valid>"`.
    - Run `just gov-check`, then push `origin/main` only after contained-main closeout and governance checks pass.
 
+## Deterministic Contract Migration Red-Team
+
+This playbook is projection/reference. For RGF-286 and later contract migrations, treat the JSON contract as executable authority and treat Markdown as generated projection, frozen legacy reference, or short migration bridge.
+
+Red-team stance before launch or repair:
+
+- Assume projections are stale until source hash/provenance proves they were generated from the authoritative contract.
+- Assume sidecars drift when two manually maintained files claim the same authority; prefer one primary typed file per atomic lifecycle object instead.
+- Assume prose hides shadow authority; migrate lifecycle, scope, status, assignment, refinement, MT identity, and receipt-routing fields into typed contract keys.
+- Assume schema omissions create unsafe fallback behavior; unsupported fields must become explicit migration debt rather than silent Markdown parsing.
+- Assume Activation Manager and Classic Orchestrator diverge on prelaunch duties unless refinement, hydration, signature, worktree, backup, and MT preparation are encoded in the packet/refinement contracts.
 ## Key Artifacts
 
-- Packet: `.GOV/task_packets/WP-{ID}/packet.md`
-- Refinement: `.GOV/task_packets/WP-{ID}/refinement.md`
-- Microtasks: `.GOV/task_packets/WP-{ID}/MT-*.md`
+- Packet contract authority: `.GOV/task_packets/WP-{ID}/packet.json`
+- Refinement contract authority: `.GOV/task_packets/WP-{ID}/refinement.json`
+- Microtask contract authority: `.GOV/task_packets/WP-{ID}/MT-*.json`
+- Packet Markdown projection: `.GOV/task_packets/WP-{ID}/packet.md` generated from or reconciled to the packet contract; legacy Markdown authority must be explicitly classified as `LEGACY_AUTHORITY`.
+- Legacy import/repair: `just wp-contract-import WP-{ID}` or `just wp-contract-import --all --dry-run`; this is the governed path for stamping generated projection hashes instead of hand-editing packet/refinement/MT sidecars.
+- Flat legacy/stub inventory: `just flat-packet-legacy-inventory` writes `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`; `--check` detects drift. Flat official packets are imported non-destructively into folder authority by `just wp-contract-import --all`; old flat Markdown remains a frozen legacy reference, not co-authority. Packet stubs use adjacent `.contract.json` files generated by `just task-packet-stub-contracts --all`; these contracts are machine-readable planning authority only and carry `execution_authority=NON_EXECUTION_STUB`.
+- Stub consumers: build-order sync, Phase 1 ADD coverage, packet truth, and activation traceability must consume `.GOV/task_packets/stubs/WP-*.contract.json` first. Stub Markdown remains a projection/fallback and must not become execution authority.
+- Communication consumers: provisioning, health, and communications drift checks read packet communication fields through the contract-first packet communication view. Markdown packet fields are legacy fallback only when the primary contract lacks a field.
+- Diagnostic/audit consumers: lane health, active-lane briefs, registry status, manual relay, activation readiness, closeout repair/format, rescue, timeline, dossier, and post-run audit skeleton paths must resolve packet/refinement truth through contract-first helpers before using Markdown projections.
 - Communications: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/`
 - Runtime: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/RUNTIME_STATUS.json`
 - Receipts: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-{ID}/RECEIPTS.jsonl`
@@ -84,7 +111,7 @@ This file is the compact map for a healthy orchestrator-managed workflow and the
 
 ## Intervention Rule
 
-Before every Orchestrator patch, steer, or relay repair, classify 3-5 plausible causes and pick the cheapest mechanical action that proves or removes them. Record the durable part in repomem and governance records when it changes future behavior.
+Before every non-Coder role patch, steer, relay repair, validation blocker, activation repair, closeout settlement, or Memory Manager proposal, classify 3-5 plausible causes and pick the cheapest mechanical action that proves or removes them. Record the durable part in repomem and governance records when it changes future behavior.
 
 Common cause set:
 
@@ -325,3 +352,4 @@ First actions:
 - `.GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md`
 - `.GOV/roles_shared/docs/GOVERNED_WORKFLOW_EXAMPLES.md`
 - `.GOV/docs_repo/GOVERNED_SESSION_CONTROL_ARCHITECTURE.md`
+

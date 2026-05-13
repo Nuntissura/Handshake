@@ -9,15 +9,15 @@ import { registerFailCaptureHook } from "../../../roles_shared/scripts/lib/fail-
 import {
   normalizeRepoPath,
   matchesAnyScopeEntry,
+  normalizeScopeEntries,
   parsePacketScopeList,
-  parsePacketSingleField,
 } from "../../../roles_shared/scripts/lib/scope-surface-lib.mjs";
 import {
   REPO_ROOT,
   repoPathAbs,
-  resolveWorkPacketPath,
   normalizePath,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { buildWorkPacketEvaluatorView } from "../../../roles_shared/scripts/lib/work-packet-contract-read-lib.mjs";
 import {
   communicationPathsForWp,
   parseJsonFile,
@@ -134,23 +134,25 @@ function canonicalFsPath(value = "") {
 }
 
 function loadContext(wpId) {
-  const resolved = resolveWorkPacketPath(wpId);
-  if (!resolved?.packetAbsPath || !fs.existsSync(resolved.packetAbsPath)) {
+  const packetView = buildWorkPacketEvaluatorView(wpId);
+  if (!packetView?.ok || !packetView.packetPath) {
     throw new Error(`Official packet not found for ${wpId}`);
   }
-  const packetText = fs.readFileSync(resolved.packetAbsPath, "utf8");
   const fallbackPaths = communicationPathsForWp(wpId);
-  const receiptsFile = parsePacketSingleField(packetText, "WP_RECEIPTS_FILE") || fallbackPaths.receiptsFile;
-  const runtimeStatusFile = parsePacketSingleField(packetText, "WP_RUNTIME_STATUS_FILE") || fallbackPaths.runtimeStatusFile;
-  const worktreeDir = parsePacketSingleField(packetText, "LOCAL_WORKTREE_DIR") || REPO_ROOT;
-  const commDir = parsePacketSingleField(packetText, "WP_COMMUNICATION_DIR")
+  const receiptsFile = packetView.receiptsFile || fallbackPaths.receiptsFile;
+  const runtimeStatusFile = packetView.runtimeStatusFile || fallbackPaths.runtimeStatusFile;
+  const worktreeDir = packetView.localWorktreeDir || REPO_ROOT;
+  const commDir = packetView.communicationDir
     || normalizePath(path.dirname(receiptsFile));
   return {
     wpId,
-    packetPath: resolved.packetPath,
-    packetAbsPath: resolved.packetAbsPath,
-    packetDir: resolved.packetDir,
-    packetText,
+    packetPath: packetView.packetPath,
+    packetAbsPath: packetView.packetAbsPath,
+    packetDir: normalizePath(path.posix.dirname(packetView.packetPath)),
+    packetText: packetView.packetText,
+    legacyPacketText: packetView.legacyPacketText,
+    contract: packetView.contract,
+    contractSource: packetView.contractSource,
     receiptsFile: normalizePath(receiptsFile),
     receiptsAbsPath: repoPathAbs(receiptsFile),
     runtimeStatusFile: normalizePath(runtimeStatusFile),
@@ -159,7 +161,7 @@ function loadContext(wpId) {
     commDirAbs: repoPathAbs(commDir),
     worktreeDir: normalizePath(worktreeDir),
     worktreeAbs: resolveMaybePath(worktreeDir, REPO_ROOT),
-    branch: parsePacketSingleField(packetText, "LOCAL_BRANCH") || null,
+    branch: packetView.localBranch || null,
   };
 }
 
@@ -230,8 +232,11 @@ function evaluateFileList({ mtDefinition, changedFiles }) {
   };
 }
 
-function evaluateScope({ packetText, changedFiles }) {
-  const inScopePaths = parsePacketScopeList(packetText, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
+function evaluateScope({ packetText, packetContract = null, changedFiles }) {
+  const contractScopePaths = normalizeScopeEntries(packetContract?.scope?.allowed_paths || []);
+  const inScopePaths = contractScopePaths.length > 0
+    ? contractScopePaths
+    : parsePacketScopeList(packetText, "IN_SCOPE_PATHS", { stopLabels: ["OUT_OF_SCOPE"] });
   const outOfScope = inScopePaths.length === 0
     ? []
     : changedFiles.filter((entry) => !matchesAnyScopeEntry(entry, inScopePaths));
@@ -239,6 +244,7 @@ function evaluateScope({ packetText, changedFiles }) {
   return {
     ok: status !== "FAIL",
     status,
+    source: contractScopePaths.length > 0 ? "PRIMARY_MACHINE_READABLE" : "LEGACY_PROJECTION",
     in_scope_paths: inScopePaths,
     out_of_scope_files: outOfScope,
     issues: outOfScope.length > 0 ? ["changed_files_outside_packet_in_scope_paths"] : [],
@@ -466,7 +472,7 @@ export async function runMechanicalTrack({
     ? readChangedFiles(context.worktreeAbs, range, changedFiles)
     : (Array.isArray(changedFiles) ? changedFiles.map((entry) => normalizeRepoPath(entry)).filter(Boolean) : []);
   const fileList = evaluateFileList({ mtDefinition, changedFiles: files });
-  const scope = evaluateScope({ packetText: context.packetText, changedFiles: files });
+  const scope = evaluateScope({ packetText: context.packetText, packetContract: context.contract, changedFiles: files });
   const boundary = evaluateBoundary(fileList);
   const buildEvidence = evaluateBuildEvidence({
     context,
@@ -515,6 +521,7 @@ export async function runMechanicalTrack({
     file_list_match_result: fileList,
     build_pass_evidence: buildEvidence,
     helper_invocation_id: helperInvocationId,
+    packet_contract_source: context.contractSource,
     receipt_written: false,
     idempotent_replay: false,
   };

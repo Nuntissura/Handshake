@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-LLM-Provider-Registry-v1",
+  "base_wp_id": "WP-1-LLM-Provider-Registry",
+  "created_at_utc": "2026-02-11T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-LLM-Provider-Registry-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-LLM-Provider-Registry-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-LLM-Provider-Registry-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "8891bfc835e5750ef0253b725cee42598fad146b47d9de1213869aa3ba895e3c",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement a deterministic, auditable LLM provider registry and at least one cloud-capable\n  provider adapter (OpenAI-compatible HTTP API), integrated with Work Profiles, ModelSwap, and\n  cloud consent enforcement.\n- Why: Product must be project/task agnostic and portable across environments, while preserving\n  strict safety (cloud leakage guard + explicit consent) and strong observability.",
+    "scope_sketch": "- IN_SCOPE:\n  - Provider registry:\n    - Persisted provider configs (local + cloud) with stable IDs and redacted secrets.\n    - Provider health/readiness checks and \"available models\" listing (best-effort).\n  - Provider adapters:\n    - Define a generic \"OpenAI-compatible\" adapter (covers OpenAI, vLLM, TGI, etc).\n    - Ensure all adapters implement the existing `LlmClient` trait contract.\n  - Tier + safety integration:\n    - Cloud providers MUST be ModelTier=Cloud (leakage rules apply).\n    - Enforce Cloud Escalation Consent artifacts for any cloud invocation when policy requires it.\n  - Work Profile integration:\n    - Work Profiles reference model assignments that include provider_id + model_id (or equivalent).\n  - Telemetry:\n    - Emit provider/adapter lifecycle events (start, fail, retry, timeout) without leaking secrets.\n- OUT_OF_SCOPE:\n  - Agentic tool-use frameworks for cloud models (this WP targets non-agentic completions + swaps).\n  - Multi-tenant enterprise key management (Phase 2+).",
+    "acceptance_criteria": "- A workspace can configure:\n  - At least one local provider (Ollama), and\n  - At least one cloud provider endpoint via OpenAI-compatible adapter.\n- Work Profile model assignments can select provider+model deterministically.\n- Cloud tier invocations are blocked when:\n  - Consent is missing (when required by policy), or\n  - Leakage validators flag non-exportable/high-sensitivity content.\n- ModelSwapRequest can target a different provider+model and resume after fresh context compile.",
+    "risks_unknowns": "- Risk: scope creep into full \"provider marketplace\". Mitigation: implement only registry + one\n  cloud adapter + required governance gates.\n- Risk: deterministic behavior vs provider variability. Mitigation: define strict timeout/retry\n  policy and record requested vs effective behavior in telemetry.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

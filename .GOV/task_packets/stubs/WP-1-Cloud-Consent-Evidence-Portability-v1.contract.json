@@ -1,0 +1,101 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Cloud-Consent-Evidence-Portability-v1",
+  "base_wp_id": "WP-1-Cloud-Consent-Evidence-Portability",
+  "created_at_utc": "2026-03-09T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Cloud-Consent-Evidence-Portability-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Cloud-Consent-Evidence-Portability-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Cloud-Consent-Evidence-Portability-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "33bfbafcb6bfaba03b28310c0b3d1196fc3c60cde9251f01f4c28b4dd7e31dbd",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Cloud-Escalation-Consent",
+      "WP-1-Session-Scoped-Capabilities-Consent-Gate",
+      "WP-1-Workflow-Engine",
+      "WP-1-Flight-Recorder",
+      "WP-1-Artifact-System-Foundations",
+      "WP-1-Storage-Abstraction-Layer-v3"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.153.md 7.6.3 (Phase 1) -> backend capability/diagnostic evidence expansion: cloud-consent evidence portability",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define the backend portability bridge that turns `consent_receipt.json`, `cloud_escalation_request.json`, and their linked projection-plan evidence into stable manifest/hash/retention semantics across storage swaps and later bounded export.\n- Why: Cloud consent artifacts are already persisted and recorder-visible, but their portability semantics are still too implicit for replay, export, and later operator/model evidence tooling.",
+    "scope_sketch": "- IN_SCOPE:\n  - Canonicalize manifest/hash/retention semantics for consent receipt and cloud escalation request artifacts.\n  - Define how consent evidence relates to Flight Recorder, storage portability, and bounded export without widening scope implicitly.\n  - Clarify what later replay/export/operator tooling may assume about consent artifact identity and lifecycle.\n- OUT_OF_SCOPE:\n  - Reworking cloud-consent UI flows.\n  - Provider-specific consent flows beyond the shared artifact contract.",
+    "acceptance_criteria": "- Consent receipt and cloud escalation request artifacts are explicitly modeled as portable backend evidence, not only workflow-local JSON files.\n- Storage/backend swaps preserve stable ids, hashes, and retention semantics for consent artifacts.\n- Later export/replay packets can point to one canonical consent-artifact portability contract instead of inventing ad hoc rules.",
+    "risks_unknowns": "- Risk: consent artifacts drift in hash or retention semantics across backends, making replay or audit unverifiable.\n- Risk: export tooling widens consent scope silently if portability rules remain implicit.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

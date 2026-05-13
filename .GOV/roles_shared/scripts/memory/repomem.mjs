@@ -56,6 +56,7 @@ const REPOMEM_DURABLE_REQUIRED_ROLES = new Set([
   "INTEGRATION_VALIDATOR",
   "ACTIVATION_MANAGER",
   "WP_VALIDATOR",
+  "KERNEL_BUILDER",
 ]);
 
 // RGF-254: when the MEMORY_MANAGER role closes a session, write a durable

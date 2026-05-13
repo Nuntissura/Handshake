@@ -1,0 +1,103 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Product-Governance-Check-Runner-v1",
+  "base_wp_id": "WP-1-Product-Governance-Check-Runner",
+  "created_at_utc": "2026-04-05T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Product-Governance-Check-Runner-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Product-Governance-Check-Runner-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Product-Governance-Check-Runner-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "79819473b90901bc00ae259e2e2c5ca7716f3ccf9b9eaf3de2d2646cc4745915",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Product-Governance-Artifact-Registry",
+      "WP-1-Unified-Tool-Surface-Contract",
+      "WP-1-Capability-SSoT",
+      "WP-1-Session-Scoped-Capabilities-Consent-Gate",
+      "WP-1-Workflow-Engine",
+      "WP-1-Flight-Recorder"
+    ],
+    "blocks": [
+      "WP-1-Governance-Workflow-Mirror",
+      "WP-1-Governance-Pack",
+      "WP-1-Dev-Command-Center-Control-Plane-Backend"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Backend-first self-hosting split for product governance execution contracts",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define and later implement the governed runner that executes selected imported software-delivery checks, rubrics, and scripts through Handshake runtime.\n- Why: Importing repo-governance artifacts is not enough; Handshake also needs a bounded execution contract so software-delivery validation happens through capability-gated, recorder-visible, product-owned workflows instead of raw shell bypass or repo-path coupling.",
+    "scope_sketch": "- IN_SCOPE:\n  - Executable descriptor contract for imported software-delivery checks, rubrics, and scripts.\n  - Capability-gated invocation through Tool Gate and Workflow Engine.\n  - Evidence/result schema for PASS, FAIL, BLOCKED, ADVISORY_ONLY, and UNSUPPORTED.\n  - Recorder-visible execution lifecycle and bounded artifact capture.\n  - Runner policy that makes imported software-delivery governance additive:\n    - Handshake-native governance stays broader and remains authoritative outside the software-delivery overlay\n- OUT_OF_SCOPE:\n  - Blind execution of arbitrary repo scripts.\n  - Importing non-deterministic shells as unbounded product authority.\n  - UI work beyond minimal inspection/debug surfaces.",
+    "acceptance_criteria": "- Product runtime can execute selected imported software-delivery checks/rubrics/scripts through governed tool surfaces.\n- Every execution is capability-gated, recorder-visible, and returns a typed result contract.\n- Unsupported repo-only artifacts fail closed with explicit reason instead of being silently skipped or treated as product-native law.",
+    "risks_unknowns": "- Risk: a raw shell-driven check runner would recreate repo-governance coupling and bypass Handshake-native controls.\n- Risk: imported software-delivery rubrics may encode assumptions that belong in a project profile extension rather than in universal product governance.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

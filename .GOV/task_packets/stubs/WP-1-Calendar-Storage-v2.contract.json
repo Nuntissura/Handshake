@@ -1,0 +1,104 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Calendar-Storage-v2",
+  "base_wp_id": "WP-1-Calendar-Storage",
+  "created_at_utc": "2026-04-07T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Calendar-Storage-v2.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Calendar-Storage-v2.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Calendar-Storage-v2.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "ccd333f5f899d47188e70caa03c210f7a891e8e0991d8c8cd3ac113bbc75cf80",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Migration-Framework",
+      "WP-1-Storage-Abstraction-Layer",
+      "WP-1-Storage-Trait-Purity",
+      "WP-1-Storage-Capability-Boundary-Refactor"
+    ],
+    "blocks": [
+      "WP-1-Calendar-Lens",
+      "WP-1-Calendar-Sync-Engine",
+      "WP-1-Calendar-Policy-Integration",
+      "WP-1-Calendar-Law-Compliance-Tests",
+      "WP-1-Calendar-Correlation-Export",
+      "WP-1-Calendar-Mailbox-Correlation"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Calendar is a pillar feature; storage foundation for calendar-as-cross-cutting-substrate across Handshake",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Add portable, dual-backend persistent storage for CalendarSource and CalendarEvent through the Database trait, with full primitive mixing to ensure calendar storage is designed as a cross-cutting substrate that integrates cleanly with Handshake's broader topology.\n- Why: Calendar is a pillar feature. Every subsystem that reasons about time, scheduling, context, or provenance will eventually touch calendar data. Getting the storage foundation right -- with proper interweaving across loom, mailbox, workflow, governance, consent, and structured collaboration -- prevents expensive rework and ensures calendar can serve as a force multiplier across the product.",
+    "scope_sketch": "- IN_SCOPE:\n  - Portable migrations for calendar_sources and calendar_events (dual-backend)\n  - Database trait calendar storage methods (aligned with current trait purity patterns)\n  - Idempotent upsert, time-window queries, source-scoped cleanup\n  - Primitive discovery: identify all cross-cutting touchpoints where calendar data flows into or out of other subsystems\n  - Stub generation for any discovered downstream integration gaps\n- OUT_OF_SCOPE:\n  - Calendar Lens UI, API handlers, search/full-text surfaces\n  - calendar_sync workflow orchestration, provider adapters\n  - Recurrence expansion beyond stored raw fields\n  - Direct SQL from API/UI code or runtime DDL",
+    "acceptance_criteria": "- Calendar sources and events persist and can be queried by time window on both backends.\n- Migrations are portable, replay-safe, and undo-safe on SQLite and Postgres.\n- Storage API conforms to current trait purity and capability boundary patterns.\n- Primitive matrix identifies all cross-cutting calendar touchpoints and generates stubs where needed.\n- Dual-backend conformance tests cover CRUD, time-window queries, migration safety, and idempotent upsert.",
+    "risks_unknowns": "- Recurrence and timezone normalization decisions can cause long-term drift; must be versioned.\n- Event privacy requires clear provenance and policy hooks (separate stub).\n- Calendar-as-substrate means the primitive surface may be large; refinement must timebox discovery to avoid scope explosion while still capturing the interweaving.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

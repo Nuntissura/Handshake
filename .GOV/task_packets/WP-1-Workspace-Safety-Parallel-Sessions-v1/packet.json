@@ -1,0 +1,92 @@
+{
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/refinement.json"
+  },
+  "base_wp_id": "WP-1-Workspace-Safety-Parallel-Sessions",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-04-07T18:48:47.551Z",
+  "lifecycle": {
+    "current_main_compatibility_status": "COMPATIBLE",
+    "main_containment_status": "CONTAINED_IN_MAIN",
+    "packet_format_version": "2026-04-06",
+    "risk_tier": "HIGH",
+    "status": "Validated (PASS)",
+    "user_signature": "ilja070420262042"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.639Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/packet.md",
+    "projection_hash": "6e2e3c0d2946f685",
+    "source_file": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/packet.json",
+    "source_hash": "96d28e252c6cfe12",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/MT-*.json",
+    "declared_ids": [],
+    "next_id": null
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "Imported legacy Markdown may contain shadow authority that the first-pass contract did not capture.",
+      "Projection hash repair proves file identity, not semantic completeness.",
+      "Consumers must treat LEGACY_AUTHORITY as migration debt until reviewed or regenerated."
+    ],
+    "minimum_controls": [
+      "Prefer primary JSON once imported.",
+      "Keep generated projection hashes fail-closed.",
+      "Record unsupported fallback fields as RGF migration debt."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": true,
+    "contract_file": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/refinement.json",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "hydration_profile": "HYDRATED_RESEARCH_V1",
+    "status": "SIGNED_OR_LEGACY"
+  },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [],
+    "allowed_paths": [
+      "- src/backend/handshake_core/src/workspace_safety.rs"
+    ],
+    "forbidden_paths": [
+      "- Non-git worksurface isolation (Design Studio entity locking",
+      "Phase 2+)"
+    ],
+    "spec_anchors": [
+      "4.3.9.17 Workspace Safety Boundaries for Parallel Sessions"
+    ],
+    "summary": "Workspace isolation for parallel sessions with worktree allocation, session-scoped denylist, IN_SCOPE_PATHS enforcement, and merge-back discipline",
+    "why": "Parallel sessions touching the same workspace can silently overwrite or conflict without deterministic isolation and fail-closed execution rules"
+  },
+  "source_control": {
+    "canonical_branch": "main",
+    "merge_base_sha": "f85d767d8ae8a56121f224f6e12ed2df6f973d6b",
+    "remote_backup_branch": "feat/WP-1-Workspace-Safety-Parallel-Sessions-v1",
+    "work_branch": "feat/WP-1-Workspace-Safety-Parallel-Sessions-v1",
+    "worktree_dir": "../wtc-parallel-sessions-v1"
+  },
+  "updated_at_utc": null,
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "DIRECT_REVIEW_V1",
+    "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Workspace-Safety-Parallel-Sessions-v1",
+    "execution_owner": "CODER_B",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "lane": "ORCHESTRATOR_MANAGED",
+    "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Workspace-Safety-Parallel-Sessions-v1/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Workspace-Safety-Parallel-Sessions-v1/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY"
+  },
+  "wp_id": "WP-1-Workspace-Safety-Parallel-Sessions-v1"
+}

@@ -4,11 +4,12 @@
  * Bundled check that runs all session/lifecycle checks in one pass
  * and collects ALL failures instead of failing on the first one.
  *
- * Replaces 4 individual gov-check imports:
+ * Replaces 5 individual gov-check imports:
  *   - session-policy-check.mjs
  *   - session-launch-runtime-check.mjs
  *   - session-control-runtime-check.mjs
  *   - lifecycle-ux-check.mjs
+ *   - workflow-contract-check.mjs
  */
 
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
@@ -21,6 +22,7 @@ const failures = runBundledChecks(import.meta.url, [
   "session-launch-runtime-check.mjs",
   "session-control-runtime-check.mjs",
   "lifecycle-ux-check.mjs",
+  "workflow-contract-check.mjs",
 ]);
 
 if (failures.length > 0) {

@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { REPO_ROOT, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
+import { readResolvedSpecTextAtRepo, resolveSpecCurrentAtRepo } from "../scripts/lib/spec-current-lib.mjs";
+import { readStubContractForMarkdownPath } from "../scripts/wp/task-packet-stub-contracts.mjs";
 
 registerFailCaptureHook("phase1-add-coverage-check.mjs", { role: "SHARED" });
 
@@ -24,21 +26,11 @@ function readText(filePath) {
 }
 
 function parseCurrentSpecTarget() {
-  const specCurrent = readText(SPEC_CURRENT_PATH);
-  const match = specCurrent.match(/\b((?:\.GOV\/spec\/)?Handshake_Master_Spec_(v\d+(?:\.\d+)*)\.md)\b/);
-  if (!match) {
-    fail("Unable to parse SPEC_CURRENT target", [
-      `${SPEC_CURRENT_PATH}: expected Handshake_Master_Spec_vXX.XXX.md`,
-    ]);
-  }
-  const rawSpecPath = match[1];
-  const resolvedSpecPath = rawSpecPath.startsWith(".GOV/")
-    ? rawSpecPath
-    : path.join(path.dirname(SPEC_CURRENT_PATH), rawSpecPath).replace(/\\/g, "/");
+  const resolved = resolveSpecCurrentAtRepo(REPO_ROOT, { allowLegacy: false });
   return {
-    versionTag: match[2],
-    fileName: `Handshake_Master_Spec_${match[2]}.md`,
-    specPath: resolvedSpecPath,
+    versionTag: resolved.versionTag,
+    fileName: resolved.specTargetLabel,
+    specContent: readResolvedSpecTextAtRepo(REPO_ROOT, resolved),
   };
 }
 
@@ -114,6 +106,32 @@ function collectCoverageFromStubs(versionTag) {
 
   for (const fileName of stubFiles) {
     const fullPath = path.join(STUB_DIR, fileName);
+    const stubContractState = readStubContractForMarkdownPath(fullPath.replace(/\\/g, "/"));
+    if (stubContractState.ok) {
+      const coverageRaw = String(stubContractState.contract?.spec_trace?.roadmap_add_coverage || "").trim();
+      const match = coverageRaw.match(/^SPEC=(v\d+(?:\.\d+)*);\s*PHASE=(7\.6\.3);\s*LINES=(.+)$/);
+      if (!match) {
+        parseErrors.push(
+          `${stubContractState.contractPath}: invalid roadmap_add_coverage format. Expected: SPEC=vXX.XXX; PHASE=7.6.3; LINES=123,124-126`,
+        );
+        continue;
+      }
+      if (match[1] !== versionTag) continue;
+      try {
+        const lineSet = parseLineSet(match[3]);
+        for (const coveredLine of lineSet) {
+          const refs = coverage.get(coveredLine) ?? [];
+          refs.push(stubContractState.contractPath.replace(/\\/g, "/"));
+          coverage.set(coveredLine, refs);
+        }
+      } catch (error) {
+        parseErrors.push(
+          `${stubContractState.contractPath}: ${(error && error.message) || "invalid line set"}`,
+        );
+      }
+      continue;
+    }
+
     const lines = fs.readFileSync(repoPathAbs(fullPath), "utf8").split(/\r?\n/);
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index].trim();
@@ -156,8 +174,7 @@ function collectCoverageFromStubs(versionTag) {
 
 function main() {
   const currentSpec = parseCurrentSpecTarget();
-  const specContent = readText(currentSpec.specPath);
-  const specLines = specContent.split(/\r?\n/);
+  const specLines = currentSpec.specContent.split(/\r?\n/);
   const phaseRange = findPhaseRange(specLines);
   const phaseAddLines = collectPhase1CurrentVersionAddLines(
     specLines,

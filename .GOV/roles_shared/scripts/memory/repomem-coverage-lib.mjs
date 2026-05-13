@@ -12,6 +12,7 @@ import { closeDb, openGovernanceMemoryDb } from "./governance-memory-lib.mjs";
 
 const REPOMEM_TRACKED_ACTIVITY_ROLES = new Set([
   "ORCHESTRATOR",
+  "KERNEL_BUILDER",
   "CLASSIC_ORCHESTRATOR",
   "ACTIVATION_MANAGER",
   "CODER",
@@ -22,6 +23,7 @@ const REPOMEM_TRACKED_ACTIVITY_ROLES = new Set([
 
 const ROLE_ORDER = [
   "ORCHESTRATOR",
+  "KERNEL_BUILDER",
   "CLASSIC_ORCHESTRATOR",
   "ACTIVATION_MANAGER",
   "CODER",

@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/packet.json source_hash=0bba3422387e146c projection_hash=51c3ea1241d2fe8a generated_at_utc=2026-05-06T16:33:39.641Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 
 Requirements (HARD):

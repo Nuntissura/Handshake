@@ -97,12 +97,24 @@ import {
 import {
   ensureWorkPacketLifecycleLayout,
   GOV_ROOT_REPO_REL,
+  normalizePath,
   REPO_ROOT,
   repoPathAbs,
   resolveOrchestratorGatesPath,
   WORK_PACKET_STORAGE_ROOT_REPO_REL,
 } from '../../../roles_shared/scripts/lib/runtime-paths.mjs';
 import { capturePreTaskSnapshot } from '../../../roles_shared/scripts/memory/memory-snapshot.mjs';
+import {
+  addOrReplaceGeneratedProjectionHeader,
+  DETERMINISTIC_CONTRACT_RED_TEAM_PROFILE,
+  MACHINE_READABLE_ARTIFACT_POLICY,
+  MICRO_TASK_CONTRACT_SCHEMA_ID,
+  REFINEMENT_CONTRACT_SCHEMA_ID,
+  stableStringify,
+  stampContractProjectionMetadata,
+  stripGeneratedProjectionHeader,
+  WORK_PACKET_CONTRACT_SCHEMA_ID,
+} from '../../../roles_shared/scripts/lib/packet-contract-lib.mjs';
 
 const WP_ID = process.argv[2];
 const allowOverwriteExisting = process.argv.includes('--overwrite-existing') || process.env.ALLOW_PACKET_OVERWRITE === '1';
@@ -203,7 +215,7 @@ if (!fs.existsSync(refinementPath)) {
   const filled = raw
     .split('{{WP_ID}}').join(WP_ID)
     .split('{{DATE_ISO}}').join(ts)
-    .split('{{SPEC_TARGET_RESOLVED}}').join(resolved ? resolved.specFileName : 'Handshake_Master_Spec_vXX.XX.md')
+    .split('{{SPEC_TARGET_RESOLVED}}').join(resolved ? resolved.specTargetLabel : `${GOV_ROOT_REPO_REL}/spec/indexed_spec/indexed-spec-manifest.json`)
     .split('{{SPEC_TARGET_SHA1}}').join(resolved ? resolved.sha1 : '<fill>');
 
   fs.writeFileSync(refinementPath, filled, 'utf8');
@@ -275,7 +287,7 @@ try {
       wpId: WP_ID,
       stage: 'SIGNATURE',
       next: 'STOP',
-      operatorAction: 'Spec update required (create new spec version + new WP variant)',
+      operatorAction: 'Spec update required (update indexed modules/manifest and refresh the WP path)',
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'BLOCKED',
       why: 'Refinement declares ENRICHMENT_NEEDED=YES; do not create/lock a work packet until the spec update is completed.',
@@ -284,8 +296,8 @@ try {
         'Do NOT create/lock a WP packet while a Main Body or appendix spec update is required.',
       ],
       nextCommands: [
-        `# Run the spec update workflow (new spec version file + update ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md).`,
-        '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the new spec version first.',
+        '# Run the spec update workflow (indexed module edits plus manifest/SPEC_CURRENT JSON update when entrypoint, version, or baseline changes).',
+        '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the indexed spec modules first.',
         '# Then refresh the SAME WP refinement against the updated spec, record a fresh same-WP signature, and continue packet creation.',
         '# Create a NEW WP variant only when scope materially widened or the lane is explicitly being split/remediated.',
       ],
@@ -698,14 +710,16 @@ const templateBody = templateStartIdx === -1
   ? rawTemplate
   : templateLines.slice(templateStartIdx).join('\n');
 
-  let specBaseline = 'Handshake_Master_Spec_vXX.XX.md';
-  try {
-    const specCurrent = fs.readFileSync(path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SPEC_CURRENT.md'), 'utf8');
-    const m = specCurrent.match(/Handshake_Master_Spec_v[0-9.]+\.md/);
-    if (m) specBaseline = m[0];
-  } catch {
-    // Leave placeholder if SPEC_CURRENT cannot be read or parsed.
-  }
+let resolvedSpec = null;
+let specBaseline = `${GOV_ROOT_REPO_REL}/spec/indexed_spec/indexed-spec-manifest.json`;
+let specTargetResolved = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> <unresolved>`;
+try {
+  resolvedSpec = resolveSpecCurrent();
+  specBaseline = resolvedSpec.specTargetLabel;
+  specTargetResolved = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${resolvedSpec.specTargetLabel}`;
+} catch {
+  // Leave placeholder if SPEC_CURRENT cannot be read or parsed.
+}
 
 const fill = (text, token, value) => text.split(token).join(value);
 const replaceSingleField = (text, label, value) =>
@@ -768,8 +782,31 @@ const deriveTouchedFileBudget = (...pathGroups) => {
 };
 const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '').trim());
 const isVersionAtLeast = (isoDate, minIsoDate) => isIsoDate(isoDate) && isIsoDate(minIsoDate) && isoDate >= minIsoDate;
-const deriveAddMarkerTarget = (specFileName) => {
-  const match = String(specFileName || '').match(/v(\d{2}\.\d{3})/i);
+const splitContractList = (value, { normalizePaths = false } = {}) => {
+  const entries = Array.isArray(value)
+    ? value
+    : String(value || '').split(/[;,]/);
+  const normalized = entries.map((entry) => String(entry || '').trim()).filter(Boolean);
+  return normalizePaths ? normalizeScopeEntries(normalized) : Array.from(new Set(normalized));
+};
+const writeContractProjectionPair = ({ contract, contractPath, projectionPath, projectionMarkdown, generator }) => {
+  const projectionBody = stripGeneratedProjectionHeader(projectionMarkdown || '');
+  const stampedContract = stampContractProjectionMetadata(contract, {
+    projectionPath: normalizePath(projectionPath),
+    projectionBody,
+    sourceFile: normalizePath(contractPath),
+    generator,
+    generatedAtUtc: timestamp,
+  });
+  const stampedProjection = addOrReplaceGeneratedProjectionHeader(projectionBody, stampedContract, {
+    sourceFile: normalizePath(contractPath),
+  });
+  fs.writeFileSync(contractPath, stableStringify(stampedContract), 'utf8');
+  fs.writeFileSync(projectionPath, stampedProjection, 'utf8');
+  return stampedContract;
+};
+const deriveAddMarkerTarget = (versionOrLabel) => {
+  const match = String(versionOrLabel || '').match(/v(\d{2}\.\d{3})/i);
   return match ? `[ADD v${match[1]}]` : '[ADD vXX.XXX]';
 };
 
@@ -784,9 +821,10 @@ template = fill(template, '{{USER_SIGNATURE}}', userSignature);
 template = fill(template, '{{SPEC_ANCHOR}}', '<fill>');
 
 const refinementData = refinementValidation.parsed || {};
+const packetHydration = refinementData.packetHydration || {};
 const isHydratedProfile = /^HYDRATED_RESEARCH_V1$/i.test(refinementData.refinementEnforcementProfile || '');
 const hasRefinementHandoffSections = isVersionAtLeast(refinementData.refinementFormatVersion, '2026-03-15');
-const specAddMarkerTarget = refinementData.packetHydration?.specAddMarkerTarget || deriveAddMarkerTarget(specBaseline);
+const specAddMarkerTarget = refinementData.packetHydration?.specAddMarkerTarget || deriveAddMarkerTarget(resolvedSpec?.versionTag || specBaseline);
 template = replaceSingleField(template, 'REFINEMENT_ENFORCEMENT_PROFILE', refinementData.refinementEnforcementProfile || 'LEGACY_MANUAL');
 template = replaceSingleField(template, 'PACKET_HYDRATION_PROFILE', isHydratedProfile ? 'HYDRATED_RESEARCH_V1' : 'LEGACY_MANUAL');
 template = replaceSingleField(template, 'SPEC_ADD_MARKER_TARGET', specAddMarkerTarget);
@@ -891,6 +929,16 @@ template = replaceSingleField(template, 'WP_THREAD_FILE', packetWpCommunicationP
 template = replaceSingleField(template, 'WP_RUNTIME_STATUS_FILE', packetWpCommunicationPaths.runtimeStatusFile);
 template = replaceSingleField(template, 'WP_RECEIPTS_FILE', packetWpCommunicationPaths.receiptsFile);
 template = replaceSingleField(template, 'PACKET_FORMAT_VERSION', PACKET_FORMAT_VERSION);
+template = replaceSingleField(template, 'AUTHORITATIVE_CONTRACT_SCHEMA_ID', WORK_PACKET_CONTRACT_SCHEMA_ID);
+template = replaceSingleField(template, 'AUTHORITATIVE_CONTRACT_FILE', `${wpDir.replace(/\\/g, '/')}/packet.json`);
+template = replaceSingleField(template, 'GENERATED_MARKDOWN_PROJECTION_FILE', filePath.replace(/\\/g, '/'));
+template = replaceSingleField(template, 'REFINEMENT_CONTRACT_SCHEMA_ID', REFINEMENT_CONTRACT_SCHEMA_ID);
+template = replaceSingleField(template, 'REFINEMENT_CONTRACT_FILE', `${wpDir.replace(/\\/g, '/')}/refinement.json`);
+template = replaceSingleField(template, 'MICROTASK_CONTRACT_SCHEMA_ID', MICRO_TASK_CONTRACT_SCHEMA_ID);
+template = replaceSingleField(template, 'MICROTASK_CONTRACT_GLOB', `${wpDir.replace(/\\/g, '/')}/MT-*.json`);
+template = replaceSingleField(template, 'MARKDOWN_PROJECTION_STATUS', 'GENERATED_IN_SYNC');
+template = replaceSingleField(template, 'RED_TEAM_REQUIRED', 'YES');
+template = replaceSingleField(template, 'RED_TEAM_PROFILE', DETERMINISTIC_CONTRACT_RED_TEAM_PROFILE);
 const normalizedWorkflowLane = workflowLane.toUpperCase();
 const normalizedExecutionOwner = executionOwnerToPacketValue(executionLane) || executionLane.toUpperCase().replace('-', '_');
 const legacyOrchestratorAgentic = /^ORCHESTRATOR-AGENTIC$/i.test(executionLane.replace(/[\s_]+/g, '-'));
@@ -1301,7 +1349,7 @@ ${formatList(hydration.riskMap)}
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${specBaseline}
+- **Spec Target Resolved**: ${specTargetResolved}
 - **Notes**:
 `);
 
@@ -1338,14 +1386,186 @@ ${formatList(refinementData.uiSpec?.accessibility)}
   }
 }
 
-// Write the file
-fs.writeFileSync(filePath, template, 'utf8');
+const declaredMicrotaskIds = (clauseClosureRows || []).map((_, idx) => `MT-${String(idx + 1).padStart(3, '0')}`);
+const specAnchorValues = (refinementData.specAnchors || [])
+  .map((anchor) => String(anchor?.specAnchor || anchor || '').trim())
+  .filter(Boolean);
+const packetContractPath = path.join(wpDir, 'packet.json');
+const packetContract = {
+  schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID,
+  schema_version: 'work_packet_contract_v1',
+  contract_authority: 'PRIMARY_MACHINE_READABLE',
+  artifact_policy: MACHINE_READABLE_ARTIFACT_POLICY,
+  wp_id: WP_ID,
+  base_wp_id: baseWpId,
+  created_at_utc: timestamp,
+  updated_at_utc: null,
+  source_control: {
+    merge_base_sha: mergeBaseSha,
+    canonical_branch: 'main',
+    work_branch: localBranch,
+    worktree_dir: localWorktreeDir,
+    remote_backup_branch: remoteBackupBranch,
+  },
+  workflow: {
+    lane: normalizedWorkflowLane,
+    authority: normalizedWorkflowLane === 'MANUAL_RELAY' ? 'CLASSIC_ORCHESTRATOR' : 'ORCHESTRATOR',
+    execution_owner: normalizedExecutionOwner,
+    session_start_authority: SESSION_START_AUTHORITY,
+    host_preference: SESSION_HOST_PREFERENCE,
+    communication_dir: packetWpCommunicationPaths.dir,
+    runtime_status_file: packetWpCommunicationPaths.runtimeStatusFile,
+    receipts_file: packetWpCommunicationPaths.receiptsFile,
+    communication_contract: 'DIRECT_REVIEW_V1',
+  },
+  lifecycle: {
+    status: 'Ready for Dev',
+    main_containment_status: 'NOT_STARTED',
+    current_main_compatibility_status: 'NOT_RUN',
+    risk_tier: packetHydration.riskTier || '<fill>',
+    user_signature: userSignature,
+    packet_format_version: PACKET_FORMAT_VERSION,
+  },
+  authority_files: {
+    packet_contract: `${wpDir.replace(/\\/g, '/')}/packet.json`,
+    packet_projection: filePath.replace(/\\/g, '/'),
+    refinement_contract: `${wpDir.replace(/\\/g, '/')}/refinement.json`,
+    microtask_contract_glob: `${wpDir.replace(/\\/g, '/')}/MT-*.json`,
+  },
+  markdown_projection: {
+    path: filePath.replace(/\\/g, '/'),
+    status: 'GENERATED_PENDING',
+    source_file: `${wpDir.replace(/\\/g, '/')}/packet.json`,
+    source_hash: null,
+    projection_hash: null,
+    generated_at_utc: null,
+    generator: 'create-task-packet.mjs',
+  },
+  scope: {
+    summary: packetHydration.what || '<fill>',
+    why: packetHydration.why || '<fill>',
+    allowed_paths: normalizeScopeEntries(packetHydration.inScopePaths || []),
+    forbidden_paths: splitContractList(packetHydration.outOfScope),
+    spec_anchors: specAnchorValues,
+    acceptance_criteria: splitContractList(packetHydration.doneMeans),
+    touched_file_budget: touchedFileBudget,
+    broad_tool_allowlist: broadToolAllowlist,
+    data_contract_profile: dataContractProfile,
+  },
+  refinement: {
+    contract_file: `${wpDir.replace(/\\/g, '/')}/refinement.json`,
+    source_refinement_file: refinementPath.replace(/\\/g, '/'),
+    status: 'SIGNED',
+    activation_manager_required: normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED',
+    enforcement_profile: refinementData.refinementEnforcementProfile || 'LEGACY_MANUAL',
+    hydration_profile: isHydratedProfile ? 'HYDRATED_RESEARCH_V1' : 'LEGACY_MANUAL',
+  },
+  microtasks: {
+    contract_glob: `${wpDir.replace(/\\/g, '/')}/MT-*.json`,
+    declared_ids: declaredMicrotaskIds,
+    active_id: declaredMicrotaskIds[0] || null,
+    next_id: declaredMicrotaskIds[0] || null,
+  },
+  role_profiles: {
+    activation_manager: activationManagerModelProfileId,
+    orchestrator: orchestratorModelProfileId,
+    coder: coderModelProfileId,
+    wp_validator: wpValidatorModelProfileId,
+    integration_validator: integrationValidatorModelProfileId,
+  },
+  red_team: {
+    required: true,
+    profile: DETERMINISTIC_CONTRACT_RED_TEAM_PROFILE,
+    assumptions_to_attack: [
+      'Markdown projection may be stale or manually edited.',
+      'Legacy packet fields may hide shadow authority outside the typed contract.',
+      'Missing schema fields may trigger unsafe prose fallback.',
+      'Activation Manager and Classic Orchestrator may diverge unless prelaunch ownership is encoded.',
+    ],
+    minimum_controls: [
+      'Fail closed on contract/projection hash mismatch once generator enforcement is active.',
+      'Keep legacy Markdown read-only during migration unless explicitly classified as LEGACY_AUTHORITY.',
+      'Record every unsupported fallback as RGF migration debt.',
+    ],
+  },
+};
+writeContractProjectionPair({
+  contract: packetContract,
+  contractPath: packetContractPath,
+  projectionPath: filePath,
+  projectionMarkdown: template,
+  generator: 'create-task-packet.mjs',
+});
 
-// Copy refinement into WP folder (co-located)
+// Copy refinement into WP folder (co-located) as generated projection and emit its primary contract.
 const refinementSrc = defaultRefinementPath(WP_ID);
 if (fs.existsSync(refinementSrc)) {
   const refinementDst = path.join(wpDir, 'refinement.md');
-  fs.copyFileSync(refinementSrc, refinementDst);
+  const refinementProjection = fs.readFileSync(refinementSrc, 'utf8');
+  const refinementContractPath = path.join(wpDir, 'refinement.json');
+  const refinementContract = {
+    schema_id: REFINEMENT_CONTRACT_SCHEMA_ID,
+    schema_version: 'refinement_contract_v1',
+    contract_authority: 'PRIMARY_MACHINE_READABLE',
+    artifact_policy: MACHINE_READABLE_ARTIFACT_POLICY,
+    wp_id: WP_ID,
+    created_at_utc: timestamp,
+    updated_at_utc: null,
+    authority_files: {
+      refinement_contract: refinementContractPath.replace(/\\/g, '/'),
+      refinement_projection: refinementDst.replace(/\\/g, '/'),
+      packet_contract: packetContractPath.replace(/\\/g, '/'),
+    },
+    markdown_projection: {
+      path: refinementDst.replace(/\\/g, '/'),
+      status: 'GENERATED_PENDING',
+      source_file: refinementContractPath.replace(/\\/g, '/'),
+      source_hash: null,
+      projection_hash: null,
+      generated_at_utc: null,
+      generator: 'create-task-packet.mjs',
+    },
+    activation_manager: {
+      required: normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED',
+      status: normalizedWorkflowLane === 'ORCHESTRATOR_MANAGED' ? 'REQUIRED' : 'NOT_APPLICABLE',
+      session_id: null,
+      handoff_summary: null,
+      readiness_status: 'PENDING',
+    },
+    refinement: {
+      operator_request: packetHydration.what || WP_ID,
+      user_signature: userSignature,
+      enforcement_profile: refinementData.refinementEnforcementProfile || 'LEGACY_MANUAL',
+      approved_spec_enrichment: splitContractList(refinementData.researchSynthesis),
+      scope_edges: splitContractList(packetHydration.outOfScope),
+      assumptions: splitContractList(refinementData.coderCarryForwardWarnings),
+      non_goals: splitContractList(packetHydration.outOfScope),
+      spec_anchors: specAnchorValues,
+      acceptance_criteria: splitContractList(packetHydration.doneMeans),
+      microtask_plan: declaredMicrotaskIds,
+    },
+    red_team: {
+      required: true,
+      profile: DETERMINISTIC_CONTRACT_RED_TEAM_PROFILE,
+      risks: [
+        'Refinement prose may broaden scope without packet contract update.',
+        'Activation Manager output may not round-trip into microtask contracts.',
+        'Operator approval may be captured in Markdown while the machine contract remains stale.',
+      ],
+      minimum_controls: [
+        'Packet contract must reference this refinement contract before downstream launch.',
+        'Refinement projection must carry source hash once generator enforcement is active.',
+        'Unsupported prose-only refinement claims become explicit migration debt.',
+      ],
+    },
+  };
+  writeContractProjectionPair({
+    contract: refinementContract,
+    contractPath: refinementContractPath,
+    projectionPath: refinementDst,
+    projectionMarkdown: refinementProjection,
+    generator: 'create-task-packet.mjs',
+  });
   console.log(`Copied refinement to: ${refinementDst}`);
 }
 
@@ -1375,25 +1595,92 @@ if (clauseClosureRows && clauseClosureRows.length > 0) {
   clauseClosureRows.forEach((row, idx) => {
     const mtId = `MT-${String(idx + 1).padStart(3, '0')}`;
     const mtPath = path.join(wpDir, `${mtId}.md`);
+    const mtContractPath = path.join(wpDir, `${mtId}.json`);
     const clause = parsePipeField(row, 'CLAUSE');
     const codeSurfaces = parsePipeField(row, 'CODE_SURFACES');
     const tests = parsePipeField(row, 'TESTS');
+    const dependsOn = idx === 0 ? 'NONE' : `MT-${String(idx).padStart(3, '0')}`;
     const riskIfMissed = riskByClause[clause] || '<fill>';
+    let mt = '';
 
     if (mtTemplate) {
-      let mt = mtTemplate;
+      mt = mtTemplate;
       mt = mt.replace(/\{\{MT_ID\}\}/g, mtId);
       mt = mt.replace(/\{\{WP_ID\}\}/g, WP_ID);
       mt = mt.replace(/\{\{CLAUSE_TEXT\}\}/g, clause);
       mt = mt.replace(/\{\{CODE_SURFACES\}\}/g, codeSurfaces);
       mt = mt.replace(/\{\{EXPECTED_TESTS\}\}/g, tests);
-      mt = mt.replace(/\{\{DEPENDS_ON\}\}/g, idx === 0 ? 'NONE' : `MT-${String(idx).padStart(3, '0')}`);
+      mt = mt.replace(/\{\{DEPENDS_ON\}\}/g, dependsOn);
       mt = mt.replace(/\{\{RISK_IF_MISSED\}\}/g, riskIfMissed);
-      fs.writeFileSync(mtPath, mt, 'utf8');
     } else {
-      const mt = `# ${mtId}: ${clause}\n\n## METADATA\n- WP_ID: ${WP_ID}\n- MT_ID: ${mtId}\n- CLAUSE: ${clause}\n- CODE_SURFACES: ${codeSurfaces}\n- EXPECTED_TESTS: ${tests}\n- DEPENDS_ON: ${idx === 0 ? 'NONE' : `MT-${String(idx).padStart(3, '0')}`}\n- RISK_IF_MISSED: ${riskIfMissed}\n\n## CODER\n- STATUS: PENDING\n\n## VALIDATOR\n- STATUS: PENDING\n`;
-      fs.writeFileSync(mtPath, mt, 'utf8');
+      mt = `# ${mtId}: ${clause}\n\n## METADATA\n- WP_ID: ${WP_ID}\n- MT_ID: ${mtId}\n- CLAUSE: ${clause}\n- CODE_SURFACES: ${codeSurfaces}\n- EXPECTED_TESTS: ${tests}\n- DEPENDS_ON: ${dependsOn}\n- RISK_IF_MISSED: ${riskIfMissed}\n\n## CODER\n- STATUS: PENDING\n\n## VALIDATOR\n- STATUS: PENDING\n`;
     }
+    const mtContract = {
+      schema_id: MICRO_TASK_CONTRACT_SCHEMA_ID,
+      schema_version: 'microtask_contract_v1',
+      contract_authority: 'PRIMARY_MACHINE_READABLE',
+      artifact_policy: MACHINE_READABLE_ARTIFACT_POLICY,
+      wp_id: WP_ID,
+      mt_id: mtId,
+      created_at_utc: timestamp,
+      updated_at_utc: null,
+      authority_files: {
+        microtask_contract: mtContractPath.replace(/\\/g, '/'),
+        microtask_projection: mtPath.replace(/\\/g, '/'),
+        packet_contract: packetContractPath.replace(/\\/g, '/'),
+      },
+      markdown_projection: {
+        path: mtPath.replace(/\\/g, '/'),
+        status: 'GENERATED_PENDING',
+        source_file: mtContractPath.replace(/\\/g, '/'),
+        source_hash: null,
+        projection_hash: null,
+        generated_at_utc: null,
+        generator: 'create-task-packet.mjs',
+      },
+      lifecycle: {
+        status: 'PENDING',
+        depends_on: dependsOn === 'NONE' ? [] : [dependsOn],
+        blocks: [],
+        active: idx === 0,
+        validator_verdict: 'PENDING',
+      },
+      scope: {
+        summary: clause,
+        allowed_paths: splitContractList(codeSurfaces, { normalizePaths: true }),
+        forbidden_paths: [],
+        acceptance_criteria: [clause],
+        proof_targets: splitContractList(tests),
+        risk_if_missed: riskIfMissed,
+      },
+      handoff: {
+        coder_session: null,
+        wp_validator_session: null,
+        review_request_receipt_id: null,
+        review_response_receipt_id: null,
+      },
+      red_team: {
+        required: true,
+        profile: DETERMINISTIC_CONTRACT_RED_TEAM_PROFILE,
+        risks: [
+          'Broad MT scope can hide multiple review targets.',
+          'Markdown MT lists may disagree with packet-declared active/next MT truth.',
+          'Receipt routing may target an old MT if contract identity is omitted.',
+        ],
+        minimum_controls: [
+          'Exactly one primary proof target per MT unless the packet records why not.',
+          'MT identity must be stable and referenced by receipt correlation.',
+          'Generated projection drift must not wake Coder or Validator by itself.',
+        ],
+      },
+    };
+    writeContractProjectionPair({
+      contract: mtContract,
+      contractPath: mtContractPath,
+      projectionPath: mtPath,
+      projectionMarkdown: mt,
+      generator: 'create-task-packet.mjs',
+    });
     console.log(`Created micro task: ${mtPath}`);
   });
   console.log(`Generated ${clauseClosureRows.length} micro task files in ${wpDir}/`);

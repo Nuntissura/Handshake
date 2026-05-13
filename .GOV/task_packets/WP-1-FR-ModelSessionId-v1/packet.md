@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-FR-ModelSessionId-v1/packet.json source_hash=d6e8ff7901676c72 projection_hash=af852e66db9b8b74 generated_at_utc=2026-05-06T16:33:39.181Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.
@@ -1007,12 +1008,12 @@ COUNTERFACTUAL_CHECKS:
 BOUNDARY_PROBES:
 - Producer/consumer: `FlightRecorderEvent.model_session_id` produced by builder at `mod.rs:408-410`, consumed by DuckDB INSERT at `duckdb.rs:582`, SELECT at `duckdb.rs:724`, and API response mapping at `api/flight_recorder.rs:263`. Chain is complete.
 - Storage/query: DuckDB column `model_session_id TEXT` at `duckdb.rs:250`, index at `duckdb.rs:288`, filter at `duckdb.rs:663-665`. Column is nullable, consistent with `Option<String>` in Rust.
-- Emitter/session: All 12 emitter call sites source model_session_id from `metadata.session_id.as_str()` — never from user input, job fields, or other indirect sources.
+- Emitter/session: All 12 emitter call sites source model_session_id from `metadata.session_id.as_str()` ï¿½ never from user input, job fields, or other indirect sources.
 NEGATIVE_PATH_CHECKS:
 - Events created without `.with_model_session_id()` carry `model_session_id: None` (verified at `mod.rs:378`). DuckDB stores this as NULL. Queries with `model_session_id = ?` filter exclude NULL rows, so None-events are correctly excluded from session-scoped queries.
 - Non-session-scoped emitters (e.g., `FlightRecorderEventType::System` at `workflows.rs:6430`) correctly omit `.with_model_session_id()`, preserving the "when applicable" semantics from spec.
 INDEPENDENT_FINDINGS:
-- The packet declares 9 session emitters but the actual diff updates 12 call sites across 7 functions. The additional 3 are denied-outcome branches in `run_model_run_job` that the refinement undercount. This is correct — more coverage than expected.
+- The packet declares 9 session emitters but the actual diff updates 12 call sites across 7 functions. The additional 3 are denied-outcome branches in `run_model_run_job` that the refinement undercount. This is correct ï¿½ more coverage than expected.
 - The `flight_recorder_round_trip` test was the most ambitious test (full field coverage) but was committed without compilation verification. The other two tests (`fr_model_session_id`, `query_by_session`) use only `with_model_session_id()` and appear syntactically correct.
 - The API file `api/flight_recorder.rs` is outside IN_SCOPE_PATHS but correctly plumbs model_session_id through filter and response. The TOUCHED_FILE_BUDGET of 3 counts in-scope files only, so this is not a budget violation, but it is out-of-scope modification.
 RESIDUAL_UNCERTAINTY:
@@ -1026,7 +1027,7 @@ SPEC_CLAUSE_MAP:
 - API model_session_id => `src/backend/handshake_core/src/api/flight_recorder.rs:48` (FlightEvent), `api/flight_recorder.rs:67` (EventFilter), `api/flight_recorder.rs:188` (filter forwarding), `api/flight_recorder.rs:263` (response mapping)
 NEGATIVE_PROOF:
 - The DONE_MEANS criterion "Tripwire test: verify all session-scoped FR events carry non-None model_session_id" has no dedicated automated test. The three tests verify FR layer storage/query but none mechanically enforces that all emitters populate the field. A future emitter added without `.with_model_session_id()` would not be caught by any existing test. Coverage was verified by code review (12/12 correct) but not by runtime test.
-- The `flight_recorder_round_trip` test at `duckdb.rs:1477-1540` does not compile — it calls 4 nonexistent builder methods, proving the test was never run before commit.
+- The `flight_recorder_round_trip` test at `duckdb.rs:1477-1540` does not compile ï¿½ it calls 4 nonexistent builder methods, proving the test was never run before commit.
 ANTI_VIBE_FINDINGS:
 - The `flight_recorder_round_trip` test at `duckdb.rs:1502-1505` uses builder method names inferred from struct field names rather than verified against the actual builder API. All 4 non-model_session_id builder calls use the wrong names: `with_activity_span_id`, `with_session_span_id`, `with_capability_id`, `with_policy_decision_id`. The correct names are `with_activity_span`, `with_session_span`, `with_capability`, `with_policy_decision`. This indicates the test was generated without compilation verification.
 SIGNED_SCOPE_DEBT:
@@ -1042,10 +1043,10 @@ SHARED_SURFACE_INTERACTION_CHECKS:
 - EventFilter (mod.rs:5182-5190) is consumed by DuckDB query builder (duckdb.rs:640-678) and API filter (api/flight_recorder.rs:184-191). The model_session_id filter is additive (Option with Default::default() = None).
 - DuckDB events table schema is shared across all FR consumers. The ADD COLUMN IF NOT EXISTS migration at duckdb.rs:270 ensures backward compatibility with existing databases.
 CURRENT_MAIN_INTERACTION_CHECKS:
-- FlightRecorderEvent on main does NOT have model_session_id (confirmed by diff). Addition is purely additive — no existing field removed, renamed, or retyped.
+- FlightRecorderEvent on main does NOT have model_session_id (confirmed by diff). Addition is purely additive ï¿½ no existing field removed, renamed, or retyped.
 - EventFilter on main does NOT have model_session_id. The #[derive(Default)] on EventFilter means new Option fields default to None, preserving backward compatibility for all existing callers.
-- DuckDB migration uses ADD COLUMN IF NOT EXISTS — safe for existing databases on main.
-- All 12 emitter changes are additive `.with_model_session_id()` chain calls appended to existing `.with_job_id()` chains — no existing emitter behavior altered.
+- DuckDB migration uses ADD COLUMN IF NOT EXISTS ï¿½ safe for existing databases on main.
+- All 12 emitter changes are additive `.with_model_session_id()` chain calls appended to existing `.with_job_id()` chains ï¿½ no existing emitter behavior altered.
 DATA_CONTRACT_PROOF:
 - DuckDB column is TEXT (nullable), PostgreSQL-ready (TEXT maps directly). No SQLite-only semantics introduced at `duckdb.rs:250,270`.
 - model_session_id is a stable structured field with explicit naming (`model_session_id`), not an overloaded text blob. LLM-parseable as a discrete correlation key.

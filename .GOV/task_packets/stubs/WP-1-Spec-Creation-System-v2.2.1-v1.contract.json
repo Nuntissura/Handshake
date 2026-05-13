@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Spec-Creation-System-v2.2.1-v1",
+  "base_wp_id": "WP-1-Spec-Creation-System-v2.2.1",
+  "created_at_utc": "2026-02-18T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Spec-Creation-System-v2.2.1-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Spec-Creation-System-v2.2.1-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Spec-Creation-System-v2.2.1-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "6ecc0e3199a51e213bff2b83af504eb6c0a21413d7c29d6fbc40323441d98cf0",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.131.md 2.6.8.13 (Main Body) -> [ADD v02.128 - Spec Creation System v2.2.1 (Verbatim Import)]",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Implement the Spec Creation System v2.2.1 requirements (universal IDs, requirement grammar + AC structure, command-based routing, conflict/overlap detection, and external-consumer-friendly outputs) as governed artifacts/tools, without inventing a per-spec logging subsystem.\n- Why: Spec creation must be deterministic and auditable so Governance Kernel, Task Board/WPs, and validation tooling can reliably consume spec outputs without relying on chat history or ad-hoc conventions.",
+    "scope_sketch": "- IN_SCOPE:\n  - Enforce command-based routing for spec flows (no heuristic guessing).\n  - Establish/validate universal ID rules (append-only, grep-friendly, deterministic).\n  - Enforce requirement grammar + acceptance criteria structure so validation can be mechanical.\n  - Implement conflict/overlap detection rules (intent/context overlap prioritized over semantic overlap) and produce actionable diagnostics.\n  - Implement spec creation outputs that are consumable by external governance telemetry:\n    - USER_SIGNATURE placeholder + user approval evidence (signature capture is governance-owned)\n    - declarative XC-LOGGING event metadata (events + payload schema + PII flag), not a logging subsystem\n  - Define/validate versioning metadata for the spec creation system (tracked separately from master spec versioning).\n- OUT_OF_SCOPE:\n  - Implementing governance-owned signature capture/enforcement itself (this WP emits placeholders/evidence only).\n  - Introducing any bespoke per-spec Flight Recorder / logging system (explicitly disallowed by v2.2.1).\n  - Product feature work not directly required to make spec creation artifacts deterministic and consumable.",
+    "acceptance_criteria": "- Spec creation flows are command-routed (no \"guess the route\" behavior).\n- Universal IDs and requirement grammar are validated deterministically; violations produce stable, actionable diagnostics.\n- Overlap/conflict detection produces deterministic outcomes and clear \"why\" traces.\n- Outputs include a USER_SIGNATURE placeholder + explicit user approval evidence fields (governance gate remains external).\n- XC-LOGGING is represented as declarative event metadata (event name, payload schema, PII flag), not a logging system.",
+    "risks_unknowns": "- Risk: scope creep into \"build a full spec IDE\" rather than enforcing deterministic artifacts/validators.\n- Risk: unclear boundary between governance-owned USER_SIGNATURE enforcement and spec-system-emitted evidence.\n- Risk: artifact locations outside `.GOV/**` may require explicit governance decisions about repo structure and validation gates.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

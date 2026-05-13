@@ -1,0 +1,100 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Locus-Debug-Bundle-Bridge-v1",
+  "base_wp_id": "WP-1-Locus-Debug-Bundle-Bridge",
+  "created_at_utc": "2026-03-08T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Locus-Debug-Bundle-Bridge-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Locus-Debug-Bundle-Bridge-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Locus-Debug-Bundle-Bridge-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "43325f4b1cd04d08006412adc69eb8835cd2507ee9a44892ea83d97feb23788e",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Locus-Phase1-Integration-Occupancy",
+      "WP-1-Flight-Recorder",
+      "WP-1-Debug-Bundle",
+      "WP-1-Workflow-Engine",
+      "WP-1-Artifact-System-Foundations"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.152.md 7.6.3 (Phase 1) -> backend orchestration/projection/replay expansion: locus debug-bundle bridge",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Define the backend bridge that turns Locus work-packet, micro-task, dependency, query-ready, and task-board sync evidence into bounded debug-bundle scope with stable correlation ids.\n- Why: Locus already emits rich Flight Recorder-visible state, but bounded bundle export and replay semantics for that state are still implicit.",
+    "scope_sketch": "- IN_SCOPE:\n  - Define which Locus operations, ids, and recorder events are canonical debug-bundle anchors.\n  - Preserve stable correlation between workflow runs, Locus WP/MT state, and exportable evidence slices.\n  - Clarify what later operator/DCC/replay work may assume about Locus evidence packaging.\n- OUT_OF_SCOPE:\n  - Locus UI redesign.\n  - New Locus search features unrelated to debug/evidence export.",
+    "acceptance_criteria": "- The spec names Locus operation and task-board sync evidence as canonical bounded export sources.\n- A later implementation packet can export Locus-backed evidence without reconstructing WP/MT state by hand.\n- Workflow/Locus correlation stays deterministic through stable ids instead of ad hoc exporter conventions.",
+    "risks_unknowns": "- Risk: bundle scope is too broad if Locus query/task-board evidence is not bounded by stable WP/MT/dependency ids.\n- Risk: Locus and Workflow Engine drift in correlation semantics, making later replay/export ambiguous.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

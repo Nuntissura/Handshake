@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Git-Engine-Decision-Gate-v1",
+  "base_wp_id": "WP-1-Git-Engine-Decision-Gate",
+  "created_at_utc": "2026-01-30T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Git-Engine-Decision-Gate-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Git-Engine-Decision-Gate-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Git-Engine-Decision-Gate-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "edfb98b8ca3bcc137ecfcc2766396ada0776d971a3d080616894b91005d4e7b8",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "",
+    "tech_blocker": "",
+    "value_tier": "",
+    "risk_tier": "",
+    "depends_on": [],
+    "blocks": []
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Handshake_Master_Spec_v02.123.md 7.6.3 (Phase 1) -> Git engine integration decision gate (git CLI external_process vs libgit2 vs go-git)",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Record and enforce a single Phase 1 â€œRepo engineâ€ implementation path (git CLI `external_process` vs `go-git` vs `libgit2`) and ensure the chosen posture is reflected in OSS governance + capability gating.\n- Why: Prevent drift (multiple git backends), license posture mistakes, and nondeterministic repo behavior across platforms.",
+    "scope_sketch": "- IN_SCOPE:\n  - Decision record (ADR or equivalent) naming the single MVP path and the rationale.\n  - Enforcement: code/config/registry prevents accidental use of non-selected backends.\n  - Default posture: `git` CLI `external_process` unless/ until a different choice is explicitly recorded.\n  - OSS Register alignment for the chosen backend(s) and explicit license posture recording.\n- OUT_OF_SCOPE:\n  - Implementing full repo-management UX or advanced git features (rebases, interactive staging, etc.).\n  - Phase 2+ remote execution / multi-user git collaboration.",
+    "acceptance_criteria": "- A single â€œrepo engine backendâ€ is selected and enforced; no silent fallback to another implementation.\n- OSS Register contains accurate entries for any git backend dependencies used.\n- Capability gating + Flight Recorder logging cover repo engine execution paths (no bypass).",
+    "risks_unknowns": "- Risk: license posture mistakes (libgit2 is unusual); must be explicit and enforced.\n- Risk: platform-specific behavior differences across backends; enforcement must be deterministic and auditable.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

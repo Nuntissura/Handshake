@@ -1,0 +1,64 @@
+{
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/MT-006.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/MT-006.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-005"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-06T16:33:39.250Z",
+    "generator": "wp-contract-import.mjs",
+    "path": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/MT-006.md",
+    "projection_hash": "5a9c9adad7d4dd60",
+    "source_file": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.json",
+    "source_hash": "1f0206acb5687007",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-006",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "2.3.13.7 LoomSourceAnchor export/replay durability"
+    ],
+    "allowed_paths": [
+      "storage/loom.rs",
+      "sqlite.rs",
+      "postgres.rs"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "storage_conformance::loom_source_anchor_round_trip"
+    ],
+    "risk_if_missed": "source-anchor provenance is silently lost on backend swap or export/reimport",
+    "summary": "2.3.13.7 LoomSourceAnchor export/replay durability"
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-1-Loom-Storage-Portability-v3"
+}

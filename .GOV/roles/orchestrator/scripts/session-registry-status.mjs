@@ -18,7 +18,8 @@ import {
 } from "../../../roles_shared/scripts/session/session-telemetry-lib.mjs";
 import { evaluateWpTokenBudget } from "../../../roles_shared/scripts/session/wp-token-budget-lib.mjs";
 import { readWpTokenUsageLedger } from "../../../roles_shared/scripts/session/wp-token-usage-lib.mjs";
-import { REPO_ROOT, repoPathAbs, resolveWorkPacketPath } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { REPO_ROOT, repoPathAbs } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../../../roles_shared/scripts/lib/work-packet-contract-read-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../../../roles_shared/scripts/lib/wp-communication-health-lib.mjs";
 import { readVerdictSettlementTruth } from "../../../roles_shared/scripts/lib/merge-progression-truth-lib.mjs";
 import {
@@ -90,13 +91,14 @@ function notificationsForWp(wpId) {
 }
 
 function loadRelayStatusForWp(wpId) {
-  const packetPath = resolveWorkPacketPath(wpId)?.packetPath || "";
-  const packetAbsPath = repoPathAbs(packetPath);
-  if (!packetPath || !fs.existsSync(packetAbsPath)) return null;
+  const packetContext = buildWorkPacketCommunicationView(wpId);
+  const packetPath = packetContext.packetPath || "";
+  const packetAbsPath = packetContext.packetAbsPath || repoPathAbs(packetPath);
+  if (!packetContext.ok || !packetPath || !fs.existsSync(packetAbsPath)) return null;
 
-  const packetText = fs.readFileSync(packetAbsPath, "utf8");
-  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const packetText = packetContext.packetText || fs.readFileSync(packetAbsPath, "utf8");
+  const runtimeStatusFile = packetContext.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsFile = packetContext.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
   if (!runtimeStatusFile || !fs.existsSync(repoPathAbs(runtimeStatusFile))) return null;
 
   const runtimeStatus = parseJsonFile(runtimeStatusFile);
@@ -106,10 +108,10 @@ function loadRelayStatusForWp(wpId) {
     stage: "STATUS",
     packetPath,
     packetContent: packetText,
-    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
-    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
-    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
-    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+    workflowLane: packetContext.workflowLane || parseSingleField(packetText, "WORKFLOW_LANE"),
+    packetFormatVersion: packetContext.packetFormatVersion || parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+    communicationContract: packetContext.communicationContract || parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+    communicationHealthGate: packetContext.communicationHealthGate || parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
     receipts,
     runtimeStatus,
   });
@@ -128,12 +130,13 @@ function loadRelayStatusForWp(wpId) {
 }
 
 function loadCloseoutStatusForWp(wpId) {
-  const packetPath = resolveWorkPacketPath(wpId)?.packetPath || "";
-  const packetAbsPath = repoPathAbs(packetPath);
-  if (!packetPath || !fs.existsSync(packetAbsPath)) return null;
+  const packetContext = buildWorkPacketCommunicationView(wpId);
+  const packetPath = packetContext.packetPath || "";
+  const packetAbsPath = packetContext.packetAbsPath || repoPathAbs(packetPath);
+  if (!packetContext.ok || !packetPath || !fs.existsSync(packetAbsPath)) return null;
 
-  const packetText = fs.readFileSync(packetAbsPath, "utf8");
-  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const packetText = packetContext.packetText || fs.readFileSync(packetAbsPath, "utf8");
+  const runtimeStatusFile = packetContext.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
   const runtimeStatus = runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
     ? parseJsonFile(runtimeStatusFile)
     : {};

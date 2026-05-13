@@ -1,0 +1,66 @@
+﻿{
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "{{WP_ID}}",
+  "created_at_utc": "{{DATE_ISO}}T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "refinement_contract": ".GOV/task_packets/{{WP_ID}}/refinement.json",
+    "refinement_projection": ".GOV/task_packets/{{WP_ID}}/refinement.md",
+    "packet_contract": ".GOV/task_packets/{{WP_ID}}/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/{{WP_ID}}/refinement.md",
+    "status": "GENERATED_PENDING",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "activation_manager": {
+    "required": true,
+    "status": "PENDING",
+    "session_id": null,
+    "handoff_summary": null,
+    "readiness_status": "PENDING"
+  },
+  "refinement": {
+    "operator_request": "{{REQUEST_SUMMARY}}",
+    "approved_spec_enrichment": [],
+    "scope_edges": [],
+    "assumptions": [],
+    "non_goals": [],
+    "spec_anchors": [],
+    "acceptance_criteria": [],
+    "microtask_plan": []
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Refinement prose may broaden scope without packet contract update.",
+      "Activation Manager output may not round-trip into microtask contracts.",
+      "Operator approval may be captured in Markdown while the machine contract remains stale."
+    ],
+    "minimum_controls": [
+      "Packet contract must reference this refinement contract before downstream launch.",
+      "Refinement projection must carry source hash once generator enforcement is active.",
+      "Unsupported prose-only refinement claims become explicit migration debt."
+    ]
+  }
+}

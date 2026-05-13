@@ -2,10 +2,11 @@
 
 Requirements (HARD):
 - This block is REQUIRED for any packet with Status: Ready for Dev / In Progress.
-- For EACH SPEC_ANCHOR, include an excerpt window (start/end lines) AND a context token that must appear within that window in the current SPEC_TARGET_RESOLVED spec file.
+- This Markdown is a migration projection/safety rail only. Do not copy it forward as the authority pattern for future refinement work; durable model-created refinement truth belongs in `refinement.json` / `REFINEMENT_CONTRACT_TEMPLATE.json`, with Markdown emitted only as an explicit projection.
+- For EACH SPEC_ANCHOR, include an excerpt window (start/end lines) AND a context token that must appear within that window in the current SPEC_TARGET_RESOLVED spec text.
 - Matching rule: context match only (token-in-window), not exact content match.
 - Even when ENRICHMENT_NEEDED=NO, you MUST include REASON_NO_ENRICHMENT and SPEC_EXCERPTS for every anchor.
-- If ENRICHMENT_NEEDED=YES, you MUST include the full Proposed Spec Enrichment text (verbatim Markdown) that could be copy-pasted into the Master Spec.
+- If ENRICHMENT_NEEDED=YES, you MUST include the full Proposed Spec Enrichment text (verbatim Markdown) targeted to the relevant indexed Master Spec module(s).
 - Keep this file ASCII-only. Non-ASCII characters must be written as \\uXXXX escapes inside the excerpt block.
 - This file is the Technical Refinement Block required by the current ORCHESTRATOR_PROTOCOL refinement workflow.
 
@@ -20,6 +21,15 @@ Requirements (HARD):
 - USER_SIGNATURE: <pending>
 - USER_APPROVAL_EVIDENCE: <pending> (must equal: APPROVE REFINEMENT {{WP_ID}})
 - STUB_WP_IDS: <pending> (comma-separated WP-... IDs | NONE)
+- AUTHORITATIVE_CONTRACT_SCHEMA_ID: hsk.refinement_contract@1
+- AUTHORITATIVE_CONTRACT_FILE: .GOV/task_packets/{{WP_ID}}/refinement.json
+- MARKDOWN_PROJECTION_FILE: .GOV/task_packets/{{WP_ID}}/refinement.md
+- MARKDOWN_PROJECTION_STATUS: PENDING
+- RED_TEAM_REQUIRED: YES
+- RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
+<!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->
+- MACHINE_CONTRACT_AUTHORITY_RULE: When a matching machine contract exists, ACP, apps, and checks consume it first; this Markdown is the human/operator projection.
+- LEGACY_MARKDOWN_POLICY: SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD
 
 ### REQUIRED SECTIONS (per the current ORCHESTRATOR_PROTOCOL refinement workflow)
 
@@ -97,7 +107,7 @@ Requirements (HARD):
 - HIGH_SIGNAL_ORPHAN_PRIMITIVES_REASON: <fill>
 
 ### APPENDIX_MAINTENANCE (spec appendix follow-through)
-- Rule: if any appendix action below is `UPDATED`, this refinement is declaring a Master Spec version bump. In that case set `APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE`, set `SPEC_IMPACT=YES`, set `ENRICHMENT_NEEDED=YES`, and include the verbatim appendix update text in `PROPOSED_SPEC_ENRICHMENT`. Packet creation stays blocked until the new spec version exists and `SPEC_CURRENT` is advanced.
+- Rule: if any appendix action below is `UPDATED`, this refinement is declaring an indexed Master Spec update. In that case set `APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE`, set `SPEC_IMPACT=YES`, set `ENRICHMENT_NEEDED=YES`, and include the verbatim appendix update text in `PROPOSED_SPEC_ENRICHMENT`. Packet creation stays blocked until indexed modules plus manifest/SPEC_CURRENT JSON are refreshed as needed.
 - FEATURE_REGISTRY_ACTION: PENDING (UPDATED | NO_CHANGE)
 - FEATURE_REGISTRY_REASON_NO_CHANGE: <fill if FEATURE_REGISTRY_ACTION=NO_CHANGE>
 - UI_GUIDANCE_ACTION: PENDING (UPDATED | NO_CHANGE | NOT_APPLICABLE)
@@ -378,7 +388,7 @@ Requirements (HARD):
 - Rule: for REFINEMENT_FORMAT_VERSION >= 2026-03-15, these anchor windows are also copied into the task packet `## SPEC_CONTEXT_WINDOWS` section for coder/validator downstream use.
 
 #### ANCHOR 1
-- SPEC_ANCHOR: <fill (example: Handshake_Master_Spec_v02.99.md 2.3.12.5 [CX-DBP-030])>
+- SPEC_ANCHOR: <fill (example: 2.3.12.5 [CX-DBP-030] from resolved current Master Spec)>
 - CONTEXT_START_LINE: <fill integer>
 - CONTEXT_END_LINE: <fill integer>
 - CONTEXT_TOKEN: <fill exact string that must appear between start/end lines in SPEC_TARGET_RESOLVED>
@@ -396,3 +406,4 @@ Requirements (HARD):
   ```text
   <paste excerpt>
   ```
+

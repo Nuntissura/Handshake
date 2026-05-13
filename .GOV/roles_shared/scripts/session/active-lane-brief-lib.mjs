@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { REPO_ROOT, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
 import { parseJsonFile, parseJsonlFile } from "../lib/wp-communications-lib.mjs";
 import { evaluateWpCommunicationHealth } from "../lib/wp-communication-health-lib.mjs";
 import { readExecutionProjectionView } from "../lib/wp-execution-state-lib.mjs";
@@ -118,15 +119,16 @@ export function buildActiveLaneBrief({
     throw new Error(`Unsupported role for active-lane brief: ${role}`);
   }
 
-  const packetPath = workPacketPath(wpId);
-  const packetAbsPath = repoPathAbs(packetPath);
-  if (!fs.existsSync(packetAbsPath)) {
+  const packetContext = buildWorkPacketCommunicationView(wpId);
+  const packetPath = packetContext.packetPath || workPacketPath(wpId);
+  const packetAbsPath = packetContext.packetAbsPath || repoPathAbs(packetPath);
+  if (!packetContext.ok || !fs.existsSync(packetAbsPath)) {
     throw new Error(`Task packet not found: ${packetPath}`);
   }
-  const packetText = fs.readFileSync(packetAbsPath, "utf8");
-  const governanceRepoRoot = path.resolve(path.dirname(packetAbsPath), "..", "..", "..");
-  const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  const receiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const packetText = packetContext.packetText || fs.readFileSync(packetAbsPath, "utf8");
+  const governanceRepoRoot = repoRoot;
+  const runtimeStatusFile = packetContext.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const receiptsFile = packetContext.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
   const runtimeProjection = runtimeStatusFile && fs.existsSync(repoPathAbs(runtimeStatusFile))
     ? readExecutionProjectionView(parseJsonFile(runtimeStatusFile))
     : readExecutionProjectionView({});
@@ -147,10 +149,10 @@ export function buildActiveLaneBrief({
     stage: "STATUS",
     packetPath,
     packetContent: packetText,
-    workflowLane: parseSingleField(packetText, "WORKFLOW_LANE"),
-    packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
-    communicationContract: parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
-    communicationHealthGate: parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
+    workflowLane: packetContext.workflowLane || parseSingleField(packetText, "WORKFLOW_LANE"),
+    packetFormatVersion: packetContext.packetFormatVersion || parseSingleField(packetText, "PACKET_FORMAT_VERSION"),
+    communicationContract: packetContext.communicationContract || parseSingleField(packetText, "COMMUNICATION_CONTRACT"),
+    communicationHealthGate: packetContext.communicationHealthGate || parseSingleField(packetText, "COMMUNICATION_HEALTH_GATE"),
     receipts,
     runtimeStatus,
   });

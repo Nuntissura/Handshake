@@ -1,0 +1,318 @@
+{
+  "artifact_type": "indexed-spec-manifest",
+  "status": "current-indexed-spec-entrypoint",
+  "generated_at": "2026-05-13T12:43:19.866Z",
+  "activated_at": "2026-05-13T04:55:45.805Z",
+  "authority_pointer": ".GOV/spec/SPEC_CURRENT.md",
+  "authority_pointer_current_entrypoint": ".GOV/spec/indexed_spec/indexed-spec-manifest.json",
+  "authority_pointer_unchanged": false,
+  "authority_pointer_sha256_before": "c0a35bd40cafdd8e0f6e83071f82559f64da8876d645dca71b7a507111190f22",
+  "source": {
+    "path": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+    "sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+    "byte_count": 4042284,
+    "total_lines": 84130
+  },
+  "split_policy": {
+    "mode": "verbatim-source-section-split-with-dedicated-roadmap-module",
+    "module_body_rule": "module files contain only exact source bytes for their source line ranges; the roadmap is a dedicated scheduling module and not implementation authority",
+    "metadata_rule": "source ranges and generated metadata are outside module bodies",
+    "rewrite_performed": false,
+    "source_pointer_changed": true
+  },
+  "modules": [
+    {
+      "module_id": "00",
+      "section_id": "0",
+      "title": "Lines before section 1",
+      "path": "spec-modules/00-preamble.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 1,
+      "source_line_end": 289,
+      "line_count": 289,
+      "byte_count": 57306,
+      "sha256": "8f9c13f0cdf9b9004395c842d5ba21a335cb6d978b0c5ab73a5ca9a01df096fa",
+      "heading_count": 3,
+      "heading_level_counts": {
+        "h1": 1,
+        "h2": 2
+      }
+    },
+    {
+      "module_id": "01",
+      "section_id": "1",
+      "title": "1. Vision & Context",
+      "path": "spec-modules/01-vision-and-context.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 290,
+      "source_line_end": 995,
+      "line_count": 706,
+      "byte_count": 36776,
+      "sha256": "38bba865c30bd356be48dee97b199a31aeabd631700ac5ea0c3b2c9665a62878",
+      "heading_count": 35,
+      "heading_level_counts": {
+        "h1": 1,
+        "h2": 8,
+        "h4": 8,
+        "h3": 18
+      }
+    },
+    {
+      "module_id": "02",
+      "section_id": "2",
+      "title": "2. System Architecture",
+      "path": "spec-modules/02-system-architecture.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 996,
+      "source_line_end": 19141,
+      "line_count": 18146,
+      "byte_count": 768701,
+      "sha256": "0757e4cf96cfeccce0ed1c71ca7c0e378775d05faf742547694872c17c46e491",
+      "heading_count": 413,
+      "heading_level_counts": {
+        "h1": 1,
+        "h2": 15,
+        "h3": 73,
+        "h4": 145,
+        "h5": 148,
+        "h6": 31
+      }
+    },
+    {
+      "module_id": "03",
+      "section_id": "3",
+      "title": "3. Local-First Infrastructure",
+      "path": "spec-modules/03-local-first-infrastructure.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 19142,
+      "source_line_end": 19908,
+      "line_count": 767,
+      "byte_count": 53769,
+      "sha256": "d74c6ba68048b2f0dba83b0d0ad6f1b8d8fce3327b1a73a31081e59d8090cc6c",
+      "heading_count": 0,
+      "heading_level_counts": {}
+    },
+    {
+      "module_id": "04",
+      "section_id": "4",
+      "title": "4. LLM Infrastructure",
+      "path": "spec-modules/04-llm-infrastructure.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 19909,
+      "source_line_end": 22175,
+      "line_count": 2267,
+      "byte_count": 120077,
+      "sha256": "3e96e64d7dbb7aac78a1f5218e57ad76230e151ccfa3126c294c169c039e3248",
+      "heading_count": 21,
+      "heading_level_counts": {
+        "h1": 12,
+        "h4": 4,
+        "h5": 4,
+        "h3": 1
+      }
+    },
+    {
+      "module_id": "05",
+      "section_id": "5",
+      "title": "5. Security & Observability",
+      "path": "spec-modules/05-security-and-observability.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 22176,
+      "source_line_end": 23902,
+      "line_count": 1727,
+      "byte_count": 108164,
+      "sha256": "e3019d9565e98421293edf35dda918ea27e94fd61f7906aac758d8373948763c",
+      "heading_count": 33,
+      "heading_level_counts": {
+        "h1": 4,
+        "h4": 18,
+        "h3": 10,
+        "h2": 1
+      }
+    },
+    {
+      "module_id": "06",
+      "section_id": "6",
+      "title": "6. Mechanical Integrations",
+      "path": "spec-modules/06-mechanical-integrations.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 23903,
+      "source_line_end": 30488,
+      "line_count": 6586,
+      "byte_count": 394262,
+      "sha256": "4c1d4c00271e4789ef14ff0d3b45470148b37f51a042189f85a22a9f3399bac5",
+      "heading_count": 1,
+      "heading_level_counts": {
+        "h1": 1
+      }
+    },
+    {
+      "module_id": "07",
+      "section_id": "7",
+      "title": "7. User Experience & Development",
+      "path": "spec-modules/07-user-experience-and-development.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 30489,
+      "source_line_end": 47078,
+      "line_count": 16590,
+      "byte_count": 763930,
+      "sha256": "2b78ef3476e17fbb74fc768098139403a8865e623d1dc7a0d3982a1cca57eae1",
+      "heading_count": 660,
+      "heading_level_counts": {
+        "h1": 79,
+        "h2": 242,
+        "h3": 271,
+        "h4": 21,
+        "h5": 47
+      }
+    },
+    {
+      "module_id": "07-6",
+      "section_id": "7.6",
+      "title": "7.6 Development Roadmap",
+      "path": "spec-modules/07-6-development-roadmap.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 47079,
+      "source_line_end": 49311,
+      "line_count": 2233,
+      "byte_count": 246260,
+      "sha256": "3309d38c73ae0afc91572ad4fe41e83bf8738f1fe77847e28b589ee3d8a4f0b2",
+      "heading_count": 10,
+      "heading_level_counts": {
+        "h2": 1,
+        "h3": 6,
+        "h4": 3
+      }
+    },
+    {
+      "module_id": "08",
+      "section_id": "8",
+      "title": "8. Reference",
+      "path": "spec-modules/08-reference.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 49312,
+      "source_line_end": 53634,
+      "line_count": 4323,
+      "byte_count": 249439,
+      "sha256": "6ca13c3d4fa603d3fcd8dabf08ba3e060e495869b3b660404fd1e2b71433efb2",
+      "heading_count": 126,
+      "heading_level_counts": {
+        "h1": 44,
+        "h2": 19,
+        "h3": 50,
+        "h4": 13
+      }
+    },
+    {
+      "module_id": "09",
+      "section_id": "9",
+      "title": "9. Continuous Local Skill Distillation (Skill Bank & Pipeline)",
+      "path": "spec-modules/09-continuous-local-skill-distillation.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 53635,
+      "source_line_end": 54531,
+      "line_count": 897,
+      "byte_count": 32073,
+      "sha256": "89fdf3859d94ecb75e1f1d677dabce95d476aae744cb89198ea7b68f18cf0a4d",
+      "heading_count": 0,
+      "heading_level_counts": {}
+    },
+    {
+      "module_id": "10",
+      "section_id": "10",
+      "title": "10. Product Surfaces",
+      "path": "spec-modules/10-product-surfaces.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 54532,
+      "source_line_end": 62455,
+      "line_count": 7924,
+      "byte_count": 347884,
+      "sha256": "1573148f4d958735d3ca2ac7a2d36c918763f123822dadf6576ee0f628d69a59",
+      "heading_count": 22,
+      "heading_level_counts": {
+        "h1": 4,
+        "h2": 18
+      }
+    },
+    {
+      "module_id": "11",
+      "section_id": "11",
+      "title": "11. Shared Dev Platform & OSS Foundations",
+      "path": "spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 62456,
+      "source_line_end": 72238,
+      "line_count": 9783,
+      "byte_count": 419608,
+      "sha256": "a4bd5abced88e53f085110a960936e0be8be883b1447f5baf0b6e15a6f14866a",
+      "heading_count": 69,
+      "heading_level_counts": {
+        "h1": 1,
+        "h2": 14,
+        "h3": 40,
+        "h4": 14
+      }
+    },
+    {
+      "module_id": "12",
+      "section_id": "12",
+      "title": "12. End-of-File Appendices (Feature Index + Matrix + UI Guidance) [CX-SPEC-APPX-001]",
+      "path": "spec-modules/12-end-of-file-appendices.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 72239,
+      "source_line_end": 84130,
+      "line_count": 11892,
+      "byte_count": 444035,
+      "sha256": "9dd972a12685e6d7c41097bcc24bd7ff1e90f7c4da31072eeb47b9a2c7c0eacf",
+      "heading_count": 0,
+      "heading_level_counts": {}
+    }
+  ],
+  "reconstruction": {
+    "module_order": [
+      "spec-modules/00-preamble.md",
+      "spec-modules/01-vision-and-context.md",
+      "spec-modules/02-system-architecture.md",
+      "spec-modules/03-local-first-infrastructure.md",
+      "spec-modules/04-llm-infrastructure.md",
+      "spec-modules/05-security-and-observability.md",
+      "spec-modules/06-mechanical-integrations.md",
+      "spec-modules/07-user-experience-and-development.md",
+      "spec-modules/07-6-development-roadmap.md",
+      "spec-modules/08-reference.md",
+      "spec-modules/09-continuous-local-skill-distillation.md",
+      "spec-modules/10-product-surfaces.md",
+      "spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+      "spec-modules/12-end-of-file-appendices.md"
+    ],
+    "reconstructed_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+    "matches_source_sha256": true,
+    "byte_exact_match": true,
+    "coverage": {
+      "source_line_start": 1,
+      "source_line_end": 84130,
+      "module_count": 14,
+      "no_gaps_or_overlaps": true
+    }
+  },
+  "module_resolver": {
+    "path": "INDEX.json",
+    "schema": "handshake.indexed_spec.module_resolver@1",
+    "status": "current-module-resolver",
+    "sha256": "e68237c24293dd959da4056da363daf81df5863113466dbf5136dd1605ff3d0d"
+  }
+}

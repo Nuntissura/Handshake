@@ -1,0 +1,99 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Loom-Storage-Portability-v4",
+  "base_wp_id": "WP-1-Loom-Storage-Portability",
+  "created_at_utc": "2026-03-24T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v4.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v4.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v4.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "8d671f7895f1dc1a5bbee0235902914aba268e790e7644c52972d7425fdc58e7",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "BACKEND",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Loom-MVP",
+      "WP-1-Storage-Abstraction-Layer",
+      "WP-1-Artifact-System-Foundations"
+    ],
+    "blocks": [
+      "WP-1-Media-Downloader-Loom-Bridge",
+      "WP-1-Video-Archive-Loom-Integration"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Governance remediation after AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Re-open the Loom portability work as a narrowly scoped remediation/proof pass that separates real portability evidence from narrative closure.\n- Why: The 2026-03-21 audit did not find a fresh Loom defect comparable to the Schema Registry gaps, but it also did not re-prove full portability closure, and the v3 packet remains blocked legacy history under current governance law.",
+    "scope_sketch": "- IN_SCOPE:\n  - Re-validate the exact Loom portability clauses still required by the current spec and by any future remediation refinement.\n  - Narrow the remediation to concrete proof gaps or fresh defects found on current `main`; avoid speculative churn if the audited Loom slice is already materially correct.\n  - Preserve dual-backend evidence for graph traversal, directional edges, metrics recomputation, and source-anchor durability where those clauses remain in scope.\n- OUT_OF_SCOPE:\n  - Broad Loom feature expansion unrelated to storage portability.\n  - Media bridge or archive integration work owned by downstream Loom packets.",
+    "acceptance_criteria": "- Any remaining Loom portability remediation is tied to explicit current-spec clauses and current-main evidence, not to the old v3 packet narrative alone.\n- If a concrete Loom defect exists, the remediation packet proves it with validator-owned checks on both supported backends.\n- If no concrete Loom defect remains, the future refinement must say so explicitly and reduce scope rather than inventing new churn.",
+    "risks_unknowns": "- The v3 packet mixed concrete storage work with broader closure claims; refinement must narrow the next packet to what is still actually open.\n- Dual-backend proof can become expensive if the next remediation broadens beyond the audited slice.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

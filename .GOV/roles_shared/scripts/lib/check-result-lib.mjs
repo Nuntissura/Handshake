@@ -2,12 +2,44 @@ import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { GOVERNANCE_RUNTIME_ROOT_ABS } from "./runtime-paths.mjs";
+import {
+  GOVERNANCE_RUNTIME_ROOT_ABS,
+} from "./runtime-paths.mjs";
 
 export const CHECK_RESULT_SCHEMA_ID = "hsk.check_result@1";
 export const CHECK_RESULT_SCHEMA_VERSION = "check_result_v1";
 export const CHECK_RESULT_VERDICTS = new Set(["OK", "WARN", "FAIL"]);
 export const CHECK_RESULT_SUMMARY_MAX_CHARS = 120;
+export const PHASE_BUNDLE_FAILURE_DOSSIER_SCHEMA_ID = "handshake.gov.phase_bundle_failure_dossier";
+export const PHASE_BUNDLE_FAILURE_DOSSIER_SCHEMA_VERSION = "phase_bundle_failure_dossier_v1";
+export const PHASE_BUNDLE_FAILURE_DOSSIER_REQUIRED_FIELDS = [
+  "run_id",
+  "timestamp",
+  "wp_id",
+  "phase",
+  "bundle",
+  "substep_id",
+  "command",
+  "owner_role",
+  "side_effect_class",
+  "cwd",
+  "env_summary",
+  "exit_code",
+  "duration_ms",
+  "stdout_artifact",
+  "stderr_artifact",
+  "artifact_refs",
+  "wp_dossier_root",
+  "wp_dossier_index",
+  "workflow_postmortem_ref",
+  "debug_artifact",
+  "invariant",
+  "suspected_cause_category",
+  "remediation_hint",
+  "related_topology_rows",
+  "topology_row_ids",
+  "memory_capture_status",
+];
 
 function normalizeVerdict(verdict) {
   const normalized = String(verdict || "").trim().toUpperCase();
@@ -177,6 +209,333 @@ function outputLines(value = "") {
   return String(value || "").split(/\r?\n/).filter((line) => line.length > 0);
 }
 
+function boundedText(value = "", maxChars = 2000) {
+  const text = String(value || "");
+  const limit = Number(maxChars || 2000);
+  if (text.length <= limit) return text;
+  return `${text.slice(0, Math.max(0, limit - 3))}...`;
+}
+
+function normalizeMemoryCaptureStatus(value = null) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return {
+      status: String(value.status || "UNKNOWN").trim() || "UNKNOWN",
+      owner: String(value.owner || "").trim() || null,
+      detail: String(value.detail || "").trim() || null,
+    };
+  }
+  return {
+    status: "NOT_ATTEMPTED_BY_BUNDLE_RUNNER",
+    owner: "SUBCHECK_FAIL_CAPTURE_HOOKS_OR_OPERATOR_REVIEW",
+    detail: "The bundle failure dossier records artifact refs and bounded excerpts; high-signal memory capture is owned by subcheck fail hooks or explicit operator/session capture.",
+  };
+}
+
+export function validateFailureDossierEntry(entry = {}) {
+  const missing = PHASE_BUNDLE_FAILURE_DOSSIER_REQUIRED_FIELDS
+    .filter((field) => !Object.prototype.hasOwnProperty.call(entry, field));
+  if (missing.length > 0) {
+    throw new Error(`failure dossier entry missing required field(s): ${missing.join(", ")}`);
+  }
+  if (!entry.memory_capture_status || typeof entry.memory_capture_status !== "object" || Array.isArray(entry.memory_capture_status)) {
+    throw new Error("failure dossier entry memory_capture_status must be an object");
+  }
+  if (!String(entry.memory_capture_status.status || "").trim()) {
+    throw new Error("failure dossier entry memory_capture_status.status is required");
+  }
+  if (!Array.isArray(entry.topology_row_ids)) {
+    throw new Error("failure dossier entry topology_row_ids must be an array");
+  }
+  return true;
+}
+
+export function failureDossierRootPath({ runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS } = {}) {
+  return path.join(path.resolve(runtimeRootAbs), "roles_shared", "failure_dossiers");
+}
+
+export function wpDossierRootPath({ wpId = "", runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS } = {}) {
+  const normalizedWpId = String(wpId || "").trim();
+  if (!normalizedWpId) return null;
+  return path.join(path.resolve(runtimeRootAbs), "roles_shared", "WP_DOSSIERS", normalizedWpId);
+}
+
+export function wpDossierIndexPath({ wpId = "", runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS } = {}) {
+  const root = wpDossierRootPath({ wpId, runtimeRootAbs });
+  return root ? path.join(root, "index.json") : null;
+}
+
+export function wpDossierEventsPath({ wpId = "", runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS } = {}) {
+  const root = wpDossierRootPath({ wpId, runtimeRootAbs });
+  return root ? path.join(root, "events.jsonl") : null;
+}
+
+export function wpDossierArtifactManifestPath({ wpId = "", runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS } = {}) {
+  const root = wpDossierRootPath({ wpId, runtimeRootAbs });
+  return root ? path.join(root, "artifact_manifest.json") : null;
+}
+
+export function wpDossierWorkflowPostmortemPath({ wpId = "", runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS } = {}) {
+  const root = wpDossierRootPath({ wpId, runtimeRootAbs });
+  return root ? path.join(root, "workflow_postmortem.md") : null;
+}
+
+export function failureDossierLogPath({ runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS, wpId = "" } = {}) {
+  const wpRoot = wpDossierRootPath({ wpId, runtimeRootAbs });
+  if (wpRoot) return path.join(wpRoot, "bundle_failures", "phase_bundle_failures.jsonl");
+  return path.join(failureDossierRootPath({ runtimeRootAbs }), "phase_bundle_failures.jsonl");
+}
+
+export function failureDossierMarkdownPath({ runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS, wpId = "" } = {}) {
+  const wpRoot = wpDossierRootPath({ wpId, runtimeRootAbs });
+  if (wpRoot) return path.join(wpRoot, "bundle_failures", "phase_bundle_failures.md");
+  return path.join(failureDossierRootPath({ runtimeRootAbs }), "phase_bundle_failures.md");
+}
+
+function envSummary(env = process.env) {
+  const keys = [
+    "HANDSHAKE_ACTIVE_REPO_ROOT",
+    "HANDSHAKE_GOV_ROOT",
+    "HANDSHAKE_GOV_RUNTIME_ROOT",
+    "HANDSHAKE_RUNTIME_ROOT",
+    "HANDSHAKE_ARTIFACT_ROOT",
+  ];
+  return Object.fromEntries(keys.map((key) => [key, String(env?.[key] || "")]));
+}
+
+function writeDossierArtifact({ runId, label, content = "", runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS, wpId = "" } = {}) {
+  const text = String(content || "");
+  if (!text) return null;
+  const wpRoot = wpDossierRootPath({ wpId, runtimeRootAbs });
+  const artifactDir = wpRoot
+    ? path.join(wpRoot, "raw", "commands")
+    : path.join(failureDossierRootPath({ runtimeRootAbs }), "artifacts");
+  fs.mkdirSync(artifactDir, { recursive: true });
+  const artifactPath = path.join(artifactDir, `${runId}-${label}.txt`);
+  fs.writeFileSync(artifactPath, text, "utf8");
+  return artifactPath;
+}
+
+function renderFailureDossierMarkdown(entries = []) {
+  const lines = [
+    "# Phase Bundle Failure Dossier",
+    "",
+    "Machine projection of recent phase-bundle failures. JSONL is authoritative.",
+    "",
+  ];
+  for (const entry of entries.slice(-50)) {
+    lines.push(`## ${entry.timestamp} / ${entry.bundle} / ${entry.substep_id}`);
+    lines.push("");
+    lines.push(`- Run ID: ${entry.run_id}`);
+    lines.push(`- Phase: ${entry.phase || "NONE"}`);
+    lines.push(`- Owner role: ${entry.owner_role || "UNKNOWN"}`);
+    lines.push(`- Side effect class: ${entry.side_effect_class || "UNKNOWN"}`);
+    lines.push(`- Exit code: ${entry.exit_code}`);
+    lines.push(`- Duration ms: ${entry.duration_ms}`);
+    lines.push(`- Debug artifact: ${entry.debug_artifact || "NONE"}`);
+    lines.push(`- Topology rows: ${(entry.topology_row_ids || entry.related_topology_rows || []).join(", ") || "NONE"}`);
+    lines.push(`- Memory capture: ${entry.memory_capture_status?.status || "UNKNOWN"}`);
+    lines.push(`- Suspected cause: ${entry.suspected_cause_category || "UNKNOWN"}`);
+    lines.push(`- Remediation hint: ${entry.remediation_hint || "Inspect the JSONL row and linked artifacts."}`);
+    lines.push("");
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function refreshFailureDossierMarkdown({ runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS, wpId = "" } = {}) {
+  const logPath = failureDossierLogPath({ runtimeRootAbs, wpId });
+  const mdPath = failureDossierMarkdownPath({ runtimeRootAbs, wpId });
+  if (!fs.existsSync(logPath)) return;
+  const entries = fs.readFileSync(logPath, "utf8")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  fs.writeFileSync(mdPath, renderFailureDossierMarkdown(entries), "utf8");
+}
+
+function ensureWpDossierFolders({ wpId = "", runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS } = {}) {
+  const root = wpDossierRootPath({ wpId, runtimeRootAbs });
+  if (!root) return null;
+  for (const rel of ["raw", "acp", "repomem", "commands", "bundle_failures", "raw/commands"]) {
+    fs.mkdirSync(path.join(root, rel), { recursive: true });
+  }
+  return root;
+}
+
+function runtimeRelative(runtimeRootAbs, targetPath) {
+  if (!targetPath) return null;
+  return path.relative(path.resolve(runtimeRootAbs), path.resolve(targetPath)).replace(/\\/g, "/");
+}
+
+function writeWpDossierIndex({
+  wpId = "",
+  runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS,
+  latestFailure = null,
+} = {}) {
+  const root = ensureWpDossierFolders({ wpId, runtimeRootAbs });
+  if (!root) return null;
+  const logPath = failureDossierLogPath({ runtimeRootAbs, wpId });
+  const eventsPath = wpDossierEventsPath({ wpId, runtimeRootAbs });
+  const manifestPath = wpDossierArtifactManifestPath({ wpId, runtimeRootAbs });
+  const postmortemPath = wpDossierWorkflowPostmortemPath({ wpId, runtimeRootAbs });
+  const failureRows = fs.existsSync(logPath)
+    ? fs.readFileSync(logPath, "utf8").split(/\r?\n/).filter(Boolean).length
+    : 0;
+  const index = {
+    schema_id: "handshake.gov.wp_dossier_index",
+    schema_version: "wp_dossier_index_v1",
+    wp_id: String(wpId || "").trim(),
+    updated_at_utc: new Date().toISOString(),
+    root,
+    contract: {
+      raw_archive_policy: "dump_all_logs_for_posterity",
+      model_entrypoint: "index.json",
+      terminal_narrative: "workflow_postmortem.md",
+      storage: "external_governance_runtime_root",
+    },
+    paths: {
+      index: runtimeRelative(runtimeRootAbs, wpDossierIndexPath({ wpId, runtimeRootAbs })),
+      events_jsonl: runtimeRelative(runtimeRootAbs, eventsPath),
+      artifact_manifest_json: runtimeRelative(runtimeRootAbs, manifestPath),
+      workflow_postmortem_md: runtimeRelative(runtimeRootAbs, postmortemPath),
+      raw_dir: runtimeRelative(runtimeRootAbs, path.join(root, "raw")),
+      acp_dir: runtimeRelative(runtimeRootAbs, path.join(root, "acp")),
+      repomem_dir: runtimeRelative(runtimeRootAbs, path.join(root, "repomem")),
+      commands_dir: runtimeRelative(runtimeRootAbs, path.join(root, "commands")),
+      bundle_failures_dir: runtimeRelative(runtimeRootAbs, path.join(root, "bundle_failures")),
+      bundle_failures_jsonl: runtimeRelative(runtimeRootAbs, logPath),
+      bundle_failures_md: runtimeRelative(runtimeRootAbs, failureDossierMarkdownPath({ runtimeRootAbs, wpId })),
+    },
+    counts: {
+      bundle_failure_entries: failureRows,
+    },
+    latest_failure: latestFailure,
+  };
+  fs.writeFileSync(wpDossierIndexPath({ wpId, runtimeRootAbs }), `${JSON.stringify(index, null, 2)}\n`, "utf8");
+
+  const artifactRefs = latestFailure?.artifact_refs || [];
+  const manifest = {
+    schema_id: "handshake.gov.wp_dossier_artifact_manifest",
+    schema_version: "wp_dossier_artifact_manifest_v1",
+    wp_id: String(wpId || "").trim(),
+    updated_at_utc: index.updated_at_utc,
+    artifacts: artifactRefs,
+  };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+  const event = {
+    schema_id: "handshake.gov.wp_dossier_event",
+    schema_version: "wp_dossier_event_v1",
+    timestamp: index.updated_at_utc,
+    wp_id: String(wpId || "").trim(),
+    event_type: latestFailure ? "BUNDLE_FAILURE_RECORDED" : "DOSSIER_INDEX_REFRESHED",
+    run_id: latestFailure?.run_id || null,
+    entry_id: latestFailure?.entry_id || null,
+  };
+  fs.appendFileSync(eventsPath, `${JSON.stringify(event)}\n`, "utf8");
+  return index;
+}
+
+export function appendFailureDossierEntry({
+  timestamp = new Date().toISOString(),
+  phase = "",
+  bundle = "",
+  substepId = "",
+  command = [],
+  ownerRole = "",
+  sideEffectClass = "",
+  cwd = process.cwd(),
+  env = process.env,
+  exitCode = 1,
+  signal = null,
+  durationMs = 0,
+  stdout = "",
+  stderr = "",
+  debugArtifact = "",
+  invariant = "",
+  suspectedCauseCategory = "CHECK_FAILURE",
+  remediationHint = "Inspect the linked stdout/stderr artifacts and the related topology rows.",
+  relatedTopologyRows = [],
+  memoryCaptureStatus = null,
+  runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS,
+  wpId = "",
+} = {}) {
+  const normalizedBundle = String(bundle || "phase-bundle").trim();
+  const normalizedSubstep = String(substepId || "unknown-substep").trim();
+  const runId = `${timestamp.replace(/[-:.TZ]/g, "").slice(0, 14)}-${crypto.createHash("sha256").update(`${normalizedBundle}:${normalizedSubstep}:${stdout}:${stderr}`).digest("hex").slice(0, 12)}`;
+  const root = wpDossierRootPath({ wpId, runtimeRootAbs }) || failureDossierRootPath({ runtimeRootAbs });
+  fs.mkdirSync(root, { recursive: true });
+  const stdoutArtifact = writeDossierArtifact({ runId, label: "stdout", content: stdout, runtimeRootAbs, wpId });
+  const stderrArtifact = writeDossierArtifact({ runId, label: "stderr", content: stderr, runtimeRootAbs, wpId });
+  const artifactRefs = [
+    stdoutArtifact ? { kind: "stdout", path: stdoutArtifact } : null,
+    stderrArtifact ? { kind: "stderr", path: stderrArtifact } : null,
+  ].filter(Boolean);
+  const topologyRowIds = Array.isArray(relatedTopologyRows) ? relatedTopologyRows.map((row) => String(row)) : [];
+  const entry = {
+    schema_id: PHASE_BUNDLE_FAILURE_DOSSIER_SCHEMA_ID,
+    schema_version: PHASE_BUNDLE_FAILURE_DOSSIER_SCHEMA_VERSION,
+    run_id: runId,
+    timestamp,
+    wp_id: String(wpId || "").trim() || null,
+    phase: String(phase || "").trim() || null,
+    bundle: normalizedBundle,
+    substep_id: normalizedSubstep,
+    command: Array.isArray(command) ? command.map((part) => String(part)) : [String(command || "")],
+    owner_role: String(ownerRole || "").trim() || null,
+    side_effect_class: String(sideEffectClass || "").trim() || null,
+    cwd: path.resolve(cwd || process.cwd()),
+    env_summary: envSummary(env),
+    exit_code: Number(exitCode),
+    signal: signal || null,
+    duration_ms: Number(durationMs || 0),
+    stdout_artifact: stdoutArtifact,
+    stderr_artifact: stderrArtifact,
+    artifact_refs: artifactRefs,
+    wp_dossier_root: wpDossierRootPath({ wpId, runtimeRootAbs }),
+    wp_dossier_index: wpDossierIndexPath({ wpId, runtimeRootAbs }),
+    workflow_postmortem_ref: wpDossierWorkflowPostmortemPath({ wpId, runtimeRootAbs }),
+    stdout_excerpt: boundedText(stdout),
+    stderr_excerpt: boundedText(stderr),
+    debug_artifact: String(debugArtifact || "").trim() || null,
+    invariant: String(invariant || "").trim() || null,
+    suspected_cause_category: String(suspectedCauseCategory || "").trim() || "CHECK_FAILURE",
+    remediation_hint: String(remediationHint || "").trim() || null,
+    related_topology_rows: topologyRowIds,
+    topology_row_ids: topologyRowIds,
+    memory_capture_status: normalizeMemoryCaptureStatus(memoryCaptureStatus),
+  };
+  validateFailureDossierEntry(entry);
+  entry.entry_id = crypto.createHash("sha256").update(JSON.stringify(entry)).digest("hex").slice(0, 16);
+  fs.mkdirSync(path.dirname(failureDossierLogPath({ runtimeRootAbs, wpId })), { recursive: true });
+  fs.appendFileSync(failureDossierLogPath({ runtimeRootAbs, wpId }), `${JSON.stringify(entry)}\n`, "utf8");
+  refreshFailureDossierMarkdown({ runtimeRootAbs, wpId });
+  if (String(wpId || "").trim()) {
+    writeWpDossierIndex({
+      wpId,
+      runtimeRootAbs,
+      latestFailure: {
+        run_id: runId,
+        entry_id: entry.entry_id,
+        bundle: entry.bundle,
+        substep_id: entry.substep_id,
+        artifact_refs: artifactRefs.map((artifact) => ({
+          ...artifact,
+          path: runtimeRelative(runtimeRootAbs, artifact.path),
+        })),
+      },
+    });
+  }
+  return {
+    entry_id: entry.entry_id,
+    run_id: runId,
+    log_path: failureDossierLogPath({ runtimeRootAbs, wpId }),
+    markdown_path: failureDossierMarkdownPath({ runtimeRootAbs, wpId }),
+    wp_dossier_index: wpDossierIndexPath({ wpId, runtimeRootAbs }),
+    stdout_artifact: stdoutArtifact,
+    stderr_artifact: stderrArtifact,
+  };
+}
+
 export function runSubprocessCheckStep({
   check,
   scriptPath,
@@ -185,6 +544,13 @@ export function runSubprocessCheckStep({
   env = process.env,
   wpId = "",
   phase = "",
+  bundle = "",
+  ownerRole = "",
+  sideEffectClass = "",
+  invariant = "",
+  suspectedCauseCategory = "CHECK_FAILURE",
+  remediationHint = "",
+  relatedTopologyRows = [],
   runtimeRootAbs = GOVERNANCE_RUNTIME_ROOT_ABS,
 } = {}) {
   const normalizedCheck = String(check || "").trim();
@@ -196,16 +562,54 @@ export function runSubprocessCheckStep({
     throw new Error("runSubprocessCheckStep: scriptPath is required");
   }
 
+  const startedAt = Date.now();
   const result = spawnSync(process.execPath, [normalizedScriptPath, ...args], {
     cwd,
     env,
     encoding: "utf8",
   });
+  const durationMs = Date.now() - startedAt;
   const status = result.status ?? 1;
   const stdout = String(result.stdout || "");
   const stderr = String(result.stderr || "");
   const output = ensureTrailingNewline(`${stdout}${stderr}`.trimEnd());
   const ok = status === 0;
+  let failureDossier = null;
+  if (!ok) {
+    try {
+      failureDossier = appendFailureDossierEntry({
+        phase,
+        bundle: bundle || "gov-check",
+        substepId: normalizedCheck,
+        command: [process.execPath, normalizedScriptPath, ...args],
+        ownerRole,
+        sideEffectClass,
+        cwd,
+        env,
+        exitCode: status,
+        signal: result.signal || null,
+        durationMs,
+        stdout,
+        stderr,
+        debugArtifact: checkDetailsLogPath({ wpId, runtimeRootAbs }),
+        invariant,
+        suspectedCauseCategory,
+        remediationHint,
+        relatedTopologyRows,
+        memoryCaptureStatus: {
+          status: "DELEGATED_TO_SUBCHECK_FAIL_CAPTURE_HOOKS",
+          owner: "SUBCHECK_OR_FAIL_CAPTURE_HOOK",
+          detail: "Bundle runner stores artifacts and bounded excerpts in the dossier; subchecks with fail hooks capture procedural memory without duplicating stdout/stderr logs.",
+        },
+        runtimeRootAbs,
+        wpId,
+      });
+    } catch (error) {
+      failureDossier = {
+        error: String(error?.message || error || ""),
+      };
+    }
+  }
   const recorded = recordCheckResult({
     check: normalizedCheck,
     wpId,
@@ -218,10 +622,12 @@ export function runSubprocessCheckStep({
       cwd: path.resolve(cwd || process.cwd()),
       exit_status: status,
       signal: result.signal || null,
+      duration_ms: durationMs,
       stdout,
       stderr,
       output_lines: outputLines(output),
       error: result.error ? String(result.error?.message || result.error) : null,
+      failure_dossier: failureDossier,
     },
     runtimeRootAbs,
   });

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
+import {
+  execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,24 +25,29 @@ import {
   WORKFLOW_LANE_VALUES,
   EXECUTION_OWNER_VALUES,
   AGENTIC_MODE_VALUES,
-} from "../lib/wp-communications-lib.mjs";
+  } from "../lib/wp-communications-lib.mjs";
 import {
   deriveWpCommunicationAutoRoute,
   evaluateWpCommunicationHealth,
-} from "../lib/wp-communication-health-lib.mjs";
+  } from "../lib/wp-communication-health-lib.mjs";
 import {
   applyWpReviewPacketProjection,
   applyWpReviewRuntimeProjection,
   deriveWpReviewPacketProjection,
-} from "../lib/wp-review-projection-lib.mjs";
+  } from "../lib/wp-review-projection-lib.mjs";
 import { normalizeActiveClauseClosureMatrix } from "../lib/packet-closure-monitor-lib.mjs";
 import { syncRuntimeProjectionFromPacket } from "../lib/packet-runtime-projection-lib.mjs";
 import {
   derivePacketMilestone,
   parsePacketStatus,
   taskBoardStatusForPacketStatus,
-} from "../lib/wp-authority-projection-lib.mjs";
-import { GOV_ROOT_REPO_REL, repoPathAbs, workPacketPath } from "../lib/runtime-paths.mjs";
+  } from "../lib/wp-authority-projection-lib.mjs";
+import { GOV_ROOT_REPO_REL,
+  repoPathAbs,
+  workPacketPath } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView,
+  writeWorkPacketProjectionWithLifecycleSync,
+} from "../lib/work-packet-contract-read-lib.mjs";
 import { MAIN_CONTAINMENT_STATUS_VALUES } from "../lib/merge-progression-truth-lib.mjs";
 import { withFileLockSync } from "../session/session-registry-lib.mjs";
 
@@ -440,33 +446,35 @@ function ensureWpCommunicationsCore({
     throw new Error("WP_ID is required");
   }
 
-  const packetPath = workPacketPath(WP_ID);
-  const packetAbsPath = repoPathAbs(packetPath);
-  let packetText = "";
-  if (fs.existsSync(packetAbsPath)) {
+  const packetContext = buildWorkPacketCommunicationView(WP_ID);
+  const packetPath = packetContext.packetPath || workPacketPath(WP_ID);
+  const packetAbsPath = packetContext.packetAbsPath || repoPathAbs(packetPath);
+  let packetText = packetContext.packetText || "";
+  if (!packetText && fs.existsSync(packetAbsPath)) {
     packetText = fs.readFileSync(packetAbsPath, "utf8");
   }
 
   const BASE_WP_ID = String(
     baseWpId ||
+      packetContext.baseWpId ||
       parseSingleField(packetText, "BASE_WP_ID").replace(/\s*\(.*/, "") ||
       WP_ID.replace(/-v\d+$/, "")
   ).trim();
-  const WORKFLOW_LANE = String(workflowLane || parseSingleField(packetText, "WORKFLOW_LANE") || "").trim();
-  const EXECUTION_OWNER = String(executionOwner || parseSingleField(packetText, "EXECUTION_OWNER") || "").trim();
-  const LOCAL_BRANCH = String(localBranch || parseSingleField(packetText, "LOCAL_BRANCH") || "<pending>").trim();
-  const LOCAL_WORKTREE_DIR = String(localWorktreeDir || parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || "<pending>").trim();
-  const AGENTIC_MODE = String(agenticMode || parseSingleField(packetText, "AGENTIC_MODE") || "NO").trim();
-  const PACKET_STATUS = String(packetStatus || parsePacketStatus(packetText) || "Ready for Dev").trim();
+  const WORKFLOW_LANE = String(workflowLane || packetContext.workflowLane || parseSingleField(packetText, "WORKFLOW_LANE") || "").trim();
+  const EXECUTION_OWNER = String(executionOwner || packetContext.executionOwner || parseSingleField(packetText, "EXECUTION_OWNER") || "").trim();
+  const LOCAL_BRANCH = String(localBranch || packetContext.localBranch || parseSingleField(packetText, "LOCAL_BRANCH") || "<pending>").trim();
+  const LOCAL_WORKTREE_DIR = String(localWorktreeDir || packetContext.localWorktreeDir || parseSingleField(packetText, "LOCAL_WORKTREE_DIR") || "<pending>").trim();
+  const AGENTIC_MODE = String(agenticMode || packetContext.agenticMode || parseSingleField(packetText, "AGENTIC_MODE") || "NO").trim();
+  const PACKET_STATUS = String(packetStatus || packetContext.packetStatus || parsePacketStatus(packetText) || "Ready for Dev").trim();
   const MAIN_CONTAINMENT_STATUS = String(
-    normalizeNoneLike(parseSingleField(packetText, "MAIN_CONTAINMENT_STATUS")) || "NOT_STARTED",
+    normalizeNoneLike(packetContext.mainContainmentStatus) || normalizeNoneLike(parseSingleField(packetText, "MAIN_CONTAINMENT_STATUS")) || "NOT_STARTED",
   ).trim().toUpperCase();
   const MERGED_MAIN_COMMIT = normalizeNoneLike(parseSingleField(packetText, "MERGED_MAIN_COMMIT"));
   const MAIN_CONTAINMENT_VERIFIED_AT_UTC = normalizeNoneLike(
     parseSingleField(packetText, "MAIN_CONTAINMENT_VERIFIED_AT_UTC"),
   );
   const CURRENT_MAIN_COMPATIBILITY_STATUS = String(
-    normalizeNoneLike(parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS")) || "NOT_RUN",
+    normalizeNoneLike(packetContext.currentMainCompatibilityStatus) || normalizeNoneLike(parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_STATUS")) || "NOT_RUN",
   ).trim().toUpperCase();
   const CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA = normalizeNoneLike(
     parseSingleField(packetText, "CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA"),
@@ -480,10 +488,10 @@ function ensureWpCommunicationsCore({
   const PACKET_WIDENING_EVIDENCE = normalizeNoneLike(
     parseSingleField(packetText, "PACKET_WIDENING_EVIDENCE"),
   );
-  const WORKFLOW_AUTHORITY = String(parseSingleField(packetText, "WORKFLOW_AUTHORITY") || "ORCHESTRATOR").trim();
-  const TECHNICAL_ADVISOR = String(parseSingleField(packetText, "TECHNICAL_ADVISOR") || "WP_VALIDATOR").trim();
-  const TECHNICAL_AUTHORITY = String(parseSingleField(packetText, "TECHNICAL_AUTHORITY") || "INTEGRATION_VALIDATOR").trim();
-  const MERGE_AUTHORITY = String(parseSingleField(packetText, "MERGE_AUTHORITY") || "INTEGRATION_VALIDATOR").trim();
+  const WORKFLOW_AUTHORITY = String(packetContext.workflowAuthority || parseSingleField(packetText, "WORKFLOW_AUTHORITY") || "ORCHESTRATOR").trim();
+  const TECHNICAL_ADVISOR = String(packetContext.technicalAdvisor || parseSingleField(packetText, "TECHNICAL_ADVISOR") || "WP_VALIDATOR").trim();
+  const TECHNICAL_AUTHORITY = String(packetContext.technicalAuthority || parseSingleField(packetText, "TECHNICAL_AUTHORITY") || "INTEGRATION_VALIDATOR").trim();
+  const MERGE_AUTHORITY = String(packetContext.mergeAuthority || parseSingleField(packetText, "MERGE_AUTHORITY") || "INTEGRATION_VALIDATOR").trim();
   const WP_VALIDATOR_OF_RECORD = String(parseSingleField(packetText, "WP_VALIDATOR_OF_RECORD") || "").trim();
   const INTEGRATION_VALIDATOR_OF_RECORD = String(parseSingleField(packetText, "INTEGRATION_VALIDATOR_OF_RECORD") || "").trim();
   const SECONDARY_VALIDATOR_SESSIONS_RAW = String(parseSingleField(packetText, "SECONDARY_VALIDATOR_SESSIONS") || "NONE").trim();
@@ -494,10 +502,10 @@ function ensureWpCommunicationsCore({
   const MAX_VALIDATOR_REVIEW_CYCLES = parseIntegerField(packetText, "MAX_VALIDATOR_REVIEW_CYCLES", 3);
   const MAX_RELAY_ESCALATION_CYCLES = parseIntegerField(packetText, "MAX_RELAY_ESCALATION_CYCLES", 2);
   const MAX_WORKER_INTERRUPT_CYCLES = parseIntegerField(packetText, "MAX_WORKER_INTERRUPT_CYCLES", 1);
-  const declaredCommunicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR");
-  const declaredThreadFile = parseSingleField(packetText, "WP_THREAD_FILE");
-  const declaredRuntimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
-  const declaredReceiptsFile = parseSingleField(packetText, "WP_RECEIPTS_FILE");
+  const declaredCommunicationDir = packetContext.communicationDir || parseSingleField(packetText, "WP_COMMUNICATION_DIR");
+  const declaredThreadFile = packetContext.threadFile || parseSingleField(packetText, "WP_THREAD_FILE");
+  const declaredRuntimeStatusFile = packetContext.runtimeStatusFile || parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE");
+  const declaredReceiptsFile = packetContext.receiptsFile || parseSingleField(packetText, "WP_RECEIPTS_FILE");
 
   if (packetText) {
     const warnings = [];
@@ -660,7 +668,12 @@ function ensureWpCommunicationsCore({
     throw new Error(`Reconciled runtime status failed validation for ${WP_ID}: ${reconciledRuntimeErrors.join("; ")}`);
   }
   if (reconciliation.nextPacketText !== packetText) {
-    fs.writeFileSync(packetAbsPath, reconciliation.nextPacketText, "utf8");
+    writeWorkPacketProjectionWithLifecycleSync({
+      wpId,
+      projectionText: reconciliation.nextPacketText,
+      generator: "ensure-wp-communications.mjs",
+      fallbackAbsPath: packetAbsPath,
+    });
   }
   if (JSON.stringify(reconciliation.nextRuntimeStatus) !== JSON.stringify(runtimeStatus)) {
     fs.writeFileSync(repoPathAbs(runtimeStatusPath), `${JSON.stringify(reconciliation.nextRuntimeStatus, null, 2)}\n`, "utf8");

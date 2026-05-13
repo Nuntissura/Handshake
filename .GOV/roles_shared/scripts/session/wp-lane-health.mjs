@@ -19,7 +19,8 @@ import path from "node:path";
 import { execFileSync, execSync } from "node:child_process";
 import { loadSessionRegistry } from "./session-registry-lib.mjs";
 import { sessionKey, defaultCoderBranch, defaultCoderWorktreeDir, SESSION_CONTROL_BROKER_STATE_FILE } from "./session-policy.mjs";
-import { GOV_ROOT_ABS, REPO_ROOT, normalizePath, repoPathAbs, resolveWorkPacketPath } from "../lib/runtime-paths.mjs";
+import { GOV_ROOT_ABS, REPO_ROOT, normalizePath, repoPathAbs } from "../lib/runtime-paths.mjs";
+import { buildWorkPacketCommunicationView } from "../lib/work-packet-contract-read-lib.mjs";
 import {
   communicationPathsForWp,
   NOTIFICATIONS_FILE_NAME,
@@ -83,20 +84,20 @@ function loadPacketContextForWp(id) {
     }
   } catch {}
   try {
-    const packetRecord = resolveWorkPacketPath(id);
-    const packetPath = typeof packetRecord === "string" ? packetRecord : packetRecord?.packetPath;
-    const packetAbsPath = packetRecord?.packetAbsPath ? path.resolve(packetRecord.packetAbsPath) : repoPathAbs(packetPath);
-    if (!packetPath || !fs.existsSync(packetAbsPath)) {
+    const packetContext = buildWorkPacketCommunicationView(id);
+    const packetPath = packetContext.packetPath;
+    const packetAbsPath = packetContext.packetAbsPath ? path.resolve(packetContext.packetAbsPath) : repoPathAbs(packetPath);
+    if (!packetContext.ok || !packetPath || !fs.existsSync(packetAbsPath)) {
       return {
         communicationDir: fallbackCommunicationDir,
         notificationsFile: normalizePath(path.join(fallbackCommunicationDir, NOTIFICATIONS_FILE_NAME)),
         receiptsFile: normalizePath(path.join(fallbackCommunicationDir, RECEIPTS_FILE_NAME)),
       };
     }
-    const packetText = fs.readFileSync(packetAbsPath, "utf8");
-    const packetStatus = parsePacketStatus(packetText);
-    const communicationDir = parseSingleField(packetText, "WP_COMMUNICATION_DIR") || fallbackCommunicationDir;
-    const runtimeStatusFile = parseSingleField(packetText, "WP_RUNTIME_STATUS_FILE")
+    const packetText = packetContext.packetText || fs.readFileSync(packetAbsPath, "utf8");
+    const packetStatus = packetContext.packetStatus || parsePacketStatus(packetText);
+    const communicationDir = packetContext.communicationDir || fallbackCommunicationDir;
+    const runtimeStatusFile = packetContext.runtimeStatusFile
       || normalizePath(path.join(communicationDir, "RUNTIME_STATUS.json"));
     return {
       packetPath,
@@ -106,9 +107,9 @@ function loadPacketContextForWp(id) {
       taskBoardStatus: taskBoardStatus || taskBoardStatusForPacketStatus(packetStatus),
       communicationDir,
       runtimeStatusFile,
-      notificationsFile: parseSingleField(packetText, "WP_NOTIFICATIONS_FILE")
+      notificationsFile: packetContext.notificationsFile
         || normalizePath(path.join(communicationDir, NOTIFICATIONS_FILE_NAME)),
-      receiptsFile: parseSingleField(packetText, "WP_RECEIPTS_FILE")
+      receiptsFile: packetContext.receiptsFile
         || normalizePath(path.join(communicationDir, RECEIPTS_FILE_NAME)),
     };
   } catch {

@@ -1,20 +1,64 @@
-# INTEGRATION_VALIDATOR_PROTOCOL [RGF-191]
+﻿# INTEGRATION_VALIDATOR_PROTOCOL [RGF-191]
+## Deterministic Atomic Governance Files [CX-908]
+- Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
+- Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
+- Roles MUST consume typed JSON, JSONL, declared contract fields, or ACP startup capsules before parsing prose. If a Markdown projection conflicts with its source contract, the source contract wins and the projection is drift.
+- When changing packet, refinement, MT, startup, dossier, workflow, playbook, or protocol behavior, update the authoritative machine contract/schema and regenerate or update the playbook/projection in the same change, or record explicit migration debt with a concrete RGF/task-board item.
+- Red-team default: assume projections are stale, sidecars drift, prose hides shadow authority, schema omissions create unsafe fallbacks, and Activation Manager / Classic Orchestrator prelaunch duties diverge unless the contract makes the ownership and lifecycle mechanically checkable.
+## Governance Kernel Product-Governance Testbed [CX-911]
+- The governance kernel is the deterministic testbed for Handshake Product governance artifacts; workflow files should be designed as reusable machine-readable contracts, not repo-local prose rituals.
+- ACP, external apps/tools, and future Handshake Product runtime surfaces are intended consumers of the same typed packet, refinement, MT, workflow, receipt, runtime, and session-control artifacts.
+- Non-Coder roles MUST address machine-readability drift autonomously when the choice is governance hardening rather than product scope: add/update typed fields, schemas, generated projection hashes/provenance, and deterministic checks instead of waiting for Operator input.
+- Markdown remains projection/reference when a typed contract exists. If prose is still authoritative, classify it as legacy debt and record the migration path.
 
-**MANDATORY** - Integration Validator must read this before performing any whole-WP validation actions.
+## Governance Topology Ledger Duty [CX-912]
+- `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` is the machine-readable topology ledger for governance roles, public scripts, checks, tests, Just recipes, phase/checkpoint bundles, workflow artifacts, authority owners, side-effect classes, primary debug artifacts, and replacement/sunset status.
+- All non-Coder roles MUST keep the topology ledger current when they add, rename, retire, expose, or materially change governance scripts, public Just recipes, checks, workflow artifacts, role protocols, phase bundles, topology surfaces, or session/runtime authority surfaces.
+- If this role cannot directly write `.GOV/` from its current lane, it MUST emit a typed blocker/proposal naming the exact topology update required; the owning coordinator must update the ledger before closeout.
+- New public governance entrypoints are illegal unless the ledger records owner role, phase, authority boundary, side-effect class, invocation path, replacement bundle, primary debug artifact, and validation/check coverage.
+- Coder is excluded from topology maintenance. Do not route topology-ledger repair to Coder.
 
-**Role name:** INTEGRATION_VALIDATOR
-**Scope:** Whole-WP judgment against master spec, verdict writing, merge authority
-**Authority:** Sole automated verdict authority for orchestrator-managed WPs. Writes PASS/FAIL. Merges to main on PASS.
-**Context model:** Fresh context launch after all MTs complete and mechanical closeout prep is done.
-**Evaluation base:** Builds on the validation framework from `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, enhanced for autonomous workflow where the operator cannot monitor or judge in real-time.
+## WP Dossier Runtime Archive [CX-218J1]
+
+- Per-WP raw diagnostic dossiers live under the external repo-governance runtime root: default `../gov_runtime/roles_shared/WP_DOSSIERS/WP-{ID}/`, overridable via `HANDSHAKE_GOV_RUNTIME_ROOT` or `HANDSHAKE_RUNTIME_ROOT`.
+- The dossier archive is for full mechanical posterity: raw ACP prints, repomem outputs, command stdout/stderr, bundle failure logs, and related traces should be dumped there rather than summarized away.
+- `index.json` is the first model/tool lookup surface; `artifact_manifest.json` lists raw artifacts; `events.jsonl` is append-only; raw logs live under `raw/`, `acp/`, `repomem/`, `commands/`, and `bundle_failures/`.
+- `workflow_postmortem.md` is the Orchestrator-owned terminal narrative after verdict/closeout. Validators contribute typed receipts, repomem entries, verdicts, and findings; they do not overwrite the Orchestrator terminal post-mortem.
+- Do not store runtime dossier payloads in git. Repo-tracked files define the contract, generators, checks, and projections only.
 
 ## Role Ecosystem
 
 - The Integration Validator is the final quality gate in the orchestrator-managed workflow.
-- It launches with a **fresh context window** — no accumulated history from coder/WP Validator sessions.
-- It reads the master spec (source of truth) and the coder's complete work product, then makes a whole-WP judgment.
+- It launches with a **fresh context window** â€” no accumulated history from coder/WP Validator sessions.
+- It reads the resolved current Master Spec (source of truth; `SPEC_CURRENT` JSON -> active indexed bundle manifest/modules) and the coder's complete work product, then makes a whole-WP judgment.
 - The Orchestrator prepares all mechanical truth (SHAs, artifacts, clause sync) before the Integration Validator launches. The Integration Validator should NOT need to fix mechanical closeout issues.
-- WP Validator handles per-MT review. The Integration Validator does NOT review individual MTs — it judges the whole.
+- WP Validator handles per-MT review. The Integration Validator does NOT review individual MTs â€” it judges the whole.
+
+## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
+
+Integration Validator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`.
+
+Integration Validator spec edits are final-lane corrections only. Do not rewrite requirements to manufacture a PASS. If a spec change would materially alter the code outcome or signed scope, record FAIL/PENDING with remediation or route the approved enrichment path before PASS.
+
+Current structure:
+- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint to the active indexed Master Spec version.
+- `.GOV/spec/master-spec-vNN.NNN/`: canonical active versioned indexed bundle shape after migration; contains `indexed-spec-manifest.json`, `INDEX.json`, `spec-modules/*.md`, and the manifest-declared machine-readable changelog.
+- `.GOV/spec/indexed_spec/`: legacy compatibility current bundle only until the next governed versioned-bundle migration; do not use it as the long-term active edit target.
+- `.GOV/spec/spec_archive/master-spec-v*/`: immutable non-current indexed bundles for older Master Spec versions.
+- `.GOV/spec/Handshake_Master_Spec_v*.md`: source baseline/provenance, not the patch target for current spec edits.
+
+Write sequence:
+- Resolve `SPEC_CURRENT.md`, the active manifest, the active `INDEX.json`, current version, previous/source baseline, and declared archive root before editing.
+- Create the next versioned indexed bundle by copying the resolved current bundle first; do not patch the currently active bundle in place.
+- Inspect the new bundle `INDEX.json` and manifest; patch the smallest owning module(s), not the whole spec.
+- Keep final-lane authority clean: spec patch first, then re-run judgment against the resolved updated spec; do not hide changed requirements inside narrative verdict prose.
+- Ensure every active module and the manifest carry the same `spec_version` as the new `SPEC_CURRENT.current_spec.version`.
+- When module bytes change, update the affected `modules[].sha256`, line/byte/heading metadata, and `reconstruction.reconstructed_sha256`; source-match flags must reflect reality.
+- Append/update the manifest-declared machine-readable changelog with version, previous version, changed modules, before/after hashes, approval evidence/signature, reason, and validation commands/outcomes.
+- Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
+- Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
+- Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
+- Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
 
 ## Why This Role Exists
 
@@ -37,7 +81,7 @@
 
 ## Inter-Role Wire Discipline [CX-130] (HARD)
 
-Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) and the terminal state is published to the per-WP `TERMINAL_CLOSEOUT_RECORD.json`. Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability — they project from the typed verdict, they are NOT the verdict. RGF-248 named verbs are now the preferred receipt wire: emit `INTEGRATION_VERDICT` for final PASS/FAIL and `CONCERN` for integration risks when the helper surface supports `--verb`. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout receipt. See Codex `[CX-130]` for the full rule.
+Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate schemas. Closeout provenance is recorded as a typed governed-action envelope (`INTEGRATION_VALIDATOR_CLOSEOUT_SYNC_EXTERNAL_EXECUTE`) and the terminal state is published to the per-WP `TERMINAL_CLOSEOUT_RECORD.json`. Concerns, blockers, and merge-condition status MUST be in schema fields the Orchestrator and downstream readers consume directly. Narrative validator-report sections exist for operator readability â€” they project from the typed verdict, they are NOT the verdict. RGF-248 named verbs are now the preferred receipt wire: emit `INTEGRATION_VERDICT` for final PASS/FAIL and `CONCERN` for integration risks when the helper surface supports `--verb`. The validator MUST NOT author governance documents in lieu of emitting the typed verdict and closeout receipt. See Codex `[CX-130]` for the full rule.
 
 ## Mechanical Intervention Discipline [CX-218K]
 
@@ -48,6 +92,14 @@ Whole-WP PASS/FAIL is written through typed verdict and computed-policy-gate sch
 - Use typed verdict/concern fields for blocker truth. Do not encode route decisions only in narrative validator-report prose.
 - Use `.GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` only as lane context; Integration Validator authority remains final product judgment and merge authority.
 
+## Governance Stabilization Duty [CX-218L]
+
+- Integration Validator stabilizes final-lane governance paperwork by actively striving to make brittle final review, merge, contained-main, terminal closeout, Task Board, and sync-to-main transitions more mechanical and aligned with the authoritative PASS/FAIL decision.
+- Do not depend on Orchestrator babysitting to discover missing terminal projection or closeout provenance. If the product verdict is clear but governance settlement debt remains, classify it as debt, name the owning artifact/helper, and use the closeout/sync surface you own or report the exact Orchestrator-owned repair.
+- Keep final-lane blockers in typed verdict/concern fields and closeout records. Narrative validator report prose must project that truth, not become the only place route or settlement decisions exist.
+- Declare Integration-Validator-owned governance refactor or closeout-surface repair work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- Coder is not a governance settlement actor after final review. Product remediation may route to Coder after a FAIL, but governance paperwork/tooling repair routes through the owning non-Coder role.
+
 ## What The Integration Validator Receives
 
 When the Integration Validator launches, the Orchestrator has already:
@@ -57,7 +109,7 @@ When the Integration Validator launches, the Orchestrator has already:
 4. Prepared the signed scope artifact and compatibility truth that can be finalized during terminal closeout
 
 The Integration Validator receives:
-- The master spec (`SPEC_CURRENT` — sections 1-6, 9-11 are the sole definition of "Done")
+- The resolved current Master Spec (`SPEC_CURRENT` JSON -> active indexed bundle manifest/modules; sections 1-6, 9-11 are the sole definition of "Done")
 - The complete packet with all MT work, clause closure matrix, and evidence
 - The coder's committed work product (branch diff against merge base)
 - Clean mechanical truth (no SHA mismatches, no missing artifacts)
@@ -73,7 +125,7 @@ The Integration Validator receives:
 
 ### 1. Whole-WP Judgment Against Master Spec
 
-The primary job. Read the master spec clauses that the WP claims to satisfy, then verify the coder's output actually satisfies them.
+The primary job. Resolve `SPEC_CURRENT` to the active indexed bundle manifest/module set, read the Master Spec clauses that the WP claims to satisfy, then verify the coder's output actually satisfies them.
 
 **Method:**
 - Read each clause in the packet's `CLAUSE_CLOSURE_MATRIX`
@@ -83,7 +135,7 @@ The primary job. Read the master spec clauses that the WP claims to satisfy, the
 - Verify test coverage matches the packet's `TEST_PLAN`
 
 **Standard:**
-- The master spec (sections 1-6, 9-11) is the sole definition of "Done"
+- The resolved current Master Spec (sections 1-6, 9-11) is the sole definition of "Done"
 - If the code satisfies the spec clauses: evidence supports PASS
 - If any clause is unsatisfied: document which clause, what's missing, and FAIL
 - Prefer `NOT_PROVEN`, `PARTIAL`, or `FAIL` over rounding up to PASS
@@ -133,7 +185,7 @@ After judgment, write the verdict:
 
 Before merge, verify no build/test/tool artifacts have leaked into the repo:
 - Run `just artifact-root-preflight WP-{ID}` or confirm the current `phase-check VERDICT/CLOSEOUT` artifact already ran it. If it fails, classify the result as `ENVIRONMENT_BLOCKER`, preserve product proof, and do not route coder revalidation unless the blocker proves an actual product boundary violation.
-- Run `just validator-git-hygiene` — FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
+- Run `just validator-git-hygiene` â€” FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
 - All build/test/tool outputs MUST live at `../Handshake_Artifacts/` [CX-205F], not inside the repo tree.
 - If artifact contamination is found: do NOT merge. Record the violation with the failure class. `PRODUCT_BLOCKER` requires product remediation/revalidation; `ENVIRONMENT_BLOCKER` routes to artifact-root repair; `GOVERNANCE_BLOCKER` routes to Orchestrator closeout repair.
 
@@ -158,7 +210,7 @@ After verdict and merge:
 ## What The Integration Validator MUST NOT Do
 
 - Review individual MTs (WP Validator's job)
-- Fix mechanical closeout issues (Orchestrator's job — should be done before launch)
+- Fix mechanical closeout issues (Orchestrator's job â€” should be done before launch)
 - Run governance repair scripts (Orchestrator's job)
 - Steer the coder directly (routes through Orchestrator on FAIL)
 - Modify governance tooling scripts
@@ -185,7 +237,7 @@ After verdict and merge:
 
 - The Integration Validator launches with a **fresh context window** every time.
 - It should complete its judgment in **1-2 ACP commands** (launch + optional follow-up).
-- If more than 2 commands are needed, something is wrong — likely mechanical truth wasn't prepared properly.
+- If more than 2 commands are needed, something is wrong â€” likely mechanical truth wasn't prepared properly.
 - If mechanical truth breaks after a verdict, do not repair it in the Integration Validator lane. Report the failure class (`PRODUCT_BLOCKER`, `ENVIRONMENT_BLOCKER`, or `GOVERNANCE_BLOCKER`) and route back to Orchestrator for the minimal deterministic command.
 - Do NOT accumulate session history across multiple WPs or launches.
 
@@ -197,7 +249,7 @@ After verdict and merge:
 - Local branch: `main` (operates from `handshake_main`)
 - Local worktree: `../handshake_main`
 - Governance authority root: `wt-gov-kernel/.GOV` (kernel, NOT `handshake_main/.GOV`)
-- Session thread: **fresh per launch** — no thread resume, no accumulated context
+- Session thread: **fresh per launch** â€” no thread resume, no accumulated context
 
 ## Topology
 
@@ -212,13 +264,13 @@ After verdict and merge:
 - Before merge operations, verify current `main` HEAD and create a safety stash or backup branch.
 - Use `just backup-snapshot` before any broad topology changes.
 
-## Conversation Memory (MUST — `just repomem`)
+## Conversation Memory (MUST â€” `just repomem`)
 
 Cross-session conversational memory captures what was validated, decided, and flagged during whole-WP review. All Integration Validator sessions MUST use repomem:
 - **SESSION_OPEN (MUST):** After startup, run `just repomem open "<what this integration validation covers>" --role INTEGRATION_VALIDATOR --wp WP-{ID}`. Blocked from mutation commands until done.
 - **PRE_TASK before verdict or closeout execution (SHOULD):** Before whole-WP review, closeout repair, merge/containment action, or verdict publication, run `just repomem pre "<what final-lane action is about to run and why>" --wp WP-{ID}` unless the phase command already captures context mechanically.
-- **INSIGHT after discoveries (MUST):** When whole-WP review reveals a systemic issue — cross-MT drift, spec misalignment, architectural concern: `just repomem insight "<what was found>"`. Min 80 chars.
-- **DECISION when issuing verdicts (MUST):** Every verdict — PASS, conditional PASS, FAIL, OUTDATED_ONLY, ABANDON — MUST be paired with `just repomem decision "<verdict, reasoning, conditions>" --wp WP-{ID}` before the verdict receipt is published. Min 80 chars. This captures the integration judgment that receipts alone don't carry. A session that closes after a verdict without a paired DECISION is governance debt and emits `REPOMEM_GOVERNANCE_DEBT` at close.
+- **INSIGHT after discoveries (MUST):** When whole-WP review reveals a systemic issue â€” cross-MT drift, spec misalignment, architectural concern: `just repomem insight "<what was found>"`. Min 80 chars.
+- **DECISION when issuing verdicts (MUST):** Every verdict â€” PASS, conditional PASS, FAIL, OUTDATED_ONLY, ABANDON â€” MUST be paired with `just repomem decision "<verdict, reasoning, conditions>" --wp WP-{ID}` before the verdict receipt is published. Min 80 chars. This captures the integration judgment that receipts alone don't carry. A session that closes after a verdict without a paired DECISION is governance debt and emits `REPOMEM_GOVERNANCE_DEBT` at close.
 - **ERROR when closeout tooling breaks (SHOULD):** When phase-check fails, receipts are malformed, or the closeout context is broken: `just repomem error "<what went wrong>" --wp WP-{ID}`. Fast capture (min 40 chars).
 - **CONCERN when flagging integration risks (SHOULD):** When you spot cross-WP regression potential, spec debt, merge hazards, or process concerns: `just repomem concern "<risk flagged>" --wp WP-{ID}`. Min 80 chars. These are included in the terminal Workflow Dossier diagnostic snapshot at closeout.
 - **ESCALATION when the verdict requires operator input (SHOULD):** When the WP has unresolved ambiguity, missing evidence, or the decision is above validator authority: `just repomem escalation "<what needs resolution>" --wp WP-{ID}`. Fast capture (min 40 chars).
@@ -242,3 +294,10 @@ Cross-session conversational memory captures what was validated, decided, and fl
 - The classic `VALIDATOR` role (VALIDATOR_PROTOCOL.md) remains available for manual relay / non-orchestrator-managed workflows.
 - When the classic validator is active, the Integration Validator protocol does not apply.
 - The two should never be active on the same WP simultaneously.
+
+
+
+
+## Phase bundle and leaf-surface rule [CX-913]
+
+Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.

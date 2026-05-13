@@ -24,6 +24,10 @@ import {
   normalizePath,
   resolveWorkPacketPathAtRepo,
 } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  buildWorkPacketCommunicationView,
+  writeWorkPacketProjectionWithLifecycleSync,
+} from "../../../roles_shared/scripts/lib/work-packet-contract-read-lib.mjs";
 import { buildWpCommunicationHealthCheckResult } from "../../../roles_shared/checks/wp-communication-health-check.mjs";
 import { resolveCloseoutSyncCwd } from "../../../roles_shared/checks/phase-check.mjs";
 import {
@@ -174,6 +178,16 @@ export function readCurrentMainHeadSha({
 }
 
 function resolvePacketContext(wpId, repoRoot = REPO_ROOT) {
+  if (path.resolve(repoRoot) === path.resolve(REPO_ROOT)) {
+    const packetContext = buildWorkPacketCommunicationView(wpId);
+    if (packetContext.ok && packetContext.packetPath && packetContext.packetAbsPath && fs.existsSync(packetContext.packetAbsPath)) {
+      return {
+        packetPath: packetContext.packetPath,
+        packetAbsPath: packetContext.packetAbsPath,
+        packetText: packetContext.packetText || fs.readFileSync(packetContext.packetAbsPath, "utf8"),
+      };
+    }
+  }
   const resolved = resolveWorkPacketPathAtRepo(repoRoot, wpId, ".GOV");
   if (!resolved?.packetPath || !resolved?.packetAbsPath || !fs.existsSync(resolved.packetAbsPath)) {
     throw new Error(`Official packet not found for ${wpId}`);
@@ -196,7 +210,13 @@ export function runCloseoutAbsorberPrepass({
     wpId,
   });
   if (absorbed.applied.length > 0 && !dryRun) {
-    fs.writeFileSync(packetContext.packetAbsPath, absorbed.output, "utf8");
+    const writeResult = writeWorkPacketProjectionWithLifecycleSync({
+      wpId,
+      projectionText: absorbed.output,
+      generator: "closeout-repair.mjs:absorber-prepass",
+      fallbackAbsPath: packetContext.packetAbsPath,
+    });
+    absorbed.output = writeResult.packetText || absorbed.output;
   }
   return {
     ...packetContext,
@@ -407,10 +427,17 @@ export function applyBaselineShaRepair({
   }
 
   const nextPacketText = String(packetText || "").replace(oldMatch[0], `${oldMatch[1]}${currentMainHeadSha}`);
-  fs.writeFileSync(packetAbsPath, nextPacketText, "utf8");
+  const packetDirName = path.basename(path.dirname(packetAbsPath));
+  const writeResult = writeWorkPacketProjectionWithLifecycleSync({
+    wpId: /^WP-\d+/u.test(packetDirName) ? packetDirName : "",
+    projectionText: nextPacketText,
+    generator: "closeout-repair.mjs:baseline-sha-repair",
+    fallbackAbsPath: packetAbsPath,
+  });
+  const persistedPacketText = writeResult.packetText || nextPacketText;
   return {
     applied: true,
-    packetText: nextPacketText,
+    packetText: persistedPacketText,
     path: normalizePath(path.relative(repoRoot, packetAbsPath)),
     currentMainHeadSha,
   };
@@ -509,8 +536,15 @@ export function applySignedScopePatchRepair({
   const nextPacketText = patchReferenced
     ? packetText
     : insertSignedScopePatchArtifactReference(packetText, patchRelPath);
+  let persistedPacketText = nextPacketText;
   if (nextPacketText !== packetText) {
-    fs.writeFileSync(packetAbsPath, nextPacketText, "utf8");
+    const writeResult = writeWorkPacketProjectionWithLifecycleSync({
+      wpId,
+      projectionText: nextPacketText,
+      generator: "closeout-repair.mjs:signed-scope-patch-repair",
+      fallbackAbsPath: packetAbsPath,
+    });
+    persistedPacketText = writeResult.packetText || nextPacketText;
   }
   return {
     applied: true,
@@ -518,7 +552,7 @@ export function applySignedScopePatchRepair({
     targetHeadSha,
     diffLength: diff.length,
     patchPath: patchRelPath,
-    packetText: nextPacketText,
+    packetText: persistedPacketText,
     packetUpdated: nextPacketText !== packetText,
   };
 }

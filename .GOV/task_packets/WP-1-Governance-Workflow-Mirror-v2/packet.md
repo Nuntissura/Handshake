@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.json source_hash=d4912b656300ba20 projection_hash=7f0969d88b2fd74c generated_at_utc=2026-05-06T16:33:39.211Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

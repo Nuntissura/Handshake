@@ -1,0 +1,269 @@
+{
+  "schema_id": "hsk.workflow_contract@1",
+  "schema_version": "workflow_contract_v1",
+  "contract_id": "workflow.manual_relay.v1",
+  "contract_version": "2026-05-06.1",
+  "status": "ACTIVE",
+  "lane": "MANUAL_RELAY",
+  "authority": "MACHINE_CONTRACT",
+  "owner_roles": [
+    "CLASSIC_ORCHESTRATOR"
+  ],
+  "maintainer_roles": [
+    "CLASSIC_ORCHESTRATOR",
+    "ORCHESTRATOR"
+  ],
+  "consumers": [
+    "ACP_SESSION_CONTROL",
+    "MANUAL_RELAY_NEXT",
+    "MANUAL_RELAY_DISPATCH",
+    "VALIDATOR_NEXT"
+  ],
+  "projection_files": [
+    ".GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md"
+  ],
+  "role_scopes": {
+    "CLASSIC_ORCHESTRATOR": {
+      "allowed_command_kinds": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CANCEL_SESSION",
+        "CLOSE_SESSION"
+      ],
+      "allowed_next_commands": [
+        "just manual-relay-next {wp_id}",
+        "just manual-relay-dispatch {wp_id} '<context>'"
+      ],
+      "forbidden_actions": [
+        "convert manual lane into ORCHESTRATOR_MANAGED autonomous ACP steering",
+        "introduce Activation Manager as second manual authority",
+        "skip signature round-trip before packet hydration"
+      ],
+      "failure_class_ids": [
+        "manual_operator_relay_drift",
+        "manual_activation_authority_confusion",
+        "manual_signature_gap",
+        "manual_packet_status_drift",
+        "manual_validator_role_confusion"
+      ]
+    },
+    "CODER": {
+      "allowed_command_kinds": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CLOSE_SESSION"
+      ],
+      "allowed_next_commands": [
+        "just coder-next {wp_id}",
+        "just phase-check STARTUP {wp_id} CODER"
+      ],
+      "forbidden_actions": [
+        "patch manual-relay governance contract",
+        "start unassigned packet work",
+        "request routine operator approval through Coder lane"
+      ],
+      "failure_class_ids": [
+        "manual_operator_relay_drift",
+        "manual_packet_status_drift",
+        "manual_product_governance_boundary"
+      ]
+    },
+    "VALIDATOR": {
+      "allowed_command_kinds": [
+        "START_SESSION",
+        "SEND_PROMPT",
+        "CLOSE_SESSION"
+      ],
+      "allowed_next_commands": [
+        "just validator-next VALIDATOR {wp_id}",
+        "just external-validator-brief {wp_id}",
+        "just check-notifications {wp_id} VALIDATOR <session>"
+      ],
+      "forbidden_actions": [
+        "assume split WP_VALIDATOR/INTEGRATION_VALIDATOR unless packet opts in",
+        "turn manual relay into autonomous direct-review lane",
+        "PASS incomplete packet/evidence truth"
+      ],
+      "failure_class_ids": [
+        "manual_validator_role_confusion",
+        "manual_packet_status_drift",
+        "manual_closeout_gap",
+        "manual_operator_relay_drift"
+      ]
+    }
+  },
+  "states": [
+    {
+      "id": "manual_prelaunch",
+      "next_actor": "CLASSIC_ORCHESTRATOR",
+      "required_proof": "operator approval, signature, packet readiness"
+    },
+    {
+      "id": "manual_coder_work",
+      "next_actor": "CODER",
+      "required_proof": "assigned packet and startup phase check"
+    },
+    {
+      "id": "manual_validation",
+      "next_actor": "VALIDATOR",
+      "required_proof": "Coder handoff and validator evidence"
+    },
+    {
+      "id": "manual_closeout",
+      "next_actor": "CLASSIC_ORCHESTRATOR",
+      "required_proof": "validator verdict and packet/task-board sync"
+    },
+    {
+      "id": "manual_terminal",
+      "next_actor": "NONE",
+      "required_proof": "terminal packet/task-board truth"
+    }
+  ],
+  "transitions": [
+    {
+      "from": "manual_prelaunch",
+      "to": "manual_coder_work",
+      "trigger": "PACKET_READY_WITH_SIGNATURE",
+      "required_probe": "just manual-relay-next {wp_id}"
+    },
+    {
+      "from": "manual_coder_work",
+      "to": "manual_validation",
+      "trigger": "CODER_HANDOFF",
+      "required_probe": "just validator-next VALIDATOR {wp_id}"
+    },
+    {
+      "from": "manual_validation",
+      "to": "manual_closeout",
+      "trigger": "VALIDATOR_VERDICT",
+      "required_probe": "just manual-relay-next {wp_id}"
+    },
+    {
+      "from": "manual_closeout",
+      "to": "manual_terminal",
+      "trigger": "TASK_BOARD_TERMINAL",
+      "required_probe": "just gov-check"
+    }
+  ],
+  "terminal_fences": [
+    {
+      "id": "manual_terminal_role_wake_suppression",
+      "if_state": [
+        "manual_terminal"
+      ],
+      "forbid": [
+        "START_SESSION CODER",
+        "SEND_PROMPT CODER",
+        "START_SESSION VALIDATOR",
+        "SEND_PROMPT VALIDATOR"
+      ]
+    },
+    {
+      "id": "manual_no_activation_manager",
+      "if_lane": "MANUAL_RELAY",
+      "forbid": [
+        "START_SESSION ACTIVATION_MANAGER",
+        "SEND_PROMPT ACTIVATION_MANAGER"
+      ]
+    }
+  ],
+  "failure_classes": [
+    {
+      "id": "manual_operator_relay_drift",
+      "symptom": "manual relay depends on repeated operator prose instead of relay envelope truth",
+      "probes": [
+        "just manual-relay-next {wp_id}",
+        "inspect ROLE_TO_ROLE_MESSAGE"
+      ],
+      "repairs": [
+        "patch manual relay helper or envelope field",
+        "emit typed blocker with owner"
+      ]
+    },
+    {
+      "id": "manual_activation_authority_confusion",
+      "symptom": "Activation Manager appears in manual relay authority path",
+      "probes": [
+        "inspect packet WORKFLOW_LANE",
+        "just manual-relay-next {wp_id}"
+      ],
+      "repairs": [
+        "route prelaunch back to Classic Orchestrator"
+      ]
+    },
+    {
+      "id": "manual_signature_gap",
+      "symptom": "packet/worktree prep attempted without operator approval/signature",
+      "probes": [
+        "inspect packet signature block",
+        "inspect refinement handoff"
+      ],
+      "repairs": [
+        "stop and request signature round-trip through Classic Orchestrator"
+      ]
+    },
+    {
+      "id": "manual_packet_status_drift",
+      "symptom": "packet, task board, or runtime status disagree",
+      "probes": [
+        "packet-truth-bundle-check",
+        "manual-relay-next {wp_id}"
+      ],
+      "repairs": [
+        "sync authoritative packet/task-board projection"
+      ]
+    },
+    {
+      "id": "manual_validator_role_confusion",
+      "symptom": "manual lane accidentally routes to split WP/Integration validator roles",
+      "probes": [
+        "inspect packet validation form",
+        "just validator-next VALIDATOR {wp_id}"
+      ],
+      "repairs": [
+        "use VALIDATOR unless packet explicitly opts into split validators"
+      ]
+    },
+    {
+      "id": "manual_product_governance_boundary",
+      "symptom": "Coder attempts governance workflow repair while assigned product lane is active",
+      "probes": [
+        "git diff --name-only",
+        "inspect Coder handoff"
+      ],
+      "repairs": [
+        "reject governance drift in Coder lane and route to Classic Orchestrator"
+      ]
+    },
+    {
+      "id": "manual_closeout_gap",
+      "symptom": "validator verdict exists but closeout/task-board sync is incomplete",
+      "probes": [
+        "just manual-relay-next {wp_id}",
+        "just gov-check"
+      ],
+      "repairs": [
+        "Classic Orchestrator performs bounded closeout sync"
+      ]
+    },
+    {
+      "id": "manual_session_acp_drift",
+      "symptom": "manual brokered session registry or output file disagrees with relay state",
+      "probes": [
+        "just session-registry-status {wp_id}",
+        "inspect SESSION_CONTROL_RESULTS.jsonl"
+      ],
+      "repairs": [
+        "surface ACP drift as manual relay blocker"
+      ]
+    }
+  ],
+  "telemetry": {
+    "request_field": "workflow_contract",
+    "prompt_capsule_label": "WORKFLOW_CONTRACT_CAPSULE",
+    "startup_capsule_request_field": "role_startup_capsule",
+    "startup_capsule_prompt_label": "ROLE_STARTUP_CAPSULE",
+    "failure_receipt_kind": "WORKFLOW_CONTRACT_BLOCKER",
+    "status_projection": "ACP reads contract envelope before brokered manual relay wake/send"
+  }
+}

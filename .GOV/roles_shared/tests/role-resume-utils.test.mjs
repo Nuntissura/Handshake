@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -337,14 +338,54 @@ test("workflowStartReadinessState loads gate logs from the evaluated repo runtim
       ].join("\n"),
       "utf8",
     );
+    const specText = "# spec\n";
+    const specSha256 = crypto.createHash("sha256").update(specText).digest("hex");
     fs.writeFileSync(
-      path.join(repoRoot, ".GOV", "spec", "SPEC_CURRENT.md"),
-      "Handshake_Master_Spec_v02.179.md\n",
+      path.join(repoRoot, ".GOV", "spec", "Handshake_Master_Spec_v02.179.md"),
+      specText,
+      "utf8",
+    );
+    fs.mkdirSync(path.join(repoRoot, ".GOV", "spec", "indexed_spec", "spec-modules"), { recursive: true });
+    fs.writeFileSync(
+      path.join(repoRoot, ".GOV", "spec", "indexed_spec", "spec-modules", "00-spec.md"),
+      specText,
       "utf8",
     );
     fs.writeFileSync(
-      path.join(repoRoot, ".GOV", "spec", "Handshake_Master_Spec_v02.179.md"),
-      "# spec\n",
+      path.join(repoRoot, ".GOV", "spec", "indexed_spec", "indexed-spec-manifest.json"),
+      JSON.stringify({
+        source: {
+          path: ".GOV/spec/Handshake_Master_Spec_v02.179.md",
+          sha256: specSha256,
+        },
+        modules: [
+          {
+            id: "00-spec",
+            path: "spec-modules/00-spec.md",
+            sha256: specSha256,
+          },
+        ],
+        reconstruction: {
+          module_order: ["spec-modules/00-spec.md"],
+          reconstructed_sha256: specSha256,
+        },
+      }, null, 2),
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(repoRoot, ".GOV", "spec", "SPEC_CURRENT.md"),
+      JSON.stringify({
+        schema: "handshake.spec_current@1",
+        current_spec: {
+          entrypoint_type: "indexed_manifest",
+          entrypoint_path: ".GOV/spec/indexed_spec/indexed-spec-manifest.json",
+          version: "v02.179",
+          source_baseline_path: ".GOV/spec/Handshake_Master_Spec_v02.179.md",
+        },
+        governance_reference: {
+          path: ".GOV/codex/Handshake_Codex_v1.4.md",
+        },
+      }, null, 2),
       "utf8",
     );
     fs.writeFileSync(

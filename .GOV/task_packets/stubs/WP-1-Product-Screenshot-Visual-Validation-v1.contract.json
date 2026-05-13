@@ -1,0 +1,96 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Product-Screenshot-Visual-Validation-v1",
+  "base_wp_id": "WP-1-Product-Screenshot-Visual-Validation",
+  "created_at_utc": "2026-04-06T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Product-Screenshot-Visual-Validation-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Product-Screenshot-Visual-Validation-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Product-Screenshot-Visual-Validation-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "aa410c75ca5c0a85bbae90b3451d388579a1d033a5aee260bd2c7c5be5d94bcf",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "MEDIUM",
+    "depends_on": [
+      "NONE"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
+    "roadmap_pointer": "Visual validation and design library foundation for Dev Command Center and all GUI-bearing WPs",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Build a product-integrated screenshot capture tool that programmatically captures the full Handshake app window, individual panels, and module-level views. Expose screenshots to governed coder and validator sessions so they can visually verify UI coherence during implementation and review.\n- Why: The current refinement process forces UI/GUI thinking per WP (UI_UX_RUBRIC, GUI_IMPLEMENTATION_ADVICE), but coders and validators operate on code diffs, not visual output. Without a screenshot tool, visual coherence checks are impossible during governed autonomous work. This tool is also a prerequisite for a future Handshake design library and component registry.",
+    "scope_sketch": "- IN_SCOPE:\n  - Programmatic screenshot capture of the full Tauri app window.\n  - Panel-level capture (individual panels, sidebars, modals).\n  - Module-level capture (specific UI modules or component regions).\n  - Screenshot storage in the governed artifact system (`.handshake/artifacts/` or equivalent).\n  - CLI or API surface for triggering captures from governed coder/validator sessions.\n  - Screenshot metadata (timestamp, window title, panel id, dimensions, capture trigger).\n  - Integration with Tauri's webview screenshot or native window capture APIs.\n- OUT_OF_SCOPE:\n  - Design library or component registry (downstream WP).\n  - Visual diffing or automated visual regression testing (downstream WP).\n  - UI design guidelines or style guide creation (downstream WP, informed by screenshot captures).\n  - Video recording or screen recording.",
+    "acceptance_criteria": "- A governed coder session can trigger a full-app screenshot capture via CLI command or API call.\n- A governed validator session can capture and inspect individual panel screenshots.\n- Screenshots are stored with metadata in the artifact system.\n- Capture works on the current Tauri + React frontend stack.\n- The tool is usable from both cloud model sessions (via ACP broker CLI commands) and future local model sessions.",
+    "risks_unknowns": "- Risk: Tauri webview screenshot APIs may not expose panel-level granularity natively; may need DOM-based capture via html2canvas or similar.\n- Risk: Screenshot capture during test runs may require a headless or mock UI environment.\n- Risk: Large screenshot files may strain the artifact storage budget; need retention policy.\n- Unknown: Whether Tauri's native screenshot API or the webview's DOM-based capture is more reliable for panel-level captures on Windows 11.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

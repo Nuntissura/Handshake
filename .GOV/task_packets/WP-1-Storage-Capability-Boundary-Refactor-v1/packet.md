@@ -1,3 +1,4 @@
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Storage-Capability-Boundary-Refactor-v1/packet.json source_hash=d600868ae3cbea43 projection_hash=7c25a8b626712b44 generated_at_utc=2026-05-06T16:33:39.523Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

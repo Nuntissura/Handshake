@@ -29,6 +29,10 @@ function parseSingleField(text, label) {
   return match ? match[1].trim() : "";
 }
 
+function isContractLike(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
 function replaceSingleField(packetText, label, nextValue) {
   const re = new RegExp(`^(\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*)(.+)\\s*$`, "mi");
   if (!re.test(String(packetText || ""))) {
@@ -52,6 +56,9 @@ function replaceStatusField(packetText, nextStatus) {
 }
 
 function parseStatus(text) {
+  if (isContractLike(text)) {
+    return String(text?.lifecycle?.status || "").trim();
+  }
   const candidates = [
     /^\s*-\s*\*\*Status:\*\*\s*(.+?)\s*$/mi,
     /^\s*\*\*Status:\*\*\s*(.+?)\s*$/mi,
@@ -405,6 +412,27 @@ function defaultMergePendingWorktreeVerifier({ localBranch, coderWorktreeAbs }) 
 }
 
 export function parseMergeProgressionTruth(packetText) {
+  if (isContractLike(packetText)) {
+    const lifecycle = packetText.lifecycle || {};
+    const validationVerdictRecord = {
+      verdict: String(lifecycle.validation_verdict || lifecycle.validator_verdict || "").trim().toUpperCase(),
+      timestampUtc: String(lifecycle.validation_verdict_recorded_at_utc || "").trim(),
+      actorRole: String(lifecycle.validation_actor_role || "").trim().toUpperCase(),
+      actorSession: String(lifecycle.validation_actor_session || "").trim(),
+      evidencePointer: lifecycle.validation_evidence_pointer ? String(lifecycle.validation_evidence_pointer) : "",
+      reportIndex: null,
+    };
+    return {
+      packetFormatVersion: String(lifecycle.packet_format_version || "").trim(),
+      status: parseStatus(packetText),
+      validationVerdict: validationVerdictRecord.verdict,
+      validationVerdictRecord,
+      mainContainmentStatus: String(lifecycle.main_containment_status || "").trim().toUpperCase(),
+      mergedMainCommit: normalizeNoneLike(lifecycle.merged_main_commit),
+      mainContainmentVerifiedAtUtc: normalizeNoneLike(lifecycle.main_containment_verified_at_utc),
+      runtimeStatusPath: String(packetText?.workflow?.runtime_status_file || "").trim(),
+    };
+  }
   const validationVerdictRecord = parseValidationVerdictRecord(packetText);
   return {
     packetFormatVersion: parseSingleField(packetText, "PACKET_FORMAT_VERSION"),

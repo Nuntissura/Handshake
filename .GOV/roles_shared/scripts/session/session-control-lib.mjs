@@ -54,11 +54,22 @@ import {
   formatProtectedWorktreeResolutionDiagnostics,
   resolveProtectedWorktree,
 } from "../topology/git-topology-lib.mjs";
+import {
+  buildWorkflowContractEnvelope,
+  buildWorkflowContractPromptCapsule,
+  validateWorkflowContractEnvelopeShape,
+} from "../workflow/workflow-contract-lib.mjs";
+import {
+  deriveWpMicrotaskPlan,
+  listDeclaredWpMicrotasks,
+} from "../lib/wp-microtask-lib.mjs";
 
 export const SESSION_CONTROL_REQUEST_SCHEMA_ID = "hsk.session_control_request@1";
 export const SESSION_CONTROL_REQUEST_SCHEMA_VERSION = "session_control_request_v1";
 export const SESSION_CONTROL_RESULT_SCHEMA_ID = "hsk.session_control_result@1";
 export const SESSION_CONTROL_RESULT_SCHEMA_VERSION = "session_control_result_v1";
+export const ROLE_STARTUP_CAPSULE_SCHEMA_ID = "hsk.role_startup_capsule@1";
+export const ROLE_STARTUP_CAPSULE_SCHEMA_VERSION = "role_startup_capsule_v1";
 export const ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES = [
   "POLICY_CONFLICT",
   "AUTHORITY_OVERRIDE_REQUIRED",
@@ -92,6 +103,310 @@ function resolveAuthorityPacketPath(wpId) {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function capsulePath(value = "") {
+  return String(value || "").trim().replace(/\\/g, "/");
+}
+
+function readTextIfExists(absPath = "") {
+  try {
+    if (!absPath || !fs.existsSync(absPath)) return "";
+    return fs.readFileSync(absPath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+function readJsonIfExists(absPath = "") {
+  const text = readTextIfExists(absPath);
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return null; }
+}
+
+function readJsonlIfExists(absPath = "", maxEntries = 25) {
+  const text = readTextIfExists(absPath);
+  if (!text) return [];
+  return text.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(-maxEntries)
+    .map((line) => {
+      try { return JSON.parse(line); } catch { return null; }
+    })
+    .filter(Boolean);
+}
+
+function sha256Short(text = "") {
+  const value = String(text || "");
+  if (!value) return "";
+  return crypto.createHash("sha256").update(value, "utf8").digest("hex").slice(0, 16);
+}
+
+function firstNonEmptyLine(text = "") {
+  return String(text || "").split(/\r?\n/).map((line) => line.trim()).find(Boolean) || "";
+}
+
+function parseMachineField(text = "", field = "") {
+  const expected = String(field || "").trim().toUpperCase();
+  if (!expected) return "";
+  for (const rawLine of String(text || "").split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line.startsWith("-")) continue;
+    const stripped = line.replace(/^\s*-\s*/, "").replace(/\*\*/g, "");
+    const idx = stripped.indexOf(":");
+    if (idx < 0) continue;
+    const key = stripped.slice(0, idx).trim().toUpperCase();
+    if (key === expected) return stripped.slice(idx + 1).trim();
+  }
+  return "";
+}
+
+function sourceSnapshot(label, repoRelativePath, absPath) {
+  const text = readTextIfExists(absPath);
+  return {
+    label,
+    path: capsulePath(repoRelativePath),
+    exists: Boolean(text),
+    sha256_16: sha256Short(text),
+    first_line: firstNonEmptyLine(text).slice(0, 160),
+  };
+}
+
+function agentsAuthoritySnapshot() {
+  return sourceSnapshot(
+    "AGENTS",
+    "../handshake_main/AGENTS.md",
+    path.resolve(GOV_ROOT_ABS, "..", "..", "handshake_main", "AGENTS.md"),
+  );
+}
+
+function compactMicrotask(item = null) {
+  if (!item) return null;
+  return {
+    mt_id: item.mt_id || item.mtId || "",
+    clause: String(item.clause || "").slice(0, 240),
+    state: item.state || "",
+    packet_path: capsulePath(item.packet_path || item.packetPath || ""),
+    depends_on: item.depends_on || item.dependsOn || "",
+    code_surfaces: Array.isArray(item.code_surfaces || item.codeSurfaces)
+      ? (item.code_surfaces || item.codeSurfaces).slice(0, 8)
+      : [],
+    expected_tests: Array.isArray(item.expected_tests || item.expectedTests)
+      ? (item.expected_tests || item.expectedTests).slice(0, 8)
+      : [],
+    heuristic_risk: item.heuristic_risk || item.heuristicRisk || null,
+    last_receipt_kind: item.last_receipt_kind || null,
+    last_actor_role: item.last_actor_role || null,
+    correlation_id: item.correlation_id || null,
+    review_mode: item.review_mode || null,
+  };
+}
+
+function defaultFirstCommandsForCapsule({ role, wpId, roleConfig = null, commandKind = "" } = {}) {
+  const normalizedCommandKind = String(commandKind || "").trim().toUpperCase();
+  const resolvedRoleConfig = roleConfig || resolveRoleConfig(role, wpId);
+  if (!resolvedRoleConfig) return [];
+  if (normalizedCommandKind === "START_SESSION") {
+    return [
+      executableStartupCommand(role, wpId, resolvedRoleConfig),
+      executableNextCommand(role, wpId, resolvedRoleConfig),
+      ...(role === "INTEGRATION_VALIDATOR" ? [`just integration-validator-context-brief ${wpId}`] : []),
+      ...(role === "VALIDATOR" ? [`just external-validator-brief ${wpId}`] : []),
+    ];
+  }
+  return [executableNextCommand(role, wpId, resolvedRoleConfig)];
+}
+
+function refinementSnapshotForCapsule(wpId, packetInfo = {}) {
+  if (packetInfo.packetDirAbs && packetInfo.packetDir) {
+    const contractAbs = path.join(packetInfo.packetDirAbs, "refinement.json");
+    const contractRel = path.posix.join(capsulePath(packetInfo.packetDir), "refinement.json");
+    const contract = readJsonIfExists(contractAbs);
+    if (contract) {
+      const serialized = JSON.stringify(contract);
+      return {
+        path: capsulePath(contractRel),
+        projection_path: capsulePath(contract?.markdown_projection?.path || path.posix.join(packetInfo.packetDir, "refinement.md")),
+        authority: "PRIMARY_MACHINE_READABLE",
+        exists: true,
+        schema_id: contract.schema_id || "",
+        sha256_16: sha256Short(serialized),
+        signature_status: contract?.refinement?.user_signature && contract.refinement.user_signature !== "<pending>" ? "SIGNED" : "PENDING",
+        activation_manager_required: Boolean(contract?.activation_manager?.required),
+        activation_manager_status: String(contract?.activation_manager?.status || "").trim(),
+        spec_anchor_count: Array.isArray(contract?.refinement?.spec_anchors) ? contract.refinement.spec_anchors.length : 0,
+      };
+    }
+  }
+
+  const candidates = [];
+  if (packetInfo.packetDirAbs && packetInfo.packetDir) {
+    candidates.push({
+      rel: path.posix.join(capsulePath(packetInfo.packetDir), "refinement.md"),
+      abs: path.join(packetInfo.packetDirAbs, "refinement.md"),
+    });
+  }
+  candidates.push({
+    rel: path.posix.join(GOV_ROOT_REPO_REL, "refinements", `${wpId}.md`),
+    abs: repoPathAbs(path.posix.join(GOV_ROOT_REPO_REL, "refinements", `${wpId}.md`)),
+  });
+  const match = candidates.find((entry) => fs.existsSync(entry.abs)) || candidates[0];
+  const text = readTextIfExists(match?.abs);
+  return {
+    path: capsulePath(match?.rel || ""),
+    authority: "MARKDOWN_LEGACY",
+    exists: Boolean(text),
+    sha256_16: sha256Short(text),
+    spec_target_resolved: parseMachineField(text, "SPEC_TARGET_RESOLVED"),
+    signature_status: parseMachineField(text, "USER_SIGNATURE") && parseMachineField(text, "USER_SIGNATURE") !== "<pending>" ? "SIGNED" : "PENDING",
+    enrichment_needed: parseMachineField(text, "ENRICHMENT_NEEDED"),
+    stub_wp_ids: parseMachineField(text, "STUB_WP_IDS"),
+  };
+}
+
+export function buildRoleStartupCapsule({
+  role,
+  wpId,
+  roleConfig = null,
+  commandKind = "START_SESSION",
+  firstCommands = null,
+  restartReason = "",
+} = {}) {
+  const normalizedRole = String(role || "").trim().toUpperCase();
+  const generatedAt = nowIso();
+  const packetResolved = resolveWorkPacketPath(wpId) || {};
+  const packetPath = packetResolved.packetPath || workPacketPath(wpId);
+  const packetAbsPath = packetResolved.packetAbsPath || repoPathAbs(packetPath);
+  const packetText = readTextIfExists(packetAbsPath);
+  const packetContractAbsPath = packetResolved?.isFolder && packetResolved.packetDirAbs ? path.join(packetResolved.packetDirAbs, "packet.json") : "";
+  const packetContractPath = packetResolved?.isFolder && packetResolved.packetDir ? path.posix.join(capsulePath(packetResolved.packetDir), "packet.json") : "";
+  const packetContract = readJsonIfExists(packetContractAbsPath);
+  const packetWorkflow = packetContract?.workflow && typeof packetContract.workflow === "object" ? packetContract.workflow : {};
+  const communicationDir = String(packetWorkflow.communication_dir || parseMachineField(packetText, "WP_COMMUNICATION_DIR") || "").trim();
+  const runtimeStatusPath = String(packetWorkflow.runtime_status_file || parseMachineField(packetText, "WP_RUNTIME_STATUS_FILE") || (communicationDir ? path.posix.join(communicationDir, "RUNTIME_STATUS.json") : "")).trim();
+  const receiptsPath = String(packetWorkflow.receipts_file || parseMachineField(packetText, "WP_RECEIPTS_FILE") || (communicationDir ? path.posix.join(communicationDir, "RECEIPTS.jsonl") : "")).trim();
+  const runtimeStatus = runtimeStatusPath ? readJsonIfExists(repoPathAbs(runtimeStatusPath)) : null;
+  const receipts = receiptsPath ? readJsonlIfExists(repoPathAbs(receiptsPath), 50) : [];
+  let microtaskProjectionError = "";
+  let declaredMicrotasks = [];
+  let microtaskPlan = {
+    declared_count: 0,
+    active_microtask: null,
+    suggested_next_microtask: null,
+    attention_microtask: null,
+    items: [],
+  };
+  try {
+    declaredMicrotasks = listDeclaredWpMicrotasks(wpId);
+    microtaskPlan = deriveWpMicrotaskPlan({
+      wpId,
+      receipts,
+      runtimeStatus: runtimeStatus || {},
+      microtasks: declaredMicrotasks,
+    });
+  } catch (error) {
+    microtaskProjectionError = String(error?.message || error || "").slice(0, 240);
+  }
+  const firstCommandList = Array.isArray(firstCommands) && firstCommands.length > 0
+    ? firstCommands
+    : defaultFirstCommandsForCapsule({ role: normalizedRole, wpId, roleConfig, commandKind });
+  const workflowLane = String(packetContract?.workflow?.lane || parseMachineField(packetText, "WORKFLOW_LANE") || "").trim();
+  return {
+    schema_id: ROLE_STARTUP_CAPSULE_SCHEMA_ID,
+    schema_version: ROLE_STARTUP_CAPSULE_SCHEMA_VERSION,
+    generated_at: generatedAt,
+    role: normalizedRole,
+    wp_id: wpId,
+    command_kind: String(commandKind || "").trim().toUpperCase(),
+    restart_reason: String(restartReason || "").trim(),
+    authority_boundary: "ACP_CONSUMES_ORCHESTRATOR_AUTHORED_TRUTH; ACP_IS_NOT_WORKFLOW_AUTHORITY",
+    prompt_capsule_label: "ROLE_STARTUP_CAPSULE",
+    request_field: "role_startup_capsule",
+    authority_files: [
+      agentsAuthoritySnapshot(),
+      sourceSnapshot("CODEX", CODEX_AUTHORITY_PATH, repoPathAbs(CODEX_AUTHORITY_PATH)),
+      sourceSnapshot("ROLE_PROTOCOL", roleProtocolPath(normalizedRole), repoPathAbs(roleProtocolPath(normalizedRole))),
+    ],
+    work_packet_contract: {
+      path: capsulePath(packetContract ? packetContractPath : packetPath),
+      projection_path: capsulePath(packetPath),
+      authority: packetContract ? "PRIMARY_MACHINE_READABLE" : "MARKDOWN_LEGACY",
+      exists: Boolean(packetContract || packetText),
+      schema_id: packetContract?.schema_id || "",
+      sha256_16: sha256Short(packetContract ? JSON.stringify(packetContract) : packetText),
+      wp_id: packetContract?.wp_id || parseMachineField(packetText, "WP_ID") || wpId,
+      base_wp_id: packetContract?.base_wp_id || parseMachineField(packetText, "BASE_WP_ID"),
+      status: packetContract?.lifecycle?.status || parseMachineField(packetText, "Status"),
+      workflow_lane: workflowLane,
+      execution_owner: packetContract?.workflow?.execution_owner || parseMachineField(packetText, "EXECUTION_OWNER"),
+      spec_anchor: Array.isArray(packetContract?.scope?.spec_anchors)
+        ? packetContract.scope.spec_anchors[0] || ""
+        : parseMachineField(packetText, "SPEC_ANCHOR") || parseMachineField(packetText, "SPEC_ANCHOR_PRIMARY"),
+      packet_format_version: packetContract?.lifecycle?.packet_format_version || parseMachineField(packetText, "PACKET_FORMAT_VERSION"),
+      communication_contract: packetContract?.workflow?.communication_contract || parseMachineField(packetText, "COMMUNICATION_CONTRACT"),
+      runtime_status_file: capsulePath(runtimeStatusPath),
+      receipts_file: capsulePath(receiptsPath),
+    },
+    refinement_contract: refinementSnapshotForCapsule(wpId, packetResolved),
+    microtask_contract: {
+      authority: declaredMicrotasks.some((item) => item?.contractAuthority === "PRIMARY_MACHINE_READABLE") ? "PRIMARY_MACHINE_READABLE" : "MARKDOWN_LEGACY",
+      declared_count: microtaskPlan.declared_count || 0,
+      projection_error: microtaskProjectionError,
+      active_microtask: compactMicrotask(microtaskPlan.active_microtask),
+      next_microtask: compactMicrotask(microtaskPlan.suggested_next_microtask),
+      attention_microtask: compactMicrotask(microtaskPlan.attention_microtask),
+      items: (microtaskPlan.items || []).slice(0, 20).map((item) => compactMicrotask(item)),
+    },
+    runtime_receipt_state: {
+      runtime_status_file: capsulePath(runtimeStatusPath),
+      receipts_file: capsulePath(receiptsPath),
+      runtime_exists: Boolean(runtimeStatus),
+      receipt_count_sampled: receipts.length,
+      next_expected_actor: runtimeStatus?.next_expected_actor || runtimeStatus?.next_expected_role || "",
+      waiting_on: runtimeStatus?.waiting_on || runtimeStatus?.waiting_on_role || "",
+      validator_trigger: runtimeStatus?.validator_trigger || "",
+      open_review_count: Array.isArray(runtimeStatus?.open_review_items) ? runtimeStatus.open_review_items.length : 0,
+      latest_receipts: receipts.slice(-5).map((entry) => ({
+        receipt_kind: entry.receipt_kind || "",
+        actor_role: entry.actor_role || "",
+        target_role: entry.target_role || "",
+        packet_row_ref: entry.packet_row_ref || "",
+        verb: entry.verb || "",
+        summary: String(entry.summary || "").slice(0, 180),
+      })),
+    },
+    first_commands: firstCommandList,
+    source_snapshots: {
+      generated_at: generatedAt,
+      packet_sha256_16: sha256Short(packetText),
+      refinement_sha256_16: refinementSnapshotForCapsule(wpId, packetResolved).sha256_16,
+      declared_microtasks: declaredMicrotasks.length,
+      sampled_receipts: receipts.length,
+    },
+  };
+}
+
+export function buildRoleStartupPromptCapsule(args = {}) {
+  return JSON.stringify(buildRoleStartupCapsule(args));
+}
+
+export function validateRoleStartupCapsuleShape(capsule, { allowMissing = false } = {}) {
+  if (!capsule) return allowMissing ? [] : ["role_startup_capsule is required"];
+  const errors = [];
+  if (typeof capsule !== "object" || Array.isArray(capsule)) return ["role_startup_capsule must be an object"];
+  if (capsule.schema_id !== ROLE_STARTUP_CAPSULE_SCHEMA_ID) errors.push(`role_startup_capsule.schema_id must be ${ROLE_STARTUP_CAPSULE_SCHEMA_ID}`);
+  if (capsule.schema_version !== ROLE_STARTUP_CAPSULE_SCHEMA_VERSION) errors.push(`role_startup_capsule.schema_version must be ${ROLE_STARTUP_CAPSULE_SCHEMA_VERSION}`);
+  if (!String(capsule.generated_at || "").trim()) errors.push("role_startup_capsule.generated_at is required");
+  if (!String(capsule.role || "").trim()) errors.push("role_startup_capsule.role is required");
+  if (!String(capsule.wp_id || "").trim()) errors.push("role_startup_capsule.wp_id is required");
+  if (!Array.isArray(capsule.authority_files) || capsule.authority_files.length === 0) errors.push("role_startup_capsule.authority_files must be non-empty");
+  if (!capsule.work_packet_contract || typeof capsule.work_packet_contract !== "object" || Array.isArray(capsule.work_packet_contract)) errors.push("role_startup_capsule.work_packet_contract must be an object");
+  if (!capsule.refinement_contract || typeof capsule.refinement_contract !== "object" || Array.isArray(capsule.refinement_contract)) errors.push("role_startup_capsule.refinement_contract must be an object");
+  if (!capsule.microtask_contract || typeof capsule.microtask_contract !== "object" || Array.isArray(capsule.microtask_contract)) errors.push("role_startup_capsule.microtask_contract must be an object");
+  if (!capsule.runtime_receipt_state || typeof capsule.runtime_receipt_state !== "object" || Array.isArray(capsule.runtime_receipt_state)) errors.push("role_startup_capsule.runtime_receipt_state must be an object");
+  if (!Array.isArray(capsule.first_commands)) errors.push("role_startup_capsule.first_commands must be an array");
+  return errors;
 }
 
 function writeJsonlEvent(outputStream, event) {
@@ -1164,6 +1479,7 @@ export function buildInlineStartupPrompt({
     ? `MODEL PROFILE: ${selectedProfileId} (${selectedProfile.provider}, tool=${selectedProfile.session_tool}, runtime_support=${selectedProfile.runtime_support}, claim_model=${selectedProfile.claim_model}, reasoning=${selectedProfile.reasoning_strength}${selectedProfile.reasoning_policy_note ? `, policy=${selectedProfile.reasoning_policy_note}` : ""}).`
     : `MODEL PROFILE POLICY: ${ROLE_MODEL_PROFILE_POLICY} (legacy/default packet fields may omit explicit per-role profile ids).`;
   const repomemOpenCommand = roleRepomemOpenCommand(role, wpId);
+  const workflowContractCapsule = buildWorkflowContractPromptCapsule({ role, commandKind: "START_SESSION" });
   const contextDigestCommand = role === "ACTIVATION_MANAGER"
     ? `just activation-manager next ${wpId}`
     : role === "CLASSIC_ORCHESTRATOR"
@@ -1203,7 +1519,9 @@ export function buildInlineStartupPrompt({
     ),
     `MINIMAL LIVE READ SET (MANDATORY): After startup and assignment, work from startup output + active packet + active WP thread/notifications + .GOV/roles_shared/docs/COMMAND_SURFACE_REFERENCE.md when command choice is unclear.`,
     `STARTUP BRIEF (OPERATIONAL MEMORY): each role startup prints .GOV/roles_shared/docs/SHARED_STARTUP_BRIEF.md plus the role-specific STARTUP_BRIEF under that role's docs folder. Treat those cards as Memory-Manager-curated anti-repeat guidance, not protocol authority.`,
+    `WORKFLOW_CONTRACT_CAPSULE (ACP-CONSUMED): ${workflowContractCapsule}`,
     `MECHANICAL_INTERVENTION [CX-218K]: before patching, steering, relaying, declaring a stall, or treating handoff/documentation/protocol drift as blocked, classify 3-5 plausible causes including runtime route drift, notification/cursor drift, session/ACP drift, documentation/protocol drift, clock/staleness drift, and scope/worktree drift; then use the cheapest deterministic read or typed helper. For ORCHESTRATOR_MANAGED, use .GOV/roles_shared/docs/ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md.`,
+    `BUNDLED_WP_MT_RULE (HARD): large/folded bundled WPs are allowed only when official MT files keep work deterministic, restartable, independently reviewable, and small-model manageable. There is no upper MT-count bias; 20+ MTs are acceptable. Do not collapse MTs to reduce paperwork, and execute/review/launch by declared MT truth rather than broad WP prose.`,
     `CANONICAL_CONTEXT_DIGEST: if live authority/context feels fragmented, use ${contextDigestCommand} instead of rereading ${contextDigestSurface} surfaces separately.`,
     `ANTI-REDISCOVERY RULE: Do not keep rereading large governance protocols, rerunning just --list, or repeating path/source-of-truth checks after context is already stable. If you need that repeated rereading, report ambiguity instead of silently paying for it.`,
     `HOST_LOAD_STANCE (HARD): Treat operator-owned downloads and other external host processes as out of scope. Do not inspect, cancel, kill, throttle, or otherwise touch them. Before starting heavy validation/build commands (cargo test, cargo clippy, broad pnpm test, full builds), check packet WAIVERS GRANTED and current Orchestrator/Operator instructions. If an active host-load waiver covers the command, record NOT_RUN_WAIVED or deferred evidence with the waiver ID instead of launching the heavy command. If no waiver covers it and the command is required, escalate to the Orchestrator rather than surprising the host.`,
@@ -1223,12 +1541,14 @@ export function buildInlineStartupPrompt({
       `MANUAL-RELAY AUTHORITY (HARD): Operator remains the active relay between roles. You may use deterministic relay helpers, but do not convert this lane into autonomous ORCHESTRATOR_MANAGED ACP control.`,
       `COMBINED PRE-LAUNCH PARITY (HARD): You own the old Orchestrator plus Activation Manager pre-launch duties for MANUAL_RELAY: refinement, approved spec enrichment, signature evidence, packet hydration, microtask/worktree/backup preparation, and activation readiness.`,
       `REFINEMENT STANDARD (HARD): refinement and spec-enrichment work must match the Activation Manager quality bar. Own the research, primitive-index, matrix, appendix, force-multiplier follow-through, and stub discovery needed for a reviewable packet.`,
-      `LOCAL-FIRST RESEARCH RULE (HARD): for internal, repo-governed, or product-governance mirror work already grounded in current Master Spec plus local code/runtime truth, prefer local evidence and mark external research NOT_APPLICABLE when honest.`,
+      `SPEC WRITE AUTHORITY (HARD): You are an allowed current Master Spec writer. Resolve ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md JSON -> indexed manifest -> spec-modules; patch modules, update manifest hashes/metadata, and verify with spec-current/spec-regression/spec-eof/gov-check.`,
+      `LOCAL-FIRST RESEARCH RULE (HARD): for internal, repo-governed, or product-governance mirror work already grounded in the resolved current Master Spec plus local code/runtime truth, prefer local evidence and mark external research NOT_APPLICABLE when honest.`,
       `CONVERGENCE RULE (HARD): once enough local evidence exists, update the named refinement/spec artifact immediately. Inspect at most 2 directly analogous artifacts only when structure help is genuinely needed.`,
       `WINDOWS EDIT LIMIT RULE (HARD): update long-path refinement/spec artifacts with bounded section edits or chunked apply_patch updates instead of monolithic whole-file rewrites.`,
       `BLOCKER-FIRST REPAIR RULE (HARD): when a gate reports named blockers, repair those blocker-named lines or sections first and rerun the gate before broad rereads.`,
       `FILE-FIRST HANDOFF RULE (HARD): write the refinement/spec artifact, run the real checker, and return the file path plus compact REFINEMENT_HANDOFF_SUMMARY unless the Operator explicitly asks for excerpts.`,
       `SIGNATURE ROUND-TRIP (MANDATORY): obtain operator approval evidence, the one-time signature, and selected Coder-A..Z owner before packet, microtask, worktree, backup, or readiness work.`,
+      `LARGE BUNDLE DECOMPOSITION (HARD): for manual-relay large/folded bundles, you own the Activation Manager-equivalent MT split. Prefer 20+ narrow MT files over a few broad MTs when that improves deterministic execution, recovery, per-MT validation, or local/small-cloud model suitability. Do not dispatch Coder on broad bundled prose.`,
       `MANUAL RELAY ROUTE (MANDATORY): use \`just manual-relay-next ${wpId}\` for projected next-actor truth and \`just manual-relay-dispatch ${wpId} "<context>"\` for one brokered governed hop. Keep ROLE_TO_ROLE_MESSAGE separate from OPERATOR_EXPLAINER.`,
       `VALIDATION FORM (MANDATORY): manual relay uses \`VALIDATOR\` as the combined classical validator unless a packet explicitly opts into split \`WP_VALIDATOR\` / \`INTEGRATION_VALIDATOR\` lanes.`,
       `SELF-PRIME (RGF-249): after compaction or fresh role recovery, run \`just role-self-prime CLASSIC_ORCHESTRATOR ${wpId} --session-id CLASSIC_ORCHESTRATOR:${wpId}\` and treat predecessor summary as context only; packet/runtime/receipts remain canonical.`,
@@ -1241,11 +1561,14 @@ export function buildInlineStartupPrompt({
       `FOCUS: pre-launch governance authoring only in wt-gov-kernel on branch gov_kernel.`,
       `WORKFLOW SPLIT (MANDATORY): For \`WORKFLOW_LANE=ORCHESTRATOR_MANAGED\`, you are the mandatory governed pre-launch authoring lane and temporary worker. You must own the heavy pre-launch reasoning, hand back \`ACTIVATION_READINESS\` to the Orchestrator, and then self-close. For \`MANUAL_RELAY\`, pre-launch belongs to \`CLASSIC_ORCHESTRATOR\`; do not invent a second manual authority lane.`,
       `REFINEMENT STANDARD (HARD): your refinement and spec-enrichment work must match or exceed the old Orchestrator pre-launch quality bar. Own the full research, primitive-index, matrix, appendix, and force-multiplier follow-through instead of treating refinement as a lightweight summary.`,
-      `RESEARCH APPLICABILITY RULE (HARD): for internal, repo-governed, or product-governance mirror WPs already grounded in the current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and mark external research sections NOT_APPLICABLE when honest. Never perform empty, generic, or off-topic web searches just to fill refinement headings.`,
+      `RESEARCH APPLICABILITY RULE (HARD): for internal, repo-governed, or product-governance mirror WPs already grounded in the resolved current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and mark external research sections NOT_APPLICABLE when honest. Never perform empty, generic, or off-topic web searches just to fill refinement headings.`,
+      `SPEC AUTHORITY (HARD): resolve ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md as handshake.spec_current@1 JSON to the indexed manifest/modules before editing or relying on spec text; do not patch the old monolith.`,
+      `SPEC WRITE AUTHORITY (HARD): You are an allowed current Master Spec writer for approved pre-launch enrichment. Patch spec-modules, update manifest hashes/metadata, and verify with spec-current/spec-regression/spec-eof/gov-check.`,
       `CONVERGENCE RULE (HARD): once you have the core spec/runtime evidence for the assigned WP, switch into updating the named target refinement/spec artifact immediately. Do not broad-scan unrelated .GOV/refinements or .GOV/task_packets for examples. If structure help is genuinely needed, read at most 2 directly analogous artifacts, then write the target artifact.`,
       `WINDOWS EDIT LIMIT RULE (HARD): when a refinement/spec artifact already exists under a long Windows worktree path, do not attempt a monolithic whole-file rewrite that can trip os error 206. Prefer bounded in-place section edits or chunked apply_patch updates against the existing file.`,
       `BLOCKER-FIRST REPAIR RULE (HARD): when the gate reports a named blocker list for a partially filled refinement/spec artifact, repair only those blocker-named lines or sections first. Do not read excerpt-heavy tail sections, exact spec-anchor windows, or large later blocks until the gate specifically requires them.`,
       `STUB DISCOVERY RULE (HARD): when refinement, enrichment, primitive-index upkeep, or matrix expansion exposes new high-ROI items or unknown capabilities, create or update stub backlog entries instead of silently dropping them.`,
+      `LARGE BUNDLE DECOMPOSITION (HARD): for large/folded bundles, convert the signed scope into enough concrete MT-### files for deterministic execution. Prefer 20+ narrow MTs over broad subsystem MTs when that improves review targeting, recovery, or local/small-cloud model suitability. \`ACTIVATION_READINESS\` must expose MICROTASK_STATUS and MICROTASK_GRANULARITY.`,
       `MODEL PROFILE RULE: Activation Manager launch defaults to the governed repo profile when packet fields are absent because this lane may run before packet hydration is complete.`,
       `COMMAND SURFACE RULE: use the canonical \`just activation-manager <action>\` surface for role-local repair/reference work and the shared refinement/signature/packet-prep commands the Orchestrator explicitly delegates. Shared implementation does not change authority ownership.`,
       `FILE-FIRST HANDOFF RULE (HARD): write the refinement/spec artifact, run the checks on that file, and return only the file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text by default.`,
@@ -1282,6 +1605,7 @@ export function buildInlineStartupPrompt({
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not create a WP, choose a task, or start implementation without an assigned packet.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: only the assigned WP in the assigned WP worktree.`,
+      `SPEC WRITE AUTHORITY (HARD): none. Read resolved SPEC_CURRENT only; if spec text is wrong, missing, or underspecified, STOP and escalate to an allowed spec-writer role.`,
       `GOVERNANCE NOISE RULE: the worktree .GOV tree is a live shared governance junction. Treat it as read-only context except for the assigned packet and declared MT files, which you may update for coder-owned status/evidence through the junction without committing .GOV on the feature branch. Use \`just coder-next ${wpId}\` as the filtered resume surface, and do not treat raw .GOV git noise as WP scope evidence.`,
       `WP WORKTREE ROUTING (HARD): Product navigation, tests, and edits belong to the assigned WP worktree/current cwd. If any receipt metadata mentions \`../handshake_main\` or another non-WP worktree as a product path, treat it as stale navigation noise and resolve the same packet-declared surfaces relative to the assigned WP worktree.`,
       `FLOW: \`MANUAL_RELAY\` = \`just phase-check STARTUP ${wpId} CODER\` -> skeleton approval when required -> implementation -> \`just phase-check HANDOFF ${wpId} CODER\` -> Validator handoff. \`ORCHESTRATOR_MANAGED\` = \`just phase-check STARTUP ${wpId} CODER\` -> validator-owned bootstrap/skeleton checkpoint -> implementation with bounded overlap review -> \`just phase-check HANDOFF ${wpId} CODER\` -> Validator handoff; no routine Operator approvals after signature.`,
@@ -1313,6 +1637,7 @@ export function buildInlineStartupPrompt({
       `AFTER STARTUP: Wait for Operator or Orchestrator instruction. Do not start validation, cleanup, merge, or status sync without a specific task.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: validate evidence in the assigned WP worktree, not intent.`,
+      `SPEC WRITE AUTHORITY (HARD): none. Emit SPEC_GAP/CONCERN/remediation receipts for spec drift; do not edit ${GOV_ROOT_REPO_REL}/spec/**.`,
       `WP WORKTREE ROUTING (HARD): Locate packet-declared product surfaces from the assigned WP worktree/current cwd. Do not discover or cite \`../handshake_main\` product paths for WP validator kickoff, review metadata, proof commands, or file targets; \`handshake_main\` is an integration/main containment surface, not this WP's writable review target.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then report findings.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
@@ -1350,7 +1675,8 @@ export function buildInlineStartupPrompt({
       `FINAL-LANE STARTUP ORDER (HARD): Before any repo search, packet rediscovery, or broad .GOV inspection, complete \`${roleStartupCommand("INTEGRATION_VALIDATOR")}\` -> \`${roleNextCommand("INTEGRATION_VALIDATOR", wpId)}\` -> \`just integration-validator-context-brief ${wpId}\`, then treat the emitted \`packet_read_path\` and \`prepare_worktree_dir\` as the authoritative readable pointers.`,
       `FLOW: run the required gates, map requirements to file:line evidence, append the validation report, then close or merge validated work.`,
       `ORCHESTRATOR-MANAGED RULE: do not ask the Operator for routine approval, proceed, or checkpoint actions after signature/prepare. Route any real blocker back to the Orchestrator with one BLOCKER_CLASS from ${ORCHESTRATOR_MANAGED_REAL_BLOCKER_CLASSES.join(", ")}.`,
-      `VERDICT COMMUNICATION (MANDATORY): The Integration Validator does not steer the Coder directly. Judge the complete work product against the master spec independently; a final handoff review receipt may target the coder session only to resolve the open handoff correlation mechanically. On PASS: write verdict in packet, run validator-gate-append/commit, update task board, merge to main, run sync-gov-to-main. On FAIL: write a structured remediation report in the packet with specific fix instructions, then report to the Orchestrator via \`just wp-receipt-append ${wpId} INTEGRATION_VALIDATOR <your-session> STATUS "<FAIL summary with remediation instructions given>"\`. The Orchestrator handles relaunching the coder with remediation context. See .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md for the full FAIL remediation flow.`,
+      `SPEC WRITE AUTHORITY (HARD): You are an allowed current Master Spec writer for final-lane corrections only. Resolve SPEC_CURRENT JSON -> indexed manifest -> modules; do not rewrite requirements to manufacture PASS; materially changed requirements route remediation/enrichment before PASS.`,
+      `VERDICT COMMUNICATION (MANDATORY): The Integration Validator does not steer the Coder directly. Judge the complete work product against the resolved current Master Spec independently; a final handoff review receipt may target the coder session only to resolve the open handoff correlation mechanically. On PASS: write verdict in packet, run validator-gate-append/commit, update task board, merge to main, run sync-gov-to-main. On FAIL: write a structured remediation report in the packet with specific fix instructions, then report to the Orchestrator via \`just wp-receipt-append ${wpId} INTEGRATION_VALIDATOR <your-session> STATUS "<FAIL summary with remediation instructions given>"\`. The Orchestrator handles relaunching the coder with remediation context. See .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md for the full FAIL remediation flow.`,
       `FINAL HANDOFF ROUTE (HARD): If DIRECT_ROLE_MESSAGE/SOURCE_KIND is CODER_HANDOFF, do not use \`phase-check CLOSEOUT\` as the first action. Run \`just phase-check VERDICT ${wpId} INTEGRATION_VALIDATOR <your-session>\`; if it passes, review the candidate and emit the validator review receipt that preserves the handoff correlation/ack_for. \`phase-check CLOSEOUT\` is terminal closeout/merge-readiness proof after the final review response or verdict, not a substitute for answering the handoff.`,
       `STARTUP MESH (MANDATORY): Before entering the final review lane, run \`${startupMeshCommand}\` and do not proceed until the startup communication mesh reports ready.`,
       `FINAL-LANE CONTEXT (MANDATORY): Use \`just integration-validator-context-brief ${wpId}\` as the canonical authority/path/context bundle for this lane instead of rebuilding branch/worktree/session/main-compatibility truth manually.`,
@@ -1372,6 +1698,7 @@ export function buildInlineStartupPrompt({
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
       `FOCUS: combined classical validation for MANUAL_RELAY and non-orchestrator-managed work. Validate evidence in the assigned WP worktree, not intent, and own final closure only for that manual lane.`,
       `MANUAL-RELAY AUTHORITY (HARD): the Operator is the relay. Do not assume autonomous Orchestrator-managed steering, do not ask for split WP/Integration Validator behavior unless the packet explicitly declares it, and keep role-to-role payloads in typed receipts/envelopes.`,
+      `SPEC WRITE AUTHORITY (HARD): You are an allowed current Master Spec writer for classic/manual validation corrections only. Resolve SPEC_CURRENT JSON -> indexed manifest -> modules; do not rewrite requirements to manufacture PASS; materially changed requirements route remediation/enrichment before PASS.`,
       `KERNEL GOVERNANCE RULE: operate from handshake_main for product truth, but use ${GOV_ROOT_ENV_VAR} and the current gov kernel for live governance truth. Do not treat handshake_main/.GOV as authoritative when a kernel root is provided.`,
       `STARTUP ORDER (HARD): complete \`${roleStartupCommand("VALIDATOR")}\` -> \`${roleNextCommand("VALIDATOR", wpId)}\` -> \`just external-validator-brief ${wpId}\` before repo-wide searches or broad packet rediscovery.`,
       `COMBINED VALIDATOR PARITY (HARD): you combine WP Validator early review obligations with Integration Validator final verdict obligations for MANUAL_RELAY: challenge bootstrap/skeleton/spec drift early, require concrete coder proof, then independently verify whole-WP merge readiness.`,
@@ -1456,10 +1783,18 @@ export function buildStartupPrompt({
   ...args
 } = {}) {
   const normalizedRole = String(args.role || "").trim().toUpperCase();
-  if (inlinePrompt || normalizedRole === "ORCHESTRATOR") {
-    return buildInlineStartupPrompt(args);
-  }
-  return buildHookStartupPrompt(args);
+  const basePrompt = (inlinePrompt || normalizedRole === "ORCHESTRATOR")
+    ? buildInlineStartupPrompt(args)
+    : buildHookStartupPrompt(args);
+  const capsuleLine = `ROLE_STARTUP_CAPSULE (ACP-CONSUMED): ${buildRoleStartupPromptCapsule({
+    role: normalizedRole,
+    wpId: args.wpId,
+    roleConfig: args.roleConfig,
+    commandKind: "START_SESSION",
+  })}`;
+  return basePrompt.includes("ROLE_STARTUP_CAPSULE (ACP-CONSUMED)")
+    ? basePrompt
+    : `${capsuleLine}\n${basePrompt}`;
 }
 
 export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
@@ -1469,11 +1804,13 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   }
   const repomemOpenCommand = roleRepomemOpenCommand(role, wpId);
   const executableNext = executableNextCommand(role, wpId, resolvedRoleConfig);
+  const workflowContractLine = `WORKFLOW_CONTRACT_CAPSULE (ACP-CONSUMED): ${buildWorkflowContractPromptCapsule({ role, commandKind: "SEND_PROMPT" })}`;
   const turnBoundaryNudgeLines = drainTurnBoundaryNudgeLines({ role, wpId, boundary: "steer" });
   if (role === "MEMORY_MANAGER") {
     return [
       `RESUME GOVERNED ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      workflowContractLine,
       ...turnBoundaryNudgeLines,
       `Use gov_runtime/roles_shared/MEMORY_HYGIENE_REPORT.md + .GOV/roles/memory_manager/proposals/ + synthetic WP communication files under WP_COMMUNICATIONS/${wpId} as the live truth surface. There is no official packet for this lane.`,
       `REPOMEM EXCEPTION: this synthetic hygiene lane is not a normal WP coverage target; if mutation is needed and no Memory Manager session is open, run ${repomemOpenCommand}.`,
@@ -1490,6 +1827,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     return [
       `RESUME MANUAL_RELAY ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      workflowContractLine,
       ...turnBoundaryNudgeLines,
       `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable run notes.`,
       `Use packet + runtime projection + task board + WP communications as live truth. Do not convert this manual lane into autonomous ORCHESTRATOR_MANAGED steering.`,
@@ -1506,6 +1844,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
     return [
       `RESUME MANUAL_RELAY ${role} lane for ${wpId}.`,
       `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+      workflowContractLine,
       ...turnBoundaryNudgeLines,
       `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable validation notes.`,
       `Operator is the relay for this lane. Do not assume autonomous split-validator steering unless the packet explicitly declares ORCHESTRATOR_MANAGED.`,
@@ -1539,6 +1878,7 @@ export function buildSteeringPrompt({ role, wpId, roleConfig = null }) {
   return [
     `RESUME GOVERNED ${role} lane for ${wpId}.`,
     `AUTHORITY: ${buildRoleAuthorityString(role, wpId)}`,
+    workflowContractLine,
     ...turnBoundaryNudgeLines,
     `SESSION_OPEN GATE: before any governed mutation in this turn, ensure the role-bound session is open with ${repomemOpenCommand}. Use \`just repomem decision|error|concern|insight ... --wp ${wpId}\` for durable run notes instead of live dossier narration.`,
     `Use ${role === "ACTIVATION_MANAGER" ? "refinement + packet (if present) + activation readiness artifact + current runtime/session projection" : "packet + active WP thread/notifications + current runtime projection"} as the live truth surface. Do not reread large governance documents if context is already stable.`,
@@ -1660,6 +2000,20 @@ export function buildSessionControlRequest({
     metadata: governedAction?.metadata || { output_jsonl_file: outputJsonlPath },
     requestedAt: createdAt,
   });
+  const workflowContract = buildWorkflowContractEnvelope({
+    role,
+    commandKind: COMMAND_KIND,
+  });
+  const roleStartupCapsule = buildRoleStartupCapsule({
+    role,
+    wpId,
+    roleConfig: {
+      branch: localBranch,
+      worktreeDir: localWorktreeDir,
+    },
+    commandKind: COMMAND_KIND,
+    restartReason: summary,
+  });
   return {
     schema_id: SESSION_CONTROL_REQUEST_SCHEMA_ID,
     schema_version: SESSION_CONTROL_REQUEST_SCHEMA_VERSION,
@@ -1690,6 +2044,8 @@ export function buildSessionControlRequest({
       : {},
     target_command_id: targetCommandId,
     governed_action: governedActionRequest,
+    workflow_contract: workflowContract,
+    role_startup_capsule: roleStartupCapsule,
   };
 }
 
@@ -2355,6 +2711,8 @@ export function validateSessionControlRequestShape(request) {
     errors.push("target_command_id is required for CANCEL_SESSION");
   }
   errors.push(...validateGovernedActionRequestShape(request.governed_action, { allowMissing: true }));
+  errors.push(...validateWorkflowContractEnvelopeShape(request.workflow_contract, { allowMissing: true }));
+  errors.push(...validateRoleStartupCapsuleShape(request.role_startup_capsule, { allowMissing: true }));
   return errors;
 }
 
