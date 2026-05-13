@@ -37,10 +37,10 @@ Rules:
 - BASE_WP_ID: WP-KERNEL-001-Event-Ledger-Session-Broker
 - CREATED_AT: 2026-05-13T14:19:26Z
 - STUB_FORMAT_VERSION: 2026-04-06
-- STUB_STATUS: SUPERSEDED_BY_OFFICIAL_PACKET (BLOCKED)
+- STUB_STATUS: SUPERSEDED_BY_OFFICIAL_PACKET (READY_FOR_DEV)
 - ACTIVATED_PACKET_FILE: .GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.md
 - ACTIVATED_REFINEMENT_FILE: .GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/refinement.md
-- ACTIVATION_STATE: OFFICIAL_PACKET_CREATED_BLOCKED_PENDING_OPERATOR_SIGNATURE_AND_SPEC_ENRICHMENT
+- ACTIVATION_STATE: OFFICIAL_PACKET_SIGNED_READY_FOR_DEV
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: YES
 - BUILD_ORDER_VALUE_TIER: HIGH
@@ -488,12 +488,12 @@ Activation must create official microtask files under the packet folder. Each MT
 - Unknown: final CRDT library choice. Current decision: defer to `WP-KERNEL-002` after event/promotion authority exists.
 
 ## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)
-- [ ] Confirm topical Master Spec anchors from indexed modules, not Product Reference and not the old monolithic spec.
-- [ ] Confirm the reset brief target is still `HSK-KERNEL-001`.
-- [ ] If research finds a better approach than the reset direction, perform minimal indexed-spec enrichment before packet signature.
-- [ ] Produce an in-chat Technical Refinement Block with source-stub fold map, MT list, spec anchors, product anchors, and out-of-scope list.
-- [ ] Obtain USER_SIGNATURE for the official WP.
-- [ ] Create the official packet and microtask files.
-- [ ] Ensure the official packet declares a product worktree/branch strategy before product code edits.
+- [x] Confirm topical Master Spec anchors from indexed modules, not Product Reference and not the old monolithic spec.
+- [x] Confirm the reset brief target is still `HSK-KERNEL-001`.
+- [x] If research finds a better approach than the reset direction, perform minimal indexed-spec enrichment before packet signature.
+- [x] Produce an in-chat Technical Refinement Block with source-stub fold map, MT list, spec anchors, product anchors, and out-of-scope list.
+- [x] Obtain USER_SIGNATURE for the official WP.
+- [x] Create the official packet and microtask files.
+- [x] Ensure the official packet declares a product worktree/branch strategy before product code edits.
 - [ ] Keep `.GOV/` changes on `gov_kernel`; keep product implementation commits off `gov_kernel`.
-- [ ] Move the Task Board item from STUB to Ready for Dev only after official activation.
+- [x] Move the Task Board item from STUB to Ready for Dev only after official activation.

@@ -4076,8 +4076,8 @@
       "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
       "artifact_kind": "FLAT_PACKET_STUB",
       "path": ".GOV/task_packets/stubs/WP-KERNEL-001-Event-Ledger-Session-Broker-v1.md",
-      "sha256": "5aadee01ac8becd36a1a12765582c49d871a342d80d03e8a52e038fd13d094f3",
-      "bytes": 41177,
+      "sha256": "51333a2faa12f331d50a0419bf690b8e63dce9542d71635851ace6379e8426cc",
+      "bytes": 41141,
       "paired_folder_contract": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json",
       "paired_stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-001-Event-Ledger-Session-Broker-v1.contract.json",
       "authority_status": "TYPED_NON_EXECUTION_STUB_CONTRACT",
@@ -4085,5 +4085,5 @@
       "migration_refactor_id": "RGF-289"
     }
   ],
-  "artifacts_sha256": "e5661b64e9f5ff49faaad69f9b93c8984f7e0a94f6500d71cb7234b99c828449"
+  "artifacts_sha256": "a029f3a7a3aee88a42471bed1f52bd000611ac8e24d29eb596d9b5f70160e183"
 }

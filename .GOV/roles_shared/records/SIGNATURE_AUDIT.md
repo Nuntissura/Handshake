@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja140520260015 | Orchestrator | 2026-05-14 00:15 | Work packet creation: WP-KERNEL-001-Event-Ledger-Session-Broker-v1 | v02.184 | Approved after Technical Refinement (see .GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/refinement.md ). |
 | ilja050520262319 | Orchestrator | 2026-05-05 23:19 | Work packet creation: WP-1-Postgres-Primary-Control-Plane-Foundation-v1 | v02.182 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Postgres-Primary-Control-Plane-Foundation-v1.md ). |
 | ilja040520260128 | Orchestrator | 2026-05-04 01:28 | Work packet creation: WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1 | v02.181 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1.md ). |
 | ilja270420261840 | Orchestrator | 2026-04-27 18:40 | Work packet creation: WP-1-Software-Delivery-Projection-Surface-Discipline-v1 | v02.181 | Approved after Technical Refinement (see .GOV/refinements/WP-1-Software-Delivery-Projection-Surface-Discipline-v1.md ). |

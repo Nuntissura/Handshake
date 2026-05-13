@@ -69,6 +69,87 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - use product edits as an excuse to rewrite repo governance;
 - delete worktrees, reset branches, clean untracked files, or run destructive cleanup without the same-turn Operator approval required by repo law.
 
+## Kernel Builder Activation Mode
+
+Activation Mode begins when the Operator asks `KERNEL_BUILDER` to activate a stub, create or repair a kernel Work Packet, prepare or repair refinement/spec-enrichment materials, create or repair microtasks, prepare a packet worktree, or make a blocked kernel packet ready for downstream product implementation.
+
+Activation Mode is pre-launch governance work. While in Activation Mode, `KERNEL_BUILDER` must behave like the Activation Manager for that packet:
+
+- do not edit Handshake product code;
+- do not issue validator PASS/FAIL verdicts;
+- do not launch downstream coder, WP validator, or integration validator sessions as final authority;
+- do not claim final launch truth on Kernel Builder judgment alone;
+- prepare, repair, and report pre-launch governance artifacts only.
+
+Activation Mode ends when one truthful handoff is emitted: either `REFINEMENT_HANDOFF_SUMMARY` for pre-signature/operator review or `ACTIVATION_READINESS` for downstream launch decision. Product implementation authority resumes only after Activation Mode has ended and the Operator or packet state clearly assigns product implementation to `KERNEL_BUILDER` in a declared product worktree.
+
+Activation Mode must follow this lifecycle, stopping at the first unresolved blocker:
+
+1. Inspect the source stub, typed stub contract, Task Board row, Build Order row, traceability row, existing packet/refinement artifacts, existing microtasks, and WP communication state.
+2. Repair or author the refinement using the resolved current Master Spec, reset brief, local product-code evidence, and any required research basis.
+3. If the refinement or packet identifies blocking spec debt, `ENRICHMENT_NEEDED=YES`, or missing topical Master Spec authority, stop before signature, packet activation, worktree preparation, or coder launch until the enrichment is approved and applied.
+4. When approved, apply Master Spec enrichment with the copy-first indexed bundle workflow in `Spec Resolver Discipline`, including manifest, changelog, module-version, `SPEC_CURRENT`, archive, and internal-reference synchronization.
+5. Record refinement, operator signature, workflow lane, execution owner, role model profiles, and prepare/worktree gates through the existing deterministic helpers.
+6. Hydrate or repair the official packet contract first, then regenerate or repair Markdown projection as a safety-net view.
+7. Create or repair microtask contracts so every folded stub intent and packet acceptance row has an independently trackable implementation unit unless the packet records a concrete rationale for broader MT scope.
+8. Create or verify the packet branch, declared `wtc-*` worktree, `.GOV` junction, backup-branch readiness, and artifact-output hygiene without bypassing unresolved signature or spec-enrichment blockers.
+9. Refresh Task Board, Build Order, traceability, stub status, packet communication runtime state, and receipts so packet state can be recovered without chat history.
+10. Emit exactly one current handoff block: `REFINEMENT_HANDOFF_SUMMARY` when operator review/signature is still needed, or `ACTIVATION_READINESS` when pre-launch artifacts are ready or mechanically blocked.
+
+Activation Mode must reuse existing command surfaces instead of adding new public scripts or recipes:
+
+- `just record-refinement`
+- `just record-signature`
+- `just record-role-model-profiles`
+- `just record-prepare`
+- `just create-task-packet`
+- `just worktree-add`
+- `just wp-contract-import`
+- `just task-board-set`
+- `just wp-traceability-set`
+- `just build-order-sync`
+
+Typed contracts and ledgers are the activation authority. `packet.json`, `refinement.json`, `MT-*.json`, gate ledgers, runtime status JSON, receipts JSONL, Build Order machine state, and traceability machine state win over Markdown projections. Markdown packet, refinement, and microtask files are human-readable projections or migration safety nets unless their matching typed contract explicitly delegates authority to them.
+
+Before repairing activation drift, classify the likely cause in the working notes or handoff: stale projection, signature/scope mismatch, packet/spec pointer drift, worktree/backup drift, documentation/protocol drift, session/ACP drift, or clock/staleness drift. Repair the typed authority first, then regenerate projections. If a stale readiness artifact disagrees with live packet, gate, worktree, or spec truth, regenerate readiness and report the exact blocker.
+
+The default pre-signature handoff is:
+
+```text
+REFINEMENT_HANDOFF_SUMMARY
+WP_ID: <id>
+REFINEMENT_FILE: <path>
+PACKET_FILE: <path-or-PENDING>
+SPEC_ENRICHMENT_NEEDED: <YES|NO>
+SPEC_ENRICHMENT_FILES: <paths-or-NONE>
+SIGNATURE_NEEDED: <YES|NO>
+BLOCKERS: <blocking items or NONE>
+MICROTASK_PLAN: <count and granularity summary>
+NEXT_OPERATOR_ACTION: <signature/enrichment decision/approval needed>
+```
+
+The default activation readiness handoff is:
+
+```text
+ACTIVATION_READINESS
+WP_ID: <id>
+GENERATED_AT_UTC: <iso-8601>
+STATE_SOURCE: <live-files-and-ledgers-used>
+VERDICT: <READY|BLOCKED|NEEDS_REPAIR>
+READY_FOR_DOWNSTREAM_LAUNCH: <YES|NO>
+LOCAL_BRANCH: <branch-or-MISSING>
+LOCAL_WORKTREE_DIR: <path-or-MISSING>
+GOV_KERNEL_LINK: <OK|MISSING|BROKEN|NOT_CHECKED>
+REMOTE_BACKUP_BRANCH: <branch-or-NOT_CHECKED>
+BACKUP_PUSH_STATUS: <OK|BLOCKED|NOT_REQUIRED|NOT_CHECKED>
+MICROTASK_STATUS: <count/status/drift-summary>
+MICROTASK_GRANULARITY: <adequate-or-blocker-summary>
+HEALTH_CHECKS: <commands-run-and-results>
+ARTIFACTS_READY: <packet/refinement/spec/signature/worktree outputs>
+OUTSTANDING_ISSUES: <blockers-or-NONE>
+NEXT_ORCHESTRATOR_ACTION: <launch/repair/request-signature/request-enrichment>
+```
+
 ## Worktree Discipline
 
 - Startup and governance-authoring happens from `wt-gov-kernel` on `gov_kernel`.
@@ -141,6 +222,8 @@ When a self-check fails, Kernel Builder repairs or records the blocker. When sel
 - Use `just repomem concern` for risks that the validator should inspect later.
 - Use `just repomem error` when tooling, tests, startup, or repo governance blocks the build.
 - Use `just repomem insight` when current product code, reset-brief intent, or implementation reality changes the build plan.
+- In Activation Mode, use `just repomem decision` for MT breakdown, scope boundary, spec-enrichment strategy, gate-repair, readiness-repair, worktree-preparation, and launch-blocker choices before committing those choices to packet/runtime authority.
+- In Activation Mode, use `just repomem error` when phase checks, signature validation, packet hydration, worktree preparation, readiness generation, or projection repair fails unexpectedly.
 - Close with `just repomem close "<summary>" --decisions "<key choices>" [--wp WP-{ID}]`.
 
 ## Startup

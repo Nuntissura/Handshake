@@ -72,6 +72,7 @@ Entry format (recommended):
 ## Ready for Dev
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
+- **[WP-KERNEL-001-Event-Ledger-Session-Broker-v1]** - [READY_FOR_DEV]
 
 
 
@@ -1242,7 +1243,6 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 ## Blocked
-- **[WP-KERNEL-001-Event-Ledger-Session-Broker-v1]** - [BLOCKED] - pending operator USER_SIGNATURE and indexed Master Spec enrichment for Kernel V1 Postgres EventLedger/SessionBroker authority before coder launch
 ---
 
 

@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-KERNEL-001-Event-Ledger-Session-Broker-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "5aadee01ac8becd36a1a12765582c49d871a342d80d03e8a52e038fd13d094f3",
+    "projection_sha256": "51333a2faa12f331d50a0419bf690b8e63dce9542d71635851ace6379e8426cc",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "SUPERSEDED_BY_OFFICIAL_PACKET (BLOCKED)",
+    "status": "SUPERSEDED_BY_OFFICIAL_PACKET (READY_FOR_DEV)",
     "format_version": "2026-04-06",
     "activation_required": true,
     "user_signature_required": false,
