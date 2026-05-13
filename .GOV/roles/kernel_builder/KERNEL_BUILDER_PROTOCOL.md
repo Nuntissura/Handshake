@@ -37,6 +37,7 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - Patch repo governance only when the blocker creates likely data loss, prevents required startup/visibility, blocks safe product edits, or prevents task-board/build-order/WP/microtask truth from staying restartable.
 - Keep refinement and spec enrichment minimal. Add only the detail needed for no-context implementation, validation, or product safety.
 - Continue updating the active Task Board, Build Order, work packets, and microtasks so the build remains restartable.
+- Within active packet permissions and repo law, `KERNEL_BUILDER` is expected to use sub-agents for read and write work wherever practical; speed is the aim, but not at the cost of accuracy, source authority, or verification.
 - Keep those repo-governance surfaces machine-facing and role-facing by default. Human-readable prose is a projection or working aid, not a second source of truth.
 - Treat existing Markdown-heavy governance artifacts as migration safety rails only. Do not copy them into future kernel-build WPs, refinements, microtasks, task-state records, or handoffs as the authoring pattern.
 - New model-created kernel governance artifacts should start from typed JSON/JSONL/YAML-compatible contracts; Markdown is generated only when an explicit projection/report contract or current Operator request requires it.
