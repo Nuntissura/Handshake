@@ -23,14 +23,28 @@ function firstNonEmptyLine(raw) {
 }
 
 const files = process.argv.slice(2);
-if (files.length === 0) {
-  console.error("Usage: node .GOV/roles_shared/scripts/protocol-ack.mjs <file> [file...]");
+let full = false;
+const paths = [];
+for (const arg of files) {
+  if (arg === "--full") {
+    full = true;
+    continue;
+  }
+  if (arg.startsWith("--")) {
+    console.error(`Unknown flag: ${arg}`);
+    process.exit(2);
+  }
+  paths.push(arg);
+}
+
+if (paths.length === 0) {
+  console.error("Usage: node .GOV/roles_shared/scripts/protocol-ack.mjs [--full] <file> [file...]");
   process.exit(1);
 }
 
 let missing = false;
-console.log("PROTOCOL_ACK (first non-empty line from each file read)");
-for (const file of files) {
+console.log(`PROTOCOL_ACK (${full ? "full content" : "first non-empty line from each file"})`);
+for (const file of paths) {
   let resolvedFile = file;
   const normalized = String(file || "").replace(/\\/g, "/");
   if (!fs.existsSync(resolvedFile) && /(^|\/)handshake_main\/AGENTS\.md$/i.test(normalized)) {
@@ -54,9 +68,17 @@ for (const file of files) {
     continue;
   }
   const raw = fs.readFileSync(resolvedFile, "utf8");
-  const line = firstNonEmptyLine(raw);
   const label = resolvedFile === file ? file : `${file} -> ${resolvedFile}`;
-  console.log(`- ${label}: ${line}`);
+  if (full) {
+    const normalizedFile = resolvedFile === file ? file : `${file} -> ${resolvedFile}`;
+    console.log(`AUTHORITY_FILE_BEGIN path=${normalizedFile}`);
+    console.log(raw);
+    console.log(`AUTHORITY_FILE_END path=${normalizedFile}`);
+    console.log("");
+  } else {
+    const line = firstNonEmptyLine(raw);
+    console.log(`- ${label}: ${line}`);
+  }
 }
 
 if (missing) process.exit(2);

@@ -638,6 +638,96 @@ Hard contract rules:
 
 ## 7. Proposed First Build Slice
 
+### 7.0 Build First Proposal
+
+First build target:
+
+```text
+HSK-KERNEL-001: Event Ledger + Session Broker Proof
+```
+
+Build this before local-model depth, CRDT depth, sandbox depth, memory depth, creative modules, or a full operator UI.
+
+The first proof is not "can a model code inside Handshake?" The first proof is "can Handshake govern a model worker through product-owned state without relying on terminal history, chat memory, provider state, or prose-only workflow rules?"
+
+The first vertical slice should run this full path:
+
+```text
+Operator creates a task
+-> Handshake creates durable IDs and a SessionRun
+-> Session Broker dispatches to a dummy model adapter or trivial local echo adapter
+-> adapter receives a stored context bundle
+-> adapter emits a visible response, optional tool request, and artifact proposal
+-> Tool Gate records allow/deny
+-> Artifact Store records output, logs, and evidence
+-> Validation Runner records a pass/fail result
+-> Operator approves or rejects
+-> Promotion Gate records final authority transition
+-> Operator trace view replays the whole session from durable state
+```
+
+Why this comes first:
+
+- It proves Handshake, not a provider chat UI or terminal buffer, owns the work.
+- It establishes the product authority model before any model is trusted.
+- It forces the first implementation to create durable IDs, event schemas, artifacts, approvals, and promotion rules.
+- It gives CRDT, sandboxing, memory, local inference, validation, and creative modules a stable control plane to attach to.
+- It reduces the risk of rebuilding another external governance harness because the first useful thing is already inside the product kernel.
+- It allows model integration to start with a dummy adapter, so architecture can be validated before spending effort on inference engines or cloud-provider edge cases.
+
+What it should achieve:
+
+- A durable append-only event ledger exists.
+- A session can be started, observed, closed, and replayed from product state.
+- A task has stable actor/session/artifact/context/validation/approval IDs.
+- A model adapter cannot directly mutate authority state.
+- A tool request is represented as a typed event with approval status.
+- A model output is stored as an artifact, not hidden transcript text.
+- A validation result is stored as machine-readable evidence.
+- A promotion event is the only path from proposed output to authority state.
+- A minimal operator trace panel can answer:
+  - what task was launched
+  - which actor/model lane ran
+  - what context bundle it received
+  - what it returned
+  - what tool request happened
+  - what artifact was proposed
+  - what validation ran
+  - who approved or rejected
+  - what became authoritative
+
+What it does not need yet:
+
+- Real local model quality.
+- Multi-agent parallelism.
+- Full CRDT collaboration.
+- Full sandbox patch application.
+- Full memory retrieval.
+- Full creative module support.
+- Provider-specific cloud-model embedding.
+- Perfect UI.
+
+Minimum components:
+
+- `EventLedger`: Postgres-backed append-only events with schema version, event ID, actor ID, session ID, source, timestamp, and artifact links.
+- `SessionBroker`: starts, dispatches, pauses/cancels if possible, closes, and records session state transitions.
+- `ContextBundle`: stored input package for the model adapter, with hash and source references.
+- `ModelAdapter`: dummy or trivial local adapter first; real adapters later.
+- `ArtifactStore`: stores model outputs, context bundles, logs, validation reports, and operator-visible evidence.
+- `ToolGate`: records tool requests and allow/deny decisions, even if the first tool is fake or read-only.
+- `ValidationRunner`: records one deterministic validation result.
+- `PromotionGate`: records approved transition from proposal to authority state.
+- `TraceProjection`: minimal UI or generated projection that replays one session from the ledger.
+
+Acceptance criteria:
+
+- The entire first task can be reconstructed from the ledger after restarting the app/backend.
+- No authority state changes occur without a promotion event.
+- The model adapter can be replaced without changing event authority semantics.
+- The trace projection does not depend on provider chat history, terminal scrollback, or model memory.
+- A no-context model can inspect the stored events and understand what happened.
+- The same event contracts can later support local models, official CLI bridges, BYOK APIs, CRDT promotion, sandbox promotion, memory capture, and self-improvement loops.
+
 ### Week 1: Product Kernel State
 
 - Define product-native IDs.

@@ -21,6 +21,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { GOV_ROOT_REPO_REL, inferWpIdFromPacketPath } from "./lib/runtime-paths.mjs";
 import { registerFailCaptureHook, failWithMemory } from "./lib/fail-capture-lib.mjs";
+import { resolveSpecCurrentAtRepo } from "./lib/spec-current-lib.mjs";
 import { readStubContractForMarkdownPath } from "./wp/task-packet-stub-contracts.mjs";
 
 registerFailCaptureHook("build-order-sync.mjs", { role: "SHARED" });
@@ -67,11 +68,6 @@ function normalizePath(p) {
 
 function packetIdFromPath(packetPath) {
   return inferWpIdFromPacketPath(normalizePath(packetPath));
-}
-
-function parseSpecTarget(specCurrentContent) {
-  const m = specCurrentContent.match(/Handshake_Master_Spec_v[0-9.]+\.md/);
-  return m ? m[0] : "Handshake_Master_Spec_vXX.XXX.md";
 }
 
 function parseRegistryRows(content) {
@@ -537,7 +533,8 @@ const repoRoot = path.resolve(resolveRepoRoot());
 process.chdir(repoRoot);
 
 const specCurrent = normalizeLf(readText(SPEC_CURRENT_PATH));
-const specTarget = parseSpecTarget(specCurrent);
+const resolvedSpec = resolveSpecCurrentAtRepo(repoRoot, { allowLegacy: false });
+const specTarget = resolvedSpec.specTargetLabel;
 
 const registryContent = normalizeLf(readText(TRACE_REGISTRY_PATH));
 const registryRows = parseRegistryRows(registryContent);
@@ -551,6 +548,9 @@ const taskBoardTokens = parseTaskBoardTokens(taskBoardContent);
 const metaByBase = new Map();
 const inputsForHash = [];
 inputsForHash.push(`SPEC_CURRENT:\n${specCurrent}`);
+for (const specInputPath of [resolvedSpec.specEntryPointPath, ...resolvedSpec.modulePaths]) {
+  inputsForHash.push(`${specInputPath}:\n${normalizeLf(readText(specInputPath))}`);
+}
 inputsForHash.push(`WP_TRACEABILITY_REGISTRY:\n${registryContent}`);
 inputsForHash.push(`TASK_BOARD:\n${taskBoardContent}`);
 

@@ -1431,7 +1431,7 @@ if (errors.length === 0) {
     console.log(`- Status: ${status}`);
     console.log(`- RISK_TIER: ${riskTier}`);
     console.log(`- MERGE_BASE_SHA: ${mergeBaseSha}`);
-    if (resolved?.specFileName) console.log(`- SPEC_CURRENT_RESOLVED: ${resolved.specFileName}`);
+    if (resolved?.specTargetLabel) console.log(`- SPEC_CURRENT_RESOLVED: ${resolved.specTargetLabel}`);
     console.log(`- work packet: ${packetPath.replace(/\\/g, '/')}`);
     console.log(`- Refinement: ${refinementFile}`);
     console.log(`- Worktree_dir (repo-relative): ${expectedWorktreeDir || '<missing>'}`);
@@ -1443,7 +1443,7 @@ if (errors.length === 0) {
 
     if (/^ALLOWED\b/i.test(subAgentDelegation.trim())) {
       console.log('\nSUB_AGENT_RULES (HARD) [CX-HANDOFF-001]');
-      console.log('- Sub-agents are LOW reasoning (draft-only). Verify everything against SPEC_CURRENT + DONE_MEANS.');
+      console.log('- Sub-agents are LOW reasoning (draft-only). Verify everything against resolved SPEC_CURRENT + DONE_MEANS.');
       console.log(`- Sub-agents MUST NOT edit \`${GOV_ROOT_REPO_REL}/**\` (including work packets/refinements or \`## VALIDATION_REPORTS\`).`);
       console.log('- Sub-agents MUST NOT run gates/commits/branch ops as official evidence.');
       console.log(`- Follow: \`/${GOV_ROOT_REPO_REL}/roles/coder/agentic/AGENTIC_PROTOCOL.md\` Section 6.`);

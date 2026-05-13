@@ -2,10 +2,10 @@
 
 Requirements (HARD):
 - This block is REQUIRED for any packet with Status: Ready for Dev / In Progress.
-- For EACH SPEC_ANCHOR, include an excerpt window (start/end lines) AND a context token that must appear within that window in the current SPEC_TARGET_RESOLVED spec file.
+- For EACH SPEC_ANCHOR, include an excerpt window (start/end lines) AND a context token that must appear within that window in the current SPEC_TARGET_RESOLVED spec text.
 - Matching rule: context match only (token-in-window), not exact content match.
 - Even when ENRICHMENT_NEEDED=NO, you MUST include REASON_NO_ENRICHMENT and SPEC_EXCERPTS for every anchor.
-- If ENRICHMENT_NEEDED=YES, you MUST include the full Proposed Spec Enrichment text (verbatim Markdown) that could be copy-pasted into the Master Spec.
+- If ENRICHMENT_NEEDED=YES, you MUST include the full Proposed Spec Enrichment text (verbatim Markdown) targeted to the relevant indexed Master Spec module(s).
 - Keep this file ASCII-only. Non-ASCII characters must be written as \\uXXXX escapes inside the excerpt block.
 - This file is the Technical Refinement Block required by the current ORCHESTRATOR_PROTOCOL refinement workflow.
 
@@ -105,7 +105,7 @@ Requirements (HARD):
 - HIGH_SIGNAL_ORPHAN_PRIMITIVES_REASON: <fill>
 
 ### APPENDIX_MAINTENANCE (spec appendix follow-through)
-- Rule: if any appendix action below is `UPDATED`, this refinement is declaring a Master Spec version bump. In that case set `APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE`, set `SPEC_IMPACT=YES`, set `ENRICHMENT_NEEDED=YES`, and include the verbatim appendix update text in `PROPOSED_SPEC_ENRICHMENT`. Packet creation stays blocked until the new spec version exists and `SPEC_CURRENT` is advanced.
+- Rule: if any appendix action below is `UPDATED`, this refinement is declaring an indexed Master Spec update. In that case set `APPENDIX_MAINTENANCE_VERDICT=NEEDS_SPEC_UPDATE`, set `SPEC_IMPACT=YES`, set `ENRICHMENT_NEEDED=YES`, and include the verbatim appendix update text in `PROPOSED_SPEC_ENRICHMENT`. Packet creation stays blocked until indexed modules plus manifest/SPEC_CURRENT JSON are refreshed as needed.
 - FEATURE_REGISTRY_ACTION: PENDING (UPDATED | NO_CHANGE)
 - FEATURE_REGISTRY_REASON_NO_CHANGE: <fill if FEATURE_REGISTRY_ACTION=NO_CHANGE>
 - UI_GUIDANCE_ACTION: PENDING (UPDATED | NO_CHANGE | NOT_APPLICABLE)
@@ -386,7 +386,7 @@ Requirements (HARD):
 - Rule: for REFINEMENT_FORMAT_VERSION >= 2026-03-15, these anchor windows are also copied into the task packet `## SPEC_CONTEXT_WINDOWS` section for coder/validator downstream use.
 
 #### ANCHOR 1
-- SPEC_ANCHOR: <fill (example: Handshake_Master_Spec_v02.99.md 2.3.12.5 [CX-DBP-030])>
+- SPEC_ANCHOR: <fill (example: 2.3.12.5 [CX-DBP-030] from resolved current Master Spec)>
 - CONTEXT_START_LINE: <fill integer>
 - CONTEXT_END_LINE: <fill integer>
 - CONTEXT_TOKEN: <fill exact string that must appear between start/end lines in SPEC_TARGET_RESOLVED>

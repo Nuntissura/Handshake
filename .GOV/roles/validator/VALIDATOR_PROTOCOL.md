@@ -115,6 +115,26 @@ Validator output (review verdicts, concerns, gate decisions, closeout judgments)
 - Declare Validator-owned governance refactor or validation-surface repair work in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` before or during the first durable patch, and keep that item's status current as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
 - Coder remains focused on product implementation and evidence. If validation exposes governance-paperwork drift, route that repair to Classic Orchestrator, Orchestrator, Validator-owned closeout, or Memory Manager proposal surfaces as applicable.
 
+## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
+
+Classic Validator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`.
+
+Classic Validator spec edits are manual-relay validation corrections only. Do not rewrite requirements to manufacture a PASS. If a spec change would materially alter the code outcome or signed scope, record FAIL/PENDING with remediation or route the approved enrichment path before PASS.
+
+Current structure:
+- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint.
+- `.GOV/spec/indexed_spec/indexed-spec-manifest.json`: current indexed-spec manifest, module order, module hashes, and reconstructed-spec hash.
+- `.GOV/spec/indexed_spec/spec-modules/module-index.md`: human navigation index for locating the owning module.
+- `.GOV/spec/indexed_spec/spec-modules/*.md`: editable current Master Spec modules.
+- `.GOV/spec/Handshake_Master_Spec_v*.md`: source baseline/provenance, not the patch target for current spec edits.
+
+Write sequence:
+- Inspect `module-index.md` and the manifest before editing; patch the smallest owning module(s), not the whole spec.
+- Keep validation authority clean: spec patch first, then re-run judgment against the resolved updated spec; do not hide changed requirements inside narrative verdict prose.
+- When module bytes change, update the affected `modules[].sha256`, line/byte/heading metadata, and `reconstruction.reconstructed_sha256`; source-match flags must reflect reality.
+- Update `SPEC_CURRENT.md` only when entrypoint, human index path, version, or source-baseline metadata changes.
+- Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
+
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders: `handshake-cargo-target/`, `handshake-product/`, `handshake-test/`, `handshake-tool/`.
@@ -260,7 +280,7 @@ Use this governance-maintenance record flow:
   - Lead with the actual finding, risk, or conclusion in plain language. File:line citations remain mandatory evidence, but they should support the explanation rather than replace it.
   - Do not dump naked citations or raw command output without stating what they mean, unless the user explicitly asks for raw output or exact locations only.
 
-Do not create a WP for pure repo-governance maintenance. If the planned diff touches the Master Spec or product code, stop and use the normal refinement plus WP path instead.
+Do not create a WP for pure repo-governance maintenance. If the planned diff touches current Master Spec content (`.GOV/spec/indexed_spec/**` modules/manifest or `SPEC_CURRENT` authority metadata for product-spec evolution) or product code, stop and use the normal refinement plus WP path instead.
 
 Minimum verification for governance-only changes: `just gov-check`.
 
@@ -298,14 +318,14 @@ Minimum verification for governance-only changes: `just gov-check`.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" phase-check STARTUP <WP_ID> CODER`; do not trust the role worktree copy if it disagrees.
     - If the work packet/spec is missing or stale in the role worktree, treat that as drift; read from the WP worktree (per PREPARE) as the source of truth.
     - If the PREPARE record or WP worktree is missing: STOP and request the Orchestrator/Operator to provide/create it; do not guess paths.
-- Inputs required: work packet (STATUS not empty), .GOV/spec/SPEC_CURRENT.md, applicable spec slices, current diff.
+- Inputs required: work packet (STATUS not empty), `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON), resolved indexed manifest/module slices, current diff.
 - WP Traceability check (blocking when variants exist): confirm the work packet under review is the **Active Packet** for its Base WP per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. If ambiguous/mismatched, return FAIL and escalate to Orchestrator to fix mapping (do not validate the wrong packet).
 - Variant Lineage Audit (blocking for `-v{N}` packets) [CX-580E]: validate that the Base WP and ALL prior packet versions are a correct translation of Roadmap pointer -> Master Spec Main Body (SPEC_TARGET) -> repo code. Do NOT validate only "what changed in v{N}". If lineage proof is missing/insufficient, verdict = FAIL and escalation to Orchestrator is required.
 - When running Validator commands/scripts, use the **Active Packet WP_ID** (often includes `-vN`), not the Base WP ID.
 - If a WP exists only as a stub (e.g., current physical storage `.GOV/task_packets/stubs/WP-*.md`) and no official packet exists in the resolved Work Packet root, STOP and return FAIL [CX-573] (not yet activated for validation).
 - If work packet is missing or incomplete, return FAIL with reason [CX-573].
 - Preserve User Context sections in packets (do not edit/remove) [CX-654].
-- Spec integrity regression check: SPEC_CURRENT must point to the latest spec and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and spec version bump is required before proceeding.
+- Spec integrity regression check: `SPEC_CURRENT` must resolve to the latest current indexed Master Spec manifest/source baseline and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and indexed spec update is required before proceeding.
 - Roadmap Coverage Matrix gate (Spec Section 7.6.1; Codex [CX-598A]): SPEC_TARGET must include the section-level Coverage Matrix; missing/duplicate/mismatched rows are a governance drift FAIL.
 - Spec EOF appendices gate (Spec Section 12; Codex [CX-598B]): SPEC_TARGET must include the required end-of-file appendix blocks and they must be parseable/valid. Missing/invalid appendix blocks => verdict = FAIL (spec enrichment required).
 - External build hygiene: Cargo target dir is pinned outside the repo at `../Handshake_Artifacts/handshake-cargo-target`; run `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"` before validation/commit to prevent workspace bloat (FAIL if skipped).
@@ -645,12 +665,12 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - List every MUST/SHOULD from the work packet DONE_MEANS + referenced spec sections (MAIN-BODY FIRST; roadmap alone is insufficient; include A1-6 and A9-11 if governing; include tokenization A4.6, storage portability A2.3.12, determinism/repro/error-code conventions when applicable).
 - Definition of "requirement": any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
-- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually .GOV/spec/SPEC_CURRENT.md).
-- Resolve SPEC_TARGET at validation time (.GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md) and validate DONE_MEANS/evidence against the resolved spec.
+- Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually `.GOV/spec/SPEC_CURRENT.md`).
+- Resolve SPEC_TARGET at validation time (`.GOV/spec/SPEC_CURRENT.md` -> `.GOV/spec/indexed_spec/indexed-spec-manifest.json` -> ordered `spec-modules/`) and validate DONE_MEANS/evidence against the resolved spec text.
 - Compare the implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` lacks the relevant integrated context or the audit is explicitly about remote drift.
 - If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
 - If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, record a distinct disposition: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
-- Spec changes are governed via Spec Enrichment (new spec version file + `.GOV/spec/SPEC_CURRENT.md` update) under a one-time user signature recorded in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
+- Spec changes are governed via Spec Enrichment (indexed module edits plus manifest/SPEC_CURRENT JSON update when entrypoint, version, or baseline changes) under a one-time user signature recorded in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
 
 ## Diff-Scoped Spec Review Checklist (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
 - Enumerate the exact in-scope MUST/SHOULD clauses the WP claims to close. Do not treat the whole spec as implicitly reviewed.
@@ -712,7 +732,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - CX-DBP-VAL-013: Migration hygiene. Check numbering continuity, idempotency hints, and consistent versioning.
 - CX-DBP-VAL-014: Dual-backend readiness. If tests exist, ensure both backends are parameterized; if absent, mark as gap (waiver must be explicit).
 - For portable/shared storage contracts, CX-DBP-VAL-014 is field-level semantic parity, not just "a SQLite test exists and a PostgreSQL test exists". Backend-specific tests cannot close portable field behavior by themselves.
-- Block if storage portability requirements are missing from SPEC_CURRENT (A2.3.12) or DAL violations are present; re-open affected WPs.
+- Block if storage portability requirements are missing from the resolved current Master Spec (A2.3.12) or DAL violations are present; re-open affected WPs.
 
 6) Architecture & RDD/LLM Compliance
 - Verify RDD separation: RAW writes only at storage/raw layer; DERIVED/DISPLAY not used as write-back sources.
@@ -775,7 +795,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - `just validator-gate-*` mutations now also stamp typed governed gate actions into the validator gate ledger; `validator-gate-status`, `validator-next`, and audit readers should prefer that governed gate action history over the legacy raw `status` mirror when both are present
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
 - `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
-- `just validator-spec-regression` (SPEC_CURRENT points to latest; required anchors like A2.3.12 present)
+- `just validator-spec-regression` (`SPEC_CURRENT` resolves to the latest indexed spec; required anchors like A2.3.12 present)
 - `just spec-eof-appendices-check` (Spec Section 12 end-of-file appendix blocks exist + are parseable/valid)
 - `just validator-phase-gate Phase-1` (ensure no Ready-for-Dev items remain before phase progression; depends on validator scans)
 - `just validator-error-codes` (stringly errors/determinism/HSK-#### enforcement)

@@ -388,7 +388,7 @@ function collectActivationState(wpId) {
 
   if (specEnrichmentBlocking) {
     verdict = "BLOCKED_BY_SPEC_ENRICHMENT";
-    nextAction = "Perform the approved spec-enrichment pass, advance SPEC_CURRENT if needed, then refresh the same WP refinement.";
+    nextAction = "Perform the approved spec-enrichment pass, update indexed modules plus manifest/SPEC_CURRENT JSON if needed, then refresh the same WP refinement.";
   } else if (!refinementExists || !packet.packetExists) {
     verdict = "REPAIR_REQUIRED";
     nextAction = "Repair or create the missing packet/refinement artifacts before activation can proceed.";
@@ -520,6 +520,8 @@ function printStartup() {
     "- SCOPE: refinement, approved spec enrichment, signature normalization/recording, packet hydration, microtask preparation, worktree preparation, activation readiness",
     "- REFINEMENT_STANDARD: match or exceed the old Orchestrator pre-launch quality bar, including research, primitive-index upkeep, matrix upkeep, appendix follow-through, and force-multiplier expansion.",
     "- STUB_DISCOVERY_RULE: create or update stubs when refinement, enrichment, or matrix upkeep discovers new required follow-up items.",
+    "- SPEC_AUTHORITY: resolve .GOV/spec/SPEC_CURRENT.md as handshake.spec_current@1 JSON to the indexed manifest/modules before editing or relying on spec text; do not patch the old monolith.",
+    "- SPEC_WRITE_AUTHORITY: allowed current Master Spec writer for approved pre-launch enrichment; patch spec-modules, update manifest hashes/metadata, and verify with spec-current/spec-regression/spec-eof/gov-check.",
     "- HARD_STOP: no product code edits; no coder/validator launch; no final workflow authority",
     "- WORKFLOW_SPLIT: orchestrator-managed workflow requires ACTIVATION_MANAGER as the mandatory temporary pre-launch worker and governed pre-launch lane; manual workflow keeps pre-launch on CLASSIC_ORCHESTRATOR.",
     "- HANDOFF_MODE: file-first refinement/spec handoff. Return the written file path plus a compact REFINEMENT_HANDOFF_SUMMARY; do not paste the full refinement/spec text by default.",
@@ -553,6 +555,8 @@ function printPrompt(state) {
     `WP_ID: ${state.wpId}`,
     `AUTHORITY: ${GOV_ROOT_REPO_REL}/codex/Handshake_Codex_v1.4.md + ../handshake_main/AGENTS.md + ${GOV_ROOT_REPO_REL}/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`,
     "FOCUS: refinement, approved spec enrichment drafting, signature normalization/recording, packet hydration, microtask preparation, worktree preparation, and activation readiness.",
+    "SPEC AUTHORITY: resolve .GOV/spec/SPEC_CURRENT.md as handshake.spec_current@1 JSON to the indexed manifest/modules before editing or relying on spec text; do not patch the old monolith.",
+    "SPEC WRITE AUTHORITY: allowed current Master Spec writer for approved pre-launch enrichment; patch spec-modules, update manifest hashes/metadata, and verify with spec-current/spec-regression/spec-eof/gov-check.",
     "WORKFLOW SPLIT: ORCHESTRATOR_MANAGED requires ACTIVATION_MANAGER as the mandatory temporary pre-launch worker and governed pre-launch authoring lane; MANUAL_RELAY keeps pre-launch on ORCHESTRATOR.",
     "REFINEMENT STANDARD: match or exceed the old Orchestrator pre-launch quality bar, including research, primitive-index upkeep, matrix upkeep, appendix follow-through, force-multiplier expansion, and stub creation for new high-ROI discoveries.",
     "FILE-FIRST HANDOFF RULE: write the refinement/spec file, run checks, and return only the file path plus a compact REFINEMENT_HANDOFF_SUMMARY. Do not paste the full refinement/spec text by default.",

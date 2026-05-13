@@ -8,7 +8,7 @@ For live workflow dossiers and workflow-proof reviews that must link into repo-g
 - DATE_UTC: <YYYY-MM-DDTHH:MM:SSZ>
 - AUDITOR: <name/role>
 - SPEC_CURRENT_POINTER: .GOV/spec/SPEC_CURRENT.md
-- SPEC_TARGET_RESOLVED: <Handshake_Master_Spec_vXX.XXX.md>
+- SPEC_TARGET_RESOLVED: <.GOV/spec/SPEC_CURRENT.md -> .GOV/spec/indexed_spec/indexed-spec-manifest.json>
 - CODE_TARGET:
   - worktree: <path>
   - branch: <name>

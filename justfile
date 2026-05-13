@@ -236,6 +236,9 @@ operator-admin *args:
 protocol-ack codex agents shared protocol:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/protocol-ack.mjs" "{{codex}}" "{{agents}}" "{{shared}}" "{{protocol}}"
 
+protocol-ack-full codex agents shared protocol:
+	@node "{{GOV_ROOT}}/roles_shared/scripts/protocol-ack.mjs" --full "{{codex}}" "{{agents}}" "{{shared}}" "{{protocol}}"
+
 hard-gate-wt-001:
 	@echo 'LIFECYCLE [CX-LIFE-001]'
 	@echo '- WP_ID: <WP-... or N/A>'
@@ -282,7 +285,7 @@ coder-preflight:
 	@just validator-spec-regression
 
 orchestrator-startup:
-	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
+	@just protocol-ack-full "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md"
 	@just role-startup-brief ORCHESTRATOR
 	@just backup-status
 	@just role-startup-topology-check --audit-permanent

@@ -168,7 +168,7 @@ Rules:
 - [ ] Confirm the requirement exists in Master Spec Main Body (not just Roadmap).
 - [ ] Draft research scouting across BIG_TECH, UNIVERSITY/PAPER, and GITHUB/OSS sources unless the work is strictly internal/mechanical.
 - [ ] Draft pillar force multipliers and primitive-matrix combo candidates; create extra stubs instead of guessing.
-- [ ] If refinement is likely to grow the primitive index, feature registry, UI guidance, or interaction matrix, treat activation as a spec-version update flow first, then re-activate the WP against the new `SPEC_CURRENT`.
+- [ ] If refinement is likely to grow the primitive index, feature registry, UI guidance, or interaction matrix, treat activation as an indexed-spec update flow first, then re-activate the WP against the refreshed `SPEC_CURRENT`.
 - [ ] Produce the in-chat Technical Refinement Block (per `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`).
 - [ ] Obtain USER_SIGNATURE for the WP.
 - [ ] Create `.GOV/refinements/{{WP_ID}}.md` (approved/signed).

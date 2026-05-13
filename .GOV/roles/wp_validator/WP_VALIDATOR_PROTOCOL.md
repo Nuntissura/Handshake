@@ -137,8 +137,9 @@ After boundary, scope, and hygiene checks pass, review the MT work for correctne
 
 **What WP Validator does NOT judge:**
 - Whole-WP spec compliance (Integration Validator's job)
-- Master spec clause satisfaction (Integration Validator's job)
+- Current indexed Master Spec clause satisfaction (Integration Validator's job; resolved through `SPEC_CURRENT` JSON)
 - Merge readiness (Integration Validator's job)
+- Current Master Spec writes or patches. If an MT exposes a spec gap, emit `SPEC_GAP`, `CONCERN`, or `MT_REMEDIATION_REQUIRED` and route it to `ORCHESTRATOR` / `INTEGRATION_VALIDATOR`; do not edit `.GOV/spec/**`.
 
 ---
 

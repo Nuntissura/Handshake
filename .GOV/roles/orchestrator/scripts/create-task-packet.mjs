@@ -214,7 +214,7 @@ if (!fs.existsSync(refinementPath)) {
   const filled = raw
     .split('{{WP_ID}}').join(WP_ID)
     .split('{{DATE_ISO}}').join(ts)
-    .split('{{SPEC_TARGET_RESOLVED}}').join(resolved ? resolved.specFileName : 'Handshake_Master_Spec_vXX.XX.md')
+    .split('{{SPEC_TARGET_RESOLVED}}').join(resolved ? resolved.specTargetLabel : `${GOV_ROOT_REPO_REL}/spec/indexed_spec/indexed-spec-manifest.json`)
     .split('{{SPEC_TARGET_SHA1}}').join(resolved ? resolved.sha1 : '<fill>');
 
   fs.writeFileSync(refinementPath, filled, 'utf8');
@@ -286,7 +286,7 @@ try {
       wpId: WP_ID,
       stage: 'SIGNATURE',
       next: 'STOP',
-      operatorAction: 'Spec update required (create new spec version + new WP variant)',
+      operatorAction: 'Spec update required (update indexed modules/manifest and refresh the WP path)',
       gateRan: `just create-task-packet ${WP_ID}`,
       result: 'BLOCKED',
       why: 'Refinement declares ENRICHMENT_NEEDED=YES; do not create/lock a work packet until the spec update is completed.',
@@ -295,8 +295,8 @@ try {
         'Do NOT create/lock a WP packet while a Main Body or appendix spec update is required.',
       ],
       nextCommands: [
-        `# Run the spec update workflow (new spec version file + update ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md).`,
-        '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the new spec version first.',
+        '# Run the spec update workflow (indexed module edits plus manifest/SPEC_CURRENT JSON update when entrypoint, version, or baseline changes).',
+        '# If the refinement expanded appendices (primitive index, feature registry, UI guidance, interaction matrix), land those changes in the indexed spec modules first.',
         '# Then refresh the SAME WP refinement against the updated spec, record a fresh same-WP signature, and continue packet creation.',
         '# Create a NEW WP variant only when scope materially widened or the lane is explicitly being split/remediated.',
       ],
@@ -709,14 +709,16 @@ const templateBody = templateStartIdx === -1
   ? rawTemplate
   : templateLines.slice(templateStartIdx).join('\n');
 
-  let specBaseline = 'Handshake_Master_Spec_vXX.XX.md';
-  try {
-    const specCurrent = fs.readFileSync(path.join(GOV_ROOT_REPO_REL, 'roles_shared', 'records', 'SPEC_CURRENT.md'), 'utf8');
-    const m = specCurrent.match(/Handshake_Master_Spec_v[0-9.]+\.md/);
-    if (m) specBaseline = m[0];
-  } catch {
-    // Leave placeholder if SPEC_CURRENT cannot be read or parsed.
-  }
+let resolvedSpec = null;
+let specBaseline = `${GOV_ROOT_REPO_REL}/spec/indexed_spec/indexed-spec-manifest.json`;
+let specTargetResolved = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> <unresolved>`;
+try {
+  resolvedSpec = resolveSpecCurrent();
+  specBaseline = resolvedSpec.specTargetLabel;
+  specTargetResolved = `${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${resolvedSpec.specTargetLabel}`;
+} catch {
+  // Leave placeholder if SPEC_CURRENT cannot be read or parsed.
+}
 
 const fill = (text, token, value) => text.split(token).join(value);
 const replaceSingleField = (text, label, value) =>
@@ -802,8 +804,8 @@ const writeContractProjectionPair = ({ contract, contractPath, projectionPath, p
   fs.writeFileSync(projectionPath, stampedProjection, 'utf8');
   return stampedContract;
 };
-const deriveAddMarkerTarget = (specFileName) => {
-  const match = String(specFileName || '').match(/v(\d{2}\.\d{3})/i);
+const deriveAddMarkerTarget = (versionOrLabel) => {
+  const match = String(versionOrLabel || '').match(/v(\d{2}\.\d{3})/i);
   return match ? `[ADD v${match[1]}]` : '[ADD vXX.XXX]';
 };
 
@@ -821,7 +823,7 @@ const refinementData = refinementValidation.parsed || {};
 const packetHydration = refinementData.packetHydration || {};
 const isHydratedProfile = /^HYDRATED_RESEARCH_V1$/i.test(refinementData.refinementEnforcementProfile || '');
 const hasRefinementHandoffSections = isVersionAtLeast(refinementData.refinementFormatVersion, '2026-03-15');
-const specAddMarkerTarget = refinementData.packetHydration?.specAddMarkerTarget || deriveAddMarkerTarget(specBaseline);
+const specAddMarkerTarget = refinementData.packetHydration?.specAddMarkerTarget || deriveAddMarkerTarget(resolvedSpec?.versionTag || specBaseline);
 template = replaceSingleField(template, 'REFINEMENT_ENFORCEMENT_PROFILE', refinementData.refinementEnforcementProfile || 'LEGACY_MANUAL');
 template = replaceSingleField(template, 'PACKET_HYDRATION_PROFILE', isHydratedProfile ? 'HYDRATED_RESEARCH_V1' : 'LEGACY_MANUAL');
 template = replaceSingleField(template, 'SPEC_ADD_MARKER_TARGET', specAddMarkerTarget);
@@ -1346,7 +1348,7 @@ ${formatList(hydration.riskMap)}
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: ${GOV_ROOT_REPO_REL}/spec/SPEC_CURRENT.md -> ${specBaseline}
+- **Spec Target Resolved**: ${specTargetResolved}
 - **Notes**:
 `);
 

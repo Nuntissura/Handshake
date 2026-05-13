@@ -89,7 +89,7 @@ The readiness artifact is written to the external governance runtime root under:
 ## Standard Outputs
 
 - signed or blocked `refinement.md`
-- optional spec-enrichment patch set plus pointer updates
+- optional spec-enrichment patch set plus indexed manifest/SPEC_CURRENT updates
 - normalized signature record / audit entry
 - hydrated work packet
 - populated microtask scaffolding when the packet declares it

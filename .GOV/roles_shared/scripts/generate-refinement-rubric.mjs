@@ -10,8 +10,9 @@
 
 import fs from 'fs';
 import path from 'path';
-import { GOV_ROOT_REPO_REL, repoPathAbs } from './lib/runtime-paths.mjs';
+import { GOV_ROOT_REPO_REL, REPO_ROOT, repoPathAbs } from './lib/runtime-paths.mjs';
 import { resolveSpecCurrent } from '../checks/refinement-check.mjs';
+import { readResolvedSpecTextAtRepo } from './lib/spec-current-lib.mjs';
 
 const KNOWN_PILLARS = [
   'Flight Recorder',
@@ -83,8 +84,8 @@ const wantEngines = args.includes('--engines') || args.includes('--both') || arg
 let specContent = '';
 if (wantEngines) {
   try {
-    const { specFilePath } = resolveSpecCurrent();
-    specContent = fs.readFileSync(repoPathAbs(specFilePath), 'utf8');
+    const resolved = resolveSpecCurrent();
+    specContent = readResolvedSpecTextAtRepo(REPO_ROOT, resolved);
   } catch (e) {
     console.error(`[ERROR] ${e.message}`);
     process.exit(1);

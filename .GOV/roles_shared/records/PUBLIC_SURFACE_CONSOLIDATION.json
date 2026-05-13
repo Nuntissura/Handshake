@@ -301,6 +301,27 @@
     },
     {
       "count": 10,
+      "group_id": "public-surface-group:89dd4ca9b49c76b2",
+      "owner_role": "SHARED",
+      "phase": "GENERAL",
+      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surfaces": [
+        "file:.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md",
+        "file:.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs",
+        "file:.GOV/roles_shared/scripts/protocol-ack.mjs",
+        "just:cargo-clean",
+        "just:operator-admin",
+        "just:operator-monitor",
+        "just:operator-viewport",
+        "just:operator-viewport-admin",
+        "just:protocol-ack",
+        "just:protocol-ack-full"
+      ]
+    },
+    {
+      "count": 10,
       "group_id": "public-surface-group:a6f1201784f622ad",
       "owner_role": "SHARED",
       "phase": "VALIDATION",
@@ -338,26 +359,6 @@
         "just:canonise-gov",
         "just:cor701-sha",
         "just:verb-coverage-check"
-      ]
-    },
-    {
-      "count": 9,
-      "group_id": "public-surface-group:89dd4ca9b49c76b2",
-      "owner_role": "SHARED",
-      "phase": "GENERAL",
-      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
-      "replacement_bundle": "just gov-check",
-      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
-      "surfaces": [
-        "file:.GOV/roles_shared/docs/TOOLING_GUARDRAILS.md",
-        "file:.GOV/roles_shared/scripts/lib/node-argv-proxy.mjs",
-        "file:.GOV/roles_shared/scripts/protocol-ack.mjs",
-        "just:cargo-clean",
-        "just:operator-admin",
-        "just:operator-monitor",
-        "just:operator-viewport",
-        "just:operator-viewport-admin",
-        "just:protocol-ack"
       ]
     },
     {
@@ -766,7 +767,7 @@
       ]
     }
   ],
-  "consolidation_hash": "sha256:0c6762ffe147c64f",
+  "consolidation_hash": "sha256:8aea024ec926f18a",
   "counts": {
     "by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
@@ -775,7 +776,7 @@
       "CONTRACT_AUTHORITY": 9,
       "INTERNAL_HELPER": 1,
       "PUBLIC_LEAF_BASELINED": 120,
-      "PUBLIC_RECIPE_BASELINED": 174
+      "PUBLIC_RECIPE_BASELINED": 175
     },
     "by_owner_role": {
       "ACTIVATION_MANAGER": 2,
@@ -787,7 +788,7 @@
       "MEMORY_MANAGER": 3,
       "OPERATOR": 1,
       "ORCHESTRATOR": 22,
-      "SHARED": 287,
+      "SHARED": 288,
       "VALIDATOR": 16,
       "WP_VALIDATOR": 2
     },
@@ -795,7 +796,7 @@
       "AUDIT": 2,
       "CHECK": 16,
       "CLOSEOUT": 5,
-      "GENERAL": 29,
+      "GENERAL": 30,
       "HANDOFF": 1,
       "MEMORY": 31,
       "SESSION_CONTROL": 73,
@@ -808,10 +809,10 @@
     "by_side_effect_class": {
       "MUTATES_GIT_OR_WORKTREE": 20,
       "MUTATES_GOVERNANCE_OR_RUNTIME": 57,
-      "READ_ONLY_OR_DIAGNOSTIC": 264
+      "READ_ONLY_OR_DIAGNOSTIC": 265
     },
     "by_status": {
-      "CONSOLIDATE_WHEN_TOUCHED": 294,
+      "CONSOLIDATE_WHEN_TOUCHED": 295,
       "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT": 20,
       "RETAIN_CANONICAL": 18,
       "RETAIN_CONTRACT_AUTHORITY": 9
@@ -1828,7 +1829,8 @@
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_LEAF_BASELINED",
       "just_recipes": [
-        "protocol-ack"
+        "protocol-ack",
+        "protocol-ack-full"
       ],
       "owner_role": "SHARED",
       "path": ".GOV/roles_shared/scripts/protocol-ack.mjs",
@@ -7359,6 +7361,32 @@
       "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
       "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
       "just_recipes": [
+        "protocol-ack-full"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#protocol-ack-full",
+      "phase": "GENERAL",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:protocol-ack-full",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_RECIPE_BASELINED",
+      "just_recipes": [
         "record-prepare"
       ],
       "owner_role": "SHARED",
@@ -10157,14 +10185,14 @@
   },
   "schema_id": "handshake.gov.public_surface_consolidation",
   "schema_version": "public_surface_consolidation_v1",
-  "source_topology_projection_hash": "sha256:2432c3b53c5ba718f9fd2735b1c8c5ff9f0dfb8cee58127fa9245cee80bf43d0",
+  "source_topology_projection_hash": "sha256:e9f332f540771eec329f9bea69fd761cae17fcb55cb2e3d4f6a794318502b2ae",
   "totals": {
     "canonical": 18,
     "compatibility_aliases": 20,
-    "consolidate_when_touched": 294,
+    "consolidate_when_touched": 295,
     "consolidation_groups": 41,
     "contract_authority": 9,
-    "public_surfaces": 341,
+    "public_surfaces": 342,
     "tracked_public_surfaces": 0
   }
 }

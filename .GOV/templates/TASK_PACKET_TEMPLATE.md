@@ -331,7 +331,7 @@ Next: N/A
 - SUB_AGENT_REASONING_ASSUMPTION: LOW (HARD)
 - NOTE: `AGENTIC_MODE: YES` means sub-agent use is explicitly authorized for this WP; `AGENTIC_MODE: NO` means all roles remain single-session.
 - RULES (if SUB_AGENT_DELEGATION=ALLOWED):
-  - Sub-agents produce draft code only; Primary Coder verifies against SPEC_CURRENT + task packet acceptance criteria before applying.
+  - Sub-agents produce draft code only; Primary Coder verifies against resolved SPEC_CURRENT + task packet acceptance criteria before applying.
   - Sub-agents MUST NOT edit any governance surface (`.GOV/**`, including task packets/refinements and `## VALIDATION_REPORTS`).
   - Only Primary Coder runs gates, records EVIDENCE/EVIDENCE_MAPPING/VALIDATION manifest, commits, and hands off.
   - See: `/.GOV/roles/coder/agentic/AGENTIC_PROTOCOL.md` Section 6.
@@ -600,7 +600,7 @@ git revert <commit-sha>
 - **Artifacts**:
 - **Timestamp**:
 - **Operator**:
-- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> Handshake_Master_Spec_vXX.XX.md
+- **Spec Target Resolved**: .GOV/spec/SPEC_CURRENT.md -> .GOV/spec/indexed_spec/indexed-spec-manifest.json
 - **Notes**:
 
 ## STATUS_HANDOFF

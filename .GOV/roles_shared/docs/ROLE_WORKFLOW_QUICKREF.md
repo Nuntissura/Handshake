@@ -130,7 +130,7 @@ Product-scanning / product-boundary enforcement:
 ## Role: Orchestrator
 
 Authoritative inputs:
-- `.GOV/spec/SPEC_CURRENT.md` (current binding spec pointer)
+- `.GOV/spec/SPEC_CURRENT.md` (machine-readable current indexed spec entrypoint)
 - `.GOV/roles_shared/records/TASK_BOARD.md`
 - `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`
 - `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` (mechanical gate state)

@@ -87,7 +87,7 @@ If any of the above is missing: DO NOT use sub-agents.
 
 - The Primary Coder remains solely accountable for:
   - correctness,
-  - Master Spec conformance (SPEC_CURRENT + SPEC_ANCHOR),
+  - Master Spec conformance (SPEC_CURRENT JSON -> resolved indexed spec + SPEC_ANCHOR),
   - WP scope discipline (IN_SCOPE_PATHS / OUT_OF_SCOPE),
   - and all work packet paperwork (EVIDENCE, EVIDENCE_MAPPING, VALIDATION manifest).
 
@@ -108,7 +108,7 @@ Sub-agents MUST NOT:
 
 Only the Primary Coder may:
 - integrate sub-agent patches,
-- verify each change against `.GOV/spec/SPEC_CURRENT.md` + WP acceptance criteria before applying,
+- verify each change against `.GOV/spec/SPEC_CURRENT.md` resolved to the indexed manifest/module slices + WP acceptance criteria before applying,
 - run the WP TEST_PLAN and required gates,
 - record canonical evidence in the work packet,
 - and perform final commit + handoff.
@@ -117,7 +117,7 @@ Only the Primary Coder may:
 
 Every sub-agent task MUST include:
 - WP_ID + branch + repo-relative worktree_dir
-- Canonical artifacts (Codex, role protocol, SPEC_CURRENT + resolved spec, work packet, refinement)
+- Canonical artifacts (Codex, role protocol, SPEC_CURRENT JSON + resolved indexed spec, work packet, refinement)
 - SLICE_NAME + ALLOWED_PATHS + ACCEPTANCE_TARGETS (DONE_MEANS bullets and/or SPEC_ANCHORs)
 - Deliverables: PATCH + WHAT_CHANGED + COMMANDS_RUN + RISKS + NEXT_COMMANDS
 

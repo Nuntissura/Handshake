@@ -217,7 +217,7 @@ If the assignment is governance/workflow/tooling-only and the planned diff is st
 
 Hard rules:
 - DO NOT modify Handshake product code in `src/`, `app/`, or `tests/`.
-- DO NOT modify the Master Spec under this path.
+- DO NOT modify current Master Spec content under this path, including indexed spec modules/manifest and `SPEC_CURRENT` product-spec authority metadata.
 - Operator-facing scope split rule:
   - In chat, always separate `Handshake (Product)` from `Repo Governance`.
   - If the diff or requirement touches `src/`, `app/`, `tests/`, or the Master Spec, classify it as `Handshake (Product)` even when the topic is governed actions, workflow semantics, or other product-governance contracts.
@@ -508,6 +508,8 @@ Rule: when a gate command is run and `GATE_STATUS` is posted, `PHASE` MUST match
 | **No Phase Closes** | Until EVERY MUST/SHOULD in the referenced Main Body sections is implemented |
 
 **Coder Obligations:**
+- Resolve the current Master Spec through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to the indexed manifest/module set before relying on spec text. The old `Handshake_Master_Spec_v*.md` monolith is baseline/provenance, not the active edit target.
+- Coder is not a current Master Spec writer. If spec text is wrong, missing, or underspecified, STOP and escalate to `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, or classic `VALIDATOR` as appropriate for the lane.
 - Every SPEC_ANCHOR in a work packet MUST reference a Main Body section (not Roadmap)
 - If a roadmap item lacks Main Body detail, escalate to Orchestrator for spec enrichment BEFORE coding
 - Roadmap Coverage Matrix (Spec Section 7.6.1; Codex [CX-598A]): if you discover a Main Body section that is missing/unscheduled in the matrix for the work you are doing, STOP and escalate (do not "implement around" governance drift)
@@ -921,7 +923,7 @@ node .GOV/roles/coder/checks/coder-bootstrap-claim.mjs WP-{ID}
 **Read these files in order:**
 
 1. **.GOV/roles_shared/docs/START_HERE.md** - Repo map, commands, how to run
-2. **.GOV/spec/SPEC_CURRENT.md** - Current master spec pointer
+2. **.GOV/spec/SPEC_CURRENT.md** - Machine-readable current spec entrypoint; resolve it to the indexed manifest/module slices before using spec text
 3. **work packet** - Your specific work scope
    - Confirm `## SUB_AGENT_DELEGATION` before using any sub-agents (default DISALLOWED; only delegate if `ALLOWED` + `OPERATOR_APPROVAL_EVIDENCE`).
 4. **Task-specific docs:**

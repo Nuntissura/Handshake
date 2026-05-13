@@ -30,9 +30,29 @@
 
 - The Integration Validator is the final quality gate in the orchestrator-managed workflow.
 - It launches with a **fresh context window** â€” no accumulated history from coder/WP Validator sessions.
-- It reads the master spec (source of truth) and the coder's complete work product, then makes a whole-WP judgment.
+- It reads the resolved current Master Spec (source of truth; `SPEC_CURRENT` JSON -> indexed manifest/modules) and the coder's complete work product, then makes a whole-WP judgment.
 - The Orchestrator prepares all mechanical truth (SHAs, artifacts, clause sync) before the Integration Validator launches. The Integration Validator should NOT need to fix mechanical closeout issues.
 - WP Validator handles per-MT review. The Integration Validator does NOT review individual MTs â€” it judges the whole.
+
+## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
+
+Integration Validator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`.
+
+Integration Validator spec edits are final-lane corrections only. Do not rewrite requirements to manufacture a PASS. If a spec change would materially alter the code outcome or signed scope, record FAIL/PENDING with remediation or route the approved enrichment path before PASS.
+
+Current structure:
+- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint.
+- `.GOV/spec/indexed_spec/indexed-spec-manifest.json`: current indexed-spec manifest, module order, module hashes, and reconstructed-spec hash.
+- `.GOV/spec/indexed_spec/spec-modules/module-index.md`: human navigation index for locating the owning module.
+- `.GOV/spec/indexed_spec/spec-modules/*.md`: editable current Master Spec modules.
+- `.GOV/spec/Handshake_Master_Spec_v*.md`: source baseline/provenance, not the patch target for current spec edits.
+
+Write sequence:
+- Inspect `module-index.md` and the manifest before editing; patch the smallest owning module(s), not the whole spec.
+- Keep final-lane authority clean: spec patch first, then re-run judgment against the resolved updated spec; do not hide changed requirements inside narrative verdict prose.
+- When module bytes change, update the affected `modules[].sha256`, line/byte/heading metadata, and `reconstruction.reconstructed_sha256`; source-match flags must reflect reality.
+- Update `SPEC_CURRENT.md` only when entrypoint, human index path, version, or source-baseline metadata changes.
+- Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
 
 ## Why This Role Exists
 
@@ -83,7 +103,7 @@ When the Integration Validator launches, the Orchestrator has already:
 4. Prepared the signed scope artifact and compatibility truth that can be finalized during terminal closeout
 
 The Integration Validator receives:
-- The master spec (`SPEC_CURRENT` â€” sections 1-6, 9-11 are the sole definition of "Done")
+- The resolved current Master Spec (`SPEC_CURRENT` JSON -> indexed manifest/modules; sections 1-6, 9-11 are the sole definition of "Done")
 - The complete packet with all MT work, clause closure matrix, and evidence
 - The coder's committed work product (branch diff against merge base)
 - Clean mechanical truth (no SHA mismatches, no missing artifacts)
@@ -99,7 +119,7 @@ The Integration Validator receives:
 
 ### 1. Whole-WP Judgment Against Master Spec
 
-The primary job. Read the master spec clauses that the WP claims to satisfy, then verify the coder's output actually satisfies them.
+The primary job. Resolve `SPEC_CURRENT` to the indexed manifest/module set, read the Master Spec clauses that the WP claims to satisfy, then verify the coder's output actually satisfies them.
 
 **Method:**
 - Read each clause in the packet's `CLAUSE_CLOSURE_MATRIX`
@@ -109,7 +129,7 @@ The primary job. Read the master spec clauses that the WP claims to satisfy, the
 - Verify test coverage matches the packet's `TEST_PLAN`
 
 **Standard:**
-- The master spec (sections 1-6, 9-11) is the sole definition of "Done"
+- The resolved current Master Spec (sections 1-6, 9-11) is the sole definition of "Done"
 - If the code satisfies the spec clauses: evidence supports PASS
 - If any clause is unsatisfied: document which clause, what's missing, and FAIL
 - Prefer `NOT_PROVEN`, `PARTIAL`, or `FAIL` over rounding up to PASS

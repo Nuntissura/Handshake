@@ -1,13 +1,14 @@
-# SPEC_CURRENT
-
-The current authoritative Master Specification is:
-
-**.GOV/spec/Handshake_Master_Spec_v02.182.md**
-
-(Updated: 2026-05-05 - v02.182)
-
----
-
-The current authoritative Governance Reference is:
-
-**.GOV/codex/Handshake_Codex_v1.4.md**
+{
+  "schema": "handshake.spec_current@1",
+  "updated_at": "2026-05-13T04:55:45.805Z",
+  "current_spec": {
+    "entrypoint_type": "indexed_manifest",
+    "entrypoint_path": ".GOV/spec/indexed_spec/indexed-spec-manifest.json",
+    "human_index_path": ".GOV/spec/indexed_spec/spec-modules/module-index.md",
+    "version": "v02.182",
+    "source_baseline_path": ".GOV/spec/Handshake_Master_Spec_v02.182.md"
+  },
+  "governance_reference": {
+    "path": ".GOV/codex/Handshake_Codex_v1.4.md"
+  }
+}

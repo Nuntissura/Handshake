@@ -1,7 +1,8 @@
 import fs from "node:fs";
 
 import { resolveSpecCurrent } from "./refinement-check.mjs";
-import { repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { REPO_ROOT, repoPathAbs } from "../scripts/lib/runtime-paths.mjs";
+import { readResolvedSpecTextAtRepo } from "../scripts/lib/spec-current-lib.mjs";
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
 
 registerFailCaptureHook("spec-eof-appendices-check.mjs", { role: "SHARED" });
@@ -12,12 +13,6 @@ function fail(msg, details = []) {
 
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function resolveSpecVersionFromFilename(specFileName) {
-  const m = specFileName.match(/_v([0-9.]+)\.md$/);
-  if (!m) return null;
-  return `v${m[1]}`;
 }
 
 function parseVersion(version) {
@@ -91,14 +86,14 @@ function requireArray(value, fieldName, details = []) {
 }
 
 const resolved = resolveSpecCurrent();
-const specVersion = resolveSpecVersionFromFilename(resolved.specFileName);
+const specVersion = resolved.versionTag;
 if (!specVersion) {
-  fail("Could not resolve spec version from spec filename.", [
-    `spec_file=${resolved.specFileName}`,
+  fail("Could not resolve spec version from SPEC_CURRENT/indexed manifest metadata.", [
+    `spec_target=${resolved.specTargetLabel}`,
   ]);
 }
 
-const content = fs.readFileSync(repoPathAbs(resolved.specFilePath), "utf8");
+const content = readResolvedSpecTextAtRepo(REPO_ROOT, resolved);
 
 const featureRegistrySchema = isVersionAtLeast(specVersion, "v02.142")
   ? "hs_feature_registry@2"
@@ -258,4 +253,4 @@ if (primitiveMatrixSchema === "hs_primitive_tool_tech_matrix@2") {
   }
 }
 
-console.log(`spec-eof-appendices-check ok: ${resolved.specFileName}`);
+console.log(`spec-eof-appendices-check ok: ${resolved.specTargetLabel}`);

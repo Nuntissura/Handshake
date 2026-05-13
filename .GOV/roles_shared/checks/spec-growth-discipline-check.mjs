@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { GOV_ROOT_REPO_REL } from "../scripts/lib/runtime-paths.mjs";
+import { readResolvedSpecTextAtRepo, resolveSpecCurrentAtRepo } from "../scripts/lib/spec-current-lib.mjs";
 
 function resolveRepoRoot() {
   const fileRelativeRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -18,8 +18,8 @@ function resolveRepoRoot() {
   return fileRelativeRepoRoot;
 }
 
-function parseVersion(fileName) {
-  const match = String(fileName || "").match(/Handshake_Master_Spec_v(\d+)\.(\d+)\.md/);
+function parseVersionTag(versionTag) {
+  const match = String(versionTag || "").match(/^v(\d+)\.(\d+)$/);
   if (!match) return null;
   return { major: Number(match[1]), minor: Number(match[2]) };
 }
@@ -29,37 +29,25 @@ function compareVersions(a, b) {
   return a.minor - b.minor;
 }
 
-function findLatestSpec(repoRoot) {
-  const specDir = path.join(repoRoot, GOV_ROOT_REPO_REL, "spec");
-  const files = fs.readdirSync(specDir).filter((name) => /^Handshake_Master_Spec_v\d+\.\d+\.md$/.test(name));
-  const parsed = files
-    .map((name) => ({ name, version: parseVersion(name) }))
-    .filter((entry) => entry.version)
-    .sort((a, b) => compareVersions(a.version, b.version));
-  if (parsed.length === 0) {
-    throw new Error(`No Handshake_Master_Spec_v*.md files found in ${GOV_ROOT_REPO_REL}/spec`);
-  }
-  return {
-    ...parsed[parsed.length - 1],
-    specDir,
-  };
-}
-
 function main() {
   const repoRoot = resolveRepoRoot();
   process.chdir(repoRoot);
 
-  const latest = findLatestSpec(repoRoot);
-  const latestTag = `v${String(latest.version.major).padStart(2, "0")}.${String(latest.version.minor).padStart(3, "0")}`;
+  const resolved = resolveSpecCurrentAtRepo(repoRoot, { allowLegacy: false });
+  const currentVersion = parseVersionTag(resolved.versionTag);
+  if (!currentVersion) {
+    console.error(`Could not resolve current spec version from ${resolved.specTargetLabel}`);
+    process.exit(1);
+  }
+  const latestTag = resolved.versionTag;
   const grandfatherCutoff = { major: 2, minor: 141 };
 
-  if (compareVersions(latest.version, grandfatherCutoff) <= 0) {
-    console.log(`spec-growth-discipline-check ok: grandfathered ${latest.name}`);
+  if (compareVersions(currentVersion, grandfatherCutoff) <= 0) {
+    console.log(`spec-growth-discipline-check ok: grandfathered ${resolved.specTargetLabel}`);
     return;
   }
 
-  const specPath = path.join(latest.specDir, latest.name);
-  const specText = fs.readFileSync(specPath, "utf8");
+  const specText = readResolvedSpecTextAtRepo(repoRoot, resolved);
   const currentAddMarker = `[ADD ${latestTag}]`;
   const appendicesStart = [
     specText.indexOf("<!-- HS_APPENDIX:BEGIN id=HS-APPX-FEATURE-REGISTRY"),
@@ -74,7 +62,7 @@ function main() {
   const errors = [];
 
   if (/^#{1,6}\s+.*addendum/i.test(specText)) {
-    errors.push(`${latest.name} contains addendum-style headings; patch canonical sections in place instead.`);
+    errors.push(`${resolved.specTargetLabel} contains addendum-style headings; patch canonical sections in place instead.`);
   }
   if (roadmapSlice.includes(currentAddMarker) && !mainBodySlice.includes(currentAddMarker)) {
     errors.push(`Roadmap contains ${currentAddMarker} but Main Body does not; Main Body must lead roadmap growth.`);
@@ -107,7 +95,7 @@ function main() {
     process.exit(1);
   }
 
-  console.log(`spec-growth-discipline-check ok: ${latest.name}`);
+  console.log(`spec-growth-discipline-check ok: ${resolved.specTargetLabel}`);
 }
 
 main();

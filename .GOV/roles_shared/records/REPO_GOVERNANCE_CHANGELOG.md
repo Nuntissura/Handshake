@@ -21,6 +21,26 @@
 
 ## Entries
 
+### 2026.05.13.01 / GOV-CHANGE-20260513-01
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Completed the build-reset / indexed Master Spec transfer tranche and recorded it as `RGF-307` through `RGF-312`.
+- Contract impact: `SPEC_CURRENT.md` is now the machine-readable current-spec entrypoint; shared spec resolvers/checks consume the indexed manifest instead of regexing the old monolith filename; writer authority is explicit across role protocols/startup prompts/ACP injection; Codex law now targets indexed modules plus manifest metadata for future Master Spec edits.
+- Driver evidence: Operator build-reset and indexed-spec direction, 2026-05-13.
+- Files changed: `.GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md`, `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/indexed_spec/**`, `.GOV/roles_shared/scripts/lib/spec-current-lib.mjs`, `.GOV/roles_shared/scripts/spec-current-check.mjs`, role protocols, ACP startup scripts, `.GOV/codex/Handshake_Codex_v1.4.md`, governance ledgers, and related checks/templates.
+- Verification: PASS - targeted spec-current/spec-regression/spec-appendix/spec-governance checks; `node --test .GOV/roles_shared/tests/spec-current-lib.test.mjs .GOV/roles_shared/tests/role-resume-utils.test.mjs`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.08.01 / GOV-CHANGE-20260508-01
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Recorded machine-readability sanity-check follow-ons before implementation.
+- Contract impact: Added queued `RGF-301` through `RGF-306` for topology coverage of machine contracts, session-control schema/runtime role parity, workflow contract semantic validation, primary contract schema validation, residual writer classifier strictness, and failure dossier evidence strictness. Existing open rows remain `IN_PROGRESS` or `HOLD`; the review findings are recorded as queued hardening work rather than task-board `FAIL` states.
+- Driver evidence: `AUDIT-20260508-GOV-MACHINE-READABILITY-SANITY-CHECK`
+- Files changed: `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, `.GOV/Audits/audits/AUDIT-20260508-GOV-MACHINE-READABILITY-SANITY-CHECK.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`.
+- Verification: PASS - `repo-governance-board-check`; `just gov-check --sync-topology`; `just gov-check`.
+
 ### 2026.05.07.09 / GOV-CHANGE-20260507-09
 
 - Status: APPLIED

@@ -412,7 +412,7 @@ These are called by higher-level recipes (`gov-check`, role startup) and are not
 
 - `just validator-spec-regression`
   - `read-only`
-  - verify spec file presence and required anchors
+  - verify current spec resolution and required anchors
 - `just cor701-sha <FILE>`
   - `read-only`
   - compute and verify SHA for a governed file

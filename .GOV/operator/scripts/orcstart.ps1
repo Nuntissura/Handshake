@@ -9,7 +9,11 @@ $ErrorActionPreference = "Stop"
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptRoot "..\..\..")).Path
 $promptDoc = Join-Path $scriptRoot "..\docs_local\Handshake_Role_Startup_Prompts.md"
-$role = if ($env:ORCSTART_ROLE) { $env:ORCSTART_ROLE } else { "ORCHESTRATOR" }
+$role = if ($env:ORCSTART_ROLE) { $env:ORCSTART_ROLE.Trim().ToUpperInvariant() } else { "ORCHESTRATOR" }
+$orchestratorRole = "ORCHESTRATOR"
+if ($role -ne $orchestratorRole) {
+  throw "[orcstart] Unsupported role '$role'. orcstart is for Orchestrator roles only. Use the Orchestrator launcher without ORCSTART_ROLE override."
+}
 $repoDisplay = "../" + (Split-Path -Leaf $repoRoot)
 $promptDocDisplay = ".GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md"
 $minimumStartupTimeoutMs = 600000
@@ -109,7 +113,9 @@ function Write-StartupWarning {
 function Show-Help {
   Write-Output "Usage: orcstart.cmd [--print] [--no-startup] [--no-authority-files] [--brief] [--help]"
   Write-Output ""
-  Write-Output "Prints the live Handshake Orchestrator startup prompt, startup context, and authority-read contract."
+  Write-Output "Launcher for Orchestrator startup context only."
+  Write-Output "Prints the live Orchestrator startup prompt, startup context, and authority-read contract."
+  Write-Output "Do not use this launcher for non-Orchestrator roles."
   Write-Output "This is model/provider agnostic: it does not launch a model process."
   Write-Output $startupTimeoutGuidance
   Write-Output ""
@@ -126,6 +132,7 @@ function Show-Help {
   Write-Output ""
   Write-Output "Environment:"
   Write-Output "  ORCSTART_ROLE=ORCHESTRATOR"
+  Write-Output "  Any other ORCSTART_ROLE value is rejected."
 }
 
 function Get-StartupPrompt {

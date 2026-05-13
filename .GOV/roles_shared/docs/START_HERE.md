@@ -5,7 +5,7 @@ Product authority: Master Spec (see `.GOV/spec/SPEC_CURRENT.md`)
 Governance placement law: `.GOV/codex/Handshake_Codex_v1.4.md` plus the active role protocols
 ---
 ## Canonical sources
-- **Spec:** `.GOV/spec/SPEC_CURRENT.md` (points to the current Handshake master spec).
+- **Spec:** `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON entrypoint for the current indexed Handshake master spec).
 - **Product Reference (navigation only):** `.GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md` — quick-ref summary of tech stack, pillars, engines, primitives, and force multipliers. **Reference only** — all decisions and implementation guidance MUST come from the Master Spec, not from this summary [CX-403].
 - **Folder-placement law:** `.GOV/codex/Handshake_Codex_v1.4.md` + `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md` + `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md` + `.GOV/roles/coder/CODER_PROTOCOL.md` + `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md` + `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md` + `.GOV/roles/validator/VALIDATOR_PROTOCOL.md` + `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md`.
 - **Spec EOF appendices:** Master Spec Section 12 (Feature Registry, Primitive/Tool/Tech Matrix, UI Guidance, Interaction Matrix). These blocks are spec-internal and kept at end-of-file; `just gov-check` enforces presence + parseability.
@@ -125,7 +125,7 @@ Quick reference:
 - `.GOV/operator/` - operator-private notes, drafts, and diaries; non-authoritative unless the Operator explicitly designates a specific file for the current task.
 - `log_archive/` - historical logger drops.
 - `.GOV/roles_shared/docs/OWNERSHIP.md` - path/area owners for routing reviews.
-- Root files: `Handshake_Master_Spec_v*.md`, `.GOV/codex/Handshake_Codex_v1.4.md`, `Handshake_logger_*`, phase/plan docs.
+- Spec/governance files: `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/indexed_spec/`, `.GOV/spec/Handshake_Master_Spec_v*.md` source baselines, `.GOV/codex/Handshake_Codex_v1.4.md`, `Handshake_logger_*`, phase/plan docs.
 - `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/coder/CODER_PROTOCOL.md`, `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, and `.GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md` - AI role workflow protocols.
 
 ## How to run
