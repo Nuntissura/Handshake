@@ -30,7 +30,7 @@
 
 - The Integration Validator is the final quality gate in the orchestrator-managed workflow.
 - It launches with a **fresh context window** â€” no accumulated history from coder/WP Validator sessions.
-- It reads the resolved current Master Spec (source of truth; `SPEC_CURRENT` JSON -> indexed manifest/modules) and the coder's complete work product, then makes a whole-WP judgment.
+- It reads the resolved current Master Spec (source of truth; `SPEC_CURRENT` JSON -> active indexed bundle manifest/modules) and the coder's complete work product, then makes a whole-WP judgment.
 - The Orchestrator prepares all mechanical truth (SHAs, artifacts, clause sync) before the Integration Validator launches. The Integration Validator should NOT need to fix mechanical closeout issues.
 - WP Validator handles per-MT review. The Integration Validator does NOT review individual MTs â€” it judges the whole.
 
@@ -41,17 +41,23 @@ Integration Validator is one of the only roles allowed to patch current Master S
 Integration Validator spec edits are final-lane corrections only. Do not rewrite requirements to manufacture a PASS. If a spec change would materially alter the code outcome or signed scope, record FAIL/PENDING with remediation or route the approved enrichment path before PASS.
 
 Current structure:
-- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint.
-- `.GOV/spec/indexed_spec/indexed-spec-manifest.json`: current indexed-spec manifest, module order, module hashes, and reconstructed-spec hash.
-- `.GOV/spec/indexed_spec/spec-modules/module-index.md`: human navigation index for locating the owning module.
-- `.GOV/spec/indexed_spec/spec-modules/*.md`: editable current Master Spec modules.
+- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint to the active indexed Master Spec version.
+- `.GOV/spec/master-spec-vNN.NNN/`: canonical active versioned indexed bundle shape after migration; contains `indexed-spec-manifest.json`, `INDEX.json`, `spec-modules/*.md`, and the manifest-declared machine-readable changelog.
+- `.GOV/spec/indexed_spec/`: legacy compatibility current bundle only until the next governed versioned-bundle migration; do not use it as the long-term active edit target.
+- `.GOV/spec/spec_archive/master-spec-v*/`: immutable non-current indexed bundles for older Master Spec versions.
 - `.GOV/spec/Handshake_Master_Spec_v*.md`: source baseline/provenance, not the patch target for current spec edits.
 
 Write sequence:
-- Inspect `module-index.md` and the manifest before editing; patch the smallest owning module(s), not the whole spec.
+- Resolve `SPEC_CURRENT.md`, the active manifest, the active `INDEX.json`, current version, previous/source baseline, and declared archive root before editing.
+- Create the next versioned indexed bundle by copying the resolved current bundle first; do not patch the currently active bundle in place.
+- Inspect the new bundle `INDEX.json` and manifest; patch the smallest owning module(s), not the whole spec.
 - Keep final-lane authority clean: spec patch first, then re-run judgment against the resolved updated spec; do not hide changed requirements inside narrative verdict prose.
+- Ensure every active module and the manifest carry the same `spec_version` as the new `SPEC_CURRENT.current_spec.version`.
 - When module bytes change, update the affected `modules[].sha256`, line/byte/heading metadata, and `reconstruction.reconstructed_sha256`; source-match flags must reflect reality.
-- Update `SPEC_CURRENT.md` only when entrypoint, human index path, version, or source-baseline metadata changes.
+- Append/update the manifest-declared machine-readable changelog with version, previous version, changed modules, before/after hashes, approval evidence/signature, reason, and validation commands/outcomes.
+- Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
+- Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
+- Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
 - Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
 
 ## Why This Role Exists
@@ -103,7 +109,7 @@ When the Integration Validator launches, the Orchestrator has already:
 4. Prepared the signed scope artifact and compatibility truth that can be finalized during terminal closeout
 
 The Integration Validator receives:
-- The resolved current Master Spec (`SPEC_CURRENT` JSON -> indexed manifest/modules; sections 1-6, 9-11 are the sole definition of "Done")
+- The resolved current Master Spec (`SPEC_CURRENT` JSON -> active indexed bundle manifest/modules; sections 1-6, 9-11 are the sole definition of "Done")
 - The complete packet with all MT work, clause closure matrix, and evidence
 - The coder's committed work product (branch diff against merge base)
 - Clean mechanical truth (no SHA mismatches, no missing artifacts)
@@ -119,7 +125,7 @@ The Integration Validator receives:
 
 ### 1. Whole-WP Judgment Against Master Spec
 
-The primary job. Resolve `SPEC_CURRENT` to the indexed manifest/module set, read the Master Spec clauses that the WP claims to satisfy, then verify the coder's output actually satisfies them.
+The primary job. Resolve `SPEC_CURRENT` to the active indexed bundle manifest/module set, read the Master Spec clauses that the WP claims to satisfy, then verify the coder's output actually satisfies them.
 
 **Method:**
 - Read each clause in the packet's `CLAUSE_CLOSURE_MATRIX`

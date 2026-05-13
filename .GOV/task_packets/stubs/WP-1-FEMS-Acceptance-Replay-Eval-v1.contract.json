@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-FEMS-Acceptance-Replay-Eval-v1",
   "base_wp_id": "WP-1-FEMS-Acceptance-Replay-Eval",
@@ -47,7 +62,8 @@
     "intent": "- What: Define and enforce deterministic acceptance/validation for FEMS Phase 1 delivery.\n- Why: Phase 1 explicitly requires reproducible memory pack behavior and visible operator controls before the feature can be considered done.",
     "scope_sketch": "- IN_SCOPE:\n  - Acceptance harness for SESSION_SCOPED and WORKSPACE_SCOPED pack generation.\n  - Deterministic replay checks for stable memory_pack_hash outputs.\n  - Explicit approval gate tests for procedural memory proposals.\n  - Event-level verification of FR-EVT-MEM-* coverage.\n  - DCC verification for pack preview and review queue visibility.\n- OUT_OF_SCOPE:\n  - Phase 2 hybrid retrieval/consolidation extension.\n  - Long-horizon memory policy optimization.",
     "acceptance_criteria": "- FEMS-EVAL-001 passes in CI and local deterministic fixtures.\n- Replay runs with identical inputs produce identical memory_pack_hash values.\n- Procedural memory proposals require explicit approval and leave immutable audit trails.\n- FR-EVT-MEM-* events are present and correlated to proposal/pack lifecycle transitions.",
-    "risks_unknowns": "- Risk: shallow test fixtures can miss edge-case drift behavior.\n- Risk: acceptance checks can pass while UI review controls regress unless DCC checks are included."
+    "risks_unknowns": "- Risk: shallow test fixtures can miss edge-case drift behavior.\n- Risk: acceptance checks can pass while UI review controls regress unless DCC checks are included.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

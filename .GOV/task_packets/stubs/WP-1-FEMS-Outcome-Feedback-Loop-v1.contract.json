@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-FEMS-Outcome-Feedback-Loop-v1",
   "base_wp_id": "WP-1-FEMS-Outcome-Feedback-Loop",
@@ -52,7 +67,8 @@
     "intent": "- What: After a MemoryPack is used in a model call, track the outcome and feed it back into memory scoring. Good outcomes (MT completed, validator PASS) boost the items in that pack. Bad outcomes (MT failed, escalation) penalize them. Over time the scoring formula self-tunes. Ports the Cognee self-improving memory pattern.\n- Why: The injection scoring formula uses static weights (importance, recency, trust). Without outcome feedback, a memory that consistently leads to failures keeps getting injected with the same score. The feedback loop creates a reinforcement signal: memories that help stay, memories that mislead fade.",
     "scope_sketch": "- IN_SCOPE:\n  - After each model call, record which MemoryPack items were injected (from FR-EVT-MEM-004 pack_id + item list).\n  - After the session/MT reaches an outcome (completed, failed, escalated), correlate the outcome with the injected items.\n  - Positive outcome → increment `access_boost` or add a small importance delta to each item that was in the pack.\n  - Negative outcome → apply a small penalty to items in the pack. Not aggressive — multiple negative outcomes needed before an item drops significantly.\n  - Feedback signals stored as metadata on MemoryItem (outcome_positive_count, outcome_negative_count) feeding into the injection scoring formula.\n  - Connection to Skill distillation: memory items consistently correlated with escalation are candidates for LoRA training pairs (\"the model needed this memory because it couldn't do X natively\").\n- OUT_OF_SCOPE:\n  - Real-time scoring adjustment during a session (feedback is post-session).\n  - Automatic procedural memory generation from feedback (that's hygiene manager promotion).",
     "acceptance_criteria": "- Memory items injected into successful sessions get measurable score boost.\n- Memory items injected into failed sessions get measurable score penalty.\n- Feedback is post-session (not real-time) and non-destructive (soft scoring, not deletion).\n- After N sessions, the scoring formula produces noticeably different rankings than static weights alone.\n- Escalation-correlated memory items are flagged as distillation candidates.",
-    "risks_unknowns": "- Risk: attribution problem — a bad outcome may not be caused by the memory items. Soft penalties + multiple-outcome thresholds mitigate.\n- Risk: feedback loop could create self-reinforcing biases. Need periodic reset or decay on feedback scores."
+    "risks_unknowns": "- Risk: attribution problem — a bad outcome may not be caused by the memory items. Soft penalties + multiple-outcome thresholds mitigate.\n- Risk: feedback loop could create self-reinforcing biases. Need periodic reset or decay on feedback scores.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

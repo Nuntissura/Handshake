@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-LLM-Provider-Registry-v1",
   "base_wp_id": "WP-1-LLM-Provider-Registry",
@@ -47,7 +62,8 @@
     "intent": "- What: Implement a deterministic, auditable LLM provider registry and at least one cloud-capable\n  provider adapter (OpenAI-compatible HTTP API), integrated with Work Profiles, ModelSwap, and\n  cloud consent enforcement.\n- Why: Product must be project/task agnostic and portable across environments, while preserving\n  strict safety (cloud leakage guard + explicit consent) and strong observability.",
     "scope_sketch": "- IN_SCOPE:\n  - Provider registry:\n    - Persisted provider configs (local + cloud) with stable IDs and redacted secrets.\n    - Provider health/readiness checks and \"available models\" listing (best-effort).\n  - Provider adapters:\n    - Define a generic \"OpenAI-compatible\" adapter (covers OpenAI, vLLM, TGI, etc).\n    - Ensure all adapters implement the existing `LlmClient` trait contract.\n  - Tier + safety integration:\n    - Cloud providers MUST be ModelTier=Cloud (leakage rules apply).\n    - Enforce Cloud Escalation Consent artifacts for any cloud invocation when policy requires it.\n  - Work Profile integration:\n    - Work Profiles reference model assignments that include provider_id + model_id (or equivalent).\n  - Telemetry:\n    - Emit provider/adapter lifecycle events (start, fail, retry, timeout) without leaking secrets.\n- OUT_OF_SCOPE:\n  - Agentic tool-use frameworks for cloud models (this WP targets non-agentic completions + swaps).\n  - Multi-tenant enterprise key management (Phase 2+).",
     "acceptance_criteria": "- A workspace can configure:\n  - At least one local provider (Ollama), and\n  - At least one cloud provider endpoint via OpenAI-compatible adapter.\n- Work Profile model assignments can select provider+model deterministically.\n- Cloud tier invocations are blocked when:\n  - Consent is missing (when required by policy), or\n  - Leakage validators flag non-exportable/high-sensitivity content.\n- ModelSwapRequest can target a different provider+model and resume after fresh context compile.",
-    "risks_unknowns": "- Risk: scope creep into full \"provider marketplace\". Mitigation: implement only registry + one\n  cloud adapter + required governance gates.\n- Risk: deterministic behavior vs provider variability. Mitigation: define strict timeout/retry\n  policy and record requested vs effective behavior in telemetry."
+    "risks_unknowns": "- Risk: scope creep into full \"provider marketplace\". Mitigation: implement only registry + one\n  cloud adapter + required governance gates.\n- Risk: deterministic behavior vs provider variability. Mitigation: define strict timeout/retry\n  policy and record requested vs effective behavior in telemetry.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

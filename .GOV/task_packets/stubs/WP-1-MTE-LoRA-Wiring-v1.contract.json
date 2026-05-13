@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-MTE-LoRA-Wiring-v1",
   "base_wp_id": "WP-1-MTE-LoRA-Wiring",
@@ -52,7 +67,8 @@
     "intent": "- What: Make LoRA selection actually affect the provider request path by adding an optional lora_id field and plumbing it end-to-end.\n- Why: Current code tracks lora_id in state but the LLM request has no LoRA field, making selection a no-op and violating spec intent.",
     "scope_sketch": "- IN_SCOPE:\n  - Extend the LLM completion request envelope with optional lora_id (or equivalent adapter identifier).\n  - Plumb through provider clients and logs (leak-safe).\n  - Add targeted tests asserting the selected LoRA is included in requests (or mocked provider receives it).\n- OUT_OF_SCOPE:\n  - Training/build automation and LoRA lifecycle management (separate track).",
     "acceptance_criteria": "- Selecting a LoRA at runtime results in a request annotated with that LoRA.\n- A targeted test fails if lora_id is dropped before reaching the client boundary.",
-    "risks_unknowns": "- Provider feature parity: some providers may not support LoRA; must be explicit and test-gated."
+    "risks_unknowns": "- Provider feature parity: some providers may not support LoRA; must be explicit and test-gated.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

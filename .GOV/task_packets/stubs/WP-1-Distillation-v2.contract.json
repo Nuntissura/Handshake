@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Distillation-v2",
   "base_wp_id": "WP-1-Distillation",
@@ -52,7 +67,8 @@
     "intent": "- What: complete the late-stage Skill Bank / distillation backend so teacher-student lineage, candidate selection, checkpoint/eval gating, adapter-only training posture, and rollback-safe promotion become explicit runtime contracts.\n- Why: the spec now hardcodes LoRA / QLoRA / DoRA posture, PromptEnvelope / Context Pack reuse, and distillation evidence requirements, but the implementation path still needs a dedicated packet.",
     "scope_sketch": "- IN_SCOPE:\n  - persist full distillation lineage:\n    - teacher/student ids\n    - tokenizer metadata\n    - Context Pack hashes / PromptEnvelope hashes when used\n    - checkpoint parents, eval suite ids, promotion decisions\n  - benchmark-gated adapter lifecycle:\n    - rank/alpha/repeats/epochs tracked as first-class hyperparameters\n    - LoRA / QLoRA / DoRA training outcomes compared against teacher + previous checkpoint\n    - rollback-safe promotion and merge policy\n  - export / replay posture:\n    - capability-gated export controls for checkpoints and eval artifacts\n    - deterministic replay metadata sufficient for later local/cloud audit\n- OUT_OF_SCOPE:\n  - end-user UI polish for model-training consoles\n  - full-model fine-tuning beyond adapter-only posture",
     "acceptance_criteria": "- Distillation lineage is durable and queryable: teacher/student ids, tokenizer metadata, Context Pack hashes, PromptEnvelope hashes, checkpoint parents, and eval decisions are recorded.\n- Adapter training hyperparameters and promotion/rollback outcomes are benchmark-gated and replayable.\n- Export controls prevent off-device leakage of local-only checkpoints or eval artifacts.",
-    "risks_unknowns": "- Poor-quality synthetic/self-distilled data can cause collapse if it dominates trusted traces.\n- Cross-tokenizer assumptions can silently corrupt teacher/student comparisons if token ids are treated as interchangeable.\n- Adapter merge/promotion without strict eval gates can create regressions that look like success in small tests."
+    "risks_unknowns": "- Poor-quality synthetic/self-distilled data can cause collapse if it dominates trusted traces.\n- Cross-tokenizer assumptions can silently corrupt teacher/student comparisons if token ids are treated as interchangeable.\n- Adapter merge/promotion without strict eval gates can create regressions that look like success in small tests.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

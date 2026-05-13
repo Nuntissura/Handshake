@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Role-Mailbox-v1",
   "base_wp_id": "WP-1-Role-Mailbox",
@@ -47,7 +62,8 @@
     "intent": "- What: Implement Role Mailbox threads/messages with transcription links and always-on deterministic repo export to `.GOV/ROLE_MAILBOX/`.\n- Why: Enable LLM role-to-role coordination without Operator copy/paste while preserving \"chat is not state\" and auditable governance.",
     "scope_sketch": "- IN_SCOPE:\n  - RoleMailbox data model + storage as artifacts.\n  - Always-on export format to repo (`index.json`, `threads/*.jsonl`, `export_manifest.json`) with canonical JSON rules.\n  - Flight Recorder events `FR-EVT-GOV-MAILBOX-001/002/003` and Spec Session Log entries.\n  - Transcription link UX/workflow for scope/waivers/validation findings.\n- OUT_OF_SCOPE:\n  - Email/IMAP mail client features (10.3 Mail Client).\n  - Any bypass of canonical artifact authority (messages remain non-authoritative).",
     "acceptance_criteria": "- GOV_STANDARD and GOV_STRICT maintain continuous export to `.GOV/ROLE_MAILBOX/` (no silent drift).\n- Export is deterministic and idempotent for unchanged mailbox state.\n- Governance-critical message types include transcription links to authoritative artifacts.\n- Missing/out-of-sync export is surfaced as a blocking diagnostic (cannot silently handoff/validate).",
-    "risks_unknowns": "- Sensitive data leakage via exports; requires classification/redaction policy.\n- Deterministic serialization across OS/runtime versions.\n- Concurrency/races when multiple roles write mailbox simultaneously."
+    "risks_unknowns": "- Sensitive data leakage via exports; requires classification/redaction policy.\n- Deterministic serialization across OS/runtime versions.\n- Concurrency/races when multiple roles write mailbox simultaneously.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

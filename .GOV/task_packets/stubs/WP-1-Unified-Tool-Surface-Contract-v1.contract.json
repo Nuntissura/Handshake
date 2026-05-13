@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Unified-Tool-Surface-Contract-v1",
   "base_wp_id": "WP-1-Unified-Tool-Surface-Contract",
@@ -47,7 +62,8 @@
     "intent": "- What: Implement the Unified Tool Surface Contract (HTC v1.0) as a single source of truth for tool identity/schemas/side-effects, and enforce that *all* tool calls (local + MEX + MCP) pass through a single Tool Gate with canonical Flight Recorder logging.\n- Why: Prevent “dual tool schema” drift and tool-call bypass paths that break determinism, capabilities/consent enforcement, secret redaction, and auditability across local and cloud-model orchestration.",
     "scope_sketch": "- IN_SCOPE:\n  - Tool Registry SSoT:\n    - Single canonical tool definition store (HTC-1.0), including `tool_id`, `tool_version`, schemas, `side_effect`, idempotency semantics, and redaction metadata.\n    - MCP tool discovery/schemas generated from the Tool Registry (no parallel schema).\n  - Tool Gate (single enforcement point):\n    - Capability/consent enforcement for every tool invocation (local + MCP + MEX).\n    - Payload limits (incl. 32KB rule) + strict artifact-first args/results (hashes computed *after* redaction).\n    - Idempotency keys enforced where required.\n  - Observability:\n    - Every tool invocation emits FR-EVT-007 (ToolCallEvent) with correlation fields (`trace_id`, tool identity/version, transport, timing, capability_ids, redacted refs/hashes).\n  - Conformance:\n    - Tool contract conformance tests (Spec §6.0.2.9) in CI to fail any bypass or schema divergence.\n- OUT_OF_SCOPE:\n  - Phase 2+ “Design Studio shell/IA recontextualization” work.\n  - Full DCC Tool Call Ledger UX (coordinate with DCC WP; keep this WP focused on contract + enforcement + logging).\n  - Handshake-as-MCP-server (local) beyond the minimum needed to prove schema unification and Tool Gate enforcement.",
     "acceptance_criteria": "- At least 10 tools are registered in the Tool Registry with stable `tool_id` + `tool_version` and correct `side_effect` + idempotency semantics.\n- Local tool calling and MCP tool calling use the same Tool Registry-derived schema and both route through Tool Gate (no bypass paths).\n- Every tool invocation emits FR-EVT-007 (ToolCallEvent) with redacted `args_ref`/`result_ref` + hashes computed after redaction, and is linkable to its parent job/workflow via `trace_id`.\n- Tool contract conformance tests exist and fail deterministically on:\n  - any tool call that bypasses Tool Gate\n  - any divergence between MCP-exposed schemas and Tool Registry schemas",
-    "risks_unknowns": "- Risk: introducing Tool Gate breaks existing tool paths if bypasses exist; must inventory and enforce centrally.\n- Risk: secret/PII leakage in tool args/results; requires strict redaction + artifact-first refs.\n- Risk: schema drift between local tools and MCP tools; requires generation and conformance tests."
+    "risks_unknowns": "- Risk: introducing Tool Gate breaks existing tool paths if bypasses exist; must inventory and enforce centrally.\n- Risk: secret/PII leakage in tool args/results; requires strict redaction + artifact-first refs.\n- Risk: schema drift between local tools and MCP tools; requires generation and conformance tests.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Product-Governance-Artifact-Registry-v1",
   "base_wp_id": "WP-1-Product-Governance-Artifact-Registry",
@@ -57,7 +72,8 @@
     "intent": "- What: Define and later implement a product-owned registry for imported repo-governance artifacts: codex, role protocols, rubrics, check manifests, script descriptors, schemas, templates, and sync metadata.\n- Why: Handshake needs a bounded, versioned way to ingest the current repo governance surface without turning repo file paths into runtime authority or flattening Handshake's broader governance stack into software-delivery-only rules.",
     "scope_sketch": "- IN_SCOPE:\n  - Versioned registry and manifest format for imported software-delivery governance artifacts.\n  - Stable artifact kinds and identities for codex, protocol, rubric, script, check, template, schema, and sync-surface descriptors.\n  - Product-owned storage and load rules for the imported overlay.\n  - Additive overlay rules:\n    - imported software-delivery governance augments Handshake-native governance\n    - imported overlay MUST NOT replace or hide broader Handshake-native governance layers or project-profile contracts\n  - Provenance metadata that records source snapshot/version/hash for imported governance artifacts.\n- OUT_OF_SCOPE:\n  - Executing imported checks or scripts.\n  - Replacing Handshake-native governance with repo-governance files.\n  - UI shells for browsing the registry beyond minimal inspection/debug surfaces.",
     "acceptance_criteria": "- Product runtime can materialize a bounded imported-governance registry without reading repo `.GOV/**` as live authority.\n- Imported software-delivery governance artifacts are versioned, typed, and provenance-linked.\n- The registry can coexist with non-software Handshake governance layers and project-profile extensions without field collisions or naming overrides.",
-    "risks_unknowns": "- Risk: treating repo-governance imports as the whole product governance layer would overwrite Handshake-native governance instead of extending it.\n- Risk: importing too much raw repo layout detail would reintroduce repo-path authority and block future non-software kernels."
+    "risks_unknowns": "- Risk: treating repo-governance imports as the whole product governance layer would overwrite Handshake-native governance instead of extending it.\n- Risk: importing too much raw repo layout detail would reintroduce repo-path authority and block future non-software kernels.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

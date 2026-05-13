@@ -21,6 +21,76 @@
 
 ## Entries
 
+### 2026.05.13.08 / GOV-CHANGE-20260513-08
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Marked legacy Markdown governance artifacts as migration safety rails only and blocked them from becoming the future model-created artifact pattern.
+- Contract impact: New model-created WP/refinement/MT authority starts from typed JSON/JSONL/YAML-compatible contracts; generated Markdown is legal only as on-demand projection, explicit report/projection contract, operator-created note/research/audit, or frozen legacy reference. Packet/refinement/MT contracts now carry `artifact_policy` metadata with `legacy_markdown_policy=SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD`.
+- Driver evidence: Operator correction on 2026-05-13 that existing operator-facing/Markdown artifacts came from the recent transition to machine-readable governance and should remain a safety net, not be copied into future work.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`, `.GOV/roles/kernel_builder/docs/KERNEL_BUILDER_STARTUP_BRIEF.md`, `.GOV/templates/WORK_PACKET_CONTRACT_TEMPLATE.json`, `.GOV/templates/REFINEMENT_CONTRACT_TEMPLATE.json`, `.GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json`, `.GOV/templates/TASK_PACKET_TEMPLATE.md`, `.GOV/templates/REFINEMENT_TEMPLATE.md`, `.GOV/templates/MICRO_TASK_TEMPLATE.md`, `.GOV/templates/TASK_PACKET_STUB_TEMPLATE.md`, `.GOV/roles_shared/scripts/lib/packet-contract-lib.mjs`, `.GOV/roles/orchestrator/scripts/create-task-packet.mjs`, `.GOV/roles_shared/scripts/lib/work-packet-contract-read-lib.mjs`, `.GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs`, packet contract schemas, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node --check` for packet contract libs/generators; `just task-packet-stub-contracts --check`; `node .GOV/roles_shared/checks/build-order-check.mjs`; `node .GOV/roles_shared/checks/governance-structure-bundle-check.mjs`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.13.07 / GOV-CHANGE-20260513-07
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Activated the first copy-first versioned indexed Master Spec bundle as `v02.183`.
+- Contract impact: `.GOV/spec/SPEC_CURRENT.md` now resolves to `.GOV/spec/master-spec-v02.183/indexed-spec-manifest.json` and `.GOV/spec/master-spec-v02.183/INDEX.json`; the prior `.GOV/spec/indexed_spec/` folder is archived as `.GOV/spec/spec_archive/master-spec-v02.182/`; active spec modules carry uniform `spec_version: v02.183` frontmatter; the active manifest declares `spec-changelog.jsonl`; Appendix machine-readable `spec_version` fields were updated; internal Master Spec references that described latest-monolith/version-file workflows were refreshed; and Codex plus role protocols now require internal-reference refresh on future version bumps.
+- Driver evidence: Operator approval to create a new identical copy and apply the versioned-bundle rules, including updated internal references inside the Master Spec, 2026-05-13.
+- Files changed: `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/master-spec-v02.183/**`, `.GOV/spec/spec_archive/master-spec-v02.182/**`, `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles_shared/records/BUILD_ORDER.md`, `.GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node .GOV/roles_shared/scripts/spec-current-check.mjs`; `node .GOV/roles_shared/checks/spec-bundle-check.mjs`; inline versioned-spec integrity check; `just validator-spec-regression`; `node --test .GOV/roles_shared/tests/spec-current-lib.test.mjs`; `just flat-packet-legacy-inventory`; `just gov-check --sync-topology`; `just gov-check`. Note: `role-resume-utils.test.mjs` had one unrelated runtime-root gate-log readiness failure when run beside `spec-current-lib.test.mjs`; the spec resolver test passed alone and full `gov-check` passed.
+
+### 2026.05.13.06 / GOV-CHANGE-20260513-06
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Added copy-first versioned indexed Master Spec bundle law across Codex and role protocols.
+- Contract impact: Future Master Spec changes must resolve `SPEC_CURRENT.md`, copy the active indexed bundle into the next versioned `master-spec-vNN.NNN` bundle before mutation, keep every active module on the same machine-readable `spec_version`, update a manifest-declared machine-readable changelog module on every version change, update `SPEC_CURRENT.md` after bundle consistency is proven, and move or keep non-current versioned spec folders under `.GOV/spec/spec_archive/`.
+- Driver evidence: Operator direction to preserve the old Master Spec copy/bump/apply behavior after modularization, require folder versioning, require identical module version numbers, split the changelog into a required machine-readable module, and update Codex plus Orchestrator, Classic Orchestrator, Activation Manager, Kernel Builder, Validator, and Classic Validator protocols, 2026-05-13.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md`, `.GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md`, `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`, `.GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md`, `.GOV/roles/validator/VALIDATOR_PROTOCOL.md`, `.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PARTIAL - `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles_shared/checks/spec-bundle-check.mjs`, `node .GOV/roles_shared/checks/repo-governance-board-check.mjs`, and `node .GOV/roles_shared/checks/build-order-check.mjs` pass. Full `just gov-check` is blocked by unrelated active packet drift for `WP-KERNEL-001-Event-Ledger-Session-Broker-v1` (missing closure/semantic/session-policy fields, missing WP communication runtime files, and traceability still pointing at the stub while an official packet exists).
+
+### 2026.05.13.05 / GOV-CHANGE-20260513-05
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Aligned the new Kernel Builder protocol and startup prompt with the module-resolver and non-operator-facing repo-surface corrections.
+- Contract impact: Kernel Builder now resolves `SPEC_CURRENT.md` through `current_spec.entrypoint_path` and `current_spec.resolver_index_path`; treats `INDEX.json` as a tool/LLM module resolver, not a repo viewer or operator surface; uses the roadmap module as build-order guidance only; and avoids repo-local indexes/viewers/projection docs unless explicitly requested in the current task.
+- Driver evidence: Operator note that the newly created Kernel Builder protocol also needed updating, 2026-05-13.
+- Files changed: `.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md`, `.GOV/roles/kernel_builder/docs/KERNEL_BUILDER_STARTUP_BRIEF.md`, `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `just build-order-sync`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.13.04 / GOV-CHANGE-20260513-04
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Corrected the indexed-spec index contract so `INDEX.json` is a machine-readable module resolver, not an operator surface or repo document-viewing surface.
+- Contract impact: `SPEC_CURRENT.md` now uses `resolver_index_path`; `INDEX.json` now uses `handshake.indexed_spec.module_resolver@1`, `current-module-resolver`, and explicit `not_a_document_viewer` / `not_operator_facing` flags. Viewing/projection remains an on-demand LLM response or future Handshake Product viewer concern, not a repo document surface.
+- Driver evidence: Operator correction that the index should not be operator-facing and viewing/projections are only needed by explicit request or a future Handshake viewer, 2026-05-13.
+- Files changed: `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/indexed_spec/INDEX.json`, `.GOV/spec/indexed_spec/indexed-spec-manifest.json`, `.GOV/spec/indexed_spec/README.md`, `.GOV/spec/indexed_spec/spec-modules/README.md`, `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles_shared/scripts/lib/spec-current-lib.mjs`, `.GOV/roles_shared/tests/spec-current-lib.test.mjs`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node .GOV/roles_shared/scripts/spec-current-check.mjs`; `node --test .GOV/roles_shared/tests/spec-current-lib.test.mjs`; `just build-order-sync`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.13.03 / GOV-CHANGE-20260513-03
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Corrected active repo-governance guidance so repo surfaces default to machine-facing and role-facing contracts, not operator-facing documents.
+- Contract impact: Codex now carries `CX-130A`, which requires operator-readable projections only when explicitly requested or required by an explicit report/projection contract; active startup and architecture guidance now says projection artifacts are not the wire and are not default operator surfaces.
+- Driver evidence: Operator correction that the repo should not be operator-facing unless explicitly requested, 2026-05-13.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md`, `.GOV/roles_shared/docs/ARCHITECTURE.md`, `.GOV/spec/indexed_spec/spec-modules/README.md`, `.GOV/spec/indexed_spec/_transfer/README.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `just build-order-sync`; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.13.02 / GOV-CHANGE-20260513-02
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Cleaned the indexed Master Spec folder and extracted the roadmap into a dedicated module.
+- Contract impact: `.GOV/spec/indexed_spec/INDEX.json` is now the machine-readable module resolver; transfer/inventory/concordance/workspace artifacts live under `_transfer`; the roadmap is `spec-modules/07-6-development-roadmap.md` with an explicit boundary that it guides Task Board, Work Packet, and micro-task scheduling but does not replace topical Master Spec authority for implementation intent, techniques, anchors, done-means, or validation proof.
+- Driver evidence: Operator indexed-spec cleanup and roadmap extraction direction, 2026-05-13.
+- Files changed: `.GOV/spec/SPEC_CURRENT.md`, `.GOV/spec/indexed_spec/**`, `.GOV/codex/Handshake_Codex_v1.4.md`, spec-writer role protocols, `.GOV/roles_shared/tests/spec-current-lib.test.mjs`, `.GOV/roles_shared/records/BUILD_ORDER.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node .GOV/roles_shared/scripts/spec-current-check.mjs`; `just validator-spec-regression`; `just spec-eof-appendices-check`; `node --test .GOV/roles_shared/tests/spec-current-lib.test.mjs`; `just build-order-sync`; `just gov-check --sync-topology`; `just gov-check`.
+
 ### 2026.05.13.01 / GOV-CHANGE-20260513-01
 
 - Status: APPLIED

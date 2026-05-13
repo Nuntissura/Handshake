@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Calendar-Storage-v1",
   "base_wp_id": "WP-1-Calendar-Storage",
@@ -55,7 +70,8 @@
     "intent": "- What: Add persistent storage for CalendarSource/CalendarEvent with portable migrations and a Database-trait-conformant DAL.\n- Why: Calendar lens and sync cannot be correct or auditable without durable, queryable event persistence.",
     "scope_sketch": "- IN_SCOPE:\n  - Portable migrations for:\n    - calendar_sources (id, kind/provider, display_name, created_at, config/provenance)\n    - calendar_events (id, source_id, start_ts, end_ts, title, location, raw_ref/provenance)\n    - indexes for time-range queries (source_id + start/end).\n  - Storage API surface for:\n    - upsert/list sources\n    - upsert/query events (idempotent)\n    - delete-by-source (disconnect).\n- OUT_OF_SCOPE:\n  - Full-text indexing and embeddings for calendar notes (layer later).\n  - Complex recurrence expansion beyond a stored raw field in MVP.",
     "acceptance_criteria": "- Calendar sources and events persist and can be queried by time window efficiently.\n- Migrations run cleanly on SQLite and Postgres (no runtime DDL hacks).\n- A small conformance test suite verifies portable schema + basic CRUD.",
-    "risks_unknowns": "- Recurrence and timezone normalization decisions can cause long-term drift; must be versioned.\n- Event privacy requires clear provenance and policy hooks (separate stub)."
+    "risks_unknowns": "- Recurrence and timezone normalization decisions can cause long-term drift; must be versioned.\n- Event privacy requires clear provenance and policy hooks (separate stub).",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

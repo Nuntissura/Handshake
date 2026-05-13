@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Role-Mailbox-Triage-Queue-Controls-v1",
   "base_wp_id": "WP-1-Role-Mailbox-Triage-Queue-Controls",
@@ -54,7 +69,8 @@
     "intent": "- What: Define and later implement the durable Role Mailbox triage queue, reminder, snooze, expiry, and dead-letter remediation contract across Role Mailbox, Dev Command Center, Task Board, Work Packet views, and Locus joins.\n- Why: Handshake now has typed mailbox messages and Micro-Task loop control, but it still needs one portable queue-management layer so async collaboration pressure, stale work, and delivery failures do not collapse back into unread badges, thread order, or operator memory.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical `RoleMailboxTriageQueueState`, `RoleMailboxReminderScheduleV1`, and `RoleMailboxDeadLetterDisposition` contracts.\n  - Queue-aging fields, reminder cadence, snooze posture, expiry posture, and dead-letter remediation metadata for Role Mailbox threads.\n  - Dev Command Center remediation queue requirements for reminder, unsnooze, retry-delivery, reroute, archive, and transcription-aware controls.\n  - Task Board pressure overlays and Work Packet follow-up summaries that project mailbox backlog without becoming authority.\n  - Locus joins that make mailbox-derived waiting, snooze, expiry, and dead-letter posture queryable by stable identifiers.\n- OUT_OF_SCOPE:\n  - External email, Slack, or generic ticket-ingest channels.\n  - Rich issue-tracker redesign beyond the queue and remediation fields needed for lawful triage.\n  - Replacing the Role Mailbox export or Flight Recorder baseline contracts.",
     "acceptance_criteria": "- Role Mailbox triage queue state, reminder schedule, snooze posture, expiry posture, and dead-letter disposition are explicit, durable, and queryable without transcript parsing.\n- Dev Command Center can distinguish mailbox-local reminder or archive actions from governed follow-up before execution.\n- Task Board and Work Packet views can explain mailbox-derived waiting pressure and remediation posture without becoming authority for mailbox state.\n- Local small models can ingest bounded triage state before replaying long-form mailbox threads.",
-    "risks_unknowns": "- Too many queue states or remediation controls could create operator noise and make local-small-model routing harder.\n- If reminder schedules are optional, stale collaboration debt may hide behind “active” state.\n- If dead-letter disposition is not explicit, delivery failure can be mistaken for linked work failure."
+    "risks_unknowns": "- Too many queue states or remediation controls could create operator noise and make local-small-model routing harder.\n- If reminder schedules are optional, stale collaboration debt may hide behind “active” state.\n- If dead-letter disposition is not explicit, delivery failure can be mistaken for linked work failure.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-ContextPack-Recorder-Visibility-v1",
   "base_wp_id": "WP-1-ContextPack-Recorder-Visibility",
@@ -52,7 +67,8 @@
     "intent": "- What: make Context Pack build/select/refresh/freshness outcomes first-class Flight Recorder evidence with stable pack-hash linkage.\n- Why: distillation, replay, model onboarding, and prompt/context reuse cannot depend on hidden cache decisions or transient in-memory state.",
     "scope_sketch": "- IN_SCOPE:\n  - emit bounded Flight Recorder events for:\n    - pack build\n    - pack reuse\n    - pack refresh\n    - freshness allow/deny/require-rebuild decisions\n  - persist stable pack hash / source-hash / freshness-policy linkage\n  - deep-link pack decisions into jobs/spec-router traces/debug bundles without dumping full payloads by default\n  - add targeted tests that fail if Context Pack visibility regresses\n- OUT_OF_SCOPE:\n  - broad UI polish\n  - changing Context Pack payload schema beyond what recorder visibility requires",
     "acceptance_criteria": "- Context Pack build/select/refresh paths emit recorder-visible events with stable pack hashes and bounded policy metadata.\n- Replay/debug surfaces can correlate pack decisions to jobs/spec-router flows without reading hidden runtime state.\n- Tests fail if pack-visibility events or hash linkage disappear.",
-    "risks_unknowns": "- Full payload logging would leak too much retrieval context; event payloads must stay bounded and policy-safe.\n- Hash/link semantics must remain stable across SQLite-now / PostgreSQL-later portability."
+    "risks_unknowns": "- Full payload logging would leak too much retrieval context; event payloads must stay bounded and policy-safe.\n- Hash/link semantics must remain stable across SQLite-now / PostgreSQL-later portability.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

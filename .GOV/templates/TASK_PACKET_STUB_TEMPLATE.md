@@ -8,6 +8,8 @@
 - RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
 <!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->
 - RULE: ACP, apps, and checks consume machine contracts when present; this stub Markdown is the human/operator projection.
+- LEGACY_MARKDOWN_POLICY: SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD
+- FUTURE_WORK_RULE: Do not copy this Markdown stub pattern into new authoritative WP/refinement/MT artifacts. New model-created artifacts start from machine contracts; Markdown is an explicit projection only.
 This is a BACKLOG STUB. It is NOT an executable Task Packet.
 
 Rules:
@@ -16,7 +18,7 @@ Rules:
 - Coder/Validator MUST NOT start work from a stub.
 - When activating a stub into a real WP, follow `.GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md` (Technical Refinement Block + USER_SIGNATURE + refinement + `just create-task-packet`).
 - If a Base WP later gains multiple packets (revisions), record Base WP -> Active Packet in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`.
-- A stub is the authoritative backlog contract before activation. Task Board, traceability, and Build Order are projections over this stub metadata.
+- The adjacent `.contract.json` is the authoritative backlog contract before activation. This Markdown stub is a generated projection/safety rail. Task Board, traceability, and Build Order are projections over contract metadata.
 - When a real packet replaces a stub or older packet, the new active packet is whichever file the traceability registry maps for the shared `BASE_WP_ID`.
 - For any stub covering current-spec Phase 1 roadmap additions (`[ADD v<current>]`), `ROADMAP_ADD_COVERAGE` MUST enumerate the exact spec line numbers so governance checks can verify no additions were missed.
 

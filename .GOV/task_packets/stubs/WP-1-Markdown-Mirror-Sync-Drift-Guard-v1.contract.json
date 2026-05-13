@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
   "base_wp_id": "WP-1-Markdown-Mirror-Sync-Drift-Guard",
@@ -52,7 +67,8 @@
     "intent": "- What: Implement deterministic Markdown mirror generation, drift detection, advisory-edit handling, and reconciliation status for structured collaboration artifacts.\n- Why: The product can keep readable Markdown without letting mirrors silently become the authority or diverge from the canonical JavaScript Object Notation records.",
     "scope_sketch": "- IN_SCOPE:\n  - Mirror regeneration rules for Work Packets and Task Board outputs.\n  - Drift detection states such as synchronized, stale, advisory edit, and normalization required.\n  - Operator-visible evidence for why a mirror differs from its canonical record.\n  - Safe handling of manual Markdown edits without silent overwrite.\n- OUT_OF_SCOPE:\n  - Designing the canonical structured artifact schemas themselves.\n  - Rich board or typed-viewer presentation beyond the states they need to show.",
     "acceptance_criteria": "- Markdown mirrors can be regenerated deterministically from canonical structured records.\n- Drift states are explicit and machine-readable.\n- Manual Markdown edits are surfaced as advisory until normalized back into canonical records.\n- Dev Command Center and planning views can distinguish synchronized versus stale mirrors without reading raw diffs first.",
-    "risks_unknowns": "- Risk: mirror generation clobbers useful human notes. Mitigation: keep note sidecars append-only and separate from generated mirrors.\n- Risk: drift signaling is too noisy. Mitigation: define bounded statuses and normalization paths instead of raw diff spam."
+    "risks_unknowns": "- Risk: mirror generation clobbers useful human notes. Mitigation: keep note sidecars append-only and separate from generated mirrors.\n- Risk: drift signaling is too noisy. Mitigation: define bounded statuses and normalization paths instead of raw diff spam.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

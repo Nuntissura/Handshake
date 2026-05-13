@@ -1,7 +1,7 @@
 {
   "artifact_type": "indexed-spec-manifest",
   "status": "current-indexed-spec-entrypoint",
-  "generated_at": "2026-05-13T04:42:33.449Z",
+  "generated_at": "2026-05-13T12:43:19.866Z",
   "activated_at": "2026-05-13T04:55:45.805Z",
   "authority_pointer": ".GOV/spec/SPEC_CURRENT.md",
   "authority_pointer_current_entrypoint": ".GOV/spec/indexed_spec/indexed-spec-manifest.json",
@@ -14,8 +14,8 @@
     "total_lines": 84130
   },
   "split_policy": {
-    "mode": "verbatim-source-section-split",
-    "module_body_rule": "module files contain only exact source bytes for their source line ranges",
+    "mode": "verbatim-source-section-split-with-dedicated-roadmap-module",
+    "module_body_rule": "module files contain only exact source bytes for their source line ranges; the roadmap is a dedicated scheduling module and not implementation authority",
     "metadata_rule": "source ranges and generated metadata are outside module bodies",
     "rewrite_performed": false,
     "source_pointer_changed": true
@@ -161,17 +161,36 @@
       "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
       "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
       "source_line_start": 30489,
-      "source_line_end": 49311,
-      "line_count": 18823,
-      "byte_count": 1010190,
-      "sha256": "47d92764d9ba568bbca5b72af9aae090bb46713a6a5647cc3895a927f89289f7",
-      "heading_count": 670,
+      "source_line_end": 47078,
+      "line_count": 16590,
+      "byte_count": 763930,
+      "sha256": "2b78ef3476e17fbb74fc768098139403a8865e623d1dc7a0d3982a1cca57eae1",
+      "heading_count": 660,
       "heading_level_counts": {
-        "h2": 243,
-        "h3": 277,
         "h1": 79,
-        "h4": 24,
+        "h2": 242,
+        "h3": 271,
+        "h4": 21,
         "h5": 47
+      }
+    },
+    {
+      "module_id": "07-6",
+      "section_id": "7.6",
+      "title": "7.6 Development Roadmap",
+      "path": "spec-modules/07-6-development-roadmap.md",
+      "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+      "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+      "source_line_start": 47079,
+      "source_line_end": 49311,
+      "line_count": 2233,
+      "byte_count": 246260,
+      "sha256": "3309d38c73ae0afc91572ad4fe41e83bf8738f1fe77847e28b589ee3d8a4f0b2",
+      "heading_count": 10,
+      "heading_level_counts": {
+        "h2": 1,
+        "h3": 6,
+        "h4": 3
       }
     },
     {
@@ -273,6 +292,7 @@
       "spec-modules/05-security-and-observability.md",
       "spec-modules/06-mechanical-integrations.md",
       "spec-modules/07-user-experience-and-development.md",
+      "spec-modules/07-6-development-roadmap.md",
       "spec-modules/08-reference.md",
       "spec-modules/09-continuous-local-skill-distillation.md",
       "spec-modules/10-product-surfaces.md",
@@ -285,8 +305,14 @@
     "coverage": {
       "source_line_start": 1,
       "source_line_end": 84130,
-      "module_count": 13,
+      "module_count": 14,
       "no_gaps_or_overlaps": true
     }
+  },
+  "module_resolver": {
+    "path": "INDEX.json",
+    "schema": "handshake.indexed_spec.module_resolver@1",
+    "status": "current-module-resolver",
+    "sha256": "e68237c24293dd959da4056da363daf81df5863113466dbf5136dd1605ff3d0d"
   }
 }

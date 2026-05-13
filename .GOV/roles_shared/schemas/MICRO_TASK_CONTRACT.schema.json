@@ -8,6 +8,7 @@
     "schema_id": { "const": "hsk.microtask_contract@1" },
     "schema_version": { "type": "string", "minLength": 1 },
     "contract_authority": { "const": "PRIMARY_MACHINE_READABLE" },
+    "artifact_policy": { "$ref": "#/$defs/artifact_policy" },
     "wp_id": { "type": "string", "pattern": "^WP-[A-Za-z0-9][A-Za-z0-9._-]*$" },
     "mt_id": { "type": "string", "pattern": "^(MT-)?[0-9][0-9A-Za-z._-]*$" },
     "created_at_utc": { "type": "string" },
@@ -21,6 +22,18 @@
   },
   "additionalProperties": true,
   "$defs": {
+    "artifact_policy": {
+      "type": "object",
+      "properties": {
+        "authority_surface": { "const": "MACHINE_CONTRACT" },
+        "legacy_markdown_policy": { "const": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD" },
+        "projection_creation": { "enum": ["ON_DEMAND_OR_CONTRACT_BOUND"] },
+        "operator_facing_authority": { "const": false },
+        "model_created_markdown_authority_allowed": { "const": false },
+        "allowed_markdown_exceptions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
     "markdown_projection": { "type": "object", "required": ["path", "status"], "properties": { "path": { "type": "string" }, "status": { "enum": ["GENERATED_PENDING", "GENERATED_IN_SYNC", "LEGACY_AUTHORITY", "BLOCKED"] } }, "additionalProperties": true },
     "red_team": { "type": "object", "required": ["required", "profile"], "properties": { "required": { "const": true }, "profile": { "const": "DETERMINISTIC_CONTRACT_MIGRATION_V1" } }, "additionalProperties": true }
   }

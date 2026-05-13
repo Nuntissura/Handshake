@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1",
   "base_wp_id": "WP-1-Role-Mailbox-Executor-Routing-Claim-Lease",
@@ -55,7 +70,8 @@
     "intent": "- What: Define and later implement the durable Role Mailbox executor-routing, claim or lease, takeover, and response-authority contract across Role Mailbox, Dev Command Center, Locus Work Tracking, Micro-Task Executor, Task Board, and Work Packet follow-up views.\n- Why: Handshake now has typed mailbox messages, verifier-loop control, and queue-remediation posture, but it still needs one lawful ownership layer so parallel local models, cloud models, reviewers, validators, operators, and workflow automation do not race to answer the same thread or silently seize work.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical `RoleMailboxExecutorKind`, `RoleMailboxClaimMode`, `RoleMailboxClaimLeaseV1`, and `RoleMailboxResponseAuthorityV1` contracts.\n  - Single-owner versus shared-observer mailbox semantics, claim acquisition, renewal, release, expiry, and takeover posture.\n  - Response-authority boundaries for local small models, cloud models, reviewers, validators, operators, and workflow automation.\n  - Locus joins that make claimant identity, lease age, lease expiry, takeover legality, and handback reasons queryable by stable identifiers.\n  - Dev Command Center, Task Board, Work Packet, and Micro-Task projections for claimant visibility and actor-ineligible posture.\n- OUT_OF_SCOPE:\n  - Full external email, chat, or ticket-ingest systems.\n  - Replacing underlying Locus authority, Work Packet authority, or Micro-Task execution law.\n  - Rich board redesign beyond the claimant, lease, and takeover fields needed for lawful projection.",
     "acceptance_criteria": "- Actionable mailbox threads expose executor-kind allowlists, claim mode, current claimant, lease expiry, takeover policy, and response-authority scope through structured fields.\n- Dev Command Center can preview whether claim, release, renew, takeover, or reply actions are mailbox-local, automation-triggering, or governed.\n- Locus, Micro-Task, Task Board, and Work Packet views can explain claimant and stale-lease posture without turning mailbox claims into work-state authority.\n- Local small models, cloud models, reviewers, validators, and operators are visibly separated by response-authority scope before a reply or takeover is offered.",
-    "risks_unknowns": "- Overly granular claimant states could create operator noise and make local-small-model routing harder.\n- If takeover policy is vague, actors may assume stale leases are safe to seize and create hidden duplicate work.\n- If response-authority scope is optional, implementations may fall back to prompt-only heuristics and lose determinism."
+    "risks_unknowns": "- Overly granular claimant states could create operator noise and make local-small-model routing harder.\n- If takeover policy is vague, actors may assume stale leases are safe to seize and create hidden duplicate work.\n- If response-authority scope is optional, implementations may fall back to prompt-only heuristics and lose determinism.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

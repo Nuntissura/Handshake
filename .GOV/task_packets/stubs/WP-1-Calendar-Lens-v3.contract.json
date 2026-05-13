@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Calendar-Lens-v3",
   "base_wp_id": "WP-1-Calendar-Lens",
@@ -51,7 +66,8 @@
     "intent": "- What: Implement the Calendar lens surface as a first-class UI + API workflow for viewing and filtering calendar events.\n- Why: Calendar is a core organizing substrate for personal workflows; without it, downstream surfaces (timeline, reminders, microtask scheduling, governance traceability) are missing time-ground truth.",
     "scope_sketch": "- IN_SCOPE:\n  - Calendar lens UI surface (baseline):\n    - View: day/week/month (at least one view shipped first, others staged).\n    - Filter by source (CalendarSource) and date range; basic text search over event title.\n  - Backend API for CalendarSource/CalendarEvent query:\n    - Query events by time window + source IDs.\n    - Stable IDs + provenance fields.\n  - Minimal integration points:\n    - Optional: link/overlay Calendar events into existing timeline/flight recorder UI views (read-only).\n- OUT_OF_SCOPE:\n  - Full bidirectional edit/write-back to external calendar providers.\n  - Recurrence rule edge-cases beyond a clearly documented MVP subset.",
     "acceptance_criteria": "- User can open Calendar lens and see events for a selected time window.\n- User can add at least one CalendarSource (even if local/ICS-only in MVP) and filter by source.\n- Calendar events are persisted and reload without drift across app restarts.",
-    "risks_unknowns": "- Time zone correctness and DST edge cases.\n- Event privacy: avoid accidental indexing/leakage into search surfaces without explicit consent/policy."
+    "risks_unknowns": "- Time zone correctness and DST edge cases.\n- Event privacy: avoid accidental indexing/leakage into search surfaces without explicit consent/policy.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

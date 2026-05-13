@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Spec-Appendices-Backfill-v1",
   "base_wp_id": "WP-1-Spec-Appendices-Backfill",
@@ -51,7 +66,8 @@
     "intent": "- What: Populate the EOF appendix blocks with a comprehensive, stable feature inventory, per-feature UI guidance coverage, and a usable interaction matrix.\n- Why: Reduce cognitive load, prevent feature/UI gaps, and make cross-feature interactions explicit as Handshake grows.",
     "scope_sketch": "- IN_SCOPE:\n  - Enumerate existing features/primitives/tools/technologies already described in the Master Spec and/or implemented in repo.\n  - Assign stable `feature_id` values and map them to spec anchors.\n  - Add per-feature UI guidance entries for legacy features (backfill).\n  - Add high-signal interaction edges for known cross-feature integrations (at least the major ones).\n- OUT_OF_SCOPE:\n  - Building UI implementations (this is spec appendices content only).\n  - Refactoring existing spec sections outside Appendix blocks (except to reference the IDs).",
     "acceptance_criteria": "- FEATURE_REGISTRY contains an inventory of Phase 1 features with stable IDs and spec anchors.\n- UI_GUIDANCE contains per-feature entries for all Phase 1 user-facing features (legacy backfill complete).\n- INTERACTION_MATRIX contains an initial set of explicit integration edges (feature->feature, feature->primitive) with contracts surfaced.\n- PRIMITIVE_TOOL_TECH_MATRIX contains at least the major primitives/tools/technologies and links to features.",
-    "risks_unknowns": "- Risk: Over-broad \"feature\" definitions can balloon the appendix. Mitigation: keep scope to user-facing features first; primitives as separate classification.\n- Risk: IDs churn. Mitigation: treat `feature_id` as stable; never reuse/rename without an explicit deprecation mapping."
+    "risks_unknowns": "- Risk: Over-broad \"feature\" definitions can balloon the appendix. Mitigation: keep scope to user-facing features first; primitives as separate classification.\n- Risk: IDs churn. Mitigation: treat `feature_id` as stable; never reuse/rename without an explicit deprecation mapping.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

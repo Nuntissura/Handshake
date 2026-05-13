@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-DCC-Postgres-Control-Plane-Projections-v1",
   "base_wp_id": "WP-1-DCC-Postgres-Control-Plane-Projections",
@@ -13,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-DCC-Postgres-Control-Plane-Projections-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "b77d08036d19edf0537b7231ebbde472e2c78cda29ad5fcac1407ac626259730",
+    "projection_sha256": "bcc5adb8d8cb0cdabf20bdb50fa49ea1d3ae40ca56cff7ecf22e4c53e980d018",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -57,7 +72,8 @@
     "intent": "- What: Project PostgreSQL-primary runtime truth into Dev Command Center views for sessions, queues, leases, workflows, memory jobs, and blocked/stalled control-plane work.\n- Why: Self-hosting is not operational if the Operator cannot see the actual database-backed runtime state and intervene without reading logs or role terminals.",
     "scope_sketch": "- IN_SCOPE:\n  - Backend projection endpoints or query services that read authoritative PostgreSQL runtime/control-plane state.\n  - DCC-ready state models for queue depth, active leases, stalled work, model sessions, workflow instances, memory jobs, and dead-letter items.\n  - Action affordance contracts for retry, cancel, release lease, requeue, and inspect evidence, even if some actions remain disabled.\n  - Tests that verify UI projections do not infer truth from stale mirrors or local process state.\n- OUT_OF_SCOPE:\n  - Full DCC visual redesign.\n  - Implementing every operator action mutation.\n  - Replacing Flight Recorder evidence storage.",
     "acceptance_criteria": "- DCC projection data comes from PostgreSQL authority or a declared derived projection with source/version metadata.\n- Stale, missing, and conflicting runtime states are represented explicitly.\n- Projection tests cover at least empty, healthy, saturated/backpressured, stalled, and dead-letter states.\n- The UI contract distinguishes read-only evidence from governed mutation actions.",
-    "risks_unknowns": "- Risk: mixing mirrors with canonical PostgreSQL state can create false operator confidence; activation should require source labels and projection freshness.\n- Unknown: whether DCC should poll, subscribe, or consume NOTIFY-backed projection updates in Phase 1."
+    "risks_unknowns": "- Risk: mixing mirrors with canonical PostgreSQL state can create false operator confidence; activation should require source labels and projection freshness.\n- Unknown: whether DCC should poll, subscribe, or consume NOTIFY-backed projection updates in Phase 1.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-MTE-Resource-Caps-v1",
   "base_wp_id": "WP-1-MTE-Resource-Caps",
@@ -51,7 +66,8 @@
     "intent": "- What: Implement missing token and storage resource caps for the Micro-Task Executor and add deterministic tests for overage behavior.\n- Why: Without caps, runs can become unbounded cost/storage growth and break safety posture.",
     "scope_sketch": "- IN_SCOPE:\n  - Add max_total_tokens (and any other required caps) to the execution policy surface.\n  - Enforce caps during loop execution (hard gate or deterministic pause).\n  - Add tests forcing cap overage (token + storage) and asserting the exact behavior.\n- OUT_OF_SCOPE:\n  - Global cross-job quota systems (this stub is executor-local).",
     "acceptance_criteria": "- Cap overage deterministically gates/halts a run and emits explicit Flight Recorder evidence.\n- Tests fail if cap enforcement is removed.",
-    "risks_unknowns": "- Incorrect accounting could create false positives/negatives; refinement must pin accounting semantics."
+    "risks_unknowns": "- Incorrect accounting could create false positives/negatives; refinement must pin accounting semantics.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

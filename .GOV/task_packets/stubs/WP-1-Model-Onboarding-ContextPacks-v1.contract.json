@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Model-Onboarding-ContextPacks-v1",
   "base_wp_id": "WP-1-Model-Onboarding-ContextPacks",
@@ -47,7 +62,8 @@
     "intent": "- What: Define and implement deterministic \"Context Packs\" used to onboard any model instance to a\n  role + task, including on swap/escalation, with strict provenance, hashing, and auditability.\n- Why: Without deterministic onboarding artifacts, multi-model execution becomes non-reproducible\n  and governance enforcement drifts per provider/model.",
     "scope_sketch": "- IN_SCOPE:\n  - Context Pack schema:\n    - Stable, versioned schema for \"RoleContextPack\" and \"WorkUnitContextPack\".\n    - Includes: role_id, codex/protocol references, governance mode, allowed tools, lock-set,\n      task identifiers (WP/MT IDs), and required verification contract.\n  - Deterministic assembly:\n    - Canonical ordering rules, stable hashing, and redacted exports (no secrets).\n    - Packs emitted as artifacts so they can be replayed for audit/debug.\n  - Runtime integration:\n    - On job start: build a Context Pack and bind it to the job/workflow run.\n    - On ModelSwap/escalation: rebuild pack (or explicitly reuse if byte-identical) and record\n      \"requested vs effective\" pack hashes.\n  - Provider neutrality:\n    - Context Pack must be usable for local and cloud providers; no provider-specific prompt magic.\n  - Operator UX (minimum viable):\n    - Show a compact summary: role, model/provider, pack_hash, lock paths, and whether cloud tier is used.\n- OUT_OF_SCOPE:\n  - Full UI design polish.\n  - Training/distillation flows (Phase 2+).",
     "acceptance_criteria": "- Every model invocation in a governed workflow can be traced to:\n  - a RoleExecutionIdentity and\n  - a Context Pack artifact (hash + storage ref).\n- ModelSwap/escalation cannot proceed without a valid Context Pack for the target role.\n- Context Pack assembly is deterministic: same inputs -> same pack hash.\n- Context Packs do not embed repo-absolute paths or host-specific drive letters.",
-    "risks_unknowns": "- Risk: pack content becomes too large for small models. Mitigation: pack must separate \"strict rules\"\n  (small, always included) from \"context payload\" (retrieval-assembled per request) with explicit budgets.\n- Risk: spec ambiguity about where codex/protocol material lives for arbitrary projects. Mitigation:\n  coordinate with spec enrichment WP to define canonical sources and avoid repo coupling."
+    "risks_unknowns": "- Risk: pack content becomes too large for small models. Mitigation: pack must separate \"strict rules\"\n  (small, always included) from \"context payload\" (retrieval-assembled per request) with explicit budgets.\n- Risk: spec ambiguity about where codex/protocol material lives for arbitrary projects. Mitigation:\n  coordinate with spec enrichment WP to define canonical sources and avoid repo coupling.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

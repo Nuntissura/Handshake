@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Provider-Feature-Coverage-Agentic-Ready-v1",
   "base_wp_id": "WP-1-Provider-Feature-Coverage-Agentic-Ready",
@@ -47,7 +62,8 @@
     "intent": "- What: Extend provider abstraction(s) so the runtime supports orchestration-ready features: streaming, tool calling, structured outputs, and multi-turn sessions, with adapter-layer hardening for provider quirks.\n- Why: Multi-session orchestration relies on long-running streams and tool loops. A completion-only contract forces ad-hoc provider hacks and blocks safe, deterministic orchestration.",
     "scope_sketch": "- IN_SCOPE:\n  - ProviderCapabilities flags (supports_streaming/tool_calling/structured_output/multi_turn/etc).\n  - Multi-turn chat adapter:\n    - ChatRequest/ChatResponse keyed by session_id + trace_id.\n    - tools: ToolDefinition[] generated from Tool Registry (Unified Tool Surface Contract).\n    - structured_output_schema support where provider supports it.\n  - Tool calling adapter rules:\n    - ToolDefinition is provider-agnostic; provider schemas generated in adapters.\n    - Tool call results routed back as TOOL_RESULT messages correlated to TOOL_CALL.\n    - If provider lacks tool calling, either deterministic emulation with strict parsing OR explicit error (no silent degradation).\n  - Adapter-layer hardening for provider quirks:\n    - tool ID sanitization, thinking-block scrubbing, refusal string detection, and native endpoint routing as specified.\n- OUT_OF_SCOPE:\n  - Tool Gate implementation itself (tracked in WP-1-Unified-Tool-Surface-Contract-v1 and WP-1-Session-Scoped-Capabilities-Consent-Gate-v1).\n  - Session scheduler and persistence (tracked in WP-1-ModelSession-Core-Scheduler-v1).",
     "acceptance_criteria": "- ProviderCapabilities are discoverable and correctly drive runtime behavior (streaming/tool calling/structured output).\n- At least one provider path supports multi-turn chat with streaming and tool call loops without bypassing Tool Gate or Tool Registry SSoT.\n- Missing provider features fail closed with explicit error codes (no silent fallback).\n- Provider quirks are handled in adapter layer only (not in session/orchestration code).",
-    "risks_unknowns": "- Risk: provider-specific tool schemas drift; must be generated, not handwritten.\n- Risk: mixing tool calling logic into session/orchestration code; must stay in adapter."
+    "risks_unknowns": "- Risk: provider-specific tool schemas drift; must be generated, not handwritten.\n- Risk: mixing tool calling logic into session/orchestration code; must stay in adapter.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

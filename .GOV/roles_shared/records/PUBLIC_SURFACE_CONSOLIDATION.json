@@ -524,6 +524,19 @@
     },
     {
       "count": 2,
+      "group_id": "public-surface-group:a3eefa855887a099",
+      "owner_role": "OPERATOR",
+      "phase": "GENERAL",
+      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surfaces": [
+        "file:.GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md",
+        "file:.GOV/operator/scripts/operator-viewport-tui.mjs"
+      ]
+    },
+    {
+      "count": 2,
       "group_id": "public-surface-group:efbfad441c81e290",
       "owner_role": "ORCHESTRATOR",
       "phase": "CHECK",
@@ -632,18 +645,6 @@
       "side_effect_class": "MUTATES_GOVERNANCE_OR_RUNTIME",
       "surfaces": [
         "file:.GOV/roles/memory_manager/scripts/launch-memory-manager.mjs"
-      ]
-    },
-    {
-      "count": 1,
-      "group_id": "public-surface-group:a3eefa855887a099",
-      "owner_role": "OPERATOR",
-      "phase": "GENERAL",
-      "policy": "Prefer extending the replacement bundle over preserving separate public leaves.",
-      "replacement_bundle": "just gov-check",
-      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
-      "surfaces": [
-        "file:.GOV/operator/scripts/operator-viewport-tui.mjs"
       ]
     },
     {
@@ -767,15 +768,15 @@
       ]
     }
   ],
-  "consolidation_hash": "sha256:8aea024ec926f18a",
+  "consolidation_hash": "sha256:814100abedc691df",
   "counts": {
     "by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
-      "CANONICAL_PUBLIC_ENTRY": 14,
+      "CANONICAL_PUBLIC_ENTRY": 15,
       "COMPATIBILITY_ALIAS": 20,
-      "CONTRACT_AUTHORITY": 9,
+      "CONTRACT_AUTHORITY": 10,
       "INTERNAL_HELPER": 1,
-      "PUBLIC_LEAF_BASELINED": 120,
+      "PUBLIC_LEAF_BASELINED": 121,
       "PUBLIC_RECIPE_BASELINED": 175
     },
     "by_owner_role": {
@@ -785,10 +786,11 @@
       "CODER": 4,
       "CODEX": 1,
       "INTEGRATION_VALIDATOR": 1,
+      "KERNEL_BUILDER": 1,
       "MEMORY_MANAGER": 3,
-      "OPERATOR": 1,
+      "OPERATOR": 2,
       "ORCHESTRATOR": 22,
-      "SHARED": 288,
+      "SHARED": 289,
       "VALIDATOR": 16,
       "WP_VALIDATOR": 2
     },
@@ -796,12 +798,12 @@
       "AUDIT": 2,
       "CHECK": 16,
       "CLOSEOUT": 5,
-      "GENERAL": 30,
+      "GENERAL": 32,
       "HANDOFF": 1,
       "MEMORY": 31,
       "SESSION_CONTROL": 73,
       "SPEC": 3,
-      "STARTUP": 17,
+      "STARTUP": 18,
       "TOPOLOGY": 42,
       "VALIDATION": 63,
       "WORK_PACKET": 59
@@ -809,13 +811,13 @@
     "by_side_effect_class": {
       "MUTATES_GIT_OR_WORKTREE": 20,
       "MUTATES_GOVERNANCE_OR_RUNTIME": 57,
-      "READ_ONLY_OR_DIAGNOSTIC": 265
+      "READ_ONLY_OR_DIAGNOSTIC": 268
     },
     "by_status": {
-      "CONSOLIDATE_WHEN_TOUCHED": 295,
+      "CONSOLIDATE_WHEN_TOUCHED": 296,
       "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT": 20,
-      "RETAIN_CANONICAL": 18,
-      "RETAIN_CONTRACT_AUTHORITY": 9
+      "RETAIN_CANONICAL": 19,
+      "RETAIN_CONTRACT_AUTHORITY": 10
     }
   },
   "entries": [
@@ -832,6 +834,7 @@
         "activation-manager",
         "classic-orchestrator-startup",
         "coder-startup",
+        "kernel-builder-startup",
         "memory-manager-startup",
         "orchestrator-startup",
         "validator-startup"
@@ -845,6 +848,32 @@
       "replacement_bundle": "just gov-check",
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "file:.GOV/codex/Handshake_Codex_v1.4.md",
+      "surface_kind": "GOVERNANCE_DOC",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "OPERATOR_INTERFACE",
+      "consolidation_status": "CONSOLIDATE_WHEN_TOUCHED",
+      "entrypoint_status": "PUBLIC_LEAF_BASELINED",
+      "just_recipes": [
+        "kernel-builder-startup"
+      ],
+      "owner_role": "OPERATOR",
+      "path": ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md",
+      "phase": "GENERAL",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "WHEN_TOUCHED_EXTEND_REPLACEMENT_BUNDLE_OR_RECORD_EXCEPTION_BEFORE_KEEPING_PUBLIC_LEAF",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md",
       "surface_kind": "GOVERNANCE_DOC",
       "validation_coverage": [
         "governance-topology-check"
@@ -1270,6 +1299,7 @@
         "activation-manager",
         "classic-orchestrator-startup",
         "coder-startup",
+        "kernel-builder-startup",
         "memory-manager-startup",
         "orchestrator-startup",
         "validator-startup"
@@ -3198,6 +3228,32 @@
       "alias_target_invocation_count": 0,
       "alias_target_invocations": [],
       "alias_target_recipes": [],
+      "authority_boundary": "ROLE_KERNEL_BUILDER",
+      "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
+      "entrypoint_status": "CONTRACT_AUTHORITY",
+      "just_recipes": [
+        "kernel-builder-startup"
+      ],
+      "owner_role": "KERNEL_BUILDER",
+      "path": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+      "phase": "GENERAL",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
+      "removal_gate": "NOT_A_REMOVAL_CANDIDATE",
+      "replacement_bundle": "just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "file:.GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+      "surface_kind": "ROLE_PROTOCOL",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
       "authority_boundary": "ROLE_MEMORY_MANAGER",
       "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
       "entrypoint_status": "CONTRACT_AUTHORITY",
@@ -4357,6 +4413,7 @@
         "activation-manager",
         "classic-orchestrator-startup",
         "coder-startup",
+        "kernel-builder-startup",
         "memory-manager-startup",
         "orchestrator-startup",
         "validator-startup"
@@ -5908,6 +5965,32 @@
       "replacement_bundle": "just phase-check",
       "side_effect_class": "MUTATES_GIT_OR_WORKTREE",
       "surface_id": "just:integration-validator-worktree-add",
+      "surface_kind": "JUST_RECIPE",
+      "validation_coverage": [
+        "governance-topology-check"
+      ]
+    },
+    {
+      "alias_retirement_policy": null,
+      "alias_target_count": 0,
+      "alias_target_invocation_count": 0,
+      "alias_target_invocations": [],
+      "alias_target_recipes": [],
+      "authority_boundary": "PUBLIC_JUST_SURFACE",
+      "consolidation_status": "RETAIN_CANONICAL",
+      "entrypoint_status": "CANONICAL_PUBLIC_ENTRY",
+      "just_recipes": [
+        "kernel-builder-startup"
+      ],
+      "owner_role": "SHARED",
+      "path": "justfile#kernel-builder-startup",
+      "phase": "STARTUP",
+      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
+      "public_exposure": "PUBLIC_JUST_RECIPE",
+      "removal_gate": "NOT_A_REMOVAL_CANDIDATE",
+      "replacement_bundle": "role startup recipes plus just gov-check",
+      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
+      "surface_id": "just:kernel-builder-startup",
       "surface_kind": "JUST_RECIPE",
       "validation_coverage": [
         "governance-topology-check"
@@ -10185,14 +10268,14 @@
   },
   "schema_id": "handshake.gov.public_surface_consolidation",
   "schema_version": "public_surface_consolidation_v1",
-  "source_topology_projection_hash": "sha256:e9f332f540771eec329f9bea69fd761cae17fcb55cb2e3d4f6a794318502b2ae",
+  "source_topology_projection_hash": "sha256:ca9cda8e14311439ab744e8e5f0ba50480dc21f33c700b940aa143e0bd35945d",
   "totals": {
-    "canonical": 18,
+    "canonical": 19,
     "compatibility_aliases": 20,
-    "consolidate_when_touched": 295,
+    "consolidate_when_touched": 296,
     "consolidation_groups": 41,
-    "contract_authority": 9,
-    "public_surfaces": 342,
+    "contract_authority": 10,
+    "public_surfaces": 345,
     "tracked_public_surfaces": 0
   }
 }

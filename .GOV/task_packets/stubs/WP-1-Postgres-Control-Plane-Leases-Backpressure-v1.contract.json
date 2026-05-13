@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Postgres-Control-Plane-Leases-Backpressure-v1",
   "base_wp_id": "WP-1-Postgres-Control-Plane-Leases-Backpressure",
@@ -13,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Leases-Backpressure-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "50c4f6f9d64469613b59e7e4e47482bcd4538ad6916800720e0f803b76089b9f",
+    "projection_sha256": "a7483370b3e309abcbee0b1e5c18615410c2ada92db22c57f1246f0ede802f93",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -57,7 +72,8 @@
     "intent": "- What: Add PostgreSQL-backed claim, lease, heartbeat, retry, and backpressure primitives for control-plane work that can be shared by sessions, model runs, workflow jobs, and memory jobs.\n- Why: Self-hosting parallel model execution needs one authoritative runtime arbiter. Without leases and bounded backpressure, multiple models can duplicate work, overrun host capacity, or corrupt queue state under high load.",
     "scope_sketch": "- IN_SCOPE:\n  - Portable lease table/schema and application-layer claim/reclaim operations.\n  - Queue state transitions for pending, claimed, running, stalled, retryable, dead-letter, and completed work.\n  - Backpressure policy inputs for max concurrent models, per-provider limits, memory jobs, and host load.\n  - Deterministic tests for duplicate-claim prevention, lease expiry, retry bounds, and crash recovery.\n- OUT_OF_SCOPE:\n  - Provider-specific model invocation details.\n  - UI projection beyond emitting enough state for later DCC display.\n  - Real distributed cluster scheduling.",
     "acceptance_criteria": "- Concurrent claim attempts on the same queue item produce exactly one winner.\n- Expired leases are reclaimable through a bounded, auditable transition.\n- Backpressure prevents new claims when configured host/model limits are reached.\n- Failure and dead-letter states are persisted in PostgreSQL and visible to downstream projection APIs.",
-    "risks_unknowns": "- Risk: SQL locking semantics differ by backend; activation should prefer PostgreSQL-native correctness while keeping SQLite fallback boundaries explicit.\n- Unknown: whether advisory locks, row locks, or application-side compare-and-swap should be the default primitive."
+    "risks_unknowns": "- Risk: SQL locking semantics differ by backend; activation should prefer PostgreSQL-native correctness while keeping SQLite fallback boundaries explicit.\n- Unknown: whether advisory locks, row locks, or application-side compare-and-swap should be the default primitive.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

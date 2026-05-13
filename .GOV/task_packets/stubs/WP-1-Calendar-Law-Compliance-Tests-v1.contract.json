@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Calendar-Law-Compliance-Tests-v1",
   "base_wp_id": "WP-1-Calendar-Law-Compliance-Tests",
@@ -53,7 +68,8 @@
     "intent": "- What: Add explicit test coverage for Calendar ingestion/storage behavior that is safety- and compliance-critical (consent/retention/minimization invariants).\n- Why: Calendar data is sensitive; regressions must be prevented by deterministic tests and leak-safe evidence.",
     "scope_sketch": "- IN_SCOPE:\n  - Tests for:\n    - no external sync without explicit consent receipt\n    - minimization/redaction of sensitive fields in logs/events\n    - retention/delete-by-source behavior\n    - capability-gated operations for sync and export.\n- OUT_OF_SCOPE:\n  - Jurisdiction-specific legal analysis (engineering test posture only).",
     "acceptance_criteria": "- A targeted test suite fails if calendar sync can run without consent/caps or if sensitive payloads leak into Flight Recorder events.",
-    "risks_unknowns": "- Defining what constitutes a \"sensitive field\" requires a spec-extracted allowlist to avoid ambiguity."
+    "risks_unknowns": "- Defining what constitutes a \"sensitive field\" requires a spec-extracted allowlist to avoid ambiguity.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

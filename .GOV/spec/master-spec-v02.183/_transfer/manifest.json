@@ -1,6 +1,6 @@
 {
   "artifact_type": "indexed-spec-transfer-manifest",
-  "status": "current-indexed-spec-entrypoint",
+  "status": "archived-transfer-provenance",
   "generated_at": "2026-05-13T04:42:33.452Z",
   "activated_at": "2026-05-13T04:55:45.805Z",
   "authority_pointer": ".GOV/spec/SPEC_CURRENT.md",
@@ -10,13 +10,13 @@
   "reset_brief": ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md",
   "reset_brief_sha256": "0c752aaa527845f375ca71ec463f8e98db15ebec90fd2880f2e087bd1406a63a",
   "generated_artifacts": [
-    "inventory/master-spec-v02.182-section-inventory.json",
-    "inventory/master-spec-v02.182-heading-inventory.jsonl",
-    "inventory/reset-brief-heading-inventory.json",
-    "inventory/master-spec-v02.182-neutral-map.md",
-    "concordance/master-spec-v02.182-neutral-source-map.jsonl",
+    "_transfer/inventory/master-spec-v02.182-section-inventory.json",
+    "_transfer/inventory/master-spec-v02.182-heading-inventory.jsonl",
+    "_transfer/inventory/reset-brief-heading-inventory.json",
+    "_transfer/inventory/master-spec-v02.182-neutral-map.md",
+    "_transfer/concordance/master-spec-v02.182-neutral-source-map.jsonl",
     "indexed-spec-manifest.json",
-    "spec-modules/module-index.md",
+    "INDEX.json",
     "spec-modules/00-preamble.md",
     "spec-modules/01-vision-and-context.md",
     "spec-modules/02-system-architecture.md",
@@ -30,8 +30,8 @@
     "spec-modules/10-product-surfaces.md",
     "spec-modules/11-shared-dev-platform-and-oss-foundations.md",
     "spec-modules/12-end-of-file-appendices.md",
-    "concordance/master-spec-v02.182-module-concordance.jsonl",
-    "workspace/reconstruction-check.json"
+    "_transfer/concordance/master-spec-v02.182-module-concordance.jsonl",
+    "_transfer/workspace/reconstruction-check.json"
   ],
   "next_expected_step": "migrate_shared_spec_resolvers_to_indexed_manifest"
 }

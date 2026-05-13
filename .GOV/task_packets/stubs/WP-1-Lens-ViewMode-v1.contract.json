@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Lens-ViewMode-v1",
   "base_wp_id": "WP-1-Lens-ViewMode",
@@ -47,7 +62,8 @@
     "intent": "- What: Implement `ViewMode` UI and runtime enforcement for Lens outputs, including strict SFW hard-drop projection.\n- Why: Provide operator-controlled projection without mutating stored raw artifacts and without â€œblur-but-revealableâ€ leakage.",
     "scope_sketch": "- IN_SCOPE:\n  - `ViewMode` UI surface (NSFW default; explicit SFW toggle with clear labeling).\n  - Enforcement: in `ViewMode=\"SFW\"`, Lens outputs MUST exclude any non-`sfw` results (strict drop).\n  - Evidence preservation: internal evidence pointers remain intact; ViewMode switching does not mutate stored Raw/Derived artifacts.\n  - Traceability: ViewMode is treated as a metadata filter and recorded in traces.\n- OUT_OF_SCOPE:\n  - Rewriting/censoring stored descriptors/facts to satisfy SFW posture (explicitly forbidden).\n  - â€œCollapsed but revealableâ€ UX for non-sfw items in SFW mode (explicitly forbidden).",
     "acceptance_criteria": "- In SFW ViewMode, non-sfw items never appear in Lens result sets (hard drop).\n- Switching ViewMode does not change stored artifacts; only affects projection/output.\n- QueryPlan/RetrievalTrace (or equivalent trace) records ViewMode as a filter.",
-    "risks_unknowns": "- Risk: inconsistent enforcement across surfaces (panel vs search vs exports); must centralize the projection filter.\n- Risk: accidental mutation of stored artifacts on toggle; must be prohibited and validated."
+    "risks_unknowns": "- Risk: inconsistent enforcement across surfaces (panel vs search vs exports); must centralize the projection filter.\n- Risk: accidental mutation of stored artifacts on toggle; must be prohibited and validated.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

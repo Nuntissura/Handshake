@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-AIReady-Index-Evidence-Export-v1",
   "base_wp_id": "WP-1-AIReady-Index-Evidence-Export",
@@ -54,7 +69,8 @@
     "intent": "- What: Define the canonical bounded-export contract for AI-ready index artifacts, rebuild/update evidence, and retention-safe portability semantics.\n- Why: The AI-ready pipeline already emits recorder-visible index lifecycle events and persists reusable index artifacts, but the debug/export surface does not yet define how those artifacts travel as governed evidence.",
     "scope_sketch": "- IN_SCOPE:\n  - Specify which AI-ready artifacts and rebuild/update events are valid bounded export anchors.\n  - Preserve manifest, retention, and backend-portability semantics for embedding, vector, keyword, and graph artifacts.\n  - Clarify how later retrieval/export packets may consume AI-ready evidence without inventing a second export dialect.\n- OUT_OF_SCOPE:\n  - Hybrid retrieval ranking work.\n  - Graph retrieval feature expansion beyond evidence/export semantics.",
     "acceptance_criteria": "- AI-ready index artifacts and lifecycle events are explicitly linked to bounded debug/export semantics in the Main Body and Appendix matrix.\n- Exported AI-ready evidence preserves stable provenance, retention, and storage-portability semantics.\n- Later retrieval/export packets can reuse one canonical AI-ready evidence contract instead of re-defining index export rules.",
-    "risks_unknowns": "- Risk: AI-ready evidence exports expose inconsistent subsets of index artifacts across backends.\n- Risk: rebuild/update events are visible in Flight Recorder but not reconstructable from exported evidence bundles."
+    "risks_unknowns": "- Risk: AI-ready evidence exports expose inconsistent subsets of index artifacts across backends.\n- Risk: rebuild/update events are visible in Flight Recorder but not reconstructable from exported evidence bundles.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

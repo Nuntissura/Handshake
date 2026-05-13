@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Consent-Audit-Projection-v1",
   "base_wp_id": "WP-1-Consent-Audit-Projection",
@@ -54,7 +69,8 @@
     "intent": "- What: Make capability snapshots, policy decisions, projection plans, and consent receipts explicit audit/export material across jobs, DCC, and debug bundle flows.\n- Why: Governance evidence should survive async review, export, and replay without depending on transient live projection state.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonicalize how capability and consent decisions become bounded export scope and later audit evidence.\n  - Define the stable handoff between consent/capability state, debug bundle export, and operator/runtime projection surfaces.\n  - Preserve denial reasons, scope, actor identity, and receipt lineage.\n- OUT_OF_SCOPE:\n  - Reworking the whole consent UI.\n  - New provider-specific consent flows outside the shared contract.",
     "acceptance_criteria": "- Capability and cloud consent decisions are explicitly modeled as exportable audit material, not backend-only memory.\n- Debug bundle scopes can include consent and policy evidence without silent widening.\n- DCC and operator surfaces can deep-link to the same consent/policy evidence ids later implementations will export.",
-    "risks_unknowns": "- Risk: policy decisions lose their original scope or denial semantics when exported.\n- Risk: consent evidence becomes non-replayable if receipts, projection plans, and operator links drift apart."
+    "risks_unknowns": "- Risk: policy decisions lose their original scope or denial semantics when exported.\n- Risk: consent evidence becomes non-replayable if receipts, projection plans, and operator links drift apart.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

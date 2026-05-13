@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Loom-Preview-VideoPosterFrames-v1",
   "base_wp_id": "WP-1-Loom-Preview-VideoPosterFrames",
@@ -53,7 +68,8 @@
     "intent": "- What: Support Tier-1 previews for video Assets by generating deterministic poster-frame thumbnails as a background mechanical job.\n- Why: Loom browsing and media archive value collapse without thumbnails for videos; spec requires poster frames at Tier-1 preview.",
     "scope_sketch": "- IN_SCOPE:\n  - Poster-frame thumbnail generation for video/* MIME:\n    - Extract a representative frame (heuristic: first_non_black or configurable timestamp).\n    - Resize to ThumbnailSpec max_dimension.\n    - Encode to spec-preferred format.\n    - Store as derived preview Asset and link it to LoomBlock (thumbnail_asset_id + preview_status).\n  - Capability gating:\n    - If using external tooling (ffmpeg/ffprobe), require and log the appropriate `proc.exec:*` capabilities.\n  - Observability:\n    - Emit Flight Recorder events for preview generation start/finish/failure with leak-safe payload.\n- OUT_OF_SCOPE:\n  - Tier-2 proxy generation.\n  - Full audio waveform and document first-page previews (separate stubs if needed).",
     "acceptance_criteria": "- Importing/promoting a video into Loom results in a LoomBlock whose preview_status becomes generated and thumbnail is retrievable.\n- Preview generation is non-blocking, resumable/idempotent, and emits Flight Recorder events.\n- Unsupported/invalid video files fail with clear error_code without crashing the workflow engine.",
-    "risks_unknowns": "- Determinism: frame selection heuristics may vary across ffmpeg versions; may need pinned versions and fixed flags.\n- Performance: large videos; extracting a frame should be bounded and cancellable."
+    "risks_unknowns": "- Determinism: frame selection heuristics may vary across ffmpeg versions; may need pinned versions and fixed flags.\n- Performance: large videos; extracting a frame should be bounded and cancellable.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

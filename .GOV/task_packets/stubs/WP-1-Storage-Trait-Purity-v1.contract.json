@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Storage-Trait-Purity-v1",
   "base_wp_id": "WP-1-Storage-Trait-Purity",
@@ -51,7 +66,8 @@
     "intent": "- What: Remove/contain backend-type downcasts across the Database boundary and replace them with explicit capability/feature queries.\n- Why: Downcasts undermine the boundary and create silent Postgres-vs-SQLite behavioral divergence.",
     "scope_sketch": "- IN_SCOPE:\n  - Add explicit backend identity/capability methods to the Database trait (e.g., backend_kind(), supports(feature)).\n  - Replace API/backend codepaths that downcast with explicit capability checks.\n  - Add a validator/static check to flag new uses of downcast escape hatches.\n- OUT_OF_SCOPE:\n  - Removing backend-specific code entirely (differences can exist, but must be explicit and audited).",
     "acceptance_criteria": "- No production code paths depend on Database downcasts for behavior decisions.\n- Backend-specific behavior is explicit and exercised by tests (sqlite + postgres).",
-    "risks_unknowns": "- Refactor touches many call sites; risk of subtle behavior drift if not backed by targeted tests."
+    "risks_unknowns": "- Refactor touches many call sites; risk of subtle behavior drift if not backed by targeted tests.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

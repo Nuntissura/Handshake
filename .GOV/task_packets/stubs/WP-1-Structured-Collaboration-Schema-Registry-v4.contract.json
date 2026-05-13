@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Structured-Collaboration-Schema-Registry-v4",
   "base_wp_id": "WP-1-Structured-Collaboration-Schema-Registry",
@@ -53,7 +68,8 @@
     "intent": "- What: Re-open the Schema Registry work as a remediation pass that hardens the shared validator and the negative-path proof surface instead of trusting the v3 happy-path closure.\n- Why: The 2026-03-21 audit found that v3 improved emitted artifacts but did not fully enforce required workflow fields, nested payload structure, or constrained string formats under the current Master Spec.",
     "scope_sketch": "- IN_SCOPE:\n  - Enforce `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids` on canonical Work Packet, Micro-Task, and Task Board records.\n  - Add nested validation for Task Board `rows[]`, Role Mailbox `threads[]`, and `transcription_links[]`.\n  - Add validator checks for constrained string contracts where the spec treats fields as typed values rather than generic strings.\n  - Add validator-owned negative-path regression tests for the missing enforcement paths.\n- OUT_OF_SCOPE:\n  - Broad Dev Command Center UI expansion.\n  - Unrelated structured-collaboration product work outside the shared validator/export contract.",
     "acceptance_criteria": "- The shared validator rejects missing required workflow-state fields on Work Packet, Micro-Task, and Task Board records.\n- Nested Task Board and Role Mailbox payloads are validated per item, not only by outer array presence.\n- Validator-owned negative-path tests fail when the newly required fields or nested contracts are removed or malformed.\n- Closure is based on adversarial proof, not only on emitted happy-path artifacts.",
-    "risks_unknowns": "- Changes touch shared validators and may expose previously hidden drift in downstream artifact readers.\n- The exact constrained-string checks should be narrowed during refinement so the remediation stays diff-scoped and auditable."
+    "risks_unknowns": "- Changes touch shared validators and may expose previously hidden drift in downstream artifact readers.\n- The exact constrained-string checks should be narrowed during refinement so the remediation stays diff-scoped and auditable.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -169,6 +169,10 @@ function resolveIndexedManifestAtRepo({ repoRoot, specCurrentPathAbs, specCurren
     normalizeRepoPath(currentSpec.version) ||
     parseVersionFromName(sourceBaselineFileName)?.tag ||
     "";
+  const resolverIndexPath = normalizeRepoPath(currentSpec.resolver_index_path || "");
+  if (!resolverIndexPath) {
+    throw new Error(`${SPEC_CURRENT_REPO_REL}: current_spec.resolver_index_path is required`);
+  }
 
   return {
     format: "json",
@@ -183,7 +187,7 @@ function resolveIndexedManifestAtRepo({ repoRoot, specCurrentPathAbs, specCurren
     sourceBaselineFileName,
     sourceBaselinePath,
     sourceBaselinePathAbs,
-    humanIndexPath: normalizeRepoPath(currentSpec.human_index_path || ""),
+    resolverIndexPath,
     versionTag,
     sha1: sha1(reconstructed),
     sha256: reconstructedSha256,

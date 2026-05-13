@@ -2,6 +2,7 @@
 
 Requirements (HARD):
 - This block is REQUIRED for any packet with Status: Ready for Dev / In Progress.
+- This Markdown is a migration projection/safety rail only. Do not copy it forward as the authority pattern for future refinement work; durable model-created refinement truth belongs in `refinement.json` / `REFINEMENT_CONTRACT_TEMPLATE.json`, with Markdown emitted only as an explicit projection.
 - For EACH SPEC_ANCHOR, include an excerpt window (start/end lines) AND a context token that must appear within that window in the current SPEC_TARGET_RESOLVED spec text.
 - Matching rule: context match only (token-in-window), not exact content match.
 - Even when ENRICHMENT_NEEDED=NO, you MUST include REASON_NO_ENRICHMENT and SPEC_EXCERPTS for every anchor.
@@ -28,6 +29,7 @@ Requirements (HARD):
 - RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
 <!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->
 - MACHINE_CONTRACT_AUTHORITY_RULE: When a matching machine contract exists, ACP, apps, and checks consume it first; this Markdown is the human/operator projection.
+- LEGACY_MARKDOWN_POLICY: SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD
 
 ### REQUIRED SECTIONS (per the current ORCHESTRATOR_PROTOCOL refinement workflow)
 

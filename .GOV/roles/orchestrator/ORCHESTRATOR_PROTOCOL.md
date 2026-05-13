@@ -260,7 +260,7 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 - "Done" means diff-scoped proof for the clauses actually claimed by the packet and refinement.
 - Reject packets that treat Main Body requirements as optional.
 - Extract the governing in-scope MUST/SHOULD clauses and map them to evidence.
-- Current Master Spec authority resolves through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to `.GOV/spec/indexed_spec/indexed-spec-manifest.json` and its ordered `spec-modules/`.
+- Current Master Spec authority resolves through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to the active indexed bundle manifest, resolver `INDEX.json`, and ordered `spec-modules/`.
 - `Handshake_Master_Spec_v*.md` files are source baselines/provenance during indexed migration, not the active editing target.
 
 ### Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
@@ -268,22 +268,28 @@ This section plus `.GOV/codex/Handshake_Codex_v1.4.md` are the authoritative pla
 The Orchestrator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`. All other roles must stay read-only and route spec gaps back to one of those roles.
 
 Current structure:
-- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint.
-- `.GOV/spec/indexed_spec/indexed-spec-manifest.json`: current indexed-spec manifest, module order, module hashes, and reconstructed-spec hash.
-- `.GOV/spec/indexed_spec/spec-modules/module-index.md`: human navigation index for locating the owning module.
-- `.GOV/spec/indexed_spec/spec-modules/*.md`: editable current Master Spec modules.
+- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint to the active indexed Master Spec version.
+- `.GOV/spec/master-spec-vNN.NNN/`: canonical active versioned indexed bundle shape after migration; contains `indexed-spec-manifest.json`, `INDEX.json`, `spec-modules/*.md`, and the manifest-declared machine-readable changelog.
+- `.GOV/spec/indexed_spec/`: legacy compatibility current bundle only until the next governed versioned-bundle migration; do not use it as the long-term active edit target.
+- `.GOV/spec/spec_archive/master-spec-v*/`: immutable non-current indexed bundles for older Master Spec versions.
 - `.GOV/spec/Handshake_Master_Spec_v*.md`: source baseline/provenance, not the patch target for current spec edits.
 
 Write sequence:
-- Inspect `module-index.md` and the manifest before editing; patch the smallest owning module(s), not the whole spec.
+- Resolve `SPEC_CURRENT.md`, the active manifest, the active `INDEX.json`, current version, previous/source baseline, and declared archive root before editing.
+- Create the next versioned indexed bundle by copying the resolved current bundle first; do not patch the currently active bundle in place.
+- Inspect the new bundle `INDEX.json` and manifest; patch the smallest owning module(s), not the whole spec.
 - Keep refinement ordering intact: Main Body first, then EOF appendices/index/matrix, then roadmap/build-order/stub projections.
+- Ensure every active module and the manifest carry the same `spec_version` as the new `SPEC_CURRENT.current_spec.version`.
 - When module bytes change, update the affected `modules[].sha256`, line/byte/heading metadata, and `reconstruction.reconstructed_sha256`; source-match flags must reflect reality.
-- Update `SPEC_CURRENT.md` only when entrypoint, human index path, version, or source-baseline metadata changes.
+- Append/update the manifest-declared machine-readable changelog with version, previous version, changed modules, before/after hashes, approval evidence/signature, reason, and validation commands/outcomes.
+- Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
+- Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
+- Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
 - Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
 
 ### Deterministic Enforcement [CX-585A/C]
 
-- Bump the current indexed Master Spec only when refinement changes durable product law, architecture, primitives, or shared contracts.
+- Bump the current Master Spec version only when refinement changes durable product law, architecture, primitives, or shared contracts; perform that bump through the copy-first versioned indexed bundle workflow.
 - One-time signature gate remains mandatory.
 - Do not edit locked packets to "catch up" to a new current-spec state. Create a new remediation packet only when the updated spec actually requires new work.
 
@@ -691,7 +697,7 @@ Legacy flat compatibility:
   3. apply the governance change
   4. record the applied changeset in the changelog
   5. run `just gov-check`
-- If the planned change touches current Master Spec content (`.GOV/spec/indexed_spec/**` modules/manifest or `SPEC_CURRENT` authority metadata for product-spec evolution) or any product path under `src/`, `app/`, or `tests/`, stop using this path and return to the normal refinement plus WP flow.
+- If the planned change touches current Master Spec content (active versioned indexed bundle modules/manifest/changelog, legacy `.GOV/spec/indexed_spec/**` compatibility content, or `SPEC_CURRENT` authority metadata for product-spec evolution) or any product path under `src/`, `app/`, or `tests/`, stop using this path and return to the normal refinement plus WP flow.
 
 ### 1. Refinement and Approval
 
@@ -699,7 +705,7 @@ Legacy flat compatibility:
 - Every executable WP starts from a refinement / enrichment pass.
 - Refinement / enrichment is the pre-signature brake:
   - check for technical gaps, red-team advisory issues, weak execution guidance, and direction changes
-  - keep the current indexed Master Spec aligned with vision by patching the relevant module(s), updating manifest hashes/reconstruction/version metadata, and avoiding addendum-style orphan sections when possible
+  - keep the current Master Spec aligned with vision by copying to the next versioned indexed bundle, patching the relevant module(s) there, updating manifest hashes/reconstruction/version metadata plus changelog, and avoiding addendum-style orphan sections when possible
   - treat Roadmap, stubs, Work Packets, and Task Board as pointers only; the Master Spec remains source of truth
 - Use `[ADD v<target version>]` in the relevant Main Body sections and matching Roadmap phases.
 - Reuse the fixed phase fields only:
@@ -748,7 +754,7 @@ Legacy flat compatibility:
   - the Orchestrator MUST paste the refinement as assistant-authored chat text
   - if the refinement is too large for one message, paste it verbatim across multiple consecutive chat messages and do not request approval or signature until the final chunk has been sent
 - `just record-refinement WP-{ID}` must pass first.
-- If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the indexed spec correctly (module edits plus manifest/SPEC_CURRENT JSON update when entrypoint, version, or baseline changes), and then refresh the same WP refinement/signature flow against the updated spec unless scope has materially widened enough to justify a new WP variant. Spec enrichment alone does not force `-v2`.
+- If the refinement concludes `ENRICHMENT_NEEDED=YES`, unresolved ambiguity, or mandatory appendix/main-body sync, stop packet creation, advance the indexed spec correctly (copy-first versioned bundle, module edits, manifest/changelog update, archive discipline, and `SPEC_CURRENT` JSON update when entrypoint, version, or baseline changes), and then refresh the same WP refinement/signature flow against the updated spec unless scope has materially widened enough to justify a new WP variant. Spec enrichment alone does not force `-v2`.
 
 ### 2. Signature Bundle, Prepare, and Packet Creation
 
@@ -799,7 +805,7 @@ Legacy flat compatibility:
   - keeps packet/runtime/thread artifacts current
   - runs mechanical governance checks directly (phase-check, closeout-repair) â€” never through ACP
 - The Orchestrator does not implement the WP and does not issue technical verdicts.
-- **Role-Split Workflow [RGF-190/191/192]:** The coder works through micro tasks in order and writes evidence per MT. WP Validator reviews completed MTs for boundary enforcement, scope containment, and code quality (bounded per-MT context). After all MTs pass WP Validator review, the Orchestrator must ensure a final whole-WP `CODER_HANDOFF` exists with committed handoff base/head/range, then run `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` before steering the Integration Validator. Per-MT PASS receipts are not the Integration Validator's committed target. The Integration Validator then performs whole-WP judgment against the current indexed Master Spec, writes the final review/verdict, and runs terminal closeout/merge on PASS.
+- **Role-Split Workflow [RGF-190/191/192]:** The coder works through micro tasks in order and writes evidence per MT. WP Validator reviews completed MTs for boundary enforcement, scope containment, and code quality (bounded per-MT context). After all MTs pass WP Validator review, the Orchestrator must ensure a final whole-WP `CODER_HANDOFF` exists with committed handoff base/head/range, then run `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` before steering the Integration Validator. Per-MT PASS receipts are not the Integration Validator's committed target. The Integration Validator then performs whole-WP judgment against the `SPEC_CURRENT`-resolved active Master Spec bundle, writes the final review/verdict, and runs terminal closeout/merge on PASS.
 - **Orchestrator Closeout Prep (Mechanical) [RGF-189/193]:** Before launching the Integration Validator for whole-WP judgment, the Orchestrator MUST:
   1. Verify all MTs are WP_VALIDATOR-PASS
   2. Verify final whole-WP `CODER_HANDOFF` committed target evidence exists (`committed_handoff_head_sha`, base/range source, and rubric handoff fields). If it is missing, use `just session-send CODER WP-{ID} "<final handoff request>"` and do not run closeout sync yet.
@@ -880,7 +886,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
 - **Per-MT Fix Loop Bound [RGF-100] (HARD):** Each MT is bounded to 3 fix cycles between coder and WP Validator. After 3 fix cycles on the same MT without PASS, the WP Validator MUST escalate to the Orchestrator with a failure summary. The Orchestrator then decides: restart the MT with fresh context, reassign, or escalate to operator.
 - **Heuristic-Risk Strategy Escalation [RGF-250] (HARD):** If `just heuristic-risk-check WP-{ID}` or the receipt microtask contract tags an MT as `HEURISTIC_RISK=YES`, repeated counterexamples require a strategy change before the generic 3-cycle cap. Treat `HEURISTIC_RISK_STRATEGY_ESCALATION` notifications as a workflow blocker: relaunch with corpus/property/negative-evidence direction, discriminator redesign, alternate model review, or human stop instead of another same-threshold repair.
 - **Named-Verb Receipts [RGF-248] (PREFERRED):** Use `--verb <NAME> --verb-body '<JSON>'` with `wp-receipt-append` for routine role traffic. The initial verb set is `MT_HANDOFF`, `MT_VERDICT`, `MT_REMEDIATION_REQUIRED`, `WP_HANDOFF`, `INTEGRATION_VERDICT`, `CONCERN`, `PHASE_TRANSITION`, and `RELAUNCH_REQUEST`. Routing readers prefer `verb_body`; legacy prose receipts remain compatibility fallback during rollout.
-- For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` requires all MTs to have WP_VALIDATOR PASS receipts and clean mechanical truth (per the Integration Validator protocol). The Integration Validator does NOT communicate directly with the coder â€” it judges the complete work product against the current indexed Master Spec.
+- For `PACKET_FORMAT_VERSION >= 2026-03-22`, `VERDICT` requires all MTs to have WP_VALIDATOR PASS receipts and clean mechanical truth (per the Integration Validator protocol). The Integration Validator does NOT communicate directly with the coder â€” it judges the complete work product against the `SPEC_CURRENT`-resolved active Master Spec bundle.
 - Review-tracked receipt appends now auto-write notifications for the explicit target role, notify `ORCHESTRATOR` on validator-authored assessment receipts as a governance checkpoint, include the assessment result (`PASS`/`FAIL`/`ASSESSED`) plus the validator's reason in that checkpoint summary, and auto-project the next actor / validator wake state back into `RUNTIME_STATUS.json`. Watch that projected route; do not replace it with manual narrative steering unless a real repair is required.
 - Before a coder can mark handoff-ready, `just wp-communication-health-check WP-{ID} KICKOFF` MUST pass.
 - Before WP Validator handoff review begins, `just phase-check HANDOFF WP-{ID} WP_VALIDATOR` MUST pass.
@@ -895,7 +901,7 @@ Rationale: the parallel smoke tests proved that orchestrator relay + mid-run nar
   2. The final whole-WP `CODER_HANDOFF` exists with committed base/head/range
   3. `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` has written durable committed validation evidence
   4. `just closeout-repair WP-{ID}` has run for deterministic prep drift that does not require the still-missing final verdict
-- The Integration Validator receives the resolved current Master Spec (via `SPEC_CURRENT` JSON -> indexed manifest/modules) and complete work product in its launch prompt. It performs whole-WP judgment in 1-2 ACP commands.
+- The Integration Validator receives the resolved current Master Spec (via `SPEC_CURRENT` JSON -> active indexed bundle manifest/modules) and complete work product in its launch prompt. It performs whole-WP judgment in 1-2 ACP commands.
 - If the Integration Validator needs more than 2 ACP commands, the Orchestrator should suspect incomplete mechanical prep and investigate before sending additional prompts.
 - The Integration Validator writes PASS or FAIL verdict, updates the task board on PASS, and merges to main on PASS. See `INTEGRATION_VALIDATOR_PROTOCOL.md` for full authority and workflow.
 - The Orchestrator does NOT override or supplement the Integration Validator's verdict. Only the Operator can waive a FAIL.

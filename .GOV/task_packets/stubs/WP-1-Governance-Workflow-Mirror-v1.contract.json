@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Governance-Workflow-Mirror-v1",
   "base_wp_id": "WP-1-Governance-Workflow-Mirror",
@@ -58,7 +73,8 @@
     "intent": "- What: Mirror the imported software-delivery governance overlay inside Handshake runtime: per-WP validator gate state, work packet activation traceability, and Flight Recorder governance events.\n- Why: Make software-delivery governance state auditable and UI-visible inside Handshake without replacing Handshake-native governance or letting repo-only files become runtime authority.",
     "scope_sketch": "- IN_SCOPE:\n  - Runtime data model for software-delivery validator gate sessions keyed by `work_packet_id` (per-WP state).\n  - Persist gate state in workspace artifacts (local-first) so parallel WPs cannot collide.\n  - Emit `FR-EVT-GOV-GATES-001` on gate transitions.\n  - Emit `FR-EVT-GOV-WP-001` on stub->activated packet transitions (including traceability mapping updates).\n  - Append Spec Session Log entries for gate transitions and activation.\n- OUT_OF_SCOPE:\n  - Replacing Handshake-native governance or treating imported repo-governance state as universal product authority.\n  - Further repo-side governance script changes (this WP is runtime mirror work).",
     "acceptance_criteria": "- Gate state is per WP and does not collide across parallel WPs.\n- Gate transitions and work packet activations are visible in Operator Consoles via Flight Recorder and Spec Session Log.\n- New `FR-EVT-GOV-*` events are schema-validated at Flight Recorder ingestion.",
-    "risks_unknowns": "- Reconciling repo file paths with runtime workspace artifact handles across platforms.\n- Migration/compat strategy if runtime needs to ingest legacy global gate ledgers."
+    "risks_unknowns": "- Reconciling repo file paths with runtime workspace artifact handles across platforms.\n- Migration/compat strategy if runtime needs to ingest legacy global gate ledgers.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

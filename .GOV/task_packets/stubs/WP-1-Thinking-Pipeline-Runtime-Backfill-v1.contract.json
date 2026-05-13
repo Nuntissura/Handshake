@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Thinking-Pipeline-Runtime-Backfill-v1",
   "base_wp_id": "WP-1-Thinking-Pipeline-Runtime-Backfill",
@@ -53,7 +68,8 @@
     "intent": "- What: Backfill Thinking Pipeline as an explicit runtime handoff system across Docs, Canvas, Workflows, and synthesis surfaces.\n- Why: Thinking Pipeline is one of the clearest force multipliers in Handshake, but it remains too metaphorical for deterministic future model/tool use.",
     "scope_sketch": "- IN_SCOPE:\n  - Runtime handoff mapping between Docs, Canvas, Workflows, and synthesis outputs.\n  - Operator/runtime visibility for handoff steps.\n- OUT_OF_SCOPE:\n  - Full workflow authoring implementation.\n  - Complex automation beyond the handoff contract.",
     "acceptance_criteria": "- Thinking Pipeline has explicit runtime and operator-visibility coverage.\n- Appendix mapping makes future model/tool reasoning about handoffs deterministic.",
-    "risks_unknowns": "- Risk: Thinking Pipeline stays inspirational prose and cannot be used deterministically by later models/tools."
+    "risks_unknowns": "- Risk: Thinking Pipeline stays inspirational prose and cannot be used deterministically by later models/tools.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

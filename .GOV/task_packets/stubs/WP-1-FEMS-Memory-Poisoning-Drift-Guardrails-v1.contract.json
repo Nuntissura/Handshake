@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1",
   "base_wp_id": "WP-1-FEMS-Memory-Poisoning-Drift-Guardrails",
@@ -47,7 +62,8 @@
     "intent": "- What: Implement FEMS guardrails that prevent untrusted or oversized memory promotion from introducing long-lived drift into session behavior.\n- Why: Phase 1 key risks explicitly call out memory poisoning/drift as a blocker to safe autonomous operation.",
     "scope_sketch": "- IN_SCOPE:\n  - Trust-level and approval gates for procedural memory writes.\n  - Hard pack budget enforcement (<= 500 tokens) with deterministic truncation markers.\n  - Replay-grade logging for memory proposals, approvals, denials, and effective pack hashes.\n- OUT_OF_SCOPE:\n  - Hybrid retrieval and scale work from Phase 2 FEMS v1.\n  - CRM/contact-memory expansion beyond minimal hooks.",
     "acceptance_criteria": "- Oversized MemoryPacks are rejected or deterministically reduced before model invocation.\n- Untrusted memory sources cannot auto-promote into procedural memory.\n- FR-EVT-MEM-* events provide enough evidence to audit memory decisions and replay outcomes.",
-    "risks_unknowns": "- Risk: false positives may over-block helpful memory without a clear override path.\n- Risk: inconsistent truncation logic can break replay determinism between environments."
+    "risks_unknowns": "- Risk: false positives may over-block helpful memory without a clear override path.\n- Risk: inconsistent truncation logic can break replay determinism between environments.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

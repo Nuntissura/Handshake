@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Git-Engine-Decision-Gate-v1",
   "base_wp_id": "WP-1-Git-Engine-Decision-Gate",
@@ -47,7 +62,8 @@
     "intent": "- What: Record and enforce a single Phase 1 â€œRepo engineâ€ implementation path (git CLI `external_process` vs `go-git` vs `libgit2`) and ensure the chosen posture is reflected in OSS governance + capability gating.\n- Why: Prevent drift (multiple git backends), license posture mistakes, and nondeterministic repo behavior across platforms.",
     "scope_sketch": "- IN_SCOPE:\n  - Decision record (ADR or equivalent) naming the single MVP path and the rationale.\n  - Enforcement: code/config/registry prevents accidental use of non-selected backends.\n  - Default posture: `git` CLI `external_process` unless/ until a different choice is explicitly recorded.\n  - OSS Register alignment for the chosen backend(s) and explicit license posture recording.\n- OUT_OF_SCOPE:\n  - Implementing full repo-management UX or advanced git features (rebases, interactive staging, etc.).\n  - Phase 2+ remote execution / multi-user git collaboration.",
     "acceptance_criteria": "- A single â€œrepo engine backendâ€ is selected and enforced; no silent fallback to another implementation.\n- OSS Register contains accurate entries for any git backend dependencies used.\n- Capability gating + Flight Recorder logging cover repo engine execution paths (no bypass).",
-    "risks_unknowns": "- Risk: license posture mistakes (libgit2 is unusual); must be explicit and enforced.\n- Risk: platform-specific behavior differences across backends; enforcement must be deterministic and auditable."
+    "risks_unknowns": "- Risk: license posture mistakes (libgit2 is unusual); must be explicit and enforced.\n- Risk: platform-specific behavior differences across backends; enforcement must be deterministic and auditable.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

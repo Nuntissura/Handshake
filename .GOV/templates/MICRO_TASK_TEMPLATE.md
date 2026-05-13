@@ -1,5 +1,7 @@
 ﻿# {{MT_ID}}: {{CLAUSE_TEXT}}
 
+Projection note: this Markdown is a generated compatibility view for `{{MT_ID}}`. Future microtask authority is `{{MT_ID}}.json`; do not copy this projection as the model-created artifact pattern.
+
 ## METADATA
 - WP_ID: {{WP_ID}}
 - MT_ID: {{MT_ID}}
@@ -15,6 +17,7 @@
 - AUTHORITATIVE_CONTRACT_SCHEMA_ID: hsk.microtask_contract@1
 - AUTHORITATIVE_CONTRACT_FILE: .GOV/task_packets/{{WP_ID}}/{{MT_ID}}.json
 - MARKDOWN_PROJECTION_STATUS: PENDING
+- LEGACY_MARKDOWN_POLICY: SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD
 - RED_TEAM_REQUIRED: YES
 - RED_TEAM_PROFILE: DETERMINISTIC_CONTRACT_MIGRATION_V1
 <!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->

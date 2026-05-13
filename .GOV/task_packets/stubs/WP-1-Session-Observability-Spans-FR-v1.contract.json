@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Session-Observability-Spans-FR-v1",
   "base_wp_id": "WP-1-Session-Observability-Spans-FR",
@@ -53,7 +68,8 @@
     "intent": "- What: Implement session-scoped observability for multi-session execution: new FR event families, base schema correlation via model_session_id, and span bindings (ModelSessionSpan + ActivitySpan).\n- Why: Multi-session orchestration without strong observability becomes un-debuggable and unsafe; the spec requires session-wide queries to work via model_session_id even without spans.",
     "scope_sketch": "- IN_SCOPE:\n  - Flight Recorder:\n    - Register and emit FR-EVT-SESS-*, FR-EVT-SESS-SCHED-*, FR-EVT-SESS-SPAWN-*.\n    - Update FlightRecorderEventBase to support `model_session_id` correlation and enforce rules.\n    - Schema validator must include these event families (unknown IDs rejected).\n  - Spans:\n    - Create/close ModelSessionSpan for each ModelSession lifecycle.\n    - Bind model_run + tool calls to ActivitySpan and ModelSessionSpan as required.\n  - Queryability:\n    - Session-wide queries work via model_session_id even without spans.\n- OUT_OF_SCOPE:\n  - Advanced deterministic replay/audit beyond Phase 1 baseline.",
     "acceptance_criteria": "- Starting and completing a ModelSession produces FR-EVT-SESS-001..005 events and corresponding spans.\n- Session scheduler enqueue/dispatch/cancel events are emitted with correct correlation fields.\n- Spawn events are emitted and link requester/child session_ids with summary artifact linkage.\n- Schema validator rejects unknown session event IDs and enforces model_session_id correlation rules.",
-    "risks_unknowns": "- Risk: inconsistent correlation keys across event families breaks operator queries; model_session_id must be the primary key when applicable."
+    "risks_unknowns": "- Risk: inconsistent correlation keys across event families breaks operator queries; model_session_id must be the primary key when applicable.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

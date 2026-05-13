@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Spec-Enrichment-Product-Governance-Consistency-v1",
   "base_wp_id": "WP-1-Spec-Enrichment-Product-Governance-Consistency",
@@ -47,7 +62,8 @@
     "intent": "- What: Produce a spec-only correction pass that makes product governance/state rules internally\n  consistent, project-agnostic, and disk-agnostic across all affected sections and examples.\n- Why: A spec that contradicts itself guarantees recurring regressions, role confusion, and\n  non-deterministic \"governance drift\" during implementation.",
     "scope_sketch": "- IN_SCOPE:\n  - Normalize terminology:\n    - \"Repo governance workspace\" vs \"Product runtime governance state\" must be defined once and\n      used consistently.\n  - Normalize canonical runtime paths and reference types:\n    - Task Board: define the canonical runtime Task Board reference (path or artifact ref) and\n      prohibit repo-local `docs/` references as runtime dependencies.\n    - Task Packets: define canonical runtime references (avoid repo `.GOV/` and `docs/` paths as\n      runtime dependencies; prefer artifact handles or runtime-owned paths).\n  - Update Locus integration points:\n    - `locus_sync_task_board` MUST operate on runtime-owned state (not repo `docs/`).\n    - Work Packet -> Task Packet linking must not require repo paths.\n  - Update Micro-Task Executor / escalation references where they cite repo artifacts or assume\n    Handshake-specific layouts.\n  - Add explicit conformance assertions (spec-level) that can be mechanically checked:\n    - \"Spec MUST NOT require runtime reads/writes of repo `.GOV/**` or `docs/**`.\"\n  - Add a \"compatibility appendix\" if needed:\n    - If `docs/**` bundles exist, they MUST be explicitly labeled compat-only, one-way export, and\n      non-authoritative for runtime correctness.\n- OUT_OF_SCOPE:\n  - Any product code changes.\n  - Any repo governance workflow refactors (protocol/scripts).\n  - Renaming existing WP IDs or moving historical task packets.",
     "acceptance_criteria": "- The Master Spec no longer cites `docs/TASK_BOARD.md` or `docs/task_packets/` as runtime sources\n  of truth in Locus integration points.\n- The Master Spec has exactly one canonical definition of runtime governance state root semantics\n  (disk-agnostic, under workspace root, no parent-dir traversal), and all examples match it.\n- The Master Spec explicitly distinguishes:\n  - Repo `.GOV/**` as repo governance workspace (used to author/build/validate this repo), and\n  - Product-owned runtime governance state (used by Handshake in arbitrary workspaces).\n- Conformance section includes at least one mechanical check spec for preventing boundary\n  regressions (even if implemented later).",
-    "risks_unknowns": "- Risk: touching multiple spec sections without a single authoritative \"path vocabulary\" leads to\n  partial fixes. Mitigation: introduce a single \"Governance State Vocabulary\" subsection and\n  reference it everywhere.\n- Risk: decisions about task packet refs (path vs artifact handle) require agreement. Mitigation:\n  specify a stable ref type in the spec first; code can follow later."
+    "risks_unknowns": "- Risk: touching multiple spec sections without a single authoritative \"path vocabulary\" leads to\n  partial fixes. Mitigation: introduce a single \"Governance State Vocabulary\" subsection and\n  reference it everywhere.\n- Risk: decisions about task packet refs (path vs artifact handle) require agreement. Mitigation:\n  specify a stable ref type in the spec first; code can follow later.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

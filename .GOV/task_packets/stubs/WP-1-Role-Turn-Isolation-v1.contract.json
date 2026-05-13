@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Role-Turn-Isolation-v1",
   "base_wp_id": "WP-1-Role-Turn-Isolation",
@@ -47,7 +62,8 @@
     "intent": "- What: Make role-turn isolation the default execution mode for role passes (claim/glance/extract), resetting role/context windows between turns and recording per-turn pins for deterministic replay.\n- Why: Reduce cross-role contamination and stabilize small local model behavior while keeping runs auditable and replayable.",
     "scope_sketch": "- IN_SCOPE:\n  - Define and implement a â€œrole turnâ€ execution model: explicit role reset + context window reset boundaries per role pass.\n  - Persist per-turn pins/inputs so replays can follow the same effective turn boundaries and selected spans.\n  - Ensure traces/provenance record requested vs effective execution mode (isolated vs non-isolated).\n- OUT_OF_SCOPE:\n  - Advanced scheduling/parallelism features (beyond what Phase 1 already ships).\n  - Guarantees of identical model outputs; rely on deterministic replay artifacts (pins/tie-breaks) when instability exists.",
     "acceptance_criteria": "- Default mode executes each role pass as an isolated turn (role + context reset).\n- Each turn records pins/inputs sufficient for deterministic replay (or explicit degraded markers).\n- Cross-role context bleed is prevented by default in role pass execution paths.",
-    "risks_unknowns": "- Risk: added latency/cost due to isolation; must remain configurable but default-safe.\n- Risk: unclear backend support for strict resets; must encode fallbacks and record effective mode."
+    "risks_unknowns": "- Risk: added latency/cost due to isolation; must remain configurable but default-safe.\n- Risk: unclear backend support for strict resets; must encode fallbacks and record effective mode.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Project-Profile-Extension-Registry-v1",
   "base_wp_id": "WP-1-Project-Profile-Extension-Registry",
@@ -51,7 +66,8 @@
     "intent": "- What: Define and implement the registry of project-profile kinds, extension schema identifiers, compatibility semantics, and generic-viewer fallback rules that sit on top of the shared structured-collaboration base envelope.\n- Why: Handshake needs to stop baking repository-governance assumptions into every collaboration artifact while still allowing software-delivery, research, design, and future project kernels to specialize safely.",
     "scope_sketch": "- IN_SCOPE:\n  - Registry of supported `project_profile_kind` values and extension schema contracts.\n  - Compatibility rules for strict, backward-compatible, and experimental profile extensions.\n  - Generic-viewer fallback behavior when an extension is unknown or unavailable.\n  - Example extension boundaries for software delivery, research, worldbuilding, and design.\n- OUT_OF_SCOPE:\n  - Defining the shared base envelope itself.\n  - Full implementation of future non-software project kernels.",
     "acceptance_criteria": "- Project-profile kinds and extension-schema identifiers are registered with explicit compatibility semantics.\n- Generic viewers can render the base envelope and compact summary when an extension is missing or unknown.\n- Repository-specific fields move into software-delivery profile extensions instead of the mandatory base envelope.\n- At least one software-delivery extension example and one non-software example are defined without breaking base-envelope validity.",
-    "risks_unknowns": "- Too many profile kinds will turn the registry into a vague dumping ground instead of a stable extension boundary.\n- If viewers silently ignore incompatible extensions, operators may think records are complete when they are only partially understood."
+    "risks_unknowns": "- Too many profile kinds will turn the registry into a vague dumping ground instead of a stable extension boundary.\n- If viewers silently ignore incompatible extensions, operators may think records are complete when they are only partially understood.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

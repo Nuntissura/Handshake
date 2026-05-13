@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Project-Agnostic-Workflow-State-Registry-v1",
   "base_wp_id": "WP-1-Project-Agnostic-Workflow-State-Registry",
@@ -53,7 +68,8 @@
     "intent": "- What: Define and later implement the registry of shared workflow-state families, queue-reason codes, governed action descriptors, and project-profile workflow label overrides used by Work Packets, Micro-Tasks, Task Board rows, Role Mailbox-linked waits, and Dev Command Center queues.\n- Why: Handshake now has structured collaboration records and typed views, but those surfaces still need one portable workflow vocabulary. Without a registry, each project kernel or board layout will invent incompatible status names, queue reasons, and allowed-action assumptions.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical registry entries for `workflow_state_family`, `queue_reason_code`, and `allowed_action_ids`.\n  - Compatibility rules for project-profile relabeling without changing base workflow semantics.\n  - Validation and linting expectations for Locus, Work Packets, Micro-Tasks, Task Board projections, and Role Mailbox-linked queue state.\n  - Dev Command Center projection requirements for queue grouping, label mapping, and governed next-action previews.\n- OUT_OF_SCOPE:\n  - Full implementation of future non-software project kernels.\n  - Freeform board-layout experimentation that does not mutate canonical workflow state.\n  - Replacing the broader structured-collaboration schema registry or Markdown mirror contracts.",
     "acceptance_criteria": "- One shared workflow-state family exists for Work Packets, Micro-Tasks, Task Board rows, Role Mailbox-linked waits, and Dev Command Center queues.\n- Queue-reason codes are explicit and machine-readable instead of implicit in board labels, thread order, or prose.\n- Governed action descriptors explain which actions are legal for a record before a board move, review request, escalation, or reroute is offered.\n- Project-profile label overrides can rename workflow states for a project without changing the underlying family, queue reason, or allowed action ids.\n- Local small model routing can derive readiness from workflow-state family and queue-reason code without loading long-form Markdown mirrors.",
-    "risks_unknowns": "- Too many workflow families or reason codes would make the registry too noisy for operators and smaller models.\n- If project-profile label overrides are allowed to change semantics instead of labels only, portability collapses.\n- If mailbox waits or board labels backdoor canonical state, the registry becomes advisory instead of authoritative."
+    "risks_unknowns": "- Too many workflow families or reason codes would make the registry too noisy for operators and smaller models.\n- If project-profile label overrides are allowed to change semantics instead of labels only, portability collapses.\n- If mailbox waits or board labels backdoor canonical state, the registry becomes advisory instead of authoritative.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-FEMS-Postgres-Memory-Store-v1",
   "base_wp_id": "WP-1-FEMS-Postgres-Memory-Store",
@@ -13,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-FEMS-Postgres-Memory-Store-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "41af668f95ce93e48e70c25e8029352f06443463c786935b7a3d3b03cf15f9f9",
+    "projection_sha256": "f3d77fc67144ccfd3e6aeee01a683318f1cfdf69f07ed3c4dccc9de8e5b21a29",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -59,7 +74,8 @@
     "intent": "- What: Make PostgreSQL the authoritative store for FEMS memory records, memory packs, write-time safeguards, memory job claims, and replayable memory selection metadata.\n- Why: Parallel models need shared memory systems that survive process boundaries and can be queried, replayed, compacted, and guarded without local SQLite becoming the runtime authority.",
     "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL tables or storage capability APIs for MemoryItem, MemoryPack, memory-job, provenance, tombstone, and replay metadata.\n  - Parallel-safe memory write/read operations integrated with ModelSession IDs and memory policies.\n  - Hooks for bitemporal indexing, pinned core memory, injection scoring, and outcome feedback follow-up stubs.\n  - Tests for concurrent writes, duplicate prevention, tombstone/replay behavior, and failed memory-job recovery.\n- OUT_OF_SCOPE:\n  - Prompt-engineering changes to memory injection content.\n  - UI dashboard work beyond projection-ready status/evidence fields.\n  - Vector embedding optimization unless required for schema viability.",
     "acceptance_criteria": "- Memory records written by one model session are visible to other eligible sessions through PostgreSQL authority.\n- Concurrent writes cannot silently overwrite or duplicate canonical memory items.\n- MemoryPack compilation records enough provenance for replay and later FEMS evaluation.\n- SQLite remains explicitly cache/offline/index scoped and is not the source of truth for runtime memory state.",
-    "risks_unknowns": "- Risk: memory poisoning protections may need to land with the first Postgres memory store slice rather than as a later refinement.\n- Unknown: whether pgvector is in scope for Phase 1 or whether embeddings remain a separate index/cache concern."
+    "risks_unknowns": "- Risk: memory poisoning protections may need to land with the first Postgres memory store slice rather than as a later refinement.\n- Unknown: whether pgvector is in scope for Phase 1 or whether embeddings remain a separate index/cache concern.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

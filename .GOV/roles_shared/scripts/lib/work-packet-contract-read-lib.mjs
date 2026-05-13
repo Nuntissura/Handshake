@@ -12,6 +12,7 @@ import { parsePacketSingleField } from "./scope-surface-lib.mjs";
 import {
   addOrReplaceGeneratedProjectionHeader,
   DETERMINISTIC_CONTRACT_RED_TEAM_PROFILE,
+  MACHINE_READABLE_ARTIFACT_POLICY,
   MICRO_TASK_CONTRACT_SCHEMA_ID,
   REFINEMENT_CONTRACT_SCHEMA_ID,
   stableStringify,
@@ -150,6 +151,7 @@ export function buildLegacyWorkPacketContract({ wpId, packetText = "", packetPat
     schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID,
     schema_version: "work_packet_contract_v1",
     contract_authority: "LEGACY_AUTHORITY",
+    artifact_policy: MACHINE_READABLE_ARTIFACT_POLICY,
     wp_id: parsePacketSingleField(packetText, "WP_ID") || wpId,
     base_wp_id: normalizeBaseWpId(parsePacketSingleField(packetText, "BASE_WP_ID"), wpId),
     created_at_utc: parsePacketSingleField(packetText, "DATE") || null,
@@ -520,6 +522,7 @@ export function buildLegacyRefinementContract({ wpId, refinementText = "", refin
     schema_id: REFINEMENT_CONTRACT_SCHEMA_ID,
     schema_version: "refinement_contract_v1",
     contract_authority: "LEGACY_AUTHORITY",
+    artifact_policy: MACHINE_READABLE_ARTIFACT_POLICY,
     wp_id: wpId,
     created_at_utc: parsePacketSingleField(refinementText, "DATE") || null,
     updated_at_utc: null,
@@ -568,6 +571,7 @@ export function buildLegacyMicrotaskContract({ wpId, mtId, mtText = "", mtPath =
     schema_id: MICRO_TASK_CONTRACT_SCHEMA_ID,
     schema_version: "microtask_contract_v1",
     contract_authority: "LEGACY_AUTHORITY",
+    artifact_policy: MACHINE_READABLE_ARTIFACT_POLICY,
     wp_id: wpId,
     mt_id: parsePacketSingleField(mtText, "MT_ID") || mtId,
     created_at_utc: null,
@@ -685,6 +689,7 @@ function writeImportedContractPair({ contract, contractAbsPath, projectionAbsPat
   const primary = {
     ...contract,
     contract_authority: "PRIMARY_MACHINE_READABLE",
+    artifact_policy: contract?.artifact_policy || MACHINE_READABLE_ARTIFACT_POLICY,
   };
   const stamped = stampContractProjectionMetadata(primary, {
     projectionPath: projectionRel,

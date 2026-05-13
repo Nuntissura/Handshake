@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-RAG-Retrieval-Mode-Policy-v1",
   "base_wp_id": "WP-1-RAG-Retrieval-Mode-Policy",
@@ -55,7 +70,8 @@
     "intent": "- What: Define and later implement one governed retrieval-mode policy for Handshake so `QueryPlan`, `RetrievalTrace`, Project Brain, Prompt-to-Spec Router, Loom-aware graph expansion, Work Packet loads, and Micro-Task context assembly choose the cheapest authoritative retrieval path instead of defaulting to hybrid retrieval.\n- Why: Handshake now has rich retrieval substrates and graph signals, but it still needs explicit no-RAG and lower-cost retrieval rules so exact identifiers, authoritative packet state, bounded local-small-model loops, and freshness-sensitive operations do not get blurred into one generic semantic-search path.",
     "scope_sketch": "- IN_SCOPE:\n  - Retrieval-mode selection contract shared by `none`, `direct_load`, `exact_lookup`, `graph_traversal`, and `hybrid_rag`.\n  - `non_hybrid_reason` policy and telemetry coverage for exact-id, authority, freshness, and bounded-executor cases.\n  - Prompt-to-Spec authoritative preload rules and Project Brain discovery-versus-lookup posture.\n  - Loom graph-bias rules that shape retrieval without replacing direct block or asset loads.\n  - Work Packet and Micro-Task direct-load-first policy for authoritative and bounded local-model execution.\n  - Dev Command Center, operator surfaces, and debug or replay visibility for retrieval mode decisions.\n- OUT_OF_SCOPE:\n  - Replacing AI-Ready Data substrate implementation or index storage choices.\n  - Broad user-interface redesign of Project Brain or Loom.\n  - General export or bundle portability beyond retrieval-mode evidence and traceability needed for Phase 1.",
     "acceptance_criteria": "",
-    "risks_unknowns": ""
+    "risks_unknowns": "",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

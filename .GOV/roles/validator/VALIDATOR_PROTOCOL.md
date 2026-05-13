@@ -122,17 +122,23 @@ Classic Validator is one of the only roles allowed to patch current Master Spec 
 Classic Validator spec edits are manual-relay validation corrections only. Do not rewrite requirements to manufacture a PASS. If a spec change would materially alter the code outcome or signed scope, record FAIL/PENDING with remediation or route the approved enrichment path before PASS.
 
 Current structure:
-- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint.
-- `.GOV/spec/indexed_spec/indexed-spec-manifest.json`: current indexed-spec manifest, module order, module hashes, and reconstructed-spec hash.
-- `.GOV/spec/indexed_spec/spec-modules/module-index.md`: human navigation index for locating the owning module.
-- `.GOV/spec/indexed_spec/spec-modules/*.md`: editable current Master Spec modules.
+- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint to the active indexed Master Spec version.
+- `.GOV/spec/master-spec-vNN.NNN/`: canonical active versioned indexed bundle shape after migration; contains `indexed-spec-manifest.json`, `INDEX.json`, `spec-modules/*.md`, and the manifest-declared machine-readable changelog.
+- `.GOV/spec/indexed_spec/`: legacy compatibility current bundle only until the next governed versioned-bundle migration; do not use it as the long-term active edit target.
+- `.GOV/spec/spec_archive/master-spec-v*/`: immutable non-current indexed bundles for older Master Spec versions.
 - `.GOV/spec/Handshake_Master_Spec_v*.md`: source baseline/provenance, not the patch target for current spec edits.
 
 Write sequence:
-- Inspect `module-index.md` and the manifest before editing; patch the smallest owning module(s), not the whole spec.
+- Resolve `SPEC_CURRENT.md`, the active manifest, the active `INDEX.json`, current version, previous/source baseline, and declared archive root before editing.
+- Create the next versioned indexed bundle by copying the resolved current bundle first; do not patch the currently active bundle in place.
+- Inspect the new bundle `INDEX.json` and manifest; patch the smallest owning module(s), not the whole spec.
 - Keep validation authority clean: spec patch first, then re-run judgment against the resolved updated spec; do not hide changed requirements inside narrative verdict prose.
+- Ensure every active module and the manifest carry the same `spec_version` as the new `SPEC_CURRENT.current_spec.version`.
 - When module bytes change, update the affected `modules[].sha256`, line/byte/heading metadata, and `reconstruction.reconstructed_sha256`; source-match flags must reflect reality.
-- Update `SPEC_CURRENT.md` only when entrypoint, human index path, version, or source-baseline metadata changes.
+- Append/update the manifest-declared machine-readable changelog with version, previous version, changed modules, before/after hashes, approval evidence/signature, reason, and validation commands/outcomes.
+- Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
+- Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
+- Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
 - Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
 
 ## Product Runtime Root (Current Default)
@@ -280,7 +286,7 @@ Use this governance-maintenance record flow:
   - Lead with the actual finding, risk, or conclusion in plain language. File:line citations remain mandatory evidence, but they should support the explanation rather than replace it.
   - Do not dump naked citations or raw command output without stating what they mean, unless the user explicitly asks for raw output or exact locations only.
 
-Do not create a WP for pure repo-governance maintenance. If the planned diff touches current Master Spec content (`.GOV/spec/indexed_spec/**` modules/manifest or `SPEC_CURRENT` authority metadata for product-spec evolution) or product code, stop and use the normal refinement plus WP path instead.
+Do not create a WP for pure repo-governance maintenance. If the planned diff touches current Master Spec content (active versioned indexed bundle modules/manifest/changelog, legacy `.GOV/spec/indexed_spec/**` compatibility content, or `SPEC_CURRENT` authority metadata for product-spec evolution) or product code, stop and use the normal refinement plus WP path instead.
 
 Minimum verification for governance-only changes: `just gov-check`.
 
@@ -325,7 +331,7 @@ Minimum verification for governance-only changes: `just gov-check`.
 - If a WP exists only as a stub (e.g., current physical storage `.GOV/task_packets/stubs/WP-*.md`) and no official packet exists in the resolved Work Packet root, STOP and return FAIL [CX-573] (not yet activated for validation).
 - If work packet is missing or incomplete, return FAIL with reason [CX-573].
 - Preserve User Context sections in packets (do not edit/remove) [CX-654].
-- Spec integrity regression check: `SPEC_CURRENT` must resolve to the latest current indexed Master Spec manifest/source baseline and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and indexed spec update is required before proceeding.
+- Spec integrity regression check: `SPEC_CURRENT` must resolve to the active indexed Master Spec bundle manifest/source baseline and must not drop required sections (e.g., storage portability A2.3.12). If regression or missing sections are detected, verdict = FAIL and a governed copy-first indexed spec update is required before proceeding.
 - Roadmap Coverage Matrix gate (Spec Section 7.6.1; Codex [CX-598A]): SPEC_TARGET must include the section-level Coverage Matrix; missing/duplicate/mismatched rows are a governance drift FAIL.
 - Spec EOF appendices gate (Spec Section 12; Codex [CX-598B]): SPEC_TARGET must include the required end-of-file appendix blocks and they must be parseable/valid. Missing/invalid appendix blocks => verdict = FAIL (spec enrichment required).
 - External build hygiene: Cargo target dir is pinned outside the repo at `../Handshake_Artifacts/handshake-cargo-target`; run `cargo clean -p handshake_core --manifest-path src/backend/handshake_core/Cargo.toml --target-dir "../Handshake_Artifacts/handshake-cargo-target"` before validation/commit to prevent workspace bloat (FAIL if skipped).
@@ -666,11 +672,11 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - Definition of "requirement": any sentence/bullet containing MUST/SHOULD/SHALL or numbered checklist items. Roadmap is a pointer; Master Spec body is the authority.
 - Copy identifiers (anchors, bullet labels) to keep traceability. No assumptions from memory.
 - Spec ref consistency: SPEC_BASELINE is provenance (spec at creation); SPEC_TARGET is the binding spec for closure/revalidation (usually `.GOV/spec/SPEC_CURRENT.md`).
-- Resolve SPEC_TARGET at validation time (`.GOV/spec/SPEC_CURRENT.md` -> `.GOV/spec/indexed_spec/indexed-spec-manifest.json` -> ordered `spec-modules/`) and validate DONE_MEANS/evidence against the resolved spec text.
+- Resolve SPEC_TARGET at validation time (`.GOV/spec/SPEC_CURRENT.md` -> active indexed bundle manifest -> ordered `spec-modules/`) and validate DONE_MEANS/evidence against the resolved spec text.
 - Compare the implementation against local `main` first. Use `origin/main` only as a secondary fallback when local `main` lacks the relevant integrated context or the audit is explicitly about remote drift.
 - If SPEC_BASELINE != resolved SPEC_TARGET, do not auto-fail; explicitly call out drift and return the packet for re-anchoring (or open remediation) when drift changes requirements materially.
 - If a WP is correct for its SPEC_BASELINE but SPEC_TARGET has evolved, record a distinct disposition: **OUTDATED_ONLY** (historically done; no protocol/code regression proven). Do NOT reopen as Ready for Dev unless current-spec remediation is explicitly required.
-- Spec changes are governed via Spec Enrichment (indexed module edits plus manifest/SPEC_CURRENT JSON update when entrypoint, version, or baseline changes) under a one-time user signature recorded in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
+- Spec changes are governed via Spec Enrichment (copy-first versioned indexed bundle, module edits, manifest/changelog/SPEC_CURRENT JSON update when entrypoint, version, or baseline changes, and archive discipline for non-current version folders) under a one-time user signature recorded in `.GOV/roles_shared/records/SIGNATURE_AUDIT.md`; this is not itself a separate work packet.
 
 ## Diff-Scoped Spec Review Checklist (MANDATORY for PACKET_FORMAT_VERSION >= 2026-03-15)
 - Enumerate the exact in-scope MUST/SHOULD clauses the WP claims to close. Do not treat the whole spec as implicitly reviewed.
@@ -795,7 +801,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 - `just validator-gate-*` mutations now also stamp typed governed gate actions into the validator gate ledger; `validator-gate-status`, `validator-next`, and audit readers should prefer that governed gate action history over the legacy raw `status` mirror when both are present
 - `just validator-scan` (forbidden patterns, mocks/placeholders, RDD/LLM/DB boundary greps)
 - `just validator-dal-audit` (CX-DBP-VAL-010..014 checks: DB boundary, SQL portability, trait boundary, migration hygiene, dual-backend readiness)
-- `just validator-spec-regression` (`SPEC_CURRENT` resolves to the latest indexed spec; required anchors like A2.3.12 present)
+- `just validator-spec-regression` (`SPEC_CURRENT` resolves to the active indexed spec bundle; required anchors like A2.3.12 present)
 - `just spec-eof-appendices-check` (Spec Section 12 end-of-file appendix blocks exist + are parseable/valid)
 - `just validator-phase-gate Phase-1` (ensure no Ready-for-Dev items remain before phase progression; depends on validator scans)
 - `just validator-error-codes` (stringly errors/determinism/HSK-#### enforcement)

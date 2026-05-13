@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
   "base_wp_id": "WP-1-Software-Delivery-Validator-Gate-Closeout-Posture",
@@ -54,7 +69,8 @@
     "intent": "- What: Define and later implement runtime-visible validator-gate summaries, evidence-linked gate executions, and derived closeout posture for software-delivery work so PASS/FAIL/blocked/ready-to-close state is explained by canonical runtime and gate records.\n- Why: `v02.181` removes packet surgery as a lawful closeout mechanism. Validators, operators, and projections need a single runtime-backed explanation for why a work item may proceed, wait, or close.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical gate-summary and gate-execution record contracts for software-delivery work.\n  - Evidence-linked validator and gate posture records surfaced through runtime rather than packet narrative.\n  - Derived closeout posture rules that explain whether a work item is not ready, ready for validation, validator-cleared, integration-blocked, or closeout-complete.\n  - Projection rules for Dev Command Center, Task Board, and related views that consume gate summaries without becoming authority.\n- OUT_OF_SCOPE:\n  - Rewriting historical packet reports.\n  - Human-readable validator narrative formats except where they are derived from canonical runtime/gate state.\n  - Non-software-delivery closeout policy.",
     "acceptance_criteria": "- At least one workflow-backed software-delivery work item exposes validator-gate summaries and evidence-linked gate posture by stable identifiers.\n- Closeout posture can be derived from canonical runtime and gate records without packet surgery or hand-written summary truth.\n- Dev Command Center and adjacent projections can explain why a work item may proceed or close from the same runtime-backed gate evidence.",
-    "risks_unknowns": "- Risk: packet-local validation notes continue to drift from actual gate state if derived closeout posture is not modeled explicitly.\n- Risk: gate-summary views oversimplify evidence linkage and make validator posture non-auditable unless evidence refs remain first-class runtime records."
+    "risks_unknowns": "- Risk: packet-local validation notes continue to drift from actual gate state if derived closeout posture is not modeled explicitly.\n- Risk: gate-summary views oversimplify evidence linkage and make validator posture non-auditable unless evidence refs remain first-class runtime records.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

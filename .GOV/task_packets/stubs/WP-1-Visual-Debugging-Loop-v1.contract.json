@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Visual-Debugging-Loop-v1",
   "base_wp_id": "WP-1-Visual-Debugging-Loop",
@@ -51,7 +66,8 @@
     "intent": "- What: Implement the generate-capture-compare-fix visual debugging loop for GUI WPs. After a coder commits GUI changes, the post-commit hook captures a screenshot, compares against the design baseline or previous screenshot, identifies visual discrepancies, and sends the visual diff to the validator alongside the code diff. The validator reviews both code and visual output. If visual mismatch exceeds threshold, the coder receives STEER with visual regression details.\n- Why: Based on Kimi K2.5 visual debugging loop pattern. Code diffs alone cannot reveal visual regressions. Governed coders working on GUI WPs need automated visual feedback to catch layout breaks, styling mismatches, and rendering issues that pass code review but fail visual inspection. This loop closes the gap between code correctness and visual correctness.",
     "scope_sketch": "- IN_SCOPE:\n  - Post-commit screenshot capture trigger for GUI-bearing WPs.\n  - Visual comparison against baseline (pixel diff or structural comparison).\n  - Visual diff artifact stored in governance artifact system.\n  - Validator receives visual evidence alongside code diff.\n  - Visual quality threshold configuration per WP.\n  - Tauri app headless/test mode for automated screenshots.\n- OUT_OF_SCOPE:\n  - Screenshot capture tool itself (WP-1-Product-Screenshot-Visual-Validation-v1).\n  - Design library or component registry.\n  - Video recording or screen recording.",
     "acceptance_criteria": "- Post-commit hook triggers screenshot capture for WPs tagged as GUI-bearing.\n- Visual comparison produces a diff artifact highlighting discrepancies against the baseline.\n- Visual diff artifact is stored in the governance artifact system with WP and commit metadata.\n- Validator session receives both code diff and visual diff for review.\n- Visual mismatch exceeding the configured threshold triggers a STEER to the coder with regression details.\n- Visual quality threshold is configurable per WP in the task packet or refinement.",
-    "risks_unknowns": "- Risk: Pixel-level comparison may produce false positives from anti-aliasing, font rendering differences, or minor layout shifts across runs.\n- Risk: Headless/test-mode rendering in Tauri may differ from interactive rendering, causing phantom regressions.\n- Risk: Visual threshold tuning may require significant iteration to balance sensitivity vs. noise.\n- Unknown: Whether structural comparison (DOM-based) or pixel comparison is more reliable for detecting meaningful visual regressions in the Tauri + React stack."
+    "risks_unknowns": "- Risk: Pixel-level comparison may produce false positives from anti-aliasing, font rendering differences, or minor layout shifts across runs.\n- Risk: Headless/test-mode rendering in Tauri may differ from interactive rendering, causing phantom regressions.\n- Risk: Visual threshold tuning may require significant iteration to balance sensitivity vs. noise.\n- Unknown: Whether structural comparison (DOM-based) or pixel comparison is more reliable for detecting meaningful visual regressions in the Tauri + React stack.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

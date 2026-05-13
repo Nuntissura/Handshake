@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-ModelSession-Postgres-Queue-Workers-v1",
   "base_wp_id": "WP-1-ModelSession-Postgres-Queue-Workers",
@@ -13,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-ModelSession-Postgres-Queue-Workers-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "0f4384ad4ca7ea487b4b3a977c3b0462991ee3a03d1633e7b65347b38222003f",
+    "projection_sha256": "42b20ed2dd8c520a019032edb51973ab49b57c67c90212bc1efd47b79c6ff745",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -56,7 +71,8 @@
     "intent": "- What: Move ModelSession scheduling work queues, worker claims, session run state, and message/checkpoint persistence onto PostgreSQL as the authoritative runtime store.\n- Why: The control plane must run multiple GPT, Claude, local, and memory-worker sessions in parallel without relying on process-local state or SQLite-only assumptions.",
     "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL persistence for queued model runs, active workers, session state, messages, checkpoints, and terminal outcomes.\n  - Worker claim/reclaim integration with the shared lease/backpressure primitives.\n  - Provider/model profile fields stored as catalog profile IDs, not ambient CLI aliases.\n  - Tests for parallel workers, cancellation, crash resume, duplicate message prevention, and budget/limit metadata preservation.\n- OUT_OF_SCOPE:\n  - New provider adapters.\n  - UI beyond projection-ready status fields.\n  - FEMS memory content storage, except for linking ModelSession IDs to memory-policy requests.",
     "acceptance_criteria": "- Multiple worker processes can claim distinct ModelSession queue items without duplicate execution.\n- Session resume reads canonical PostgreSQL state and does not rely on local process memory.\n- Profile IDs, reasoning strength, provider family, and fallback profile are persisted with each session/run.\n- Crash and cancellation paths leave enough state for deterministic DCC and Flight Recorder projection.",
-    "risks_unknowns": "- Risk: current scheduler tests may encode SQLite/local assumptions; activation should include negative-path tests before implementation.\n- Unknown: whether each provider worker should own a separate queue partition or use a shared queue with profile filters."
+    "risks_unknowns": "- Risk: current scheduler tests may encode SQLite/local assumptions; activation should include negative-path tests before implementation.\n- Unknown: whether each provider worker should own a separate queue partition or use a shared queue with profile filters.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

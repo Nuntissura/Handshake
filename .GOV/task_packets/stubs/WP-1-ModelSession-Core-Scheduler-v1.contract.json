@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-ModelSession-Core-Scheduler-v1",
   "base_wp_id": "WP-1-ModelSession-Core-Scheduler",
@@ -47,7 +62,8 @@
     "intent": "- What: Introduce ModelSession as the persisted unit of multi-turn orchestration and implement the Phase 1 Session Scheduler baseline (`model_run` job_kind) with queueing, cancellation, and concurrency limits.\n- Why: Without a first-class session data model + scheduler, parallel and multi-turn execution becomes completion-only, non-auditable, and unsafe to steer/recover.",
     "scope_sketch": "- IN_SCOPE:\n  - ModelSession schema and persistence (workspace-local DB):\n    - ModelSession fields, lifecycle state machine, and session/thread storage (artifact-first message content with content hashes).\n    - Bindings for wp_id/mt_id/work_profile/execution_mode and memory policy.\n  - Session Scheduler:\n    - `model_run` job_kind with deterministic queueing, dispatch, cancellation, concurrency groups/lanes, and rate limiting.\n    - Enforce the scheduling invariants (no direct completion calls bypassing scheduler in production paths).\n  - Minimal surfacing:\n    - Session state/queued state visible at least via Job History / Flight Recorder hooks (DCC panel is tracked separately).\n- OUT_OF_SCOPE:\n  - Spawn lifecycle (tracked in WP-1-Session-Spawn-Contract-v1).\n  - Session-scoped capability intersection / consent gate (tracked in WP-1-Session-Scoped-Capabilities-Consent-Gate-v1).\n  - Provider feature coverage (tracked in WP-1-Provider-Feature-Coverage-Agentic-Ready-v1).\n  - Workspace safety boundaries (tracked in WP-1-Workspace-Safety-Parallel-Sessions-v1).\n  - Crash recovery/checkpointing (tracked in WP-1-Session-Crash-Recovery-Checkpointing-v1).\n  - Observability spans + FR event families (tracked in WP-1-Session-Observability-Spans-FR-v1).",
     "acceptance_criteria": "- A ModelSession can be created, persisted, and reloaded with a durable message thread where message content is stored as artifacts (hash-only in logs/events).\n- `model_run` jobs are scheduled via the Session Scheduler; queueing and cancellation behave deterministically and are visible in system telemetry.\n- Concurrency limits are enforced: dispatch does not exceed configured limits; queued jobs are not dropped.",
-    "risks_unknowns": "- Risk: mixing “session state” and “job state” leads to drift; ensure explicit mapping.\n- Risk: storing message content inline breaks redaction/export rules; must be artifact-first."
+    "risks_unknowns": "- Risk: mixing “session state” and “job state” leads to drift; ensure explicit mapping.\n- Risk: storing message content inline breaks redaction/export rules; must be artifact-first.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Retrieval-Trace-Bundle-Export-v1",
   "base_wp_id": "WP-1-Retrieval-Trace-Bundle-Export",
@@ -47,7 +62,8 @@
     "intent": "- What: Provide a dedicated exporter that takes a `trace_id` (retrieval execution) and emits a redacted-by-default bundle containing QueryPlan/RetrievalTrace + budgets/cache markers + selected spans and referenced artifacts.\n- Why: Make retrieval issues debuggable, explainable, and shareable with deterministic evidence without leaking sensitive payloads.",
     "scope_sketch": "- IN_SCOPE:\n  - A mechanical job (profile) to export a retrieval evidence bundle by `trace_id`.\n  - Bundle contents: QueryPlan + RetrievalTrace, budgets, cache keys/markers, selected spans/truncation flags, and referenced artifacts/handles (subject to exportable policy).\n  - Deterministic output structure + hashing; redacted-by-default; produces a redaction report.\n  - Flight Recorder logging for exporter run + emitted artifact handles.\n- OUT_OF_SCOPE:\n  - Full workspace backup/export (handled by Workspace Bundle).\n  - General debug bundle exporter UX beyond the retrieval-focused path.",
     "acceptance_criteria": "- Given the same `trace_id` and pins, exporter output is structurally deterministic and hash-stable.\n- Export is redacted-by-default; exportable=false payloads are never leaked; redaction report is included.\n- Bundle includes QueryPlan/RetrievalTrace and enough context to reproduce/explain retrieval decisions (budgets, spans, cache markers).",
-    "risks_unknowns": "- Risk: accidentally exporting local-only or sensitive data; must be default-deny and policy driven.\n- Risk: nondeterministic bundle packing leads to unverifiable evidence; must canonicalize structure and record hashes."
+    "risks_unknowns": "- Risk: accidentally exporting local-only or sensitive data; must be default-deny and policy driven.\n- Risk: nondeterministic bundle packing leads to unverifiable evidence; must canonicalize structure and record hashes.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

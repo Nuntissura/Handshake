@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Product-Screenshot-Visual-Validation-v1",
   "base_wp_id": "WP-1-Product-Screenshot-Visual-Validation",
@@ -51,7 +66,8 @@
     "intent": "- What: Build a product-integrated screenshot capture tool that programmatically captures the full Handshake app window, individual panels, and module-level views. Expose screenshots to governed coder and validator sessions so they can visually verify UI coherence during implementation and review.\n- Why: The current refinement process forces UI/GUI thinking per WP (UI_UX_RUBRIC, GUI_IMPLEMENTATION_ADVICE), but coders and validators operate on code diffs, not visual output. Without a screenshot tool, visual coherence checks are impossible during governed autonomous work. This tool is also a prerequisite for a future Handshake design library and component registry.",
     "scope_sketch": "- IN_SCOPE:\n  - Programmatic screenshot capture of the full Tauri app window.\n  - Panel-level capture (individual panels, sidebars, modals).\n  - Module-level capture (specific UI modules or component regions).\n  - Screenshot storage in the governed artifact system (`.handshake/artifacts/` or equivalent).\n  - CLI or API surface for triggering captures from governed coder/validator sessions.\n  - Screenshot metadata (timestamp, window title, panel id, dimensions, capture trigger).\n  - Integration with Tauri's webview screenshot or native window capture APIs.\n- OUT_OF_SCOPE:\n  - Design library or component registry (downstream WP).\n  - Visual diffing or automated visual regression testing (downstream WP).\n  - UI design guidelines or style guide creation (downstream WP, informed by screenshot captures).\n  - Video recording or screen recording.",
     "acceptance_criteria": "- A governed coder session can trigger a full-app screenshot capture via CLI command or API call.\n- A governed validator session can capture and inspect individual panel screenshots.\n- Screenshots are stored with metadata in the artifact system.\n- Capture works on the current Tauri + React frontend stack.\n- The tool is usable from both cloud model sessions (via ACP broker CLI commands) and future local model sessions.",
-    "risks_unknowns": "- Risk: Tauri webview screenshot APIs may not expose panel-level granularity natively; may need DOM-based capture via html2canvas or similar.\n- Risk: Screenshot capture during test runs may require a headless or mock UI environment.\n- Risk: Large screenshot files may strain the artifact storage budget; need retention policy.\n- Unknown: Whether Tauri's native screenshot API or the webview's DOM-based capture is more reliable for panel-level captures on Windows 11."
+    "risks_unknowns": "- Risk: Tauri webview screenshot APIs may not expose panel-level granularity natively; may need DOM-based capture via html2canvas or similar.\n- Risk: Screenshot capture during test runs may require a headless or mock UI environment.\n- Risk: Large screenshot files may strain the artifact storage budget; need retention policy.\n- Unknown: Whether Tauri's native screenshot API or the webview's DOM-based capture is more reliable for panel-level captures on Windows 11.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

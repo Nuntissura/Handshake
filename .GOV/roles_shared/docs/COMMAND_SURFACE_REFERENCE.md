@@ -270,9 +270,9 @@ These are safe starting points for orientation and health checks.
 - `just repomem open "<what this session is about>" --role ACTIVATION_MANAGER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR --wp WP-ID`
   - `runtime-write`
   - **MANDATORY** at WP-bound role session start. Creates SESSION_OPEN for the role and WP; missing `--role` or `--wp` fails closed for these roles. Content >=80 chars enforced. Shows prior session context on success. Session markers are role/WP-scoped, so opening one role lane does not auto-close a concurrent role lane for the same WP.
-- `just repomem open "<what this session is about>" --role ORCHESTRATOR|CLASSIC_ORCHESTRATOR [--wp WP-ID]`
+- `just repomem open "<what this session is about>" --role ORCHESTRATOR|KERNEL_BUILDER|CLASSIC_ORCHESTRATOR [--wp WP-ID]`
   - `runtime-write`
-  - **MANDATORY** at coordinator session start. Use `--wp` whenever the session is bound to an active WP; coordinator work can start packetless when no WP exists yet.
+  - **MANDATORY** at coordinator or Kernel Builder session start. Use `--wp` whenever the session is bound to an active WP; coordinator and kernel-build planning can start packetless when no WP exists yet.
 - `just repomem open "<what this session is about>" --role MEMORY_MANAGER`
   - `runtime-write`
   - Memory Manager is the packetless hygiene exception. It opens/closes its own repomem session but is excluded from normal WP repomem coverage debt; durable evidence is `MEMORY_*` receipts plus proposal backup files.
@@ -456,12 +456,14 @@ If a role keeps needing those rereads:
 ## Startup and preflight
 
 - `just orchestrator-startup`
+- `just kernel-builder-startup`
 - `just classic-orchestrator-startup`
 - `just coder-startup`
 - `just validator-startup WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR`
 - `just memory-manager-startup`
   - `read-only`
   - protocol ack + backup context + role preflight
+  - `just kernel-builder-startup` is the build-reset startup for the hybrid role that may author Kernel V1 WPs and product code but does not validate
   - `just validator-startup <ROLE>` is the shared startup surface for `WP_VALIDATOR`, `INTEGRATION_VALIDATOR`, and classical `VALIDATOR`; the explicit role argument selects the role-specific protocol and authority
   - governed startup prompts are derived from `session-control-lib.mjs` and now explicitly include `AGENTS.md + .GOV/codex/Handshake_Codex_v1.4.md + role protocol + startup output + packet`
 - `just role-startup-topology-check [--audit-permanent]`

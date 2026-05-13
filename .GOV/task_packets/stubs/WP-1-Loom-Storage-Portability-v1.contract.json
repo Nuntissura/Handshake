@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Loom-Storage-Portability-v1",
   "base_wp_id": "WP-1-Loom-Storage-Portability",
@@ -54,7 +69,8 @@
     "intent": "- What: Define the canonical portable backend contract for Loom block-edge records, search/view filters, source anchors, and derived asset bindings.\n- Why: Loom already behaves like a backend library substrate, but its storage/export/replay semantics cannot stay implicit if later library, retrieval, and media bridges are expected to remain stable across backend changes.",
     "scope_sketch": "- IN_SCOPE:\n  - Unify Loom block, edge, search, view, and source-anchor semantics under portable backend contracts.\n  - Preserve stable meaning across SQLite-now / PostgreSQL-ready storage, export, replay, and bounded artifact transfer.\n  - Clarify what downstream Loom-consuming packets may assume about portable block-edge/search/view/source-anchor behavior.\n- OUT_OF_SCOPE:\n  - Full Loom product expansion.\n  - Media-to-Loom bridge feature work beyond the backend portability contract.",
     "acceptance_criteria": "- Loom storage/export/replay semantics are explicitly linked to Storage Portability in the Main Body and Appendix matrix.\n- Loom block-edge/search/view/source-anchor contracts preserve stable meaning across backend swaps and evidence transfer.\n- Downstream Loom bridge packets can reuse one canonical portability contract instead of redefining library/export semantics.",
-    "risks_unknowns": "- Risk: Loom blocks, edges, search filters, and source anchors diverge into storage-specific behavior that breaks export or replay.\n- Risk: downstream bridge packets assume stable library portability semantics that are not yet codified."
+    "risks_unknowns": "- Risk: Loom blocks, edges, search filters, and source anchors diverge into storage-specific behavior that breaks export or replay.\n- Risk: downstream bridge packets assume stable library portability semantics that are not yet codified.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

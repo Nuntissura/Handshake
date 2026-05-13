@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Spec-Router-SpecLint-v1",
   "base_wp_id": "WP-1-Spec-Router-SpecLint",
@@ -47,7 +62,8 @@
     "intent": "- What: Implement the mechanical `G-SPECLINT` preflight that blocks structurally invalid or non-executable specs before rubric/red-team/decomposition stages.\n- Why: Phase 1 Prompt->Spec flow requires deterministic early failure paths so bad specs do not leak into execution planning.",
     "scope_sketch": "- IN_SCOPE:\n  - Define/implement `G-SPECLINT` gate behavior for GOV_STANDARD and GOV_STRICT.\n  - Produce SpecLintReport artifacts with stable rule IDs and machine-checkable findings.\n  - Block progression on SpecLint failure and persist linkage into Job History + Spec Session Log.\n  - Add CI preflight coverage for required spec output surfaces as defined by v02.139.\n- OUT_OF_SCOPE:\n  - Prompt compilation internals (separate SpecPromptCompiler packet).\n  - CapabilitySnapshot generation logic (separate CapabilitySnapshot packet).\n  - Rubric scoring and red-team logic beyond SpecLint handoff boundaries.",
     "acceptance_criteria": "- `G-SPECLINT` executes in the required governance modes and blocks progression on failure.\n- Each run emits a SpecLintReport artifact linked to the governing spec job/session log records.\n- Failure reasons are deterministic, code-based, and reproducible for the same input.\n- CI runs SpecLint checks on required spec output classes and fails fast on violations.",
-    "risks_unknowns": "- Risk: weak/ambiguous lint rules can allow non-executable specs to pass.\n- Risk: over-strict rules can block valid specs unless rule taxonomy is explicit and versioned."
+    "risks_unknowns": "- Risk: weak/ambiguous lint rules can allow non-executable specs to pass.\n- Risk: over-strict rules can block valid specs unless rule taxonomy is explicit and versioned.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Stage-Media-Artifact-Portability-v1",
   "base_wp_id": "WP-1-Stage-Media-Artifact-Portability",
@@ -55,7 +70,8 @@
     "intent": "- What: Unify Stage capture/import sessions and Media Downloader session/auth/materialization outputs under portable artifact manifest, bundle-index, and retention semantics.\n- Why: Backend evidence from Stage and Media Downloader should survive export, replay, and storage/backend changes without semantic drift.",
     "scope_sketch": "- IN_SCOPE:\n  - Define the shared artifact portability contract across Stage session records, media capture sessions, debug bundle export, and storage portability rules.\n  - Make session/auth/materialization outputs valid bounded export anchors with portable manifests and retention evidence.\n  - Clarify what later Loom/archive integrations may assume about Stage/media artifacts.\n- OUT_OF_SCOPE:\n  - Full Stage product UX.\n  - Media-to-Loom feature work beyond the backend portability contract.",
     "acceptance_criteria": "- Stage and Media Downloader are explicitly linked through portable artifact and retention contracts in the Main Body and Appendix matrix.\n- Later implementation packets can reuse one bounded export/manifest contract across Stage and media capture flows.\n- Storage backend swaps do not require redefining Stage/media evidence semantics.",
-    "risks_unknowns": "- Risk: Stage and media artifacts fork into incompatible manifest/index semantics.\n- Risk: portability rules cover storage backends generally but omit capture-session provenance needed for replay and audit."
+    "risks_unknowns": "- Risk: Stage and media artifacts fork into incompatible manifest/index semantics.\n- Risk: portability rules cover storage backends generally but omit capture-session provenance needed for replay and audit.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

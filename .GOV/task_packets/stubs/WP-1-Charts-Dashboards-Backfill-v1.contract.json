@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Charts-Dashboards-Backfill-v1",
   "base_wp_id": "WP-1-Charts-Dashboards-Backfill",
@@ -52,7 +67,8 @@
     "intent": "- What: Backfill Charts & Dashboards as explicit runtime outputs with chart specs, source-table lineage, and operator evidence.\n- Why: Charts are a high-ROI combination surface for docs, decks, DCC, and analytics, but current appendix coverage is still missing.",
     "scope_sketch": "- IN_SCOPE:\n  - ChartSpec-driven runtime coverage.\n  - Source-table / trace lineage and export posture.\n- OUT_OF_SCOPE:\n  - Full charting feature build-out.\n  - Advanced BI/dashboard implementation.",
     "acceptance_criteria": "- Charts feature row exists with explicit runtime mapping.\n- Chart source lineage is preserved in appendix/runtime guidance.",
-    "risks_unknowns": "- Risk: charts are treated as static presentation garnish instead of governed derived artifacts."
+    "risks_unknowns": "- Risk: charts are treated as static presentation garnish instead of governed derived artifacts.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

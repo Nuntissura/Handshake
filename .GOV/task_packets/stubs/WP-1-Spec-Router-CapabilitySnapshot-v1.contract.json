@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Spec-Router-CapabilitySnapshot-v1",
   "base_wp_id": "WP-1-Spec-Router-CapabilitySnapshot",
@@ -47,7 +62,8 @@
     "intent": "- What: Add a machine-checkable CapabilitySnapshot artifact path so `spec_router` can only reference explicitly allowed capabilities/tools.\n- Why: Prevent spec hallucinations and non-executable plans caused by inventing unavailable tools, surfaces, or engines.",
     "scope_sketch": "- IN_SCOPE:\n  - Define/generate CapabilitySnapshot artifact payload from active CapabilityRegistry + SemanticCatalog mapping.\n  - Wire `capability_snapshot_ref` into SpecIntent and SpecRouterDecision.\n  - Enforce allowlist-only references during spec authoring and downstream checks.\n  - Persist CapabilitySnapshot ref/hash in provenance/deep-link surfaces.\n- OUT_OF_SCOPE:\n  - Tool registry redesign beyond required snapshot extraction.\n  - SpecPromptCompiler implementation details (separate packet).\n  - SpecLint rule taxonomy implementation beyond snapshot-related failures.",
     "acceptance_criteria": "- Every `spec_router` run emits exactly one CapabilitySnapshot artifact referenced by SpecIntent and SpecRouterDecision.\n- Snapshot contains only allowed capabilities/tools for the active route/mode and excludes forbidden entries.\n- Any spec reference outside the snapshot is detected as a deterministic failure path.\n- CapabilitySnapshot ref/hash appears in persisted provenance and deep links.",
-    "risks_unknowns": "- Risk: snapshot over-inclusion weakens safety by allowing accidental capability creep.\n- Risk: snapshot under-inclusion blocks legitimate routes unless generation rules are transparent and deterministic."
+    "risks_unknowns": "- Risk: snapshot over-inclusion weakens safety by allowing accidental capability creep.\n- Risk: snapshot under-inclusion blocks legitimate routes unless generation rules are transparent and deterministic.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

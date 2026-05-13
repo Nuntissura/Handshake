@@ -5,6 +5,21 @@ export const REFINEMENT_CONTRACT_SCHEMA_ID = "hsk.refinement_contract@1";
 export const MICRO_TASK_CONTRACT_SCHEMA_ID = "hsk.microtask_contract@1";
 export const DETERMINISTIC_CONTRACT_RED_TEAM_PROFILE = "DETERMINISTIC_CONTRACT_MIGRATION_V1";
 export const GENERATED_PROJECTION_HEADER_RE = /^\s*<!--\s*HANDSHAKE_GENERATED_PROJECTION\s+([^]*?)-->\s*\r?\n?/;
+export const MACHINE_READABLE_ARTIFACT_POLICY = Object.freeze({
+  authority_surface: "MACHINE_CONTRACT",
+  legacy_markdown_policy: "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+  projection_creation: "ON_DEMAND_OR_CONTRACT_BOUND",
+  operator_facing_authority: false,
+  model_created_markdown_authority_allowed: false,
+  allowed_markdown_exceptions: [
+    "operator_created_notes",
+    "operator_created_research",
+    "operator_created_audits",
+    "explicit_on_demand_projection",
+    "explicit_report_projection_contract",
+    "frozen_legacy_migration_reference",
+  ],
+});
 
 function stableCopy(value) {
   if (Array.isArray(value)) return value.map((entry) => stableCopy(entry));

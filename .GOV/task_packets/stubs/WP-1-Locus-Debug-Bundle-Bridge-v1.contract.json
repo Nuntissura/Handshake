@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Locus-Debug-Bundle-Bridge-v1",
   "base_wp_id": "WP-1-Locus-Debug-Bundle-Bridge",
@@ -55,7 +70,8 @@
     "intent": "- What: Define the backend bridge that turns Locus work-packet, micro-task, dependency, query-ready, and task-board sync evidence into bounded debug-bundle scope with stable correlation ids.\n- Why: Locus already emits rich Flight Recorder-visible state, but bounded bundle export and replay semantics for that state are still implicit.",
     "scope_sketch": "- IN_SCOPE:\n  - Define which Locus operations, ids, and recorder events are canonical debug-bundle anchors.\n  - Preserve stable correlation between workflow runs, Locus WP/MT state, and exportable evidence slices.\n  - Clarify what later operator/DCC/replay work may assume about Locus evidence packaging.\n- OUT_OF_SCOPE:\n  - Locus UI redesign.\n  - New Locus search features unrelated to debug/evidence export.",
     "acceptance_criteria": "- The spec names Locus operation and task-board sync evidence as canonical bounded export sources.\n- A later implementation packet can export Locus-backed evidence without reconstructing WP/MT state by hand.\n- Workflow/Locus correlation stays deterministic through stable ids instead of ad hoc exporter conventions.",
-    "risks_unknowns": "- Risk: bundle scope is too broad if Locus query/task-board evidence is not bounded by stable WP/MT/dependency ids.\n- Risk: Locus and Workflow Engine drift in correlation semantics, making later replay/export ambiguous."
+    "risks_unknowns": "- Risk: bundle scope is too broad if Locus query/task-board evidence is not bounded by stable WP/MT/dependency ids.\n- Risk: Locus and Workflow Engine drift in correlation semantics, making later replay/export ambiguous.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

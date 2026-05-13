@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Artifact-System-Foundations-v1",
   "base_wp_id": "WP-1-Artifact-System-Foundations",
@@ -47,7 +62,8 @@
     "intent": "- What: Ensure Phase 1 artifact system foundations are complete and consistently used across exports and jobs: artifact store bootstrap + single atomic Materialize API + retention/pinning/GC with visible reports.\n- Why: Prevent untraceable side effects, ensure reproducible evidence bundles, and avoid disk bloat/caches drifting silently.",
     "scope_sketch": "- IN_SCOPE:\n  - Artifact store bootstrap (workspace tree + manifests; SHA-256 everywhere).\n  - A single â€œMaterializeâ€ API for all save/export-to-path writes (atomic tmp+rename; no UI bypass; capability-gated; Flight Recorder logged).\n  - Retention/pinning MVP (pin/unpin + TTL + deterministic GC job/command; never deletes pinned; emits a retention report artifact).\n  - Explicit enforcement that tooling/engines write via artifact-first outputs + materialize-only semantics (no random filesystem side effects).\n- OUT_OF_SCOPE:\n  - Multi-user sync/replication and remote blob storage GC.\n  - Phase 2+ archival/export formats beyond Phase 1 bundles.",
     "acceptance_criteria": "- All export paths use a single atomic materialize implementation (no ad-hoc writes).\n- Artifacts and bundles have deterministic hashing (SHA-256) with manifests present and stable.\n- Retention/GC runs deterministically, never deletes pinned items, and produces a retention report artifact visible to Operator.",
-    "risks_unknowns": "- Risk: Multiple competing â€œexport/materializeâ€ implementations cause drift and bypass policies; must centralize.\n- Risk: GC/retention bugs can delete important data; require strict invariants, dry-run mode, and audit artifacts."
+    "risks_unknowns": "- Risk: Multiple competing â€œexport/materializeâ€ implementations cause drift and bypass policies; must centralize.\n- Risk: GC/retention bugs can delete important data; require strict invariants, dry-run mode, and audit artifacts.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

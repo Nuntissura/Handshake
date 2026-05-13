@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Storage-No-Runtime-DDL-v1",
   "base_wp_id": "WP-1-Storage-No-Runtime-DDL",
@@ -52,7 +67,8 @@
     "intent": "- What: Remove runtime schema mutation (CREATE/ALTER at runtime) by moving all schema evolution into numbered migrations for both backends.\n- Why: Runtime DDL creates schema drift, breaks portability auditing, and can hide Postgres/SQLite parity bugs.",
     "scope_sketch": "- IN_SCOPE:\n  - Identify all runtime DDL sites (ensure_* schema functions, runtime ALTER TABLE) and migrate them into numbered migrations.\n  - Eliminate (or temporarily gate) runtime schema mutation code paths once migrations cover the schema.\n  - Add a portability test that asserts no runtime DDL is executed (at least for core tables).\n- OUT_OF_SCOPE:\n  - Rewriting the migration framework itself (use existing system).",
     "acceptance_criteria": "- run_migrations() does not execute ad-hoc CREATE/ALTER for core tables outside the migration framework.\n- Both backends start cleanly from empty DB using only migrations.",
-    "risks_unknowns": "- A hard cut-over might break existing deployments; may need staged migrations and a compatibility window."
+    "risks_unknowns": "- A hard cut-over might break existing deployments; may need staged migrations and a compatibility window.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

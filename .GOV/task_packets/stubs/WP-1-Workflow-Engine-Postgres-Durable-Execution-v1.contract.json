@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Workflow-Engine-Postgres-Durable-Execution-v1",
   "base_wp_id": "WP-1-Workflow-Engine-Postgres-Durable-Execution",
@@ -13,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Workflow-Engine-Postgres-Durable-Execution-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "d9f04ec880f0430bac96ec7bf129307dd789bd00c1878499cb5f8cfab58cdf2a",
+    "projection_sha256": "2abaaf481d34acade35ea172b26db947d1a9525f77dde0cd42493832af01f84c",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -57,7 +72,8 @@
     "intent": "- What: Move workflow-engine durable execution state, checkpoints, node outcomes, retries, and resumability metadata onto PostgreSQL-primary storage.\n- Why: The self-hosting control plane needs workflows and AI jobs to survive process restarts and coordinate with ModelSession queues through the same authoritative database.",
     "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL persistence for workflow instance state, node execution state, checkpoint payloads, retry counters, and terminal outcomes.\n  - Integration with shared lease/backpressure primitives for runnable workflow work.\n  - Migration-backed schema and tests for crash recovery, resume idempotence, retry bounds, and stale-lease recovery.\n  - Explicit retention and artifact-link fields for Flight Recorder and DCC projections.\n- OUT_OF_SCOPE:\n  - New workflow node types.\n  - Operator UI redesign.\n  - Replacing structured collaboration artifact mirrors.",
     "acceptance_criteria": "- Workflow execution can stop and resume from PostgreSQL state without replaying completed nodes incorrectly.\n- Parallel workflow workers cannot execute the same node claim concurrently.\n- Retry and terminal failure states are queryable for DCC/runtime truth projection.\n- SQLite use, if any, is cache/offline/index scoped and not the workflow runtime authority.",
-    "risks_unknowns": "- Risk: existing workflow contracts may still say SQLite durable execution; activation should include spec enrichment before code work if the Master Spec is not yet updated.\n- Unknown: checkpoint payload size and retention policy may require artifact indirection rather than storing all payload bytes in PostgreSQL."
+    "risks_unknowns": "- Risk: existing workflow contracts may still say SQLite durable execution; activation should include spec enrichment before code work if the Master Spec is not yet updated.\n- Unknown: checkpoint payload size and retention policy may require artifact indirection rather than storing all payload bytes in PostgreSQL.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

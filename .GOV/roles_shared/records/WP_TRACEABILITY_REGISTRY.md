@@ -166,7 +166,7 @@ Format:
 | WP-1-Storage-Foundation | .GOV/task_packets/WP-1-Storage-Foundation-v3.md | Done: WP-1-Storage-Foundation-v3 | active=WP-1-Storage-Foundation-v3; supersedes: WP-1-Storage-Foundation-20251228 |
 | WP-1-Postgres-MCP-Durable-Progress | .GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1.md | Done: WP-1-Postgres-MCP-Durable-Progress-v1 | active=WP-1-Postgres-MCP-Durable-Progress-v1; activated from stub .GOV/task_packets/stubs/WP-1-Postgres-MCP-Durable-Progress-v1.md; audit remediation; Postgres MCP durable progress mapping |
 | WP-1-Postgres-Structured-Collaboration-Artifact-Parity | .GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/packet.md | Stub Backlog (Not Activated): WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1 | stub (post-smoketest product follow-on); replace explicit Postgres structured-collaboration artifact denial with real canonical Work Packet, Micro-Task, and Task Board parity |
-| WP-1-Postgres-Control-Plane-Shift-Bundle | .GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md | Stub Backlog (Not Activated): WP-1-Postgres-Control-Plane-Shift-Bundle-v1 | bundled stub (operator-directed PostgreSQL-primary pivot follow-on); folds dev/test container matrix, leases/backpressure, ModelSession queue workers, FEMS Postgres memory store, workflow durable execution, DCC Postgres projections, and SQLite cache/offline boundaries; Loom remains separate |
+| WP-KERNEL-001-Event-Ledger-Session-Broker | .GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.md | Blocked: WP-KERNEL-001-Event-Ledger-Session-Broker-v1 | official kernel reset packet created in blocked state; folds first-slice Postgres/EventLedger authority, SessionBroker, ContextBundle, dummy ModelAdapter, ToolGate, ArtifactStore, ValidationRunner, PromotionGate, and TraceProjection proof; pending operator USER_SIGNATURE and indexed Master Spec enrichment before coder launch |
 | WP-1-Storage-Capability-Boundary-Refactor | .GOV/task_packets/WP-1-Storage-Capability-Boundary-Refactor-v1/packet.md | Stub Backlog (Not Activated): WP-1-Storage-Capability-Boundary-Refactor-v1 | stub (post-smoketest product follow-on); factor the broad Database trait into narrower capability or domain boundaries before future backend drift hardens |
 | WP-1-Storage-No-Runtime-DDL | .GOV/task_packets/stubs/WP-1-Storage-No-Runtime-DDL-v1.md | Stub Backlog (Not Activated): WP-1-Storage-No-Runtime-DDL-v1 | stub (audit remediation); move runtime DDL into migrations |
 | WP-1-Storage-Trait-Purity | .GOV/task_packets/WP-1-Storage-Trait-Purity-v1/packet.md | Done: WP-1-Storage-Trait-Purity-v1 | active=WP-1-Storage-Trait-Purity-v1; activated from stub .GOV/task_packets/stubs/WP-1-Storage-Trait-Purity-v1.md; audit remediation; remove downcast escape hatches |
@@ -262,6 +262,12 @@ Format:
 | WP-1-FEMS-Outcome-Feedback-Loop | .GOV/task_packets/stubs/WP-1-FEMS-Outcome-Feedback-Loop-v1.md | TBD | |
 | WP-1-FEMS-MT-Handoff-Memory-Context | .GOV/task_packets/stubs/WP-1-FEMS-MT-Handoff-Memory-Context-v1.md | TBD | |
 | WP-1-Postgres-Primary-Control-Plane-Foundation | .GOV/task_packets/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/packet.md | TBD | |
+
+## Superseded Activation History
+
+| BASE_WP_ID | SUPERSEDED_PACKET_OR_STUB | TASK_BOARD | Replacement / Notes |
+|------------|---------------------------|------------|---------------------|
+| WP-1-Postgres-Control-Plane-Shift-Bundle | .GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md | Superseded (Archive): WP-1-Postgres-Control-Plane-Shift-Bundle-v1 | superseded as activation vehicle by WP-KERNEL-001-Event-Ledger-Session-Broker-v1; kernel-relevant portions moved into Kernel001 packet/refinement/MTs; residual FEMS memory-store, full DCC projection, and generic workflow durable-execution scope remain preserved downstream |
 
 ## Historical Failure + Live Smoketest Lineage
 

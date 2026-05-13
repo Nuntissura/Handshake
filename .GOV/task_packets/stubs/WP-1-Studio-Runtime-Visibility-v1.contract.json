@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Studio-Runtime-Visibility-v1",
   "base_wp_id": "WP-1-Studio-Runtime-Visibility",
@@ -54,7 +69,8 @@
     "intent": "- What: Make Studio/Design Studio surfaces explicit runtime citizens by defining how Studio jobs, tools, Command Center visibility, Flight Recorder evidence, and Locus correlations work across the current Photo Studio and Atelier/Lens surfaces.\n- Why: Studio is currently spec-rich and UI-present but under-modeled as a governed runtime surface. That blocks reliable local/cloud tool use, operator visibility, and later matrix expansion.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical runtime mapping for Studio-adjacent surfaces:\n    - Canvas / Excalidraw surface.\n    - Lens / Atelier collaboration panel.\n    - Studio-specific job kinds, workflow nodes, and tool surfaces.\n  - Visibility requirements:\n    - DCC / operator surface projection.\n    - Flight Recorder event linkage.\n    - Locus / task-board / WP linkage for Studio-originated work.\n  - Storage posture:\n    - SQLite-now / PostgreSQL-ready persistence expectations for Studio runtime state and evidence.\n- OUT_OF_SCOPE:\n  - Full Photo Studio feature completion.\n  - Final UI consolidation or visual polish.\n  - New creative-tool capabilities beyond the runtime visibility/traceability contract.",
     "acceptance_criteria": "- Studio-adjacent surfaces have explicit job/workflow/tool-call mappings.\n- Studio runtime activity is visible in Command Center / operator surfaces and Flight Recorder.\n- Locus can correlate Studio-originated work with work packets/microtasks.\n- SQLite-now / PostgreSQL-ready posture is specified for Studio runtime state and evidence.",
-    "risks_unknowns": "- Risk: Studio stays fragmented into unrelated UI panels without a canonical runtime identity.\n- Risk: operator surfaces show only partial evidence, leading to hidden Studio side effects.\n- Risk: storage posture diverges across SQLite and PostgreSQL if the runtime contract is not made explicit early."
+    "risks_unknowns": "- Risk: Studio stays fragmented into unrelated UI panels without a canonical runtime identity.\n- Risk: operator surfaces show only partial evidence, leading to hidden Studio side effects.\n- Risk: storage posture diverges across SQLite and PostgreSQL if the runtime contract is not made explicit early.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

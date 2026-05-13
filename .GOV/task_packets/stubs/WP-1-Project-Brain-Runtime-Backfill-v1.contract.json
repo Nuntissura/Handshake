@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Project-Brain-Runtime-Backfill-v1",
   "base_wp_id": "WP-1-Project-Brain-Runtime-Backfill",
@@ -53,7 +68,8 @@
     "intent": "- What: Backfill Project Brain as a governed runtime retrieval/notebook surface with explicit query, citation, and context-compaction visibility.\n- Why: Project Brain is strategically central and will guide many future model/tool decisions, so appendix/runtime coverage cannot remain implicit.",
     "scope_sketch": "- IN_SCOPE:\n  - Project Brain query/runtime mapping.\n  - ContextPack / QueryPlan / RetrievalTrace posture.\n- OUT_OF_SCOPE:\n  - Full Project Brain implementation.\n  - Advanced ranking experimentation beyond runtime mapping.",
     "acceptance_criteria": "- Project Brain has explicit runtime/job/tool visibility in Appendix coverage.\n- Project Brain is linked to Context Packs and Semantic Catalog deterministically.",
-    "risks_unknowns": "- Risk: Project Brain becomes a vague RAG promise instead of a deterministic runtime surface."
+    "risks_unknowns": "- Risk: Project Brain becomes a vague RAG promise instead of a deterministic runtime surface.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

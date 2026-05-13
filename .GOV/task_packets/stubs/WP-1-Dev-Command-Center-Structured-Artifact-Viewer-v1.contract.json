@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1",
   "base_wp_id": "WP-1-Dev-Command-Center-Structured-Artifact-Viewer",
@@ -52,7 +67,8 @@
     "intent": "- What: Build the Dev Command Center typed-field viewers and derived board or queue layouts over canonical structured collaboration artifacts.\n- Why: Operators should inspect and steer work through clean field-based surfaces instead of raw Markdown or raw JavaScript Object Notation blobs, and future Jira-like layouts should remain just alternate projections over the same authority.",
     "scope_sketch": "- IN_SCOPE:\n  - Work Packet, Micro-Task, Task Board, and Role Mailbox typed-field viewers.\n  - Two or more derived layouts such as kanban, list, queue, or roadmap from the same structured records.\n  - Explicit display of authoritative fields versus Markdown mirrors.\n  - Raw JavaScript Object Notation drilldown as an advanced view, not the default operator surface.\n- OUT_OF_SCOPE:\n  - Defining the canonical backend artifact schemas.\n  - Full external board-platform integration.",
     "acceptance_criteria": "- Dev Command Center can render typed Work Packet, Micro-Task, Task Board, and Role Mailbox views from canonical structured records.\n- At least two different board or queue layouts can be derived from the same record set without mutating authority.\n- The operator can distinguish canonical fields, mirror content, and mirror-drift state from one screen.",
-    "risks_unknowns": "- Risk: raw JavaScript Object Notation fallback becomes the default surface. Mitigation: typed-field-first rendering and advanced inspector separation.\n- Risk: board layouts smuggle in state edits. Mitigation: explicit governed record edits only, with visible field provenance."
+    "risks_unknowns": "- Risk: raw JavaScript Object Notation fallback becomes the default surface. Mitigation: typed-field-first rendering and advanced inspector separation.\n- Risk: board layouts smuggle in state edits. Mitigation: explicit governed record edits only, with visible field provenance.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

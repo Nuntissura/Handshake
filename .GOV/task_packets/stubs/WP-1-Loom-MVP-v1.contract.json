@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Loom-MVP-v1",
   "base_wp_id": "WP-1-Loom-MVP",
@@ -47,7 +62,8 @@
     "intent": "- What: Deliver the Phase 1 Loom MVP: a local-first library surface powered by LoomBlocks (note/file/context) and LoomEdges (mentions/tags/backlinks), with fast browsing views and evidence-grade provenance via Flight Recorder.\n- Why: Provide a unified \"block-as-unit-of-meaning\" surface that ties together notes and files, unlocking link/tag organization, backlinks, and quick recall without importing external app constraints.",
     "scope_sketch": "- IN_SCOPE:\n  - LoomBlock + LoomEdge foundations:\n    - Storage model + API plumbing for LoomBlocks and LoomEdges (UUID-stable; rename-stable identity independent of filenames).\n    - Inline token semantics for @mentions + #tags that create LoomEdges with stable UUID references (no text-based links).\n  - Loom views (Phase 1 subset):\n    - All / Unlinked / Sorted / Pins browsing projections over LoomBlocks.\n    - LoomBlock detail view with backlinks panel (with context snippets).\n  - Import + dedup:\n    - File import (folder drag/drop + file picker).\n    - SHA-256-based dedup: importing the same file twice must route to the existing LoomBlock (no duplicates).\n  - Media previews:\n    - Tier-1 preview generation (thumbnails, lightweight proxies where needed) implemented as governed Mechanical jobs.\n    - Attach thumbnail/proxy asset refs to LoomBlocks; ensure outputs survive restart.\n  - Search (Tier-1):\n    - Basic Loom search with facets sufficient to support the MVP browse loops.\n  - Observability:\n    - Emit FR-EVT-LOOM-* events and surface them in Operator Consoles / Job History.\n- OUT_OF_SCOPE:\n  - AI auto-tagging / auto-caption and semantic/hybrid retrieval (Phase 2+ / Phase 4 per Master Spec).\n  - Multi-user Loom collaboration/sync and Postgres-backed Loom query engines (Phase 3+ / Phase 4).",
     "acceptance_criteria": "- Importing files creates LoomBlocks; dedup prevents duplicates on re-import.\n- All/Unlinked/Sorted/Pins views operate correctly on the same LoomBlock dataset.\n- @mentions and #tags create LoomEdges with UUID-stable references; tag targets are TAG_HUB LoomBlocks.\n- Backlinks panel updates correctly (with snippets) based on LoomEdges.\n- Tier-1 search works with basic facets for LoomBlocks.\n- FR-EVT-LOOM-* events are emitted and visible in Operator Consoles / Job History for the key Loom flows.",
-    "risks_unknowns": "- Risk: anchor drift and inline token robustness during edits (must remain UUID-stable and not text-based).\n- Risk: dedup false positives/negatives and identity coupling to filenames.\n- Risk: background preview generation throughput degrading core UI responsiveness."
+    "risks_unknowns": "- Risk: anchor drift and inline token robustness during edits (must remain UUID-stable and not text-based).\n- Risk: dedup false positives/negatives and identity coupling to filenames.\n- Risk: background preview generation throughput degrading core UI responsiveness.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

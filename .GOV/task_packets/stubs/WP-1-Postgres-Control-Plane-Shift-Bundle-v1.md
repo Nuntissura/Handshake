@@ -17,7 +17,10 @@ Rules:
 - WP_ID: WP-1-Postgres-Control-Plane-Shift-Bundle-v1
 - BASE_WP_ID: WP-1-Postgres-Control-Plane-Shift-Bundle
 - CREATED_AT: 2026-05-06T12:45:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED_AS_KERNEL_ACTIVATION_VEHICLE
+- SUPERSEDED_BY: WP-KERNEL-001-Event-Ledger-Session-Broker-v1
+- SUPERSEDED_PACKET_FILE: .GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.md
+- SUPERSESSION_SCOPE: Kernel-first event-ledger/session-broker activation vehicle only; residual FEMS memory-store, full DCC projection, and generic workflow durable-execution scope remain preserved for downstream packets and stubs.
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: YES
 - BUILD_ORDER_VALUE_TIER: HIGH
@@ -72,6 +75,12 @@ Rules:
 - Coder sessions must not implement cross-MT opportunistic cleanup. Shared schema/helper work must be assigned to the earliest MT that needs it and then reused by later MTs.
 
 ## SOURCE_STUBS_FOLDED
+
+## KERNEL_RESET_SUPERSESSION_NOTE
+- This consolidated PostgreSQL bundle is no longer the activation vehicle for the kernel reset first slice.
+- Kernel-relevant material from all folded source stubs has been moved into `WP-KERNEL-001-Event-Ledger-Session-Broker-v1` as no-context packet/refinement/microtask requirements.
+- The move is partial by design: `WP-KERNEL-001-Event-Ledger-Session-Broker-v1` implements the first product kernel proof, not the full previous scope of FEMS PostgreSQL memory runtime, full DCC PostgreSQL projections, or generic workflow durable execution.
+- Do not reactivate this bundle as a single WP unless the Operator explicitly reverses the kernel-first plan. Use the official Kernel001 packet for event-ledger/session-broker work and preserve residual scope in downstream kernel/product stubs.
 
 ### WP-1-Postgres-Dev-Test-Container-Matrix-v1
 - Intent carried forward: reproducible PostgreSQL developer/test service, migration reset, seeded fixtures, and CI-ready smoke profiles.

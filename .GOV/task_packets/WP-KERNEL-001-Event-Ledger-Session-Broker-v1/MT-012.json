@@ -1,0 +1,80 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-012.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-012.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": null,
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-011"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-13T16:22:07.800Z",
+    "generator": "artifact-policy-backfill.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-012.md",
+    "projection_hash": "b1cb247047c829e0",
+    "source_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-012.json",
+    "source_hash": "9eac743e56a9fb85",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-012",
+  "red_team": {
+    "minimum_controls": [
+      "Use contract-first identity and preserve projection hash."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Imported MT contract may under-capture prose-only review or proof instructions."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "Link existing SessionMessage persistence to kernel ledger events."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/mod.rs",
+      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/kernel/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test -p handshake_core session_messages_ledger_link"
+    ],
+    "risk_if_missed": "Messages and ledger drift.",
+    "summary": "Link existing SessionMessage persistence to kernel ledger events."
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"
+}

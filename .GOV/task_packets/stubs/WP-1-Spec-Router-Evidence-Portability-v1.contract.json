@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Spec-Router-Evidence-Portability-v1",
   "base_wp_id": "WP-1-Spec-Router-Evidence-Portability",
@@ -56,7 +71,8 @@
     "intent": "- What: Define the backend bridge that turns Spec Router prompt artifacts, prompt-envelope hashes, capability snapshots, routing decisions, and Locus create-WP handoff records into bounded exportable and replayable evidence.\n- Why: Spec Router already materializes canonical backend artifacts, but portability and later replay/export semantics are still too implicit for operators and future local/cloud models.",
     "scope_sketch": "- IN_SCOPE:\n  - Define the canonical evidence path between Spec Router, Workflow Engine, Flight Recorder, Locus, Debug Bundle export, and storage portability.\n  - Preserve stable ids, hashes, manifests, and retention semantics for prompt artifacts, decision artifacts, and work-packet creation handoffs.\n  - Clarify what later Spec Creation / DCC / replay tooling may assume about Spec Router evidence packaging.\n- OUT_OF_SCOPE:\n  - Spec authoring UX redesign.\n  - New product code for replay execution beyond the evidence/export contract.",
     "acceptance_criteria": "- The spec names Spec Router prompt/decision/capability artifacts as canonical backend evidence and portability surfaces.\n- A later implementation packet can point to stable Spec Router artifact ids and hashes as valid export/replay anchors.\n- Locus create-WP handoffs are explicitly tied to Spec Router evidence semantics instead of ad hoc workflow-only assumptions.",
-    "risks_unknowns": "- Risk: prompt artifacts, routing decisions, and Locus handoff records drift in identity or retention semantics, making replay unverifiable.\n- Risk: export scope becomes too broad or too weak if Spec Router evidence is not bounded by stable artifact ids, hashes, and manifest rules."
+    "risks_unknowns": "- Risk: prompt artifacts, routing decisions, and Locus handoff records drift in identity or retention semantics, making replay unverifiable.\n- Risk: export scope becomes too broad or too weak if Spec Router evidence is not bounded by stable artifact ids, hashes, and manifest rules.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

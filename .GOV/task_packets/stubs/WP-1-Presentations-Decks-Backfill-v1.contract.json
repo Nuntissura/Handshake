@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Presentations-Decks-Backfill-v1",
   "base_wp_id": "WP-1-Presentations-Decks-Backfill",
@@ -52,7 +67,8 @@
     "intent": "- What: Backfill Decks as a governed composition/export surface with explicit slide sources, runtime identity, and operator evidence.\n- Why: Decks are a natural force multiplier over Docs, Charts, and Project Brain, but current appendix coverage is too sparse.",
     "scope_sketch": "- IN_SCOPE:\n  - DeckSpec runtime coverage.\n  - Source-linking from docs/charts.\n- OUT_OF_SCOPE:\n  - Final deck-authoring UX polish.\n  - Broad presentation design system work.",
     "acceptance_criteria": "- Decks have explicit runtime mapping and source-linking coverage.\n- Appendix coverage makes deck generation deterministic for later model/tool use.",
-    "risks_unknowns": "- Risk: deck output becomes detached from source evidence and impossible to reason over later."
+    "risks_unknowns": "- Risk: deck output becomes detached from source evidence and impossible to reason over later.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Calendar-Sync-Engine-v1",
   "base_wp_id": "WP-1-Calendar-Sync-Engine",
@@ -53,7 +68,8 @@
     "intent": "- What: Implement `calendar_sync` as a first-class mechanical engine job that ingests calendar sources into durable CalendarEvent storage.\n- Why: Without deterministic sync, Calendar lens will drift and external sources cannot be trusted or audited.",
     "scope_sketch": "- IN_SCOPE:\n  - Mechanical engine + workflow runner wiring:\n    - Register engine entry.\n    - Implement job profile and runner that writes into Calendar storage.\n  - Source adapters:\n    - MVP: local ICS file import OR a single provider with strict capability/consent gating.\n  - Observability:\n    - Flight Recorder events for sync start/end, items imported, dedup hits, failures.\n- OUT_OF_SCOPE:\n  - Multi-provider, bidirectional write-back, and conflict resolution.",
     "acceptance_criteria": "- Running calendar_sync ingests events into Calendar storage and updates the Calendar lens view.\n- Sync is idempotent (repeat sync does not duplicate events).\n- All external access is capability-gated and leak-safe in logs/events.",
-    "risks_unknowns": "- Provider API churn and rate limits.\n- Privacy and consent ergonomics; must be fail-closed."
+    "risks_unknowns": "- Provider API churn and rate limits.\n- Privacy and consent ergonomics; must be fail-closed.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

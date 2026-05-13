@@ -33,6 +33,14 @@
 - WP Validator does NOT replace the Integration Validator. Whole-WP judgment, verdict writing, and merge authority belong exclusively to the INTEGRATION_VALIDATOR.
 - The Orchestrator launches and monitors WP Validator sessions. The WP Validator acts on exceptions â€” it does not actively steer the coder outside of review responses.
 
+## Master Spec Resolver Discipline (Read-Only)
+
+- WP Validator resolves current Master Spec authority only through `.GOV/spec/SPEC_CURRENT.md`, the resolved active indexed bundle manifest, and the resolved bundle `INDEX.json`.
+- For migrated indexed specs, the active bundle is versioned (canonical shape: `.GOV/spec/master-spec-vNN.NNN/`) and older non-current version folders live under `.GOV/spec/spec_archive/`; archived bundles are provenance only.
+- Legacy `.GOV/spec/indexed_spec/` is compatibility-only until the next governed versioned-bundle migration and must not be treated as the long-term active edit target.
+- WP Validator must not edit `.GOV/spec/**`. If review exposes a spec gap, mixed module versions, a missing machine-readable changelog entry, a stale `SPEC_CURRENT` pointer, stale internal Master Spec references to latest-monolith/current-file workflows, or active-bundle/archive drift, emit `SPEC_GAP`, `CONCERN`, or `MT_REMEDIATION_REQUIRED` and route it to Orchestrator or Integration Validator.
+- Whole-WP spec compliance remains Integration Validator authority, but per-MT review may cite resolver drift as a workflow concern when it affects the MT's claimed scope.
+
 ## Adult Production Boundary (When Applicable) [CX-123]
 
 - When the active Handshake-governed task, workspace, recipe, prompt package, product lane, or connected repo is used for adult porn production, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."

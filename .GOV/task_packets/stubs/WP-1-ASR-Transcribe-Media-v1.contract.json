@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-ASR-Transcribe-Media-v1",
   "base_wp_id": "WP-1-ASR-Transcribe-Media",
@@ -53,7 +68,8 @@
     "intent": "- What: Implement a local-first ASR transcription job for audio/video media, producing time-aligned transcripts that become searchable workspace entities.\n- Why: Video archive value depends on searchability; captions are often missing or low quality, so an ASR fallback is required.",
     "scope_sketch": "- IN_SCOPE:\n  - JobKind + workflow execution:\n    - Implement `asr_transcribe` as a Workflow Engine job (no UI bypass).\n    - Extract audio from video deterministically (ffmpeg) as needed.\n  - Outputs:\n    - Persist transcript outputs as artifacts (e.g., JSON + readable text) with provenance and timing metadata.\n    - Provide a path to attach transcript text to LoomBlocks (Document link or derived.full_text_index) to support Loom search.\n  - Safety:\n    - Capability gating for `proc.exec:*` and any model/tool invocation.\n    - No cloud transcription by default (opt-in only).\n  - Observability:\n    - Flight Recorder events for job lifecycle, segment/chunk progress, and output artifact refs.\n- OUT_OF_SCOPE:\n  - Real-time/live captioning.\n  - Accessibility-grade caption guarantees (WCAG compliance requires human review).",
     "acceptance_criteria": "- Given a video file with no captions, running ASR produces a transcript artifact with timestamps and makes it searchable via Loom search.\n- Given a video with captions, the system can skip ASR and ingest captions into searchable text (optional fast-path).\n- Jobs are cancellable, resumable where feasible, capability-gated, and leak-safe in logs/events.",
-    "risks_unknowns": "- Performance and memory for long videos; need chunking strategy and bounded resources.\n- Transcript size/indexing cost; may require chunked indexing and retention policy."
+    "risks_unknowns": "- Performance and memory for long videos; need chunking strategy and bounded resources.\n- Transcript size/indexing cost; may require chunked indexing and retention policy.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

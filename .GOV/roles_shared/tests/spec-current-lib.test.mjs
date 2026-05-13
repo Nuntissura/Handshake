@@ -88,7 +88,7 @@ test("resolves machine-readable SPEC_CURRENT through indexed manifest modules", 
       current_spec: {
         entrypoint_type: "indexed_manifest",
         entrypoint_path: ".GOV/spec/indexed_spec/indexed-spec-manifest.json",
-        human_index_path: ".GOV/spec/indexed_spec/spec-modules/module-index.md",
+        resolver_index_path: ".GOV/spec/indexed_spec/INDEX.json",
         version: "v02.182",
         source_baseline_path: ".GOV/spec/Handshake_Master_Spec_v02.182.md",
       },
@@ -100,6 +100,7 @@ test("resolves machine-readable SPEC_CURRENT through indexed manifest modules", 
     const resolved = resolveSpecCurrentAtRepo(repoRoot);
     assert.equal(resolved.entrypointType, "indexed_manifest");
     assert.equal(resolved.specTargetLabel, ".GOV/spec/indexed_spec/indexed-spec-manifest.json");
+    assert.equal(resolved.resolverIndexPath, ".GOV/spec/indexed_spec/INDEX.json");
     assert.equal(resolved.sourceBaselinePath, ".GOV/spec/Handshake_Master_Spec_v02.182.md");
     assert.equal(resolved.versionTag, "v02.182");
     assert.equal(resolved.sha256, sha256(reconstructed));

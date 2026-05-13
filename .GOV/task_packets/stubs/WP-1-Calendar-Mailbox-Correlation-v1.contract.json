@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Calendar-Mailbox-Correlation-v1",
   "base_wp_id": "WP-1-Calendar-Mailbox-Correlation",
@@ -54,7 +69,8 @@
     "intent": "- What: Define the backend contract that correlates Calendar event windows and mailbox threads/messages without relying on ad hoc UI joins.\n- Why: Calendar is a temporal force multiplier and Role Mailbox is an evidence/export surface, but the event-window to thread/message bridge is still too weak for a direct matrix edge.",
     "scope_sketch": "- IN_SCOPE:\n  - Define the canonical backend correlation inputs between Calendar windows, mailbox threads/messages, and later recorder/export queries.\n  - Clarify how correlation interacts with consent, retention, and evidence boundaries.\n  - Preserve future reuse for inbox alignment, operator timelines, and bounded export follow-ons.\n- OUT_OF_SCOPE:\n  - Full Calendar/Mailbox product UX.\n  - Direct debug-bundle work unrelated to the correlation contract itself.",
     "acceptance_criteria": "- Calendar and Role Mailbox gain one explicit backend correlation contract in the Main Body and Appendix matrix/stub system.\n- Later inbox/alignment or operator/export packets can consume the same event-window to thread/message mapping without redefining it.\n- Consent, retention, and evidence boundaries for correlated Calendar/Mailbox data are explicit.",
-    "risks_unknowns": "- Risk: Calendar-to-mailbox joins become implicit operator-only behavior instead of a deterministic backend contract.\n- Risk: correlation leaks too much mailbox context into time-window queries or loses retention/consent boundaries."
+    "risks_unknowns": "- Risk: Calendar-to-mailbox joins become implicit operator-only behavior instead of a deterministic backend contract.\n- Risk: correlation leaks too much mailbox context into time-window queries or loses retention/consent boundaries.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

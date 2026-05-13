@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-FEMS-Working-Memory-Checkpoint-Schema-v1",
   "base_wp_id": "WP-1-FEMS-Working-Memory-Checkpoint-Schema",
@@ -51,7 +66,8 @@
     "intent": "- What: Define structured checkpoint types for FEMS working memory with quality gates, porting the repomem conversation checkpoint pattern. Checkpoints become the input for `memory_extract_v0.1` jobs and the bridge from ephemeral session state to durable memory.\n- Why: FEMS working memory is defined as \"short-horizon state for the current session\" but has no structured schema for what gets captured or when. Without checkpoints, memory extraction is unstructured and session-to-session continuity depends on model judgment alone.",
     "scope_sketch": "- IN_SCOPE:\n  - Checkpoint type schema: SESSION_OPEN (session intent), PRE_TASK (current assumptions before complex op), INSIGHT (key realization — highest signal), TASK_COMPLETE (outcome), SESSION_CLOSE (triggers memory_extract job).\n  - Quality gates per checkpoint type: minimum content length, structured fields (decisions, files_referenced, scope_refs).\n  - Checkpoint → memory_extract bridge: SESSION_CLOSE triggers `memory_extract_v0.1` job that processes all session checkpoints into MemoryWriteProposal.\n  - INSIGHT checkpoint promotion: insights that appear across 3+ sessions are candidates for semantic/procedural promotion (feeds hygiene manager).\n  - Working memory GC: checkpoints from completed sessions with no insights are garbage-collected aggressively (per FEMS spec: working class \"MAY be garbage-collected aggressively unless pinned\").\n  - Flow awareness auto-population (Windsurf pattern): auto-populate working memory from the ModelSession action stream — files read, tools called, entities queried, searches performed. No explicit \"remember this\" needed; the session's activity IS the working memory source. Checkpoints can be both explicit (user/model writes INSIGHT) and implicit (action stream capture).\n- OUT_OF_SCOPE:\n  - FEMS core MemoryItem schema (already in spec).\n  - Consolidation/hygiene (WP-1-FEMS-Hygiene-Manager-Job-v1).\n  - DCC conversation timeline integration (separate concern).",
     "acceptance_criteria": "- Checkpoint types are defined as a typed schema with validation.\n- Quality gates reject low-quality checkpoints (minimum content, required fields).\n- SESSION_CLOSE triggers memory_extract_v0.1 job that produces a MemoryWriteProposal from session checkpoints.\n- Cross-session insight detection identifies repeated INSIGHT topics across 3+ sessions.\n- Working memory from completed sessions without insights is GC'd within configurable window.",
-    "risks_unknowns": "- Risk: quality gates may be too restrictive for fast-paced interactive sessions. Need configurable thresholds.\n- Risk: cross-session insight detection requires topic similarity matching — FTS5 vs embedding trade-off."
+    "risks_unknowns": "- Risk: quality gates may be too restrictive for fast-paced interactive sessions. Need configurable thresholds.\n- Risk: cross-session insight detection requires topic similarity matching — FTS5 vs embedding trade-off.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

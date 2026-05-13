@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Storage-Capability-Boundary-Refactor-v1",
   "base_wp_id": "WP-1-Storage-Capability-Boundary-Refactor",
@@ -51,7 +66,8 @@
     "intent": "- What: refactor the storage boundary so product subsystems consume narrower capability/domain interfaces rather than accreting more methods onto one monolithic `Database` trait.\n- Why: this keeps portability honest at compile time, lowers regression surface, and stops future packets from solving every backend mismatch by widening one trait.",
     "scope_sketch": "- IN_SCOPE:\n  - define the target boundary shape for storage access, with refinement choosing one honest pattern such as:\n    - composed domain stores or subtraits (for example structured collaboration, Loom, calendar, retention, artifact persistence)\n    - an explicit backend capability snapshot separated from operational interfaces\n    - service-layer handles that expose only the storage surface each subsystem actually needs\n  - move subsystem-specific methods off the monolithic `Database` trait where feasible, or isolate them behind dedicated capability objects/trait bundles\n  - keep one authoritative storage boundary for callers; do not reintroduce raw pool access, provider-specific types, or concrete backend downcasts\n  - migrate representative consumers so they no longer depend on unrelated storage domains:\n    - workflow and Locus paths\n    - Loom API and observability paths\n    - retention or artifact-management paths\n    - any other caller the refinement identifies as a high-drift hotspot\n  - add tripwires that fail if:\n    - concrete backend downcasts return\n    - new backend-specific types leak into callers\n    - new domain-specific methods are appended to the top-level storage boundary without an explicit allowlisted design decision\n- OUT_OF_SCOPE:\n  - full feature parity for every backend or every subsystem\n  - replacing the storage layer with a completely new architecture\n  - user-visible feature work unrelated to the storage boundary",
     "acceptance_criteria": "- The top-level storage boundary is materially smaller or more composition-focused than the current monolithic `Database` trait.\n- Representative subsystems no longer depend on unrelated domain methods through one global trait.\n- Adding a new backend-specific feature requires touching a dedicated interface or capability contract rather than appending another ad hoc method to `Database`.\n- No new concrete-type downcasts or raw provider types leak into callers.\n- Dual-backend tests still pass for the migrated storage surfaces.",
-    "risks_unknowns": "- This work can stall if the refinement turns into an unbounded \"perfect architecture\" rewrite.\n- A badly chosen abstraction split can simply recreate the same monolith under a different name.\n- Some capability methods may still be the correct boundary in a few places; the packet should remove accidental breadth, not outlaw every explicit capability contract."
+    "risks_unknowns": "- This work can stall if the refinement turns into an unbounded \"perfect architecture\" rewrite.\n- A badly chosen abstraction split can simply recreate the same monolith under a different name.\n- Some capability methods may still be the correct boundary in a few places; the packet should remove accidental breadth, not outlaw every explicit capability contract.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

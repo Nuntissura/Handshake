@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Workflow-Projection-Correlation-v1",
   "base_wp_id": "WP-1-Workflow-Projection-Correlation",
@@ -55,7 +70,8 @@
     "intent": "- What: Make `WorkflowRun`, `WorkflowNodeExecution`, job status updates, recorder filters, and Locus sync state first-class backend correlation anchors that can deterministically materialize bounded debug bundle scopes.\n- Why: Backend workflow failures should be exportable and replayable without operators or future models reconstructing execution state by hand.",
     "scope_sketch": "- IN_SCOPE:\n  - Define the canonical correlation path between AI Job Model, Workflow Engine, Flight Recorder, Locus, and Debug Bundle export.\n  - Ensure workflow runs and node executions can seed bounded export scope, status polling, and Locus-ready/progress projection.\n  - Preserve stable ids/hashes across export, download, and later replay tooling.\n- OUT_OF_SCOPE:\n  - Full DCC UI redesign.\n  - New product code for replay execution beyond the projection/export contract.",
     "acceptance_criteria": "- The spec names workflow/job/recorder/locus correlation as a canonical backend combo, not an implied implementation detail.\n- A later implementation packet can point to stable workflow and node ids as valid debug bundle anchors.\n- Locus-ready/progress queries are explicitly tied to workflow projection semantics instead of ad hoc polling.",
-    "risks_unknowns": "- Risk: projection ids drift between job, workflow, recorder, and Locus surfaces, making exports unverifiable.\n- Risk: export scope becomes too broad if workflow correlation is not bounded by stable identifiers and explicit scope rules."
+    "risks_unknowns": "- Risk: projection ids drift between job, workflow, recorder, and Locus surfaces, making exports unverifiable.\n- Risk: export scope becomes too broad if workflow correlation is not bounded by stable identifiers and explicit scope rules.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

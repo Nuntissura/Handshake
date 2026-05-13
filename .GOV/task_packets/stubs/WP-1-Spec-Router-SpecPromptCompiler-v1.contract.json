@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Spec-Router-SpecPromptCompiler-v1",
   "base_wp_id": "WP-1-Spec-Router-SpecPromptCompiler",
@@ -47,7 +62,8 @@
     "intent": "- What: Implement deterministic prompt compilation for `spec_router` using a versioned SpecPromptPack, producing reproducible PromptEnvelope hashes and ContextSnapshot lineage.\n- Why: Prompt->Spec routing must be replayable and auditable; deterministic compilation prevents hidden prompt drift.",
     "scope_sketch": "- IN_SCOPE:\n  - Add/validate SpecPromptPack asset location + loading contract for `spec_router`.\n  - Implement deterministic SpecPromptCompiler rules (stable prefix/suffix assembly, token caps, truncation flags).\n  - Emit compilation provenance fields (pack id/sha, context snapshot id, envelope hashes) to required artifacts/events.\n  - Ensure PromptEnvelope + ContextSnapshot linkage is preserved for downstream validation.\n- OUT_OF_SCOPE:\n  - Capability allowlist generation logic (separate CapabilitySnapshot packet).\n  - SpecLint rule execution engine (separate SpecLint packet).\n  - Non-`spec_router` prompt compiler expansion.",
     "acceptance_criteria": "- `spec_router` uses a SpecPromptPack artifact and records both pack id and pack SHA-256 per run.\n- PromptEnvelope compilation is deterministic for identical inputs (same stable/variable hashes + truncation outcomes).\n- ContextSnapshot includes every compilation input handle/hash required by the spec.\n- Provenance fields are visible in Flight Recorder and linked surfaces per integration hooks.",
-    "risks_unknowns": "- Risk: pack/template drift can silently change model behavior if hash capture is incomplete.\n- Risk: non-deterministic token truncation can break replay guarantees if compiler ordering/rules are not fixed."
+    "risks_unknowns": "- Risk: pack/template drift can silently change model behavior if hash capture is incomplete.\n- Risk: non-deterministic token truncation can break replay guarantees if compiler ordering/rules are not fixed.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

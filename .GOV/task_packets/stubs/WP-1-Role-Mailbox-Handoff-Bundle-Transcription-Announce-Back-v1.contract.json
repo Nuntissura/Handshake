@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1",
   "base_wp_id": "WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back",
@@ -56,7 +71,8 @@
     "intent": "- What: Define and later implement the structured handoff-bundle, note-transcription, and announce-back provenance contract that lets Role Mailbox hand work across actors without forcing Work Packet, Micro-Task, Task Board, Locus, or Dev Command Center consumers to replay full threads.\n- Why: Handshake now has mailbox message law, verifier-loop control, triage queues, and claim-or-lease posture, but it still needs one durable handoff artifact so parallel actors can resume safely and so advisory announce-back summaries do not get mistaken for authoritative completion.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical `RoleMailboxHandoffBundleV1` and `RoleMailboxAnnounceBackProvenanceV1` contracts.\n  - Required handoff fields for remaining work, unresolved blockers, changed scope, evidence refs, recommended next actor, risk, confidence, and transcription targets.\n  - Announce-back provenance kinds that distinguish advisory status, completion notice, escalation summary, scope-change notice, handoff-ready posture, and transcription-confirmed outcomes.\n  - Normalized Work Packet note transcription and Locus join posture so handoff state remains queryable without transcript replay.\n  - Dev Command Center and Task Board projection rules for handoff-ready, transcription-pending, and advisory announce-back posture.\n- OUT_OF_SCOPE:\n  - External email or chat intake.\n  - Replacing Locus authority, Work Packet authority, or generic workflow-state law.\n  - Final export or audit portability of mailbox threads beyond the handoff fields required for Phase 1.",
     "acceptance_criteria": "",
-    "risks_unknowns": ""
+    "risks_unknowns": "",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

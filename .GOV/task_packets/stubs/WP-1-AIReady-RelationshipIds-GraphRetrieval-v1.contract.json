@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-AIReady-RelationshipIds-GraphRetrieval-v1",
   "base_wp_id": "WP-1-AIReady-RelationshipIds-GraphRetrieval",
@@ -51,7 +66,8 @@
     "intent": "- What: Add relationship_id to graph edges and implement non-empty graph candidate generation in hybrid retrieval.\n- Why: Without stable relationship IDs and graph candidates, graph retrieval is effectively stubbed and audit traceability is incomplete.",
     "scope_sketch": "- IN_SCOPE:\n  - Add deterministic relationship_id format (e.g., rel_{det_uuid}) to graph edges.\n  - Emit relationship_id in extraction events and persist it.\n  - Implement graph_candidates in hybrid search (even minimal first: direct edges only).\n  - Add tests asserting non-empty graph candidates under a synthetic graph.\n- OUT_OF_SCOPE:\n  - Advanced multi-hop graph ranking and personalization (later).",
     "acceptance_criteria": "- Graph edges have stable relationship_id values.\n- Hybrid retrieval includes graph candidates when relevant and traces can reference relationship_id deterministically.",
-    "risks_unknowns": "- Graph candidate quality requires careful scoring; deliver minimal correct implementation first with clear hooks for later tuning."
+    "risks_unknowns": "- Graph candidate quality requires careful scoring; deliver minimal correct implementation first with clear hooks for later tuning.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

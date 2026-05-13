@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { MACHINE_READABLE_ARTIFACT_POLICY } from "../lib/packet-contract-lib.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "../../../..");
@@ -90,6 +91,7 @@ export function buildStubContract({ wpId = "", stubText = "", stubPath = "" } = 
     schema_id: SCHEMA_ID,
     schema_version: SCHEMA_VERSION,
     contract_authority: "PRIMARY_MACHINE_READABLE_STUB",
+    artifact_policy: MACHINE_READABLE_ARTIFACT_POLICY,
     execution_authority: "NON_EXECUTION_STUB",
     wp_id: parseSingleField(projectionBody, "WP_ID") || wpId,
     base_wp_id: String(parseSingleField(projectionBody, "BASE_WP_ID") || wpId).replace(/\s*\(.*/, "").trim(),
@@ -136,6 +138,7 @@ export function buildStubContract({ wpId = "", stubText = "", stubPath = "" } = 
       scope_sketch: parseIntentSection(projectionBody, "SCOPE_SKETCH (DRAFT)"),
       acceptance_criteria: parseIntentSection(projectionBody, "ACCEPTANCE_CRITERIA (DRAFT)"),
       risks_unknowns: parseIntentSection(projectionBody, "RISKS / UNKNOWNs (DRAFT)"),
+      governance_artifact_stance: parseIntentSection(projectionBody, "MACHINE_READABLE_GOVERNANCE_ARTIFACT_STANCE"),
     },
     activation_contract: {
       may_start_coder: false,

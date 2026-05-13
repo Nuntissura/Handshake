@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-SQLite-Cache-Offline-Boundaries-v1",
   "base_wp_id": "WP-1-SQLite-Cache-Offline-Boundaries",
@@ -13,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "e9d35da394ac86fc05e5ce2fd9eb7e7e41838f50f63826ed7690ebddf95a1450",
+    "projection_sha256": "b0377704e89922c158720fe9bf32237f8358ef6847e4339726cbaeacb8ccccb1",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -52,7 +67,8 @@
     "intent": "- What: Define and implement the boundary between PostgreSQL-primary runtime authority and SQLite as cache, search index, embedded/offline mode, or rebuildable local projection.\n- Why: Moving early to PostgreSQL-primary should not remove local-first ergonomics, but SQLite must stop being an accidental second authority for self-hosted control-plane state.",
     "scope_sketch": "- IN_SCOPE:\n  - Clear storage-mode policy for Postgres-primary, SQLite-cache, SQLite-offline, and test modes.\n  - Guardrails that prevent runtime control-plane writes from silently landing in SQLite when PostgreSQL authority is required.\n  - Rebuild/invalidation semantics for SQLite indexes and local projections derived from PostgreSQL or file authorities.\n  - Tests for mode detection, missing PostgreSQL behavior, and stale cache invalidation.\n- OUT_OF_SCOPE:\n  - Replacing PostgreSQL runtime storage.\n  - Implementing full offline sync conflict resolution.\n  - New UI beyond status/error surfaces needed for DCC projection.",
     "acceptance_criteria": "- The app can report which storage mode is active and which surfaces are authoritative.\n- Runtime control-plane writes fail closed when PostgreSQL is required but unavailable.\n- SQLite indexes/projections are rebuildable and carry freshness/source metadata.\n- Tests prove SQLite fallback does not hide PostgreSQL outages for control-plane operations.",
-    "risks_unknowns": "- Risk: \"fallback\" can become silent split brain; activation should define explicit operator-visible degradation states.\n- Unknown: whether embedded single-user demos should allow SQLite-primary mode behind a clear non-control-plane profile."
+    "risks_unknowns": "- Risk: \"fallback\" can become silent split brain; activation should define explicit operator-visible degradation states.\n- Unknown: whether embedded single-user demos should allow SQLite-primary mode behind a clear non-control-plane profile.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

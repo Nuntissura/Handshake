@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1",
   "base_wp_id": "WP-1-Postgres-Structured-Collaboration-Artifact-Parity",
@@ -55,7 +70,8 @@
     "intent": "- What: implement real PostgreSQL parity for canonical structured collaboration artifacts and the minimum Locus-backed read/write paths needed to keep Work Packets, Micro-Tasks, and Task Board projections backend-portable.\n- Why: as long as Postgres can only deny these paths, structured collaboration remains effectively SQLite-only and the product cannot honestly claim portable canonical work-state persistence beyond the local-first backend.",
     "scope_sketch": "- IN_SCOPE:\n  - add portable schema + migration coverage for the structured collaboration tables or equivalent shared storage layout used by:\n    - canonical Work Packet records\n    - canonical Micro-Task records\n    - Task Board projection rows\n    - any required dependency or summary linkage those records rely on\n  - implement PostgreSQL-backed storage methods so these no longer return `NotImplemented` for supported flows:\n    - `structured_collab_work_packet_row`\n    - `structured_collab_work_packet_rows`\n    - `structured_collab_micro_task_metadata`\n    - `structured_collab_micro_task_status_rows`\n    - `structured_collab_micro_task_rows`\n    - any required write/update path such as `locus_task_board_update_work_packet` or a bounded subset of `execute_locus_operation`\n  - preserve the same base-envelope, compact-summary, `workflow_state_family`, `queue_reason_code`, `allowed_action_ids`, `project_profile_kind`, and `mirror_state` semantics on both backends\n  - add dual-backend conformance tests for canonical read/list/update flows and negative-path regression checks\n  - make any remaining unsupported Locus operations explicit and narrow instead of hiding them behind a blanket backend denial\n- OUT_OF_SCOPE:\n  - Dev Command Center UI work\n  - mailbox/viewer/layout registry work that only consumes structured artifacts\n  - CRDT or real-time multi-user conflict resolution beyond the bounded storage contract required for structured artifact parity",
     "acceptance_criteria": "- PostgreSQL no longer returns `NotImplemented(\"structured collaboration artifacts\")` for the canonical structured artifact flows claimed by the packet.\n- The same canonical structured Work Packet, Micro-Task, and Task Board record families round-trip on SQLite and PostgreSQL with matching base-envelope semantics.\n- Dual-backend tests prove at least one read-single, read-list, status/metadata, and update/sync path for structured collaboration records on both backends.\n- Any remaining unsupported Locus operations are individually declared and tested instead of piggybacking on a broad backend denial.",
-    "risks_unknowns": "- Scope can silently explode into \"full Locus Postgres backend\" unless the refinement keeps the contract bounded to canonical structured artifact parity.\n- Schema choices that are too SQLite-shaped may force a later rewrite instead of true portable parity.\n- Parity work touches shared workflow and task-board projection code, so regression coverage must be broader than a single storage-file patch."
+    "risks_unknowns": "- Scope can silently explode into \"full Locus Postgres backend\" unless the refinement keeps the contract bounded to canonical structured artifact parity.\n- Schema choices that are too SQLite-shaped may force a later rewrite instead of true portable parity.\n- Parity work touches shared workflow and task-board projection code, so regression coverage must be broader than a single storage-file patch.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

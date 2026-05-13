@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Calendar-Correlation-Export-v1",
   "base_wp_id": "WP-1-Calendar-Correlation-Export",
@@ -55,7 +70,8 @@
     "intent": "- What: Treat calendar event windows and time-range queries as canonical backend correlation/export anchors for jobs, activity spans, recorder events, and later mailbox/task follow-ons.\n- Why: Calendar should operate as a backend force multiplier for bounded evidence export and time-scoped reasoning, not only as a passive date surface.",
     "scope_sketch": "- IN_SCOPE:\n  - Define the canonical link between `CalendarEventWindowQuery`, recorder time windows, bundle export scope, and job/activity correlation.\n  - Ensure calendar-derived export remains bounded, policy-aware, and deterministic.\n  - Leave room for later calendar/mailbox and calendar/project-brain follow-ons without guessing the UI first.\n- OUT_OF_SCOPE:\n  - Full calendar lens UX redesign.\n  - External provider write-back semantics beyond the already-scoped calendar policy work.",
     "acceptance_criteria": "- Calendar event windows are explicitly named as valid debug bundle/time-range export anchors.\n- Time-window export semantics are tied to stable calendar/query ids rather than loose UI filters.\n- Later implementations can correlate calendar windows with jobs and activity spans without inventing new backend nouns.",
-    "risks_unknowns": "- Risk: calendar time windows silently broaden into unbounded export scope.\n- Risk: sync-token and window semantics diverge across storage backends or future providers."
+    "risks_unknowns": "- Risk: calendar time windows silently broaden into unbounded export scope.\n- Risk: sync-token and window semantics diverge across storage backends or future providers.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

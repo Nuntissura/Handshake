@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Governance-Workflow-Mirror-v2",
   "base_wp_id": "WP-1-Governance-Workflow-Mirror",
@@ -57,7 +72,8 @@
     "intent": "- What: Finish the product-side workflow-mirror capability from current `main` by porting the missing per-WP gate-transition mirror slice from the historical `v1` branch without regressing later runtime work already integrated into product governance.\n- Why: Current product only partially implements the workflow-mirror behavior described by the original WP. Activation visibility exists, but current `main` still lacks the full per-WP gate-transition event and structured gate/activation projection layer needed for authoritative product governance state.",
     "scope_sketch": "- IN_SCOPE:\n  - Add product-runtime support for per-WP governance gate transitions keyed by `work_packet_id`.\n  - Emit and validate `FR-EVT-GOV-GATES-001` payloads for gate transitions on current `main`.\n  - Project structured workflow-mirror gate and activation summaries into current product query surfaces.\n  - Append workflow-facing Spec Session Log entries for gate transitions and activation on current `main`.\n  - Add or update targeted tests proving the mirror slice on current product code, not on the stale historical branch.\n- OUT_OF_SCOPE:\n  - Reopening or mutating the historical `WP-1-Governance-Workflow-Mirror-v1` packet as live execution.\n  - Whole-file replay of the old `v1` branch onto current `main`.\n  - Repo-governance `.GOV` feature expansion beyond the new remediation packet, dossier, and governed records required for activation/closeout.",
     "acceptance_criteria": "- Current product exposes per-WP gate transition state without colliding across parallel WPs.\n- Gate transitions and packet activations are visible through Flight Recorder and workflow-facing session-log/query surfaces on current `main`.\n- The remediation preserves later product work already present on `main`, including newer session-spawn/checkpoint/workspace-isolation paths.\n- New `FR-EVT-GOV-*` payloads and mirror summaries are schema-validated and covered by targeted tests on current product code.",
-    "risks_unknowns": "- Porting only the missing workflow-mirror slice from a stale branch without regressing later `flight_recorder` and `workflows` changes already contained in `main`.\n- Ensuring new mirror summaries fit current query contracts and session-log surfaces without widening scope into unrelated product-governance follow-ons."
+    "risks_unknowns": "- Porting only the missing workflow-mirror slice from a stale branch without regressing later `flight_recorder` and `workflows` changes already contained in `main`.\n- Ensuring new mirror summaries fit current query contracts and session-log surfaces without widening scope into unrelated product-governance follow-ons.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

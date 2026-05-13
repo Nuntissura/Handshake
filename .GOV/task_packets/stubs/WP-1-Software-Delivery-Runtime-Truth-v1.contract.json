@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Software-Delivery-Runtime-Truth-v1",
   "base_wp_id": "WP-1-Software-Delivery-Runtime-Truth",
@@ -55,7 +70,8 @@
     "intent": "- What: Define and later implement the stable-id-linked product-owned runtime record model for software-delivery work so governed actions, workflow state, and operational truth do not depend on packet prose, mailbox chronology, or Markdown mirrors.\n- Why: `v02.181` makes software-delivery runtime truth explicit: the runtime must explain live state from canonical records and governed actions, not from whichever human-readable surface happened to update last.",
     "scope_sketch": "- IN_SCOPE:\n  - Stable-id-linked runtime records for software-delivery work items and their governed actions.\n  - Authoritative joins across Work Packet, Task Board, Role Mailbox, workflow, and gate state for software-delivery profiles.\n  - Rules that distinguish:\n    - canonical runtime record state\n    - governed action history\n    - readable packet or Markdown mirror state\n    - mailbox summaries and chronology\n  - Runtime truth contracts that keep projections queryable without replaying transcripts or packet narratives.\n- OUT_OF_SCOPE:\n  - General non-software runtime kernels.\n  - UI-only layout work that does not change runtime authority.\n  - Repo-governance mirror files acting as live state.",
     "acceptance_criteria": "- At least one workflow-backed software-delivery work item exposes product-owned runtime state and linked governed actions by stable identifiers.\n- Operators and validators can determine current software-delivery posture without relying on packet prose, mailbox order, or Markdown mirror freshness.\n- Runtime truth can be projected into multiple surfaces without ambiguity about which record is authoritative.",
-    "risks_unknowns": "- Risk: packet or mailbox-readable surfaces may continue to carry hidden authority if runtime records are incomplete or underspecified.\n- Risk: software-delivery profile-specific fields could leak into the shared base envelope if runtime truth is implemented as ad hoc sidecars rather than explicit profile-aware records."
+    "risks_unknowns": "- Risk: packet or mailbox-readable surfaces may continue to carry hidden authority if runtime records are incomplete or underspecified.\n- Risk: software-delivery profile-specific fields could leak into the shared base envelope if runtime truth is implemented as ad hoc sidecars rather than explicit profile-aware records.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

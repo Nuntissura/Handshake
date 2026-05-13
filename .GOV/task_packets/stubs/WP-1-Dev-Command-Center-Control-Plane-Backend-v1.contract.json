@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Dev-Command-Center-Control-Plane-Backend-v1",
   "base_wp_id": "WP-1-Dev-Command-Center-Control-Plane-Backend",
@@ -63,7 +78,8 @@
     "intent": "- What: Build the backend projection and API layer that turns existing runtime systems into one Dev Command Center control plane inside Handshake.\n- Why: Handshake already has major backend pieces, but they are not yet unified as one product-side control plane for work packets, micro-tasks, sessions, approvals, governance overlay state, role-mailbox coordination, VCS posture, and recorder-linked evidence. Without this layer, DCC UI work would be another thin shell over disconnected APIs.",
     "scope_sketch": "- IN_SCOPE:\n  - Backend projections and APIs for:\n    - Work Packets\n    - Micro-Tasks\n    - Task Board freshness and ready-query state\n    - session scheduler state\n    - approval and capability state\n    - role-mailbox coordination state\n    - governance overlay execution state\n    - VCS/worktree binding state\n    - recorder/evidence joins\n  - Stable projection identifiers and correlation contracts.\n  - Compact-summary-first control-plane payloads suitable for local-small-model routing and operator views.\n  - No-bypass rule: DCC backend remains a projection/steering layer over authoritative backend artifacts, not a second authority.\n- OUT_OF_SCOPE:\n  - Full DCC frontend shell.\n  - Monaco editor shell and terminal shell polish.\n  - New repo-governance files becoming runtime authority.",
     "acceptance_criteria": "- Product backend exposes one coherent control-plane API/projection surface for DCC over work, session, approval, mailbox, governance, and evidence state.\n- DCC UI packets can consume this backend without inventing local authority or repo-path coupling.\n- Local-small-model routing can read compact readiness, blockers, queue reasons, and session state from the DCC backend without transcript or Markdown replay.",
-    "risks_unknowns": "- Risk: jumping straight to UI would hide missing backend joins behind ad hoc frontend state and create rework.\n- Risk: if DCC backend treats repo-governance overlay as universal authority, it will collapse non-software and broader Handshake governance layers into software-delivery assumptions."
+    "risks_unknowns": "- Risk: jumping straight to UI would hide missing backend joins behind ad hoc frontend state and create rework.\n- Risk: if DCC backend treats repo-governance overlay as universal authority, it will collapse non-software and broader Handshake governance layers into software-delivery assumptions.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

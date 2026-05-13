@@ -1,6 +1,6 @@
 ﻿# TASK_PACKET_TEMPLATE
 
-Copy this into each new task packet and fill all fields.
+Generated projection template for `packet.md` during the contract migration. Do not hand-copy this Markdown into future work as authority; author or update `packet.json` / `WORK_PACKET_CONTRACT_TEMPLATE.json` first, then generate a projection only when a current contract or explicit Operator request requires one.
 
 Requirements:
 - Keep packets ASCII-only (required by deterministic gates).
@@ -8,7 +8,8 @@ Requirements:
 - Use SPEC_TARGET as the authoritative spec for closure/revalidation (usually .GOV/spec/SPEC_CURRENT.md).
 - WP_ID and filename MUST NOT include date/time stamps; use `-v{N}` for revisions (e.g., `WP-1-Tokenization-Service-v3`).
 - If multiple packets exist for the same Base WP, update `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` (Base WP -> Active Packet).
-- Packet metadata is the authoritative lifecycle truth. `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and `BUILD_ORDER.md` are projections and must reconcile to this header.
+- `packet.json` is the authoritative lifecycle truth; this generated packet metadata is a compatibility projection. `TASK_BOARD.md`, `WP_TRACEABILITY_REGISTRY.md`, and `BUILD_ORDER.md` are projections and must reconcile to the contract.
+- Legacy Markdown packets remain migration safety rails only. They must not be copied forward as the model-created artifact pattern for new packets, refinements, or microtasks.
 - Active packet rule: the packet mapped by `BASE_WP_ID` in `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` is the current contract. Any other official packet with the same `BASE_WP_ID` is older history and must be tracked as `SUPERSEDED` on the Task Board.
 - For `REFINEMENT_ENFORCEMENT_PROFILE: HYDRATED_RESEARCH_V1`, this packet is auto-hydrated from the signed refinement; manual drift is forbidden and `just phase-check STARTUP ... CODER` enforces alignment.
 

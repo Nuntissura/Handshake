@@ -19,6 +19,7 @@ export const GOVERNANCE_TOPOLOGY_REPO_REL_PATH = normalizePath(path.join(
 
 const MAINTENANCE_REQUIRED_ROLES = [
   "ORCHESTRATOR",
+  "KERNEL_BUILDER",
   "CLASSIC_ORCHESTRATOR",
   "ACTIVATION_MANAGER",
   "WP_VALIDATOR",
@@ -31,6 +32,8 @@ const EXCLUDED_MAINTENANCE_ROLES = ["CODER"];
 
 const SCAN_ROOTS = [
   "justfile",
+  "orcstart.cmd",
+  "kbstart.cmd",
   "AGENTS.md",
   ".github",
   normalizePath(path.join(GOV_ROOT_REPO_REL, "codex")),
@@ -79,6 +82,7 @@ const CANONICAL_RECIPE_NAMES = new Set([
   "docs-check",
   "phase-check",
   "orchestrator-startup",
+  "kernel-builder-startup",
   "classic-orchestrator-startup",
   "validator-startup",
   "coder-startup",
@@ -294,6 +298,7 @@ function surfaceKindForFile(repoRelPath) {
   const base = path.basename(normalized);
   if (normalized === "justfile") return "JUSTFILE";
   if (base === "AGENTS.md") return "AGENTS_CONTRACT";
+  if (["orcstart.cmd", "kbstart.cmd"].includes(normalized)) return "GOVERNANCE_SCRIPT";
   if (/PROTOCOL\.md$/i.test(base) || /\/agentic\/AGENTIC_PROTOCOL\.md$/i.test(normalized)) return "ROLE_PROTOCOL";
   if (normalized.includes("/checks/") && ext === ".mjs") return "GOVERNANCE_CHECK";
   if (normalized.includes("/tests/") && ext === ".mjs") return "GOVERNANCE_TEST";

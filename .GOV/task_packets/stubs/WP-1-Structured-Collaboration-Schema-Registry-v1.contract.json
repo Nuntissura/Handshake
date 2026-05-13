@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Structured-Collaboration-Schema-Registry-v1",
   "base_wp_id": "WP-1-Structured-Collaboration-Schema-Registry",
@@ -53,7 +68,8 @@
     "intent": "- What: Define and implement the canonical schema registry, validators, compatibility rules, and summary-schema checks for the shared structured-collaboration envelope used by Work Packets, Micro-Tasks, Task Board projections, and Role Mailbox exports.\n- Why: Handshake now requires one reusable base envelope and compact summary contract. Without a registry and deterministic validation path, each implementation surface will drift into slightly different field names, versions, and parser assumptions.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical schema identifiers and versions for the shared base envelope and summary contract.\n  - Validation rules for `packet.json`, `summary.json`, `index.json`, and `thread.jsonl` collaboration artifacts.\n  - Compatibility and migration policy for base-envelope changes and backward-compatible readers.\n  - Deterministic validation outputs consumable by Dev Command Center and governance gates.\n- OUT_OF_SCOPE:\n  - Rich Dev Command Center rendering logic beyond the validation data it needs.\n  - Project-specific extension payload definitions beyond the hooks they must satisfy.",
     "acceptance_criteria": "- A canonical schema registry exists for the shared structured-collaboration envelope and compact summary contract.\n- Work Packet, Micro-Task, Task Board projection, and Role Mailbox export validators reject missing required base-envelope fields deterministically.\n- Unknown or incompatible schema versions surface machine-readable validation results instead of silent fallback.\n- Dev Command Center and local-small-model ingestion can rely on the compact summary contract without record-shape guessing.",
-    "risks_unknowns": "- If the base envelope is too repository-specific, the later governance-kernel refresh will need a breaking rewrite.\n- If summary schemas drift from detail schemas, smaller local models will get cheap but misleading state."
+    "risks_unknowns": "- If the base envelope is too repository-specific, the later governance-kernel refresh will need a breaking rewrite.\n- If summary schemas drift from detail schemas, smaller local models will get cheap but misleading state.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

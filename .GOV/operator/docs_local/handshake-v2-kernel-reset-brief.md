@@ -99,11 +99,24 @@ The long-term edge is not just "an AI wrapper." The edge is a repeatable mechani
 - Official CLIs may be used as backend transports when allowed, but Handshake must still own the operator surface, state, logs, and promotion gates.
 - CRDT is day-one for live parallel operator/model workspace state.
 - Postgres/event state is day-one for authoritative truth.
+- SQLite is not a Kernel V1 technology. Do not use SQLite for authority, cache, offline mode, compatibility mode, tests, local fallback, or bootstrap convenience going forward.
 - Sandboxed execution is day-one for model-written code.
 - Deterministic checks run before LLM review.
 - Memory is typed product state, not loose prose logs.
 - Visual debugging is part of normal validation, not a late feature.
 - Creative modules attach to the kernel after the kernel can govern work.
+
+## 4.1 Build Reset Operating Mode
+
+The reset is a build-order shift, not a rejection of the existing product implementation. The current Handshake product codebase remains the target foundation to build upon. Existing implemented product code should be treated as a good implementation of the Master Spec unless local evidence proves a specific defect.
+
+During the Kernel V1 build, assume the external ACP/repo-governance workflow may be broken or overgrown. Do not spend product-build time patching repo governance unless the issue blocks safe product edits, restartability, Task Board/Build Order/WP/microtask updates, or validator handoff.
+
+The working role for this mode is `KERNEL_BUILDER`: a temporary hybrid of Orchestrator and Coder. It may create broad Kernel V1 WPs and edit product code, but it does not validate, merge, or issue PASS/FAIL. Validation remains a separate Classic Validator or Operator-designated validator responsibility.
+
+Refinement and spec enrichment should be kept to the minimum needed for speed and clarity. Large WPs are acceptable, but each WP and microtask must contain enough detail for a capable model with no chat context to implement the work and for a validator to review it.
+
+Storage direction is non-negotiable for the reset: Handshake is a harness for parallel swarm agents and the Operator working at the same time. PostgreSQL plus CRDT are the product direction. Existing SQLite-backed code, tests, or storage helpers are migration/removal targets, not future architecture, fallback paths, or acceptable Kernel V1 scaffolding. Any SQLite usage in the current external repo-governance harness is legacy harness debt and must not be copied, defended, or carried forward as a Handshake product pattern.
 
 ## 5. Corrected State Model
 
@@ -143,6 +156,8 @@ Promotion Gate
 ```
 
 This keeps collaboration fluid without making live editable state the final source of truth.
+
+There is no SQLite layer in this state model. Kernel V1 must not introduce or preserve SQLite as a local cache, offline replica, convenience database, test-only authority, or compatibility storage mode. If a future implementation step encounters SQLite in existing product code, the correct posture is to plan its removal or containment while moving the kernel toward PostgreSQL-backed authority and CRDT-backed collaboration.
 
 ## 6. Proposed Kernel MVP
 
@@ -208,7 +223,8 @@ The differentiator is still mechanical determinism. Others increasingly provide 
 Implementation proposal:
 
 - Build a product-native runtime with typed events for sessions, actors, work packets, microtasks, artifacts, receipts, validation, and memory.
-- Store authoritative state in Postgres.
+- Store authoritative state in PostgreSQL.
+- Do not add SQLite-backed runtime paths. Do not preserve SQLite as a fallback, cache, test target, local-only authority, or migration bridge for Kernel V1.
 - Treat generated Markdown and UI summaries as projections over machine state.
 - Keep a compact event schema from day one so models can consume small slices instead of huge context dumps.
 - Add a scheduler that can run parallel model sessions with leases, backpressure, cancellation, stale-session recovery, and deterministic stop conditions.
@@ -235,7 +251,7 @@ Investigation:
 
 - Yjs for web/editor ecosystem, CodeMirror/Monaco integrations, and high-performance shared types.
 - Automerge for Rust/JS portability and local-first file-style documents.
-- Persistence model: CRDT updates in Postgres, object store, or local project bundle.
+- Persistence model: CRDT updates persist through PostgreSQL-backed product state. Large artifacts may use product-managed artifact storage, but workflow/collaboration truth still resolves through PostgreSQL plus CRDT contracts.
 - How to expose CRDT state to LLMs without dumping entire documents into context.
 
 ### 6.3 Local Model Runtime
@@ -723,6 +739,7 @@ Acceptance criteria:
 
 - The entire first task can be reconstructed from the ledger after restarting the app/backend.
 - No authority state changes occur without a promotion event.
+- No SQLite database, SQLite-backed cache, SQLite offline mode, SQLite test fixture, or SQLite compatibility path is introduced or accepted for Kernel V1.
 - The model adapter can be replaced without changing event authority semantics.
 - The trace projection does not depend on provider chat history, terminal scrollback, or model memory.
 - A no-context model can inspect the stored events and understand what happened.
@@ -842,6 +859,7 @@ A model with no chat history should be able to read this brief and correctly inf
 - The first target is a deterministic product kernel, not a creative module and not another external governance harness.
 - CRDT is required day one because the Operator and models must work inside the app in parallel.
 - Postgres/event state is required day one because live collaboration state is not final authority.
+- SQLite is explicitly rejected going forward. Future models must not propose SQLite authority, fallback, cache, offline, test-fixture, or compatibility paths for Kernel V1.
 - The operator surface is the primary control room and audit boundary.
 - The terminal may exist as a backend transport or debug panel, but it is not the Operator's main workspace.
 - A commercial AI IDE model-subscription approach is not available to Handshake day one because it requires provider agreements, billing, quota, and abuse-control infrastructure.

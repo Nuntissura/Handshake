@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-FEMS-Calibration-Dashboard-v1",
   "base_wp_id": "WP-1-FEMS-Calibration-Dashboard",
@@ -52,7 +67,8 @@
     "intent": "- What: Add operational health calibration signals to the DCC Front End Memory Panel so the operator can see whether FEMS is healthy or degrading. Ports the calibration signals pattern from repo governance memory hygiene reports.\n- Why: The DCC Memory Panel (§10.11.5.14) specifies Memory Browser, Write Review, MemoryPack Preview, and Conflict queue — but no health dashboard. Without calibration signals, memory degradation (bloat, stale dominance, trust drift, embedding gaps) is invisible until it manifests as poor model behavior.",
     "scope_sketch": "- IN_SCOPE:\n  - Calibration signal panel in DCC Memory Panel showing:\n    - Active memory count vs budget cap (healthy <80% of cap).\n    - Type distribution (working/episodic/semantic/procedural breakdown).\n    - Trust distribution (user-explicit vs job-extracted vs auto-derived).\n    - Novelty penalty rate (% of recent writes that hit dedup/novelty guard).\n    - Session diversity (memories per source session in active pool; >8 = dominance).\n    - Embedding coverage (% of active items with embeddings; <50% = degraded hybrid search).\n    - Contradiction count (unresolved conflicts in queue).\n    - Average importance of active items (0.3-0.7 healthy).\n    - Last hygiene run timestamp and summary.\n    - Retrieval degradation tier distribution (how often FTS5-only vs full hybrid).\n  - Color-coded health status per signal (green/amber/red thresholds).\n  - Hygiene report artifact viewer (output from FEMS Hygiene Manager Job).\n- OUT_OF_SCOPE:\n  - Memory Browser/Write Review/MemoryPack Preview (already in §10.11.5.14 base spec).\n  - Backend hygiene logic (WP-1-FEMS-Hygiene-Manager-Job-v1).\n  - Scoring formula implementation (WP-1-FEMS-Injection-Scoring-Graceful-Degradation-v1).",
     "acceptance_criteria": "- DCC Memory Panel displays all calibration signals with color-coded health thresholds.\n- Operator can see at a glance whether FEMS is healthy or needs attention.\n- Hygiene report from most recent manager run is viewable from the panel.\n- Signals update after each hygiene run and after each MemoryPack build.\n- All calibration data is queryable by models (LLM-friendly data principle).",
-    "risks_unknowns": "- Risk: too many signals overwhelm the operator; need progressive disclosure (summary → detail drill-down).\n- Risk: signal thresholds need tuning per workspace size; defaults from governance (500 cap, 30% novelty) are starting points."
+    "risks_unknowns": "- Risk: too many signals overwhelm the operator; need progressive disclosure (summary → detail drill-down).\n- Risk: signal thresholds need tuning per workspace size; defaults from governance (500 cap, 30% novelty) are starting points.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

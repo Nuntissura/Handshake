@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-MTE-Summaries-v1",
   "base_wp_id": "WP-1-MTE-Summaries",
@@ -52,7 +67,8 @@
     "intent": "- What: Generate and persist per-microtask summaries and an aggregate run summary, and link them via stable artifact refs.\n- Why: Without summaries, runs are not reviewable/auditable, and downstream orchestration loses condensed state.",
     "scope_sketch": "- IN_SCOPE:\n  - Persist summary artifacts:\n    - per-MT summary (e.g., `mt_summaries/{mt_id}.md` or JSON+md)\n    - aggregate summary for the full execution run\n  - Populate summary references in ProgressArtifact / RunLedger entries.\n  - Add targeted tests that fail if summary refs are not written.\n- OUT_OF_SCOPE:\n  - UI polish for summary rendering (Operator Consoles can be minimal first).",
     "acceptance_criteria": "- A completed Micro-Task Executor run writes summary artifacts and sets summary_ref fields.\n- A targeted test verifies summary artifacts exist and are linked.",
-    "risks_unknowns": "- Summary content must be leak-safe and policy-aligned if it includes tool outputs."
+    "risks_unknowns": "- Summary content must be leak-safe and policy-aligned if it includes tool outputs.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

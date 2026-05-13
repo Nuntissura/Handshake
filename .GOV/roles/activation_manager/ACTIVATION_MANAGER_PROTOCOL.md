@@ -23,7 +23,7 @@
 - The Activation Manager owns pre-launch governance authoring only.
 - It may perform:
   - refinement authoring and refinement repair
-  - approved current indexed Master Spec enrichment and related manifest/SPEC_CURRENT synchronization
+  - approved current Master Spec enrichment through the copy-first versioned indexed bundle workflow and related manifest/changelog/SPEC_CURRENT synchronization
   - stub backlog creation or repair when refinement, matrix upkeep, or spec enrichment discovers new required follow-up items
   - signature normalization / recording after operator approval is supplied
   - packet hydration and packet-family mechanical preparation
@@ -93,7 +93,7 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 - Refinement and enrichment is one normative pre-launch phase with one quality bar across both workflow lanes; lane selection changes who executes it, never what completion means.
 - The Activation Manager owns the full pre-launch refinement burden: research / landscape scan, research-currency and research-depth capture, primitive index upkeep, primitive matrix upkeep, matrix-research follow-through, force-multiplier expansion, appendix maintenance, and approved spec-enrichment drafting when required.
 - For internal, repo-governed, or product-governance mirror WPs that are already anchored in the resolved current Master Spec plus local product/runtime code, prefer local-spec/local-code truth first and set external research sections to `NOT_APPLICABLE` when honest. Do not perform empty, generic, or off-topic web searches just to satisfy the research headings.
-- Resolve the current Master Spec through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to `.GOV/spec/indexed_spec/indexed-spec-manifest.json` and ordered `spec-modules/`. `Handshake_Master_Spec_v*.md` files are source baselines/provenance during indexed migration, not the enrichment editing target.
+- Resolve the current Master Spec through `.GOV/spec/SPEC_CURRENT.md` (`handshake.spec_current@1` JSON) to the active indexed bundle manifest, resolver `INDEX.json`, and ordered `spec-modules/`. `Handshake_Master_Spec_v*.md` files are source baselines/provenance during indexed migration, not the enrichment editing target.
 - Once the core spec/runtime evidence for the assigned WP is gathered, converge into the named target refinement or spec-enrichment artifact immediately. Do not broad-scan unrelated `.GOV/refinements` or `.GOV/task_packets` for examples. If structure help is genuinely needed, read at most 2 directly analogous artifacts, then return to writing the target artifact.
 - Pillar feature definition and technical implementation MUST be derived from the current Master Spec. If the spec does not make a pillar or capability slice concrete enough, record `UNKNOWN` and resolve it through stub or spec-enrichment work instead of guessing.
 - When refinement, enrichment, matrix upkeep, or primitive-index work discovers a new high-ROI item, missing capability, unknown interaction, or follow-up requirement, the Activation Manager MUST create or update stub backlog items instead of silently dropping the discovery.
@@ -104,17 +104,23 @@ Refinement signature, packet creation, and pre-launch handback to the Orchestrat
 Activation Manager is one of the only roles allowed to patch current Master Spec content, and only during approved pre-launch enrichment. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`.
 
 Current structure:
-- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint.
-- `.GOV/spec/indexed_spec/indexed-spec-manifest.json`: current indexed-spec manifest, module order, module hashes, and reconstructed-spec hash.
-- `.GOV/spec/indexed_spec/spec-modules/module-index.md`: human navigation index for locating the owning module.
-- `.GOV/spec/indexed_spec/spec-modules/*.md`: editable current Master Spec modules.
+- `.GOV/spec/SPEC_CURRENT.md`: machine-readable `handshake.spec_current@1` entrypoint to the active indexed Master Spec version.
+- `.GOV/spec/master-spec-vNN.NNN/`: canonical active versioned indexed bundle shape after migration; contains `indexed-spec-manifest.json`, `INDEX.json`, `spec-modules/*.md`, and the manifest-declared machine-readable changelog.
+- `.GOV/spec/indexed_spec/`: legacy compatibility current bundle only until the next governed versioned-bundle migration; do not use it as the long-term active edit target.
+- `.GOV/spec/spec_archive/master-spec-v*/`: immutable non-current indexed bundles for older Master Spec versions.
 - `.GOV/spec/Handshake_Master_Spec_v*.md`: source baseline/provenance, not the patch target for current spec edits.
 
 Write sequence:
-- Inspect `module-index.md` and the manifest before editing; patch the smallest owning module(s), not the whole spec.
+- Resolve `SPEC_CURRENT.md`, the active manifest, the active `INDEX.json`, current version, previous/source baseline, and declared archive root before editing.
+- Create the next versioned indexed bundle by copying the resolved current bundle first; do not patch the currently active bundle in place.
+- Inspect the new bundle `INDEX.json` and manifest; patch the smallest owning module(s), not the whole spec.
 - Keep refinement ordering intact: Main Body first, then EOF appendices/index/matrix, then roadmap/build-order/stub projections.
+- Ensure every active module and the manifest carry the same `spec_version` as the new `SPEC_CURRENT.current_spec.version`.
 - When module bytes change, update the affected `modules[].sha256`, line/byte/heading metadata, and `reconstruction.reconstructed_sha256`; source-match flags must reflect reality.
-- Update `SPEC_CURRENT.md` only when entrypoint, human index path, version, or source-baseline metadata changes.
+- Append/update the manifest-declared machine-readable changelog with version, previous version, changed modules, before/after hashes, approval evidence/signature, reason, and validation commands/outcomes.
+- Refresh internal Master Spec references that describe current-spec resolution, versioning, file paths, checks, or enrichment workflow so active text names `SPEC_CURRENT`, the active versioned bundle manifest/resolver/modules, and the machine-readable changelog instead of stale latest-monolith or previous-folder wording.
+- Update `SPEC_CURRENT.md` to the new versioned bundle only after the new manifest, resolver index, modules, and changelog are internally consistent.
+- Move or keep non-current versioned indexed bundles under `.GOV/spec/spec_archive/`; never hard-delete older spec bundles during routine versioning.
 - Verify with `node .GOV/roles_shared/scripts/spec-current-check.mjs`, `node .GOV/roles/validator/checks/validator-spec-regression.mjs`, `node .GOV/roles_shared/checks/spec-eof-appendices-check.mjs`, and `just gov-check`.
 
 ## Orchestrator-Managed Handback Loop (HARD)
@@ -178,7 +184,7 @@ Cross-session conversational memory captures what was refined, decided, and flag
 
 - `/.GOV/task_packets/**`
 - `/.GOV/refinements/**`
-- `/.GOV/spec/indexed_spec/**` and `/.GOV/spec/SPEC_CURRENT.md` when approved current-spec enrichment requires module, manifest, entrypoint, version, or baseline updates
+- `/.GOV/spec/master-spec-v*/**`, legacy `/.GOV/spec/indexed_spec/**`, `/.GOV/spec/spec_archive/**`, and `/.GOV/spec/SPEC_CURRENT.md` when approved current-spec enrichment requires copy-first module, manifest, changelog, archive, entrypoint, version, or baseline updates
 - `/.GOV/roles_shared/records/SIGNATURE_AUDIT.md`
 - other pre-launch governance surfaces mechanically required for coherent activation, such as `BUILD_ORDER.md`, `WP_TRACEABILITY_REGISTRY.md`, and stub/backlog projections
 

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-FEMS-Hygiene-Manager-Job-v1",
   "base_wp_id": "WP-1-FEMS-Hygiene-Manager-Job",
@@ -51,7 +66,8 @@
     "intent": "- What: Implement a scheduled FEMS hygiene job that runs consolidation, pruning, flagging, and promotion using a cost-effective model. Ports the battle-tested Memory Manager pattern from repo governance into the product Execution / Job Runtime.\n- Why: FEMS defines `memory_consolidate_v0.1` and `memory_forget_v0.1` job kinds but has no scheduled orchestration. Without active hygiene, LongTermMemory grows unbounded, stale items pollute MemoryPack injection, and contradictions accumulate unresolved.",
     "scope_sketch": "- IN_SCOPE:\n  - Background AI job using `memory_consolidate_v0.1` and `memory_forget_v0.1` profiles.\n  - Scheduled triggers: on session close, on cron (configurable interval).\n  - Hygiene rubric implementation: FLAG stale scope_refs, PRUNE old episodic clusters, REPAIR broken supersession chains, PROMOTE cross-session patterns.\n  - Integration with DCC Approval Inbox for procedural memory promotions requiring human review.\n  - Hygiene report artifact (MemoryCommitReport) with FR-EVT-MEM-003 emission.\n  - Cost-effective model routing (cheap model for mechanical hygiene, not cloud-tier).\n  - Sleep-time reflection (memclawz pattern): during idle time (no active sessions, app in background), run reflection jobs that go beyond cleanup — find cross-memory connections, detect emerging patterns across working/episodic items, pre-compute MemoryPacks for likely next sessions. Distinct from hygiene (cleanup) — reflection creates new knowledge. Uses background lane in session scheduler.\n- OUT_OF_SCOPE:\n  - FEMS core read/write paths (already in WP-1-Front-End-Memory-System-v1).\n  - Anti-poisoning guardrails (WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1).\n  - Write-time mechanical safeguards (separate stub: WP-1-FEMS-Write-Time-Safeguards-v1).",
     "acceptance_criteria": "- Hygiene job runs on schedule without manual trigger.\n- Stale, contradicted, and low-importance items are flagged/pruned with logged rationale.\n- Cross-session pattern promotion creates new semantic/procedural MemoryItems via governed MemoryWriteProposal.\n- Procedural promotions route through DCC Approval Inbox.\n- All actions emit FR-EVT-MEM-* events with artifact handles.\n- Total memory store stays within configurable budget (default 500 items).",
-    "risks_unknowns": "- Risk: cheap model may make poor consolidation decisions; need quality gate on hygiene output.\n- Risk: aggressive pruning could delete useful memories; conservative defaults with operator override."
+    "risks_unknowns": "- Risk: cheap model may make poor consolidation decisions; need quality gate on hygiene output.\n- Risk: aggressive pruning could delete useful memories; conservative defaults with operator override.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

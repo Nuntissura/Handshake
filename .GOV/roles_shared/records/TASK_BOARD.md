@@ -118,7 +118,6 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Locus-Phase1-Medallion-Search-v1]** - [STUB]
 - **[WP-1-LocalFirst-Agentic-MCP-Posture-v1]** - [STUB]
 - **[WP-1-Storage-No-Runtime-DDL-v1]** - [STUB]
-- **[WP-1-Postgres-Control-Plane-Shift-Bundle-v1]** - [STUB]
 - **[WP-1-Spec-Router-Session-Log]** - [STUB]
 - **[WP-1-Spec-Router-CapabilitySnapshot-v1]** - [STUB]
 - **[WP-1-Spec-Router-Evidence-Portability-v1]** - [STUB]
@@ -1243,6 +1242,7 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 ## Blocked
+- **[WP-KERNEL-001-Event-Ledger-Session-Broker-v1]** - [BLOCKED] - pending operator USER_SIGNATURE and indexed Master Spec enrichment for Kernel V1 Postgres EventLedger/SessionBroker authority before coder launch
 ---
 
 
@@ -1271,6 +1271,7 @@ Entry format for this section:
 ---
 
 ## Superseded (Archive)
+- **[WP-1-Postgres-Control-Plane-Shift-Bundle-v1]** - [SUPERSEDED]
 - **[WP-1-Media-Downloader-v1]** - [SUPERSEDED]
 - **[WP-1-AppState-Refactoring]** - [SUPERSEDED]
 - **[WP-1-AppState-Refactoring-v2]** - [SUPERSEDED]

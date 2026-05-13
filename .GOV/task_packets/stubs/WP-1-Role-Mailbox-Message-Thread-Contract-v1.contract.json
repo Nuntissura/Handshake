@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Role-Mailbox-Message-Thread-Contract-v1",
   "base_wp_id": "WP-1-Role-Mailbox-Message-Thread-Contract",
@@ -54,7 +69,8 @@
     "intent": "- What: Define and later implement the typed Role Mailbox thread-lifecycle, message-delivery, allowed-response, and action-request contract that governs asynchronous collaboration across Work Packets, Micro-Tasks, Locus Work Tracking, Task Board projections, and Dev Command Center inbox triage.\n- Why: Handshake now has structured collaboration artifacts, portable workflow state, and transition law, but it still needs one durable mailbox contract so local small models, cloud models, operators, reviewers, and overseers can collaborate asynchronously without transcript order becoming authority.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical `RoleMailboxThreadLifecycleState`, `RoleMailboxMessageDeliveryState`, `RoleMailboxAllowedResponse`, and `RoleMailboxActionRequestV1` contracts.\n  - Thread and message schemas for due posture, snooze posture, dead-letter posture, linked record identifiers, and governed action candidates.\n  - Mailbox-local versus governed-action boundaries for acknowledge, snooze, reply, escalate, delegate, resolve, and transcription-request flows.\n  - Typed Micro-Task collaboration message families for request, feedback, verification, escalation, and completion reporting.\n  - Dev Command Center triage requirements for thread-lifecycle badges, action-request previews, and dead-letter handling.\n- OUT_OF_SCOPE:\n  - External email or generic task-intake mailbox systems.\n  - Full cross-channel intake normalization from Slack, email, or Stage capture.\n  - Rich board design beyond the inbox and queue fields needed for lawful triage.",
     "acceptance_criteria": "- Role Mailbox thread lifecycle and message delivery state are explicit, durable, and queryable without transcript parsing.\n- Allowed responses and action-request metadata are visible before a reply or quick action is offered.\n- Mailbox-local actions such as acknowledge or snooze never mutate linked authoritative records implicitly.\n- Micro-Task request, feedback, verification, escalation, and completion-report traffic can be queried by typed message family.\n- Dev Command Center triage distinguishes mailbox-local actions, governed actions, and transcription-required actions before linked work changes.",
-    "risks_unknowns": "- Too many message families or allowed responses could make the mailbox contract noisy for operators and smaller models.\n- If action-request metadata is optional everywhere, implementations may fall back to prose parsing and lose determinism.\n- If dead-letter posture is not visible, operators may misread mailbox failure as linked work failure."
+    "risks_unknowns": "- Too many message families or allowed responses could make the mailbox contract noisy for operators and smaller models.\n- If action-request metadata is optional everywhere, implementations may fall back to prose parsing and lose determinism.\n- If dead-letter posture is not visible, operators may misread mailbox failure as linked work failure.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

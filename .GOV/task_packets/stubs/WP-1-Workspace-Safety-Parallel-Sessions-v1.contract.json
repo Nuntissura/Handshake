@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Workspace-Safety-Parallel-Sessions-v1",
   "base_wp_id": "WP-1-Workspace-Safety-Parallel-Sessions",
@@ -54,7 +69,8 @@
     "intent": "- What: Enforce workspace safety boundaries for parallel sessions: worktree isolation and/or strict file-scope locks, deny-by-default cross-session access, command denylist, and merge-back discipline.\n- Why: Parallel sessions touching the same repo/workspace can silently overwrite or conflict without deterministic isolation and fail-closed execution rules.",
     "scope_sketch": "- IN_SCOPE:\n  - Isolation strategy:\n    - Support worktree isolation (preferred) and/or file-scope lock isolation (fallback).\n  - Enforcement:\n    - INV-WS-001 in-scope path enforcement (no writes outside declared IN_SCOPE_PATHS).\n    - INV-WS-003 deny cross-session access to another session’s uncommitted worktree by default.\n    - Command denylist enforced by Tool Gate for spawned/background sessions (destructive git ops, rm -rf outside scope, and governance artifact modification bypass).\n  - Merge-back discipline:\n    - Session produces merge-ready diff/patch artifact with provenance.\n    - Merge-back is explicit operator-governed action with Flight Recorder logging; conflicts surface as BLOCKED with explicit conflict report.\n- OUT_OF_SCOPE:\n  - Non-git worksurface isolation (Design Studio entity locking) (Phase 2+).",
     "acceptance_criteria": "- With 2 sessions on the same workspace, overlapping writes are deterministically prevented (worktree isolation or lock block) with explicit errors and evidence.\n- Spawned/background sessions cannot run denied destructive commands without per-invocation approval.\n- Merge-back is explicit and produces Flight Recorder evidence; merge conflicts are not silently resolved.",
-    "risks_unknowns": "- Risk: incomplete scope derivation for sessions/MTs makes enforcement noisy; may require explicit scoping UX/workflow in DCC."
+    "risks_unknowns": "- Risk: incomplete scope derivation for sessions/MTs makes enforcement noisy; may require explicit scoping UX/workflow in DCC.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

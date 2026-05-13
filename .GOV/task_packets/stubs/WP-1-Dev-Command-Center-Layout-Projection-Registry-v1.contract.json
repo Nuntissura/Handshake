@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Dev-Command-Center-Layout-Projection-Registry-v1",
   "base_wp_id": "WP-1-Dev-Command-Center-Layout-Projection-Registry",
@@ -54,7 +69,8 @@
     "intent": "- What: Define and later implement the registry of Dev Command Center layout presets, lane definitions, grouping rules, and governed action bindings for board, queue, list, roadmap, inbox-triage, and execution-queue operating views.\n- Why: Handshake needs a typed layout layer so Jira-like or novel operator boards can evolve without turning drag behavior, queue ordering, or quick actions into hidden workflow authority.",
     "scope_sketch": "- IN_SCOPE:\n  - Versioned `DevCommandCenterViewPresetV1` preset registry for board, queue, list, roadmap, inbox-triage, and execution-queue layouts.\n  - Stable `TaskBoardLaneDefinitionV1` and `ProjectionActionBindingV1` registration, validation, and lookup.\n  - Dev Command Center layout switching that reveals the authoritative fields, grouping keys, lane rules, and governed action previews behind each view.\n  - Local-small-model execution queues and mailbox triage layouts that stay compact-summary-first and field-addressable.\n- OUT_OF_SCOPE:\n  - Replacing the canonical structured collaboration schema family.\n  - Direct synchronization with external products such as Jira.\n  - Ad hoc layout-local mutations that bypass workflow, approval, or evidence rules.",
     "acceptance_criteria": "- Versioned presets exist for board, queue, list, roadmap, inbox triage, and execution queue layouts over the same canonical record family.\n- Drag, reorder, quick, and bulk actions show explicit action bindings, target records, approvals, and evidence posture before state changes.\n- Layout fallback remains usable when only the base structured-collaboration envelope is available.\n- Local-small-model queues remain compact-summary-first and expose mailbox blockers, escalation needs, and validation posture without long-form record ingestion.",
-    "risks_unknowns": "- Layout sprawl can recreate hidden state if preset ids and action bindings are not versioned and linted.\n- Board metaphors from Jira or other products can overfit software-delivery projects and weaken project-agnostic reuse.\n- Queue and board views may diverge unless preset fallbacks and group-by rules are centralized in one registry."
+    "risks_unknowns": "- Layout sprawl can recreate hidden state if preset ids and action bindings are not versioned and linted.\n- Board metaphors from Jira or other products can overfit software-delivery projects and weaken project-agnostic reuse.\n- Queue and board views may diverge unless preset fallbacks and group-by rules are centralized in one registry.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

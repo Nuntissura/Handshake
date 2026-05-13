@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Cloud-Consent-Evidence-Portability-v1",
   "base_wp_id": "WP-1-Cloud-Consent-Evidence-Portability",
@@ -56,7 +71,8 @@
     "intent": "- What: Define the backend portability bridge that turns `consent_receipt.json`, `cloud_escalation_request.json`, and their linked projection-plan evidence into stable manifest/hash/retention semantics across storage swaps and later bounded export.\n- Why: Cloud consent artifacts are already persisted and recorder-visible, but their portability semantics are still too implicit for replay, export, and later operator/model evidence tooling.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonicalize manifest/hash/retention semantics for consent receipt and cloud escalation request artifacts.\n  - Define how consent evidence relates to Flight Recorder, storage portability, and bounded export without widening scope implicitly.\n  - Clarify what later replay/export/operator tooling may assume about consent artifact identity and lifecycle.\n- OUT_OF_SCOPE:\n  - Reworking cloud-consent UI flows.\n  - Provider-specific consent flows beyond the shared artifact contract.",
     "acceptance_criteria": "- Consent receipt and cloud escalation request artifacts are explicitly modeled as portable backend evidence, not only workflow-local JSON files.\n- Storage/backend swaps preserve stable ids, hashes, and retention semantics for consent artifacts.\n- Later export/replay packets can point to one canonical consent-artifact portability contract instead of inventing ad hoc rules.",
-    "risks_unknowns": "- Risk: consent artifacts drift in hash or retention semantics across backends, making replay or audit unverifiable.\n- Risk: export tooling widens consent scope silently if portability rules remain implicit."
+    "risks_unknowns": "- Risk: consent artifacts drift in hash or retention semantics across backends, making replay or audit unverifiable.\n- Risk: export tooling widens consent scope silently if portability rules remain implicit.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

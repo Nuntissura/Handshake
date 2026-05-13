@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Governance-Pack-v1",
   "base_wp_id": "WP-1-Governance-Pack",
@@ -55,7 +70,8 @@
     "intent": "- What: Implement Governance Pack generation/instantiation in Handshake so projects can adopt the same strict workflow without Handshake-specific hardcoding.\n- Why: Handshake must \"use itself\" as a governance engine for other projects; the repo workflow becomes a reusable product capability.\n- Additive rule: imported repo-governance assets are one software-delivery profile overlay inside the pack, not a replacement for Handshake-native governance or future non-software kernels.",
     "scope_sketch": "- IN_SCOPE:\n  - `ProjectIdentity` schema and persistence (project_code, naming_policy, language/layout profile, external tool paths).\n  - Governance Pack manifest and instantiation logic (templates + mechanical gate semantics + command surface contract).\n  - No Handshake-hardcoded file naming when instantiating a non-Handshake project.\n  - Conformance harness requirement for alternate implementations, including explicit \"intent\" equivalence notes.\n- OUT_OF_SCOPE:\n  - Changing the current repo governance implementation files (Codex/protocol/scripts) as a refactor.\n  - Shipping additional product subsystems unrelated to governance.",
     "acceptance_criteria": "- A new project can be bootstrapped with a project-specific Codex + Master Spec naming policy (underscore style, deterministic).\n- Language/layout guardrails exist per project (no Handshake path coupling).\n- External tool paths are prompted/configured per project and persist deterministically.\n- Conformance checks can prove gate semantics equivalence across implementations.",
-    "risks_unknowns": "- Drift between \"reference repo implementation\" and product Governance Pack templates.\n- Cross-platform path differences and quoting rules.\n- Over-tight coupling between Governance Pack and Git-only workflows."
+    "risks_unknowns": "- Drift between \"reference repo implementation\" and product Governance Pack templates.\n- Cross-platform path differences and quoting rules.\n- Over-tight coupling between Governance Pack and Git-only workflows.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Diagnostics-Debug-Bundle-Bridge-v1",
   "base_wp_id": "WP-1-Diagnostics-Debug-Bundle-Bridge",
@@ -54,7 +69,8 @@
     "intent": "- What: Define the bounded bridge that turns normalized diagnostics queries, grouped problems, validation findings, and their recorder correlations into canonical debug-bundle export inputs with stable manifest and retention behavior.\n- Why: Diagnostics already feed Problems views and exporter internals, but the bundle materialization contract is still too implicit for deterministic replay, portability, and later operator/model evidence tooling.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonicalize how diagnostics payloads map into debug-bundle scope, manifests, and bounded export semantics.\n  - Define how diagnostics bundle materialization relates to Flight Recorder, Problems, and storage portability without widening scope implicitly.\n  - Clarify what future replay/export/operator tooling may assume about diagnostics artifact identity and lifecycle.\n- OUT_OF_SCOPE:\n  - Reworking Problems view UX beyond the existing debug/evidence contract.\n  - Inventing new diagnostics taxonomies beyond the shared schema and current exporter needs.",
     "acceptance_criteria": "- Diagnostics queries, grouped problems, and validation findings are explicitly modeled as portable backend evidence, not only exporter-local assembly details.\n- Debug-bundle export preserves stable ids, bounded scope, and retention semantics for diagnostics-derived artifacts across storage swaps.\n- Later evidence/replay packets can point to one canonical diagnostics-to-bundle bridge instead of inventing ad hoc exporter rules.",
-    "risks_unknowns": "- Risk: diagnostics export scope drifts from Problems/Flight Recorder semantics, making replay and audit inconsistent.\n- Risk: bundle tooling over-exports diagnostics payloads if bounded materialization rules remain implicit."
+    "risks_unknowns": "- Risk: diagnostics export scope drifts from Problems/Flight Recorder semantics, making replay and audit inconsistent.\n- Risk: bundle tooling over-exports diagnostics payloads if bounded materialization rules remain implicit.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

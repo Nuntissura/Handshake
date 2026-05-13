@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Locus-Phase1-Integration-Occupancy-v1",
   "base_wp_id": "WP-1-Locus-Phase1-Integration-Occupancy",
@@ -56,7 +71,8 @@
     "intent": "- What: Wire Locus into Spec Router and Micro-Task Executor and implement MT occupancy tracking for parallel sessions.\n- Why: Without integration, Locus is an unused side subsystem; occupancy is required to make parallel sessions safe and observable.",
     "scope_sketch": "- IN_SCOPE:\n  - Add `active_session_ids: string[]` to tracked micro-task state.\n  - Add mechanical ops: locus_bind_session_v1 / locus_unbind_session_v1.\n  - Spec Router integration: auto locus_create_wp (and updates) for created/updated WPs.\n  - Micro-Task Executor integration: locus_start_mt / locus_record_iteration / locus_complete_mt calls in the loop.\n- OUT_OF_SCOPE:\n  - Postgres Locus parity (separate decision/strategy stub).\n  - Medallion and hybrid search (separate stub).",
     "acceptance_criteria": "- Running a WP through Spec Router + MT Executor produces Locus storage rows for WP/MT/iterations.\n- active_session_ids reflects reality for parallel sessions (bind/unbind on session start/end).",
-    "risks_unknowns": "- Event ordering and idempotency across crashes; must be designed as replay-safe operations."
+    "risks_unknowns": "- Event ordering and idempotency across crashes; must be designed as replay-safe operations.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

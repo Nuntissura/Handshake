@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Video-Archive-Loom-Integration-v1",
   "base_wp_id": "WP-1-Video-Archive-Loom-Integration",
@@ -55,7 +70,8 @@
     "intent": "- What: Turn archived/imported video files (from YouTube or elsewhere) into first-class Loom library objects with searchable transcripts, captions sidecars, and tag/mention organization that composes with Lens/Atelier.\n- Why: Downloading is only half the problem; the archive must be browsable, searchable, and meaningfully organized across a large family library.",
     "scope_sketch": "- IN_SCOPE:\n  - Loom-first modeling:\n    - Each video Asset gets a LoomBlock wrapper (title, imported_at, source metadata).\n    - Captions (`.vtt`) and transcript Documents attach as referenced entities (no duplication).\n  - Transcript generation:\n    - If captions are present: ingest captions as a timing sidecar and derive a readable transcript Document.\n    - If captions are missing: offer local-first ASR job to produce transcript + timing sidecars (per Section 6.2).\n  - Smart organization (user-safe):\n    - Manual tags become RawContent `TAG` edges.\n    - AI-suggested tags remain DerivedContent (`AI_SUGGESTED` edges) until user confirmation (LM-TAG-005).\n  - Browsing + retrieval:\n    - Loom views show videos with thumbnails/proxies and allow filtering by tags/date/source.\n    - Lens queries can filter by tag facets and hit transcript/caption text.\n  - Evidence + observability:\n    - All ingestion/transcript/tagging jobs emit Flight Recorder events and are visible in Operator Consoles / Job History.\n- OUT_OF_SCOPE:\n  - Full video editor/timeline authoring UI (Director render pipelines are separate).\n  - Cloud transcription by default (cloud is opt-in and capability-gated).",
     "acceptance_criteria": "- Importing a folder of videos + captions results in LoomBlocks with stable IDs, thumbnails, and attached captions/transcripts.\n- Transcripts are searchable and link back to the source video (time offsets preserved).\n- Tags/mentions work through LoomEdges; AI suggestions require explicit user confirmation before becoming Raw tags.\n- A large library (100s+ videos) remains usable (batch jobs, progress, resume; no UI lockups).",
-    "risks_unknowns": "- Transcript size + indexing cost; need chunking strategy for long videos.\n- UX complexity: presenting captions vs ASR vs both; avoiding duplicate/conflicting transcripts.\n- Privacy: ensure no default cloud sends; clear UI for capability/consent."
+    "risks_unknowns": "- Transcript size + indexing cost; need chunking strategy for long videos.\n- UX complexity: presenting captions vs ASR vs both; avoiding duplicate/conflicting transcripts.\n- Privacy: ensure no default cloud sends; clear UI for capability/consent.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

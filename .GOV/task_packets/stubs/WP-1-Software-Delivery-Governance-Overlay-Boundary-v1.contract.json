@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Software-Delivery-Governance-Overlay-Boundary-v1",
   "base_wp_id": "WP-1-Software-Delivery-Governance-Overlay-Boundary",
@@ -53,7 +68,8 @@
     "intent": "- What: Define and later implement the boundary that keeps repository `/.GOV/**` artifacts as imported software-delivery overlay source material or evidence while product-owned runtime records and workflow-backed governed actions remain the live authority.\n- Why: The new software-delivery overlay law in `v02.181` is explicit that repo governance material may be imported, projected, exported, and evidenced, but it may not silently become the operational source of truth inside Handshake runtime.",
     "scope_sketch": "- IN_SCOPE:\n  - Imported-overlay boundary rules for repository `/.GOV/**` artifacts used by software-delivery governance flows.\n  - Canonical distinction between:\n    - imported overlay source material\n    - imported overlay evidence\n    - product-owned runtime authority\n  - Governance Pack import/export behavior that preserves imported overlay artifacts without bypassing workflow-backed runtime law.\n  - Projection and audit rules that let Dev Command Center and related surfaces show imported overlay posture without elevating repo paths into live authority.\n- OUT_OF_SCOPE:\n  - Executing imported governance checks or scripts.\n  - Replacing Handshake-native governance with repository files.\n  - Generalized non-software governance-pack work outside the software-delivery overlay boundary.",
     "acceptance_criteria": "- At least one workflow-backed software-delivery flow preserves repository `/.GOV/**` artifacts as imported overlay source material or evidence instead of live runtime truth.\n- Governance Pack import/export preserves those overlay artifacts without allowing them to bypass product-owned workflow and gate law.\n- Runtime and UI projections can explain which overlay artifacts were imported and why, while still treating product-owned records and governed actions as operational authority.",
-    "risks_unknowns": "- Risk: imported repo artifacts leak back into product runtime as de facto authority because a projection or export path reuses repo state directly.\n- Risk: the software-delivery overlay flattens broader Handshake governance layers if the boundary is defined as a one-way import rather than an additive profile-specific overlay."
+    "risks_unknowns": "- Risk: imported repo artifacts leak back into product runtime as de facto authority because a projection or export path reuses repo state directly.\n- Risk: the software-delivery overlay flattens broader Handshake governance layers if the boundary is defined as a one-way import rather than an additive profile-specific overlay.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

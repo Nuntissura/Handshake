@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Loom-Storage-Portability-v4",
   "base_wp_id": "WP-1-Loom-Storage-Portability",
@@ -54,7 +69,8 @@
     "intent": "- What: Re-open the Loom portability work as a narrowly scoped remediation/proof pass that separates real portability evidence from narrative closure.\n- Why: The 2026-03-21 audit did not find a fresh Loom defect comparable to the Schema Registry gaps, but it also did not re-prove full portability closure, and the v3 packet remains blocked legacy history under current governance law.",
     "scope_sketch": "- IN_SCOPE:\n  - Re-validate the exact Loom portability clauses still required by the current spec and by any future remediation refinement.\n  - Narrow the remediation to concrete proof gaps or fresh defects found on current `main`; avoid speculative churn if the audited Loom slice is already materially correct.\n  - Preserve dual-backend evidence for graph traversal, directional edges, metrics recomputation, and source-anchor durability where those clauses remain in scope.\n- OUT_OF_SCOPE:\n  - Broad Loom feature expansion unrelated to storage portability.\n  - Media bridge or archive integration work owned by downstream Loom packets.",
     "acceptance_criteria": "- Any remaining Loom portability remediation is tied to explicit current-spec clauses and current-main evidence, not to the old v3 packet narrative alone.\n- If a concrete Loom defect exists, the remediation packet proves it with validator-owned checks on both supported backends.\n- If no concrete Loom defect remains, the future refinement must say so explicitly and reduce scope rather than inventing new churn.",
-    "risks_unknowns": "- The v3 packet mixed concrete storage work with broader closure claims; refinement must narrow the next packet to what is still actually open.\n- Dual-backend proof can become expensive if the next remediation broadens beyond the audited slice."
+    "risks_unknowns": "- The v3 packet mixed concrete storage work with broader closure claims; refinement must narrow the next packet to what is still actually open.\n- Dual-backend proof can become expensive if the next remediation broadens beyond the audited slice.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

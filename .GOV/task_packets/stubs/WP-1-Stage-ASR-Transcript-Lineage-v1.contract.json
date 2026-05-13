@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Stage-ASR-Transcript-Lineage-v1",
   "base_wp_id": "WP-1-Stage-ASR-Transcript-Lineage",
@@ -54,7 +69,8 @@
     "intent": "- What: Define the backend lineage contract from Stage-captured/imported media to governed ASR transcript artifacts, including stable source hashes, media-probe facts, timing anchors, and downstream Loom/Lens reuse posture.\n- Why: Stage and ASR are both explicit Phase 1 backend surfaces, but their transcript-lineage bridge is still under-modeled and should not remain implicit in helper code or UI assumptions.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical lineage contract:\n    - Stage capture/import media artifact -> ASR job input -> transcript artifact -> searchable downstream consumer.\n    - Stable source hash, media-probe facts, capture/session provenance, and timing-anchor requirements.\n  - Backend evidence posture:\n    - Recorder-visible progress/failure/transcript creation events.\n    - Storage-portable manifest semantics for transcript and source-media linkage.\n  - Downstream assumptions:\n    - What Loom, video archive, and later Lens/Studio time-span consumers may rely on without inventing a second lineage model.\n- OUT_OF_SCOPE:\n  - Full Stage Studio UX.\n  - Live captioning or diarization product work.\n  - Full Lens transcript-semantic features beyond the backend lineage contract.",
     "acceptance_criteria": "- Stage-captured/imported media and governed ASR transcripts are explicitly linked through a single backend lineage contract in Main Body and Appendix matrix.\n- Later implementation packets can reuse one source-media hash / timing-anchor / provenance contract across Stage, ASR, Loom, and archive flows.\n- Storage/backend swaps do not require redefining transcript-source linkage semantics.",
-    "risks_unknowns": "- Risk: Stage/media/ASR each invent separate source identity fields and later consumers cannot correlate transcripts to their origin deterministically.\n- Risk: transcript text survives, but timing anchors, source hashes, or capture provenance are lost, weakening replay, retrieval, and audit."
+    "risks_unknowns": "- Risk: Stage/media/ASR each invent separate source identity fields and later consumers cannot correlate transcripts to their origin deterministically.\n- Risk: transcript text survives, but timing anchors, source hashes, or capture provenance are lost, weakening replay, retrieval, and audit.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

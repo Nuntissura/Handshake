@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-MTE-DropBack-Smart-v1",
   "base_wp_id": "WP-1-MTE-DropBack-Smart",
@@ -51,7 +66,8 @@
     "intent": "- What: Implement DropBackStrategy::Smart decision logic (ShouldDropBack) per current spec and ensure it is test-covered.\n- Why: Drop-back semantics control how quickly execution returns to base escalation level after success; incorrect behavior creates cost/safety drift.",
     "scope_sketch": "- IN_SCOPE:\n  - Implement smart drop-back decision function using last escalation record + policy.\n  - Add targeted unit tests for always/never/smart and edge cases.\n- OUT_OF_SCOPE:\n  - Redesign of the escalation chain itself (separate stub if needed).",
     "acceptance_criteria": "- Smart drop-back behaves per spec across representative scenarios and has explicit test coverage.",
-    "risks_unknowns": "- If spec is ambiguous, require explicit acceptance examples in refinement before implementation."
+    "risks_unknowns": "- If spec is ambiguous, require explicit acceptance examples in refinement before implementation.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Workflow-Transition-Automation-Registry-v1",
   "base_wp_id": "WP-1-Workflow-Transition-Automation-Registry",
@@ -52,7 +67,8 @@
     "intent": "- What: Define and later implement the registry of `WorkflowTransitionRuleV1`, `QueueAutomationRuleV1`, and `ExecutorEligibilityPolicyV1` records that govern lawful state changes across Work Packets, Micro-Tasks, Task Board projections, Role Mailbox-linked waits, and Dev Command Center action previews.\n- Why: Handshake now has canonical structured records, shared workflow-state families, and typed Dev Command Center views, but it still needs one portable transition-and-automation law so local small models, cloud models, reviewers, validators, and operators can mutate work only through inspectable, approval-aware transitions.",
     "scope_sketch": "- IN_SCOPE:\n  - Canonical registry entries for allowed transition edges, transition-triggering governed actions, queue automation triggers, and executor eligibility policies.\n  - Portable automation rules for mailbox replies, dependency clearance, validation outcomes, retry scheduling, approval decisions, and escalation acknowledgements.\n  - Dev Command Center action-preview requirements that explain whether an action is automatic, approval-bound, actor-ineligible, or ready.\n  - Validation and linting expectations for Locus, Micro-Task Executor, Task Board projections, Work Packet views, and Role Mailbox-linked queue changes.\n- OUT_OF_SCOPE:\n  - Full project-profile-specific board or interface design beyond the transition metadata needed for previews.\n  - Replacing the broader workflow-state family registry or the structured-collaboration schema registry.\n  - Freeform heuristics that derive transition legality from lane names, thread order, or prose-only notes.",
     "acceptance_criteria": "- Every canonical workflow state mutation has an explicit transition rule, governed action source, and eligible actor set.\n- Queue automation triggers are explicit, machine-readable, and cannot silently cross approval boundaries.\n- Role Mailbox replies, expiries, and escalation acknowledgements can influence queues only through explicit automation rules tied to stable identifiers.\n- Dev Command Center previews explain whether a move is view-only, automatic, actor-ineligible, or lawful before authoritative state changes occur.\n- Local small model routing derives from workflow family, queue reason, transition legality, and executor eligibility without parsing long-form Markdown.",
-    "risks_unknowns": "- Too many transition rules or automation triggers would make the registry noisy for operators and smaller models.\n- If approval boundaries are not encoded directly in transition rules, automation may silently overreach.\n- If mailbox or board views are allowed to invent legal moves, the registry becomes advisory instead of authoritative."
+    "risks_unknowns": "- Too many transition rules or automation triggers would make the registry noisy for operators and smaller models.\n- If approval boundaries are not encoded directly in transition rules, automation may silently overreach.\n- If mailbox or board views are allowed to invent legal moves, the registry becomes advisory instead of authoritative.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

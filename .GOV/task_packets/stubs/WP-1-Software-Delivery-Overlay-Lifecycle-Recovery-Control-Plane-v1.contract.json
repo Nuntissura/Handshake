@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane-v1",
   "base_wp_id": "WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane",
@@ -56,7 +71,8 @@
     "intent": "- What: Define and later implement the software-delivery overlay lifecycle and recovery control-plane contract so start, steer, cancel, close, recover, and checkpoint-backed replay semantics are modeled by workflow-backed runtime records.\n- Why: `v02.181` now requires lifecycle checkpoints and recovery posture to stay inspectable and replay-safe. Partial failures and restart-safe steering can no longer be reconstructed from chat history or packet edits after the fact.",
     "scope_sketch": "- IN_SCOPE:\n  - Lifecycle-state and checkpoint-backed recovery posture for software-delivery overlay work.\n  - Workflow-backed start, steer, cancel, close, and recover action contracts for software-delivery control-plane operations.\n  - Projection rules that let DCC and adjacent surfaces inspect recovery posture without inventing a second authority.\n  - Partial-failure and restart-safe replay semantics that preserve stable identifiers, evidence refs, and governed action lineage.\n- OUT_OF_SCOPE:\n  - General multi-session lifecycle work outside the software-delivery overlay layer.\n  - UI-only resume buttons without canonical runtime or checkpoint semantics.\n  - Replacing existing session crash-recovery foundations with repo-local recovery notes.",
     "acceptance_criteria": "- At least one software-delivery work item exposes checkpoint-backed recovery posture and workflow-backed start/steer/cancel/close/recover semantics by stable identifiers.\n- Operators can inspect whether a work item is running, paused, restartable, canceling, recovered, or closeout-ready without replaying transcript history.\n- Restart-safe replay and partial-failure handling remain explainable from canonical runtime records, checkpoint lineage, and governed actions.",
-    "risks_unknowns": "- Risk: lifecycle checkpoints and governed action lineage diverge if recovery posture is modeled separately from workflow-backed control-plane state.\n- Risk: software-delivery lifecycle law overfits current orchestrator practices and fails to stay replayable when actors or runtimes change."
+    "risks_unknowns": "- Risk: lifecycle checkpoints and governed action lineage diverge if recovery posture is modeled separately from workflow-backed control-plane state.\n- Risk: software-delivery lifecycle law overfits current orchestrator practices and fails to stay replayable when actors or runtimes change.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,

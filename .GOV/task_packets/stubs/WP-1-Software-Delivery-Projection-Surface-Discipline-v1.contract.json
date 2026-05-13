@@ -2,6 +2,21 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
   "execution_authority": "NON_EXECUTION_STUB",
   "wp_id": "WP-1-Software-Delivery-Projection-Surface-Discipline-v1",
   "base_wp_id": "WP-1-Software-Delivery-Projection-Surface-Discipline",
@@ -55,7 +70,8 @@
     "intent": "- What: Define and later implement the projection-discipline contract that keeps Dev Command Center, Task Board, and Role Mailbox as projection or control surfaces over one runtime truth for software-delivery work.\n- Why: `v02.181` explicitly forbids layouts, inbox chronology, unread state, or Markdown mirror freshness from becoming hidden authority. Projection behavior now needs its own backlog slice instead of being implied by older UI work.",
     "scope_sketch": "- IN_SCOPE:\n  - Projection-surface rules for Dev Command Center, Task Board, and Role Mailbox on software-delivery profiles.\n  - Canonical field-provenance and action-preview contracts that explain which runtime fields and governed actions each surface is showing.\n  - Guardrails that prevent lane placement, thread order, or mirror freshness from silently deciding validation, ownership, or completion posture.\n  - Surface-level rules for when a projection may steer state through governed actions versus merely explain or summarize state.\n- OUT_OF_SCOPE:\n  - Cosmetic UI redesign.\n  - General-purpose layout registry work outside the software-delivery projection-discipline problem.\n  - Human-readable mirrors becoming canonical state.",
     "acceptance_criteria": "- Dev Command Center, Task Board, and Role Mailbox can all explain the same software-delivery runtime truth without contradicting one another.\n- Projection surfaces can show validation, ownership, follow-up, and recovery posture without deriving authority from lane placement, inbox chronology, or mirror freshness.\n- Operators can preview the governed target fields or actions behind a projection-surface interaction before mutation.",
-    "risks_unknowns": "- Risk: projection-only surfaces continue to accumulate hidden workflow logic that diverges from the governed action model.\n- Risk: Task Board and mailbox-derived views drift into second-authority behavior if field provenance and preview rules remain implicit."
+    "risks_unknowns": "- Risk: projection-only surfaces continue to accumulate hidden workflow logic that diverges from the governed action model.\n- Risk: Task Board and mailbox-derived views drift into second-authority behavior if field provenance and preview rules remain implicit.",
+    "governance_artifact_stance": ""
   },
   "activation_contract": {
     "may_start_coder": false,
