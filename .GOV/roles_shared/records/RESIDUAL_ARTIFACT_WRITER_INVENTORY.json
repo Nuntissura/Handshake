@@ -1188,15 +1188,15 @@
     {
       "artifact_class": "PRIMARY_CONTRACT_JSON",
       "authority_class": "PRIMARY_MACHINE_READABLE_ARTIFACT",
-      "id": "artifact-writer:09430e989eac6b38",
-      "line": 185,
+      "id": "artifact-writer:478487b0bba9019b",
+      "line": 197,
       "migration_status": "CANONICAL_CONTRACT_WRITER",
       "operation": "WRITE_ASYNC",
       "owner_role": "SHARED",
       "path": ".GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs",
       "rationale": "The writer targets a primary JSON contract or contract-adjacent structured file.",
       "risk_class": "LOW",
-      "source_hash": "8768765587176720",
+      "source_hash": "187f761a4accc2d9",
       "target_expression": "contractPath",
       "write_call": "fs.writeFile"
     },
@@ -2268,7 +2268,7 @@
   ],
   "generated_at_utc": null,
   "generated_by": "residual-artifact-writer-inventory.mjs",
-  "inventory_hash": "sha256:1f6e454262d565c6",
+  "inventory_hash": "sha256:9a73386441b2382e",
   "policy": {
     "deletion_rule": "This inventory does not authorize deleting scripts or artifacts.",
     "high_risk_rule": "Packet, refinement, and MT Markdown writes must be migrated to primary contract writers or carry an explicit contract-sync proof.",

@@ -4088,8 +4088,8 @@
       "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
       "artifact_kind": "FLAT_PACKET_STUB",
       "path": ".GOV/task_packets/stubs/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1.md",
-      "sha256": "82b4dd0f414b726d76bfb51b37cab331d7b9cad94da3823f36a361086bd26aa3",
-      "bytes": 55327,
+      "sha256": "608ccfe651ea0e61370bea59ba6e0f402d63bf454b2dd522f3da9030a3077688",
+      "bytes": 56127,
       "paired_folder_contract": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json",
       "paired_stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1.contract.json",
       "authority_status": "TYPED_NON_EXECUTION_STUB_CONTRACT",
@@ -4097,5 +4097,5 @@
       "migration_refactor_id": "RGF-289"
     }
   ],
-  "artifacts_sha256": "b825ba021a4cd1614c02722129178774a19fe3eade64de213f729954f4387289"
+  "artifacts_sha256": "43709642e64b0e0141a57946f380c08822532777f08c3fd105ad5f32162cd78c"
 }

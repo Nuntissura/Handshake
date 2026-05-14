@@ -1,5 +1,11 @@
 # TASK_PACKET_STUB_TEMPLATE
 
+Activation note:
+- This stub is superseded by the active machine-readable packet at `.GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json`.
+- Activation signature: `ilja140520260455`.
+- The active packet replaces the pre-activation validator-gate wording with Kernel Builder consolidated implementation plus separate Integration Validator batch review.
+- Preserved planning content below remains historical fold evidence, not executable authority.
+
 This is a BACKLOG STUB. It is NOT an executable Task Packet.
 
 Rules:
@@ -16,9 +22,13 @@ Rules:
 
 ## STUB_METADATA
 - WP_ID: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
-- BASE_WP_ID: WP-KERNEL-002-CRDT-Workspace-Promotion
+- BASE_WP_ID: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening
 - CREATED_AT: 2026-05-14T00:00:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: ACTIVATED_TO_PACKET
+- ACTIVE_PACKET: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- ACTIVE_PACKET_CONTRACT: .GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json
+- ACTIVATED_AT: 2026-05-14T10:20:22.552Z
+- ACTIVATION_SIGNATURE: ilja140520260455
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: YES
 - BUILD_ORDER_VALUE_TIER: HIGH
@@ -32,7 +42,7 @@ Rules:
 - ACTIVATION_MANAGER_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH
 - ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH
 - CODER_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH
-- WP_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_6_THINKING_MAX
+- WP_VALIDATOR_MODEL_PROFILE: N/A
 - INTEGRATION_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH
 
 ## COMPLETE_STUB_FOLD_POLICY
@@ -147,8 +157,8 @@ Rules:
   - Validator-mediated remediation loop:
     - Handshake, not the coder or validator model, owns MT/WP status transitions after work handoff.
     - Coders submit structured work status and evidence to Handshake; they do not manually advance packet or MT status.
-    - Handshake mechanically requests WP Validator review for the completed MT bundle against the MT contract, parent WP contract, allowed action catalog, write boxes, code diff, receipts, and test evidence.
-    - WP Validators submit structured pass/fail verdicts, mediation instructions, issue reports, bug reports, gap reports, out-of-scope findings, and evidence references; they do not manually edit packet/MT status.
+    - Handshake mechanically requests Integration Validator batch review for the completed MT bundle against the MT contract, parent WP contract, allowed action catalog, write boxes, code diff, receipts, and test evidence.
+    - Integration Validator submits structured pass/fail verdicts, mediation instructions, issue reports, bug reports, gap reports, out-of-scope findings, and evidence references; it does not manually edit packet/MT status.
     - Handshake records verdicts mechanically, updates projections, and creates remediation MTs or remediation packets when a fail, gap, bug, or out-of-scope finding requires follow-up work.
     - Handshake loops back before forward progress: failed or mediation-required MTs must generate a bounded remediation path and a coder dispatch before dependent MTs advance.
     - When the current coder has finished its active MT, Handshake may dispatch the next eligible coder session with the generated remediation MT or next ready MT, subject to leases, actor eligibility, retry budget, and dependency state.
@@ -204,7 +214,7 @@ Rules:
 - A mechanical operation can extract or regenerate MT contracts/files from a work packet and refresh packet, MT, Task Board, traceability, DCC, and mirror projections from the same authority data.
 - Microtasks contain enough scoped context, constraints, acceptance criteria, verification steps, allowed actions, write boxes, dependencies, and handoff rules for smaller/local models to execute one MT per fresh context loop.
 - `CoderHandoffContractV1`, `ValidatorVerdictContractV1`, `MediationInstructionContractV1`, `IssueReportContractV1`, `BugReportContractV1`, `GapReportContractV1`, `OutOfScopeReportContractV1`, and `RemediationMicroTaskContractV1` are defined as machine-readable contracts with stable ids, source refs, evidence refs, severity, affected acceptance criteria, affected files/actions, and required follow-up state.
-- A coder handoff mechanically triggers WP Validator review when the MT contract requires review; validator verdicts are recorded through Handshake and cannot be represented by manual packet/MT status edits.
+- A coder handoff mechanically triggers Integration Validator batch review when the MT contract requires review; validator verdicts are recorded through Handshake and cannot be represented by manual packet/MT status edits.
 - Fail, mediation-required, bug, gap, and out-of-scope verdicts mechanically create one of: a remediation MT, a remediation packet/stub, a blocked-state escalation, or an operator-decision request with evidence and dependency impact.
 - Handshake prevents dependent MTs from advancing past failed or mediation-required prerequisites until remediation has passed or an authorized escalation resolves the block.
 - The loop supports fresh-context local model execution: coder MT attempt -> handoff receipt -> validator review -> verdict receipt -> generated remediation/next-MT dispatch -> repeat until pass, blocked, or escalated.
@@ -459,7 +469,7 @@ Activation Manager must convert this draft into official packet microtask files 
 - Acceptance: `CoderHandoffContractV1` records MT id, parent WP id, actor/session, claimed scope, touched files/actions, receipts, tests, evidence, known blockers, and requested review; Handshake can generate a validator review request from it without a model editing status fields.
 
 ### MT-057 Validator Verdict and Mediation Contract
-- Focus: define structured pass/fail/mediation verdicts from WP Validators.
+- Focus: define structured pass/fail/mediation verdicts from Integration Validator batch review.
 - Acceptance: `ValidatorVerdictContractV1` and `MediationInstructionContractV1` encode verdict, failed acceptance criteria, evidence refs, severity, reproducibility, exact remediation instructions, dependency impact, and whether the MT may advance, must loop back, or must escalate.
 
 ### MT-058 Mechanical Issue, Bug, Gap, and Out-of-Scope Reports

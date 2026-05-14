@@ -37,12 +37,12 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-14T08:23:40.507Z",
-    "generator": "kernel-builder-activation-repair.mjs",
+    "generated_at_utc": "2026-05-14T10:20:22.552Z",
+    "generator": "kernel-builder-crash-recovery-activation.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-057.md",
-    "projection_hash": "ab61d2f8a1a7ecf3",
+    "projection_hash": "561ceebe64ce45a1",
     "source_file": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-057.json",
-    "source_hash": "2212068d30dfd04b",
+    "source_hash": "6ffe2a1ee65c4e45",
     "status": "GENERATED_IN_SYNC"
   },
   "mt_id": "MT-057",
@@ -64,7 +64,7 @@
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-057 Validator Verdict and Mediation Contract: define structured pass/fail/mediation verdicts from WP Validators. Acceptance: `ValidatorVerdictContractV1` and `MediationInstructionContractV1` encode verdict, failed acceptance criteria, evidence refs, severity, reproducibility, exact remediation instructions, dependency impact, and whether the MT may advance, must loop back, or must escalate."
+      "MT-057 Validator Verdict and Mediation Contract: define structured pass/fail/mediation verdicts from Integration Validator batch review for this packet. Acceptance: `ValidatorVerdictContractV1` and `MediationInstructionContractV1` encode verdict, failed acceptance criteria, evidence refs, severity, reproducibility, exact remediation instructions, dependency impact, and whether the MT may advance, must loop back, or must escalate."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/locus/**",
@@ -76,8 +76,8 @@
       "cargo test -p handshake_core kernel_mt_loop --target-dir ../Handshake_Artifacts/handshake-cargo-target"
     ],
     "risk_if_missed": "MT-057 scope is lost and Kernel002 can reintroduce drift or direct mutation.",
-    "summary": "MT-057 Validator Verdict and Mediation Contract: define structured pass/fail/mediation verdicts from WP Validators. Acceptance: `ValidatorVerdictContractV1` and `MediationInstructionContractV1` encode verdict, failed acceptance criteria, evidence refs, severity, reproducibility, exact remediation instructions, dependency impact, and whether the MT may advance, must loop back, or must escalate."
+    "summary": "MT-057 Validator Verdict and Mediation Contract: define structured pass/fail/mediation verdicts from Integration Validator batch review for this packet. Acceptance: `ValidatorVerdictContractV1` and `MediationInstructionContractV1` encode verdict, failed acceptance criteria, evidence refs, severity, reproducibility, exact remediation instructions, dependency impact, and whether the MT may advance, must loop back, or must escalate."
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-14T10:20:22.552Z",
   "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"
 }
