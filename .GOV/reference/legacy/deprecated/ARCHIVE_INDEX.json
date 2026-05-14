@@ -1,0 +1,59 @@
+{
+  "schema_id": "handshake.gov.deprecated_archive_index",
+  "schema_version": "deprecated_archive_index_v1",
+  "status": "NON_AUTHORITATIVE_REFERENCE_INDEX",
+  "authority": {
+    "codex_rule": "CX-205O",
+    "live_topology_authority": ".GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json",
+    "archive_root": ".GOV/reference/legacy/deprecated"
+  },
+  "categories": [
+    {
+      "id": "topology",
+      "path": ".GOV/reference/legacy/deprecated/topology",
+      "purpose": "Retired topology registries, projections, and topology-reference files."
+    },
+    {
+      "id": "work_packets",
+      "path": ".GOV/reference/legacy/deprecated/work_packets",
+      "purpose": "Deprecated work-packet/refinement/microtask reference snapshots when no dedicated packet archive applies."
+    },
+    {
+      "id": "role_surfaces",
+      "path": ".GOV/reference/legacy/deprecated/role_surfaces",
+      "purpose": "Retired role-local protocol, startup, and guidance references."
+    },
+    {
+      "id": "runtime_compatibility",
+      "path": ".GOV/reference/legacy/deprecated/runtime_compatibility",
+      "purpose": "Deprecated runtime-shape references. Live runtime state belongs outside the repo."
+    },
+    {
+      "id": "spec",
+      "path": ".GOV/reference/legacy/deprecated/spec",
+      "purpose": "Deprecated spec helper references that are not active versioned spec bundles."
+    },
+    {
+      "id": "operator_notes",
+      "path": ".GOV/reference/legacy/deprecated/operator_notes",
+      "purpose": "Deprecated operator-local notes retained only for provenance."
+    },
+    {
+      "id": "scripts_checks",
+      "path": ".GOV/reference/legacy/deprecated/scripts_checks",
+      "purpose": "Repo-local snapshots for retired scripts/checks only when explicitly requested."
+    }
+  ],
+  "entries": [
+    {
+      "archive_id": "deprecated-topology-git-topology-registry-md",
+      "category": "topology",
+      "archived_path": ".GOV/reference/legacy/deprecated/topology/GIT_TOPOLOGY_REGISTRY.md",
+      "former_path": ".GOV/roles_shared/records/GIT_TOPOLOGY_REGISTRY.md",
+      "replacement_authority": ".GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json#git_topology_contract",
+      "status": "ARCHIVED_NON_AUTHORITATIVE_REFERENCE",
+      "archived_on": "2026-05-14",
+      "driver": "RGF-321"
+    }
+  ]
+}

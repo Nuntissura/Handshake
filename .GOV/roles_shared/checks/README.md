@@ -37,7 +37,7 @@ Repo-shared checks live here.
 - `historical-smoketest-lineage-check.mjs`
 - `task-packet-claim-check.mjs`
 - `build-order-check.mjs`
-- `topology-registry-check.mjs`
+- `topology-registry-check.mjs` - compatibility check proving the deprecated git-topology registry is folded into `GOVERNANCE_TOPOLOGY.json`
 
 ## Cross-Role Runtime / Session Checks
 

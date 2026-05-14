@@ -7,6 +7,11 @@ import {
   normalizePath,
   repoPathAbs,
 } from "./runtime-paths.mjs";
+import {
+  buildTopologyRegistry,
+  TOPOLOGY_REGISTRY_JSON_PATH,
+  TOPOLOGY_REGISTRY_MD_PATH,
+} from "../topology/git-topology-lib.mjs";
 
 export const GOVERNANCE_TOPOLOGY_SCHEMA_ID = "handshake.gov.governance_topology";
 export const GOVERNANCE_TOPOLOGY_SCHEMA_VERSION = "governance_topology_v1";
@@ -625,6 +630,7 @@ export function buildGovernanceTopology() {
   const recipeSurfaces = recipes.map((recipe) => buildRecipeSurface(recipe));
   const surfaces = [...fileSurfaces, ...recipeSurfaces]
     .sort((left, right) => left.surface_id.localeCompare(right.surface_id));
+  const protectedCheckoutTopology = buildTopologyRegistry();
 
   const phaseBundles = [
     {
@@ -690,6 +696,28 @@ export function buildGovernanceTopology() {
       self_source_hash_policy: "null_to_avoid_self-referential_projection_hash",
       check: "governance-topology-check",
       sync_command: "just gov-check --sync-topology",
+    },
+    git_topology_contract: {
+      schema_id: "handshake.gov.git_topology_contract",
+      schema_version: protectedCheckoutTopology.schema_version,
+      authority: {
+        source_codex_clause: "CX-120",
+        canonical_topology_file: GOVERNANCE_TOPOLOGY_REPO_REL_PATH,
+        status: "FOLDED_INTO_GOVERNANCE_TOPOLOGY",
+      },
+      deprecated_surfaces: [
+        {
+          path: TOPOLOGY_REGISTRY_MD_PATH,
+          status: "DEPRECATED_NON_AUTHORITATIVE_REFERENCE",
+          replacement: GOVERNANCE_TOPOLOGY_REPO_REL_PATH,
+        },
+        {
+          path: TOPOLOGY_REGISTRY_JSON_PATH,
+          status: "DEPRECATED_RUNTIME_COMPATIBILITY_REFERENCE",
+          replacement: GOVERNANCE_TOPOLOGY_REPO_REL_PATH,
+        },
+      ],
+      protected_checkout_topology: protectedCheckoutTopology,
     },
     script_inventory_reconciliation_contract: {
       rgf_id: "RGF-298",
@@ -819,6 +847,7 @@ export function buildGovernanceTopology() {
     authority: topology.authority,
     update_contract: topology.update_contract,
     projection_contract: topology.projection_contract,
+    git_topology_contract: topology.git_topology_contract,
     script_inventory_reconciliation_contract: topology.script_inventory_reconciliation_contract,
     phase_checkpoint_bundles: topology.phase_checkpoint_bundles,
     leaf_script_sunset_policy: topology.leaf_script_sunset_policy,

@@ -36,7 +36,7 @@ export const rolesSharedRootRules = {
   ]),
   records: new Map([
     ["BUILD_ORDER.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/BUILD_ORDER.md`],
-    ["GIT_TOPOLOGY_REGISTRY.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/GIT_TOPOLOGY_REGISTRY.md`],
+    ["GIT_TOPOLOGY_REGISTRY.md", `${GOV_ROOT_REPO_REL}/reference/legacy/deprecated/topology/GIT_TOPOLOGY_REGISTRY.md`],
     ["OSS_REGISTER.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/OSS_REGISTER.md`],
     ["SIGNATURE_AUDIT.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/SIGNATURE_AUDIT.md`],
     ["SPEC_DEBT_REGISTRY.md", `${GOV_ROOT_REPO_REL}/roles_shared/records/SPEC_DEBT_REGISTRY.md`],
