@@ -287,8 +287,8 @@ mod tests {
 
     use super::*;
     use crate::capabilities::CapabilityRegistry;
-    use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEventType};
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEventType};
     use crate::mex::gates::{
         BudgetGate, CapabilityGate, DetGate, GatePipeline, IntegrityGate, ProvenanceGate,
         SchemaGate,
@@ -386,8 +386,8 @@ mod tests {
             output_spec: OutputSpec {
                 expected_types: vec!["artifact.document".to_string()],
                 max_bytes: Some(8 * 1024 * 1024),
-             },
-         };
+            },
+        };
 
         timeout(Duration::from_secs(10), runtime.execute(op.clone()))
             .await
@@ -422,9 +422,8 @@ mod tests {
                 assert_eq!(jid.as_deref(), Some(job_id.as_str()));
                 kinds.push(kind);
                 if let Some(payload_str) = payload_str {
-                    payloads.push(
-                        serde_json::from_str::<Value>(&payload_str).unwrap_or(Value::Null),
-                    );
+                    payloads
+                        .push(serde_json::from_str::<Value>(&payload_str).unwrap_or(Value::Null));
                 }
             }
 
@@ -481,7 +480,10 @@ mod tests {
                     "expected ToolCall event in Flight Recorder",
                 )
             })?;
-        assert_eq!(tool_call.payload.get("type").and_then(|v| v.as_str()), Some("tool_call"));
+        assert_eq!(
+            tool_call.payload.get("type").and_then(|v| v.as_str()),
+            Some("tool_call")
+        );
         assert_eq!(
             tool_call.payload.get("transport").and_then(|v| v.as_str()),
             Some("mex")
@@ -491,11 +493,21 @@ mod tests {
             Some(job_id.as_str())
         );
         assert_eq!(
-            tool_call.payload.get("tool_call_id").and_then(|v| v.as_str()),
+            tool_call
+                .payload
+                .get("tool_call_id")
+                .and_then(|v| v.as_str()),
             Some(job_id.as_str())
         );
-        let args_ref = tool_call.payload.get("args_ref").and_then(|v| v.as_str()).unwrap_or("");
-        assert!(args_ref.starts_with("artifact:"), "expected args_ref artifact handle");
+        let args_ref = tool_call
+            .payload
+            .get("args_ref")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        assert!(
+            args_ref.starts_with("artifact:"),
+            "expected args_ref artifact handle"
+        );
         let args_hash = tool_call
             .payload
             .get("args_hash")
@@ -507,7 +519,10 @@ mod tests {
             .get("result_ref")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        assert!(result_ref.starts_with("artifact:"), "expected result_ref artifact handle");
+        assert!(
+            result_ref.starts_with("artifact:"),
+            "expected result_ref artifact handle"
+        );
         let result_hash = tool_call
             .payload
             .get("result_hash")

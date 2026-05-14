@@ -127,7 +127,7 @@ async fn run_reconnector<T: McpTransport>(
                     }
                 }
             }
-        };
+        }
 
         drop(transport_tasks);
         drop(transport_incoming);

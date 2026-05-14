@@ -78,10 +78,15 @@ impl JsonRpcMcpClient {
                         if let Some(entry) = pending_entry {
                             if let Some(meta) = entry.meta.as_ref() {
                                 if meta.method == "tools/call" {
-                                    resp.result = resp
-                                        .result
-                                        .take()
-                                        .map(|v| redactor.redact_value(&v, RedactionMode::SafeDefault, "mcp/tools_call/result").0);
+                                    resp.result = resp.result.take().map(|v| {
+                                        redactor
+                                            .redact_value(
+                                                &v,
+                                                RedactionMode::SafeDefault,
+                                                "mcp/tools_call/result",
+                                            )
+                                            .0
+                                    });
                                     if let Some(error) = resp.error.as_mut() {
                                         let (msg, _) = redactor.redact_value(
                                             &Value::String(error.message.clone()),
@@ -92,11 +97,13 @@ impl JsonRpcMcpClient {
                                             error.message = msg;
                                         }
                                         error.data = error.data.take().map(|v| {
-                                            redactor.redact_value(
-                                                &v,
-                                                RedactionMode::SafeDefault,
-                                                "mcp/tools_call/error/data",
-                                            ).0
+                                            redactor
+                                                .redact_value(
+                                                    &v,
+                                                    RedactionMode::SafeDefault,
+                                                    "mcp/tools_call/error/data",
+                                                )
+                                                .0
                                         });
                                     }
                                 }

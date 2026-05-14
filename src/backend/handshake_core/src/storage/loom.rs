@@ -235,7 +235,9 @@ impl FromStr for LoomEdgeType {
             "sub_tag" => Ok(LoomEdgeType::SubTag),
             "parent" => Ok(LoomEdgeType::Parent),
             "ai_suggested" => Ok(LoomEdgeType::AiSuggested),
-            _ => Err(crate::storage::StorageError::Validation("invalid loom edge_type")),
+            _ => Err(crate::storage::StorageError::Validation(
+                "invalid loom edge_type",
+            )),
         }
     }
 }

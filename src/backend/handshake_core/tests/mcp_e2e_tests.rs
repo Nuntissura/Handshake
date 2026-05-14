@@ -6,16 +6,18 @@ use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
 use handshake_core::flight_recorder::FlightRecorder;
 use handshake_core::mcp::errors::McpError;
 use handshake_core::mcp::gate::{
-    canonical_mcp_tool_id, ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient, McpContext,
-    ToolPolicy, ToolRegistryEntry, ToolTransportBindings,
+    canonical_mcp_tool_id, ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient,
+    McpContext, ToolPolicy, ToolRegistryEntry, ToolTransportBindings,
 };
-use handshake_core::mcp::jsonrpc::{JsonRpcId, JsonRpcMessage, JsonRpcNotification, JsonRpcResponse};
+use handshake_core::mcp::jsonrpc::{
+    JsonRpcId, JsonRpcMessage, JsonRpcNotification, JsonRpcResponse,
+};
 use handshake_core::mcp::transport::duplex::DuplexTransport;
+use handshake_core::storage::tests::{postgres_backend_from_env, sqlite_backend};
 use handshake_core::storage::{
     AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState, JobStatusUpdate,
     ModelSessionState, NewAiJob, NewModelSession, SafetyMode, StorageError,
 };
-use handshake_core::storage::tests::{postgres_backend_from_env, sqlite_backend};
 use serde_json::{json, Value};
 use tempfile::tempdir;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter, DuplexStream};
@@ -242,7 +244,8 @@ async fn stub_server_e2e(
 }
 
 #[tokio::test]
-async fn mcp_e2e_tests_sqlite_persists_progress_mapping_records_fr_events_and_hydrates_ref() -> Result<(), Box<dyn std::error::Error>> {
+async fn mcp_e2e_tests_sqlite_persists_progress_mapping_records_fr_events_and_hydrates_ref(
+) -> Result<(), Box<dyn std::error::Error>> {
     let db = sqlite_backend()
         .await
         .map_err(|err| Box::new(err) as Box<dyn std::error::Error>)?;
@@ -250,7 +253,8 @@ async fn mcp_e2e_tests_sqlite_persists_progress_mapping_records_fr_events_and_hy
 }
 
 #[tokio::test]
-async fn mcp_e2e_tests_postgres_persists_progress_mapping_records_fr_events_and_hydrates_ref() -> Result<(), Box<dyn std::error::Error>> {
+async fn mcp_e2e_tests_postgres_persists_progress_mapping_records_fr_events_and_hydrates_ref(
+) -> Result<(), Box<dyn std::error::Error>> {
     let db = match postgres_backend_from_env().await {
         Ok(db) => db,
         Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
@@ -464,13 +468,22 @@ async fn run_mcp_e2e(db: Arc<dyn Database>) -> Result<(), Box<dyn std::error::Er
         kinds.push(kind);
     }
 
-    assert!(kinds.iter().any(|k| k == "mcp.tool_call"), "missing mcp.tool_call");
+    assert!(
+        kinds.iter().any(|k| k == "mcp.tool_call"),
+        "missing mcp.tool_call"
+    );
     assert!(
         kinds.iter().any(|k| k == "mcp.tool_result"),
         "missing mcp.tool_result"
     );
-    assert!(kinds.iter().any(|k| k == "mcp.progress"), "missing mcp.progress");
-    assert!(kinds.iter().any(|k| k == "mcp.logging"), "missing mcp.logging");
+    assert!(
+        kinds.iter().any(|k| k == "mcp.progress"),
+        "missing mcp.progress"
+    );
+    assert!(
+        kinds.iter().any(|k| k == "mcp.logging"),
+        "missing mcp.logging"
+    );
 
     assert!(
         progress_payloads

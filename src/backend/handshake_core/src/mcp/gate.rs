@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
@@ -152,6 +153,102 @@ impl GateConfig {
             consent_timeout: Duration::from_secs(30),
             reconnect: ReconnectConfig::default(),
         }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KernelMcpToolGateRequest {
+    pub tool_request_id: String,
+    pub tool_id: String,
+    pub reason: String,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KernelMcpGateDecisionKind {
+    Allow,
+    Deny,
+}
+
+impl KernelMcpGateDecisionKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Allow => "allow",
+            Self::Deny => "deny",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KernelMcpToolGateDecision {
+    pub gate_id: String,
+    pub tool_decision_id: String,
+    pub tool_request_id: String,
+    pub tool_id: String,
+    pub canonical_tool_id: String,
+    pub decision: KernelMcpGateDecisionKind,
+    pub reason: String,
+    pub policy_source: String,
+    pub args_ref: String,
+    pub args_hash: String,
+    pub result_ref: String,
+    pub result_hash: String,
+}
+
+pub fn evaluate_kernel_tool_gate_decision(
+    gate_id: impl Into<String>,
+    allowed_tools: impl IntoIterator<Item = String>,
+    request: KernelMcpToolGateRequest,
+) -> KernelMcpToolGateDecision {
+    let gate_id = gate_id.into();
+    let tool_request_id = request.tool_request_id;
+    let tool_id = request.tool_id;
+    let request_reason = request.reason;
+    let canonical_tool_id = if tool_id.starts_with("mcp.") {
+        tool_id.clone()
+    } else {
+        canonical_mcp_tool_id(&gate_id, &tool_id)
+    };
+    let allowed_tools: HashSet<String> = allowed_tools.into_iter().collect();
+    let allowed = allowed_tools.contains(&tool_id) || allowed_tools.contains(&canonical_tool_id);
+    let decision = if allowed {
+        KernelMcpGateDecisionKind::Allow
+    } else {
+        KernelMcpGateDecisionKind::Deny
+    };
+    let reason = if allowed {
+        "tool is explicitly granted by MCP gate policy"
+    } else {
+        "tool is not granted by MCP gate policy"
+    };
+    let args = json!({
+        "tool_request_id": tool_request_id.clone(),
+        "tool_id": tool_id.clone(),
+        "canonical_tool_id": canonical_tool_id.clone(),
+        "reason": request_reason
+    });
+    let result = json!({
+        "tool_request_id": tool_request_id.clone(),
+        "tool_id": tool_id.clone(),
+        "canonical_tool_id": canonical_tool_id.clone(),
+        "decision": decision.as_str(),
+        "reason": reason,
+        "gate_id": gate_id.clone()
+    });
+
+    KernelMcpToolGateDecision {
+        gate_id,
+        tool_decision_id: format!("TOOLDEC-{}", tool_request_id.trim_start_matches("TOOLREQ-")),
+        tool_request_id: tool_request_id.clone(),
+        tool_id: tool_id.clone(),
+        canonical_tool_id,
+        decision,
+        reason: reason.to_string(),
+        policy_source: "mcp/gate.rs::kernel_tool_gate_bridge".to_string(),
+        args_ref: format!("kernel-tool-args://{tool_request_id}"),
+        args_hash: canonical_json_sha256_hex(&args),
+        result_ref: format!("kernel-tool-result://{tool_request_id}"),
+        result_hash: canonical_json_sha256_hex(&result),
     }
 }
 

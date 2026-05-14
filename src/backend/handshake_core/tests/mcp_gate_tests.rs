@@ -7,8 +7,8 @@ use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
 use handshake_core::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEventType};
 use handshake_core::mcp::errors::McpError;
 use handshake_core::mcp::gate::{
-    canonical_mcp_tool_id, ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient, McpContext,
-    ToolPolicy, ToolRegistryEntry, ToolTransportBindings,
+    canonical_mcp_tool_id, ConsentDecision, ConsentProvider, GateConfig, GatedMcpClient,
+    McpContext, ToolPolicy, ToolRegistryEntry, ToolTransportBindings,
 };
 use handshake_core::mcp::jsonrpc::{
     JsonRpcId, JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
@@ -16,7 +16,9 @@ use handshake_core::mcp::jsonrpc::{
 use handshake_core::mcp::security::canonicalize_under_roots;
 use handshake_core::mcp::transport::duplex::DuplexTransport;
 use handshake_core::mcp::transport::stdio::StdioTransport;
-use handshake_core::mcp::transport::{ConnectedTransport, McpTransport, TransportIo, TransportTasks};
+use handshake_core::mcp::transport::{
+    ConnectedTransport, McpTransport, TransportIo, TransportTasks,
+};
 use handshake_core::storage::{
     sqlite::SqliteDatabase, AccessMode, Database, ModelSessionState, NewModelSession,
 };
@@ -183,7 +185,11 @@ async fn stub_server_basic(stream: DuplexStream, server_id: String, job_id: Stri
     }
 }
 
-async fn stub_server_tool_call_returns_secret(stream: DuplexStream, server_id: String, job_id: String) {
+async fn stub_server_tool_call_returns_secret(
+    stream: DuplexStream,
+    server_id: String,
+    job_id: String,
+) {
     let (read_half, write_half) = tokio::io::split(stream);
     let mut lines = BufReader::new(read_half).lines();
     let mut writer = BufWriter::new(write_half);
@@ -500,7 +506,8 @@ async fn assert_tool_call_denied_event(
         event.payload
     );
     assert_eq!(
-        event.payload
+        event
+            .payload
             .get("error")
             .and_then(|v| v.get("kind"))
             .and_then(|v| v.as_str()),
@@ -509,7 +516,8 @@ async fn assert_tool_call_denied_event(
         event.payload
     );
     assert_eq!(
-        event.payload
+        event
+            .payload
             .get("error")
             .and_then(|v| v.get("code"))
             .and_then(|v| v.as_str()),
@@ -601,13 +609,15 @@ impl McpTransport for FlakyTestTransport {
                                     "inputSchema": schema
                                 }]
                             });
-                            let _ = incoming_tx
-                                .send(JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)));
+                            let _ = incoming_tx.send(JsonRpcMessage::Response(
+                                JsonRpcResponse::ok(req.id, result),
+                            ));
                         }
                         "resources/list" => {
                             let result = json!({ "resources": [] });
-                            let _ = incoming_tx
-                                .send(JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)));
+                            let _ = incoming_tx.send(JsonRpcMessage::Response(
+                                JsonRpcResponse::ok(req.id, result),
+                            ));
                         }
                         "tools/call" => {
                             let args = req
@@ -622,16 +632,14 @@ impl McpTransport for FlakyTestTransport {
                                 .unwrap_or("")
                                 .to_string();
                             let result = json!({ "echoed": echoed });
-                            let _ = incoming_tx
-                                .send(JsonRpcMessage::Response(JsonRpcResponse::ok(req.id, result)));
+                            let _ = incoming_tx.send(JsonRpcMessage::Response(
+                                JsonRpcResponse::ok(req.id, result),
+                            ));
                         }
                         _ => {
-                            let _ = incoming_tx.send(JsonRpcMessage::Response(JsonRpcResponse::err(
-                                req.id,
-                                -32601,
-                                "method not found",
-                                None,
-                            )));
+                            let _ = incoming_tx.send(JsonRpcMessage::Response(
+                                JsonRpcResponse::err(req.id, -32601, "method not found", None),
+                            ));
                         }
                     },
                     JsonRpcMessage::Notification(_notif) => {}
@@ -1201,12 +1209,12 @@ async fn mcp_tools_call_redacts_sensitive_output_before_return_and_recording(
         .tools_call(ctx, tool_id.as_str(), json!({ "message": "hi" }))
         .await?;
 
-    let echoed = result
-        .get("echoed")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let echoed = result.get("echoed").and_then(|v| v.as_str()).unwrap_or("");
     let raw_secret = "aws_secret_access_key=AAAAAAAAAAAAAAAAAAAA";
-    assert!(!echoed.contains(raw_secret), "expected secret to be redacted");
+    assert!(
+        !echoed.contains(raw_secret),
+        "expected secret to be redacted"
+    );
     assert!(
         echoed.contains("[REDACTED:aws:secret_aws]"),
         "expected redaction marker in result"
@@ -1324,7 +1332,8 @@ async fn mcp_auto_reconnects_when_transport_severs() -> Result<(), Box<dyn std::
 }
 
 #[tokio::test]
-async fn mcp_logging_message_custom_event_kind_creates_breadcrumb() -> Result<(), Box<dyn std::error::Error>> {
+async fn mcp_logging_message_custom_event_kind_creates_breadcrumb(
+) -> Result<(), Box<dyn std::error::Error>> {
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
@@ -1790,9 +1799,13 @@ async fn stdio_transport_roundtrips_jsonrpc_and_rejects_double_connect(
     let mut transport = StdioTransport::new(cmd, args.into_iter().map(|s| s.to_string()).collect());
     let mut connected = transport.connect().await?;
 
-    connected.io.outgoing.send(JsonRpcMessage::Notification(
-        JsonRpcNotification::new("ping", Some(json!({ "n": 1 }))),
-    ))?;
+    connected
+        .io
+        .outgoing
+        .send(JsonRpcMessage::Notification(JsonRpcNotification::new(
+            "ping",
+            Some(json!({ "n": 1 })),
+        )))?;
 
     let echoed = tokio::time::timeout(Duration::from_secs(2), connected.io.incoming.recv())
         .await
@@ -1866,7 +1879,9 @@ fn jsonrpc_helpers_cover_constructors_and_into_result() {
         result: None,
         error: None,
     };
-    let missing_err = missing.into_result().expect_err("expected missing result error");
+    let missing_err = missing
+        .into_result()
+        .expect_err("expected missing result error");
     assert_eq!(missing_err.code, -32603);
 }
 
@@ -1896,7 +1911,8 @@ fn canonicalize_under_roots_covers_error_branches() -> Result<(), Box<dyn std::e
     assert!(matches!(missing, McpError::SecurityViolation(_)));
 
     let bogus_root = root.path().join("no-such-root");
-    let err = canonicalize_under_roots("anything.txt", &[bogus_root]).expect_err("bad root rejected");
+    let err =
+        canonicalize_under_roots("anything.txt", &[bogus_root]).expect_err("bad root rejected");
     assert!(matches!(err, McpError::SecurityViolation(_)));
 
     let outside_dir = tempfile::tempdir()?;
@@ -1914,6 +1930,7 @@ fn canonicalize_under_roots_covers_error_branches() -> Result<(), Box<dyn std::e
 fn canonicalize_under_roots_rejects_windows_drive_relative_prefix() {
     let root = tempfile::tempdir().expect("tempdir");
     let root_path = root.path().to_path_buf();
-    let err = canonicalize_under_roots("C:relative.txt", &[root_path]).expect_err("expected reject");
+    let err =
+        canonicalize_under_roots("C:relative.txt", &[root_path]).expect_err("expected reject");
     assert!(matches!(err, McpError::SecurityViolation(_)));
 }

@@ -513,7 +513,10 @@ pub fn transition_rules_for_family(family: WorkflowStateFamily) -> Vec<WorkflowT
             (WorkflowStateFamily::Canceled, "canceled before start"),
         ],
         WorkflowStateFamily::Active => &[
-            (WorkflowStateFamily::Waiting, "awaiting dependency or response"),
+            (
+                WorkflowStateFamily::Waiting,
+                "awaiting dependency or response",
+            ),
             (WorkflowStateFamily::Review, "submitted for review"),
             (WorkflowStateFamily::Blocked, "blocked during work"),
             (WorkflowStateFamily::Done, "work completed"),
@@ -558,7 +561,9 @@ pub fn transition_rules_for_family(family: WorkflowStateFamily) -> Vec<WorkflowT
         .iter()
         .map(|(to, desc)| WorkflowTransitionRuleV1 {
             rule_id: format!(
-                "transition:{}_{}", family_id_segment(family), family_id_segment(*to)
+                "transition:{}_{}",
+                family_id_segment(family),
+                family_id_segment(*to)
             ),
             from_family: family,
             to_family: *to,
@@ -628,9 +633,7 @@ pub fn queue_automation_rules() -> Vec<QueueAutomationRuleV1> {
     ]
 }
 
-pub fn queue_automation_rule_ids_for_reason(
-    reason: WorkflowQueueReasonCode,
-) -> Vec<String> {
+pub fn queue_automation_rule_ids_for_reason(reason: WorkflowQueueReasonCode) -> Vec<String> {
     queue_automation_rules()
         .into_iter()
         .filter(|r| r.from_reason == reason)
@@ -667,11 +670,16 @@ pub fn executor_eligibility_policies() -> Vec<ExecutorEligibilityPolicyV1> {
             policy_id: "eligibility:operator".to_string(),
             executor_kind: ExecutorKind::Operator,
             eligible_families: vec![
-                WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
-                WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
-                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
-                WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
-                WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
+                WorkflowStateFamily::Intake,
+                WorkflowStateFamily::Ready,
+                WorkflowStateFamily::Active,
+                WorkflowStateFamily::Waiting,
+                WorkflowStateFamily::Review,
+                WorkflowStateFamily::Approval,
+                WorkflowStateFamily::Validation,
+                WorkflowStateFamily::Blocked,
+                WorkflowStateFamily::Done,
+                WorkflowStateFamily::Canceled,
                 WorkflowStateFamily::Archived,
             ],
             requires_compact_summary: false,
@@ -690,8 +698,10 @@ pub fn executor_eligibility_policies() -> Vec<ExecutorEligibilityPolicyV1> {
             policy_id: "eligibility:cloud_model".to_string(),
             executor_kind: ExecutorKind::CloudModel,
             eligible_families: vec![
-                WorkflowStateFamily::Ready, WorkflowStateFamily::Active,
-                WorkflowStateFamily::Waiting, WorkflowStateFamily::Review,
+                WorkflowStateFamily::Ready,
+                WorkflowStateFamily::Active,
+                WorkflowStateFamily::Waiting,
+                WorkflowStateFamily::Review,
             ],
             requires_compact_summary: false,
             description: Some("cloud model can act on ready through review states".to_string()),
@@ -700,11 +710,16 @@ pub fn executor_eligibility_policies() -> Vec<ExecutorEligibilityPolicyV1> {
             policy_id: "eligibility:workflow_engine".to_string(),
             executor_kind: ExecutorKind::WorkflowEngine,
             eligible_families: vec![
-                WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
-                WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
-                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
-                WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
-                WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
+                WorkflowStateFamily::Intake,
+                WorkflowStateFamily::Ready,
+                WorkflowStateFamily::Active,
+                WorkflowStateFamily::Waiting,
+                WorkflowStateFamily::Review,
+                WorkflowStateFamily::Approval,
+                WorkflowStateFamily::Validation,
+                WorkflowStateFamily::Blocked,
+                WorkflowStateFamily::Done,
+                WorkflowStateFamily::Canceled,
                 WorkflowStateFamily::Archived,
             ],
             requires_compact_summary: false,
@@ -714,7 +729,8 @@ pub fn executor_eligibility_policies() -> Vec<ExecutorEligibilityPolicyV1> {
             policy_id: "eligibility:reviewer".to_string(),
             executor_kind: ExecutorKind::Reviewer,
             eligible_families: vec![
-                WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
+                WorkflowStateFamily::Review,
+                WorkflowStateFamily::Approval,
                 WorkflowStateFamily::Validation,
             ],
             requires_compact_summary: false,
@@ -724,7 +740,8 @@ pub fn executor_eligibility_policies() -> Vec<ExecutorEligibilityPolicyV1> {
             policy_id: "eligibility:governance".to_string(),
             executor_kind: ExecutorKind::Governance,
             eligible_families: vec![
-                WorkflowStateFamily::Approval, WorkflowStateFamily::Validation,
+                WorkflowStateFamily::Approval,
+                WorkflowStateFamily::Validation,
                 WorkflowStateFamily::Blocked,
             ],
             requires_compact_summary: false,
@@ -733,9 +750,7 @@ pub fn executor_eligibility_policies() -> Vec<ExecutorEligibilityPolicyV1> {
     ]
 }
 
-pub fn executor_eligibility_policy_ids_for_family(
-    family: WorkflowStateFamily,
-) -> Vec<String> {
+pub fn executor_eligibility_policy_ids_for_family(family: WorkflowStateFamily) -> Vec<String> {
     executor_eligibility_policies()
         .into_iter()
         .filter(|p| p.eligible_families.contains(&family))
@@ -1593,8 +1608,7 @@ pub const TASK_BOARD_VIEW_SCHEMA_ID_V1: &str = "hsk.task_board_view@1";
 pub const ROLE_MAILBOX_INDEX_SCHEMA_ID_V1: &str = "hsk.role_mailbox_index@1";
 pub const ROLE_MAILBOX_THREAD_LINE_SCHEMA_ID_V1: &str = "hsk.role_mailbox_thread_line@1";
 pub const DCC_COMPACT_SUMMARY_SCHEMA_ID_V1: &str = "hsk.dcc_compact_summary@1";
-pub const GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1: &str =
-    "hsk.governance_artifact_registry@1";
+pub const GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1: &str = "hsk.governance_artifact_registry@1";
 pub const GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1: &str =
     "hsk.ext.software_delivery.governance_artifact_registry@1";
 pub const GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1: &str = "1";
@@ -1863,7 +1877,9 @@ pub fn validate_structured_collaboration_record(
     );
     validate_project_profile_kind(obj.get("project_profile_kind"), &mut result);
     let project_profile_kind = ProjectProfileKind::parse(
-        obj.get("project_profile_kind").and_then(Value::as_str).unwrap_or_default(),
+        obj.get("project_profile_kind")
+            .and_then(Value::as_str)
+            .unwrap_or_default(),
     );
     require_non_empty_string(obj.get("updated_at"), "updated_at", &mut result);
     validate_mirror_state(obj.get("mirror_state"), &mut result);
@@ -2639,7 +2655,10 @@ fn validate_profile_extension(
         }
     }
     if extension_schema_id == Some(GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1) {
-        if !matches!(project_profile_kind, Some(ProjectProfileKind::SoftwareDelivery)) {
+        if !matches!(
+            project_profile_kind,
+            Some(ProjectProfileKind::SoftwareDelivery)
+        ) {
             result.push_issue(
                 StructuredCollaborationValidationCode::IncompatibleProfileExtension,
                 "profile_extension.extension_schema_id",
@@ -3140,8 +3159,7 @@ pub fn derive_software_delivery_projection_surface(
     advisory_role_mailbox_thread_ids.sort();
     advisory_role_mailbox_thread_ids.dedup();
 
-    let governed_action_previews =
-        derive_governed_action_previews(canonical, workflow_run_id);
+    let governed_action_previews = derive_governed_action_previews(canonical, workflow_run_id);
 
     Some(SoftwareDeliveryProjectionSurfaceV1 {
         schema_id: SOFTWARE_DELIVERY_PROJECTION_SURFACE_SCHEMA_ID_V1.to_string(),
@@ -3516,7 +3534,9 @@ fn gate_field_string(candidate_fields: &[(&Value, &[&str])]) -> Option<String> {
     candidate_fields
         .iter()
         .filter_map(|(value, fields)| {
-            fields.iter().find_map(|field| value.get(field).and_then(Value::as_str))
+            fields
+                .iter()
+                .find_map(|field| value.get(field).and_then(Value::as_str))
         })
         .map(str::trim)
         .find(|value| !value.is_empty())
@@ -3570,7 +3590,10 @@ fn gate_role_proof_from_value(value: &Value) -> Option<String> {
         .or_else(|| value.get("validator"))
         .unwrap_or(&Value::Null);
     gate_field_string(&[
-        (value, &["role_proof", "role", "actor_role", "validator_role"]),
+        (
+            value,
+            &["role_proof", "role", "actor_role", "validator_role"],
+        ),
         (actor, &["role"]),
     ])
     .and_then(gate_authority_role)
@@ -4281,8 +4304,8 @@ pub fn derive_software_delivery_projection_surface_with_overlay(
         .iter()
         .map(|instruction| {
             let record_id = instruction.record_id.clone();
-            let record_ref = runtime_paths
-                .queued_instruction_record_display(&canonical.record_id, &record_id);
+            let record_ref =
+                runtime_paths.queued_instruction_record_display(&canonical.record_id, &record_id);
             (record_id, record_ref)
         })
         .collect();
@@ -4295,13 +4318,15 @@ pub fn derive_software_delivery_projection_surface_with_overlay(
         queued_pairs.into_iter().map(|(_, r)| r).collect();
 
     let claim_lease_record_id = claim_lease.map(|c| c.record_id.clone());
-    let claim_lease_record_ref = claim_lease.map(|c| {
-        runtime_paths.claim_lease_record_display(&canonical.record_id, &c.record_id)
-    });
+    let claim_lease_record_ref = claim_lease
+        .map(|c| runtime_paths.claim_lease_record_display(&canonical.record_id, &c.record_id));
 
     let claim_lease_present = claim_lease.is_some();
-    let workflow_binding_state =
-        derive_software_delivery_workflow_binding_state(canonical, gate_posture, claim_lease_present);
+    let workflow_binding_state = derive_software_delivery_workflow_binding_state(
+        canonical,
+        gate_posture,
+        claim_lease_present,
+    );
 
     projection.workflow_binding_id = workflow_binding_id.map(|s| s.to_string());
     projection.workflow_binding_state = workflow_binding_state;
@@ -4407,10 +4432,7 @@ pub fn validate_software_delivery_projection_surface_overlay(
                 result.push_issue(
                     StructuredCollaborationValidationCode::InvalidFieldValue,
                     "queued_instruction_record_refs",
-                    Some(
-                        runtime_paths
-                            .queued_instruction_record_display(&canonical.record_id, id),
-                    ),
+                    Some(runtime_paths.queued_instruction_record_display(&canonical.record_id, id)),
                     Some(reference.clone()),
                     "queued-instruction record ref must be a canonical \
                      <gov_root>/queued_instructions/<wp_id>/<instruction_id>.json path \
@@ -4485,12 +4507,8 @@ pub fn validate_software_delivery_closeout_canonical_truth(
     // Stable-id binding required: gate evidence and owner authority refs
     // MUST refer to the SAME canonical record_id, not a foreign WP id.
     let expected_wp_id = canonical.record_id.as_str();
-    if first_canonical_validator_gate_ref(
-        &canonical.evidence_refs,
-        runtime_paths,
-        expected_wp_id,
-    )
-    .is_none()
+    if first_canonical_validator_gate_ref(&canonical.evidence_refs, runtime_paths, expected_wp_id)
+        .is_none()
     {
         result.push_issue(
             StructuredCollaborationValidationCode::InvalidFieldValue,
@@ -4501,12 +4519,8 @@ pub fn validate_software_delivery_closeout_canonical_truth(
              bound to the canonical record_id",
         );
     }
-    if first_canonical_owner_packet_ref(
-        &canonical.authority_refs,
-        runtime_paths,
-        expected_wp_id,
-    )
-    .is_none()
+    if first_canonical_owner_packet_ref(&canonical.authority_refs, runtime_paths, expected_wp_id)
+        .is_none()
     {
         result.push_issue(
             StructuredCollaborationValidationCode::InvalidFieldValue,
@@ -4549,7 +4563,10 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn governance_artifact_registry_record(project_profile_kind: &str, extension_schema_id: &str) -> Value {
+    fn governance_artifact_registry_record(
+        project_profile_kind: &str,
+        extension_schema_id: &str,
+    ) -> Value {
         json!({
             "schema_id": GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1,
             "schema_version": GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1,
@@ -4575,7 +4592,10 @@ mod tests {
         let descriptor = structured_collaboration_schema_descriptor(
             StructuredCollaborationRecordFamily::GovernanceArtifactRegistry,
         );
-        assert_eq!(descriptor.schema_id, GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1);
+        assert_eq!(
+            descriptor.schema_id,
+            GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1
+        );
         assert_eq!(
             descriptor.schema_version,
             GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1
@@ -4585,7 +4605,8 @@ mod tests {
     }
 
     #[test]
-    fn profile_extension_validation_allows_governance_artifact_registry_extension_for_software_delivery() {
+    fn profile_extension_validation_allows_governance_artifact_registry_extension_for_software_delivery(
+    ) {
         let record = governance_artifact_registry_record(
             ProjectProfileKind::SoftwareDelivery.as_str(),
             GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1,
@@ -4595,16 +4616,13 @@ mod tests {
             &record,
         );
         assert!(result.ok);
-        assert!(
-            !result
-                .issues
-                .iter()
-                .any(|issue| issue.code == StructuredCollaborationValidationCode::IncompatibleProfileExtension)
-        );
+        assert!(!result.issues.iter().any(|issue| issue.code
+            == StructuredCollaborationValidationCode::IncompatibleProfileExtension));
     }
 
     #[test]
-    fn profile_extension_validation_rejects_governance_artifact_registry_extension_for_non_software_delivery() {
+    fn profile_extension_validation_rejects_governance_artifact_registry_extension_for_non_software_delivery(
+    ) {
         let record = governance_artifact_registry_record(
             ProjectProfileKind::Research.as_str(),
             GOVERNANCE_ARTIFACT_REGISTRY_EXTENSION_SCHEMA_ID_V1,
@@ -4614,11 +4632,7 @@ mod tests {
             &record,
         );
         assert!(!result.ok);
-        assert!(
-            result
-                .issues
-                .iter()
-                .any(|issue| issue.code == StructuredCollaborationValidationCode::IncompatibleProfileExtension)
-        );
+        assert!(result.issues.iter().any(|issue| issue.code
+            == StructuredCollaborationValidationCode::IncompatibleProfileExtension));
     }
 }

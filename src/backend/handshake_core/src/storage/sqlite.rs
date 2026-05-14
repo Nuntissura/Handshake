@@ -8,14 +8,14 @@ use super::{
     JobMetrics, JobState, JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived,
     LoomBlockSearchResult, LoomBlockUpdate, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType,
     LoomSearchFilters, LoomSourceAnchor, LoomViewFilters, LoomViewGroup, LoomViewResponse,
-    LoomViewType, ModelSession, ModelSessionState, MutationMetadata, NewAiJob, NewAsset, NewBlock,
-    NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
-    NewLoomEdge, NewModelSession, NewNodeExecution, NewSessionMessage, NewSilverRecord,
-    NewWorkspace, PlannedOperation, PreviewStatus, SafetyMode, SessionCheckpoint,
-    SessionMessage, SessionMessageRole, MergeBackArtifact,
-    SilverRecord, StorageError, StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun,
-    Workspace, WriteContext,
+    LoomViewType, MergeBackArtifact, ModelSession, ModelSessionState, MutationMetadata, NewAiJob,
+    NewAsset, NewBlock, NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument,
+    NewLoomBlock, NewLoomEdge, NewModelSession, NewNodeExecution, NewSessionMessage,
+    NewSilverRecord, NewWorkspace, PlannedOperation, PreviewStatus, SafetyMode, SessionCheckpoint,
+    SessionMessage, SessionMessageRole, SilverRecord, StorageError, StorageGuard, StorageResult,
+    WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
 };
+use crate::kernel::{KernelEvent, KernelSessionLease, NewKernelEvent, SessionRun, SessionRunState};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
@@ -460,9 +460,11 @@ impl SqliteDatabase {
                 .await?;
         }
         if !existing_model_session_columns.contains("checkpoint_count") {
-            sqlx::query("ALTER TABLE model_sessions ADD COLUMN checkpoint_count INTEGER NOT NULL DEFAULT 0")
-                .execute(&self.pool)
-                .await?;
+            sqlx::query(
+                "ALTER TABLE model_sessions ADD COLUMN checkpoint_count INTEGER NOT NULL DEFAULT 0",
+            )
+            .execute(&self.pool)
+            .await?;
         }
 
         sqlx::query(
@@ -711,6 +713,12 @@ fn normalize_fts5_query(raw: &str) -> Option<String> {
 
 fn is_sha256_hex(value: &str) -> bool {
     value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn kernel_v1_requires_postgres_error() -> StorageError {
+    StorageError::Guard(
+        "Kernel V1 EventLedger, SessionBroker, trace replay, validation, and promotion authority require Postgres",
+    )
 }
 
 async fn ensure_loom_fts_schema_sqlite(pool: &SqlitePool) -> StorageResult<()> {
@@ -6264,6 +6272,91 @@ impl super::Database for SqliteDatabase {
         rows.into_iter()
             .map(|row| self.map_session_message_row(row))
             .collect()
+    }
+
+    async fn append_kernel_event(&self, event: NewKernelEvent) -> StorageResult<KernelEvent> {
+        let _ = event;
+        Err(kernel_v1_requires_postgres_error())
+    }
+
+    async fn list_kernel_events_for_session(
+        &self,
+        session_run_id: &str,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        let _ = session_run_id;
+        Err(kernel_v1_requires_postgres_error())
+    }
+
+    async fn list_kernel_events_for_aggregate(
+        &self,
+        aggregate_type: &str,
+        aggregate_id: &str,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        let _ = (aggregate_type, aggregate_id);
+        Err(kernel_v1_requires_postgres_error())
+    }
+
+    async fn enqueue_kernel_session_run(&self, session: SessionRun) -> StorageResult<SessionRun> {
+        let _ = session;
+        Err(kernel_v1_requires_postgres_error())
+    }
+
+    async fn enqueue_kernel_session_run_and_record_event(
+        &self,
+        session: SessionRun,
+        causation_id: Option<String>,
+        correlation_id: String,
+    ) -> StorageResult<(SessionRun, KernelEvent)> {
+        let _ = (session, causation_id, correlation_id);
+        Err(kernel_v1_requires_postgres_error())
+    }
+
+    async fn claim_kernel_session_run(
+        &self,
+        session_run_id: &str,
+        claimed_by: &str,
+        lease_seconds: i64,
+    ) -> StorageResult<Option<KernelSessionLease>> {
+        let _ = (session_run_id, claimed_by, lease_seconds);
+        Err(kernel_v1_requires_postgres_error())
+    }
+
+    async fn claim_kernel_session_run_and_record_event(
+        &self,
+        session_run_id: &str,
+        claimed_by: &str,
+        lease_seconds: i64,
+        causation_id: Option<String>,
+        correlation_id: String,
+    ) -> StorageResult<Option<(KernelSessionLease, KernelEvent)>> {
+        let _ = (
+            session_run_id,
+            claimed_by,
+            lease_seconds,
+            causation_id,
+            correlation_id,
+        );
+        Err(kernel_v1_requires_postgres_error())
+    }
+
+    async fn update_kernel_session_run_state(
+        &self,
+        session_run_id: &str,
+        state: SessionRunState,
+    ) -> StorageResult<KernelSessionLease> {
+        let _ = (session_run_id, state);
+        Err(kernel_v1_requires_postgres_error())
+    }
+
+    async fn update_kernel_session_run_state_and_record_event(
+        &self,
+        session_run_id: &str,
+        state: SessionRunState,
+        causation_id: Option<String>,
+        correlation_id: String,
+    ) -> StorageResult<(KernelSessionLease, KernelEvent)> {
+        let _ = (session_run_id, state, causation_id, correlation_id);
+        Err(kernel_v1_requires_postgres_error())
     }
 
     async fn update_ai_job_mcp_fields(

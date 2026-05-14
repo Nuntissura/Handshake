@@ -264,10 +264,18 @@ mod tests {
         let config = default_config();
         let job_id = Uuid::new_v4();
         let now = Utc::now();
-        let entry = make_entry(QualityTag::Unrated, ThumbValue::Neutral, "code_generation", now);
+        let entry = make_entry(
+            QualityTag::Unrated,
+            ThumbValue::Neutral,
+            "code_generation",
+            now,
+        );
 
         let result = build_distill_dataset(job_id, ActorRole::Student, &config, &[entry], now);
-        assert!(result.is_empty(), "Unrated quality entries must be excluded");
+        assert!(
+            result.is_empty(),
+            "Unrated quality entries must be excluded"
+        );
     }
 
     #[test]
@@ -286,7 +294,12 @@ mod tests {
         let config = default_config();
         let job_id = Uuid::new_v4();
         let now = Utc::now();
-        let entry = make_entry(QualityTag::NeedsEdit, ThumbValue::Neutral, "code_generation", now);
+        let entry = make_entry(
+            QualityTag::NeedsEdit,
+            ThumbValue::Neutral,
+            "code_generation",
+            now,
+        );
 
         let result = build_distill_dataset(job_id, ActorRole::Student, &config, &[entry], now);
         assert_eq!(result.len(), 1, "NeedsEdit entries should be included");
@@ -360,8 +373,7 @@ mod tests {
             .map(|_| make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now))
             .collect();
 
-        let result =
-            build_distill_dataset(job_id, ActorRole::Student, &config, &entries, now);
+        let result = build_distill_dataset(job_id, ActorRole::Student, &config, &entries, now);
         assert!(
             result.len() <= 2,
             "should not exceed max_examples, got {}",
@@ -379,8 +391,7 @@ mod tests {
             .map(|_| make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now))
             .collect();
 
-        let result =
-            build_distill_dataset(job_id, ActorRole::Student, &config, &entries, now);
+        let result = build_distill_dataset(job_id, ActorRole::Student, &config, &entries, now);
         assert!(
             result.iter().all(|e| !e.is_replay),
             "with new_ratio=1.0 all entries should be new"
@@ -394,10 +405,13 @@ mod tests {
         let now = Utc::now();
         let entry = make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now);
 
-        let result =
-            build_distill_dataset(job_id, ActorRole::Teacher, &config, &[entry], now);
+        let result = build_distill_dataset(job_id, ActorRole::Teacher, &config, &[entry], now);
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].role, ActorRole::Teacher, "role must match target_role");
+        assert_eq!(
+            result[0].role,
+            ActorRole::Teacher,
+            "role must match target_role"
+        );
     }
 
     #[test]

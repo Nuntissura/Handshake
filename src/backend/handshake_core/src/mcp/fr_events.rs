@@ -10,7 +10,7 @@ use super::gate::McpContext;
 fn next_event_id(conn: &duckdb::Connection) -> McpResult<i64> {
     conn.prepare("SELECT COALESCE(MAX(event_id), 0) + 1 FROM fr_events")
         .map_err(|e| McpError::FlightRecorder(e.to_string()))?
-        .query_row([], |row| row.get(0))
+        .query_row(duckdb::params![], |row| row.get(0))
         .map_err(|e| McpError::FlightRecorder(e.to_string()))
 }
 

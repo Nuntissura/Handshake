@@ -1361,7 +1361,10 @@ mod tests {
             "loom search proof must assert the emitted tier_used payload contract"
         );
         assert_eq!(
-            search_event.payload.get("workspace_id").and_then(|value| value.as_str()),
+            search_event
+                .payload
+                .get("workspace_id")
+                .and_then(|value| value.as_str()),
             Some(workspace_id.as_str())
         );
 

@@ -6,10 +6,10 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::storage::StorageError;
 use crate::workflows::locus::{
     GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1, GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1,
 };
-use crate::storage::StorageError;
 
 pub const GOVERNANCE_ARTIFACT_REGISTRY_SORT_KEY_V1: &str = "registry_id";
 
@@ -94,9 +94,8 @@ pub trait GovernanceArtifactRegistryStore: Send + Sync {
         manifest: GovernanceArtifactRegistryManifest,
     ) -> Result<(), StorageError>;
 
-    async fn list_manifests(
-        &self,
-    ) -> Result<Vec<GovernanceArtifactRegistryManifest>, StorageError>;
+    async fn list_manifests(&self)
+        -> Result<Vec<GovernanceArtifactRegistryManifest>, StorageError>;
 }
 
 #[derive(Default)]
@@ -119,7 +118,9 @@ impl GovernanceArtifactRegistryStore for InMemoryGovernanceArtifactRegistryStore
         manifest: GovernanceArtifactRegistryManifest,
     ) -> Result<(), StorageError> {
         if manifest.entries.is_empty() {
-            return Err(StorageError::Validation("governance artifact registry manifest cannot be empty"));
+            return Err(StorageError::Validation(
+                "governance artifact registry manifest cannot be empty",
+            ));
         }
 
         let mut manifests = self.manifests.lock().await;
@@ -180,10 +181,19 @@ mod tests {
 
         assert_eq!(manifest, decoded);
         assert_eq!(decoded.entries.len(), 1);
-        assert_eq!(decoded.entries[0].artifact_id, manifest.entries[0].artifact_id);
+        assert_eq!(
+            decoded.entries[0].artifact_id,
+            manifest.entries[0].artifact_id
+        );
         assert_eq!(decoded.entries[0].kind, manifest.entries[0].kind);
-        assert_eq!(decoded.entries[0].content_hash, manifest.entries[0].content_hash);
-        assert_eq!(decoded.entries[0].provenance, manifest.entries[0].provenance);
+        assert_eq!(
+            decoded.entries[0].content_hash,
+            manifest.entries[0].content_hash
+        );
+        assert_eq!(
+            decoded.entries[0].provenance,
+            manifest.entries[0].provenance
+        );
     }
 
     #[test]

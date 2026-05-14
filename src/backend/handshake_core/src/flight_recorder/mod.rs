@@ -5925,10 +5925,7 @@ fn validate_distill_student_run_payload(payload: &Value) -> Result<(), RecorderE
 
 fn validate_distill_score_computed_payload(payload: &Value) -> Result<(), RecorderError> {
     let map = payload_object(payload)?;
-    require_exact_keys(
-        map,
-        &["type", "job_id", "example_count", "mean_score"],
-    )?;
+    require_exact_keys(map, &["type", "job_id", "example_count", "mean_score"])?;
     require_fixed_string(map, "type", "distill.score_computed")?;
     require_string(map, "job_id")?;
     require_number(map, "example_count")?;

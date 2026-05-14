@@ -232,7 +232,7 @@ mod tests {
     fn data_trust_score_short_output_penalty() {
         let mut entry = base_entry();
         entry.telemetry.output_char_len = Some(50); // < 128 and thumb == Up
-        // 0.9 - 0.1 = 0.8
+                                                    // 0.9 - 0.1 = 0.8
         let score = compute_data_trust_score(&entry);
         assert!((score - 0.8).abs() < 1e-10, "expected 0.8, got {score}");
     }
@@ -242,16 +242,19 @@ mod tests {
         let mut entry = base_entry();
         entry.quality.auto_eval.reasoning_score = Some(0.9); // +0.2 * 0.4 = +0.08
         entry.quality.auto_eval.factuality_score = Some(0.8); // +0.2 * 0.3 = +0.06
-        // base 0.9 + 0.08 + 0.06 = 1.04 -> clamped to 1.0
+                                                              // base 0.9 + 0.08 + 0.06 = 1.04 -> clamped to 1.0
         let score = compute_data_trust_score(&entry);
-        assert!((score - 1.0).abs() < 1e-10, "expected 1.0 (clamped), got {score}");
+        assert!(
+            (score - 1.0).abs() < 1e-10,
+            "expected 1.0 (clamped), got {score}"
+        );
     }
 
     #[test]
     fn data_trust_score_low_reasoning_reduces_score() {
         let mut entry = base_entry();
         entry.quality.auto_eval.reasoning_score = Some(0.1); // +0.2 * -0.4 = -0.08
-        // base 0.9 - 0.08 = 0.82
+                                                             // base 0.9 - 0.08 = 0.82
         let score = compute_data_trust_score(&entry);
         assert!((score - 0.82).abs() < 1e-10, "expected 0.82, got {score}");
     }
@@ -275,9 +278,12 @@ mod tests {
         entry.quality.auto_eval.security_flags = vec!["xss".to_string()];
         entry.quality.auto_eval.reasoning_score = Some(0.0); // -0.1
         entry.quality.auto_eval.factuality_score = Some(0.0); // -0.1
-        // +0.0 +0.0 +0.0 +0.0 -0.1 -0.1 = -0.2 -> clamped to 0.0
+                                                              // +0.0 +0.0 +0.0 +0.0 -0.1 -0.1 = -0.2 -> clamped to 0.0
         let score = compute_data_trust_score(&entry);
-        assert!((score - 0.0).abs() < 1e-10, "expected 0.0 (clamped), got {score}");
+        assert!(
+            (score - 0.0).abs() < 1e-10,
+            "expected 0.0 (clamped), got {score}"
+        );
     }
 
     #[test]

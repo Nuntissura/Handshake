@@ -8,6 +8,7 @@ pub mod diagnostics;
 pub mod flight_recorder;
 pub mod governance_pack;
 pub mod jobs;
+pub mod kernel;
 pub mod logs;
 pub mod loom;
 pub mod paths;
@@ -24,6 +25,7 @@ pub fn routes(state: AppState) -> Router {
     let bundle_routes = bundles::routes(state.clone());
     let governance_pack_routes = governance_pack::routes(state.clone());
     let role_mailbox_routes = role_mailbox::routes(state.clone());
+    let kernel_routes = kernel::routes(state.clone());
     let log_routes = Router::new()
         .route("/logs/tail", get(logs::tail_logs))
         .with_state(state.clone());
@@ -38,4 +40,5 @@ pub fn routes(state: AppState) -> Router {
         .merge(bundle_routes)
         .merge(governance_pack_routes)
         .merge(role_mailbox_routes)
+        .merge(kernel_routes)
 }

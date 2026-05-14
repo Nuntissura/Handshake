@@ -5,11 +5,11 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
+use crate::storage::artifacts::resolve_workspace_root;
 use crate::workflows::locus::{
     self,
     task_board::{SoftwareDeliveryCloseoutProjectionBadgeV1, TaskBoardEntryRecordV1},
 };
-use crate::storage::artifacts::resolve_workspace_root;
 
 pub const RUNTIME_GOVERNANCE_ROOT_ENV: &str = "HANDSHAKE_GOVERNANCE_ROOT";
 pub const RUNTIME_GOVERNANCE_DEFAULT_ROOT: &str = ".handshake/gov";
@@ -270,9 +270,10 @@ impl DccControlPlaneSnapshot {
                 // Combines work_packet_id, state, and queue context into a
                 // bounded 160-char string usable by local-small-model routing.
                 let queue_label = queue_reason_label(ws.queue_reason_code);
-                let mt_progress = ws.micro_task_summary.as_ref().map(|mt| {
-                    format!(" [{}/{} MTs]", mt.completed, mt.total)
-                });
+                let mt_progress = ws
+                    .micro_task_summary
+                    .as_ref()
+                    .map(|mt| format!(" [{}/{} MTs]", mt.completed, mt.total));
                 let raw_title = format!(
                     "{}: {} — {}{}",
                     ws.work_packet_id,
@@ -293,15 +294,10 @@ impl DccControlPlaneSnapshot {
                         160,
                     ));
                 }
-                if matches!(
-                    ws.state_family,
-                    locus::WorkflowStateFamily::Blocked
-                ) && blockers.is_empty()
+                if matches!(ws.state_family, locus::WorkflowStateFamily::Blocked)
+                    && blockers.is_empty()
                 {
-                    blockers.push(bounded_text(
-                        &format!("blocked: {}", queue_label),
-                        160,
-                    ));
+                    blockers.push(bounded_text(&format!("blocked: {}", queue_label), 160));
                 }
 
                 // Derive next_action from allowed actions or state family default
@@ -760,15 +756,11 @@ impl RuntimeGovernancePaths {
     }
 
     pub fn checkpoints_dir_display(&self) -> String {
-        ensure_trailing_slash(display_path(
-            &self.workspace_root,
-            &self.checkpoints_dir(),
-        ))
+        ensure_trailing_slash(display_path(&self.workspace_root, &self.checkpoints_dir()))
     }
 
     pub fn checkpoint_record_path(&self, checkpoint_id: &str) -> PathBuf {
-        self.checkpoints_dir()
-            .join(format!("{checkpoint_id}.json"))
+        self.checkpoints_dir().join(format!("{checkpoint_id}.json"))
     }
 
     pub fn checkpoint_record_display(&self, checkpoint_id: &str) -> String {
@@ -846,10 +838,7 @@ impl RuntimeGovernancePaths {
     }
 
     pub fn claim_leases_dir_display(&self) -> String {
-        ensure_trailing_slash(display_path(
-            &self.workspace_root,
-            &self.claim_leases_dir(),
-        ))
+        ensure_trailing_slash(display_path(&self.workspace_root, &self.claim_leases_dir()))
     }
 
     pub fn claim_lease_dir(&self, wp_id: &str) -> PathBuf {
@@ -976,21 +965,14 @@ impl RuntimeGovernancePaths {
     }
 
     pub fn workflow_run_record_display(&self, wp_id: &str) -> String {
-        display_path(
-            &self.workspace_root,
-            &self.workflow_run_record_path(wp_id),
-        )
+        display_path(&self.workspace_root, &self.workflow_run_record_path(wp_id))
     }
 
     /// True iff `value` is a canonical workflow run lifecycle record ref
     /// under the product runtime governance root for the SAME stable id
     /// `expected_wp_id`: `<gov_root>/workflow_runs/<expected_wp_id>.json`.
     /// Substring spoofs and foreign WP ids are rejected.
-    pub fn is_canonical_workflow_run_record_ref(
-        &self,
-        value: &str,
-        expected_wp_id: &str,
-    ) -> bool {
+    pub fn is_canonical_workflow_run_record_ref(&self, value: &str, expected_wp_id: &str) -> bool {
         if expected_wp_id.is_empty() || expected_wp_id.contains('/') {
             return false;
         }
@@ -1052,10 +1034,7 @@ impl RuntimeGovernancePaths {
         let approval_decisions = read_approval_decisions(&self.governance_decisions_dir());
         let active_auto_signatures = list_dir_stems(&self.auto_signatures_dir());
         let governance_root = self.governance_root_display();
-        let authority_refs = vec![
-            self.governance_root_display(),
-            self.task_board_display(),
-        ];
+        let authority_refs = vec![self.governance_root_display(), self.task_board_display()];
         let mut effective_capability_axes: Vec<String> =
             capability_registry.axes().iter().cloned().collect();
         effective_capability_axes.sort();
@@ -1179,7 +1158,11 @@ fn list_dir_stems(dir: &Path) -> Vec<String> {
     entries
         .filter_map(|e| e.ok())
         .filter(|e| e.path().is_file())
-        .filter_map(|e| e.path().file_stem().map(|s| s.to_string_lossy().into_owned()))
+        .filter_map(|e| {
+            e.path()
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+        })
         .collect()
 }
 
@@ -1202,23 +1185,28 @@ fn read_approval_decisions(dir: &Path) -> Vec<DccApprovalDecision> {
         let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) else {
             continue;
         };
-        let decision_id = val.get("decision_id")
+        let decision_id = val
+            .get("decision_id")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let gate_type = val.get("gate_type")
+        let gate_type = val
+            .get("gate_type")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let target_ref = val.get("target_ref")
+        let target_ref = val
+            .get("target_ref")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let decision = val.get("decision")
+        let decision = val
+            .get("decision")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let timestamp = val.get("timestamp")
+        let timestamp = val
+            .get("timestamp")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
@@ -1340,21 +1328,25 @@ mod tests {
     // ── MT-003 proof: workflow transition matrix, queue automation, executor eligibility ──
 
     use crate::workflows::locus::types::{
-        WorkflowStateFamily, WorkflowQueueReasonCode, ExecutorKind,
-        transition_rules_for_family, transition_rule_ids_for_family,
-        queue_automation_rules, queue_automation_rule_ids_for_reason,
         executor_eligibility_policies, executor_eligibility_policy_ids_for_family,
-        is_local_small_model_eligible,
+        is_local_small_model_eligible, queue_automation_rule_ids_for_reason,
+        queue_automation_rules, transition_rule_ids_for_family, transition_rules_for_family,
+        ExecutorKind, WorkflowQueueReasonCode, WorkflowStateFamily,
     };
 
     #[test]
     fn transition_rules_cover_all_families_and_archived_is_terminal() {
         let all_families = [
-            WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
-            WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
-            WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
-            WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
-            WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
+            WorkflowStateFamily::Intake,
+            WorkflowStateFamily::Ready,
+            WorkflowStateFamily::Active,
+            WorkflowStateFamily::Waiting,
+            WorkflowStateFamily::Review,
+            WorkflowStateFamily::Approval,
+            WorkflowStateFamily::Validation,
+            WorkflowStateFamily::Blocked,
+            WorkflowStateFamily::Done,
+            WorkflowStateFamily::Canceled,
             WorkflowStateFamily::Archived,
         ];
 
@@ -1390,14 +1382,20 @@ mod tests {
 
         // Verify id resolution matches
         let ids = transition_rule_ids_for_family(WorkflowStateFamily::Active);
-        assert!(ids.len() >= 3, "Active must have transitions to Waiting, Review, Blocked, Done, Canceled");
+        assert!(
+            ids.len() >= 3,
+            "Active must have transitions to Waiting, Review, Blocked, Done, Canceled"
+        );
         assert!(ids.iter().all(|id| id.starts_with("transition:active_")));
     }
 
     #[test]
     fn queue_automation_rules_cover_canonical_triggers() {
         let rules = queue_automation_rules();
-        assert!(rules.len() >= 4, "must cover dependency, mailbox, validation, retry triggers");
+        assert!(
+            rules.len() >= 4,
+            "must cover dependency, mailbox, validation, retry triggers"
+        );
 
         let rule_ids: Vec<&str> = rules.iter().map(|r| r.rule_id.as_str()).collect();
         assert!(rule_ids.contains(&"automation:dependency_cleared"));
@@ -1419,20 +1417,17 @@ mod tests {
         }
 
         // Verify reason-based resolution
-        let mailbox_rules = queue_automation_rule_ids_for_reason(
-            WorkflowQueueReasonCode::MailboxResponseWait,
-        );
+        let mailbox_rules =
+            queue_automation_rule_ids_for_reason(WorkflowQueueReasonCode::MailboxResponseWait);
         assert_eq!(mailbox_rules, vec!["automation:mailbox_response_received"]);
 
-        let dependency_rules = queue_automation_rule_ids_for_reason(
-            WorkflowQueueReasonCode::DependencyWait,
-        );
+        let dependency_rules =
+            queue_automation_rule_ids_for_reason(WorkflowQueueReasonCode::DependencyWait);
         assert_eq!(dependency_rules, vec!["automation:dependency_cleared"]);
 
         // ReadyForHuman has no outbound automation rule
-        let ready_rules = queue_automation_rule_ids_for_reason(
-            WorkflowQueueReasonCode::ReadyForHuman,
-        );
+        let ready_rules =
+            queue_automation_rule_ids_for_reason(WorkflowQueueReasonCode::ReadyForHuman);
         assert!(ready_rules.is_empty());
     }
 
@@ -1469,7 +1464,8 @@ mod tests {
         assert!(ready_policies.contains(&"eligibility:workflow_engine".to_string()));
 
         // Archived should only have operator and workflow_engine
-        let archived_policies = executor_eligibility_policy_ids_for_family(WorkflowStateFamily::Archived);
+        let archived_policies =
+            executor_eligibility_policy_ids_for_family(WorkflowStateFamily::Archived);
         assert!(archived_policies.contains(&"eligibility:operator".to_string()));
         assert!(archived_policies.contains(&"eligibility:workflow_engine".to_string()));
         assert!(!archived_policies.contains(&"eligibility:local_small_model".to_string()));
@@ -1521,11 +1517,16 @@ mod tests {
         // Verify the same function works for any family — proving portability
         // across WP, MT, TaskBoard, and Mailbox surfaces.
         let all_families = [
-            WorkflowStateFamily::Intake, WorkflowStateFamily::Ready,
-            WorkflowStateFamily::Active, WorkflowStateFamily::Waiting,
-            WorkflowStateFamily::Review, WorkflowStateFamily::Approval,
-            WorkflowStateFamily::Validation, WorkflowStateFamily::Blocked,
-            WorkflowStateFamily::Done, WorkflowStateFamily::Canceled,
+            WorkflowStateFamily::Intake,
+            WorkflowStateFamily::Ready,
+            WorkflowStateFamily::Active,
+            WorkflowStateFamily::Waiting,
+            WorkflowStateFamily::Review,
+            WorkflowStateFamily::Approval,
+            WorkflowStateFamily::Validation,
+            WorkflowStateFamily::Blocked,
+            WorkflowStateFamily::Done,
+            WorkflowStateFamily::Canceled,
             WorkflowStateFamily::Archived,
         ];
 
@@ -1583,7 +1584,11 @@ mod tests {
                         failed: 0,
                         in_progress: 1,
                         blocked: 0,
-                        mt_ids: vec!["MT-001".to_string(), "MT-002".to_string(), "MT-003".to_string()],
+                        mt_ids: vec![
+                            "MT-001".to_string(),
+                            "MT-002".to_string(),
+                            "MT-003".to_string(),
+                        ],
                     }),
                     gate_state: Some(DccGateState {
                         pre_work: "pass".to_string(),
@@ -1634,7 +1639,9 @@ mod tests {
                     latest_from_role: Some("orchestrator".to_string()),
                     created_at: "2026-04-11T00:00:00Z".to_string(),
                     closed_at: None,
-                    evidence_refs: vec![".handshake/gov/ROLE_MAILBOX/threads/thread-001.jsonl".to_string()],
+                    evidence_refs: vec![
+                        ".handshake/gov/ROLE_MAILBOX/threads/thread-001.jsonl".to_string()
+                    ],
                     linked_work_ids: vec![wp_id.to_string()],
                 }],
                 pending_wait_reasons: vec![DccWaitReason {
@@ -1676,7 +1683,10 @@ mod tests {
             json["work_state"]["active_workflow_summaries"][0]["authority_refs"][0],
             ".handshake/gov/work_packets/WP-1-Test/"
         );
-        assert_eq!(json["session_state"]["bindings"][0]["session_id"], session_id);
+        assert_eq!(
+            json["session_state"]["bindings"][0]["session_id"],
+            session_id
+        );
         assert_eq!(
             json["session_state"]["bindings"][0]["bound_work_packet_id"],
             wp_id
@@ -1699,7 +1709,10 @@ mod tests {
         assert_eq!(mt_summary["total"], 3);
         assert_eq!(mt_summary["completed"], 1);
         assert_eq!(mt_summary["in_progress"], 1);
-        assert_eq!(mt_summary["mt_ids"], serde_json::json!(["MT-001", "MT-002", "MT-003"]));
+        assert_eq!(
+            mt_summary["mt_ids"],
+            serde_json::json!(["MT-001", "MT-002", "MT-003"])
+        );
 
         // MT-002: gate state round-trip
         let gate = &json["work_state"]["active_workflow_summaries"][0]["gate_state"];
@@ -1707,9 +1720,15 @@ mod tests {
         assert_eq!(gate["post_work"], "pending");
 
         // MT-002: session occupancy fields
-        assert_eq!(json["session_state"]["bindings"][0]["model_id"], "claude-opus-4-6");
+        assert_eq!(
+            json["session_state"]["bindings"][0]["model_id"],
+            "claude-opus-4-6"
+        );
         assert_eq!(json["session_state"]["bindings"][0]["backend"], "anthropic");
-        assert_eq!(json["session_state"]["bindings"][0]["bound_micro_task_id"], "MT-002");
+        assert_eq!(
+            json["session_state"]["bindings"][0]["bound_micro_task_id"],
+            "MT-002"
+        );
 
         // MT-001 fix: approval decision state round-trip
         let ad = &json["governance_state"]["approval_decisions"][0];
@@ -1722,10 +1741,19 @@ mod tests {
         let collab = &json["collaboration_state"];
         assert_eq!(collab["active_threads"][0]["thread_id"], "thread-001");
         assert_eq!(collab["active_threads"][0]["work_packet_id"], wp_id);
-        assert_eq!(collab["active_threads"][0]["latest_message_type"], "clarification_request");
+        assert_eq!(
+            collab["active_threads"][0]["latest_message_type"],
+            "clarification_request"
+        );
         assert_eq!(collab["active_threads"][0]["linked_work_ids"][0], wp_id);
-        assert_eq!(collab["pending_wait_reasons"][0]["expected_response"], "clarification_response");
-        assert_eq!(collab["pending_wait_reasons"][0]["waiting_for_role"], "coder");
+        assert_eq!(
+            collab["pending_wait_reasons"][0]["expected_response"],
+            "clarification_response"
+        );
+        assert_eq!(
+            collab["pending_wait_reasons"][0]["waiting_for_role"],
+            "coder"
+        );
         assert_eq!(collab["mailbox_summary"]["total_threads"], 1);
         assert_eq!(collab["mailbox_summary"]["active_threads"], 1);
         assert_eq!(collab["mailbox_summary"]["total_messages"], 2);
@@ -1739,33 +1767,80 @@ mod tests {
             deserialized.work_state.active_workflow_summaries[0].work_packet_id,
             wp_id
         );
-        assert_eq!(deserialized.session_state.bindings[0].session_id, session_id);
+        assert_eq!(
+            deserialized.session_state.bindings[0].session_id,
+            session_id
+        );
         // MT-002: micro-task summary survives deserialization
         let mt = deserialized.work_state.active_workflow_summaries[0]
-            .micro_task_summary.as_ref().expect("micro_task_summary present");
+            .micro_task_summary
+            .as_ref()
+            .expect("micro_task_summary present");
         assert_eq!(mt.total, 3);
         assert_eq!(mt.completed, 1);
         assert_eq!(mt.mt_ids.len(), 3);
         // MT-002: gate state survives deserialization
         let gs = deserialized.work_state.active_workflow_summaries[0]
-            .gate_state.as_ref().expect("gate_state present");
+            .gate_state
+            .as_ref()
+            .expect("gate_state present");
         assert_eq!(gs.pre_work, "pass");
         assert_eq!(gs.post_work, "pending");
         // MT-002: session occupancy survives deserialization
-        assert_eq!(deserialized.session_state.bindings[0].model_id.as_deref(), Some("claude-opus-4-6"));
-        assert_eq!(deserialized.session_state.bindings[0].bound_micro_task_id.as_deref(), Some("MT-002"));
+        assert_eq!(
+            deserialized.session_state.bindings[0].model_id.as_deref(),
+            Some("claude-opus-4-6")
+        );
+        assert_eq!(
+            deserialized.session_state.bindings[0]
+                .bound_micro_task_id
+                .as_deref(),
+            Some("MT-002")
+        );
         // MT-001 fix: approval decisions survive deserialization
         assert_eq!(deserialized.governance_state.approval_decisions.len(), 1);
-        assert_eq!(deserialized.governance_state.approval_decisions[0].decision_id, "dec-001");
-        assert_eq!(deserialized.governance_state.approval_decisions[0].decision, "approve");
+        assert_eq!(
+            deserialized.governance_state.approval_decisions[0].decision_id,
+            "dec-001"
+        );
+        assert_eq!(
+            deserialized.governance_state.approval_decisions[0].decision,
+            "approve"
+        );
 
         // MT-003: collaboration state survives deserialization
         assert_eq!(deserialized.collaboration_state.active_threads.len(), 1);
-        assert_eq!(deserialized.collaboration_state.active_threads[0].thread_id, "thread-001");
-        assert_eq!(deserialized.collaboration_state.active_threads[0].work_packet_id.as_deref(), Some(wp_id));
-        assert_eq!(deserialized.collaboration_state.pending_wait_reasons.len(), 1);
-        assert_eq!(deserialized.collaboration_state.pending_wait_reasons[0].expected_response, "clarification_response");
-        assert_eq!(deserialized.collaboration_state.mailbox_summary.total_threads, 1);
-        assert_eq!(deserialized.collaboration_state.mailbox_summary.active_threads, 1);
+        assert_eq!(
+            deserialized.collaboration_state.active_threads[0].thread_id,
+            "thread-001"
+        );
+        assert_eq!(
+            deserialized.collaboration_state.active_threads[0]
+                .work_packet_id
+                .as_deref(),
+            Some(wp_id)
+        );
+        assert_eq!(
+            deserialized.collaboration_state.pending_wait_reasons.len(),
+            1
+        );
+        assert_eq!(
+            deserialized.collaboration_state.pending_wait_reasons[0].expected_response,
+            "clarification_response"
+        );
+        assert_eq!(
+            deserialized
+                .collaboration_state
+                .mailbox_summary
+                .total_threads,
+            1
+        );
+        assert_eq!(
+            deserialized
+                .collaboration_state
+                .mailbox_summary
+                .active_threads,
+            1
+        );
     }
 }

@@ -121,10 +121,14 @@ impl ProviderRegistry {
                 })
             }
             "openai_compat" => {
-                let base_url = std::env::var("OPENAI_COMPAT_BASE_URL")
-                    .map_err(|_| LlmError::InvalidBaseUrl("OPENAI_COMPAT_BASE_URL missing".to_string()))?;
-                let model_id = std::env::var("OPENAI_COMPAT_MODEL")
-                    .map_err(|_| LlmError::ProviderError("HSK-400-INVALID-CONFIG: OPENAI_COMPAT_MODEL missing".to_string()))?;
+                let base_url = std::env::var("OPENAI_COMPAT_BASE_URL").map_err(|_| {
+                    LlmError::InvalidBaseUrl("OPENAI_COMPAT_BASE_URL missing".to_string())
+                })?;
+                let model_id = std::env::var("OPENAI_COMPAT_MODEL").map_err(|_| {
+                    LlmError::ProviderError(
+                        "HSK-400-INVALID-CONFIG: OPENAI_COMPAT_MODEL missing".to_string(),
+                    )
+                })?;
 
                 let tier = std::env::var("OPENAI_COMPAT_TIER")
                     .ok()
@@ -405,14 +409,14 @@ mod tests {
 
     #[test]
     fn validate_base_url_blocks_embedded_credentials() {
-        let err = match validate_base_url_for_tier("https://user:pass@example.com", ModelTier::Local)
-        {
-            Ok(_) => {
-                assert!(false, "expected Err(InvalidBaseUrl)");
-                return;
-            }
-            Err(err) => err,
-        };
+        let err =
+            match validate_base_url_for_tier("https://user:pass@example.com", ModelTier::Local) {
+                Ok(_) => {
+                    assert!(false, "expected Err(InvalidBaseUrl)");
+                    return;
+                }
+                Err(err) => err,
+            };
 
         assert!(matches!(err, LlmError::InvalidBaseUrl(_)));
     }

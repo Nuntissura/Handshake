@@ -603,7 +603,7 @@ impl DuckDbFlightRecorder {
             self.retention_days
         );
         let affected_events = conn
-            .execute(&query, [])
+            .execute(&query, duckdb::params![])
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
         let fr_query = format!(
@@ -611,7 +611,7 @@ impl DuckDbFlightRecorder {
             self.retention_days
         );
         let affected_fr_events = conn
-            .execute(&fr_query, [])
+            .execute(&fr_query, duckdb::params![])
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
         let terminal_query = format!(
@@ -619,7 +619,7 @@ impl DuckDbFlightRecorder {
             self.retention_days
         );
         let affected_terminal_output = conn
-            .execute(&terminal_query, [])
+            .execute(&terminal_query, duckdb::params![])
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
         let tool_payload_query = format!(
@@ -627,7 +627,7 @@ impl DuckDbFlightRecorder {
             self.retention_days
         );
         let affected_tool_payloads = conn
-            .execute(&tool_payload_query, [])
+            .execute(&tool_payload_query, duckdb::params![])
             .map_err(|e| RecorderError::SinkError(e.to_string()))?;
 
         Ok((affected_events
@@ -1135,7 +1135,7 @@ mod tests {
         query: &str,
     ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let mut stmt = conn.prepare(query)?;
-        let mut rows = stmt.query([])?;
+        let mut rows = stmt.query(duckdb::params![])?;
 
         let mut values = Vec::new();
         while let Some(row) = rows.next()? {

@@ -1,3 +1,8 @@
+use crate::storage::{
+    CalendarEventUpsert, CalendarMutationAction, CalendarSourceSyncState, CalendarSourceUpsert,
+    CalendarSourceWritePolicy, CalendarSyncEventUpsert, CalendarSyncInput, CalendarSyncStateStage,
+    WriteContext,
+};
 use crate::{
     ace::{
         validators::{
@@ -67,11 +72,6 @@ use crate::{
         SessionWorktreeAllocation, SessionWorktreeRegistry,
     },
     AppState,
-};
-use crate::storage::{
-    CalendarEventUpsert, CalendarMutationAction, CalendarSourceSyncState, CalendarSourceUpsert,
-    CalendarSourceWritePolicy, CalendarSyncEventUpsert, CalendarSyncInput, CalendarSyncStateStage,
-    WriteContext,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -3397,7 +3397,8 @@ pub fn work_packet_workflow_state_with_mailbox(
             locus::WorkflowQueueReasonCode::BlockedPolicy,
         ),
     };
-    let reason = locus::resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
+    let reason =
+        locus::resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
     (family, reason)
 }
 
@@ -3431,7 +3432,8 @@ fn micro_task_workflow_state_with_mailbox(
             locus::WorkflowQueueReasonCode::BlockedPolicy,
         ),
     };
-    let reason = locus::resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
+    let reason =
+        locus::resolve_queue_reason_with_mailbox_context(base_reason, has_pending_mailbox_wait);
     (family, reason)
 }
 
@@ -3621,7 +3623,10 @@ fn first_gate_report_string(value: &Value, fields: &[(&str, Option<&str>)]) -> O
     })
 }
 
-fn gate_status_role_proof(gate_status: &locus::GateStatus, report: Option<&Value>) -> Option<String> {
+fn gate_status_role_proof(
+    gate_status: &locus::GateStatus,
+    report: Option<&Value>,
+) -> Option<String> {
     report
         .and_then(|value| {
             first_gate_report_string(
@@ -3635,10 +3640,11 @@ fn gate_status_role_proof(gate_status: &locus::GateStatus, report: Option<&Value
             )
         })
         .or_else(|| {
-            gate_status
-                .validated_by
-                .as_deref()
-                .and_then(|value| value.split_once(':').map(|(role, _)| role.trim().to_string()))
+            gate_status.validated_by.as_deref().and_then(|value| {
+                value
+                    .split_once(':')
+                    .map(|(role, _)| role.trim().to_string())
+            })
         })
         .filter(|value| !value.is_empty())
 }
@@ -3660,10 +3666,11 @@ fn gate_status_session_proof(
             )
         })
         .or_else(|| {
-            gate_status
-                .validated_by
-                .as_deref()
-                .and_then(|value| value.split_once(':').map(|(_, session)| session.trim().to_string()))
+            gate_status.validated_by.as_deref().and_then(|value| {
+                value
+                    .split_once(':')
+                    .map(|(_, session)| session.trim().to_string())
+            })
         })
         .filter(|value| !value.is_empty())
 }
@@ -4164,8 +4171,10 @@ async fn emit_task_board_projection_artifacts(
             *next = next.saturating_add(1);
             current
         };
-        let (workflow_state_family, queue_reason_code) =
-            work_packet_workflow_state_with_mailbox(work_packet_status, metadata_has_pending_mailbox_wait(&metadata));
+        let (workflow_state_family, queue_reason_code) = work_packet_workflow_state_with_mailbox(
+            work_packet_status,
+            metadata_has_pending_mailbox_wait(&metadata),
+        );
         let allowed_action_ids = allowed_action_ids(workflow_state_family);
         let entry = locus::task_board::TaskBoardEntryRecordV1 {
             schema_id: TASK_BOARD_ENTRY_SCHEMA_ID.to_string(),
@@ -4183,8 +4192,12 @@ async fn emit_task_board_projection_artifacts(
             queue_reason_code,
             allowed_action_ids: allowed_action_ids.clone(),
             transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
-            queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
-            executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
+            queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(
+                queue_reason_code,
+            ),
+            executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(
+                workflow_state_family,
+            ),
             task_board_id: task_board_id.clone(),
             work_packet_id: row.wp_id.clone(),
             lane_id,
@@ -5315,20 +5328,22 @@ pub fn apply_software_delivery_closeout_posture_lifecycle(
     summary_value: &Value,
 ) -> Result<(), WorkflowError> {
     let posture_path = runtime_paths.work_packet_closeout_posture_path(wp_id);
-    let derived = serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(
-        summary_value.clone(),
-    )
-    .ok()
-    .and_then(|summary_struct| {
-        let governed_action_resolution_refs =
-            gather_software_delivery_governed_action_resolution_refs(&summary_struct, runtime_paths);
-        locus::derive_software_delivery_closeout_posture(
-            &summary_struct,
-            runtime_paths,
-            None,
-            &governed_action_resolution_refs,
-        )
-    });
+    let derived =
+        serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(summary_value.clone())
+            .ok()
+            .and_then(|summary_struct| {
+                let governed_action_resolution_refs =
+                    gather_software_delivery_governed_action_resolution_refs(
+                        &summary_struct,
+                        runtime_paths,
+                    );
+                locus::derive_software_delivery_closeout_posture(
+                    &summary_struct,
+                    runtime_paths,
+                    None,
+                    &governed_action_resolution_refs,
+                )
+            });
 
     match derived {
         Some(posture) => {
@@ -5395,8 +5410,7 @@ fn read_software_delivery_closeout_posture(
     wp_id: &str,
 ) -> Option<locus::SoftwareDeliveryCloseoutPostureV1> {
     let bytes = fs::read(runtime_paths.work_packet_closeout_posture_path(wp_id)).ok()?;
-    let posture: locus::SoftwareDeliveryCloseoutPostureV1 =
-        serde_json::from_slice(&bytes).ok()?;
+    let posture: locus::SoftwareDeliveryCloseoutPostureV1 = serde_json::from_slice(&bytes).ok()?;
     if posture.project_profile_kind != locus::ProjectProfileKind::SoftwareDelivery {
         return None;
     }
@@ -5412,15 +5426,17 @@ fn build_software_delivery_closeout_badge_from_disk(
 ) -> Option<locus::task_board::SoftwareDeliveryCloseoutProjectionBadgeV1> {
     let projection = read_software_delivery_projection_surface(runtime_paths, wp_id)?;
     let posture = read_software_delivery_closeout_posture(runtime_paths, wp_id);
-    Some(locus::task_board::build_software_delivery_closeout_projection_badge(
-        wp_id,
-        runtime_paths.work_packet_projection_surface_display(wp_id),
-        posture
-            .as_ref()
-            .map(|_| runtime_paths.work_packet_closeout_posture_display(wp_id)),
-        posture.as_ref(),
-        projection.workflow_binding_state,
-    ))
+    Some(
+        locus::task_board::build_software_delivery_closeout_projection_badge(
+            wp_id,
+            runtime_paths.work_packet_projection_surface_display(wp_id),
+            posture
+                .as_ref()
+                .map(|_| runtime_paths.work_packet_closeout_posture_display(wp_id)),
+            posture.as_ref(),
+            projection.workflow_binding_state,
+        ),
+    )
 }
 
 fn build_software_delivery_mailbox_triage_row_from_disk(
@@ -5429,10 +5445,7 @@ fn build_software_delivery_mailbox_triage_row_from_disk(
 ) -> Option<crate::role_mailbox::SoftwareDeliveryOverlayTriageRowV1> {
     let projection = read_software_delivery_projection_surface(runtime_paths, wp_id)?;
     let closeout_badge = build_software_delivery_closeout_badge_from_disk(runtime_paths, wp_id)?;
-    crate::role_mailbox::build_software_delivery_overlay_triage_row(
-        &projection,
-        closeout_badge,
-    )
+    crate::role_mailbox::build_software_delivery_overlay_triage_row(&projection, closeout_badge)
 }
 
 /// MT-004 v02.181: read canonical software-delivery overlay records for
@@ -5485,17 +5498,14 @@ fn read_canonical_software_delivery_overlay_records(
         match fs::read_dir(runtime_paths.queued_instruction_dir(wp_id)) {
             Ok(iter) => iter
                 .flatten()
-                .filter(|entry| {
-                    entry.path().extension().and_then(|s| s.to_str()) == Some("json")
-                })
+                .filter(|entry| entry.path().extension().and_then(|s| s.to_str()) == Some("json"))
                 .filter_map(|entry| fs::read(entry.path()).ok())
                 .filter_map(|bytes| {
                     serde_json::from_slice::<locus::GovernanceQueuedInstructionRecordV1>(&bytes)
                         .ok()
                 })
                 .filter(|record| {
-                    record.project_profile_kind
-                        == locus::ProjectProfileKind::SoftwareDelivery
+                    record.project_profile_kind == locus::ProjectProfileKind::SoftwareDelivery
                         && record.work_packet_id == wp_id
                 })
                 .collect(),
@@ -5562,14 +5572,14 @@ fn derive_software_delivery_projection_lifecycle_flags_from_canonical(
         canonical.queue_reason_code,
         locus::WorkflowQueueReasonCode::BlockedError
     );
-    let has_unresolved_governed_actions =
-        canonical.workflow_state_family == locus::WorkflowStateFamily::Approval
-            && canonical.allowed_action_ids.iter().any(|id| {
-                locus::is_governed_action_id_allowed_for_workflow_family(
-                    locus::WorkflowStateFamily::Approval,
-                    id,
-                )
-            });
+    let has_unresolved_governed_actions = canonical.workflow_state_family
+        == locus::WorkflowStateFamily::Approval
+        && canonical.allowed_action_ids.iter().any(|id| {
+            locus::is_governed_action_id_allowed_for_workflow_family(
+                locus::WorkflowStateFamily::Approval,
+                id,
+            )
+        });
     (
         has_unresolved_governed_actions,
         workflow_failed,
@@ -5596,9 +5606,7 @@ fn compute_software_delivery_projection_gate_posture_from_disk(
     canonical: &locus::StructuredCollaborationSummaryV1,
     workflow_run_lifecycle: Option<&locus::SoftwareDeliveryWorkflowRunLifecycleV1>,
 ) -> locus::SoftwareDeliveryBindingGatePosture {
-    let has_active_validator_gate = runtime_paths
-        .validator_gate_record_path(wp_id)
-        .exists();
+    let has_active_validator_gate = runtime_paths.validator_gate_record_path(wp_id).exists();
     let governed_action_resolution_refs =
         gather_software_delivery_governed_action_resolution_refs(canonical, runtime_paths);
     let has_closeout_posture = locus::derive_software_delivery_closeout_posture(
@@ -5608,12 +5616,8 @@ fn compute_software_delivery_projection_gate_posture_from_disk(
         &governed_action_resolution_refs,
     )
     .is_some();
-    let (
-        canonical_unresolved,
-        canonical_failed,
-        canonical_canceled,
-        canonical_settled,
-    ) = derive_software_delivery_projection_lifecycle_flags_from_canonical(canonical);
+    let (canonical_unresolved, canonical_failed, canonical_canceled, canonical_settled) =
+        derive_software_delivery_projection_lifecycle_flags_from_canonical(canonical);
     locus::SoftwareDeliveryBindingGatePosture {
         has_unresolved_governed_actions: workflow_run_lifecycle
             .map(|r| r.has_unresolved_governed_actions)
@@ -5653,16 +5657,11 @@ fn select_software_delivery_projection_stable_ids(
         workflow_binding_id = workflow_binding_id.or_else(|| claim.workflow_binding_id.clone());
         model_session_id = model_session_id.or_else(|| claim.model_session_id.clone());
     }
-    if workflow_run_id.is_none()
-        || workflow_binding_id.is_none()
-        || model_session_id.is_none()
-    {
+    if workflow_run_id.is_none() || workflow_binding_id.is_none() || model_session_id.is_none() {
         if let Some(first) = queued.first() {
             workflow_run_id = workflow_run_id.or_else(|| first.workflow_run_id.clone());
-            workflow_binding_id =
-                workflow_binding_id.or_else(|| first.workflow_binding_id.clone());
-            model_session_id =
-                model_session_id.or_else(|| first.target_model_session_id.clone());
+            workflow_binding_id = workflow_binding_id.or_else(|| first.workflow_binding_id.clone());
+            model_session_id = model_session_id.or_else(|| first.target_model_session_id.clone());
         }
     }
     if let Some(run) = workflow_run_lifecycle {
@@ -5708,47 +5707,49 @@ pub fn apply_software_delivery_workflow_run_lifecycle(
     summary_value: &Value,
 ) -> Result<(), WorkflowError> {
     let lifecycle_path = runtime_paths.workflow_run_record_path(wp_id);
-    let derived = serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(
-        summary_value.clone(),
-    )
-    .ok()
-    .filter(|canonical| {
-        canonical.project_profile_kind == locus::ProjectProfileKind::SoftwareDelivery
-            && canonical.record_id == wp_id
-    })
-    .map(|canonical| {
-        let (claim_lease, queued) =
-            read_canonical_software_delivery_overlay_records(runtime_paths, wp_id);
-        let (workflow_run_id, workflow_binding_id, model_session_id) =
-            select_software_delivery_projection_stable_ids(
-                claim_lease.as_ref(),
-                &queued,
-                None,
-            );
-        let (
-            has_unresolved_governed_actions,
-            workflow_failed,
-            workflow_canceled,
-            workflow_settled,
-        ) = derive_software_delivery_projection_lifecycle_flags_from_canonical(&canonical);
-        locus::SoftwareDeliveryWorkflowRunLifecycleV1 {
-            schema_id: locus::SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_SCHEMA_ID_V1.to_string(),
-            schema_version: locus::SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_SCHEMA_VERSION_V1
-                .to_string(),
-            record_id: wp_id.to_string(),
-            record_kind: locus::SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_RECORD_KIND.to_string(),
-            project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
-            work_packet_id: wp_id.to_string(),
-            workflow_run_id,
-            workflow_binding_id,
-            model_session_id,
-            workflow_failed,
-            workflow_canceled,
-            workflow_settled,
-            has_unresolved_governed_actions,
-            updated_at: canonical.updated_at.clone(),
-        }
-    });
+    let derived =
+        serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(summary_value.clone())
+            .ok()
+            .filter(|canonical| {
+                canonical.project_profile_kind == locus::ProjectProfileKind::SoftwareDelivery
+                    && canonical.record_id == wp_id
+            })
+            .map(|canonical| {
+                let (claim_lease, queued) =
+                    read_canonical_software_delivery_overlay_records(runtime_paths, wp_id);
+                let (workflow_run_id, workflow_binding_id, model_session_id) =
+                    select_software_delivery_projection_stable_ids(
+                        claim_lease.as_ref(),
+                        &queued,
+                        None,
+                    );
+                let (
+                    has_unresolved_governed_actions,
+                    workflow_failed,
+                    workflow_canceled,
+                    workflow_settled,
+                ) = derive_software_delivery_projection_lifecycle_flags_from_canonical(&canonical);
+                locus::SoftwareDeliveryWorkflowRunLifecycleV1 {
+                    schema_id: locus::SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_SCHEMA_ID_V1
+                        .to_string(),
+                    schema_version:
+                        locus::SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_SCHEMA_VERSION_V1
+                            .to_string(),
+                    record_id: wp_id.to_string(),
+                    record_kind: locus::SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_RECORD_KIND
+                        .to_string(),
+                    project_profile_kind: locus::ProjectProfileKind::SoftwareDelivery,
+                    work_packet_id: wp_id.to_string(),
+                    workflow_run_id,
+                    workflow_binding_id,
+                    model_session_id,
+                    workflow_failed,
+                    workflow_canceled,
+                    workflow_settled,
+                    has_unresolved_governed_actions,
+                    updated_at: canonical.updated_at.clone(),
+                }
+            });
 
     match derived {
         Some(record) => {
@@ -5793,40 +5794,39 @@ pub fn apply_software_delivery_projection_surface_lifecycle(
     summary_value: &Value,
 ) -> Result<(), WorkflowError> {
     let surface_path = runtime_paths.work_packet_projection_surface_path(wp_id);
-    let derived = serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(
-        summary_value.clone(),
-    )
-    .ok()
-    .and_then(|canonical| {
-        let (claim_lease, queued) =
-            read_canonical_software_delivery_overlay_records(runtime_paths, wp_id);
-        let workflow_run_lifecycle =
-            read_canonical_software_delivery_workflow_run_lifecycle(runtime_paths, wp_id);
-        let (workflow_run_id, workflow_binding_id, model_session_id) =
-            select_software_delivery_projection_stable_ids(
-                claim_lease.as_ref(),
-                &queued,
-                workflow_run_lifecycle.as_ref(),
-            );
-        let gate_posture = compute_software_delivery_projection_gate_posture_from_disk(
-            runtime_paths,
-            wp_id,
-            &canonical,
-            workflow_run_lifecycle.as_ref(),
-        );
-        locus::derive_software_delivery_projection_surface_with_overlay(
-            &canonical,
-            workflow_run_id.as_deref(),
-            workflow_binding_id.as_deref(),
-            model_session_id.as_deref(),
-            None,
-            &[],
-            claim_lease.as_ref(),
-            &queued,
-            gate_posture,
-            runtime_paths,
-        )
-    });
+    let derived =
+        serde_json::from_value::<locus::StructuredCollaborationSummaryV1>(summary_value.clone())
+            .ok()
+            .and_then(|canonical| {
+                let (claim_lease, queued) =
+                    read_canonical_software_delivery_overlay_records(runtime_paths, wp_id);
+                let workflow_run_lifecycle =
+                    read_canonical_software_delivery_workflow_run_lifecycle(runtime_paths, wp_id);
+                let (workflow_run_id, workflow_binding_id, model_session_id) =
+                    select_software_delivery_projection_stable_ids(
+                        claim_lease.as_ref(),
+                        &queued,
+                        workflow_run_lifecycle.as_ref(),
+                    );
+                let gate_posture = compute_software_delivery_projection_gate_posture_from_disk(
+                    runtime_paths,
+                    wp_id,
+                    &canonical,
+                    workflow_run_lifecycle.as_ref(),
+                );
+                locus::derive_software_delivery_projection_surface_with_overlay(
+                    &canonical,
+                    workflow_run_id.as_deref(),
+                    workflow_binding_id.as_deref(),
+                    model_session_id.as_deref(),
+                    None,
+                    &[],
+                    claim_lease.as_ref(),
+                    &queued,
+                    gate_posture,
+                    runtime_paths,
+                )
+            });
 
     match derived {
         Some(surface) => {
@@ -6235,8 +6235,10 @@ fn build_structured_work_packet_summary_value(
     );
     summary_object.insert(
         "queue_automation_rule_ids".to_string(),
-        serde_json::to_value(locus::queue_automation_rule_ids_for_reason(queue_reason_code))
-            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+        serde_json::to_value(locus::queue_automation_rule_ids_for_reason(
+            queue_reason_code,
+        ))
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
     );
     summary_object.insert(
         "allowed_action_ids".to_string(),
@@ -6245,8 +6247,10 @@ fn build_structured_work_packet_summary_value(
     );
     summary_object.insert(
         "executor_eligibility_policy_ids".to_string(),
-        serde_json::to_value(locus::executor_eligibility_policy_ids_for_family(workflow_state_family))
-            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+        serde_json::to_value(locus::executor_eligibility_policy_ids_for_family(
+            workflow_state_family,
+        ))
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
     );
     if let Some(profile_extension) = tracked_wp.profile_extension.clone() {
         summary_object.insert("profile_extension".to_string(), profile_extension);
@@ -6280,7 +6284,9 @@ fn build_structured_work_packet_packet(
         allowed_action_ids: allowed_action_ids(workflow_state_family),
         transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
         queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
-        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
+        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(
+            workflow_state_family,
+        ),
         summary_ref: runtime_paths.work_packet_summary_display(&tracked_wp.wp_id),
         note_refs,
         wp_id: tracked_wp.wp_id.clone(),
@@ -6348,13 +6354,17 @@ fn build_structured_micro_task_summary_value(
     );
     summary_object.insert(
         "queue_automation_rule_ids".to_string(),
-        serde_json::to_value(locus::queue_automation_rule_ids_for_reason(queue_reason_code))
-            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+        serde_json::to_value(locus::queue_automation_rule_ids_for_reason(
+            queue_reason_code,
+        ))
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
     );
     summary_object.insert(
         "executor_eligibility_policy_ids".to_string(),
-        serde_json::to_value(locus::executor_eligibility_policy_ids_for_family(workflow_state_family))
-            .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
+        serde_json::to_value(locus::executor_eligibility_policy_ids_for_family(
+            workflow_state_family,
+        ))
+        .map_err(|e| WorkflowError::Terminal(e.to_string()))?,
     );
     if let Some(profile_extension) = tracked_mt.profile_extension.clone() {
         summary_object.insert("profile_extension".to_string(), profile_extension);
@@ -6387,7 +6397,9 @@ fn build_structured_micro_task_packet(
         allowed_action_ids: allowed_action_ids(workflow_state_family),
         transition_rule_ids: locus::transition_rule_ids_for_family(workflow_state_family),
         queue_automation_rule_ids: locus::queue_automation_rule_ids_for_reason(queue_reason_code),
-        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(workflow_state_family),
+        executor_eligibility_policy_ids: locus::executor_eligibility_policy_ids_for_family(
+            workflow_state_family,
+        ),
         summary_ref: runtime_paths.micro_task_summary_display(&tracked_mt.wp_id, &tracked_mt.mt_id),
         mt_id: tracked_mt.mt_id.clone(),
         wp_id: tracked_mt.wp_id.clone(),
@@ -6539,9 +6551,10 @@ fn build_dcc_workflow_summary_from_task_board_entry(
 ) -> crate::runtime_governance::DccWorkflowSummary {
     use crate::runtime_governance::DccWorkflowSummary;
 
-    let closeout_badge = entry.closeout_badge.clone().filter(|badge| {
-        badge.advisory_only && badge.work_packet_id == entry.work_packet_id
-    });
+    let closeout_badge = entry
+        .closeout_badge
+        .clone()
+        .filter(|badge| badge.advisory_only && badge.work_packet_id == entry.work_packet_id);
 
     DccWorkflowSummary {
         work_packet_id: entry.work_packet_id.clone(),
@@ -11508,31 +11521,24 @@ pub fn distillation_candidate_to_log_entry(
     // Build structured metadata for a ChatMessage from an attempt + artifact.
     // Preserves model_id, lora_id, lora_version, outcome, iterations, and
     // the full artifact handle so downstream consumers can resolve snapshots.
-    let msg_meta =
-        |attempt: &CandidateAttempt, artifact: &crate::ace::ArtifactHandle| {
-            let mut m: HashMap<String, serde_json::Value> = HashMap::new();
-            m.insert("model_id".into(), serde_json::json!(attempt.model_id));
-            m.insert(
-                "artifact_id".into(),
-                serde_json::json!(artifact.artifact_id.to_string()),
-            );
-            m.insert(
-                "artifact_path".into(),
-                serde_json::json!(artifact.path),
-            );
-            if let Some(ref lid) = attempt.lora_id {
-                m.insert("lora_id".into(), serde_json::json!(lid));
-            }
-            if let Some(ref lv) = attempt.lora_version {
-                m.insert("lora_version".into(), serde_json::json!(lv));
-            }
-            m.insert("outcome".into(), serde_json::json!(attempt.outcome));
-            m.insert(
-                "iterations".into(),
-                serde_json::json!(attempt.iterations),
-            );
-            m
-        };
+    let msg_meta = |attempt: &CandidateAttempt, artifact: &crate::ace::ArtifactHandle| {
+        let mut m: HashMap<String, serde_json::Value> = HashMap::new();
+        m.insert("model_id".into(), serde_json::json!(attempt.model_id));
+        m.insert(
+            "artifact_id".into(),
+            serde_json::json!(artifact.artifact_id.to_string()),
+        );
+        m.insert("artifact_path".into(), serde_json::json!(artifact.path));
+        if let Some(ref lid) = attempt.lora_id {
+            m.insert("lora_id".into(), serde_json::json!(lid));
+        }
+        if let Some(ref lv) = attempt.lora_version {
+            m.insert("lora_version".into(), serde_json::json!(lv));
+        }
+        m.insert("outcome".into(), serde_json::json!(attempt.outcome));
+        m.insert("iterations".into(), serde_json::json!(attempt.iterations));
+        m
+    };
 
     SkillBankLogEntry {
         version: "1.0.0".to_string(),
@@ -11580,9 +11586,7 @@ pub fn distillation_candidate_to_log_entry(
                 id: Uuid::new_v4(),
                 parent_id: None,
                 role: Role::User,
-                content: Content::Plain(
-                    teacher.prompt_snapshot_ref.canonical_id(),
-                ),
+                content: Content::Plain(teacher.prompt_snapshot_ref.canonical_id()),
                 metadata: msg_meta(teacher, &teacher.prompt_snapshot_ref),
             }],
             focus_message_id: None,
@@ -11593,9 +11597,7 @@ pub fn distillation_candidate_to_log_entry(
                 id: Uuid::new_v4(),
                 parent_id: None,
                 role: Role::Assistant,
-                content: Content::Plain(
-                    teacher.output_snapshot_ref.canonical_id(),
-                ),
+                content: Content::Plain(teacher.output_snapshot_ref.canonical_id()),
                 metadata: msg_meta(teacher, &teacher.output_snapshot_ref),
             }],
             focus_message_id: None,
@@ -11609,25 +11611,15 @@ pub fn distillation_candidate_to_log_entry(
                     id: Uuid::new_v4(),
                     parent_id: None,
                     role: Role::User,
-                    content: Content::Plain(
-                        student.prompt_snapshot_ref.canonical_id(),
-                    ),
-                    metadata: msg_meta(
-                        student,
-                        &student.prompt_snapshot_ref,
-                    ),
+                    content: Content::Plain(student.prompt_snapshot_ref.canonical_id()),
+                    metadata: msg_meta(student, &student.prompt_snapshot_ref),
                 },
                 ChatMessage {
                     id: Uuid::new_v4(),
                     parent_id: None,
                     role: Role::Assistant,
-                    content: Content::Plain(
-                        student.output_snapshot_ref.canonical_id(),
-                    ),
-                    metadata: msg_meta(
-                        student,
-                        &student.output_snapshot_ref,
-                    ),
+                    content: Content::Plain(student.output_snapshot_ref.canonical_id()),
+                    metadata: msg_meta(student, &student.output_snapshot_ref),
                 },
             ],
             focus_message_id: None,
@@ -11647,14 +11639,8 @@ pub fn distillation_candidate_to_log_entry(
             data_trust_score: Some(candidate.data_trust_score),
             reward_features: {
                 let mut rf = HashMap::new();
-                rf.insert(
-                    "student_iterations".to_string(),
-                    student.iterations as f64,
-                );
-                rf.insert(
-                    "teacher_iterations".to_string(),
-                    teacher.iterations as f64,
-                );
+                rf.insert("student_iterations".to_string(), student.iterations as f64);
+                rf.insert("teacher_iterations".to_string(), teacher.iterations as f64);
                 rf
             },
         },
@@ -14250,11 +14236,7 @@ fn is_calendar_sync_job(job: &AiJob) -> bool {
     matches!(job.job_kind, JobKind::WorkflowRun) && job.protocol_id == CALENDAR_SYNC_PROTOCOL_ID
 }
 
-fn calendar_sync_denied_output(
-    job: &AiJob,
-    workflow_run_id: Option<Uuid>,
-    reason: &str,
-) -> Value {
+fn calendar_sync_denied_output(job: &AiJob, workflow_run_id: Option<Uuid>, reason: &str) -> Value {
     json!({
         "schema_version": "hsk.calendar_sync_result@v1",
         "engine_id": CALENDAR_SYNC_ENGINE_ID,
@@ -14350,10 +14332,8 @@ impl EngineAdapter for CalendarSyncEngineAdapter {
             .map_err(|e| MexAdapterError::Engine(format!("invalid calendar sync input: {e}")))?;
         let outcome = apply_calendar_sync(&self.state, op, input).await?;
         let ended_at = Utc::now();
-        let output_handle = ArtifactHandle::new(
-            op.op_id,
-            format!("calendar_sync_result/{}.json", op.op_id),
-        );
+        let output_handle =
+            ArtifactHandle::new(op.op_id, format!("calendar_sync_result/{}.json", op.op_id));
         let provenance = ProvenanceRecord {
             engine_id: op.engine_id.clone(),
             engine_version: Some("0.1.0".to_string()),
@@ -14478,8 +14458,11 @@ async fn apply_calendar_sync(
     );
     let mut provider_events_upserted = 0usize;
     for provider_event in input.provider_events {
-        let upsert =
-            calendar_event_upsert_from_sync_event(&input.workspace_id, &input.source_id, provider_event);
+        let upsert = calendar_event_upsert_from_sync_event(
+            &input.workspace_id,
+            &input.source_id,
+            provider_event,
+        );
         state
             .storage
             .upsert_calendar_event(&ctx, upsert)
@@ -14495,8 +14478,11 @@ async fn apply_calendar_sync(
                 let event = mutation.event.ok_or_else(|| {
                     MexAdapterError::Engine("calendar mutation upsert_event requires event".into())
                 })?;
-                let upsert =
-                    calendar_event_upsert_from_sync_event(&input.workspace_id, &input.source_id, event);
+                let upsert = calendar_event_upsert_from_sync_event(
+                    &input.workspace_id,
+                    &input.source_id,
+                    event,
+                );
                 state
                     .storage
                     .upsert_calendar_event(&ctx, upsert)
@@ -14515,7 +14501,9 @@ async fn apply_calendar_sync(
     let last_rev = source.sync_state.last_local_applied_rev.unwrap_or(0);
     let sync_state = CalendarSourceSyncState {
         state: Some(CalendarSyncStateStage::Idle),
-        sync_token: input.next_sync_token.or(source.sync_state.sync_token.clone()),
+        sync_token: input
+            .next_sync_token
+            .or(source.sync_state.sync_token.clone()),
         last_synced_at: Some(now),
         last_full_sync_at: if input.full_sync {
             Some(now)
@@ -29568,7 +29556,10 @@ mod tests {
             pre_work_evidence.descriptor_provenance.as_deref(),
             Some("master_spec")
         );
-        assert_eq!(pre_work_evidence.role_proof.as_deref(), Some("WP_VALIDATOR"));
+        assert_eq!(
+            pre_work_evidence.role_proof.as_deref(),
+            Some("WP_VALIDATOR")
+        );
         assert_eq!(
             pre_work_evidence.session_proof.as_deref(),
             Some("wp_validator:gate-session-1")
@@ -29576,16 +29567,15 @@ mod tests {
         assert!(pre_work_evidence
             .evidence_refs
             .contains(&"gate-check-pass-1".to_string()));
-        assert!(pre_work_evidence
-            .evidence_refs
-            .contains(&gate_decision_ref));
+        assert!(pre_work_evidence.evidence_refs.contains(&gate_decision_ref));
         assert_eq!(
             pre_work_evidence.validation_report_ref.as_ref(),
             Some(&validation_report_ref)
         );
 
-        let tracked_packet: locus::TrackedWorkPacketArtifactV1 =
-            serde_json::from_slice(&std::fs::read(runtime_paths.work_packet_packet_path(wp_id))?)?;
+        let tracked_packet: locus::TrackedWorkPacketArtifactV1 = serde_json::from_slice(
+            &std::fs::read(runtime_paths.work_packet_packet_path(wp_id))?,
+        )?;
         assert!(tracked_packet.evidence_refs.contains(&gate_state_ref));
         let tracked_gate_summary = tracked_packet
             .governance
@@ -29654,7 +29644,10 @@ mod tests {
             &canonical,
             &runtime_paths,
             Some("checkpoint-pass-1"),
-            &[advisory_decision_ref.clone(), canonical_decision_ref.clone()],
+            &[
+                advisory_decision_ref.clone(),
+                canonical_decision_ref.clone(),
+            ],
         )
         .expect("canonical gate, owner, and action truth must derive closeout posture");
         assert_eq!(
@@ -30080,7 +30073,10 @@ mod tests {
         write_committable_validator_gate_record(
             &runtime_paths,
             wp_id,
-            vec![gate_record_ref, runtime_paths.governance_decision_display("archive-pass-1")],
+            vec![
+                gate_record_ref,
+                runtime_paths.governance_decision_display("archive-pass-1"),
+            ],
         )?;
 
         apply_software_delivery_closeout_posture_lifecycle(
@@ -30101,7 +30097,8 @@ mod tests {
     }
 
     #[test]
-    fn task_board_and_mailbox_closeout_badges_remain_projection_only() -> Result<(), Box<dyn std::error::Error>> {
+    fn task_board_and_mailbox_closeout_badges_remain_projection_only(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let tmp = tempfile::tempdir()?;
         let runtime_paths = RuntimeGovernancePaths::from_workspace_root(tmp.path().to_path_buf())?;
         let wp_id = "WP-CLOSEOUT-PROJECTION-BADGES-1";
@@ -30177,7 +30174,10 @@ mod tests {
             badge.workflow_binding_state,
             Some(locus::SoftwareDeliveryWorkflowBindingState::CloseoutPending)
         );
-        assert_eq!(badge.gate_record_ref.as_deref(), Some(gate_record_ref.as_str()));
+        assert_eq!(
+            badge.gate_record_ref.as_deref(),
+            Some(gate_record_ref.as_str())
+        );
         assert!(badge
             .source_record_refs
             .contains(&runtime_paths.work_packet_projection_surface_display(wp_id)));
@@ -30240,11 +30240,9 @@ mod tests {
 
         let projection = read_software_delivery_projection_surface(&runtime_paths, wp_id)
             .expect("projection surface must exist");
-        let mailbox_row = build_software_delivery_mailbox_triage_row_from_disk(
-            &runtime_paths,
-            wp_id,
-        )
-        .expect("standard runtime-backed software-delivery mailbox triage row must build");
+        let mailbox_row =
+            build_software_delivery_mailbox_triage_row_from_disk(&runtime_paths, wp_id)
+                .expect("standard runtime-backed software-delivery mailbox triage row must build");
         assert_eq!(mailbox_row.closeout_badge, task_board_entry.closeout_badge);
         assert_eq!(mailbox_row.work_packet_id, task_board_entry.work_packet_id);
 
@@ -30308,11 +30306,9 @@ mod tests {
             Some("closeout_blocked_no_posture"),
             "DCC compact summary cannot recreate missing runtime closeout posture"
         );
-        let standard_blocked_mailbox_row = build_software_delivery_mailbox_triage_row_from_disk(
-            &runtime_paths,
-            wp_id,
-        )
-        .expect("standard runtime-backed mailbox row must build without closeout posture");
+        let standard_blocked_mailbox_row =
+            build_software_delivery_mailbox_triage_row_from_disk(&runtime_paths, wp_id)
+                .expect("standard runtime-backed mailbox row must build without closeout posture");
         assert_eq!(
             standard_blocked_mailbox_row
                 .closeout_badge
@@ -31503,8 +31499,14 @@ mod tests {
                 model_id: "codellama-7b".to_string(),
                 lora_id: Some("adapter-v3".to_string()),
                 lora_version: Some("3".to_string()),
-                prompt_snapshot_ref: ArtifactHandle::new(Uuid::new_v4(), "student_prompt".to_string()),
-                output_snapshot_ref: ArtifactHandle::new(Uuid::new_v4(), "student_output".to_string()),
+                prompt_snapshot_ref: ArtifactHandle::new(
+                    Uuid::new_v4(),
+                    "student_prompt".to_string(),
+                ),
+                output_snapshot_ref: ArtifactHandle::new(
+                    Uuid::new_v4(),
+                    "student_output".to_string(),
+                ),
                 outcome: "VALIDATION_FAILED".to_string(),
                 iterations: 3,
             },
@@ -31512,8 +31514,14 @@ mod tests {
                 model_id: "gpt-4o".to_string(),
                 lora_id: None,
                 lora_version: None,
-                prompt_snapshot_ref: ArtifactHandle::new(Uuid::new_v4(), "teacher_prompt".to_string()),
-                output_snapshot_ref: ArtifactHandle::new(Uuid::new_v4(), "teacher_output".to_string()),
+                prompt_snapshot_ref: ArtifactHandle::new(
+                    Uuid::new_v4(),
+                    "teacher_prompt".to_string(),
+                ),
+                output_snapshot_ref: ArtifactHandle::new(
+                    Uuid::new_v4(),
+                    "teacher_output".to_string(),
+                ),
                 outcome: "VALIDATION_PASSED".to_string(),
                 iterations: 1,
             },
@@ -31716,7 +31724,10 @@ mod tests {
         assert_eq!(parsed.skill_log_entry_id, candidate.skill_log_entry_id);
         assert_eq!(parsed.mt_id, candidate.mt_id);
         assert_eq!(parsed.data_trust_score, candidate.data_trust_score);
-        assert_eq!(parsed.distillation_eligible, candidate.distillation_eligible);
+        assert_eq!(
+            parsed.distillation_eligible,
+            candidate.distillation_eligible
+        );
     }
 
     #[test]

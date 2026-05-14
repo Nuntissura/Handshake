@@ -110,13 +110,9 @@ pub enum CrossSessionCheckResult {
     /// Path does not belong to any other session -- no restriction.
     NoConflict,
     /// Path belongs to another session but operator approved access.
-    ApprovedOverride {
-        target_session: String,
-    },
+    ApprovedOverride { target_session: String },
     /// Path belongs to another session and access is denied (no approval).
-    Denied {
-        target_session: String,
-    },
+    Denied { target_session: String },
 }
 
 /// INV-WS-003: Cross-session file access denial.
@@ -268,16 +264,14 @@ pub fn enforce_cross_session_access(
     target_path: &Path,
     operator_approved: bool,
     trace_id: Uuid,
-) -> Result<(CrossSessionCheckResult, Option<FlightRecorderEvent>), (IsolationDenial, FlightRecorderEvent)>
-{
+) -> Result<
+    (CrossSessionCheckResult, Option<FlightRecorderEvent>),
+    (IsolationDenial, FlightRecorderEvent),
+> {
     match validate_no_cross_session_access(registry, session_id, target_path, operator_approved) {
         Ok(CrossSessionCheckResult::ApprovedOverride { ref target_session }) => {
-            let fr_event = cross_session_approved_fr_event(
-                trace_id,
-                session_id,
-                target_session,
-                target_path,
-            );
+            let fr_event =
+                cross_session_approved_fr_event(trace_id, session_id, target_session, target_path);
             Ok((
                 CrossSessionCheckResult::ApprovedOverride {
                     target_session: target_session.clone(),
@@ -293,9 +287,7 @@ pub fn enforce_cross_session_access(
     }
 }
 
-pub fn extract_conflicting_files_from_git_status_porcelain_z(
-    status_output: &[u8],
-) -> Vec<String> {
+pub fn extract_conflicting_files_from_git_status_porcelain_z(status_output: &[u8]) -> Vec<String> {
     let mut files = Vec::new();
     let mut dedupe = HashSet::new();
 
@@ -304,7 +296,10 @@ pub fn extract_conflicting_files_from_git_status_porcelain_z(
             continue;
         }
 
-        let status = match segment.get(0..2).and_then(|value| str::from_utf8(value).ok()) {
+        let status = match segment
+            .get(0..2)
+            .and_then(|value| str::from_utf8(value).ok())
+        {
             Some(value) => value,
             None => continue,
         };
@@ -335,12 +330,11 @@ pub fn collect_merge_back_artifact(
 ) -> io::Result<MergeBackArtifact> {
     let worktree_path = worktree_path.to_string_lossy().to_string();
 
-    let status_output = run_git_text_command(
-        &worktree_path,
-        &["status", "--short", "--porcelain", "-z"],
-    )?;
+    let status_output =
+        run_git_text_command(&worktree_path, &["status", "--short", "--porcelain", "-z"])?;
     let diff_patch = run_git_text_command(&worktree_path, &["diff", "--binary"])?;
-    let conflicting_files = extract_conflicting_files_from_git_status_porcelain_z(status_output.as_bytes());
+    let conflicting_files =
+        extract_conflicting_files_from_git_status_porcelain_z(status_output.as_bytes());
 
     Ok(MergeBackArtifact {
         session_id: session_id.into(),
@@ -440,12 +434,8 @@ fn run_git_text_command(cwd: &str, args: &[&str]) -> io::Result<String> {
         ));
     }
 
-    String::from_utf8(output.stdout).map_err(|_| {
-        io::Error::new(
-            io::ErrorKind::InvalidData,
-            "git output was not valid UTF-8",
-        )
-    })
+    String::from_utf8(output.stdout)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "git output was not valid UTF-8"))
 }
 
 #[cfg(test)]
@@ -482,7 +472,11 @@ mod tests {
         ));
 
         assert_eq!(
-            registry.get(&session_id).unwrap().to_string_lossy().as_ref(),
+            registry
+                .get(&session_id)
+                .unwrap()
+                .to_string_lossy()
+                .as_ref(),
             "tmp/session-1-worktree"
         );
         assert_eq!(registry.len(), 1);
@@ -529,10 +523,7 @@ mod tests {
         let registry = two_session_registry();
         let result = validate_session_has_isolation(&registry, "session-a");
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            &PathBuf::from("/worktrees/session-a")
-        );
+        assert_eq!(result.unwrap(), &PathBuf::from("/worktrees/session-a"));
     }
 
     #[test]
@@ -593,8 +584,7 @@ mod tests {
     fn cross_session_access_denied_without_approval() {
         let registry = two_session_registry();
         let target = Path::new("/worktrees/session-b/src/main.rs");
-        let result =
-            validate_no_cross_session_access(&registry, "session-a", target, false);
+        let result = validate_no_cross_session_access(&registry, "session-a", target, false);
         assert!(result.is_err());
         let denial = result.unwrap_err();
         match &denial {
@@ -619,8 +609,7 @@ mod tests {
     fn cross_session_access_allowed_with_operator_approval() {
         let registry = two_session_registry();
         let target = Path::new("/worktrees/session-b/src/main.rs");
-        let result =
-            validate_no_cross_session_access(&registry, "session-a", target, true);
+        let result = validate_no_cross_session_access(&registry, "session-a", target, true);
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
@@ -634,8 +623,7 @@ mod tests {
     fn own_session_path_is_always_allowed() {
         let registry = two_session_registry();
         let target = Path::new("/worktrees/session-a/src/lib.rs");
-        let result =
-            validate_no_cross_session_access(&registry, "session-a", target, false);
+        let result = validate_no_cross_session_access(&registry, "session-a", target, false);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), CrossSessionCheckResult::NoConflict);
     }
@@ -644,8 +632,7 @@ mod tests {
     fn path_outside_all_worktrees_is_allowed() {
         let registry = two_session_registry();
         let target = Path::new("/home/user/documents/notes.txt");
-        let result =
-            validate_no_cross_session_access(&registry, "session-a", target, false);
+        let result = validate_no_cross_session_access(&registry, "session-a", target, false);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), CrossSessionCheckResult::NoConflict);
     }
@@ -688,8 +675,7 @@ mod tests {
     fn empty_registry_allows_any_path_no_cross_session() {
         let registry = SessionWorktreeRegistry::new();
         let target = Path::new("/worktrees/session-a/src/main.rs");
-        let result =
-            validate_no_cross_session_access(&registry, "session-x", target, false);
+        let result = validate_no_cross_session_access(&registry, "session-x", target, false);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), CrossSessionCheckResult::NoConflict);
     }
@@ -699,8 +685,7 @@ mod tests {
         let registry = two_session_registry();
         // Accessing the exact root of another session's worktree
         let target = Path::new("/worktrees/session-b");
-        let result =
-            validate_no_cross_session_access(&registry, "session-a", target, false);
+        let result = validate_no_cross_session_access(&registry, "session-a", target, false);
         assert!(result.is_err());
     }
 
@@ -734,9 +719,8 @@ mod tests {
     fn enforce_cross_session_access_no_conflict_no_fr_event() {
         let registry = two_session_registry();
         let target = Path::new("/worktrees/session-a/src/lib.rs");
-        let result = enforce_cross_session_access(
-            &registry, "session-a", target, false, Uuid::nil(),
-        );
+        let result =
+            enforce_cross_session_access(&registry, "session-a", target, false, Uuid::nil());
         assert!(result.is_ok());
         let (check_result, fr_event) = result.unwrap();
         assert_eq!(check_result, CrossSessionCheckResult::NoConflict);
@@ -747,9 +731,8 @@ mod tests {
     fn enforce_cross_session_access_emits_fr_event_on_denial() {
         let registry = two_session_registry();
         let target = Path::new("/worktrees/session-b/src/main.rs");
-        let result = enforce_cross_session_access(
-            &registry, "session-a", target, false, Uuid::nil(),
-        );
+        let result =
+            enforce_cross_session_access(&registry, "session-a", target, false, Uuid::nil());
         assert!(result.is_err());
         let (denial, fr_event) = result.unwrap_err();
         assert!(matches!(denial, IsolationDenial::CrossSessionAccess { .. }));
@@ -764,9 +747,8 @@ mod tests {
     fn enforce_cross_session_access_emits_approved_fr_event_on_override() {
         let registry = two_session_registry();
         let target = Path::new("/worktrees/session-b/src/main.rs");
-        let result = enforce_cross_session_access(
-            &registry, "session-a", target, true, Uuid::nil(),
-        );
+        let result =
+            enforce_cross_session_access(&registry, "session-a", target, true, Uuid::nil());
         assert!(result.is_ok());
         let (check_result, fr_event) = result.unwrap();
         assert!(matches!(

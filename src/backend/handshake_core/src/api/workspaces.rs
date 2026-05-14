@@ -1205,17 +1205,21 @@ async fn dcc_control_plane_snapshot(
             }),
         )
     })?;
-    let snapshot =
-        build_dcc_control_plane_snapshot(&state.session_registry, &runtime_paths, &state.capability_registry, state.storage.as_ref())
-            .await
-            .map_err(|_| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ErrorResponse {
-                        error: "HSK-500-DCC-BUILD",
-                    }),
-                )
-            })?;
+    let snapshot = build_dcc_control_plane_snapshot(
+        &state.session_registry,
+        &runtime_paths,
+        &state.capability_registry,
+        state.storage.as_ref(),
+    )
+    .await
+    .map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "HSK-500-DCC-BUILD",
+            }),
+        )
+    })?;
     let value = serde_json::to_value(&snapshot).map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
