@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-MCP-MEX-Evidence-Export-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "a2884aacba46651a6421a287fa35df3a6d0c1efa9d6176fe987f08bae4fc7e0c",
+    "projection_sha256": "0d411e99fc43f8ed784ecb4668b8bd6d481770ce40202f69747dd1912f0e01e8",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-003-Sandbox-Validation-Promotion-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

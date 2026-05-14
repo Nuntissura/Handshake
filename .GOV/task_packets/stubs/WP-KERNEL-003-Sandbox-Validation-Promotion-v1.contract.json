@@ -1,0 +1,115 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-003-Sandbox-Validation-Promotion-v1",
+  "base_wp_id": "WP-KERNEL-003-Sandbox-Validation-Promotion",
+  "created_at_utc": "2026-05-14T19:14:53Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-003-Sandbox-Validation-Promotion-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-KERNEL-003-Sandbox-Validation-Promotion-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-KERNEL-003-Sandbox-Validation-Promotion-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "ad35828fda9cebb13bd9bc5505bb80e2579cdb0a736714e21388035070cbb003",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "2026-04-06",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-KERNEL-001-Event-Ledger-Session-Broker",
+      "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening",
+      "WP-1-Product-Governance-Check-Runner",
+      "WP-1-Product-Governance-Artifact-Registry",
+      "WP-1-Unified-Tool-Surface-Contract",
+      "WP-1-Capability-SSoT",
+      "WP-1-Session-Scoped-Capabilities-Consent-Gate",
+      "WP-1-Workflow-Engine",
+      "WP-1-Flight-Recorder",
+      "WP-1-Artifact-System-Foundations",
+      "WP-1-Micro-Task-Executor",
+      "WP-1-Workspace-Safety-Parallel-Sessions",
+      "WP-1-Dev-Command-Center-Control-Plane-Backend",
+      "WP-1-Postgres-Primary-Control-Plane-Foundation"
+    ],
+    "blocks": [
+      "WP-KERNEL-004-Local-Model-Memory-Runtime",
+      "WP-1-MTE-Resource-Caps",
+      "WP-1-MTE-Blocked-Decisioning",
+      "WP-1-MTE-Summaries",
+      "WP-1-MTE-DropBack-Smart",
+      "WP-1-MCP-MEX-Evidence-Export",
+      "WP-1-Diagnostics-Debug-Bundle-Bridge"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "handshake-v2-kernel-reset-brief.md Week 3 Sandbox Execution; HSK-KERNEL-003 Sandbox Validation Promotion",
+    "roadmap_add_coverage": "Kernel V1 sandbox runner, patch/artifact/log capture, deterministic validation gate, and patch promotion into authority state."
+  },
+  "session_policy": {
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "session_host_preference": "HANDSHAKE_ACP_BROKER",
+    "session_launch_policy": "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": "Coder-A..Coder-Z"
+  },
+  "draft_scope": {
+    "intent": "- What: Build the Kernel V1 sandbox, validation, and promotion tranche that turns model or operator proposals into isolated sandbox runs, deterministic evidence, validation reports, and explicit promotion decisions before any authority state changes.\n- Why: Kernel V1 must let models propose and test code without mutating real project authority directly. Sandbox outputs are not final until validation and promotion events accept them into product-owned EventLedger authority.\n- Product goal: Handshake (Product) should be able to run a candidate patch or artifact job in a bounded sandbox, capture logs/artifacts/diffs/screenshots/check results, classify failure or blocked states, and promote or reject the candidate through durable authority events.\n- Repo Governance goal: Repo Governance should collapse the related sandbox/validation/evidence/MTE stubs into this one Kernel003 planning stub while preserving their original intent, risks, and technical goals as traceable source evidence.\n- Operator goal: A future no-context model, including a small local model, must be able to execute any single microtask without guessing the target files, contracts, acceptance proof, or validation path.",
+    "scope_sketch": "- IN_SCOPE:\n  - Define KernelSandboxRun, SandboxPolicy, SandboxWorkspace, SandboxAdapter, SandboxArtifactBundle, SandboxPatchProposal, ValidationRun, ValidationFinding, PromotionDecision, and PromotionReceipt contracts.\n  - Add a sandbox runner boundary that supports a minimum policy-scoped local adapter and a future hard-isolation adapter behind the same trait/API.\n  - Enforce default-deny filesystem, network, process execution, environment variable, and secret behavior for sandbox jobs.\n  - Materialize candidate inputs from KB001 EventLedger/ArtifactStore and KB002 WriteBox/CRDT proposal surfaces without mutating authority.\n  - Capture stdout, stderr, exit codes, duration, resource usage, command manifests, environment manifests, diff bundles, generated artifacts, validation reports, screenshots, DOM or accessibility evidence where applicable, and redaction reports.\n  - Integrate with the already validated Product Governance Check Runner as a deterministic check execution dependency instead of inventing a second check runner.\n  - Integrate MTE resource caps, blocked decisioning, summaries, and smart drop-back semantics into Kernel003 sandbox execution where they govern bounded model work.\n  - Add promotion logic that accepts only validated candidates and appends EventLedger promotion events with replayable receipt IDs.\n  - Add DCC/read-model projections sufficient to inspect sandbox runs, blocked reasons, validation results, patch candidates, and promotion outcomes.\n  - Add tests proving direct write denial, sandbox path guardrails, network/process allowlist denial, resource caps, blocked classification, validation result persistence, promotion accept/reject, replay after restart, and no SQLite authority for Kernel V1.\n  - Preserve existing source-stub goals by explicit fold, residual, or dependency classification.\n- OUT_OF_SCOPE:\n  - Kernel004 local model runtime and memory implementation.\n  - Full CRDT workspace implementation beyond the handoff already owned by KB002.\n  - Replacing all legacy SQLite surfaces unrelated to Kernel V1 authority.\n  - Shipping a production-grade VM/container isolation stack as the only supported adapter if local host support is absent.\n  - Domain-specific retrieval, Spec Router, AI-ready index, cloud-consent, or calendar/mail evidence exporters except for the generic evidence interfaces Kernel003 must expose.\n  - Full DCC UI polish beyond inspectable runtime projections and minimal control affordances needed for validation and promotion.\n  - Broad repo-governance workflow repair unrelated to KB003 restartability and traceability.",
+    "acceptance_criteria": "- AC-001: A no-context model can read the official KB003 packet and implement any single microtask without conversation history.\n- AC-002: All fully folded source-stub goals are preserved in the official packet, microtasks, and traceability registry.\n- AC-003: No source stub is removed. Folded source stubs remain retained as evidence with a `FOLDED_INTO` pointer.\n- AC-004: Kernel003 defines durable product contracts for sandbox runs, policies, artifacts, validation reports, promotion decisions, and promotion receipts.\n- AC-005: Sandbox jobs cannot write authority state directly and cannot modify project files outside declared sandbox/output roots.\n- AC-006: Sandbox jobs deny filesystem escape, network access, process execution, device access, and secret access unless explicitly granted by policy and recorded as provenance.\n- AC-007: Sandbox outputs include canonical artifact bundles with stable hashes, manifest files, stdout/stderr/log references, environment metadata, and redaction state.\n- AC-008: Deterministic validation runs before model/LLM review and stores typed PASS/FAIL/BLOCKED/ADVISORY/UNSUPPORTED results.\n- AC-009: PromotionGate accepts only validated candidates and appends durable EventLedger events linked to validation and approval evidence.\n- AC-010: PromotionGate rejection paths produce replayable receipts for stale candidate, duplicate idempotency key, validation failure, policy denial, missing approval, Postgres failure, and projection rebuild failure.\n- AC-011: MTE token/storage/time/output caps deterministically gate sandbox runs and emit evidence.\n- AC-012: Blocked decisioning distinguishes retryable, operator-required, environment-required, policy-denied, and terminal failures.\n- AC-013: Every sandboxed microtask attempt writes per-MT and aggregate summaries linked to run artifacts.\n- AC-014: DCC or equivalent projection can show sandbox run status, blocked reasons, validation reports, promotion decisions, and evidence bundle links.\n- AC-015: Visual validation evidence can be attached to a validation report when a GUI/browser check is part of the candidate.\n- AC-016: Tests prove direct-write denial, path escape denial, network denial, process allowlist denial, resource cap behavior, validation persistence, promotion accept/reject, and replay after restart.\n- AC-017: Kernel003 authority records use Postgres/EventLedger and do not introduce SQLite authority, SQLite fallback, SQLite fixtures, or SQLite compatibility paths.\n- AC-018: Validation and promotion evidence remains reconstructable after backend restart without provider chat history, terminal scrollback, or hidden session context.\n- AC-019: All generated artifacts, logs, and external tool outputs remain under configured artifact roots and are disk-agnostic.\n- AC-020: Activation includes an Integration Validator handoff summary and does not claim PASS/FAIL internally.",
+    "risks_unknowns": "- Risk: KB001/KB002 APIs may not be landed when KB003 activates. Mitigation: first microtasks must run compatibility inventory and block cleanly if EventLedger, WriteBox, or ActionCatalog APIs are missing.\n- Risk: Container or VM isolation may not be available on the operator's host. Mitigation: require adapter preflight and policy-scoped proof adapter, while keeping hard-isolation adapter optional until host support is verified.\n- Risk: Policy-only sandboxing is not strong security. Mitigation: label policy mode as best-effort, deny sensitive capabilities by default, and keep hard-isolation adapter as a separate implementation surface.\n- Risk: Validation commands can mutate the repo if run raw. Mitigation: command descriptors must declare side effects, allowed roots, write outputs, and execution policy before ToolGate dispatch.\n- Risk: Path canonicalization errors can escape sandbox roots through symlinks, junctions, or relative paths. Mitigation: add platform-specific path tests, symlink denial, root normalization, and target-root assertions.\n- Risk: Evidence bundles can leak sensitive payloads. Mitigation: default-deny export policy, redaction manifest, artifact-level exportability flags, and validation tests for secret/env redaction.\n- Risk: Resource caps can be inaccurate. Mitigation: define accounting semantics before implementation and test overage using deterministic fake counters.\n- Risk: Promotion can accept stale or duplicate candidates. Mitigation: require idempotency keys, base snapshot/state vector refs, validation report refs, and replay tests.\n- Risk: Visual validation can become flaky. Mitigation: store screenshots/DOM/console evidence separately from hard gate verdicts and use deterministic checks where practical.\n- Risk: This packet can become too broad. Mitigation: keep domain evidence exporters as interface dependencies unless the operator explicitly folds them fully.",
+    "governance_artifact_stance": "- Machine-readable governance contracts are primary.\n- Markdown is a synchronized projection and planning surface for operator/model inspection.\n- This stub must produce a `.contract.json` projection before it is treated as registered governance inventory.\n- This stub is not executable until it becomes an official signed packet with refinement, packet contract, microtask contracts, and activation approval.\n- Source stubs folded here remain retained as historical evidence. Their original goals must be preserved in the fold map and microtask plan."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}
