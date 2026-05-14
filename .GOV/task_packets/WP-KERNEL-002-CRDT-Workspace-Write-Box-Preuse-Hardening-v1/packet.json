@@ -209,7 +209,7 @@
     "work_branch": "feat/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
     "worktree_dir": "../wtc-preuse-hardening-v1"
   },
-  "updated_at_utc": "2026-05-14T10:20:22.552Z",
+  "updated_at_utc": "2026-05-14T20:52:00Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "coder_compatible_execution_lane": "CODER_A",
@@ -231,5 +231,25 @@
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
     "wp_validator_gate": "DISABLED"
   },
-  "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"
+  "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
+  "worktree_cleanup_status": {
+    "checked_at_utc": "2026-05-14T20:52:00Z",
+    "checked_by": "INTEGRATION_VALIDATOR",
+    "check_type": "PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT",
+    "main_head": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
+    "worktree_dir": "../wtc-preuse-hardening-v1",
+    "work_branch": "feat/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
+    "worktree_head": "55cedf7459298f1e52ced8d89a37602b47e31731",
+    "branch_head_ancestor_of_main": true,
+    "committed_product_diff_vs_main_count": 0,
+    "tracked_dirty_product_count": 1,
+    "untracked_product_count": 97,
+    "cleanup_recommendation": "NOT_DELETE_SAFE_UNCOMMITTED_PRODUCT_WORK",
+    "summary": "The branch HEAD itself is contained in main, but the worktree carries uncommitted product work that is not contained in main.",
+    "evidence": [
+      "tracked_dirty_product: src/backend/handshake_core/src/lib.rs",
+      "untracked_product_count: 97",
+      "examples: src/backend/handshake_core/src/kernel/action_catalog.rs, src/backend/handshake_core/src/kernel/crdt/mod.rs, src/backend/handshake_core/tests/kernel_action_catalog_tests.rs"
+    ]
+  }
 }

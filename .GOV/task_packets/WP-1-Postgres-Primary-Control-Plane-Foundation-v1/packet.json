@@ -77,7 +77,7 @@
     "work_branch": "feat/WP-1-Postgres-Primary-Control-Plane-Foundation-v1",
     "worktree_dir": "../wtc-plane-foundation-v1"
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-14T20:52:00Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "communication_contract": "DIRECT_REVIEW_V1",
@@ -89,5 +89,25 @@
     "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/RUNTIME_STATUS.json",
     "session_start_authority": "ORCHESTRATOR_ONLY"
   },
-  "wp_id": "WP-1-Postgres-Primary-Control-Plane-Foundation-v1"
+  "wp_id": "WP-1-Postgres-Primary-Control-Plane-Foundation-v1",
+  "worktree_cleanup_status": {
+    "checked_at_utc": "2026-05-14T20:52:00Z",
+    "checked_by": "INTEGRATION_VALIDATOR",
+    "check_type": "PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT",
+    "main_head": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
+    "worktree_dir": "../wtc-plane-foundation-v1",
+    "work_branch": "feat/WP-1-Postgres-Primary-Control-Plane-Foundation-v1",
+    "worktree_head": "d7f3f760945c21076d75188fb2c90f1eafb155c3",
+    "branch_head_ancestor_of_main": true,
+    "committed_product_diff_vs_main_count": 0,
+    "tracked_dirty_product_count": 0,
+    "untracked_product_count": 0,
+    "cleanup_recommendation": "READY_FOR_OPERATOR_APPROVED_WORKTREE_DELETE",
+    "summary": "Branch product commits are contained in main and no local product drift was found in the worktree.",
+    "evidence": [
+      "no_committed_product_diff_vs_main",
+      "no_tracked_dirty_product_paths",
+      "no_untracked_product_paths"
+    ]
+  }
 }

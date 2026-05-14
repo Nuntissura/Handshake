@@ -94,16 +94,17 @@ This is an official product Work Packet projection. It is blocked until the pend
 - TOUCHED_FILE_BUDGET: 15
 - BROAD_TOOL_ALLOWLIST: NONE
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** In Progress
+- **Status:** Validated (PASS)
 - CURRENT_WP_STATUS: READY_FOR_INTEGRATION_VALIDATOR_RECHECK
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja140520260015
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-KERNEL-001-Event-Ledger-Session-Broker-v1
-- MAIN_CONTAINMENT_STATUS: NOT_STARTED
-- MERGED_MAIN_COMMIT: NONE
-- CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
-- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
-- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+- MAIN_CONTAINMENT_STATUS: CONTAINED_IN_MAIN
+- MERGED_MAIN_COMMIT: c5fa320e18ef9e1f13993811df77d30c3a25a538
+- MAIN_CONTAINMENT_VERIFIED_AT_UTC: 2026-05-14T20:52:00Z
+- CURRENT_MAIN_COMPATIBILITY_STATUS: COMPATIBLE
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: c5fa320e18ef9e1f13993811df77d30c3a25a538
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: 2026-05-14T20:52:00Z
 - PACKET_WIDENING_DECISION: NONE
 - PACKET_WIDENING_EVIDENCE: N/A
 - ZERO_DELTA_PROOF_ALLOWED: NO
@@ -142,17 +143,36 @@ This is an official product Work Packet projection. It is blocked until the pend
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING_INTEGRATION_VALIDATOR_RECHECK
-Blockers: No Kernel Builder blocker claimed after remediation; Integration Validator must independently recheck MT batch and scoped Master Spec alignment.
-Next: INTEGRATION_VALIDATOR reviews the remediation batch, trace evidence, live Postgres proof, and governance handoff. Kernel Builder does not self-issue PASS.
+Verdict: PASS
+Blockers: NONE
+Next: Product code is contained in main at c5fa320e18ef9e1f13993811df77d30c3a25a538; wtc-session-broker-v1 is cleanup-safe after operator-approved worktree cleanup.
+## WORKTREE_CLEANUP_STATUS (STATUS-SYNC APPENDIX; PRODUCT-CODE ONLY)
+- CHECK_TYPE: PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT
+- CHECKED_AT_UTC: 2026-05-14T20:52:00Z
+- CHECKED_BY: INTEGRATION_VALIDATOR
+- MAIN_HEAD: c5fa320e18ef9e1f13993811df77d30c3a25a538
+- WORKTREE_DIR: ../wtc-session-broker-v1
+- WORK_BRANCH: feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1
+- WORKTREE_HEAD: 064fa4c8177413f40d658325a34733d4050ad7a3
+- BRANCH_HEAD_ANCESTOR_OF_MAIN: YES
+- COMMITTED_PRODUCT_DIFF_VS_MAIN_COUNT: 0
+- TRACKED_DIRTY_PRODUCT_COUNT: 0
+- UNTRACKED_PRODUCT_COUNT: 0
+- CLEANUP_RECOMMENDATION: READY_FOR_OPERATOR_APPROVED_WORKTREE_DELETE
+- SUMMARY: Branch product commits are contained in main through merge commit c5fa320e18ef9e1f13993811df77d30c3a25a538 and no local product drift was found.
+- EVIDENCE:
+  - no_committed_product_diff_vs_main
+  - no_tracked_dirty_product_paths
+  - no_untracked_product_paths
+
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Kernel V1 product authority is a Postgres EventLedger and must not use SQLite authority, cache, offline, fallback, or test authority for the first kernel slice | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/migrations/** | TESTS: cargo test -p handshake_core kernel_event_ledger --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: EventLedger row links KernelTaskRun, SessionRun, event_type, actor, causation_id, correlation_id, payload, created_at | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: SessionBroker state must be durable, replayable, claim-safe, cancellable, and restart-reconstructable from the ledger | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test -p handshake_core kernel_session_broker --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: one SessionRun transitions queued, claimed, running, completed, cancelled, retryable, dead_lettered without process-local authority | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: ContextBundle and replaceable ModelAdapter must record the exact context allowed to a dummy/echo local adapter without binding kernel semantics to a provider trace | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/llm/**, src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test -p handshake_core kernel_context_adapter --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: dummy adapter emits response, tool request, and artifact proposal linked to a ContextBundle hash | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: ToolGate, ArtifactStore, ValidationRunner, and PromotionGate decisions must be ledger-linked and operator-reviewable before authority transition | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/mcp/gate.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/flight_recorder/** | TESTS: cargo test -p handshake_core kernel_gate_artifact_validation --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: allow or deny tool request, artifact proposal, validation pass or fail, and approve or reject promotion all share ledger correlation | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
-  - CLAUSE: TraceProjection must reconstruct the complete proof run after restart from product authority, with Flight Recorder only mirroring diagnostics | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/flight_recorder/**, src/backend/handshake_core/tests/** | TESTS: cargo test -p handshake_core kernel_trace_projection_restart --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: replay shows task intent, context, adapter output, tool decision, artifact evidence, validation evidence, and promotion decision after process restart | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Kernel V1 product authority is a Postgres EventLedger and must not use SQLite authority, cache, offline, fallback, or test authority for the first kernel slice | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/migrations/** | TESTS: cargo test -p handshake_core kernel_event_ledger --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: EventLedger row links KernelTaskRun, SessionRun, event_type, actor, causation_id, correlation_id, payload, created_at | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: SessionBroker state must be durable, replayable, claim-safe, cancellable, and restart-reconstructable from the ledger | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test -p handshake_core kernel_session_broker --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: one SessionRun transitions queued, claimed, running, completed, cancelled, retryable, dead_lettered without process-local authority | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: ContextBundle and replaceable ModelAdapter must record the exact context allowed to a dummy/echo local adapter without binding kernel semantics to a provider trace | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/llm/**, src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test -p handshake_core kernel_context_adapter --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: dummy adapter emits response, tool request, and artifact proposal linked to a ContextBundle hash | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: ToolGate, ArtifactStore, ValidationRunner, and PromotionGate decisions must be ledger-linked and operator-reviewable before authority transition | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/mcp/gate.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/flight_recorder/** | TESTS: cargo test -p handshake_core kernel_gate_artifact_validation --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: allow or deny tool request, artifact proposal, validation pass or fail, and approve or reject promotion all share ledger correlation | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
+  - CLAUSE: TraceProjection must reconstruct the complete proof run after restart from product authority, with Flight Recorder only mirroring diagnostics | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/flight_recorder/**, src/backend/handshake_core/tests/** | TESTS: cargo test -p handshake_core kernel_trace_projection_restart --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: replay shows task intent, context, adapter output, tool decision, artifact evidence, validation evidence, and promotion decision after process restart | DEBT_IDS: NONE | CODER_STATUS: PROVED | VALIDATOR_STATUS: CONFIRMED
 
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - OPEN_SPEC_DEBT: NO
