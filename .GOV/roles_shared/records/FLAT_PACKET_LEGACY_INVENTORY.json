@@ -11,7 +11,7 @@
     "total": 340,
     "flat_official_packets": 152,
     "flat_packet_stubs": 188,
-    "paired_folder_contracts": 221,
+    "paired_folder_contracts": 222,
     "paired_stub_contracts": 188,
     "unpaired_legacy_authority": 0
   },
@@ -4090,12 +4090,12 @@
       "path": ".GOV/task_packets/stubs/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1.md",
       "sha256": "82b4dd0f414b726d76bfb51b37cab331d7b9cad94da3823f36a361086bd26aa3",
       "bytes": 55327,
-      "paired_folder_contract": null,
+      "paired_folder_contract": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json",
       "paired_stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1.contract.json",
       "authority_status": "TYPED_NON_EXECUTION_STUB_CONTRACT",
       "disposition": "KEEP_TYPED_STUB_CONTRACT_AS_NON_EXECUTION_PLANNING_AUTHORITY",
       "migration_refactor_id": "RGF-289"
     }
   ],
-  "artifacts_sha256": "fc52af671ede85600694395251d34127fda7a1e4265c7e934ee8b59725d553b2"
+  "artifacts_sha256": "b825ba021a4cd1614c02722129178774a19fe3eade64de213f729954f4387289"
 }

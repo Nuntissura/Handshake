@@ -1,0 +1,242 @@
+{
+  "schema": "handshake.indexed_spec.module_resolver@1",
+  "status": "current-versioned-module-resolver",
+  "updated_at": "2026-05-14T04:14:33.797Z",
+  "authority": {
+    "spec_current_path": ".GOV/spec/SPEC_CURRENT.md",
+    "machine_manifest_path": ".GOV/spec/master-spec-v02.185/indexed-spec-manifest.json",
+    "module_root_path": ".GOV/spec/master-spec-v02.185/spec-modules",
+    "changelog_path": ".GOV/spec/master-spec-v02.185/spec-changelog.jsonl",
+    "archive_root_path": ".GOV/spec/spec_archive",
+    "previous_bundle_path": ".GOV/spec/spec_archive/master-spec-v02.184",
+    "source_baseline_path": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+    "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681"
+  },
+  "usage_contract": {
+    "purpose": "Machine-readable module resolver for tools and LLMs to locate the owning indexed Master Spec module before reading or editing spec content.",
+    "manifest_is_hash_authority": true,
+    "index_is_resolver_authority": true,
+    "not_a_document_viewer": true,
+    "not_operator_facing": true,
+    "module_body_rule": "module files carry machine-readable frontmatter followed by Master Spec body text; source baseline provenance remains in manifest metadata",
+    "versioning_rule": "SPEC_CURRENT resolves the active versioned bundle; do not infer current authority from latest monolith filename or archive folder name",
+    "internal_reference_rule": "Internal Master Spec references to the active spec must name SPEC_CURRENT, active bundle manifest/modules, and spec-changelog.jsonl rather than legacy latest-file wording."
+  },
+  "roadmap_authority_boundary": {
+    "module_path": "spec-modules/07-6-development-roadmap.md",
+    "role": "north_star_sequence_guide",
+    "drives": [
+      "task_board_scheduling",
+      "work_packet_scheduling",
+      "micro_task_scheduling"
+    ],
+    "does_not_define": [
+      "implementation_intent",
+      "implementation_techniques",
+      "SPEC_ANCHOR",
+      "DONE_MEANS",
+      "validation_proof"
+    ],
+    "topical_authority_rule": "Work intent, techniques, SPEC_ANCHOR, DONE_MEANS, and validation proof must be derived from the relevant topical Master Spec module, not from roadmap text alone.",
+    "missing_topical_authority_rule": "If a roadmap item lacks topical Master Spec authority, activation requires spec enrichment before a Task Board item, Work Packet, or micro-task can treat it as implementable scope."
+  },
+  "modules": [
+    {
+      "module_id": "00",
+      "section_id": "0",
+      "title": "Lines before section 1",
+      "path": "spec-modules/00-preamble.md",
+      "spec_version": "v02.185",
+      "source_line_start": 1,
+      "source_line_end": 307,
+      "line_count": 307,
+      "heading_count": 3,
+      "sha256": "21503e08cb9fd57e9599bfa978f87f0c72fa5d5cb64a6f796414ddc34d4f16a4"
+    },
+    {
+      "module_id": "01",
+      "section_id": "1",
+      "title": "1. Vision & Context",
+      "path": "spec-modules/01-vision-and-context.md",
+      "spec_version": "v02.185",
+      "source_line_start": 308,
+      "source_line_end": 1026,
+      "line_count": 719,
+      "heading_count": 35,
+      "sha256": "81489d90927711e03e4784a560302e672126b4b7c5eb4b781b4c7b367098d5a3"
+    },
+    {
+      "module_id": "02",
+      "section_id": "2",
+      "title": "2. System Architecture",
+      "path": "spec-modules/02-system-architecture.md",
+      "spec_version": "v02.185",
+      "source_line_start": 1027,
+      "source_line_end": 19221,
+      "line_count": 18195,
+      "heading_count": 684,
+      "sha256": "d0f47140c446e9128bbe4cb8ecf21fb434c482973a356269fead6dacf5bc6f12"
+    },
+    {
+      "module_id": "03",
+      "section_id": "3",
+      "title": "3. Local-First Infrastructure",
+      "path": "spec-modules/03-local-first-infrastructure.md",
+      "spec_version": "v02.185",
+      "source_line_start": 19222,
+      "source_line_end": 20010,
+      "line_count": 789,
+      "heading_count": 48,
+      "sha256": "a354e87fb58500183a36db536c670815730d42b945777d071b784e5e4d091cfd"
+    },
+    {
+      "module_id": "04",
+      "section_id": "4",
+      "title": "4. LLM Infrastructure",
+      "path": "spec-modules/04-llm-infrastructure.md",
+      "spec_version": "v02.185",
+      "source_line_start": 20011,
+      "source_line_end": 22292,
+      "line_count": 2282,
+      "heading_count": 167,
+      "sha256": "6d382edaddfab11b66e69ea8bd2820cf8888ec31c4682e6f512ca9eb7744eb3c"
+    },
+    {
+      "module_id": "05",
+      "section_id": "5",
+      "title": "5. Security & Observability",
+      "path": "spec-modules/05-security-and-observability.md",
+      "spec_version": "v02.185",
+      "source_line_start": 22293,
+      "source_line_end": 24051,
+      "line_count": 1759,
+      "heading_count": 94,
+      "sha256": "e1e54a8ca3ff3021e7c1ae74daa5dcef10c850d5ef25b0ee92657d7f71a40c85"
+    },
+    {
+      "module_id": "06",
+      "section_id": "6",
+      "title": "6. Mechanical Integrations",
+      "path": "spec-modules/06-mechanical-integrations.md",
+      "spec_version": "v02.185",
+      "source_line_start": 24052,
+      "source_line_end": 30650,
+      "line_count": 6599,
+      "heading_count": 419,
+      "sha256": "da12940e96e60226a85046c46f0c4bd9fca70bf89359c9e01dc05897568ea8ef"
+    },
+    {
+      "module_id": "07",
+      "section_id": "7",
+      "title": "7. User Experience & Development",
+      "path": "spec-modules/07-user-experience-and-development.md",
+      "spec_version": "v02.185",
+      "source_line_start": 30651,
+      "source_line_end": 47268,
+      "line_count": 16618,
+      "heading_count": 954,
+      "sha256": "e52108b82498111e2a50c8c3edb0bd668f0fd32791a15abe6d3d609f8b6fab13"
+    },
+    {
+      "module_id": "07-6",
+      "section_id": "7.6",
+      "title": "7.6 Development Roadmap",
+      "path": "spec-modules/07-6-development-roadmap.md",
+      "spec_version": "v02.185",
+      "source_line_start": 47269,
+      "source_line_end": 49514,
+      "line_count": 2246,
+      "heading_count": 10,
+      "sha256": "870b074c04b4c9e69a95a334f23a5128ca403471dae361c538a3055d1c892c45"
+    },
+    {
+      "module_id": "08",
+      "section_id": "8",
+      "title": "8. Reference",
+      "path": "spec-modules/08-reference.md",
+      "spec_version": "v02.185",
+      "source_line_start": 49515,
+      "source_line_end": 53850,
+      "line_count": 4336,
+      "heading_count": 284,
+      "sha256": "52b55ce270ee39ad935e6818bcd76d4a2ee82c448c612de2239e41bffaf9541e"
+    },
+    {
+      "module_id": "09",
+      "section_id": "9",
+      "title": "9. Continuous Local Skill Distillation (Skill Bank & Pipeline)",
+      "path": "spec-modules/09-continuous-local-skill-distillation.md",
+      "spec_version": "v02.185",
+      "source_line_start": 53851,
+      "source_line_end": 54760,
+      "line_count": 910,
+      "heading_count": 30,
+      "sha256": "2b59310067f910f9a10eb50a78eeb3993493558659ff1ecc52e80c32401f5f2d"
+    },
+    {
+      "module_id": "10",
+      "section_id": "10",
+      "title": "10. Product Surfaces",
+      "path": "spec-modules/10-product-surfaces.md",
+      "spec_version": "v02.185",
+      "source_line_start": 54761,
+      "source_line_end": 62717,
+      "line_count": 7957,
+      "heading_count": 523,
+      "sha256": "d434b12c1b14fd13596480a8bf084212422e48ef08b49aea94d418fca42d109e"
+    },
+    {
+      "module_id": "11",
+      "section_id": "11",
+      "title": "11. Shared Dev Platform & OSS Foundations",
+      "path": "spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+      "spec_version": "v02.185",
+      "source_line_start": 62718,
+      "source_line_end": 72513,
+      "line_count": 9796,
+      "heading_count": 755,
+      "sha256": "e15b5e7690034535f7759a9494e1e0580ba6523d3e5c29ea4eb4120429f34403"
+    },
+    {
+      "module_id": "12",
+      "section_id": "12",
+      "title": "12. End-of-File Appendices (Feature Index + Matrix + UI Guidance) [CX-SPEC-APPX-001]",
+      "path": "spec-modules/12-end-of-file-appendices.md",
+      "spec_version": "v02.185",
+      "source_line_start": 72514,
+      "source_line_end": 84680,
+      "line_count": 12167,
+      "heading_count": 7,
+      "sha256": "257d9509d58e2ca33de5072f000648ebcf394b48ea2f84ff0a94ab9921122956"
+    }
+  ],
+  "reconstruction": {
+    "module_order": [
+      "spec-modules/00-preamble.md",
+      "spec-modules/01-vision-and-context.md",
+      "spec-modules/02-system-architecture.md",
+      "spec-modules/03-local-first-infrastructure.md",
+      "spec-modules/04-llm-infrastructure.md",
+      "spec-modules/05-security-and-observability.md",
+      "spec-modules/06-mechanical-integrations.md",
+      "spec-modules/07-user-experience-and-development.md",
+      "spec-modules/07-6-development-roadmap.md",
+      "spec-modules/08-reference.md",
+      "spec-modules/09-continuous-local-skill-distillation.md",
+      "spec-modules/10-product-surfaces.md",
+      "spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+      "spec-modules/12-end-of-file-appendices.md"
+    ],
+    "reconstructed_sha256": "7286cbee9ce394dc1bb881cf4f20f26eee58a35aebc9a879c8af4a6efc2e7357",
+    "matches_source_sha256": false,
+    "byte_exact_match": false,
+    "coverage": {
+      "source_line_start": 1,
+      "source_line_end": 84130,
+      "module_count": 14,
+      "no_gaps_or_overlaps": true
+    }
+  },
+  "spec_version": "v02.185",
+  "bundle_id": "master-spec-v02.185"
+}

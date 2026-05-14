@@ -1,0 +1,84 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-025.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-025.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-14T04:54:49.177Z",
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-024"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-14T08:23:40.507Z",
+    "generator": "kernel-builder-activation-repair.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-025.md",
+    "projection_hash": "93f57e029714e9a7",
+    "source_file": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-025.json",
+    "source_hash": "dcdfdacc6cb810b3",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-025",
+  "red_team": {
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-025 DCC Structured Artifact Viewer: fold `WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1`. Acceptance: DCC renders canonical fields before mirrors, exposes mirror state, and provides raw structured drilldown as advanced view."
+    ],
+    "allowed_paths": [
+      "app/**",
+      "src/backend/handshake_core/src/kernel/**",
+      "tests/**"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test -p handshake_core kernel_dcc --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+      "visual DCC screenshot/debug check when UI exists"
+    ],
+    "risk_if_missed": "MT-025 scope is lost and Kernel002 can reintroduce drift or direct mutation.",
+    "summary": "MT-025 DCC Structured Artifact Viewer: fold `WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1`. Acceptance: DCC renders canonical fields before mirrors, exposes mirror state, and provides raw structured drilldown as advanced view."
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"
+}

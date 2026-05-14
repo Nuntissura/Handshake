@@ -66,6 +66,39 @@ test("declared WP topology accepts the shared coder/WP validator worktree [CX-50
   assert.deepEqual(evaluation.issues, []);
 });
 
+test("declared WP topology accepts Kernel Builder packets with the WP Validator gate disabled", () => {
+  const disabledPacketContent = `
+- LOCAL_BRANCH: feat/${wpId}
+- LOCAL_WORKTREE_DIR: ../wtc-schema-registry-v4
+- TECHNICAL_ADVISOR: NONE
+- WP_VALIDATOR_GATE: DISABLED
+- WP_VALIDATOR_LOCAL_BRANCH: N/A
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: N/A
+- COMMUNICATION_HEALTH_GATE: INTEGRATION_BATCH_REVIEW_BLOCKING
+- INTEGRATION_VALIDATOR_LOCAL_BRANCH: main
+- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
+`;
+  const evaluation = evaluateWpDeclaredTopology({
+    repoRoot,
+    wpId,
+    packetContent: disabledPacketContent,
+    branchHeads: {
+      [`feat/${wpId}`]: "511dc5e111111111111111111111111111111111",
+    },
+    worktrees: [
+      {
+        path: path.resolve(repoRoot, "../wtc-schema-registry-v4"),
+        branch: `refs/heads/feat/${wpId}`,
+        head: "511dc5e111111111111111111111111111111111",
+      },
+    ],
+  });
+
+  assert.equal(evaluation.ok, true);
+  assert.equal(evaluation.topology.wpValidatorDisabled, true);
+  assert.deepEqual(evaluation.issues, []);
+});
+
 test("declared WP topology rejects auxiliary detached check worktrees", () => {
   const evaluation = evaluateWpDeclaredTopology({
     repoRoot,

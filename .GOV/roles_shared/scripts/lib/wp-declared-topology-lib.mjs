@@ -27,6 +27,15 @@ function normalizeBranch(branch) {
   return String(branch || "").replace(/^refs\/heads\//, "").trim();
 }
 
+function normalizeTopologyToken(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function isNoneLikeTopologyToken(value) {
+  const normalized = normalizeTopologyToken(value);
+  return !normalized || normalized === "NONE" || normalized === "N/A" || normalized === "NA" || normalized === "NULL" || normalized === "DISABLED";
+}
+
 function comparablePath(value) {
   return path.resolve(String(value || "")).replace(/\\/g, "/").toLowerCase();
 }
@@ -133,25 +142,44 @@ function wpPathTokens(wpId) {
 function declaredTopology(repoRoot, wpId, packetContent) {
   const coderBranch = parseClaimField(packetContent, "LOCAL_BRANCH") || defaultCoderBranch(wpId);
   const coderWorktreeDir = parseClaimField(packetContent, "LOCAL_WORKTREE_DIR") || defaultCoderWorktreeDir(wpId);
-  const wpValidatorBranch = parseClaimField(packetContent, "WP_VALIDATOR_LOCAL_BRANCH") || defaultWpValidatorBranch(wpId);
-  const wpValidatorWorktreeDir = parseClaimField(packetContent, "WP_VALIDATOR_LOCAL_WORKTREE_DIR") || defaultWpValidatorWorktreeDir(wpId);
+  const technicalAdvisor = normalizeTopologyToken(parseClaimField(packetContent, "TECHNICAL_ADVISOR"));
+  const wpValidatorGate = normalizeTopologyToken(parseClaimField(packetContent, "WP_VALIDATOR_GATE"));
+  const communicationHealthGate = normalizeTopologyToken(parseClaimField(packetContent, "COMMUNICATION_HEALTH_GATE"));
+  const declaredWpValidatorBranch = parseClaimField(packetContent, "WP_VALIDATOR_LOCAL_BRANCH");
+  const declaredWpValidatorWorktreeDir = parseClaimField(packetContent, "WP_VALIDATOR_LOCAL_WORKTREE_DIR");
+  const wpValidatorDisabled =
+    technicalAdvisor === "NONE"
+    || wpValidatorGate === "DISABLED"
+    || communicationHealthGate === "INTEGRATION_BATCH_REVIEW_BLOCKING"
+    || isNoneLikeTopologyToken(declaredWpValidatorBranch)
+    || isNoneLikeTopologyToken(declaredWpValidatorWorktreeDir);
+  const wpValidatorBranch = wpValidatorDisabled
+    ? ""
+    : (declaredWpValidatorBranch || defaultWpValidatorBranch(wpId));
+  const wpValidatorWorktreeDir = wpValidatorDisabled
+    ? (declaredWpValidatorWorktreeDir || "N/A")
+    : (declaredWpValidatorWorktreeDir || defaultWpValidatorWorktreeDir(wpId));
   const integrationBranch =
     parseClaimField(packetContent, "INTEGRATION_VALIDATOR_LOCAL_BRANCH") || defaultIntegrationValidatorBranch(wpId);
   const integrationWorktreeDir =
     parseClaimField(packetContent, "INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR") || defaultIntegrationValidatorWorktreeDir(wpId);
 
   const coderWorktreeAbs = path.resolve(repoRoot, coderWorktreeDir);
-  const wpValidatorWorktreeAbs = path.resolve(repoRoot, wpValidatorWorktreeDir);
+  const wpValidatorWorktreeAbs = wpValidatorDisabled ? "" : path.resolve(repoRoot, wpValidatorWorktreeDir);
   const integrationWorktreeAbs = path.resolve(repoRoot, integrationWorktreeDir);
   const allowedSpecificPaths = Array.from(new Set(
-    [coderWorktreeAbs, wpValidatorWorktreeAbs, integrationWorktreeAbs].map(comparablePath),
+    [coderWorktreeAbs, wpValidatorWorktreeAbs, integrationWorktreeAbs].filter(Boolean).map(comparablePath),
   ));
-  const allowedBasenames = Array.from(new Set([coderWorktreeAbs, wpValidatorWorktreeAbs].map(basenameHint)));
+  const allowedBasenames = Array.from(new Set([coderWorktreeAbs, wpValidatorWorktreeAbs].filter(Boolean).map(basenameHint)));
 
   return {
     coderBranch: normalizeBranch(coderBranch),
     coderWorktreeDir,
     coderWorktreeAbs,
+    technicalAdvisor,
+    wpValidatorGate,
+    communicationHealthGate,
+    wpValidatorDisabled,
     wpValidatorBranch: normalizeBranch(wpValidatorBranch),
     wpValidatorWorktreeDir,
     wpValidatorWorktreeAbs,
@@ -192,7 +220,7 @@ export function evaluateWpDeclaredTopology({
   const topology = declaredTopology(repoRoot, wpId, packetContent);
   const entries = Array.isArray(worktrees) ? worktrees : parseGitWorktreeList(repoRoot);
   const expectedCoderBranchHead = branchHeadSha(repoRoot, topology.coderBranch, branchHeads);
-  const expectedWpValidatorBranchHead = branchHeadSha(repoRoot, topology.wpValidatorBranch, branchHeads);
+  const expectedWpValidatorBranchHead = topology.wpValidatorDisabled ? null : branchHeadSha(repoRoot, topology.wpValidatorBranch, branchHeads);
   const issues = [];
 
   const coderBranchEntry = entries.find((entry) => normalizeBranch(entry.branch) === topology.coderBranch) || null;
@@ -213,16 +241,23 @@ export function evaluateWpDeclaredTopology({
     );
   }
 
-  const wpValidatorBranchEntry = entries.find((entry) => normalizeBranch(entry.branch) === topology.wpValidatorBranch) || null;
-  const directWpValidatorProbeEntry = wpValidatorBranchEntry
-    ? null
-    : probeDeclaredWorktree(topology.wpValidatorWorktreeAbs, declaredWorktreeProbe);
-  const effectiveWpValidatorEntry = wpValidatorBranchEntry || directWpValidatorProbeEntry;
+  let wpValidatorBranchEntry = null;
+  let directWpValidatorProbeEntry = null;
+  let effectiveWpValidatorEntry = null;
+  if (!topology.wpValidatorDisabled) {
+    wpValidatorBranchEntry = entries.find((entry) => normalizeBranch(entry.branch) === topology.wpValidatorBranch) || null;
+    directWpValidatorProbeEntry = wpValidatorBranchEntry
+      ? null
+      : probeDeclaredWorktree(topology.wpValidatorWorktreeAbs, declaredWorktreeProbe);
+    effectiveWpValidatorEntry = wpValidatorBranchEntry || directWpValidatorProbeEntry;
+  }
 
   // [CX-503G] WP Validator shares coder worktree. No distinct worktree required.
   // The per-MT stop pattern ensures only one role is active at a time.
 
-  if (!effectiveWpValidatorEntry) {
+  if (topology.wpValidatorDisabled) {
+    // Kernel Builder consolidated packets use the coder-compatible lane and skip WP Validator topology.
+  } else if (!effectiveWpValidatorEntry) {
     issues.push(`no linked worktree found for expected WP validator branch ${topology.wpValidatorBranch}`);
   } else if (normalizeBranch(effectiveWpValidatorEntry.branch) !== topology.wpValidatorBranch) {
     issues.push(

@@ -1,0 +1,82 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-002.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-002.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-14T04:54:49.177Z",
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-001"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-14T08:23:40.507Z",
+    "generator": "kernel-builder-activation-repair.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-002.md",
+    "projection_hash": "fae9f23f755335f2",
+    "source_file": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-002.json",
+    "source_hash": "878210ec54911bdf",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-002",
+  "red_team": {
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-002 Reset Invariant Reconciliation: reconcile folded legacy assumptions with reset invariants. Acceptance: every source obligation that mentions SQLite, Markdown authority, mailbox chronology, or UI-local truth is explicitly converted to Postgres authority, projection/advisory status, or promotion-gated action semantics."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target"
+    ],
+    "risk_if_missed": "MT-002 scope is lost and Kernel002 can reintroduce drift or direct mutation.",
+    "summary": "MT-002 Reset Invariant Reconciliation: reconcile folded legacy assumptions with reset invariants. Acceptance: every source obligation that mentions SQLite, Markdown authority, mailbox chronology, or UI-local truth is explicitly converted to Postgres authority, projection/advisory status, or promotion-gated action semantics."
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"
+}

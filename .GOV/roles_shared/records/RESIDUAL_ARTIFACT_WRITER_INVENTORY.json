@@ -693,15 +693,15 @@
     {
       "artifact_class": "STRUCTURED_JSON_ARTIFACT",
       "authority_class": "MACHINE_READABLE_ARTIFACT",
-      "id": "artifact-writer:b7d4fe3e0d60f677",
-      "line": 356,
+      "id": "artifact-writer:1a26773411c3ea71",
+      "line": 378,
       "migration_status": "STRUCTURED_AUTHORITY_OR_PROJECTION",
       "operation": "WRITE_JSON",
       "owner_role": "SHARED",
       "path": ".GOV/roles_shared/scripts/lib/wp-truth-bundle-lib.mjs",
       "rationale": "The write target appears to be structured JSON rather than editable Markdown.",
       "risk_class": "LOW",
-      "source_hash": "e509ee180257e59a",
+      "source_hash": "860b40893fbfa09b",
       "target_expression": "outPath",
       "write_call": "writeJsonFile"
     },
@@ -2268,7 +2268,7 @@
   ],
   "generated_at_utc": null,
   "generated_by": "residual-artifact-writer-inventory.mjs",
-  "inventory_hash": "sha256:13cc7862c40d1ad1",
+  "inventory_hash": "sha256:1f6e454262d565c6",
   "policy": {
     "deletion_rule": "This inventory does not authorize deleting scripts or artifacts.",
     "high_risk_rule": "Packet, refinement, and MT Markdown writes must be migrated to primary contract writers or carry an explicit contract-sync proof.",

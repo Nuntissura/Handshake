@@ -34,6 +34,27 @@ function normalizeText(value = "") {
   return String(value || "").trim();
 }
 
+function normalizeList(values = []) {
+  return (Array.isArray(values) ? values : [])
+    .map((value) => normalizeText(value))
+    .filter(Boolean);
+}
+
+function contractMicrotaskCursor(contract = null) {
+  const microtasks = contract?.microtasks || {};
+  const declaredIds = normalizeList(microtasks.declared_ids);
+  const activeId = normalizeText(microtasks.active_id);
+  const declaredNextId = normalizeText(microtasks.next_id);
+  const activeIndex = activeId ? declaredIds.indexOf(activeId) : -1;
+  const sequenceNextId = activeIndex >= 0 ? normalizeText(declaredIds[activeIndex + 1]) : "";
+  return {
+    active_mt: activeId,
+    next_mt: declaredNextId && declaredNextId !== activeId
+      ? declaredNextId
+      : (sequenceNextId || declaredNextId),
+  };
+}
+
 function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, "mi");
   const match = String(text || "").match(re);
@@ -279,6 +300,7 @@ export function buildWpTruthBundle({
     repomemCoverage,
     runtimeStatus: runtime,
   });
+  const contractMicrotasks = contractMicrotaskCursor(packetView?.contract);
   const bundle = {
     schema_id: WP_TRUTH_BUNDLE_SCHEMA_ID,
     schema_version: WP_TRUTH_BUNDLE_SCHEMA_VERSION,
@@ -290,8 +312,8 @@ export function buildWpTruthBundle({
     packet_status: parseSingleField(text, "Status") || projection.current_packet_status || "UNKNOWN",
     runtime_status: normalizeText(runtime?.runtime_status || "UNKNOWN"),
     task_board_status: boardStatus,
-    active_mt: normalizeText(runtime?.active_microtask || runtime?.active_mt || ""),
-    next_mt: normalizeText(runtime?.next_microtask || runtime?.next_mt || ""),
+    active_mt: normalizeText(runtime?.active_microtask || runtime?.active_mt || contractMicrotasks.active_mt),
+    next_mt: normalizeText(runtime?.next_microtask || runtime?.next_mt || contractMicrotasks.next_mt),
     next_actor: normalizeText(runtime?.next_expected_actor || "UNKNOWN").toUpperCase(),
     waiting_on: normalizeText(runtime?.waiting_on || "UNKNOWN").toUpperCase(),
     validator_gate_state: {
