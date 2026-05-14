@@ -2937,7 +2937,10 @@ mod tests {
             Err(BundleExportError::InvalidScope(message)) => {
                 assert!(message.contains("workflow_run_id must be a UUID"));
             }
-            other => panic!("expected InvalidScope for workflow_run UUID, got {:?}", other),
+            other => panic!(
+                "expected InvalidScope for workflow_run UUID, got {:?}",
+                other
+            ),
         }
 
         Ok(())

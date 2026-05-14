@@ -174,7 +174,7 @@ impl MexRuntime {
         let next_id: i64 = conn
             .prepare("SELECT COALESCE(MAX(event_id), 0) + 1 FROM fr_events")
             .map_err(|e| MexRuntimeError::Logging(e.to_string()))?
-            .query_row([], |row| row.get(0))
+            .query_row(duckdb::params![], |row| row.get(0))
             .map_err(|e| MexRuntimeError::Logging(e.to_string()))?;
 
         let payload_str =
@@ -320,8 +320,11 @@ impl MexRuntime {
             "determinism": op.determinism,
             "output_spec": op.output_spec,
         });
-        let (args_redacted, _) =
-            redactor.redact_value(&args_payload, RedactionMode::SafeDefault, "tool_gate/mex/args");
+        let (args_redacted, _) = redactor.redact_value(
+            &args_payload,
+            RedactionMode::SafeDefault,
+            "tool_gate/mex/args",
+        );
         let (args_handle, args_hash) = if let Some(conn) = self.flight_recorder.duckdb_connection()
         {
             let conn = conn.lock().map_err(|_| {
@@ -330,7 +333,8 @@ impl MexRuntime {
             store_tool_payload_redacted(&conn, tool_call_id, "args", &args_redacted)
                 .map_err(|e| MexRuntimeError::Logging(e.to_string()))?
         } else {
-            let artifact_path = format!("data/flight_recorder/tool_payloads/{tool_call_id}/args.json");
+            let artifact_path =
+                format!("data/flight_recorder/tool_payloads/{tool_call_id}/args.json");
             (
                 ArtifactHandle::new(tool_call_id, artifact_path),
                 canonical_json_sha256_hex(&args_redacted),
@@ -375,9 +379,9 @@ impl MexRuntime {
 
         let ok = status == "success";
         let ended_at = result.map(|r| r.ended_at).unwrap_or_else(Utc::now);
-        let started_at = result
-            .map(|r| r.started_at)
-            .unwrap_or_else(|| ended_at - chrono::Duration::milliseconds(duration_ms.unwrap_or(0) as i64));
+        let started_at = result.map(|r| r.started_at).unwrap_or_else(|| {
+            ended_at - chrono::Duration::milliseconds(duration_ms.unwrap_or(0) as i64)
+        });
         let duration_ms = ended_at
             .signed_duration_since(started_at)
             .num_milliseconds()
@@ -810,11 +814,10 @@ impl EngineAdapter for ShellEngineAdapter {
             })
             .unwrap_or_default();
 
-        let cfg =
-            TerminalConfig::with_session_scoped_denies_and_allowed_roots(
-                session_id.as_deref(),
-                allowed_cwd_roots,
-            );
+        let cfg = TerminalConfig::with_session_scoped_denies_and_allowed_roots(
+            session_id.as_deref(),
+            allowed_cwd_roots,
+        );
         let guards: Vec<Box<dyn TerminalGuard>> = vec![Box::new(DefaultTerminalGuard)];
         let redactor = PatternRedactor;
 

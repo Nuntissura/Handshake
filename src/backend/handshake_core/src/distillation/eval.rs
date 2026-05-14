@@ -230,7 +230,11 @@ mod tests {
         let thresholds = default_thresholds();
 
         let decision = evaluate_and_maybe_promote(&candidate, &previous, &teacher, &thresholds);
-        assert!(decision.approved, "equal metrics should pass: {:?}", decision.reasons);
+        assert!(
+            decision.approved,
+            "equal metrics should pass: {:?}",
+            decision.reasons
+        );
         assert!(decision.reasons.is_empty());
     }
 
@@ -257,7 +261,10 @@ mod tests {
 
         let decision = evaluate_and_maybe_promote(&candidate, &previous, &teacher, &thresholds);
         assert!(!decision.approved);
-        assert!(decision.reasons.iter().any(|r| r.contains("pass@1") && r.contains("previous")));
+        assert!(decision
+            .reasons
+            .iter()
+            .any(|r| r.contains("pass@1") && r.contains("previous")));
     }
 
     #[test]
@@ -269,7 +276,11 @@ mod tests {
         let thresholds = default_thresholds();
 
         let decision = evaluate_and_maybe_promote(&candidate, &previous, &teacher, &thresholds);
-        assert!(decision.approved, "at epsilon boundary should pass: {:?}", decision.reasons);
+        assert!(
+            decision.approved,
+            "at epsilon boundary should pass: {:?}",
+            decision.reasons
+        );
     }
 
     #[test]
@@ -283,7 +294,10 @@ mod tests {
 
         let decision = evaluate_and_maybe_promote(&candidate, &previous, &teacher, &thresholds);
         assert!(!decision.approved);
-        assert!(decision.reasons.iter().any(|r| r.contains("compile_success_rate") && r.contains("teacher")));
+        assert!(decision
+            .reasons
+            .iter()
+            .any(|r| r.contains("compile_success_rate") && r.contains("teacher")));
     }
 
     #[test]
@@ -299,7 +313,11 @@ mod tests {
         previous.test_pass_rate = boundary; // also lower previous so epsilon check passes
 
         let decision = evaluate_and_maybe_promote(&candidate, &previous, &teacher, &thresholds);
-        assert!(decision.approved, "at delta boundary should pass: {:?}", decision.reasons);
+        assert!(
+            decision.approved,
+            "at delta boundary should pass: {:?}",
+            decision.reasons
+        );
     }
 
     #[test]
@@ -312,7 +330,10 @@ mod tests {
 
         let decision = evaluate_and_maybe_promote(&candidate, &previous, &teacher, &thresholds);
         assert!(!decision.approved);
-        assert!(decision.reasons.iter().any(|r| r.contains("repetition_score")));
+        assert!(decision
+            .reasons
+            .iter()
+            .any(|r| r.contains("repetition_score")));
     }
 
     #[test]
@@ -338,7 +359,10 @@ mod tests {
 
         let decision = evaluate_and_maybe_promote(&candidate, &previous, &teacher, &thresholds);
         assert!(!decision.approved);
-        assert!(decision.reasons.iter().any(|r| r.contains("syntax_error_rate")));
+        assert!(decision
+            .reasons
+            .iter()
+            .any(|r| r.contains("syntax_error_rate")));
     }
 
     #[test]
@@ -351,15 +375,18 @@ mod tests {
 
         let decision = evaluate_and_maybe_promote(&candidate, &previous, &teacher, &thresholds);
         assert!(!decision.approved);
-        assert!(decision.reasons.iter().any(|r| r.contains("security_flag_rate")));
+        assert!(decision
+            .reasons
+            .iter()
+            .any(|r| r.contains("security_flag_rate")));
     }
 
     #[test]
     fn eval_promotion_collects_multiple_reasons() {
         let mut candidate = good_metrics();
-        candidate.pass_at_1 = 0.50;          // fails vs previous and teacher
-        candidate.repetition_score = 0.20;    // collapse
-        candidate.security_flag_rate = 0.10;  // too high
+        candidate.pass_at_1 = 0.50; // fails vs previous and teacher
+        candidate.repetition_score = 0.20; // collapse
+        candidate.security_flag_rate = 0.10; // too high
         let previous = good_metrics();
         let teacher = good_metrics();
         let thresholds = default_thresholds();

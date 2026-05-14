@@ -14,9 +14,9 @@ use handshake_core::{
     },
     llm::{CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage},
     role_mailbox::{
-        CreateRoleMailboxMessageRequest, GovernanceMode, RoleId, RoleMailbox, RoleMailboxContext,
-        RoleMailboxAnnounceBackMessage, RoleMailboxAnnounceBackStatus, RoleMailboxMessageType,
-        TranscriptionLink, TranscriptionTargetKind,
+        CreateRoleMailboxMessageRequest, GovernanceMode, RoleId, RoleMailbox,
+        RoleMailboxAnnounceBackMessage, RoleMailboxAnnounceBackStatus, RoleMailboxContext,
+        RoleMailboxMessageType, TranscriptionLink, TranscriptionTargetKind,
     },
     runtime_governance::RuntimeGovernancePaths,
     storage::{sqlite::SqliteDatabase, Database},
@@ -244,11 +244,9 @@ async fn role_mailbox_export_empty_is_deterministic() {
             .and_then(Value::as_str),
         Some("generic")
     );
-    assert!(
-        index_json
-            .get("profile_extension")
-            .is_some_and(Value::is_null)
-    );
+    assert!(index_json
+        .get("profile_extension")
+        .is_some_and(Value::is_null));
     assert_eq!(
         index_json.get("schema_version").and_then(Value::as_str),
         Some("role_mailbox_export_v1")
@@ -259,11 +257,9 @@ async fn role_mailbox_export_empty_is_deterministic() {
             .and_then(Value::as_str),
         Some("generic")
     );
-    assert!(
-        manifest_json
-            .get("profile_extension")
-            .is_some_and(Value::is_null)
-    );
+    assert!(manifest_json
+        .get("profile_extension")
+        .is_some_and(Value::is_null));
     assert_eq!(
         index_json
             .get("authority_refs")
@@ -358,11 +354,9 @@ async fn role_mailbox_create_message_emits_events_and_export() {
             .and_then(Value::as_str),
         Some("generic")
     );
-    assert!(
-        line_json
-            .get("profile_extension")
-            .is_some_and(Value::is_null)
-    );
+    assert!(line_json
+        .get("profile_extension")
+        .is_some_and(Value::is_null));
     assert_eq!(
         line_json
             .get("authority_refs")
@@ -581,9 +575,8 @@ async fn role_mailbox_validation_reports_redacted_field_drift() {
             transcription_links: vec![TranscriptionLink {
                 target_kind: TranscriptionTargetKind::TaskPacket,
                 target_ref: dummy_artifact("/GOV/task_packets/WP-1-Role-Mailbox-v1.md"),
-                target_sha256:
-                    "0000000000000000000000000000000000000000000000000000000000000000"
-                        .to_string(),
+                target_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+                    .to_string(),
                 note: "note password=abc".to_string(),
             }],
             idempotency_key: "idempotency-redacted-drift".to_string(),
@@ -624,9 +617,8 @@ async fn role_mailbox_validation_reports_redacted_field_drift() {
     }));
 
     let mut multiline_index_json = index_json.clone();
-    multiline_index_json["threads"][0]["subject_redacted"] = Value::String(
-        "Subject password=123\nsecond line".to_string(),
-    );
+    multiline_index_json["threads"][0]["subject_redacted"] =
+        Value::String("Subject password=123\nsecond line".to_string());
     let index_validation = validate_runtime_mailbox_record(
         &root,
         StructuredCollaborationRecordFamily::RoleMailboxIndex,
@@ -661,9 +653,8 @@ async fn role_mailbox_validation_reports_redacted_field_drift() {
     }));
 
     let mut multiline_line_json = line_json.clone();
-    multiline_line_json["transcription_links"][0]["note_redacted"] = Value::String(
-        "note password=abc\nsecond line".to_string(),
-    );
+    multiline_line_json["transcription_links"][0]["note_redacted"] =
+        Value::String("note password=abc\nsecond line".to_string());
     let line_validation = validate_runtime_mailbox_record(
         &root,
         StructuredCollaborationRecordFamily::RoleMailboxThreadLine,
@@ -783,8 +774,14 @@ async fn role_mailbox_create_announce_back_message_carries_spawn_fields() {
 
     assert_eq!(stored_payload.child_session_id, child_session_id);
     assert_eq!(stored_payload.requester_session_id, requester_session_id);
-    assert_eq!(stored_payload.status, RoleMailboxAnnounceBackStatus::Completed);
-    assert_eq!(stored_payload.summary_artifact_id, payload.summary_artifact_id);
+    assert_eq!(
+        stored_payload.status,
+        RoleMailboxAnnounceBackStatus::Completed
+    );
+    assert_eq!(
+        stored_payload.summary_artifact_id,
+        payload.summary_artifact_id
+    );
     assert_eq!(stored_payload.correlation_id, correlation_id);
 }
 

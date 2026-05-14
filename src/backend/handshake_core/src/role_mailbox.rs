@@ -1605,7 +1605,7 @@ impl RoleMailbox {
                 "#,
             )?;
 
-            let thread_rows = stmt.query_map([], |row| {
+            let thread_rows = stmt.query_map(duckdb::params![], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
@@ -1992,10 +1992,7 @@ pub fn build_software_delivery_overlay_triage_row(
     projection: &SoftwareDeliveryProjectionSurfaceV1,
     closeout_badge: SoftwareDeliveryCloseoutProjectionBadgeV1,
 ) -> Option<SoftwareDeliveryOverlayTriageRowV1> {
-    build_software_delivery_overlay_triage_row_with_closeout_badge(
-        projection,
-        Some(closeout_badge),
-    )
+    build_software_delivery_overlay_triage_row_with_closeout_badge(projection, Some(closeout_badge))
 }
 
 fn build_software_delivery_overlay_triage_row_with_closeout_badge(

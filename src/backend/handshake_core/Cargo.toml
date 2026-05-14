@@ -4,6 +4,16 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
+[[bin]]
+name = "handshake_core"
+path = "src/main.rs"
+required-features = ["app-runtime"]
+
+[[bin]]
+name = "capability_registry_workflow"
+path = "src/bin/capability_registry_workflow.rs"
+required-features = ["app-runtime"]
+
 [dependencies]
 axum = "0.7"
 serde = { version = "1", features = ["derive"] }
@@ -17,7 +27,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
 tracing-appender = "0.2"
 thiserror = "2.0.17"
-duckdb = { version = "1.4.3", features = ["bundled"] }
+duckdb = { version = "1.4.3", optional = true, features = ["bundled"] }
 reqwest = { version = "0.12", features = ["json"] }
 async-trait = "0.1"
 once_cell = "1.20"
@@ -42,6 +52,66 @@ jsonschema = "0.17"
 tempfile = "3"
 
 [features]
-default = ["tokenization"]
-tokenization = ["tiktoken-rs", "tokenizers"]
+default = ["runtime-full"]
+kernel-runtime = []
+runtime-full = ["kernel-runtime", "tokenization"]
+kernel-proof = ["runtime-full"]
+app-runtime = ["runtime-full", "duckdb-flight-recorder"]
+duckdb-flight-recorder = ["dep:duckdb"]
+tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
 test-utils = []  # Exposes test helper utilities for integration tests
+
+[[test]]
+name = "ai_ready_data_arch_tests"
+path = "tests/ai_ready_data_arch_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "mcp_e2e_tests"
+path = "tests/mcp_e2e_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "mcp_gate_tests"
+path = "tests/mcp_gate_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "mex_tests"
+path = "tests/mex_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "micro_task_executor_tests"
+path = "tests/micro_task_executor_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "model_session_scheduler_tests"
+path = "tests/model_session_scheduler_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "role_mailbox_tests"
+path = "tests/role_mailbox_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "role_registry_append_only_tests"
+path = "tests/role_registry_append_only_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "runtime_chat_events_tests"
+path = "tests/runtime_chat_events_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "terminal_guards_tests"
+path = "tests/terminal_guards_tests.rs"
+required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "terminal_session_tests"
+path = "tests/terminal_session_tests.rs"
+required-features = ["duckdb-flight-recorder"]

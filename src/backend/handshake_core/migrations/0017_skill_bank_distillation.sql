@@ -181,8 +181,11 @@ CREATE TABLE IF NOT EXISTS eval_run (
 -- ---------------------------------------------------------------------------
 -- Replay candidates view
 -- ---------------------------------------------------------------------------
-
-CREATE VIEW IF NOT EXISTS replay_candidates AS
+-- PostgreSQL does not support CREATE VIEW IF NOT EXISTS. sqlx migrations run
+-- once per database, and the explicit drop keeps the statement portable across
+-- PostgreSQL and SQLite-backed development databases.
+DROP VIEW IF EXISTS replay_candidates;
+CREATE VIEW replay_candidates AS
 SELECT *
 FROM skill_log_entry
 WHERE quality_tag = 'good'

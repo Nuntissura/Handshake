@@ -34,7 +34,10 @@ fn is_fems_protocol(protocol_id: &str) -> bool {
 
 #[derive(Debug)]
 enum ParseJobKindRequestError {
-    ContractMismatch { job_kind: String, protocol_id: String },
+    ContractMismatch {
+        job_kind: String,
+        protocol_id: String,
+    },
     InvalidJobKind(crate::storage::StorageError),
 }
 
@@ -57,7 +60,10 @@ impl std::fmt::Display for ParseJobKindRequestError {
 
 impl std::error::Error for ParseJobKindRequestError {}
 
-fn parse_job_kind_request(job_kind: &str, protocol_id: &str) -> Result<JobKind, ParseJobKindRequestError> {
+fn parse_job_kind_request(
+    job_kind: &str,
+    protocol_id: &str,
+) -> Result<JobKind, ParseJobKindRequestError> {
     let trimmed = job_kind.trim();
     if is_fems_protocol(trimmed) {
         if trimmed != protocol_id {

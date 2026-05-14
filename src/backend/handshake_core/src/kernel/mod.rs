@@ -1,0 +1,451 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use thiserror::Error;
+use uuid::Uuid;
+
+#[cfg(feature = "runtime-full")]
+use crate::storage::ControlPlaneStorageMode;
+
+pub mod context_bundle;
+pub mod model_adapter;
+#[cfg(feature = "runtime-full")]
+pub mod promotion;
+#[cfg(feature = "runtime-full")]
+pub mod proof;
+pub mod session_broker;
+#[cfg(feature = "runtime-full")]
+pub mod trace_projection;
+
+pub use context_bundle::*;
+pub use model_adapter::*;
+#[cfg(feature = "runtime-full")]
+pub use promotion::*;
+#[cfg(feature = "runtime-full")]
+pub use proof::*;
+pub use session_broker::*;
+#[cfg(feature = "runtime-full")]
+pub use trace_projection::*;
+
+#[derive(Debug, Error)]
+pub enum KernelError {
+    #[cfg(feature = "runtime-full")]
+    #[error("Kernel V1 authority requires PostgresPrimary storage mode, got {mode}")]
+    NonPostgresAuthority { mode: ControlPlaneStorageMode },
+    #[error("invalid kernel event: {0}")]
+    InvalidEvent(&'static str),
+    #[error("invalid kernel event type: {0}")]
+    InvalidEventType(String),
+    #[error("invalid session transition from {from} to {to}")]
+    InvalidSessionTransition { from: String, to: String },
+    #[error("kernel storage error: {0}")]
+    Storage(String),
+    #[error("kernel artifact error: {0}")]
+    Artifact(String),
+    #[error("kernel flight recorder error: {0}")]
+    FlightRecorder(String),
+}
+
+pub type KernelResult<T> = Result<T, KernelError>;
+
+#[cfg(feature = "runtime-full")]
+impl From<crate::storage::StorageError> for KernelError {
+    fn from(value: crate::storage::StorageError) -> Self {
+        Self::Storage(value.to_string())
+    }
+}
+
+#[cfg(feature = "runtime-full")]
+impl From<crate::storage::artifacts::ArtifactError> for KernelError {
+    fn from(value: crate::storage::artifacts::ArtifactError) -> Self {
+        Self::Artifact(value.to_string())
+    }
+}
+
+#[cfg(feature = "runtime-full")]
+pub fn assert_kernel_authority_storage_mode(mode: ControlPlaneStorageMode) -> KernelResult<()> {
+    if mode.is_control_plane_authority() {
+        Ok(())
+    } else {
+        Err(KernelError::NonPostgresAuthority { mode })
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KernelEventType {
+    TaskIntentRecorded,
+    SessionQueued,
+    SessionClaimed,
+    SessionStarted,
+    SessionCompleted,
+    SessionFailed,
+    SessionCancelled,
+    SessionBackpressureDelayed,
+    SessionRetryScheduled,
+    SessionDeadLettered,
+    ContextBundleRecorded,
+    ModelAdapterInvoked,
+    ModelResponseRecorded,
+    ToolRequestRecorded,
+    ToolDecisionRecorded,
+    ToolResultRecorded,
+    ArtifactProposed,
+    ArtifactStored,
+    ValidationRecorded,
+    PromotionDecided,
+    FlightRecorderMirrorRecorded,
+    TraceReplayed,
+}
+
+impl KernelEventType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::TaskIntentRecorded => "TASK_INTENT_RECORDED",
+            Self::SessionQueued => "SESSION_QUEUED",
+            Self::SessionClaimed => "SESSION_CLAIMED",
+            Self::SessionStarted => "SESSION_STARTED",
+            Self::SessionCompleted => "SESSION_COMPLETED",
+            Self::SessionFailed => "SESSION_FAILED",
+            Self::SessionCancelled => "SESSION_CANCELLED",
+            Self::SessionBackpressureDelayed => "SESSION_BACKPRESSURE_DELAYED",
+            Self::SessionRetryScheduled => "SESSION_RETRY_SCHEDULED",
+            Self::SessionDeadLettered => "SESSION_DEAD_LETTERED",
+            Self::ContextBundleRecorded => "CONTEXT_BUNDLE_RECORDED",
+            Self::ModelAdapterInvoked => "MODEL_ADAPTER_INVOKED",
+            Self::ModelResponseRecorded => "MODEL_RESPONSE_RECORDED",
+            Self::ToolRequestRecorded => "TOOL_REQUEST_RECORDED",
+            Self::ToolDecisionRecorded => "TOOL_DECISION_RECORDED",
+            Self::ToolResultRecorded => "TOOL_RESULT_RECORDED",
+            Self::ArtifactProposed => "ARTIFACT_PROPOSED",
+            Self::ArtifactStored => "ARTIFACT_STORED",
+            Self::ValidationRecorded => "VALIDATION_RECORDED",
+            Self::PromotionDecided => "PROMOTION_DECIDED",
+            Self::FlightRecorderMirrorRecorded => "FLIGHT_RECORDER_MIRROR_RECORDED",
+            Self::TraceReplayed => "TRACE_REPLAYED",
+        }
+    }
+
+    pub fn required_first_slice_events() -> &'static [KernelEventType] {
+        &[
+            KernelEventType::TaskIntentRecorded,
+            KernelEventType::SessionQueued,
+            KernelEventType::SessionClaimed,
+            KernelEventType::SessionStarted,
+            KernelEventType::SessionCompleted,
+            KernelEventType::SessionFailed,
+            KernelEventType::SessionCancelled,
+            KernelEventType::SessionBackpressureDelayed,
+            KernelEventType::SessionRetryScheduled,
+            KernelEventType::SessionDeadLettered,
+            KernelEventType::ContextBundleRecorded,
+            KernelEventType::ModelAdapterInvoked,
+            KernelEventType::ModelResponseRecorded,
+            KernelEventType::ToolRequestRecorded,
+            KernelEventType::ToolDecisionRecorded,
+            KernelEventType::ToolResultRecorded,
+            KernelEventType::ArtifactProposed,
+            KernelEventType::ArtifactStored,
+            KernelEventType::ValidationRecorded,
+            KernelEventType::PromotionDecided,
+            KernelEventType::FlightRecorderMirrorRecorded,
+            KernelEventType::TraceReplayed,
+        ]
+    }
+}
+
+impl TryFrom<&str> for KernelEventType {
+    type Error = KernelError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let normalized = value.trim().to_ascii_uppercase();
+        for event_type in Self::required_first_slice_events() {
+            if event_type.as_str() == normalized {
+                return Ok(event_type.clone());
+            }
+        }
+        Err(KernelError::InvalidEventType(value.to_string()))
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", content = "id", rename_all = "snake_case")]
+pub enum KernelActor {
+    Operator(String),
+    System(String),
+    SessionBroker(String),
+    ModelAdapter(String),
+    ToolGate(String),
+    ValidationRunner(String),
+    PromotionGate(String),
+}
+
+impl KernelActor {
+    pub fn actor_kind(&self) -> &'static str {
+        match self {
+            Self::Operator(_) => "operator",
+            Self::System(_) => "system",
+            Self::SessionBroker(_) => "session_broker",
+            Self::ModelAdapter(_) => "model_adapter",
+            Self::ToolGate(_) => "toolgate",
+            Self::ValidationRunner(_) => "validation_runner",
+            Self::PromotionGate(_) => "promotion_gate",
+        }
+    }
+
+    pub fn actor_id(&self) -> &str {
+        match self {
+            Self::Operator(id)
+            | Self::System(id)
+            | Self::SessionBroker(id)
+            | Self::ModelAdapter(id)
+            | Self::ToolGate(id)
+            | Self::ValidationRunner(id)
+            | Self::PromotionGate(id) => id,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct NewKernelEvent {
+    pub event_version: String,
+    pub kernel_task_run_id: String,
+    pub session_run_id: String,
+    pub aggregate_type: String,
+    pub aggregate_id: String,
+    pub idempotency_key: String,
+    pub event_type: KernelEventType,
+    pub actor: KernelActor,
+    pub causation_id: Option<String>,
+    pub correlation_id: Option<String>,
+    pub payload_hash: String,
+    pub source_component: String,
+    pub payload: Value,
+}
+
+impl NewKernelEvent {
+    pub fn builder(
+        kernel_task_run_id: impl Into<String>,
+        session_run_id: impl Into<String>,
+        event_type: KernelEventType,
+        actor: KernelActor,
+    ) -> NewKernelEventBuilder {
+        NewKernelEventBuilder {
+            kernel_task_run_id: kernel_task_run_id.into(),
+            session_run_id: session_run_id.into(),
+            aggregate_type: None,
+            aggregate_id: None,
+            idempotency_key: None,
+            event_version: "kernel_event_v1".to_string(),
+            event_type,
+            actor,
+            causation_id: None,
+            correlation_id: None,
+            source_component: None,
+            payload: json!({}),
+        }
+    }
+
+    pub fn validate(&self) -> KernelResult<()> {
+        if self.event_version.trim().is_empty() {
+            return Err(KernelError::InvalidEvent("event_version is required"));
+        }
+        if self.kernel_task_run_id.trim().is_empty() {
+            return Err(KernelError::InvalidEvent("kernel_task_run_id is required"));
+        }
+        if self.session_run_id.trim().is_empty() {
+            return Err(KernelError::InvalidEvent("session_run_id is required"));
+        }
+        if self.aggregate_type.trim().is_empty() {
+            return Err(KernelError::InvalidEvent("aggregate_type is required"));
+        }
+        if self.aggregate_id.trim().is_empty() {
+            return Err(KernelError::InvalidEvent("aggregate_id is required"));
+        }
+        if self.idempotency_key.trim().is_empty() {
+            return Err(KernelError::InvalidEvent("idempotency_key is required"));
+        }
+        if !is_sha256_hex(self.payload_hash.as_str()) {
+            return Err(KernelError::InvalidEvent(
+                "payload_hash must be a sha256 hex digest",
+            ));
+        }
+        if self.source_component.trim().is_empty() {
+            return Err(KernelError::InvalidEvent("source_component is required"));
+        }
+        Ok(())
+    }
+}
+
+pub struct NewKernelEventBuilder {
+    kernel_task_run_id: String,
+    session_run_id: String,
+    aggregate_type: Option<String>,
+    aggregate_id: Option<String>,
+    idempotency_key: Option<String>,
+    event_version: String,
+    event_type: KernelEventType,
+    actor: KernelActor,
+    causation_id: Option<String>,
+    correlation_id: Option<String>,
+    source_component: Option<String>,
+    payload: Value,
+}
+
+impl NewKernelEventBuilder {
+    pub fn aggregate(
+        mut self,
+        aggregate_type: impl Into<String>,
+        aggregate_id: impl Into<String>,
+    ) -> Self {
+        self.aggregate_type = Some(aggregate_type.into());
+        self.aggregate_id = Some(aggregate_id.into());
+        self
+    }
+
+    pub fn idempotency_key(mut self, idempotency_key: impl Into<String>) -> Self {
+        self.idempotency_key = Some(idempotency_key.into());
+        self
+    }
+
+    pub fn event_version(mut self, event_version: impl Into<String>) -> Self {
+        self.event_version = event_version.into();
+        self
+    }
+
+    pub fn causation_id(mut self, causation_id: impl Into<String>) -> Self {
+        self.causation_id = Some(causation_id.into());
+        self
+    }
+
+    pub fn correlation_id(mut self, correlation_id: impl Into<String>) -> Self {
+        self.correlation_id = Some(correlation_id.into());
+        self
+    }
+
+    pub fn payload(mut self, payload: Value) -> Self {
+        self.payload = payload;
+        self
+    }
+
+    pub fn source_component(mut self, source_component: impl Into<String>) -> Self {
+        self.source_component = Some(source_component.into());
+        self
+    }
+
+    pub fn build(self) -> KernelResult<NewKernelEvent> {
+        let aggregate_type = self
+            .aggregate_type
+            .unwrap_or_else(|| "session_run".to_string());
+        let aggregate_id = self
+            .aggregate_id
+            .unwrap_or_else(|| self.session_run_id.clone());
+        let idempotency_key = self
+            .idempotency_key
+            .unwrap_or_else(|| format!("KEI-{}", Uuid::new_v4()));
+        let source_component = self
+            .source_component
+            .unwrap_or_else(|| self.actor.actor_kind().to_string());
+        let payload_hash = payload_hash(&self.payload);
+        let event = NewKernelEvent {
+            event_version: self.event_version,
+            kernel_task_run_id: self.kernel_task_run_id,
+            session_run_id: self.session_run_id,
+            aggregate_type,
+            aggregate_id,
+            idempotency_key,
+            event_type: self.event_type,
+            actor: self.actor,
+            causation_id: self.causation_id,
+            correlation_id: self.correlation_id,
+            payload_hash,
+            source_component,
+            payload: self.payload,
+        };
+        event.validate()?;
+        Ok(event)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct KernelEvent {
+    pub event_id: String,
+    pub event_sequence: i64,
+    pub event_version: String,
+    pub kernel_task_run_id: String,
+    pub session_run_id: String,
+    pub aggregate_type: String,
+    pub aggregate_id: String,
+    pub idempotency_key: String,
+    pub event_type: KernelEventType,
+    pub actor: KernelActor,
+    pub causation_id: Option<String>,
+    pub correlation_id: Option<String>,
+    pub payload_hash: String,
+    pub source_component: String,
+    pub payload: Value,
+    pub created_at: DateTime<Utc>,
+}
+
+impl KernelEvent {
+    pub fn from_new(event: NewKernelEvent) -> Self {
+        Self {
+            event_id: format!("KE-{}", Uuid::new_v4()),
+            event_sequence: 0,
+            event_version: event.event_version,
+            kernel_task_run_id: event.kernel_task_run_id,
+            session_run_id: event.session_run_id,
+            aggregate_type: event.aggregate_type,
+            aggregate_id: event.aggregate_id,
+            idempotency_key: event.idempotency_key,
+            event_type: event.event_type,
+            actor: event.actor,
+            causation_id: event.causation_id,
+            correlation_id: event.correlation_id,
+            payload_hash: event.payload_hash,
+            source_component: event.source_component,
+            payload: event.payload,
+            created_at: Utc::now(),
+        }
+    }
+}
+
+#[cfg(feature = "runtime-full")]
+pub fn flight_recorder_mirror_event(
+    event: &KernelEvent,
+) -> crate::flight_recorder::FlightRecorderEvent {
+    crate::flight_recorder::FlightRecorderEvent::new(
+        crate::flight_recorder::FlightRecorderEventType::Diagnostic,
+        crate::flight_recorder::FlightRecorderActor::System,
+        Uuid::new_v4(),
+        json!({
+            "diagnostic_id": "kernel_event_mirror",
+            "authority_source": "postgres_event_ledger",
+            "projection_only": true,
+            "kernel_event_id": event.event_id,
+            "kernel_event_sequence": event.event_sequence,
+            "kernel_event_type": event.event_type.as_str(),
+            "kernel_event_version": event.event_version,
+            "kernel_task_run_id": event.kernel_task_run_id,
+            "session_run_id": event.session_run_id,
+            "aggregate_type": event.aggregate_type,
+            "aggregate_id": event.aggregate_id,
+            "payload_hash": event.payload_hash,
+            "source_component": event.source_component,
+            "causation_id": event.causation_id,
+            "correlation_id": event.correlation_id,
+            "idempotency_key": event.idempotency_key,
+            "actor_kind": event.actor.actor_kind(),
+            "actor_id": event.actor.actor_id()
+        }),
+    )
+    .with_model_session_id(event.session_run_id.clone())
+}
+
+fn payload_hash(payload: &Value) -> String {
+    context_bundle::sha256_hex(&context_bundle::canonical_json_bytes(payload))
+}
+
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64 && value.chars().all(|character| character.is_ascii_hexdigit())
+}

@@ -8,6 +8,8 @@ use uuid::Uuid;
 
 use crate::workspace_safety::MergeBackArtifact;
 
+use crate::kernel::{KernelEvent, KernelSessionLease, NewKernelEvent, SessionRun, SessionRunState};
+
 use crate::ai_ready_data::records::{
     BronzeRecord, EmbeddingModelRecord, EmbeddingRegistry, NewBronzeRecord, NewSilverRecord,
     SilverRecord,
@@ -2144,13 +2146,8 @@ pub trait Database: Send + Sync {
         state: ModelSessionState,
         job_id: Option<Uuid>,
     ) -> StorageResult<ModelSession> {
-        self.update_model_session_state_with_merge_back_artifact(
-            session_id,
-            state,
-            job_id,
-            None,
-        )
-        .await
+        self.update_model_session_state_with_merge_back_artifact(session_id, state, job_id, None)
+            .await
     }
 
     async fn update_model_session_state_with_merge_back_artifact(
@@ -2173,6 +2170,49 @@ pub trait Database: Send + Sync {
         message: NewSessionMessage,
     ) -> StorageResult<SessionMessage>;
     async fn list_session_messages(&self, session_id: &str) -> StorageResult<Vec<SessionMessage>>;
+    async fn append_kernel_event(&self, event: NewKernelEvent) -> StorageResult<KernelEvent>;
+    async fn list_kernel_events_for_session(
+        &self,
+        session_run_id: &str,
+    ) -> StorageResult<Vec<KernelEvent>>;
+    async fn list_kernel_events_for_aggregate(
+        &self,
+        aggregate_type: &str,
+        aggregate_id: &str,
+    ) -> StorageResult<Vec<KernelEvent>>;
+    async fn enqueue_kernel_session_run(&self, session: SessionRun) -> StorageResult<SessionRun>;
+    async fn enqueue_kernel_session_run_and_record_event(
+        &self,
+        session: SessionRun,
+        causation_id: Option<String>,
+        correlation_id: String,
+    ) -> StorageResult<(SessionRun, KernelEvent)>;
+    async fn claim_kernel_session_run(
+        &self,
+        session_run_id: &str,
+        claimed_by: &str,
+        lease_seconds: i64,
+    ) -> StorageResult<Option<KernelSessionLease>>;
+    async fn claim_kernel_session_run_and_record_event(
+        &self,
+        session_run_id: &str,
+        claimed_by: &str,
+        lease_seconds: i64,
+        causation_id: Option<String>,
+        correlation_id: String,
+    ) -> StorageResult<Option<(KernelSessionLease, KernelEvent)>>;
+    async fn update_kernel_session_run_state(
+        &self,
+        session_run_id: &str,
+        state: SessionRunState,
+    ) -> StorageResult<KernelSessionLease>;
+    async fn update_kernel_session_run_state_and_record_event(
+        &self,
+        session_run_id: &str,
+        state: SessionRunState,
+        causation_id: Option<String>,
+        correlation_id: String,
+    ) -> StorageResult<(KernelSessionLease, KernelEvent)>;
 
     async fn update_ai_job_mcp_fields(
         &self,
@@ -2237,7 +2277,10 @@ pub trait Database: Send + Sync {
         let _ = (ctx, run);
         Err(StorageError::NotImplemented("create_governance_check_run"))
     }
-    async fn list_governance_check_runs(&self, session_id: Uuid) -> StorageResult<Vec<GovernanceCheckRun>> {
+    async fn list_governance_check_runs(
+        &self,
+        session_id: Uuid,
+    ) -> StorageResult<Vec<GovernanceCheckRun>> {
         let _ = session_id;
         Err(StorageError::NotImplemented("list_governance_check_runs"))
     }

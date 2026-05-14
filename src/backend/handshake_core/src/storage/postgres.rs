@@ -7,21 +7,24 @@ use super::{
     Document, EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
     JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult,
     LoomBlockUpdate, LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomSearchFilters,
-    LoomSourceAnchor, LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType, ModelSession,
-    ModelSessionState, MutationMetadata, NewAiJob, NewAsset, NewBlock, NewBronzeRecord, NewCanvas,
-    NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock, NewLoomEdge, NewModelSession,
-    NewNodeExecution, NewSessionMessage, NewSilverRecord, NewWorkspace, PlannedOperation,
-    PreviewStatus, SafetyMode, SessionCheckpoint, SessionMessage, SessionMessageRole, SilverRecord,
-    MergeBackArtifact,
-    StorageError, StorageGuard, StorageResult, WorkflowNodeExecution, WorkflowRun, Workspace,
-    WriteContext,
+    LoomSourceAnchor, LoomViewFilters, LoomViewGroup, LoomViewResponse, LoomViewType,
+    MergeBackArtifact, ModelSession, ModelSessionState, MutationMetadata, NewAiJob, NewAsset,
+    NewBlock, NewBronzeRecord, NewCanvas, NewCanvasEdge, NewCanvasNode, NewDocument, NewLoomBlock,
+    NewLoomEdge, NewModelSession, NewNodeExecution, NewSessionMessage, NewSilverRecord,
+    NewWorkspace, PlannedOperation, PreviewStatus, SafetyMode, SessionCheckpoint, SessionMessage,
+    SessionMessageRole, SilverRecord, StorageError, StorageGuard, StorageResult,
+    WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
+};
+use crate::kernel::{
+    context_bundle::canonical_json_bytes, KernelActor, KernelEvent, KernelEventType,
+    KernelSessionLease, NewKernelEvent, SessionBroker, SessionRun, SessionRunState,
 };
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
 use serde_json::{json, Value};
 use sqlx::{
     postgres::{PgPool, PgPoolOptions, PgRow},
-    Postgres, Row,
+    Executor, Postgres, Row,
 };
 use std::collections::{BTreeSet, HashSet};
 use std::str::FromStr;
@@ -121,6 +124,108 @@ async fn ensure_locus_schema_postgres(pool: &PgPool) -> StorageResult<()> {
     }
 
     tx.commit().await?;
+    Ok(())
+}
+
+async fn ensure_kernel_event_ledger_schema_postgres(pool: &PgPool) -> StorageResult<()> {
+    let statements = [
+        r#"
+        DO $$
+        DECLARE
+            ledger_rows BIGINT;
+            missing_required_columns BOOLEAN;
+        BEGIN
+            SELECT COUNT(*) INTO ledger_rows FROM kernel_event_ledger;
+
+            SELECT EXISTS (
+                SELECT 1
+                FROM (
+                    VALUES
+                        ('event_sequence'),
+                        ('event_version'),
+                        ('kernel_task_run_id'),
+                        ('session_run_id'),
+                        ('aggregate_type'),
+                        ('aggregate_id'),
+                        ('idempotency_key'),
+                        ('payload_hash'),
+                        ('source_component')
+                ) AS required(column_name)
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'kernel_event_ledger'
+                      AND column_name = required.column_name
+                )
+            ) INTO missing_required_columns;
+
+            IF missing_required_columns AND ledger_rows > 0 THEN
+                RAISE EXCEPTION
+                    'kernel_event_ledger has legacy rows without proof-critical fields; run an explicit ledger backfill before applying Kernel V1 schema hardening';
+            END IF;
+        END $$
+        "#,
+        r#"
+        ALTER TABLE kernel_event_ledger
+            ADD COLUMN IF NOT EXISTS event_sequence BIGINT,
+            ADD COLUMN IF NOT EXISTS event_version TEXT,
+            ADD COLUMN IF NOT EXISTS kernel_task_run_id TEXT,
+            ADD COLUMN IF NOT EXISTS session_run_id TEXT,
+            ADD COLUMN IF NOT EXISTS aggregate_type TEXT,
+            ADD COLUMN IF NOT EXISTS aggregate_id TEXT,
+            ADD COLUMN IF NOT EXISTS idempotency_key TEXT,
+            ADD COLUMN IF NOT EXISTS payload_hash TEXT,
+            ADD COLUMN IF NOT EXISTS source_component TEXT
+        "#,
+        "CREATE SEQUENCE IF NOT EXISTS kernel_event_ledger_event_sequence_seq",
+        "ALTER TABLE kernel_event_ledger ALTER COLUMN event_sequence SET DEFAULT nextval('kernel_event_ledger_event_sequence_seq')",
+        "ALTER SEQUENCE kernel_event_ledger_event_sequence_seq OWNED BY kernel_event_ledger.event_sequence",
+        "UPDATE kernel_event_ledger SET event_sequence = nextval('kernel_event_ledger_event_sequence_seq') WHERE event_sequence IS NULL",
+        "UPDATE kernel_event_ledger SET event_version = 'kernel-event-v1' WHERE event_version IS NULL OR event_version = ''",
+        "UPDATE kernel_event_ledger SET kernel_task_run_id = COALESCE(NULLIF(kernel_task_run_id, ''), NULLIF(session_run_id, ''), event_id) WHERE kernel_task_run_id IS NULL OR kernel_task_run_id = ''",
+        "UPDATE kernel_event_ledger SET session_run_id = COALESCE(NULLIF(session_run_id, ''), kernel_task_run_id, event_id) WHERE session_run_id IS NULL OR session_run_id = ''",
+        "UPDATE kernel_event_ledger SET aggregate_type = 'kernel_task_run' WHERE aggregate_type IS NULL OR aggregate_type = ''",
+        "UPDATE kernel_event_ledger SET aggregate_id = kernel_task_run_id WHERE aggregate_id IS NULL OR aggregate_id = ''",
+        "UPDATE kernel_event_ledger SET idempotency_key = event_id WHERE idempotency_key IS NULL OR idempotency_key = ''",
+        "UPDATE kernel_event_ledger SET source_component = 'legacy-ledger-hardening' WHERE source_component IS NULL OR source_component = ''",
+        r#"
+        ALTER TABLE kernel_event_ledger
+            ALTER COLUMN payload TYPE JSONB
+            USING CASE
+                WHEN payload IS NULL OR payload::text = '' THEN '{}'::jsonb
+                ELSE payload::jsonb
+            END
+        "#,
+        r#"
+        ALTER TABLE kernel_event_ledger
+            ALTER COLUMN event_sequence SET NOT NULL,
+            ALTER COLUMN event_version SET NOT NULL,
+            ALTER COLUMN kernel_task_run_id SET NOT NULL,
+            ALTER COLUMN session_run_id SET NOT NULL,
+            ALTER COLUMN aggregate_type SET NOT NULL,
+            ALTER COLUMN aggregate_id SET NOT NULL,
+            ALTER COLUMN idempotency_key SET NOT NULL,
+            ALTER COLUMN payload_hash SET NOT NULL,
+            ALTER COLUMN source_component SET NOT NULL,
+            ALTER COLUMN payload SET NOT NULL
+        "#,
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_kernel_event_ledger_sequence ON kernel_event_ledger (event_sequence)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_kernel_event_ledger_idempotency ON kernel_event_ledger (idempotency_key)",
+        "CREATE INDEX IF NOT EXISTS idx_kernel_event_ledger_task ON kernel_event_ledger (kernel_task_run_id)",
+        "CREATE INDEX IF NOT EXISTS idx_kernel_event_ledger_session ON kernel_event_ledger (session_run_id)",
+        "CREATE INDEX IF NOT EXISTS idx_kernel_event_ledger_aggregate_replay ON kernel_event_ledger (aggregate_type, aggregate_id, event_sequence)",
+        "CREATE INDEX IF NOT EXISTS idx_kernel_event_ledger_event_type ON kernel_event_ledger (event_type)",
+        "CREATE INDEX IF NOT EXISTS idx_kernel_event_ledger_payload_hash ON kernel_event_ledger (payload_hash)",
+        "CREATE INDEX IF NOT EXISTS idx_kernel_event_ledger_correlation ON kernel_event_ledger (correlation_id)",
+        "CREATE INDEX IF NOT EXISTS idx_kernel_event_ledger_causation ON kernel_event_ledger (causation_id)",
+        "CREATE INDEX IF NOT EXISTS idx_kernel_event_ledger_created_at ON kernel_event_ledger (created_at)",
+    ];
+
+    for statement in statements {
+        sqlx::query(statement).execute(pool).await?;
+    }
+
     Ok(())
 }
 
@@ -1317,7 +1422,10 @@ fn map_model_session(row: PgRow) -> StorageResult<ModelSession> {
     let job_id_raw: Option<String> = row.get("job_id");
     let checkpoint_artifact_id: Option<String> = row.get("checkpoint_artifact_id");
     let last_checkpoint_at = map_optional_timestamp(&row, "last_checkpoint_at");
-    let checkpoint_count: i64 = row.get("checkpoint_count");
+    let checkpoint_count = match row.try_get::<i64, _>("checkpoint_count") {
+        Ok(value) => value,
+        Err(_) => i64::from(row.try_get::<i32, _>("checkpoint_count")?),
+    };
     let merge_back_artifact_raw: Option<String> = row.get("merge_back_artifact");
     let merge_back_artifact = merge_back_artifact_raw
         .as_deref()
@@ -1392,6 +1500,246 @@ fn map_session_message(row: PgRow) -> StorageResult<SessionMessage> {
     })
 }
 
+fn map_kernel_event(row: PgRow) -> StorageResult<KernelEvent> {
+    let event_type_raw: String = row.get("event_type");
+    let event_type = KernelEventType::try_from(event_type_raw.as_str())
+        .map_err(|_| StorageError::Validation("invalid kernel event_type"))?;
+    let actor_kind: String = row.get("actor_kind");
+    let actor_id: String = row.get("actor_id");
+    let payload_raw: String = row.get("payload");
+
+    Ok(KernelEvent {
+        event_id: row.get("event_id"),
+        event_sequence: row.get("event_sequence"),
+        event_version: row.get("event_version"),
+        kernel_task_run_id: row.get("kernel_task_run_id"),
+        session_run_id: row.get("session_run_id"),
+        aggregate_type: row.get("aggregate_type"),
+        aggregate_id: row.get("aggregate_id"),
+        idempotency_key: row.get("idempotency_key"),
+        event_type,
+        actor: kernel_actor_from_parts(actor_kind.as_str(), actor_id)?,
+        causation_id: row.get("causation_id"),
+        correlation_id: row.get("correlation_id"),
+        payload_hash: row.get("payload_hash"),
+        source_component: row.get("source_component"),
+        payload: serde_json::from_str(payload_raw.as_str())?,
+        created_at: map_timestamp(&row, "created_at"),
+    })
+}
+
+fn kernel_actor_from_parts(actor_kind: &str, actor_id: String) -> StorageResult<KernelActor> {
+    match actor_kind {
+        "operator" => Ok(KernelActor::Operator(actor_id)),
+        "system" => Ok(KernelActor::System(actor_id)),
+        "session_broker" => Ok(KernelActor::SessionBroker(actor_id)),
+        "model_adapter" => Ok(KernelActor::ModelAdapter(actor_id)),
+        "toolgate" => Ok(KernelActor::ToolGate(actor_id)),
+        "validation_runner" => Ok(KernelActor::ValidationRunner(actor_id)),
+        "promotion_gate" => Ok(KernelActor::PromotionGate(actor_id)),
+        _ => Err(StorageError::Validation("invalid kernel actor_kind")),
+    }
+}
+
+fn map_kernel_session_lease(row: PgRow) -> StorageResult<KernelSessionLease> {
+    let state_raw: String = row.get("state");
+    let state = SessionRunState::parse(state_raw.as_str())
+        .map_err(|_| StorageError::Validation("invalid kernel session state"))?;
+
+    Ok(KernelSessionLease {
+        session_run_id: row.get("session_run_id"),
+        kernel_task_run_id: row.get("kernel_task_run_id"),
+        adapter_id: row.get("adapter_id"),
+        state,
+        claimed_by: row.get("claimed_by"),
+        lease_expires_at: map_optional_timestamp(&row, "lease_expires_at"),
+        attempt_count: map_i64_flexible(&row, "attempt_count"),
+        created_at: map_timestamp(&row, "created_at"),
+        updated_at: map_timestamp(&row, "updated_at"),
+    })
+}
+
+fn session_state_event_type(state: SessionRunState) -> KernelEventType {
+    match state {
+        SessionRunState::Queued => KernelEventType::SessionQueued,
+        SessionRunState::Claimed => KernelEventType::SessionClaimed,
+        SessionRunState::Running => KernelEventType::SessionStarted,
+        SessionRunState::Completed => KernelEventType::SessionCompleted,
+        SessionRunState::Failed => KernelEventType::SessionFailed,
+        SessionRunState::Cancelled => KernelEventType::SessionCancelled,
+        SessionRunState::BackpressureDelayed => KernelEventType::SessionBackpressureDelayed,
+        SessionRunState::RetryScheduled => KernelEventType::SessionRetryScheduled,
+        SessionRunState::DeadLettered => KernelEventType::SessionDeadLettered,
+    }
+}
+
+fn build_kernel_session_event(
+    kernel_task_run_id: &str,
+    session_run_id: &str,
+    event_type: KernelEventType,
+    causation_id: Option<String>,
+    correlation_id: String,
+    payload: Value,
+) -> StorageResult<NewKernelEvent> {
+    let mut builder = NewKernelEvent::builder(
+        kernel_task_run_id,
+        session_run_id,
+        event_type,
+        KernelActor::SessionBroker("kernel-session-broker".to_string()),
+    )
+    .correlation_id(correlation_id)
+    .source_component("session_broker")
+    .payload(payload);
+
+    if let Some(causation_id) = causation_id {
+        builder = builder.causation_id(causation_id);
+    }
+
+    builder
+        .build()
+        .map_err(|err| StorageError::Serialization(err.to_string()))
+}
+
+async fn append_kernel_event_with_executor<'e, E>(
+    executor: E,
+    event: NewKernelEvent,
+) -> StorageResult<KernelEvent>
+where
+    E: Executor<'e, Database = Postgres>,
+{
+    event
+        .validate()
+        .map_err(|_| StorageError::Validation("invalid kernel event"))?;
+    let kernel_event = KernelEvent::from_new(event.clone());
+    let payload = String::from_utf8(canonical_json_bytes(&event.payload))
+        .map_err(|err| StorageError::Serialization(err.to_string()))?;
+
+    let row = sqlx::query(
+        r#"
+        WITH inserted AS (
+        INSERT INTO kernel_event_ledger (
+            event_id,
+            event_version,
+            kernel_task_run_id,
+            session_run_id,
+            aggregate_type,
+            aggregate_id,
+            idempotency_key,
+            event_type,
+            actor_kind,
+            actor_id,
+            causation_id,
+            correlation_id,
+            payload_hash,
+            source_component,
+            payload,
+            created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16)
+        ON CONFLICT (idempotency_key) DO NOTHING
+        RETURNING
+            event_id,
+            event_sequence,
+            event_version,
+            kernel_task_run_id,
+            session_run_id,
+            aggregate_type,
+            aggregate_id,
+            idempotency_key,
+            event_type,
+            actor_kind,
+            actor_id,
+            causation_id,
+            correlation_id,
+            payload_hash,
+            source_component,
+            payload,
+            created_at
+        )
+        SELECT
+            event_id,
+            event_sequence,
+            event_version,
+            kernel_task_run_id,
+            session_run_id,
+            aggregate_type,
+            aggregate_id,
+            idempotency_key,
+            event_type,
+            actor_kind,
+            actor_id,
+            causation_id,
+            correlation_id,
+            payload_hash,
+            source_component,
+            payload::text AS payload,
+            created_at
+        FROM inserted
+        UNION ALL
+        SELECT
+            event_id,
+            event_sequence,
+            event_version,
+            kernel_task_run_id,
+            session_run_id,
+            aggregate_type,
+            aggregate_id,
+            idempotency_key,
+            event_type,
+            actor_kind,
+            actor_id,
+            causation_id,
+            correlation_id,
+            payload_hash,
+            source_component,
+            payload::text AS payload,
+            created_at
+        FROM kernel_event_ledger
+        WHERE idempotency_key = $7
+        LIMIT 1
+        "#,
+    )
+    .bind(kernel_event.event_id)
+    .bind(&event.event_version)
+    .bind(&event.kernel_task_run_id)
+    .bind(&event.session_run_id)
+    .bind(&event.aggregate_type)
+    .bind(&event.aggregate_id)
+    .bind(&event.idempotency_key)
+    .bind(event.event_type.as_str())
+    .bind(event.actor.actor_kind())
+    .bind(event.actor.actor_id())
+    .bind(event.causation_id.as_deref())
+    .bind(event.correlation_id.as_deref())
+    .bind(&event.payload_hash)
+    .bind(&event.source_component)
+    .bind(payload)
+    .bind(kernel_event.created_at)
+    .fetch_one(executor)
+    .await?;
+
+    let stored = map_kernel_event(row)?;
+    if stored.event_version != event.event_version
+        || stored.kernel_task_run_id != event.kernel_task_run_id
+        || stored.session_run_id != event.session_run_id
+        || stored.aggregate_type != event.aggregate_type
+        || stored.aggregate_id != event.aggregate_id
+        || stored.event_type != event.event_type
+        || stored.actor != event.actor
+        || stored.causation_id != event.causation_id
+        || stored.correlation_id != event.correlation_id
+        || stored.payload_hash != event.payload_hash
+        || stored.source_component != event.source_component
+        || stored.payload != event.payload
+    {
+        return Err(StorageError::Validation(
+            "kernel event idempotency conflict",
+        ));
+    }
+
+    Ok(stored)
+}
+
 fn is_sha256_hex(value: &str) -> bool {
     value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit())
 }
@@ -1462,6 +1810,12 @@ fn map_optional_timestamp(row: &PgRow, column: &str) -> Option<chrono::DateTime<
 fn map_i64_from_i32(row: &PgRow, column: &str) -> i64 {
     let value: i32 = row.get(column);
     value as i64
+}
+
+fn map_i64_flexible(row: &PgRow, column: &str) -> i64 {
+    row.try_get::<i64, _>(column)
+        .or_else(|_| row.try_get::<i32, _>(column).map(i64::from))
+        .expect("integer column should decode as i64 or i32")
 }
 
 fn map_f64_from_f32(row: &PgRow, column: &str) -> f64 {
@@ -1701,6 +2055,7 @@ impl super::Database for PostgresDatabase {
     async fn run_migrations(&self) -> StorageResult<()> {
         sqlx::migrate!("./migrations").run(&self.pool).await?;
         ensure_locus_schema_postgres(&self.pool).await?;
+        ensure_kernel_event_ledger_schema_postgres(&self.pool).await?;
         Ok(())
     }
 
@@ -2254,7 +2609,7 @@ impl super::Database for PostgresDatabase {
                 last_workflow_id,
                 edit_event_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16)
             RETURNING id, document_id, kind, sequence, raw_content, display_content, derived_content,
                       created_at, updated_at, sensitivity, exportable
             "#,
@@ -6566,6 +6921,531 @@ impl super::Database for PostgresDatabase {
         .await?;
 
         rows.into_iter().map(map_session_message).collect()
+    }
+
+    async fn append_kernel_event(&self, event: NewKernelEvent) -> StorageResult<KernelEvent> {
+        append_kernel_event_with_executor(&self.pool, event).await
+    }
+
+    async fn list_kernel_events_for_session(
+        &self,
+        session_run_id: &str,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                event_id,
+                event_sequence,
+                event_version,
+                kernel_task_run_id,
+                session_run_id,
+                aggregate_type,
+                aggregate_id,
+                idempotency_key,
+                event_type,
+                actor_kind,
+                actor_id,
+                causation_id,
+                correlation_id,
+                payload_hash,
+                source_component,
+                payload::text AS payload,
+                created_at
+            FROM kernel_event_ledger
+            WHERE session_run_id = $1
+            ORDER BY event_sequence ASC
+            "#,
+        )
+        .bind(session_run_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(map_kernel_event).collect()
+    }
+
+    async fn list_kernel_events_for_aggregate(
+        &self,
+        aggregate_type: &str,
+        aggregate_id: &str,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                event_id,
+                event_sequence,
+                event_version,
+                kernel_task_run_id,
+                session_run_id,
+                aggregate_type,
+                aggregate_id,
+                idempotency_key,
+                event_type,
+                actor_kind,
+                actor_id,
+                causation_id,
+                correlation_id,
+                payload_hash,
+                source_component,
+                payload::text AS payload,
+                created_at
+            FROM kernel_event_ledger
+            WHERE aggregate_type = $1 AND aggregate_id = $2
+            ORDER BY event_sequence ASC
+            "#,
+        )
+        .bind(aggregate_type)
+        .bind(aggregate_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(map_kernel_event).collect()
+    }
+
+    async fn enqueue_kernel_session_run(&self, session: SessionRun) -> StorageResult<SessionRun> {
+        if session.session_run_id.trim().is_empty()
+            || session.kernel_task_run_id.trim().is_empty()
+            || session.adapter_id.trim().is_empty()
+        {
+            return Err(StorageError::Validation("invalid kernel session run"));
+        }
+
+        let row = sqlx::query(
+            r#"
+            INSERT INTO kernel_session_queue (
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                attempt_count,
+                available_at,
+                created_at,
+                updated_at
+            )
+            VALUES ($1, $2, $3, $4, 0, CURRENT_TIMESTAMP, $5, $6)
+            ON CONFLICT (session_run_id) DO UPDATE SET
+                kernel_task_run_id = excluded.kernel_task_run_id,
+                adapter_id = excluded.adapter_id,
+                updated_at = excluded.updated_at
+            RETURNING
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                claimed_by,
+                lease_expires_at,
+                attempt_count,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(&session.session_run_id)
+        .bind(&session.kernel_task_run_id)
+        .bind(&session.adapter_id)
+        .bind(session.state.as_str())
+        .bind(session.created_at)
+        .bind(session.updated_at)
+        .fetch_one(&self.pool)
+        .await?;
+
+        let stored = map_kernel_session_lease(row)?;
+        Ok(SessionRun {
+            session_run_id: stored.session_run_id,
+            kernel_task_run_id: stored.kernel_task_run_id,
+            adapter_id: stored.adapter_id,
+            state: stored.state,
+            created_at: stored.created_at,
+            updated_at: stored.updated_at,
+        })
+    }
+
+    async fn enqueue_kernel_session_run_and_record_event(
+        &self,
+        session: SessionRun,
+        causation_id: Option<String>,
+        correlation_id: String,
+    ) -> StorageResult<(SessionRun, KernelEvent)> {
+        if session.session_run_id.trim().is_empty()
+            || session.kernel_task_run_id.trim().is_empty()
+            || session.adapter_id.trim().is_empty()
+        {
+            return Err(StorageError::Validation("invalid kernel session run"));
+        }
+
+        let mut tx = self.pool.begin().await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO kernel_session_queue (
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                attempt_count,
+                available_at,
+                created_at,
+                updated_at
+            )
+            VALUES ($1, $2, $3, $4, 0, CURRENT_TIMESTAMP, $5, $6)
+            ON CONFLICT (session_run_id) DO UPDATE SET
+                kernel_task_run_id = excluded.kernel_task_run_id,
+                adapter_id = excluded.adapter_id,
+                updated_at = excluded.updated_at
+            RETURNING
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                claimed_by,
+                lease_expires_at,
+                attempt_count,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(&session.session_run_id)
+        .bind(&session.kernel_task_run_id)
+        .bind(&session.adapter_id)
+        .bind(session.state.as_str())
+        .bind(session.created_at)
+        .bind(session.updated_at)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let stored = map_kernel_session_lease(row)?;
+        let queued = SessionRun {
+            session_run_id: stored.session_run_id,
+            kernel_task_run_id: stored.kernel_task_run_id,
+            adapter_id: stored.adapter_id,
+            state: stored.state,
+            created_at: stored.created_at,
+            updated_at: stored.updated_at,
+        };
+        let event = build_kernel_session_event(
+            &queued.kernel_task_run_id,
+            &queued.session_run_id,
+            KernelEventType::SessionQueued,
+            causation_id,
+            correlation_id,
+            json!({
+                "session_run_id": queued.session_run_id.clone(),
+                "adapter_id": queued.adapter_id.clone(),
+                "state": queued.state.as_str()
+            }),
+        )?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        tx.commit().await?;
+
+        Ok((queued, stored_event))
+    }
+
+    async fn claim_kernel_session_run(
+        &self,
+        session_run_id: &str,
+        claimed_by: &str,
+        lease_seconds: i64,
+    ) -> StorageResult<Option<KernelSessionLease>> {
+        if session_run_id.trim().is_empty() {
+            return Err(StorageError::Validation("session_run_id is required"));
+        }
+        if claimed_by.trim().is_empty() {
+            return Err(StorageError::Validation("claimed_by is required"));
+        }
+        if lease_seconds <= 0 {
+            return Err(StorageError::Validation("lease_seconds must be positive"));
+        }
+
+        let row = sqlx::query(
+            r#"
+            UPDATE kernel_session_queue
+            SET
+                state = 'CLAIMED',
+                claimed_by = $2,
+                lease_expires_at = CURRENT_TIMESTAMP + ($3::BIGINT * INTERVAL '1 second'),
+                attempt_count = attempt_count + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE session_run_id = $1
+                AND available_at <= CURRENT_TIMESTAMP
+                AND (
+                    state IN ('QUEUED', 'RETRY_SCHEDULED')
+                    OR (
+                        state IN ('CLAIMED', 'RUNNING')
+                        AND lease_expires_at IS NOT NULL
+                        AND lease_expires_at <= CURRENT_TIMESTAMP
+                    )
+                )
+            RETURNING
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                claimed_by,
+                lease_expires_at,
+                attempt_count,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(session_run_id)
+        .bind(claimed_by)
+        .bind(lease_seconds)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(map_kernel_session_lease).transpose()
+    }
+
+    async fn claim_kernel_session_run_and_record_event(
+        &self,
+        session_run_id: &str,
+        claimed_by: &str,
+        lease_seconds: i64,
+        causation_id: Option<String>,
+        correlation_id: String,
+    ) -> StorageResult<Option<(KernelSessionLease, KernelEvent)>> {
+        if session_run_id.trim().is_empty() {
+            return Err(StorageError::Validation("session_run_id is required"));
+        }
+        if claimed_by.trim().is_empty() {
+            return Err(StorageError::Validation("claimed_by is required"));
+        }
+        if lease_seconds <= 0 {
+            return Err(StorageError::Validation("lease_seconds must be positive"));
+        }
+
+        let mut tx = self.pool.begin().await?;
+        let row = sqlx::query(
+            r#"
+            UPDATE kernel_session_queue
+            SET
+                state = 'CLAIMED',
+                claimed_by = $2,
+                lease_expires_at = CURRENT_TIMESTAMP + ($3::BIGINT * INTERVAL '1 second'),
+                attempt_count = attempt_count + 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE session_run_id = $1
+                AND available_at <= CURRENT_TIMESTAMP
+                AND (
+                    state IN ('QUEUED', 'RETRY_SCHEDULED')
+                    OR (
+                        state IN ('CLAIMED', 'RUNNING')
+                        AND lease_expires_at IS NOT NULL
+                        AND lease_expires_at <= CURRENT_TIMESTAMP
+                    )
+                )
+            RETURNING
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                claimed_by,
+                lease_expires_at,
+                attempt_count,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(session_run_id)
+        .bind(claimed_by)
+        .bind(lease_seconds)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let Some(row) = row else {
+            tx.commit().await?;
+            return Ok(None);
+        };
+        let lease = map_kernel_session_lease(row)?;
+        let event = build_kernel_session_event(
+            &lease.kernel_task_run_id,
+            &lease.session_run_id,
+            KernelEventType::SessionClaimed,
+            causation_id,
+            correlation_id,
+            json!({
+                "state": lease.state.as_str(),
+                "claimed_by": lease.claimed_by.clone(),
+                "lease_expires_at": lease.lease_expires_at,
+                "attempt_count": lease.attempt_count
+            }),
+        )?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        tx.commit().await?;
+
+        Ok(Some((lease, stored_event)))
+    }
+
+    async fn update_kernel_session_run_state(
+        &self,
+        session_run_id: &str,
+        state: SessionRunState,
+    ) -> StorageResult<KernelSessionLease> {
+        if session_run_id.trim().is_empty() {
+            return Err(StorageError::Validation("session_run_id is required"));
+        }
+
+        let mut tx = self.pool.begin().await?;
+        let current = sqlx::query(
+            r#"
+            SELECT
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                claimed_by,
+                lease_expires_at,
+                attempt_count,
+                created_at,
+                updated_at
+            FROM kernel_session_queue
+            WHERE session_run_id = $1
+            FOR UPDATE
+            "#,
+        )
+        .bind(session_run_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let Some(current) = current else {
+            return Err(StorageError::NotFound("kernel_session_run"));
+        };
+        let current = map_kernel_session_lease(current)?;
+        if current.state != state && !SessionBroker::can_transition(current.state, state) {
+            return Err(StorageError::Validation(
+                "invalid kernel session transition",
+            ));
+        }
+
+        let release_claim = state.is_terminal()
+            || matches!(
+                state,
+                SessionRunState::Queued | SessionRunState::RetryScheduled
+            );
+        let row = sqlx::query(
+            r#"
+            UPDATE kernel_session_queue
+            SET
+                state = $2,
+                claimed_by = CASE WHEN $3::BOOLEAN THEN NULL ELSE claimed_by END,
+                lease_expires_at = CASE WHEN $3::BOOLEAN THEN NULL ELSE lease_expires_at END,
+                available_at = CASE WHEN $2 IN ('RETRY_SCHEDULED', 'BACKPRESSURE_DELAYED') THEN CURRENT_TIMESTAMP ELSE available_at END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE session_run_id = $1
+            RETURNING
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                claimed_by,
+                lease_expires_at,
+                attempt_count,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(session_run_id)
+        .bind(state.as_str())
+        .bind(release_claim)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        map_kernel_session_lease(row)
+    }
+
+    async fn update_kernel_session_run_state_and_record_event(
+        &self,
+        session_run_id: &str,
+        state: SessionRunState,
+        causation_id: Option<String>,
+        correlation_id: String,
+    ) -> StorageResult<(KernelSessionLease, KernelEvent)> {
+        if session_run_id.trim().is_empty() {
+            return Err(StorageError::Validation("session_run_id is required"));
+        }
+
+        let mut tx = self.pool.begin().await?;
+        let current = sqlx::query(
+            r#"
+            SELECT
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                claimed_by,
+                lease_expires_at,
+                attempt_count,
+                created_at,
+                updated_at
+            FROM kernel_session_queue
+            WHERE session_run_id = $1
+            FOR UPDATE
+            "#,
+        )
+        .bind(session_run_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let Some(current) = current else {
+            return Err(StorageError::NotFound("kernel_session_run"));
+        };
+        let current = map_kernel_session_lease(current)?;
+        if current.state != state && !SessionBroker::can_transition(current.state, state) {
+            return Err(StorageError::Validation(
+                "invalid kernel session transition",
+            ));
+        }
+
+        let release_claim = state.is_terminal()
+            || matches!(
+                state,
+                SessionRunState::Queued | SessionRunState::RetryScheduled
+            );
+        let row = sqlx::query(
+            r#"
+            UPDATE kernel_session_queue
+            SET
+                state = $2,
+                claimed_by = CASE WHEN $3::BOOLEAN THEN NULL ELSE claimed_by END,
+                lease_expires_at = CASE WHEN $3::BOOLEAN THEN NULL ELSE lease_expires_at END,
+                available_at = CASE WHEN $2 IN ('RETRY_SCHEDULED', 'BACKPRESSURE_DELAYED') THEN CURRENT_TIMESTAMP ELSE available_at END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE session_run_id = $1
+            RETURNING
+                session_run_id,
+                kernel_task_run_id,
+                adapter_id,
+                state,
+                claimed_by,
+                lease_expires_at,
+                attempt_count,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(session_run_id)
+        .bind(state.as_str())
+        .bind(release_claim)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let lease = map_kernel_session_lease(row)?;
+        let event_type = if current.state == state {
+            session_state_event_type(state)
+        } else {
+            SessionBroker::transition_event_type(current.state, state)
+                .map_err(|err| StorageError::Serialization(err.to_string()))?
+        };
+        let event = build_kernel_session_event(
+            &lease.kernel_task_run_id,
+            &lease.session_run_id,
+            event_type,
+            causation_id,
+            correlation_id,
+            json!({"state": lease.state.as_str()}),
+        )?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        tx.commit().await?;
+
+        Ok((lease, stored_event))
     }
 
     async fn update_ai_job_mcp_fields(

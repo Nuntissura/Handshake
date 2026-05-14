@@ -700,11 +700,23 @@ mod tests {
         let back = serde_json::from_str::<SkillBankLogEntry>(&json).expect("deserialize");
 
         assert_eq!(back.version, entry.version);
-        assert_eq!(back.quality.data_trust_score, entry.quality.data_trust_score);
+        assert_eq!(
+            back.quality.data_trust_score,
+            entry.quality.data_trust_score
+        );
         assert!(back.quality.auto_eval.compile_success.unwrap_or_default());
         assert_eq!(back.engine.actor_role, ActorRole::Teacher);
-        assert_eq!(back.context_refs.spec_sections.first().map(|value| value.as_str()), Some("9.1.1"));
-        assert_eq!(back.quality.labels.first().map(|value| value.as_str()), Some("reviewed"));
+        assert_eq!(
+            back.context_refs
+                .spec_sections
+                .first()
+                .map(|value| value.as_str()),
+            Some("9.1.1")
+        );
+        assert_eq!(
+            back.quality.labels.first().map(|value| value.as_str()),
+            Some("reviewed")
+        );
     }
 
     #[test]

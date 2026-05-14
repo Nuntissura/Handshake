@@ -8,16 +8,16 @@ use sqlx::{Sqlite, SqlitePool};
 use std::collections::HashSet;
 
 use crate::workflows::locus::types::{
-    DependencyType, LocusAddDependencyParams, LocusBindSessionParams, LocusCloseWpParams,
-    LocusCompleteMtParams, LocusCreateWpParams, LocusDeleteWpParams, LocusGateKind,
-    LocusGateWpParams, LocusGetMtProgressParams, LocusGetWpStatusParams, LocusOperation,
-    LocusQueryReadyParams, LocusRecordIterationParams, LocusRegisterMtsParams,
-    LocusRemoveDependencyParams, LocusStartMtParams, LocusUnbindSessionParams, LocusUpdateWpParams,
-    MicroTaskIterationOutcome, MicroTaskStatus, RoutingPolicy, TaskBoardStatus, TrackedMicroTask,
-    TrackedMicroTaskArtifactV1, WorkPacketPhase, WorkPacketStatus, WorkflowQueueReasonCode,
-    WorkflowStateFamily, executor_eligibility_policy_ids_for_family,
-    governed_action_ids_for_family, queue_automation_rule_ids_for_reason,
-    resolve_queue_reason_with_mailbox_context, transition_rule_ids_for_family,
+    executor_eligibility_policy_ids_for_family, governed_action_ids_for_family,
+    queue_automation_rule_ids_for_reason, resolve_queue_reason_with_mailbox_context,
+    transition_rule_ids_for_family, DependencyType, LocusAddDependencyParams,
+    LocusBindSessionParams, LocusCloseWpParams, LocusCompleteMtParams, LocusCreateWpParams,
+    LocusDeleteWpParams, LocusGateKind, LocusGateWpParams, LocusGetMtProgressParams,
+    LocusGetWpStatusParams, LocusOperation, LocusQueryReadyParams, LocusRecordIterationParams,
+    LocusRegisterMtsParams, LocusRemoveDependencyParams, LocusStartMtParams,
+    LocusUnbindSessionParams, LocusUpdateWpParams, MicroTaskIterationOutcome, MicroTaskStatus,
+    RoutingPolicy, TaskBoardStatus, TrackedMicroTask, TrackedMicroTaskArtifactV1, WorkPacketPhase,
+    WorkPacketStatus, WorkflowQueueReasonCode, WorkflowStateFamily,
 };
 pub(crate) fn ensure_locus_sqlite(db: &(impl Database + ?Sized)) -> StorageResult<()> {
     if db.supports_locus_runtime() {
@@ -51,7 +51,9 @@ pub(crate) async fn locus_work_packet_exists(
     wp_id: &str,
 ) -> StorageResult<bool> {
     ensure_structured_collab_artifacts(db)?;
-    Ok(structured_collab_work_packet_row(db, wp_id).await?.is_some())
+    Ok(structured_collab_work_packet_row(db, wp_id)
+        .await?
+        .is_some())
 }
 
 pub(crate) async fn locus_task_board_get_status_and_metadata(
@@ -241,7 +243,9 @@ fn tracked_mt_progress_metadata(tracked_mt: &TrackedMicroTask) -> Value {
         allowed_action_ids: governed_action_ids_for_family(workflow_state_family),
         transition_rule_ids: transition_rule_ids_for_family(workflow_state_family),
         queue_automation_rule_ids: queue_automation_rule_ids_for_reason(queue_reason_code),
-        executor_eligibility_policy_ids: executor_eligibility_policy_ids_for_family(workflow_state_family),
+        executor_eligibility_policy_ids: executor_eligibility_policy_ids_for_family(
+            workflow_state_family,
+        ),
         summary_ref,
         mt_id: tracked_mt.mt_id.clone(),
         wp_id: tracked_mt.wp_id.clone(),

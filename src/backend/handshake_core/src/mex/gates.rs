@@ -18,7 +18,8 @@ pub const GOVERNANCE_CHECK_TOOL_SIDE_EFFECT: &str = "GOVERNED_WRITE";
 pub const GOVERNANCE_CHECK_TOOL_IDEMPOTENCY: &str = "IDEMPOTENT_WITH_KEY";
 pub const GOVERNANCE_CHECK_TOOL_DETERMINISM: &str = "STRUCTURAL";
 pub const GOVERNANCE_CHECK_TOOL_AVAILABILITY: &str = "ALWAYS";
-pub const GOVERNANCE_CHECK_TOOL_REQUIRED_CAPABILITIES: [&str; 1] = [GOVERNANCE_CHECK_TOOL_CAPABILITY];
+pub const GOVERNANCE_CHECK_TOOL_REQUIRED_CAPABILITIES: [&str; 1] =
+    [GOVERNANCE_CHECK_TOOL_CAPABILITY];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GovernanceCheckToolContract {
@@ -82,11 +83,7 @@ impl GatePipeline {
     /// Run all gates against an operation, collecting every denial.
     /// Unlike the runtime's short-circuit loop, this reports all failures
     /// so callers can surface a complete problem list.
-    pub fn evaluate(
-        &self,
-        op: &PlannedOperation,
-        registry: &MexRegistry,
-    ) -> Vec<GateDenial> {
+    pub fn evaluate(&self, op: &PlannedOperation, registry: &MexRegistry) -> Vec<GateDenial> {
         self.gates
             .iter()
             .filter_map(|gate| gate.check(op, registry).err())
@@ -580,7 +577,10 @@ mod tests {
         assert_eq!(contract.idempotency, "IDEMPOTENT_WITH_KEY");
         assert_eq!(contract.determinism, "STRUCTURAL");
         assert_eq!(contract.availability, "ALWAYS");
-        assert_eq!(contract.required_capabilities, ["governance.check.run"].as_slice());
+        assert_eq!(
+            contract.required_capabilities,
+            ["governance.check.run"].as_slice()
+        );
         assert_eq!(contract.required_capabilities.len(), 1);
     }
 

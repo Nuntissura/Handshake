@@ -643,10 +643,7 @@ mod tests {
         bundle.consent_receipt.session_ids = Some(vec!["sess-other".to_string()]);
         req.cloud_escalation = Some(bundle);
 
-        let err = guard
-            .completion(req)
-            .await
-            .expect_err("expected mismatch");
+        let err = guard.completion(req).await.expect_err("expected mismatch");
         assert!(matches!(err, LlmError::CloudConsentMismatch(_)));
         assert_eq!(inner.calls(), 0);
     }
@@ -673,10 +670,7 @@ mod tests {
             Some(vec!["sess-target".to_string(), "sess-2".to_string()]);
         req.cloud_escalation = Some(bundle);
 
-        let err = guard
-            .completion(req)
-            .await
-            .expect_err("expected mismatch");
+        let err = guard.completion(req).await.expect_err("expected mismatch");
         assert!(matches!(err, LlmError::CloudConsentMismatch(_)));
         assert_eq!(inner.calls(), 0);
     }

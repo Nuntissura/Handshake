@@ -2211,7 +2211,10 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         Some("sync-token-2")
     );
     assert_eq!(updated_source.last_actor_kind, "HUMAN");
-    assert_eq!(updated_source.last_actor_id.as_deref(), Some("calendar-tester"));
+    assert_eq!(
+        updated_source.last_actor_id.as_deref(),
+        Some("calendar-tester")
+    );
     assert_eq!(updated_source.last_job_id, None);
     assert_eq!(updated_source.last_workflow_id, None);
     assert!(!updated_source.edit_event_id.is_empty());
@@ -2308,7 +2311,10 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
     );
     assert!(duplicate_provider_event.is_override);
     assert_eq!(duplicate_provider_event.last_actor_kind, "HUMAN");
-    assert_eq!(duplicate_provider_event.last_actor_id.as_deref(), Some("calendar-tester"));
+    assert_eq!(
+        duplicate_provider_event.last_actor_id.as_deref(),
+        Some("calendar-tester")
+    );
     assert_eq!(duplicate_provider_event.last_job_id, None);
     assert!(!duplicate_provider_event.edit_event_id.is_empty());
 
@@ -2448,16 +2454,31 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .await?
         .ok_or(StorageError::NotFound("calendar_source"))?;
     assert_eq!(fetched_ai_source.last_actor_kind, "AI");
-    assert_eq!(fetched_ai_source.last_actor_id.as_deref(), Some("ai-sync-agent"));
-    assert_eq!(fetched_ai_source.last_job_id.as_deref(), Some(job_str.as_str()));
-    assert_eq!(fetched_ai_source.last_workflow_id.as_deref(), Some(wf_str.as_str()));
+    assert_eq!(
+        fetched_ai_source.last_actor_id.as_deref(),
+        Some("ai-sync-agent")
+    );
+    assert_eq!(
+        fetched_ai_source.last_job_id.as_deref(),
+        Some(job_str.as_str())
+    );
+    assert_eq!(
+        fetched_ai_source.last_workflow_id.as_deref(),
+        Some(wf_str.as_str())
+    );
     assert!(!fetched_ai_source.edit_event_id.is_empty());
 
     let listed_ai = db.list_calendar_sources(&workspace.id).await?;
-    let listed_match = listed_ai.iter().find(|s| s.id == ai_source_id).expect("AI source in list");
+    let listed_match = listed_ai
+        .iter()
+        .find(|s| s.id == ai_source_id)
+        .expect("AI source in list");
     assert_eq!(listed_match.last_actor_kind, "AI");
     assert_eq!(listed_match.last_job_id.as_deref(), Some(job_str.as_str()));
-    assert_eq!(listed_match.last_workflow_id.as_deref(), Some(wf_str.as_str()));
+    assert_eq!(
+        listed_match.last_workflow_id.as_deref(),
+        Some(wf_str.as_str())
+    );
 
     let ai_event_start = Utc::now() + Duration::days(10);
     let ai_event_end = ai_event_start + Duration::hours(1);
@@ -2513,9 +2534,18 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .await?;
     assert_eq!(queried_ai_events.len(), 1);
     assert_eq!(queried_ai_events[0].last_actor_kind, "AI");
-    assert_eq!(queried_ai_events[0].last_actor_id.as_deref(), Some("ai-sync-agent"));
-    assert_eq!(queried_ai_events[0].last_job_id.as_deref(), Some(job_str.as_str()));
-    assert_eq!(queried_ai_events[0].last_workflow_id.as_deref(), Some(wf_str.as_str()));
+    assert_eq!(
+        queried_ai_events[0].last_actor_id.as_deref(),
+        Some("ai-sync-agent")
+    );
+    assert_eq!(
+        queried_ai_events[0].last_job_id.as_deref(),
+        Some(job_str.as_str())
+    );
+    assert_eq!(
+        queried_ai_events[0].last_workflow_id.as_deref(),
+        Some(wf_str.as_str())
+    );
     assert!(!queried_ai_events[0].edit_event_id.is_empty());
 
     db.delete_calendar_data_by_source(&ai_ctx, &workspace.id, &ai_source_id)
@@ -3173,13 +3203,19 @@ async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResul
     let db = db.into_arc();
 
     assert!(db.supports_structured_collab_artifacts());
-    assert!(db.structured_collab_work_packet_row("WP-TEST").await?.is_none());
+    assert!(db
+        .structured_collab_work_packet_row("WP-TEST")
+        .await?
+        .is_none());
     assert!(db.structured_collab_work_packet_rows().await?.is_empty());
     assert!(db
         .structured_collab_micro_task_status_rows("WP-TEST")
         .await?
         .is_empty());
-    assert!(db.structured_collab_micro_task_rows("WP-TEST").await?.is_empty());
+    assert!(db
+        .structured_collab_micro_task_rows("WP-TEST")
+        .await?
+        .is_empty());
     assert_eq!(
         db.structured_collab_micro_task_metadata("WP-TEST", "MT-TEST")
             .await?,
@@ -3434,8 +3470,7 @@ fn storage_mode_defaults_to_postgres_primary_when_required() -> StorageResult<()
 #[test]
 fn storage_mode_fails_closed_when_postgres_required_without_url() {
     for requires_postgres in [Some("true"), None] {
-        let err =
-            ControlPlaneStorageConfig::resolve(None, requires_postgres, None).unwrap_err();
+        let err = ControlPlaneStorageConfig::resolve(None, requires_postgres, None).unwrap_err();
 
         match err {
             StorageError::Validation(message) => {

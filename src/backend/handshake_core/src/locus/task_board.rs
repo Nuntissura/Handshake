@@ -1,13 +1,13 @@
 use super::types::{
     executor_eligibility_policy_ids_for_family, queue_automation_rule_ids_for_reason,
-    transition_rule_ids_for_family, validate_software_delivery_task_board_projection_against_canonical,
-    MarkdownMirrorContractV1, MirrorSyncState, ProjectProfileKind,
-    SoftwareDeliveryCloseoutPostureV1, SoftwareDeliveryCloseoutState,
-    SoftwareDeliveryWorkflowBindingState, StructuredCollaborationRecordFamily,
-    StructuredCollaborationSummaryV1,
-    StructuredCollaborationValidationCode, StructuredCollaborationValidationResult, TaskBoardStatus,
-    WorkflowQueueReasonCode, WorkflowStateFamily, STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1,
-    STRUCTURED_COLLABORATION_SUMMARY_SCHEMA_ID_V1,
+    transition_rule_ids_for_family,
+    validate_software_delivery_task_board_projection_against_canonical, MarkdownMirrorContractV1,
+    MirrorSyncState, ProjectProfileKind, SoftwareDeliveryCloseoutPostureV1,
+    SoftwareDeliveryCloseoutState, SoftwareDeliveryWorkflowBindingState,
+    StructuredCollaborationRecordFamily, StructuredCollaborationSummaryV1,
+    StructuredCollaborationValidationCode, StructuredCollaborationValidationResult,
+    TaskBoardStatus, WorkflowQueueReasonCode, WorkflowStateFamily,
+    STRUCTURED_COLLABORATION_SCHEMA_VERSION_V1, STRUCTURED_COLLABORATION_SUMMARY_SCHEMA_ID_V1,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -376,10 +376,7 @@ impl TaskBoardIndexV1 {
 
     /// Return work-packet IDs for entries matching a given state family.
     /// Generalises the DCC ready_queue to any WorkflowStateFamily.
-    pub fn work_packet_ids_by_state_family(
-        &self,
-        family: WorkflowStateFamily,
-    ) -> Vec<String> {
+    pub fn work_packet_ids_by_state_family(&self, family: WorkflowStateFamily) -> Vec<String> {
         self.rows
             .iter()
             .filter(|e| e.workflow_state_family == family)
@@ -388,10 +385,7 @@ impl TaskBoardIndexV1 {
     }
 
     /// Return work-packet IDs for entries matching a given queue reason code.
-    pub fn work_packet_ids_by_queue_reason(
-        &self,
-        reason: WorkflowQueueReasonCode,
-    ) -> Vec<String> {
+    pub fn work_packet_ids_by_queue_reason(&self, reason: WorkflowQueueReasonCode) -> Vec<String> {
         self.rows
             .iter()
             .filter(|e| e.queue_reason_code == reason)
@@ -400,10 +394,7 @@ impl TaskBoardIndexV1 {
     }
 
     /// Return entries that expose a specific allowed action ID.
-    pub fn entries_by_allowed_action(
-        &self,
-        action_id: &str,
-    ) -> Vec<&TaskBoardEntryRecordV1> {
+    pub fn entries_by_allowed_action(&self, action_id: &str) -> Vec<&TaskBoardEntryRecordV1> {
         self.rows
             .iter()
             .filter(|e| e.allowed_action_ids.iter().any(|a| a == action_id))

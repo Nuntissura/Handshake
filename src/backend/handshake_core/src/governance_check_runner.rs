@@ -72,7 +72,10 @@ impl std::fmt::Display for CheckRunnerError {
             Self::Artifact(err) => write!(f, "{err}"),
             Self::Storage(err) => write!(f, "{err}"),
             Self::CapabilityGate(missing) => {
-                write!(f, "governance precheck denied: missing capabilities {missing:?}")
+                write!(
+                    f,
+                    "governance precheck denied: missing capabilities {missing:?}"
+                )
             }
             Self::ExecutionTimeout => write!(f, "check execution timed out"),
             Self::Serialization(err) => write!(f, "{err}"),
@@ -140,13 +143,19 @@ impl CheckRunner {
         let started_at = Instant::now();
         let descriptor_hash = self.compute_descriptor_hash(&descriptor)?;
         let (result, evidence) = match self
-            .run_pre_check(&descriptor, session_id, &descriptor_hash, granted_capabilities)
+            .run_pre_check(
+                &descriptor,
+                session_id,
+                &descriptor_hash,
+                granted_capabilities,
+            )
             .await?
         {
             Some(result) => (result, None),
-            None => self
-                .run_execution_phase(&descriptor, &descriptor_hash)
-                .await?,
+            None => {
+                self.run_execution_phase(&descriptor, &descriptor_hash)
+                    .await?
+            }
         };
         let elapsed_ms = started_at.elapsed().as_millis() as u64;
 
@@ -155,7 +164,9 @@ impl CheckRunner {
             session_id,
             &result,
             elapsed_ms,
-            evidence.as_ref().and_then(|evidence| Some(evidence.artifact_id.as_str())),
+            evidence
+                .as_ref()
+                .and_then(|evidence| Some(evidence.artifact_id.as_str())),
         )
         .await?;
 
@@ -295,7 +306,8 @@ impl CheckRunner {
                     .await
             }
             CheckResult::Unsupported(details) => {
-                self.emit_blocked_event(descriptor.check_id, session_id, &details.reason).await
+                self.emit_blocked_event(descriptor.check_id, session_id, &details.reason)
+                    .await
             }
             _ => {
                 self.emit_completed_event(
@@ -456,10 +468,7 @@ impl CheckRunner {
         result: &mut CheckResult,
     ) -> Result<Option<CapturedEvidence>, CheckRunnerError> {
         let status = result.status();
-        let should_capture = matches!(
-            status,
-            "pass" | "fail" | "advisory_only"
-        );
+        let should_capture = matches!(status, "pass" | "fail" | "advisory_only");
         if !should_capture {
             return Ok(None);
         }
@@ -544,7 +553,10 @@ impl CheckRunner {
         required
     }
 
-    fn compute_descriptor_hash(&self, descriptor: &CheckDescriptor) -> Result<String, CheckRunnerError> {
+    fn compute_descriptor_hash(
+        &self,
+        descriptor: &CheckDescriptor,
+    ) -> Result<String, CheckRunnerError> {
         let bytes = serde_json::to_vec(descriptor)?;
         let mut hasher = Sha256::new();
         hasher.update(&bytes);
@@ -653,11 +665,7 @@ fn default_descriptor_parameters() -> Value {
 }
 
 impl CheckDescriptor {
-    pub fn new(
-        check_id: Uuid,
-        name: impl Into<String>,
-        check_kind: impl Into<String>,
-    ) -> Self {
+    pub fn new(check_id: Uuid, name: impl Into<String>, check_kind: impl Into<String>) -> Self {
         Self {
             check_id,
             name: name.into(),
@@ -828,8 +836,8 @@ mod tests {
     }
 
     #[test]
-    fn check_runner_lifecycle_phases_roundtrip_and_serialize() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn check_runner_lifecycle_phases_roundtrip_and_serialize(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let pre_check_id = Uuid::new_v4();
         let descriptor = CheckDescriptor::new(Uuid::new_v4(), "unit", "native");
         let blocked = CheckResult::Blocked(CheckBlockedDetails {
@@ -895,7 +903,8 @@ mod tests {
         assert!(descriptor.profile.is_none());
         assert!(descriptor.tool_id.is_none());
 
-        let roundtrip: CheckDescriptor = serde_json::from_str(&serde_json::to_string(&descriptor)?)?;
+        let roundtrip: CheckDescriptor =
+            serde_json::from_str(&serde_json::to_string(&descriptor)?)?;
         assert_eq!(descriptor, roundtrip);
         Ok(())
     }
@@ -921,7 +930,10 @@ mod tests {
         let descriptor: CheckDescriptor = serde_json::from_str(&raw)?;
         let params = &descriptor.parameters;
 
-        assert!(params.get("strict").and_then(Value::as_bool).unwrap_or(false));
+        assert!(params
+            .get("strict")
+            .and_then(Value::as_bool)
+            .unwrap_or(false));
         assert_eq!(params.get("threshold").and_then(Value::as_f64), Some(0.5));
         assert_eq!(
             params
@@ -934,7 +946,8 @@ mod tests {
         );
         assert_eq!(descriptor.required_capabilities.len(), 0);
 
-        let roundtrip: CheckDescriptor = serde_json::from_str(&serde_json::to_string(&descriptor)?)?;
+        let roundtrip: CheckDescriptor =
+            serde_json::from_str(&serde_json::to_string(&descriptor)?)?;
         assert_eq!(descriptor, roundtrip);
         Ok(())
     }
@@ -980,7 +993,9 @@ mod tests {
             .with_supported_kinds(vec!["native".to_string()]);
 
         let mut descriptor = CheckDescriptor::new(Uuid::new_v4(), "guarded-check", "native");
-        descriptor.required_capabilities.push("policy.custom:access".to_string());
+        descriptor
+            .required_capabilities
+            .push("policy.custom:access".to_string());
 
         let result = runner
             .run_check(
@@ -993,8 +1008,14 @@ mod tests {
         assert!(matches!(result, CheckResult::Blocked(_)));
         let events = recorder.events();
         assert_eq!(events.len(), 2);
-        assert_eq!(events[0].event_type, FlightRecorderEventType::GovernanceCheckStarted);
-        assert_eq!(events[1].event_type, FlightRecorderEventType::GovernanceCheckBlocked);
+        assert_eq!(
+            events[0].event_type,
+            FlightRecorderEventType::GovernanceCheckStarted
+        );
+        assert_eq!(
+            events[1].event_type,
+            FlightRecorderEventType::GovernanceCheckBlocked
+        );
         Ok(())
     }
 
@@ -1018,8 +1039,14 @@ mod tests {
         assert!(matches!(result, CheckResult::Unsupported(_)));
         let events = recorder.events();
         assert_eq!(events.len(), 2);
-        assert_eq!(events[0].event_type, FlightRecorderEventType::GovernanceCheckStarted);
-        assert_eq!(events[1].event_type, FlightRecorderEventType::GovernanceCheckBlocked);
+        assert_eq!(
+            events[0].event_type,
+            FlightRecorderEventType::GovernanceCheckStarted
+        );
+        assert_eq!(
+            events[1].event_type,
+            FlightRecorderEventType::GovernanceCheckBlocked
+        );
         Ok(())
     }
 
@@ -1080,9 +1107,9 @@ mod tests {
             CheckResult::Pass(details) => details,
             _ => unreachable!(),
         };
-        let artifact_id = pass
-            .evidence_artifact_id
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "missing evidence id"))?;
+        let artifact_id = pass.evidence_artifact_id.ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "missing evidence id")
+        })?;
         let artifact_uuid = Uuid::parse_str(&artifact_id)?;
 
         let manifest = read_artifact_manifest(workspace.path(), ArtifactLayer::L1, artifact_uuid)?;
@@ -1092,7 +1119,10 @@ mod tests {
 
         let events = recorder.events();
         assert_eq!(events.len(), 2);
-        assert_eq!(events[1].event_type, FlightRecorderEventType::GovernanceCheckCompleted);
+        assert_eq!(
+            events[1].event_type,
+            FlightRecorderEventType::GovernanceCheckCompleted
+        );
         Ok(())
     }
 

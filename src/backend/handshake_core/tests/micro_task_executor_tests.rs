@@ -11,31 +11,13 @@ use handshake_core::flight_recorder::{EventFilter, FlightRecorderEventType};
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
 };
+use handshake_core::role_mailbox::{
+    build_software_delivery_overlay_triage_row, SoftwareDeliveryOverlayTriageRowV1,
+};
 use handshake_core::runtime_governance::RuntimeGovernancePaths;
 use handshake_core::storage::{
     sqlite::SqliteDatabase, AccessMode, AiJobListFilter, Database, JobKind, JobMetrics, JobState,
     NewAiJob, SafetyMode, StorageError,
-};
-use handshake_core::workflows::{
-    locus::{
-        executor_eligibility_policy_ids_for_family, governed_action_ids_for_family,
-        is_governed_action_id_allowed_for_workflow_family, is_registered_governed_action_id,
-        queue_automation_rule_ids_for_reason, transition_rule_ids_for_family,
-        task_board::{TaskBoardEntryRecordV1, TaskBoardIndexV1, TaskBoardViewV1},
-        validate_structured_collaboration_record, validate_structured_collaboration_summary_join,
-        validate_task_board_entry_authoritative_fields, StructuredCollaborationRecordFamily,
-        StructuredCollaborationValidationCode, StructuredCollaborationValidationResult,
-        TrackedMicroTaskArtifactV1, TrackedWorkPacketArtifactV1, WorkflowQueueReasonCode,
-        WorkflowStateFamily,
-    },
-    start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
-};
-use handshake_core::workflows::{
-    apply_software_delivery_closeout_posture_lifecycle,
-    apply_software_delivery_projection_surface_lifecycle,
-    apply_software_delivery_workflow_run_lifecycle,
-    build_software_delivery_projection_surface_with_overlay,
-    finalize_runtime_structured_work_packet_writes,
 };
 use handshake_core::workflows::locus::{
     derive_governed_action_preview, derive_governed_action_previews,
@@ -46,8 +28,8 @@ use handshake_core::workflows::locus::{
     validate_software_delivery_projection_surface_authority,
     validate_software_delivery_projection_surface_overlay,
     validate_software_delivery_task_board_projection_against_canonical,
-    GovernanceClaimLeaseRecordV1, GovernanceQueuedInstructionRecordV1,
-    GovernedActionEligibility, GovernedActionPreviewV1, MirrorSyncState, ProjectProfileKind,
+    GovernanceClaimLeaseRecordV1, GovernanceQueuedInstructionRecordV1, GovernedActionEligibility,
+    GovernedActionPreviewV1, MirrorSyncState, ProjectProfileKind,
     SoftwareDeliveryBindingGatePosture, SoftwareDeliveryClaimTakeoverPolicy,
     SoftwareDeliveryCloseoutState, SoftwareDeliveryProjectionSurfaceV1,
     SoftwareDeliveryQueuedInstructionAction, SoftwareDeliveryWorkflowBindingState,
@@ -61,8 +43,27 @@ use handshake_core::workflows::locus::{
     SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_RECORD_KIND,
     SOFTWARE_DELIVERY_WORKFLOW_RUN_LIFECYCLE_SCHEMA_ID_V1,
 };
-use handshake_core::role_mailbox::{
-    build_software_delivery_overlay_triage_row, SoftwareDeliveryOverlayTriageRowV1,
+use handshake_core::workflows::{
+    apply_software_delivery_closeout_posture_lifecycle,
+    apply_software_delivery_projection_surface_lifecycle,
+    apply_software_delivery_workflow_run_lifecycle,
+    build_software_delivery_projection_surface_with_overlay,
+    finalize_runtime_structured_work_packet_writes,
+};
+use handshake_core::workflows::{
+    locus::{
+        executor_eligibility_policy_ids_for_family, governed_action_ids_for_family,
+        is_governed_action_id_allowed_for_workflow_family, is_registered_governed_action_id,
+        queue_automation_rule_ids_for_reason,
+        task_board::{TaskBoardEntryRecordV1, TaskBoardIndexV1, TaskBoardViewV1},
+        transition_rule_ids_for_family, validate_structured_collaboration_record,
+        validate_structured_collaboration_summary_join,
+        validate_task_board_entry_authoritative_fields, StructuredCollaborationRecordFamily,
+        StructuredCollaborationValidationCode, StructuredCollaborationValidationResult,
+        TrackedMicroTaskArtifactV1, TrackedWorkPacketArtifactV1, WorkflowQueueReasonCode,
+        WorkflowStateFamily,
+    },
+    start_workflow_for_job, ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig,
 };
 use handshake_core::AppState;
 use once_cell::sync::Lazy;
@@ -3238,9 +3239,7 @@ fn stale_advisory_board_entry(record_id: &str) -> TaskBoardEntryRecordV1 {
         profile_extension: None,
         updated_at: "2026-04-25T12:00:00Z".to_string(),
         mirror_state: MirrorSyncState::Stale,
-        authority_refs: vec![
-            "/.GOV/task_packets/should-not-be-authoritative.md".to_string(),
-        ],
+        authority_refs: vec!["/.GOV/task_packets/should-not-be-authoritative.md".to_string()],
         evidence_refs: Vec::new(),
         mirror_contract: None,
         workflow_state_family: WorkflowStateFamily::Done,
@@ -3260,9 +3259,7 @@ fn stale_advisory_board_entry(record_id: &str) -> TaskBoardEntryRecordV1 {
         view_ids: Vec::new(),
         token: "STALE-DONE".to_string(),
         status: "Done (mirror)".to_string(),
-        summary_ref: format!(
-            ".handshake/gov/work_packets/{record_id}/summary.json"
-        ),
+        summary_ref: format!(".handshake/gov/work_packets/{record_id}/summary.json"),
     }
 }
 
@@ -3276,7 +3273,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
         // never let the chronology overwrite canonical authority.
         "thread-software-delivery-validator-kickoff".to_string(),
         "thread-software-delivery-coder-intent".to_string(),
-        "".to_string(), // empty must be filtered
+        "".to_string(),                                      // empty must be filtered
         "thread-software-delivery-coder-intent".to_string(), // duplicate must be deduped
     ];
 
@@ -3383,7 +3380,10 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
         "projection evidence_refs must come from canonical evidence paths"
     );
     assert!(
-        projection.authority_refs.iter().all(|r| r.starts_with(".handshake/gov/")),
+        projection
+            .authority_refs
+            .iter()
+            .all(|r| r.starts_with(".handshake/gov/")),
         "projection authority_refs MUST point at runtime governance artifacts, \
          never at advisory /.GOV mirrors"
     );
@@ -3539,8 +3539,7 @@ fn projection_surface_previews_governed_action_before_mutation() {
 
     // Discipline guard #1: deriving the projection surface (and its embedded
     // governed-action previews) MUST NOT mutate canonical bytes.
-    let canonical_after =
-        serde_json::to_vec(&canonical).expect("serialize canonical after derive");
+    let canonical_after = serde_json::to_vec(&canonical).expect("serialize canonical after derive");
     assert_eq!(
         canonical_before, canonical_after,
         "deriving the software-delivery projection surface MUST NOT mutate \
@@ -3654,10 +3653,9 @@ fn projection_surface_previews_governed_action_before_mutation() {
     // (covering the policy/approval/evidence positive path).
     let mut unblocked = canonical.clone();
     unblocked.blockers.clear();
-    let unblocked_projection = derive_software_delivery_projection_surface(
-        &unblocked, None, None, None, &[],
-    )
-    .expect("derive projection for unblocked canonical");
+    let unblocked_projection =
+        derive_software_delivery_projection_surface(&unblocked, None, None, None, &[])
+            .expect("derive projection for unblocked canonical");
     assert_eq!(
         unblocked_projection.governed_action_previews.len(),
         canonical.allowed_action_ids.len(),
@@ -4008,7 +4006,7 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     let governed_actions = vec![
         "governed_action_resolution:approve:1".to_string(),
         "governed_action_resolution:validate:1".to_string(),
-        "".to_string(), // empty must be filtered
+        "".to_string(),                                     // empty must be filtered
         "governed_action_resolution:approve:1".to_string(), // duplicate must be deduped
     ];
     let posture = derive_software_delivery_closeout_posture(
@@ -4022,7 +4020,10 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
          authority must derive a closeout posture",
     );
     assert_eq!(posture.work_packet_id, canonical.record_id);
-    assert_eq!(posture.project_profile_kind, ProjectProfileKind::SoftwareDelivery);
+    assert_eq!(
+        posture.project_profile_kind,
+        ProjectProfileKind::SoftwareDelivery
+    );
     assert_eq!(
         posture.gate_record_ref,
         runtime_paths.validator_gate_record_display(wp_id),
@@ -4054,11 +4055,17 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     assert_eq!(posture.evidence_refs, canonical.evidence_refs);
     assert_eq!(posture.authority_refs, canonical.authority_refs);
     assert_eq!(posture.unresolved_blockers, canonical.blockers);
-    assert_eq!(posture.workflow_state_family, canonical.workflow_state_family);
+    assert_eq!(
+        posture.workflow_state_family,
+        canonical.workflow_state_family
+    );
     assert_eq!(posture.queue_reason_code, canonical.queue_reason_code);
     assert_eq!(posture.updated_at, canonical.updated_at);
     assert!(
-        matches!(posture.closeout_state, SoftwareDeliveryCloseoutState::PendingGate),
+        matches!(
+            posture.closeout_state,
+            SoftwareDeliveryCloseoutState::PendingGate
+        ),
         "Validation family must classify as PendingGate (got {:?})",
         posture.closeout_state
     );
@@ -4073,13 +4080,8 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
         runtime_paths.work_packets_dir_display()
     )];
     assert!(
-        derive_software_delivery_closeout_posture(
-            &spoofed_gate,
-            &runtime_paths,
-            None,
-            &[],
-        )
-        .is_none(),
+        derive_software_delivery_closeout_posture(&spoofed_gate, &runtime_paths, None, &[],)
+            .is_none(),
         "spoofed substring 'validator_gates/' must NOT satisfy canonical gate detection"
     );
     let spoofed_gate_validation =
@@ -4110,16 +4112,10 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     // a CANONICAL validator_gates path but for a DIFFERENT WP id MUST be
     // rejected. The only legal gate ref binds to canonical.record_id.
     let mut foreign_gate = canonical.clone();
-    foreign_gate.evidence_refs =
-        vec![runtime_paths.validator_gate_record_display("WP-OTHER")];
+    foreign_gate.evidence_refs = vec![runtime_paths.validator_gate_record_display("WP-OTHER")];
     assert!(
-        derive_software_delivery_closeout_posture(
-            &foreign_gate,
-            &runtime_paths,
-            None,
-            &[],
-        )
-        .is_none(),
+        derive_software_delivery_closeout_posture(&foreign_gate, &runtime_paths, None, &[],)
+            .is_none(),
         "foreign-WP canonical validator-gate ref must NOT satisfy stable-id binding"
     );
     let foreign_gate_validation =
@@ -4140,16 +4136,10 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     // FINDING 1 (stable-id binding): a foreign-WP owner ref that is itself
     // a CANONICAL work_packets/<other>/packet.json path MUST be rejected.
     let mut foreign_owner = canonical.clone();
-    foreign_owner.authority_refs =
-        vec![runtime_paths.work_packet_packet_display("WP-OTHER")];
+    foreign_owner.authority_refs = vec![runtime_paths.work_packet_packet_display("WP-OTHER")];
     assert!(
-        derive_software_delivery_closeout_posture(
-            &foreign_owner,
-            &runtime_paths,
-            None,
-            &[],
-        )
-        .is_none(),
+        derive_software_delivery_closeout_posture(&foreign_owner, &runtime_paths, None, &[],)
+            .is_none(),
         "foreign-WP canonical owner ref must NOT satisfy stable-id binding"
     );
     let foreign_owner_validation =
@@ -4276,11 +4266,13 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     let mut done = canonical.clone();
     done.workflow_state_family = WorkflowStateFamily::Done;
     done.blockers.clear();
-    let done_posture =
-        derive_software_delivery_closeout_posture(&done, &runtime_paths, None, &[])
-            .expect("Done with truth refs must derive a closeout posture");
+    let done_posture = derive_software_delivery_closeout_posture(&done, &runtime_paths, None, &[])
+        .expect("Done with truth refs must derive a closeout posture");
     assert!(
-        matches!(done_posture.closeout_state, SoftwareDeliveryCloseoutState::ReadyToClose),
+        matches!(
+            done_posture.closeout_state,
+            SoftwareDeliveryCloseoutState::ReadyToClose
+        ),
         "Done + no blockers must classify ReadyToClose (got {:?})",
         done_posture.closeout_state
     );
@@ -4307,7 +4299,10 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
         derive_software_delivery_closeout_posture(&active_full, &runtime_paths, None, &[])
             .expect("Active with truth refs must still derive (state=NotEligible)");
     assert!(
-        matches!(active_posture.closeout_state, SoftwareDeliveryCloseoutState::NotEligible),
+        matches!(
+            active_posture.closeout_state,
+            SoftwareDeliveryCloseoutState::NotEligible
+        ),
         "Active family must classify NotEligible (got {:?})",
         active_posture.closeout_state
     );
@@ -4323,8 +4318,8 @@ fn closeout_posture_artifact_lifecycle_clears_stale_state_through_production_hel
     // would leave a stale posture artifact on the runtime display surface.
     let dir = tempfile::tempdir().expect("tempdir");
     let workspace_root = dir.path().to_path_buf();
-    let runtime_paths = RuntimeGovernancePaths::from_workspace_root(workspace_root.clone())
-        .expect("runtime paths");
+    let runtime_paths =
+        RuntimeGovernancePaths::from_workspace_root(workspace_root.clone()).expect("runtime paths");
     let wp_id = "WP-1-Software-Delivery-Lifecycle-Test";
 
     // Step 1: emit a posture from a fully-truthful canonical summary.
@@ -4422,8 +4417,7 @@ fn closeout_posture_artifact_lifecycle_clears_stale_state_through_production_hel
     assert!(posture_path.exists(), "re-emit must restore the artifact");
 
     let mut foreign_gate = canonical.clone();
-    foreign_gate.evidence_refs =
-        vec![runtime_paths.validator_gate_record_display("WP-OTHER")];
+    foreign_gate.evidence_refs = vec![runtime_paths.validator_gate_record_display("WP-OTHER")];
     let foreign_gate_value =
         serde_json::to_value(&foreign_gate).expect("foreign-gate canonical to value");
     apply_software_delivery_closeout_posture_lifecycle(
@@ -4463,8 +4457,8 @@ fn closeout_posture_artifact_lifecycle_runs_before_validation_gate_in_production
     // already committed the DB mutation.
     let dir = tempfile::tempdir().expect("tempdir");
     let workspace_root = dir.path().to_path_buf();
-    let runtime_paths = RuntimeGovernancePaths::from_workspace_root(workspace_root.clone())
-        .expect("runtime paths");
+    let runtime_paths =
+        RuntimeGovernancePaths::from_workspace_root(workspace_root.clone()).expect("runtime paths");
     let wp_id = "WP-1-Software-Delivery-Production-Failure";
 
     let canonical = canonical_software_delivery_summary_for_closeout(&runtime_paths, wp_id);
@@ -4484,7 +4478,10 @@ fn closeout_posture_artifact_lifecycle_runs_before_validation_gate_in_production
         &canonical_value,
     )
     .expect("pre-emit posture should succeed");
-    assert!(posture_path.exists(), "pre-emit must produce closeout_posture.json");
+    assert!(
+        posture_path.exists(),
+        "pre-emit must produce closeout_posture.json"
+    );
 
     // Build a failing-validation scenario: missing-gate canonical (still
     // closeout-relevant Validation family). validate_software_delivery_closeout_canonical_truth
@@ -4493,10 +4490,8 @@ fn closeout_posture_artifact_lifecycle_runs_before_validation_gate_in_production
     without_gate.evidence_refs.clear();
     let without_gate_value =
         serde_json::to_value(&without_gate).expect("without-gate canonical to value");
-    let validation = validate_software_delivery_closeout_canonical_truth(
-        &without_gate,
-        &runtime_paths,
-    );
+    let validation =
+        validate_software_delivery_closeout_canonical_truth(&without_gate, &runtime_paths);
     assert!(
         !validation.ok,
         "missing-gate canonical must fail closeout truth validation"
@@ -4555,14 +4550,11 @@ fn closeout_posture_artifact_lifecycle_runs_before_validation_gate_in_production
     assert!(posture_path.exists(), "re-emit must restore the artifact");
 
     let mut foreign_gate = canonical.clone();
-    foreign_gate.evidence_refs =
-        vec![runtime_paths.validator_gate_record_display("WP-OTHER")];
+    foreign_gate.evidence_refs = vec![runtime_paths.validator_gate_record_display("WP-OTHER")];
     let foreign_gate_value =
         serde_json::to_value(&foreign_gate).expect("foreign-gate canonical to value");
-    let foreign_validation = validate_software_delivery_closeout_canonical_truth(
-        &foreign_gate,
-        &runtime_paths,
-    );
+    let foreign_validation =
+        validate_software_delivery_closeout_canonical_truth(&foreign_gate, &runtime_paths);
     assert!(
         !foreign_validation.ok,
         "foreign-gate canonical must fail closeout truth validation"
@@ -4588,7 +4580,10 @@ fn closeout_posture_artifact_lifecycle_runs_before_validation_gate_in_production
     // and re-emits the closeout posture.
     let success_validation =
         validate_software_delivery_closeout_canonical_truth(&canonical, &runtime_paths);
-    assert!(success_validation.ok, "fully-truthful canonical must pass validation");
+    assert!(
+        success_validation.ok,
+        "fully-truthful canonical must pass validation"
+    );
     finalize_runtime_structured_work_packet_writes(
         &runtime_paths,
         &workspace_root,
@@ -4598,9 +4593,15 @@ fn closeout_posture_artifact_lifecycle_runs_before_validation_gate_in_production
         &detail_value,
     )
     .expect("success path must succeed");
-    assert!(posture_path.exists(), "success path must (re)emit the closeout posture");
+    assert!(
+        posture_path.exists(),
+        "success path must (re)emit the closeout posture"
+    );
     assert!(packet_path.exists(), "success path must write packet.json");
-    assert!(summary_path.exists(), "success path must write summary.json");
+    assert!(
+        summary_path.exists(),
+        "success path must write summary.json"
+    );
 }
 
 #[test]
@@ -4614,8 +4615,8 @@ fn closeout_posture_not_written_when_validation_fails_for_unrelated_reason() {
     // closeout state on the runtime display surface.
     let dir = tempfile::tempdir().expect("tempdir");
     let workspace_root = dir.path().to_path_buf();
-    let runtime_paths = RuntimeGovernancePaths::from_workspace_root(workspace_root.clone())
-        .expect("runtime paths");
+    let runtime_paths =
+        RuntimeGovernancePaths::from_workspace_root(workspace_root.clone()).expect("runtime paths");
     let wp_id = "WP-1-Software-Delivery-Unrelated-Failure";
 
     let canonical = canonical_software_delivery_summary_for_closeout(&runtime_paths, wp_id);
@@ -4677,8 +4678,14 @@ fn closeout_posture_not_written_when_validation_fails_for_unrelated_reason() {
         "unrelated validation failure MUST NOT write a new closeout_posture.json \
          even when derive would produce Some"
     );
-    assert!(!packet_path.exists(), "validation failure MUST NOT write packet.json");
-    assert!(!summary_path.exists(), "validation failure MUST NOT write summary.json");
+    assert!(
+        !packet_path.exists(),
+        "validation failure MUST NOT write packet.json"
+    );
+    assert!(
+        !summary_path.exists(),
+        "validation failure MUST NOT write summary.json"
+    );
 
     // Case B: PRE-EXISTING posture from a prior valid batch. Wrapper must
     // CLEAR it so the invalid batch cannot leave an advanced closeout state.
@@ -4689,7 +4696,10 @@ fn closeout_posture_not_written_when_validation_fails_for_unrelated_reason() {
         &canonical_value,
     )
     .expect("pre-emit posture for case B");
-    assert!(posture_path.exists(), "case B precondition: posture must be present");
+    assert!(
+        posture_path.exists(),
+        "case B precondition: posture must be present"
+    );
 
     let result_with_pre = finalize_runtime_structured_work_packet_writes(
         &runtime_paths,
@@ -4856,12 +4866,27 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
     .expect("overlay projection must derive for software_delivery canonical");
 
     // ── Schema/anchor invariants persist across the overlay extension ────────
-    assert_eq!(projection.schema_id, SOFTWARE_DELIVERY_PROJECTION_SURFACE_SCHEMA_ID_V1);
-    assert_eq!(projection.record_kind, SOFTWARE_DELIVERY_PROJECTION_SURFACE_RECORD_KIND);
+    assert_eq!(
+        projection.schema_id,
+        SOFTWARE_DELIVERY_PROJECTION_SURFACE_SCHEMA_ID_V1
+    );
+    assert_eq!(
+        projection.record_kind,
+        SOFTWARE_DELIVERY_PROJECTION_SURFACE_RECORD_KIND
+    );
     assert_eq!(projection.work_packet_id, canonical.record_id);
-    assert_eq!(projection.workflow_run_id.as_deref(), Some("workflow-run-mt004"));
-    assert_eq!(projection.workflow_binding_id.as_deref(), Some("workflow-binding-mt004"));
-    assert_eq!(projection.model_session_id.as_deref(), Some("session-coder-mt004"));
+    assert_eq!(
+        projection.workflow_run_id.as_deref(),
+        Some("workflow-run-mt004")
+    );
+    assert_eq!(
+        projection.workflow_binding_id.as_deref(),
+        Some("workflow-binding-mt004")
+    );
+    assert_eq!(
+        projection.model_session_id.as_deref(),
+        Some("session-coder-mt004")
+    );
 
     // ── Claim/lease overlay surfaces by stable id and canonical path ────────
     assert_eq!(
@@ -4871,7 +4896,11 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
     );
     assert_eq!(
         projection.claim_lease_record_ref.as_deref(),
-        Some(runtime_paths.claim_lease_record_display(wp_id, "claim-mt004-A").as_str()),
+        Some(
+            runtime_paths
+                .claim_lease_record_display(wp_id, "claim-mt004-A")
+                .as_str()
+        ),
         "projection must expose the claim/lease record ref as a canonical \
          <gov_root>/claim_leases/<wp_id>/<claim_id>.json path"
     );
@@ -4904,8 +4933,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         .zip(projection.queued_instruction_record_refs.iter())
     {
         assert!(
-            runtime_paths
-                .is_canonical_queued_instruction_record_ref(reference, wp_id, id),
+            runtime_paths.is_canonical_queued_instruction_record_ref(reference, wp_id, id),
             "queued instruction ref {reference} must resolve to a canonical \
              <gov_root>/queued_instructions/<wp_id>/<instr_id>.json path \
              bound to wp={wp_id} and instr={id}"
@@ -5201,8 +5229,14 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
             .expect("triage row must build for software_delivery projection");
     assert_eq!(triage_row.work_packet_id, projection.work_packet_id);
     assert_eq!(triage_row.workflow_run_id, projection.workflow_run_id);
-    assert_eq!(triage_row.workflow_binding_id, projection.workflow_binding_id);
-    assert_eq!(triage_row.workflow_binding_state, projection.workflow_binding_state);
+    assert_eq!(
+        triage_row.workflow_binding_id,
+        projection.workflow_binding_id
+    );
+    assert_eq!(
+        triage_row.workflow_binding_state,
+        projection.workflow_binding_state
+    );
     assert_eq!(
         triage_row.claim_lease_record_id,
         projection.claim_lease_record_id
@@ -5251,8 +5285,11 @@ fn production_finalize_emits_software_delivery_projection_surface_with_overlay()
     let claim_path = runtime_paths.claim_lease_record_path(wp_id, claim_id);
     std::fs::create_dir_all(claim_path.parent().expect("claim parent dir"))
         .expect("create claim_leases dir");
-    std::fs::write(&claim_path, serde_json::to_vec(&claim).expect("serialize claim"))
-        .expect("write claim record");
+    std::fs::write(
+        &claim_path,
+        serde_json::to_vec(&claim).expect("serialize claim"),
+    )
+    .expect("write claim record");
 
     // Seed canonical queued-instruction overlay records on disk under
     // <gov_root>/queued_instructions/<wp_id>/<instr_id>.json.
@@ -5270,8 +5307,11 @@ fn production_finalize_emits_software_delivery_projection_surface_with_overlay()
         let path = runtime_paths.queued_instruction_record_path(wp_id, &inst.record_id);
         std::fs::create_dir_all(path.parent().expect("queued parent dir"))
             .expect("create queued_instructions dir");
-        std::fs::write(&path, serde_json::to_vec(inst).expect("serialize instruction"))
-            .expect("write queued instruction");
+        std::fs::write(
+            &path,
+            serde_json::to_vec(inst).expect("serialize instruction"),
+        )
+        .expect("write queued instruction");
     }
 
     // Seed canonical validator gate record so gate_posture.has_active_validator_gate
@@ -5320,8 +5360,7 @@ fn production_finalize_emits_software_delivery_projection_surface_with_overlay()
         surface_path.display()
     );
 
-    let surface_bytes =
-        std::fs::read(&surface_path).expect("read projection surface artifact");
+    let surface_bytes = std::fs::read(&surface_path).expect("read projection surface artifact");
     let surface: SoftwareDeliveryProjectionSurfaceV1 =
         serde_json::from_slice(&surface_bytes).expect("deserialize projection surface");
 
@@ -5402,8 +5441,7 @@ fn production_finalize_emits_software_delivery_projection_surface_with_overlay()
     foreign_claim.work_packet_id = foreign_wp.to_string();
     // Place foreign claim under THIS wp_id directory; reader must filter by
     // work_packet_id, not by directory name alone.
-    let foreign_claim_path =
-        runtime_paths.claim_lease_record_path(wp_id, "claim-foreign");
+    let foreign_claim_path = runtime_paths.claim_lease_record_path(wp_id, "claim-foreign");
     std::fs::write(
         &foreign_claim_path,
         serde_json::to_vec(&foreign_claim).expect("serialize foreign claim"),
@@ -6007,7 +6045,10 @@ fn production_writes_workflow_run_lifecycle_record_before_projection_surface() {
     );
     assert_eq!(written.record_id, wp_id);
     assert_eq!(written.work_packet_id, wp_id);
-    assert_eq!(written.project_profile_kind, ProjectProfileKind::SoftwareDelivery);
+    assert_eq!(
+        written.project_profile_kind,
+        ProjectProfileKind::SoftwareDelivery
+    );
     assert_eq!(written.updated_at, canonical.updated_at);
 
     // Stable ids MUST come from the canonical claim/lease overlay (production
@@ -6048,7 +6089,10 @@ fn production_writes_workflow_run_lifecycle_record_before_projection_surface() {
         "production projection MUST reach ApprovalWait via the runtime-backed \
          workflow_run_lifecycle record written by the production wrapper"
     );
-    assert_eq!(surface.workflow_run_id.as_deref(), Some("workflow-run-mt004"));
+    assert_eq!(
+        surface.workflow_run_id.as_deref(),
+        Some("workflow-run-mt004")
+    );
     assert_eq!(
         surface.workflow_binding_id.as_deref(),
         Some("workflow-binding-mt004")
@@ -6175,7 +6219,10 @@ fn role_mailbox_software_delivery_triage_remains_advisory() {
     let surface_path = runtime_paths.work_packet_projection_surface_path(wp_id);
     let lifecycle_path = runtime_paths.workflow_run_record_path(wp_id);
     assert!(
-        claim_path.exists() && instr_path.exists() && surface_path.exists() && lifecycle_path.exists(),
+        claim_path.exists()
+            && instr_path.exists()
+            && surface_path.exists()
+            && lifecycle_path.exists(),
         "pre-condition: full canonical software-delivery overlay state must be on disk"
     );
 
@@ -6183,8 +6230,7 @@ fn role_mailbox_software_delivery_triage_remains_advisory() {
     let claim_before = std::fs::read(&claim_path).expect("snapshot claim/lease");
     let instr_before = std::fs::read(&instr_path).expect("snapshot queued instruction");
     let surface_before = std::fs::read(&surface_path).expect("snapshot projection surface");
-    let lifecycle_before =
-        std::fs::read(&lifecycle_path).expect("snapshot workflow_run lifecycle");
+    let lifecycle_before = std::fs::read(&lifecycle_path).expect("snapshot workflow_run lifecycle");
 
     // ── 2. Build the advisory triage row from the canonical projection ────
     let triage_row = build_software_delivery_overlay_triage_row(&projection)
@@ -6219,10 +6265,8 @@ fn role_mailbox_software_delivery_triage_remains_advisory() {
     mutated.workflow_binding_id = Some("forged-binding-id".to_string());
     mutated.workflow_binding_state = Some(SoftwareDeliveryWorkflowBindingState::Settled);
     mutated.claim_lease_record_id = Some("forged-claim-id".to_string());
-    mutated.claim_lease_record_ref = Some(
-        runtime_paths
-            .claim_lease_record_display(wp_id, "forged-claim-id"),
-    );
+    mutated.claim_lease_record_ref =
+        Some(runtime_paths.claim_lease_record_display(wp_id, "forged-claim-id"));
     mutated.queued_instruction_record_ids = vec!["forged-instr-id".to_string()];
     mutated.queued_instruction_record_refs =
         vec![runtime_paths.queued_instruction_record_display(wp_id, "forged-instr-id")];
@@ -6239,8 +6283,7 @@ fn role_mailbox_software_delivery_triage_remains_advisory() {
     let claim_after = std::fs::read(&claim_path).expect("re-read claim/lease");
     let instr_after = std::fs::read(&instr_path).expect("re-read queued instruction");
     let surface_after = std::fs::read(&surface_path).expect("re-read projection surface");
-    let lifecycle_after =
-        std::fs::read(&lifecycle_path).expect("re-read workflow_run lifecycle");
+    let lifecycle_after = std::fs::read(&lifecycle_path).expect("re-read workflow_run lifecycle");
 
     assert_eq!(
         claim_before, claim_after,
@@ -6438,9 +6481,7 @@ async fn locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait(
         progress_meta_base
             .get("queue_reason_code")
             .and_then(Value::as_str),
-        packet_base
-            .get("queue_reason_code")
-            .and_then(Value::as_str),
+        packet_base.get("queue_reason_code").and_then(Value::as_str),
         "queue_reason_code must match between progress metadata and emitted packet (base)"
     );
 

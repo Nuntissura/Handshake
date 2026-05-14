@@ -1622,16 +1622,11 @@ fn session_scheduler_event_payloads_are_validated() {
 }
 
 #[tokio::test]
-async fn model_run_spawn_request_within_contracts_is_accepted() -> Result<(), Box<dyn std::error::Error>> {
+async fn model_run_spawn_request_within_contracts_is_accepted(
+) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::new_v4());
-    seed_active_model_session(
-        &state,
-        &parent_session_id,
-        None,
-        &["fs.read", "net.http"],
-    )
-    .await?;
+    seed_active_model_session(&state, &parent_session_id, None, &["fs.read", "net.http"]).await?;
 
     let child_session_id = format!("child-{}", Uuid::new_v4());
     let child_job = create_model_run_job(
@@ -1661,11 +1656,21 @@ async fn model_run_spawn_request_within_contracts_is_accepted() -> Result<(), Bo
         .await?;
     let requested = events
         .iter()
-        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnRequested))
+        .find(|event| {
+            matches!(
+                event.event_type,
+                FlightRecorderEventType::SessionSpawnRequested
+            )
+        })
         .expect("spawn requested event");
     let accepted = events
         .iter()
-        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnAccepted))
+        .find(|event| {
+            matches!(
+                event.event_type,
+                FlightRecorderEventType::SessionSpawnAccepted
+            )
+        })
         .expect("spawn accepted event");
 
     assert_eq!(
@@ -1687,7 +1692,8 @@ async fn model_run_spawn_request_within_contracts_is_accepted() -> Result<(), Bo
 }
 
 #[tokio::test]
-async fn model_run_spawn_request_rejected_when_depth_exceeds_max() -> Result<(), Box<dyn std::error::Error>> {
+async fn model_run_spawn_request_rejected_when_depth_exceeds_max(
+) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::new_v4());
     seed_active_model_session(
@@ -1728,7 +1734,12 @@ async fn model_run_spawn_request_rejected_when_depth_exceeds_max() -> Result<(),
         .await?;
     let rejected = events
         .iter()
-        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnRejected))
+        .find(|event| {
+            matches!(
+                event.event_type,
+                FlightRecorderEventType::SessionSpawnRejected
+            )
+        })
         .expect("spawn rejected event");
     assert_eq!(
         rejected
@@ -1738,10 +1749,7 @@ async fn model_run_spawn_request_rejected_when_depth_exceeds_max() -> Result<(),
         Some(parent_session_id.as_str())
     );
     assert_eq!(
-        rejected
-            .payload
-            .get("spawn_depth")
-            .and_then(Value::as_i64),
+        rejected.payload.get("spawn_depth").and_then(Value::as_i64),
         Some(4)
     );
 
@@ -1749,7 +1757,8 @@ async fn model_run_spawn_request_rejected_when_depth_exceeds_max() -> Result<(),
 }
 
 #[tokio::test]
-async fn model_run_spawn_request_rejected_when_children_exceeds_limit() -> Result<(), Box<dyn std::error::Error>> {
+async fn model_run_spawn_request_rejected_when_children_exceeds_limit(
+) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::new_v4());
     seed_active_model_session(
@@ -1807,7 +1816,12 @@ async fn model_run_spawn_request_rejected_when_children_exceeds_limit() -> Resul
         .await?;
     let rejected = events
         .iter()
-        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnRejected))
+        .find(|event| {
+            matches!(
+                event.event_type,
+                FlightRecorderEventType::SessionSpawnRejected
+            )
+        })
         .expect("spawn rejected event");
     assert_eq!(
         rejected
@@ -1821,16 +1835,11 @@ async fn model_run_spawn_request_rejected_when_children_exceeds_limit() -> Resul
 }
 
 #[tokio::test]
-async fn model_run_spawn_request_rejected_when_capability_widens() -> Result<(), Box<dyn std::error::Error>> {
+async fn model_run_spawn_request_rejected_when_capability_widens(
+) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::new_v4());
-    seed_active_model_session(
-        &state,
-        &parent_session_id,
-        None,
-        &["fs.read"],
-    )
-    .await?;
+    seed_active_model_session(&state, &parent_session_id, None, &["fs.read"]).await?;
 
     let child_job = create_model_run_job(
         &state,
@@ -1862,7 +1871,12 @@ async fn model_run_spawn_request_rejected_when_capability_widens() -> Result<(),
         .await?;
     let rejected = events
         .iter()
-        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnRejected))
+        .find(|event| {
+            matches!(
+                event.event_type,
+                FlightRecorderEventType::SessionSpawnRejected
+            )
+        })
         .expect("spawn rejected event");
     assert_eq!(
         rejected
@@ -1880,13 +1894,7 @@ async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::new_v4());
-    seed_active_model_session(
-        &state,
-        &parent_session_id,
-        None,
-        &["fs.read", "net.http"],
-    )
-    .await?;
+    seed_active_model_session(&state, &parent_session_id, None, &["fs.read", "net.http"]).await?;
 
     let child_session_id = format!("child-{}", Uuid::new_v4());
     let child_job = create_model_run_job(
@@ -1919,7 +1927,12 @@ async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
         .await?;
     let announce_back = events
         .iter()
-        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionSpawnAnnounceBack))
+        .find(|event| {
+            matches!(
+                event.event_type,
+                FlightRecorderEventType::SessionSpawnAnnounceBack
+            )
+        })
         .expect("announce_back event");
     assert_eq!(
         announce_back
@@ -1939,26 +1952,23 @@ async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
         announce_back.payload.get("status").and_then(Value::as_str),
         Some("completed")
     );
-    assert!(
-        announce_back
-            .payload
-            .get("summary_artifact_id")
-            .and_then(Value::as_str)
-            .is_some()
-    );
-    assert!(
-        announce_back
-            .payload
-            .get("mailbox_message_id")
-            .and_then(Value::as_str)
-            .is_some()
-    );
+    assert!(announce_back
+        .payload
+        .get("summary_artifact_id")
+        .and_then(Value::as_str)
+        .is_some());
+    assert!(announce_back
+        .payload
+        .get("mailbox_message_id")
+        .and_then(Value::as_str)
+        .is_some());
 
     Ok(())
 }
 
 #[tokio::test]
-async fn model_run_cancellation_cascades_to_descendants() -> Result<(), Box<dyn std::error::Error>> {
+async fn model_run_cancellation_cascades_to_descendants() -> Result<(), Box<dyn std::error::Error>>
+{
     let state = setup_state().await?;
     let parent_session_id = format!("parent-{}", Uuid::new_v4());
     let child_session_id = format!("child-{}", Uuid::new_v4());
@@ -2043,9 +2053,12 @@ async fn model_run_cancellation_cascades_to_descendants() -> Result<(), Box<dyn 
         .flight_recorder
         .list_events(EventFilter::default())
         .await?;
-    let cascade_event = events
-        .iter()
-        .find(|event| matches!(event.event_type, FlightRecorderEventType::SessionCascadeCancel));
+    let cascade_event = events.iter().find(|event| {
+        matches!(
+            event.event_type,
+            FlightRecorderEventType::SessionCascadeCancel
+        )
+    });
     assert!(cascade_event.is_some());
 
     let cascade_event = cascade_event.expect("cascade cancel event present");

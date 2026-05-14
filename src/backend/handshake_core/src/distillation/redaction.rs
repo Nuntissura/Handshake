@@ -60,7 +60,9 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         let bearer_re = Regex::new(r"(?i)Bearer\s+[A-Za-z0-9\-._~+/]+=*").unwrap();
         if bearer_re.is_match(&result) {
             *secrets = true;
-            result = bearer_re.replace_all(&result, SECRET_PLACEHOLDER).to_string();
+            result = bearer_re
+                .replace_all(&result, SECRET_PLACEHOLDER)
+                .to_string();
         }
 
         // AWS-style access keys (AKIA...)
@@ -100,8 +102,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         //         (high avg_run OR high vowels) but not both simultaneously —
         //         expected score ≈ 2.0 + 3×0.19 = 2.58, std ≈ 0.35.
         // Then: distinct-character ratio ≥ 0.55 filters low-diversity strings.
-        let base64_re =
-            Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
+        let base64_re = Regex::new(r"\b[A-Za-z0-9+/]{32,}={0,2}").unwrap();
         {
             let mut new_result = String::new();
             let mut last_end = 0;
@@ -126,10 +127,15 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
                         }
                     }
                     let avg_run = bytes.len() as f64 / runs as f64;
-                    let vowels = stripped.bytes().filter(|b| matches!(
-                        b, b'a' | b'e' | b'i' | b'o' | b'u'
-                         | b'A' | b'E' | b'I' | b'O' | b'U'
-                    )).count();
+                    let vowels = stripped
+                        .bytes()
+                        .filter(|b| {
+                            matches!(
+                                b,
+                                b'a' | b'e' | b'i' | b'o' | b'u' | b'A' | b'E' | b'I' | b'O' | b'U'
+                            )
+                        })
+                        .count();
                     let vowel_ratio = vowels as f64 / stripped.len() as f64;
                     let ident_score = avg_run + 3.0 * vowel_ratio;
                     (0.40..=0.60).contains(&upper_ratio) && ident_score < 3.5
@@ -160,48 +166,41 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         let email_re = Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap();
         if email_re.is_match(&result) {
             *pii = true;
-            result = email_re
-                .replace_all(&result, EMAIL_PLACEHOLDER)
-                .to_string();
+            result = email_re.replace_all(&result, EMAIL_PLACEHOLDER).to_string();
         }
 
         // IBAN (International Bank Account Number) — must run before phone
         // to prevent phone regex from consuming digit sequences within IBANs
-        let iban_re =
-            Regex::new(r"(?i)\b[A-Z]{2}\d{2}[\s]?[A-Z0-9]{4}[\s]?(?:[A-Z0-9]{4}[\s]?){2,7}[A-Z0-9]{1,4}\b")
-                .unwrap();
+        let iban_re = Regex::new(
+            r"(?i)\b[A-Z]{2}\d{2}[\s]?[A-Z0-9]{4}[\s]?(?:[A-Z0-9]{4}[\s]?){2,7}[A-Z0-9]{1,4}\b",
+        )
+        .unwrap();
         if iban_re.is_match(&result) {
             *pii = true;
-            result = iban_re
-                .replace_all(&result, IBAN_PLACEHOLDER)
-                .to_string();
+            result = iban_re.replace_all(&result, IBAN_PLACEHOLDER).to_string();
         }
 
         // Phone numbers (international and US formats)
-        let phone_re = Regex::new(r"(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
-            .unwrap();
+        let phone_re =
+            Regex::new(r"(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}").unwrap();
         if phone_re.is_match(&result) {
             *pii = true;
-            result = phone_re
-                .replace_all(&result, PHONE_PLACEHOLDER)
-                .to_string();
+            result = phone_re.replace_all(&result, PHONE_PLACEHOLDER).to_string();
         }
 
         result
     };
 
-    let redact_content = |content: &mut Content, secrets: &mut bool, pii: &mut bool| {
-        match content {
-            Content::Plain(ref mut text) => {
-                *text = redact_text(text, secrets, pii);
-            }
-            Content::Segments(ref mut segments) => {
-                for seg in segments.iter_mut() {
-                    seg.text = redact_text(&seg.text, secrets, pii);
-                    if let Some(ref fp) = seg.file_path {
-                        let redacted = redact_text(fp, secrets, pii);
-                        seg.file_path = Some(redacted);
-                    }
+    let redact_content = |content: &mut Content, secrets: &mut bool, pii: &mut bool| match content {
+        Content::Plain(ref mut text) => {
+            *text = redact_text(text, secrets, pii);
+        }
+        Content::Segments(ref mut segments) => {
+            for seg in segments.iter_mut() {
+                seg.text = redact_text(&seg.text, secrets, pii);
+                if let Some(ref fp) = seg.file_path {
+                    let redacted = redact_text(fp, secrets, pii);
+                    seg.file_path = Some(redacted);
                 }
             }
         }
@@ -215,9 +214,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
         pii: &mut bool,
     ) -> serde_json::Value {
         match val {
-            serde_json::Value::String(s) => {
-                serde_json::Value::String(redact_text(s, secrets, pii))
-            }
+            serde_json::Value::String(s) => serde_json::Value::String(redact_text(s, secrets, pii)),
             serde_json::Value::Array(arr) => serde_json::Value::Array(
                 arr.iter()
                     .map(|v| redact_json_value(v, redact_text, secrets, pii))
@@ -226,10 +223,7 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
             serde_json::Value::Object(map) => {
                 let mut out = serde_json::Map::new();
                 for (k, v) in map {
-                    out.insert(
-                        k.clone(),
-                        redact_json_value(v, redact_text, secrets, pii),
-                    );
+                    out.insert(k.clone(), redact_json_value(v, redact_text, secrets, pii));
                 }
                 serde_json::Value::Object(out)
             }
@@ -243,18 +237,17 @@ pub fn redact_entry(raw_entry: &SkillBankLogEntry) -> RedactionResult {
             let redacted_meta: std::collections::HashMap<String, serde_json::Value> = msg
                 .metadata
                 .iter()
-                .map(|(k, v)| {
-                    (
-                        k.clone(),
-                        redact_json_value(v, &redact_text, secrets, pii),
-                    )
-                })
+                .map(|(k, v)| (k.clone(), redact_json_value(v, &redact_text, secrets, pii)))
                 .collect();
             msg.metadata = redacted_meta;
         }
     };
 
-    redact_snapshot(&mut entry.snapshots_input, &mut secrets_found, &mut pii_found);
+    redact_snapshot(
+        &mut entry.snapshots_input,
+        &mut secrets_found,
+        &mut pii_found,
+    );
     redact_snapshot(
         &mut entry.snapshots_output_raw,
         &mut secrets_found,
@@ -546,7 +539,10 @@ mod tests {
         let entry = entry_with_input("hash: abcdef0123456789");
         let result = redact_entry(&entry);
 
-        assert!(!result.secrets_found, "16-char hex should not trigger secret detection");
+        assert!(
+            !result.secrets_found,
+            "16-char hex should not trigger secret detection"
+        );
     }
 
     #[test]
@@ -575,9 +571,10 @@ mod tests {
     #[test]
     fn redaction_scans_chat_message_metadata() {
         let mut entry = entry_with_input("clean input");
-        entry.snapshots_input.messages[0]
-            .metadata
-            .insert("note".to_string(), serde_json::json!("Contact admin@corp.com"));
+        entry.snapshots_input.messages[0].metadata.insert(
+            "note".to_string(),
+            serde_json::json!("Contact admin@corp.com"),
+        );
 
         let result = redact_entry(&entry);
         assert!(result.pii_found);
@@ -700,15 +697,17 @@ mod tests {
         let entry = entry_with_input("id: QWJjRGVmR2hJams=");
         let result = redact_entry(&entry);
 
-        assert!(!result.secrets_found, "short base64 should not trigger secret detection");
+        assert!(
+            !result.secrets_found,
+            "short base64 should not trigger secret detection"
+        );
     }
 
     #[test]
     fn redaction_no_false_positive_on_long_alpha_string() {
         // Pure-alpha CamelCase identifiers must not trigger base64 detection
-        let entry = entry_with_input(
-            "ThisSentenceHasManyLettersButNoPaddingAndIsProbablyNotBase64Token",
-        );
+        let entry =
+            entry_with_input("ThisSentenceHasManyLettersButNoPaddingAndIsProbablyNotBase64Token");
         let result = redact_entry(&entry);
 
         assert!(
@@ -736,7 +735,10 @@ mod tests {
         let entry = entry_with_input(&format!("token: {b64}"));
         let result = redact_entry(&entry);
 
-        assert!(result.secrets_found, "high-entropy base64 without +/ or many digits must be redacted");
+        assert!(
+            result.secrets_found,
+            "high-entropy base64 without +/ or many digits must be redacted"
+        );
         assert!(!input_text(&result.redacted_entry).contains("lWmAhEr"));
     }
 
@@ -805,7 +807,10 @@ mod tests {
         let entry = entry_with_input(&format!("secret: {b64}"));
         let result = redact_entry(&entry);
 
-        assert!(result.secrets_found, "base64 with +/ but no digits must be redacted");
+        assert!(
+            result.secrets_found,
+            "base64 with +/ but no digits must be redacted"
+        );
         assert!(!input_text(&result.redacted_entry).contains("aCZZVEZh"));
     }
 
@@ -817,7 +822,10 @@ mod tests {
         let entry = entry_with_input(&format!("key: {b64}"));
         let result = redact_entry(&entry);
 
-        assert!(result.secrets_found, "pure-alpha base64 with balanced case must be redacted");
+        assert!(
+            result.secrets_found,
+            "pure-alpha base64 with balanced case must be redacted"
+        );
         assert!(!input_text(&result.redacted_entry).contains("pgRrGbitw"));
     }
 
@@ -829,7 +837,10 @@ mod tests {
         let entry = entry_with_input(&format!("token: {b64}"));
         let result = redact_entry(&entry);
 
-        assert!(result.secrets_found, "low-transition pure-alpha base64 must be redacted");
+        assert!(
+            result.secrets_found,
+            "low-transition pure-alpha base64 must be redacted"
+        );
         assert!(!input_text(&result.redacted_entry).contains("QAHrVTlm"));
     }
 
@@ -841,7 +852,10 @@ mod tests {
         let entry = entry_with_input(&format!("secret: {b64}"));
         let result = redact_entry(&entry);
 
-        assert!(result.secrets_found, "very-low-transition pure-alpha base64 must be redacted");
+        assert!(
+            result.secrets_found,
+            "very-low-transition pure-alpha base64 must be redacted"
+        );
         assert!(!input_text(&result.redacted_entry).contains("ScturGNg"));
     }
 
@@ -854,7 +868,10 @@ mod tests {
         let entry = entry_with_input(&format!("secret: {b64}"));
         let result = redact_entry(&entry);
 
-        assert!(result.secrets_found, "high-vowel pure-alpha base64 must be redacted");
+        assert!(
+            result.secrets_found,
+            "high-vowel pure-alpha base64 must be redacted"
+        );
         assert!(!input_text(&result.redacted_entry).contains("nXkWoELay"));
     }
 }
