@@ -37,7 +37,7 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-13T22:44:17.391Z",
+    "generated_at_utc": "2026-05-14T19:55:50.733Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-004.md",
     "projection_hash": "00d7f98cd3877219",

@@ -22,129 +22,14 @@
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": null,
   "handoff": {
-    "artifact_hygiene": {
-      "external_artifact_root": "../Handshake_Artifacts",
-      "repo_local_artifact_note": "The pre-existing candidate-worktree Handshake_Artifacts/ directory was moved intact to ../Handshake_Artifacts/repo-local-moved-root-Handshake_Artifacts-20260514T164500Z. Generated trace proof output that initially landed under src/backend/Handshake_Artifacts was moved intact to ../Handshake_Artifacts/repo-local-moved-src-backend-Handshake_Artifacts-20260514T153101Z. The feature-split verification recreated src/backend/Handshake_Artifacts; that directory was moved intact to ../Handshake_Artifacts/repo-local-moved-src-backend-Handshake_Artifacts-20260514T194040. The product worktree root and src/backend now have no repo-local Handshake_Artifacts/ directory.",
-      "repo_local_artifact_status": "MOVED_OUT_OF_PRODUCT_TREE",
-      "summary": "Root and src/backend repo-local Handshake_Artifacts directories were moved intact to the external artifact root; trace proof was rerun with an absolute external output path."
-    },
-    "coder_session": "KERNEL_BUILDER_REMEDIATION_2026-05-14",
-    "debt_map": [
-      {
-        "debt_id": "KERNEL001-DEFER-CRDT-WORKSPACE",
-        "owner": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
-        "status": "PRESERVED_FOLLOW_UP",
-        "summary": "Full CRDT workspace/write-box/action catalog work remains outside Kernel001 and is preserved in active Kernel002 scope."
-      },
-      {
-        "debt_id": "KERNEL001-DEFER-DCC-UI",
-        "owner": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 and DCC follow-up stubs",
-        "status": "PRESERVED_FOLLOW_UP",
-        "summary": "Kernel001 adds the backend trace inspection route only; full DCC UI/projection work remains deferred."
-      },
-      {
-        "debt_id": "KERNEL001-DEFER-FEMS-MEMORY",
-        "owner": "FEMS follow-up stubs / Kernel002 folded scope",
-        "status": "PRESERVED_FOLLOW_UP",
-        "summary": "Kernel001 records context/message/artifact/promotion primitives but does not implement the local model memory runtime."
-      },
-      {
-        "debt_id": "KERNEL001-DEFER-GENERIC-WORKFLOW",
-        "owner": "workflow-transition follow-up stubs / Kernel002 folded scope",
-        "status": "PRESERVED_FOLLOW_UP",
-        "summary": "Kernel001 proves the kernel run ledger and SessionBroker path; generic workflow durable execution migration remains outside this WP."
-      }
-    ],
-    "feature_split_remediation": {
-      "app_runtime_path": "Binaries and DuckDB-backed app/runtime tests now opt into app-runtime or duckdb-flight-recorder explicitly.",
-      "default_feature_path": "Default now resolves to runtime-full so existing public modules compile for default cargo tests instead of disappearing behind a stricter runtime-full gate.",
-      "duckdb_decoupling": "runtime-full excludes duckdb-flight-recorder, so kernel Postgres/API proof no longer compiles DuckDB/libduckdb-sys unless the proof explicitly asks for DuckDB.",
-      "postgres_runtime": "Live Postgres proof was run locally with POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test; absence of that env remains ENVIRONMENT_BLOCKED, not PASS."
-    },
-    "proof_commands": [
-      {
-        "command": "cargo test kernel_event_taxonomy --target-dir ..\\..\\..\\..\\Handshake_Artifacts\\handshake-cargo-target-remediation",
-        "result": "PASS: default filtered cargo path compiled the public module surface and ran kernel_event_taxonomy_covers_first_slice_families; 1 passed."
-      },
-      {
-        "command": "cargo test --features runtime-full --test kernel_runtime_tests mcp_toolgate_bridge_records_allow_and_deny_decisions_from_explicit_grants --target-dir ..\\..\\..\\..\\Handshake_Artifacts\\handshake-cargo-target-remediation",
-        "result": "PASS: 1 runtime-full ToolGate bridge proof test passed without compiling DuckDB/libduckdb-sys."
-      },
-      {
-        "command": "cargo test --test kernel_runtime_tests --target-dir ..\\..\\..\\..\\Handshake_Artifacts\\handshake-cargo-target-remediation",
-        "result": "PASS: 7 default kernel runtime tests passed after restoring default public-module compilation."
-      },
-      {
-        "command": "cargo tree --features runtime-full -i duckdb",
-        "result": "EXPECTED_ABSENCE_EVIDENCE: Cargo reported package ID specification 'duckdb' did not match any packages; runtime-full excludes DuckDB/libduckdb-sys."
-      },
-      {
-        "command": "cargo test --features runtime-full --test kernel_runtime_tests --test kernel_event_ledger_tests --test kernel_flight_recorder_tests --test kernel_promotion_trace_tests --target-dir ..\\..\\..\\..\\Handshake_Artifacts\\handshake-cargo-target-remediation",
-        "result": "PASS: 24 focused runtime-full non-Postgres tests passed."
-      },
-      {
-        "command": "POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test cargo test --features runtime-full --test kernel_end_to_end_tests -- --test-threads=1",
-        "result": "PASS: 7 live Postgres end-to-end kernel tests passed."
-      },
-      {
-        "command": "POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test cargo test --features runtime-full --test kernel_postgres_event_ledger_tests -- --test-threads=1",
-        "result": "PASS: 7 live Postgres EventLedger tests passed."
-      },
-      {
-        "command": "POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test KERNEL_TRACE_PROOF_OUTPUT_DIR=D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\Handshake_Artifacts\\kernel-trace-evidence-20260514T194500Z cargo test --features runtime-full --test kernel_end_to_end_tests end_to_end_kernel_proof -- --test-threads=1",
-        "result": "PASS: 1 live Postgres proof test passed and wrote trace evidence."
-      },
-      {
-        "command": "git diff --check",
-        "result": "PASS: product worktree diff check passed with CRLF warnings only."
-      }
-    ],
-    "proof_run": {
-      "artifact_ids": [
-        "ART-8b85883c846ded7b"
-      ],
-      "authority_source": "postgres_event_ledger",
-      "event_ids": [
-        "KE-e4c7241e-3273-417b-ab69-f1a4df0d6751",
-        "KE-5d28f99b-b09f-45ea-986f-c6220fae7853",
-        "KE-ee0a0757-7629-4738-9a55-b4b541da892c",
-        "KE-9baa49be-b28e-4eca-9939-ded9a1ac2ad0",
-        "KE-b36e229e-a492-4a7c-b6cb-7e12cd3bd94b",
-        "KE-ac4912eb-4c09-4eee-9c63-a08ef7f77238",
-        "KE-b0d0823c-b76c-4c2a-8f9f-06292252d386",
-        "KE-f59cb56b-13c4-47ee-a11e-9900bb410436",
-        "KE-ef327fd5-96c6-4a38-9b84-ebdf6391f01a",
-        "KE-96d1ee8b-fa31-437e-83d0-3a4bec7531b9",
-        "KE-372603fd-c2e0-4819-9431-b44f15bd5425",
-        "KE-89f77bd6-96d6-42f1-a745-7c2fd61fc915",
-        "KE-150b0075-335e-4888-b6e9-5dd219e1292a",
-        "KE-39bb7975-61e3-4ccc-971f-c9843e617ea0"
-      ],
-      "kernel_task_run_id": "KTR-13e06e2e-1418-4e30-8d67-c7ce14d95548",
-      "session_run_id": "SR-121bfa3b-6d6f-4f3c-9c14-299c90f5abf0",
-      "trace_output_path": "../Handshake_Artifacts/kernel-trace-evidence-20260514T194500Z/end-to-end-kernel-proof-trace-projection.json"
-    },
-    "recorded_at_utc": "2026-05-14T19:45:00Z",
-    "remediated_failed_mts": [
-      "MT-014",
-      "MT-020",
-      "MT-021",
-      "MT-022",
-      "MT-023",
-      "MT-024",
-      "MT-026",
-      "MT-027"
-    ],
+    "coder_session": null,
     "review_request_receipt_id": null,
-    "review_response_receipt_id": "INTEGRATION_VALIDATOR_MT_APPENDIX_2026-05-14",
-    "status": "KERNEL_BUILDER_HANDOFF_READY_FOR_INTEGRATION_VALIDATOR_RECHECK",
-    "validator_verdict_reminder": "PENDING; Kernel Builder does not self-issue PASS.",
+    "review_response_receipt_id": null,
     "wp_validator_session": null
   },
   "lifecycle": {
     "active": false,
     "blocks": [],
-    "current_wp_status": "READY_FOR_INTEGRATION_VALIDATOR_RECHECK",
     "depends_on": [
       "MT-026"
     ],
@@ -152,12 +37,12 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-14T19:45:00.000Z",
-    "generator": "kernel-builder-feature-split-remediation-handoff",
+    "generated_at_utc": "2026-05-14T19:55:58.760Z",
+    "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-027.md",
     "projection_hash": "47fce7167738d9ea",
-    "source_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-027.json",
-    "source_hash": "a50a86b458afd2ba",
+    "source_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json",
+    "source_hash": "e43e887ef5fc54dd",
     "status": "GENERATED_IN_SYNC"
   },
   "mt_id": "MT-027",
@@ -194,6 +79,6 @@
     "risk_if_missed": "Next kernel session restarts discovery from scratch and old superseded stub scope disappears.",
     "summary": "Record unresolved product/spec gaps, environment blockers, residual source-stub scope, and follow-up kernel WPs after the first proof."
   },
-  "updated_at_utc": "2026-05-14T19:45:00Z",
+  "updated_at_utc": null,
   "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"
 }
