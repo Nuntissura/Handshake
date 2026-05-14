@@ -340,3 +340,70 @@ Resolved. SPEC_CURRENT now resolves to `.GOV/spec/master-spec-v02.184/indexed-sp
 - Risk: Flight Recorder is mistaken for authority. Mitigation: ledger event IDs may mirror to Flight Recorder, but replay and promotion must read EventLedger.
 - Risk: DCC scope expands into UI. Mitigation: MT-020 allows a minimal structured CLI/API inspector and forbids full DCC UI work.
 - Risk: live Postgres is unavailable. Mitigation: proof commands must emit deterministic environment-blocked evidence rather than silently substituting SQLite.
+
+## INTEGRATION_VALIDATOR_MT_APPENDIX_2026-05-14
+
+Session: `INTEGRATION_VALIDATOR-20260514-081109`.
+
+Candidate reviewed: `../wtc-session-broker-v1` on `feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1`.
+
+Operator scope for this appendix: code correctness, clean implementation, and Master Spec readiness. Governance paperwork was explicitly waived for this review pass.
+
+Batch outcome: **MT gate FAIL**. The scoped product-code-vs-Master-Spec PASS/FAIL judgment was not performed because the MT batch did not pass.
+
+Independent checks run:
+- `git -C ../wtc-session-broker-v1 status --short --branch`.
+- `cargo test -p handshake_core kernel_event_taxonomy --target-dir ../Handshake_Artifacts/handshake-cargo-target` from the worktree root. Result: invalid command context, no `Cargo.toml` at the root.
+- `cargo test --manifest-path src/backend/handshake_core/Cargo.toml kernel_event_taxonomy --target-dir ../Handshake_Artifacts/handshake-cargo-target` from the worktree root. Result: timed out after roughly four minutes with no conclusive test output.
+- Static source review of the untracked kernel implementation, migrations, Postgres/SQLite storage changes, and kernel test files.
+
+Environment and proof limits:
+- `POSTGRES_TEST_URL` was not set. The new Postgres-dependent kernel tests are written to return early when Postgres is absent, so those tests can appear non-blocking without proving durable Postgres behavior.
+- The candidate worktree contains repo-local `Handshake_Artifacts/`, which should not be part of the product worktree state.
+
+Failed or not-proven MTs:
+- MT-001 FAIL/NOT_PROVEN: the requested evidence map and proof commands were not available as passing evidence for this batch. This is not treated as a product-code blocker by itself, but it prevents MT-batch PASS.
+- MT-002 FAIL: the event taxonomy exists, but the durable event schema does not carry the required event version, aggregate type, aggregate ID, payload hash, or source component fields.
+- MT-003 FAIL: Postgres migrations exist, but the EventLedger table is missing the same required authority fields and no successful live Postgres migration proof was available.
+- MT-004 FAIL/NOT_PROVEN: append/list APIs exist, but the EventLedger record shape is incomplete and the proof test did not pass in this session.
+- MT-006 FAIL: KernelTaskRun and SessionRun IDs are generated and repeated on events, but KernelTaskRun is not proven as a durable reconstructable record independent of the event list.
+- MT-008 FAIL: claim/lease storage exists, but there is no generic claim-next worker path, no successful live concurrency proof, and queue state changes are not automatically tied to ledger events.
+- MT-009 FAIL/PARTIAL: ContextBundle hashing is present, but durable persistence is only embedded in a happy-path event payload and was not proven as a reconstructable product authority surface.
+- MT-011 FAIL/PARTIAL: the proof runner dispatches to the dummy adapter, but this is a happy-path orchestration helper rather than a durable SessionBroker dispatch loop.
+- MT-012 FAIL: session messages store `content_artifact_id` hashes, but the actual message body is not persisted by this WP and session message rows do not carry direct kernel event linkage.
+- MT-014 FAIL: the existing ToolGate enforcement surface is not bridged. The proof path records a hard-coded allow decision event.
+- MT-016 FAIL: ArtifactStore linkage is represented as a ledger event only. There is no product artifact persistence/readback integration proving reconstructable artifacts.
+- MT-017 FAIL/PARTIAL: ValidationRunner records a local validation shape and event, but it is not integrated with the existing product validation/check-running surfaces.
+- MT-018 FAIL/PARTIAL: PromotionGate requires validation, but operator approval is synthetic in code and not persisted as an operator-reviewable authority transition path.
+- MT-019 FAIL: TraceProjection accepts any non-empty same-run event list and does not enforce a complete required event chain, artifact/message readback, or promotion proof.
+- MT-020 FAIL/PARTIAL: the kernel trace inspector is kernel-local only; no existing DCC/product inspection path integration was found.
+- MT-021 FAIL: restart reconstruction is not proven. The test uses the same database handle and is skipped without `POSTGRES_TEST_URL`.
+- MT-022 FAIL/NOT_PROVEN: adapter replaceability exists at the trait/test shape level, but the durable proof depends on skipped Postgres tests.
+- MT-023 FAIL/PARTIAL: cancellation, backpressure, retry, and dead-letter states exist, but durable behavior and ledger event recording are not implemented end to end.
+- MT-024 FAIL/PARTIAL: Flight Recorder mirror helper exists and is marked diagnostic, but it is not integrated into the proof run.
+- MT-025 FAIL/PARTIAL: SQLite authority guards are present, but the tripwire only scans the new kernel source and does not prove absence of SQLite kernel authority through storage/test fixture paths.
+- MT-026 FAIL: the end-to-end kernel proof is not valid yet because it relies on skipped Postgres tests and happy-path-only substitutes for ToolGate, ArtifactStore, ValidationRunner, PromotionGate, and TraceProjection completeness.
+- MT-027 FAIL: this appendix is the first consolidated debt map; the implementation still needs a corrected handoff after remediation.
+
+MTs with acceptable static shape but still lacking a conclusive batch proof:
+- MT-005: SQLite kernel authority methods fail closed and authority mode guards reject SQLite/test modes.
+- MT-007: SessionBroker legal transition table exists.
+- MT-010: deterministic dummy echo ModelAdapter exists.
+- MT-013: tool request event shape exists.
+- MT-015: ArtifactProposal shape exists.
+
+Combined remediation plan for Kernel Builder:
+1. Expand EventLedger authority schema and Rust types to include event version, aggregate type, aggregate ID, causation parent, actor/session IDs, timestamp, payload hash, and source component; store payload as validated JSON/JSONB where practical.
+2. Make SessionBroker the durable path, not only a happy-path proof helper: enqueue, claim-next, lease expiry, running, retry, backpressure, cancellation, completion, failure, and dead-letter transitions should append typed EventLedger events atomically with state changes.
+3. Persist reconstructable ContextBundle and session messages. Message rows or linked artifacts must allow a no-context replay to recover the exact prompt/context/response body and cite kernel event IDs.
+4. Bridge the real ToolGate surface instead of hard-coding `allow`; ledger events should record actual request, decision, rationale, actor, and linked run IDs without weakening existing checks.
+5. Bridge artifact proposal/storage to real product artifact persistence and readback. Ledger rows should reference stored artifacts whose content/hash can be verified during replay.
+6. Bridge ValidationRunner and PromotionGate to product validation and operator-reviewable approval surfaces. Synthetic approval is acceptable only inside a test fixture, not as the product authority path.
+7. Harden TraceProjection so it rejects incomplete chains and reconstructs the run from durable product rows alone, including context, messages, tool decisions, artifacts, validations, promotion decisions, and event IDs.
+8. Add a real restart proof using a fresh Postgres connection/process boundary. Tests must fail or emit an explicit environment-blocked result when `POSTGRES_TEST_URL` is absent; they must not silently skip proof-critical MTs.
+9. Widen the SQLite tripwire to cover kernel authority call paths, storage implementations, and test fixtures; preserve the current fail-closed SQLite methods.
+10. Move/remove repo-local `Handshake_Artifacts/` from the candidate worktree before handoff, using the project artifact hygiene path rather than manual destructive cleanup.
+
+Residual uncertainty:
+- Because the build/test run timed out before producing compile output, additional compiler or test failures may exist behind the static findings above.
+- Because no live Postgres proof ran, durable concurrency, migrations, and replay behavior remain unproven even where the code shape is directionally correct.
