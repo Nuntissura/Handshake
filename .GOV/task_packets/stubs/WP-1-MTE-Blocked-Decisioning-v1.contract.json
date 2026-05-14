@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-MTE-Blocked-Decisioning-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "fbe68ef90b8f76976a6326b5a696cb385f396520bba33c3703ff3076766f3a21",
+    "projection_sha256": "47b52794db756562e28da68718b9c2f95bdf03c108900fdf4eb83650a1287667",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-003-Sandbox-Validation-Promotion-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

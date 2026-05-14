@@ -768,20 +768,19 @@
       ]
     }
   ],
-  "consolidation_hash": "sha256:814100abedc691df",
+  "consolidation_hash": "sha256:fedd2c12d49f7a0b",
   "counts": {
     "by_entrypoint_status": {
       "CANONICAL_BUNDLE_OR_CHECKPOINT": 3,
       "CANONICAL_PUBLIC_ENTRY": 15,
       "COMPATIBILITY_ALIAS": 20,
-      "CONTRACT_AUTHORITY": 10,
+      "CONTRACT_AUTHORITY": 9,
       "INTERNAL_HELPER": 1,
       "PUBLIC_LEAF_BASELINED": 121,
       "PUBLIC_RECIPE_BASELINED": 175
     },
     "by_owner_role": {
       "ACTIVATION_MANAGER": 2,
-      "AGENTS": 1,
       "CLASSIC_ORCHESTRATOR": 1,
       "CODER": 4,
       "CODEX": 1,
@@ -798,7 +797,7 @@
       "AUDIT": 2,
       "CHECK": 16,
       "CLOSEOUT": 5,
-      "GENERAL": 32,
+      "GENERAL": 31,
       "HANDOFF": 1,
       "MEMORY": 31,
       "SESSION_CONTROL": 73,
@@ -811,13 +810,13 @@
     "by_side_effect_class": {
       "MUTATES_GIT_OR_WORKTREE": 20,
       "MUTATES_GOVERNANCE_OR_RUNTIME": 57,
-      "READ_ONLY_OR_DIAGNOSTIC": 268
+      "READ_ONLY_OR_DIAGNOSTIC": 267
     },
     "by_status": {
       "CONSOLIDATE_WHEN_TOUCHED": 296,
       "KEEP_COMPATIBILITY_ALIAS_WITH_REPLACEMENT": 20,
       "RETAIN_CANONICAL": 19,
-      "RETAIN_CONTRACT_AUTHORITY": 10
+      "RETAIN_CONTRACT_AUTHORITY": 9
     }
   },
   "entries": [
@@ -4396,38 +4395,6 @@
       "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
       "surface_id": "file:.GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
       "surface_kind": "ROLE_PROTOCOL",
-      "validation_coverage": [
-        "governance-topology-check"
-      ]
-    },
-    {
-      "alias_retirement_policy": null,
-      "alias_target_count": 0,
-      "alias_target_invocation_count": 0,
-      "alias_target_invocations": [],
-      "alias_target_recipes": [],
-      "authority_boundary": "ROOT_AGENT_CONTRACT",
-      "consolidation_status": "RETAIN_CONTRACT_AUTHORITY",
-      "entrypoint_status": "CONTRACT_AUTHORITY",
-      "just_recipes": [
-        "activation-manager",
-        "classic-orchestrator-startup",
-        "coder-startup",
-        "kernel-builder-startup",
-        "memory-manager-startup",
-        "orchestrator-startup",
-        "validator-startup"
-      ],
-      "owner_role": "AGENTS",
-      "path": "AGENTS.md",
-      "phase": "GENERAL",
-      "primary_debug_artifact": "gov_runtime/roles_shared/failure_dossiers/phase_bundle_failures.jsonl",
-      "public_exposure": "PUBLIC_VIA_JUST_RECIPE",
-      "removal_gate": "NOT_A_REMOVAL_CANDIDATE",
-      "replacement_bundle": "just gov-check",
-      "side_effect_class": "READ_ONLY_OR_DIAGNOSTIC",
-      "surface_id": "file:AGENTS.md",
-      "surface_kind": "AGENTS_CONTRACT",
       "validation_coverage": [
         "governance-topology-check"
       ]
@@ -10268,14 +10235,14 @@
   },
   "schema_id": "handshake.gov.public_surface_consolidation",
   "schema_version": "public_surface_consolidation_v1",
-  "source_topology_projection_hash": "sha256:ca9cda8e14311439ab744e8e5f0ba50480dc21f33c700b940aa143e0bd35945d",
+  "source_topology_projection_hash": "sha256:44a0ffb5cb98a3d482057ce562b5fddece8f03c1a3c1005342d9163a306ca713",
   "totals": {
     "canonical": 19,
     "compatibility_aliases": 20,
     "consolidate_when_touched": 296,
     "consolidation_groups": 41,
-    "contract_authority": 10,
-    "public_surfaces": 345,
+    "contract_authority": 9,
+    "public_surfaces": 344,
     "tracked_public_surfaces": 0
   }
 }

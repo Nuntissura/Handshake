@@ -100,7 +100,7 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
-- **[WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1]** - [STUB]
+- **[WP-KERNEL-003-Sandbox-Validation-Promotion-v1]** - [STUB]
 - **[WP-1-Video-Archive-Loom-Integration-v1]** - [STUB]
 - **[WP-1-Media-Downloader-Loom-Bridge-v1]** - [STUB]
 - **[WP-1-Loom-Preview-VideoPosterFrames-v1]** - [STUB]
@@ -127,13 +127,8 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Model-Profiles-v2]** - [STUB]
 - **[WP-1-MEX-Safety-Gates-v2]** - [STUB]
 - **[WP-1-MEX-Observability-v2]** - [STUB]
-- **[WP-1-MCP-MEX-Evidence-Export-v1]** - [STUB]
 - **[WP-1-MEX-UX-Bridges-v2]** - [STUB]
-- **[WP-1-MTE-Summaries-v1]** - [STUB]
-- **[WP-1-MTE-DropBack-Smart-v1]** - [STUB]
 - **[WP-1-MTE-LoRA-Wiring-v1]** - [STUB]
-- **[WP-1-MTE-Blocked-Decisioning-v1]** - [STUB]
-- **[WP-1-MTE-Resource-Caps-v1]** - [STUB]
 - **[WP-1-AI-UX-Rewrite-v2]** - [STUB]
 - **[WP-1-PDF-Pipeline-v2]** - [STUB]
 - **[WP-1-Photo-Studio-v2]** - [STUB]
@@ -160,14 +155,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-Provider-Feature-Coverage-Agentic-Ready-v1]** - [STUB]
 - **[WP-1-Consent-Audit-Projection-v1]** - [STUB]
 - **[WP-1-Cloud-Consent-Evidence-Portability-v1]** - [STUB]
-- **[WP-1-Diagnostics-Debug-Bundle-Bridge-v1]** - [STUB]
-- **[WP-1-Packet-Candidate-Range-Truth-v1]** - [STUB]
-- **[WP-1-Validator-Command-Surface-Preflight-v1]** - [STUB]
-- **[WP-1-Worktree-Path-Root-Guardrails-v1]** - [STUB]
-- **[WP-1-Bootstrap-Skeleton-Receipt-Projection-v1]** - [STUB]
 - **[WP-1-Layerwise-Inference-Foundations-v1]** - [STUB]
-- **[WP-1-Canonical-Closeout-Bundle-v1]** - [STUB]
-- **[WP-1-Receipt-Driven-Lane-Wake-Settlement-v1]** - [STUB]
 - **[WP-1-Handshake-Stage-MVP-v1]** - [STUB]
 - **[WP-1-Stage-Media-Artifact-Portability-v1]** - [STUB]
 - **[WP-1-Mail-Runtime-Backfill-v1]** - [STUB]
@@ -186,6 +174,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 - **[WP-KERNEL-001-Event-Ledger-Session-Broker-v1]** - [IN_PROGRESS]
+- **[WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1]** - [IN_PROGRESS]
 
 
 
@@ -1365,6 +1354,18 @@ Entry format for this section:
 - **[WP-1-Session-Spawn-Tree-DCC-Visualization-v1]** - [SUPERSEDED]
 - **[WP-1-Session-Spawn-Conversation-Distillation-v1]** - [SUPERSEDED]
 - **[WP-1-Visual-Debugging-Loop-v1]** - [SUPERSEDED]
+- **[WP-1-MTE-Resource-Caps-v1]** - [SUPERSEDED]
+- **[WP-1-MTE-Blocked-Decisioning-v1]** - [SUPERSEDED]
+- **[WP-1-MTE-Summaries-v1]** - [SUPERSEDED]
+- **[WP-1-MTE-DropBack-Smart-v1]** - [SUPERSEDED]
+- **[WP-1-MCP-MEX-Evidence-Export-v1]** - [SUPERSEDED]
+- **[WP-1-Diagnostics-Debug-Bundle-Bridge-v1]** - [SUPERSEDED]
+- **[WP-1-Packet-Candidate-Range-Truth-v1]** - [SUPERSEDED]
+- **[WP-1-Validator-Command-Surface-Preflight-v1]** - [SUPERSEDED]
+- **[WP-1-Worktree-Path-Root-Guardrails-v1]** - [SUPERSEDED]
+- **[WP-1-Bootstrap-Skeleton-Receipt-Projection-v1]** - [SUPERSEDED]
+- **[WP-1-Canonical-Closeout-Bundle-v1]** - [SUPERSEDED]
+- **[WP-1-Receipt-Driven-Lane-Wake-Settlement-v1]** - [SUPERSEDED]
 
 - **[WP-1-Calendar-Sync-Engine-v1]** - [SUPERSEDED]
 - **[WP-1-Calendar-Sync-Engine-v2]** - [SUPERSEDED]

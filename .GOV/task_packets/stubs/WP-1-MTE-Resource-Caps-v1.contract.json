@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-MTE-Resource-Caps-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "8c4b03734fad6a040540d210ac0eae2d8c161faef288ff54dfca1c0051c96996",
+    "projection_sha256": "bbd22a8d985f519a41f0806306a60b741f600e90a0aa7e55831b3e15986d0cba",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-003-Sandbox-Validation-Promotion-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

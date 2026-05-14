@@ -9,7 +9,7 @@ import { SHARED_GOV_GIT_TOPOLOGY_FILE } from "../lib/runtime-paths.mjs";
 export const SCHEMA_VERSION = "hsk.git_topology_registry@0.1";
 export const DYNAMIC_SNAPSHOT_SCHEMA_VERSION = "hsk.git_topology_snapshot@0.1";
 export const TOPOLOGY_REGISTRY_JSON_PATH = SHARED_GOV_GIT_TOPOLOGY_FILE;
-export const TOPOLOGY_REGISTRY_MD_PATH = ".GOV/roles_shared/records/GIT_TOPOLOGY_REGISTRY.md";
+export const TOPOLOGY_REGISTRY_MD_PATH = ".GOV/reference/legacy/deprecated/topology/GIT_TOPOLOGY_REGISTRY.md";
 export const PROTECTED_BRANCHES = ["main", "user_ilja", "gov_kernel"];
 export const WORKTREE_SPECS = [
   {
@@ -347,44 +347,17 @@ export function renderTopologyRegistryMd(registry) {
   const lines = [
     "# GIT_TOPOLOGY_REGISTRY",
     "",
-    "This file is a deterministic governance registry for the permanent Handshake checkout topology.",
+    "DEPRECATED NON-AUTHORITATIVE REFERENCE.",
+    "",
+    "The permanent checkout topology contract is folded into `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` under `git_topology_contract`.",
+    "Do not use this Markdown file as topology authority. Regenerate the canonical topology with `just gov-check --sync-topology`.",
     "",
     `- SCHEMA_VERSION: ${registry.schema_version}`,
     `- CANONICAL_BRANCH: ${registry.canonical_branch}`,
     `- PROTECTED_LOCAL_BRANCHES: ${registry.protected_local_branches.join(", ")}`,
     `- PROTECTED_REMOTE_BRANCHES: ${registry.protected_remote_branches.join(", ")}`,
     "",
-    "## PROTECTED_WORKTREES",
-    "",
-    "| ID | ROLE | REL_PATH | LOCAL_BRANCH | REMOTE_BRANCH | CANONICAL | DESCRIPTION |",
-    "| --- | --- | --- | --- | --- | --- | --- |",
   ];
-
-  for (const row of registry.protected_worktrees) {
-    lines.push(`| ${row.id} | ${row.role} | ${row.rel_path} | ${row.local_branch} | ${row.remote_branch} | ${row.canonical ? "YES" : "NO"} | ${row.description} |`);
-  }
-
-  lines.push(
-    "",
-    "## HELPER_COMMANDS",
-    "",
-    `- backup_snapshot: ${registry.helper_commands.backup_snapshot}`,
-    `- backup_status: ${registry.helper_commands.backup_status}`,
-    `- sync_all_role_worktrees: ${registry.helper_commands.sync_all_role_worktrees}`,
-    `- reseed_permanent_worktree_from_main: ${registry.helper_commands.reseed_permanent_worktree_from_main}`,
-    `- enumerate_cleanup_targets: ${registry.helper_commands.enumerate_cleanup_targets}`,
-    `- delete_local_worktree: ${registry.helper_commands.delete_local_worktree}`,
-    `- ensure_permanent_backup_branches: ${registry.helper_commands.ensure_permanent_backup_branches}`,
-    "",
-    "## BACKUP_POLICY",
-    "",
-    `- BACKUP_PUSH_BEFORE_DESTRUCTIVE_LOCAL_GIT: ${registry.backup_policy.backup_push_before_destructive_local_git ? "YES" : "NO"}`,
-    `- IMMUTABLE_SNAPSHOT_BEFORE_TOPOLOGY_DELETION: ${registry.backup_policy.immutable_snapshot_before_topology_deletion ? "YES" : "NO"}`,
-    `- NAS_COPY_MODE: ${registry.backup_policy.nas_copy_mode}`,
-    `- BACKUP_ROOT_ENV_VAR: ${registry.backup_policy.backup_root_env_var}`,
-    `- NAS_BACKUP_ROOT_ENV_VAR: ${registry.backup_policy.nas_backup_root_env_var}`,
-    "",
-  );
   return `${lines.join("\n")}\n`;
 }
 

@@ -87,14 +87,23 @@ export function readStubContractForMarkdownPath(stubMdPath = "") {
 export function buildStubContract({ wpId = "", stubText = "", stubPath = "" } = {}) {
   const projectionBody = stripProjectionHeader(stubText);
   const contractPath = stubPath.replace(/\.md$/i, ".contract.json");
+  const lifecycleStatus = parseSingleField(projectionBody, "STUB_STATUS") || "STUB (NOT READY FOR DEV)";
+  const activePacket = parseSingleField(projectionBody, "ACTIVE_PACKET");
+  const activePacketContract = parseSingleField(projectionBody, "ACTIVE_PACKET_CONTRACT");
+  const activatedAtUtc = parseSingleField(projectionBody, "ACTIVATED_AT");
+  const activationSignature = parseSingleField(projectionBody, "ACTIVATION_SIGNATURE");
+  const activatedToPacket = /^ACTIVATED_TO_PACKET$/i.test(lifecycleStatus);
   return {
     schema_id: SCHEMA_ID,
     schema_version: SCHEMA_VERSION,
     contract_authority: "PRIMARY_MACHINE_READABLE_STUB",
     artifact_policy: MACHINE_READABLE_ARTIFACT_POLICY,
-    execution_authority: "NON_EXECUTION_STUB",
+    execution_authority: activatedToPacket ? "SUPERSEDED_BY_ACTIVE_PACKET" : "NON_EXECUTION_STUB",
     wp_id: parseSingleField(projectionBody, "WP_ID") || wpId,
     base_wp_id: String(parseSingleField(projectionBody, "BASE_WP_ID") || wpId).replace(/\s*\(.*/, "").trim(),
+    ...(activatedToPacket && activePacketContract ? { superseded_by: activePacketContract } : {}),
+    ...(activatedToPacket && activatedAtUtc ? { activated_at_utc: activatedAtUtc } : {}),
+    ...(activatedToPacket && activationSignature ? { activation_signature: activationSignature } : {}),
     created_at_utc: parseSingleField(projectionBody, "CREATED_AT") || null,
     source_files: {
       stub_contract: contractPath,
@@ -107,11 +116,12 @@ export function buildStubContract({ wpId = "", stubText = "", stubPath = "" } = 
       generated_by: "task-packet-stub-contracts.mjs",
     },
     lifecycle: {
-      status: parseSingleField(projectionBody, "STUB_STATUS") || "STUB (NOT READY FOR DEV)",
+      status: lifecycleStatus,
       format_version: parseSingleField(projectionBody, "STUB_FORMAT_VERSION"),
-      activation_required: true,
+      activation_required: !activatedToPacket,
       user_signature_required: false,
-      refinement_required_before_execution: true,
+      refinement_required_before_execution: !activatedToPacket,
+      ...(activatedToPacket && activePacket ? { active_packet: activePacket } : {}),
     },
     build_order: {
       domain: parseSingleField(projectionBody, "BUILD_ORDER_DOMAIN"),
@@ -143,6 +153,8 @@ export function buildStubContract({ wpId = "", stubText = "", stubPath = "" } = 
     activation_contract: {
       may_start_coder: false,
       may_start_validator: false,
+      ...(activatedToPacket ? { status: "COMPLETED_BY_ACTIVE_PACKET" } : {}),
+      ...(activatedToPacket && activePacketContract ? { completed_packet_contract: activePacketContract } : {}),
       required_activation_steps: [
         "create_or_refresh_refinement",
         "obtain_user_signature",

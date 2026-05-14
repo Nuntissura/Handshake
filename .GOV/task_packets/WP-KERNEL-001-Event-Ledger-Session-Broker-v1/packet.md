@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=0c41b167950aaf67 projection_hash=58669ca77e969e29 generated_at_utc=2026-05-14T00:07:20.330Z generator=ensure-wp-communications.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=c87a0d1796984add projection_hash=84462b518bf69a86 generated_at_utc=2026-05-14T19:55:48.693Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 This is an official product Work Packet projection. It is blocked until the pending operator signature and spec-enrichment blocker are resolved.
@@ -95,7 +95,7 @@ This is an official product Work Packet projection. It is blocked until the pend
 - BROAD_TOOL_ALLOWLIST: NONE
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
 - **Status:** In Progress
-- CURRENT_WP_STATUS: READY_FOR_DEV
+- CURRENT_WP_STATUS: READY_FOR_INTEGRATION_VALIDATOR_RECHECK
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja140520260015
 - USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-KERNEL-001-Event-Ledger-Session-Broker-v1
@@ -142,9 +142,9 @@ This is an official product Work Packet projection. It is blocked until the pend
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: PENDING
-Blockers: Implementation is in progress; awaiting coder handoff to WP validator.
-Next: CODER completes in-scope work and records CODER_HANDOFF with proof.
+Verdict: PENDING_INTEGRATION_VALIDATOR_RECHECK
+Blockers: No Kernel Builder blocker claimed after remediation; Integration Validator must independently recheck MT batch and scoped Master Spec alignment.
+Next: INTEGRATION_VALIDATOR reviews the remediation batch, trace evidence, live Postgres proof, and governance handoff. Kernel Builder does not self-issue PASS.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
@@ -407,3 +407,49 @@ Combined remediation plan for Kernel Builder:
 Residual uncertainty:
 - Because the build/test run timed out before producing compile output, additional compiler or test failures may exist behind the static findings above.
 - Because no live Postgres proof ran, durable concurrency, migrations, and replay behavior remain unproven even where the code shape is directionally correct.
+
+## KERNEL_BUILDER_REMEDIATION_HANDOFF_2026-05-14
+
+Status: `READY_FOR_INTEGRATION_VALIDATOR_RECHECK`. This is Kernel Builder evidence only; it is not a validator PASS.
+
+Remediated failed MTs: MT-014, MT-020, MT-021, MT-022, MT-023, MT-024, MT-026, MT-027.
+
+Feature/build blockers addressed:
+- Default feature build now compiles the existing public module surface because `default` resolves to `runtime-full`.
+- `runtime-full` now excludes `duckdb-flight-recorder`, so kernel Postgres/API proof does not compile DuckDB or `libduckdb-sys`.
+- DuckDB-backed binaries and tests require explicit `app-runtime` or `duckdb-flight-recorder` opt-in.
+- Live Postgres proof was run locally with `POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test`; missing Postgres remains `ENVIRONMENT_BLOCKED`, not a PASS.
+
+Proof commands:
+- `cargo test kernel_event_taxonomy --target-dir ..\..\..\..\Handshake_Artifacts\handshake-cargo-target-remediation`: PASS, default filtered cargo path compiled the public module surface and ran `kernel_event_taxonomy_covers_first_slice_families`; 1 passed.
+- `cargo test --features runtime-full --test kernel_runtime_tests mcp_toolgate_bridge_records_allow_and_deny_decisions_from_explicit_grants --target-dir ..\..\..\..\Handshake_Artifacts\handshake-cargo-target-remediation`: PASS, 1 runtime-full ToolGate bridge proof test passed without compiling DuckDB/`libduckdb-sys`.
+- `cargo test --test kernel_runtime_tests --target-dir ..\..\..\..\Handshake_Artifacts\handshake-cargo-target-remediation`: PASS, 7 default kernel runtime tests passed.
+- `cargo tree --features runtime-full -i duckdb`: expected absence evidence, Cargo reported no `duckdb` package in the `runtime-full` dependency tree.
+- `cargo test --features runtime-full --test kernel_runtime_tests --test kernel_event_ledger_tests --test kernel_flight_recorder_tests --test kernel_promotion_trace_tests --target-dir ..\..\..\..\Handshake_Artifacts\handshake-cargo-target-remediation`: PASS, 24 focused runtime-full non-Postgres tests passed.
+- `POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test cargo test --features runtime-full --test kernel_end_to_end_tests -- --test-threads=1`: PASS, 7 live Postgres end-to-end tests passed.
+- `POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test cargo test --features runtime-full --test kernel_postgres_event_ledger_tests -- --test-threads=1`: PASS, 7 live Postgres EventLedger tests passed.
+- `POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test KERNEL_TRACE_PROOF_OUTPUT_DIR=D:\Projects\LLM projects\Handshake\Handshake Worktrees\Handshake_Artifacts\kernel-trace-evidence-20260514T194500Z cargo test --features runtime-full --test kernel_end_to_end_tests end_to_end_kernel_proof -- --test-threads=1`: PASS, 1 live Postgres proof test passed and wrote trace evidence.
+- `git diff --check`: PASS in the product worktree with CRLF warnings only.
+
+Trace evidence:
+- Trace output: `../Handshake_Artifacts/kernel-trace-evidence-20260514T194500Z/end-to-end-kernel-proof-trace-projection.json`.
+- KernelTaskRun: `KTR-13e06e2e-1418-4e30-8d67-c7ce14d95548`.
+- SessionRun: `SR-121bfa3b-6d6f-4f3c-9c14-299c90f5abf0`.
+- Artifact ID: `ART-8b85883c846ded7b`.
+- Event IDs: `KE-e4c7241e-3273-417b-ab69-f1a4df0d6751`, `KE-5d28f99b-b09f-45ea-986f-c6220fae7853`, `KE-ee0a0757-7629-4738-9a55-b4b541da892c`, `KE-9baa49be-b28e-4eca-9939-ded9a1ac2ad0`, `KE-b36e229e-a492-4a7c-b6cb-7e12cd3bd94b`, `KE-ac4912eb-4c09-4eee-9c63-a08ef7f77238`, `KE-b0d0823c-b76c-4c2a-8f9f-06292252d386`, `KE-f59cb56b-13c4-47ee-a11e-9900bb410436`, `KE-ef327fd5-96c6-4a38-9b84-ebdf6391f01a`, `KE-96d1ee8b-fa31-437e-83d0-3a4bec7531b9`, `KE-372603fd-c2e0-4819-9431-b44f15bd5425`, `KE-89f77bd6-96d6-42f1-a745-7c2fd61fc915`, `KE-150b0075-335e-4888-b6e9-5dd219e1292a`, `KE-39bb7975-61e3-4ccc-971f-c9843e617ea0`.
+
+Residual debt and follow-up ownership:
+- `KERNEL001-DEFER-CRDT-WORKSPACE`: full CRDT workspace/write-box/action catalog work remains outside Kernel001 and is preserved in `WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1`.
+- `KERNEL001-DEFER-DCC-UI`: Kernel001 adds the backend trace inspection route only; full DCC UI/projection work remains in Kernel002 and DCC follow-up stubs.
+- `KERNEL001-DEFER-FEMS-MEMORY`: Kernel001 records context/message/artifact/promotion primitives but does not implement the local model memory runtime; FEMS follow-up stubs and Kernel002 folded scope retain that work.
+- `KERNEL001-DEFER-GENERIC-WORKFLOW`: Kernel001 proves the kernel run ledger and SessionBroker path; generic workflow durable execution migration remains outside this WP.
+
+Artifact hygiene:
+- External artifact root: `../Handshake_Artifacts`.
+- The pre-existing candidate-worktree `Handshake_Artifacts/` directory was moved intact to `../Handshake_Artifacts/repo-local-moved-root-Handshake_Artifacts-20260514T164500Z`.
+- Generated trace proof output that initially landed under `src/backend/Handshake_Artifacts` was moved intact to `../Handshake_Artifacts/repo-local-moved-src-backend-Handshake_Artifacts-20260514T153101Z`.
+- Feature-split verification recreated `src/backend/Handshake_Artifacts`; that directory was moved intact to `../Handshake_Artifacts/repo-local-moved-src-backend-Handshake_Artifacts-20260514T194040`.
+- The candidate product worktree root and `src/backend` now have no repo-local `Handshake_Artifacts/` directory.
+
+Next validator action:
+- Integration Validator should re-run the MT batch review from the candidate worktree, then perform scoped Master Spec validation only if the MT batch passes.

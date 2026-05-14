@@ -21,6 +21,26 @@
 
 ## Entries
 
+### 2026.05.14.02 / GOV-CHANGE-20260514-02
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Folded the legacy git topology registry into the single governance topology ledger.
+- Contract impact: `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` is the only authoritative topology ledger for the governance kernel. Permanent checkout layout and helper-command topology now live under `git_topology_contract`; `GIT_TOPOLOGY_REGISTRY.md` and `GIT_TOPOLOGY_REGISTRY.json` are deprecated, non-authoritative compatibility references.
+- Driver evidence: Operator request on 2026-05-14 to retire the extra topology registry and keep a single machine-readable topology file for LLM/tool ingestion.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/reference/legacy/deprecated/topology/GIT_TOPOLOGY_REGISTRY.md`, `.GOV/roles_shared/scripts/lib/governance-topology-lib.mjs`, `.GOV/roles_shared/checks/topology-registry-check.mjs`, `.GOV/roles_shared/scripts/topology/topology-registry-sync.mjs`, `.GOV/roles_shared/scripts/topology/git-topology-lib.mjs`, `.GOV/roles_shared/docs/ROLE_WORKTREES.md`, `.GOV/roles_shared/docs/REPO_RESILIENCE.md`, `.GOV/roles_shared/checks/README.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node --check` for changed topology scripts/checks; `node .GOV/roles_shared/checks/topology-registry-check.mjs`; residual writer inventory sync; `just gov-check --sync-topology`; `just gov-check`.
+
+### 2026.05.14.03 / GOV-CHANGE-20260514-03
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Created the deprecated governance archive taxonomy.
+- Contract impact: Deprecated non-authoritative governance files retained inside the repo now live under `.GOV/reference/legacy/deprecated/<category>/`, grouped by governance domain. Active workflow code, checks, roles, packets, and topology ledgers must not depend on archive files as authority.
+- Driver evidence: Operator request on 2026-05-14 to create an archive for deprecated files with category subfolders.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/reference/legacy/deprecated/README.md`, `.GOV/reference/legacy/deprecated/ARCHIVE_INDEX.json`, `.GOV/reference/legacy/deprecated/*/README.md`, `.GOV/reference/legacy/deprecated/topology/GIT_TOPOLOGY_REGISTRY.md`, `.GOV/roles_shared/checks/governance-structure-rules.mjs`, `.GOV/roles_shared/scripts/topology/git-topology-lib.mjs`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `node --check` for changed topology/structure scripts; `node .GOV/roles_shared/checks/topology-registry-check.mjs`; residual writer inventory sync; `just gov-check --sync-topology`; `just gov-check`.
+
 ### 2026.05.14.01 / GOV-CHANGE-20260514-01
 
 - Status: APPLIED

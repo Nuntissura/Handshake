@@ -1,34 +1,19 @@
 #!/usr/bin/env node
 
-import fs from "node:fs";
-import {
-  TOPOLOGY_REGISTRY_JSON_PATH,
-  TOPOLOGY_REGISTRY_MD_PATH,
-  absFromRepo,
-  buildTopologyRegistry,
-  renderTopologyRegistryMd,
-} from "../scripts/topology/git-topology-lib.mjs";
+import { readGovernanceTopology, GOVERNANCE_TOPOLOGY_REPO_REL_PATH } from "../scripts/lib/governance-topology-lib.mjs";
+import { buildTopologyRegistry } from "../scripts/topology/git-topology-lib.mjs";
 
-function normalizeEol(value) {
-  return String(value || "").replace(/\r\n/g, "\n");
-}
-
-const expectedJson = `${JSON.stringify(buildTopologyRegistry(), null, 2)}\n`;
-const expectedMd = renderTopologyRegistryMd(buildTopologyRegistry());
-const jsonPath = absFromRepo(TOPOLOGY_REGISTRY_JSON_PATH);
-const mdPath = absFromRepo(TOPOLOGY_REGISTRY_MD_PATH);
+const topology = readGovernanceTopology();
+const expected = buildTopologyRegistry();
+const actual = topology?.git_topology_contract?.protected_checkout_topology;
 
 const errors = [];
-if (!fs.existsSync(jsonPath)) {
-  errors.push(`Missing ${TOPOLOGY_REGISTRY_JSON_PATH}`);
-} else if (normalizeEol(fs.readFileSync(jsonPath, "utf8")) !== normalizeEol(expectedJson)) {
-  errors.push(`${TOPOLOGY_REGISTRY_JSON_PATH} is stale; run just topology-registry-sync`);
-}
-
-if (!fs.existsSync(mdPath)) {
-  errors.push(`Missing ${TOPOLOGY_REGISTRY_MD_PATH}`);
-} else if (normalizeEol(fs.readFileSync(mdPath, "utf8")) !== normalizeEol(expectedMd)) {
-  errors.push(`${TOPOLOGY_REGISTRY_MD_PATH} is stale; run just topology-registry-sync`);
+if (!topology) {
+  errors.push(`Missing ${GOVERNANCE_TOPOLOGY_REPO_REL_PATH}`);
+} else if (!actual) {
+  errors.push(`${GOVERNANCE_TOPOLOGY_REPO_REL_PATH} is missing git_topology_contract.protected_checkout_topology; run just gov-check --sync-topology`);
+} else if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+  errors.push(`${GOVERNANCE_TOPOLOGY_REPO_REL_PATH} git_topology_contract is stale; run just gov-check --sync-topology`);
 }
 
 if (errors.length > 0) {
@@ -36,5 +21,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("topology-registry-check ok");
-
+console.log("topology-registry-check ok (legacy registry folded into GOVERNANCE_TOPOLOGY.json)");

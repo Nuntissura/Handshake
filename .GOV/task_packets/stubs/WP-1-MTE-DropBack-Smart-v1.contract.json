@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-MTE-DropBack-Smart-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "12e38f73a2e6ace17e2b7b6727d28fce71979afa76000efc8fefb28319121e74",
+    "projection_sha256": "8b4bc1957b7fe84bb270c9302fa5a7d55c2fec567367b887143d615c34fd318f",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-003-Sandbox-Validation-Promotion-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

@@ -82,6 +82,25 @@ function isPlaceholder(value) {
   return false;
 }
 
+function normalizePolicyToken(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function isNoneLikePolicyValue(value) {
+  const normalized = normalizePolicyToken(value);
+  return !normalized || normalized === "NONE" || normalized === "N/A" || normalized === "NA" || normalized === "NULL" || normalized === "DISABLED";
+}
+
+function packetDisablesWpValidator(text) {
+  return normalizePolicyToken(parseSingleField(text, "TECHNICAL_ADVISOR")) === "NONE"
+    || normalizePolicyToken(parseSingleField(text, "WP_VALIDATOR_GATE")) === "DISABLED"
+    || normalizePolicyToken(parseSingleField(text, "COMMUNICATION_HEALTH_GATE")) === "INTEGRATION_BATCH_REVIEW_BLOCKING";
+}
+
+function checkDisabledWpValidatorField(errors, rel, text, label) {
+  parseSingleField(text, label);
+}
+
 function checkExpected(errors, rel, text, label, expected) {
   const actual = parseSingleField(text, label);
   if (actual !== expected) {
@@ -146,7 +165,14 @@ function checkRoleModelProfileFields(errors, rel, text, {
   if (!usesRoleProfiles) return;
 
   checkExpected(errors, rel, text, "ROLE_MODEL_PROFILE_POLICY", ROLE_MODEL_PROFILE_POLICY);
-  const roles = ["ORCHESTRATOR", "CODER", "WP_VALIDATOR", "INTEGRATION_VALIDATOR"];
+  const wpValidatorDisabled = !isStub && packetDisablesWpValidator(text);
+  const roles = ["ORCHESTRATOR", "CODER", "INTEGRATION_VALIDATOR"];
+  if (!wpValidatorDisabled) roles.splice(2, 0, "WP_VALIDATOR");
+  if (wpValidatorDisabled) {
+    for (const label of ["WP_VALIDATOR_MODEL_PROFILE", "WP_VALIDATOR_MODEL", "WP_VALIDATOR_REASONING_STRENGTH"]) {
+      checkDisabledWpValidatorField(errors, rel, text, label);
+    }
+  }
   for (const role of roles) {
     const field = roleModelProfileField(role);
     const profileId = roleModelProfileFromPacket(text, role, { fallbackToDefault: false });
@@ -232,12 +258,21 @@ function checkPacket(filePath) {
   checkExpected(errors, rel, text, "ROLE_SESSION_REASONING_CONFIG_VALUE", ROLE_SESSION_REASONING_CONFIG_VALUE);
   checkExpected(errors, rel, text, "CODER_STARTUP_COMMAND", "just coder-startup");
   checkExpected(errors, rel, text, "CODER_RESUME_COMMAND", `just coder-next ${wpId}`);
-  if (version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
+  const wpValidatorDisabled = packetDisablesWpValidator(text);
+  if (!wpValidatorDisabled && version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
     checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_BRANCH", defaultWpValidatorBranch(wpId));
     checkExpected(errors, rel, text, "WP_VALIDATOR_LOCAL_WORKTREE_DIR", defaultWpValidatorWorktreeDir(wpId));
+  } else if (wpValidatorDisabled) {
+    checkDisabledWpValidatorField(errors, rel, text, "WP_VALIDATOR_LOCAL_BRANCH");
+    checkDisabledWpValidatorField(errors, rel, text, "WP_VALIDATOR_LOCAL_WORKTREE_DIR");
   }
-  checkExpected(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND", "just validator-startup WP_VALIDATOR");
-  checkExpected(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND", `just validator-next WP_VALIDATOR ${wpId}`);
+  if (!wpValidatorDisabled) {
+    checkExpected(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND", "just validator-startup WP_VALIDATOR");
+    checkExpected(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND", `just validator-next WP_VALIDATOR ${wpId}`);
+  } else {
+    checkDisabledWpValidatorField(errors, rel, text, "WP_VALIDATOR_STARTUP_COMMAND");
+    checkDisabledWpValidatorField(errors, rel, text, "WP_VALIDATOR_RESUME_COMMAND");
+  }
   if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
     checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_BRANCH", defaultIntegrationValidatorBranch(wpId));
     checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR", defaultIntegrationValidatorWorktreeDir(wpId));
@@ -247,22 +282,34 @@ function checkPacket(filePath) {
   checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_STARTUP_COMMAND", "just validator-startup INTEGRATION_VALIDATOR");
   checkExpected(errors, rel, text, "INTEGRATION_VALIDATOR_RESUME_COMMAND", `just validator-next INTEGRATION_VALIDATOR ${wpId}`);
   if (packetUsesSharedRemoteWpBackup(version)) {
-    checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
+    if (!wpValidatorDisabled) {
+      checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
+    } else {
+      checkDisabledWpValidatorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH");
+    }
     if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
       checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH", "REMOTE_BACKUP_BRANCH");
     }
-    checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");
+    if (!wpValidatorDisabled) {
+      checkMirrorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");
+    } else {
+      checkDisabledWpValidatorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL");
+    }
     if (version >= SPEC_CLAUSE_MAP_MIN_VERSION) {
       checkMirrorField(errors, rel, text, "INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL", "REMOTE_BACKUP_URL");
     }
   } else {
     const legacyOriginTreeBase = parseSingleField(text, "REMOTE_BACKUP_URL").replace(/\/tree\/.*$/, "");
-    if (version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
+    if (!wpValidatorDisabled && version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
       checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH", defaultWpValidatorBranch(wpId));
+    } else if (wpValidatorDisabled) {
+      checkDisabledWpValidatorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_BRANCH");
     }
     // Legacy integration validator branch/url: skip enforcement for pre-2026-03-18 packets.
-    if (version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
+    if (!wpValidatorDisabled && version >= DEDICATED_WP_VALIDATOR_WORKTREE_PACKET_MIN_VERSION) {
       checkExpected(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL", buildRemoteBackupUrl(legacyOriginTreeBase, defaultWpValidatorBranch(wpId)));
+    } else if (wpValidatorDisabled) {
+      checkDisabledWpValidatorField(errors, rel, text, "WP_VALIDATOR_REMOTE_BACKUP_URL");
     }
   }
   if (packetUsesStructuredValidationReport(version)) {

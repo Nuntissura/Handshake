@@ -47,7 +47,7 @@ If you are an AI assistant operating in this repo:
   - skeleton approval checkpoint before implementation resumes
 - Before deleting local branches/worktrees or performing broad topology cleanup, create an immutable out-of-repo snapshot with `just backup-snapshot`.
 - Permanent protected branches/worktrees that must never be deleted by Codex: `main`, `user_ilja`, `gov_kernel`, `wt-ilja`, `wt-gov-kernel`.
-- Use `.GOV/roles_shared/records/GIT_TOPOLOGY_REGISTRY.md` + `.GOV/roles_shared/docs/REPO_RESILIENCE.md` as the deterministic reference for the permanent checkout layout and backup commands.
+- Use `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` (`git_topology_contract`) + `.GOV/roles_shared/docs/REPO_RESILIENCE.md` as the deterministic reference for the permanent checkout layout and backup commands. `GIT_TOPOLOGY_REGISTRY.md/json` are deprecated, non-authoritative compatibility references.
 
 ## Role Worktrees (Default)
 
@@ -136,8 +136,8 @@ From the main repo working tree (`<HANDSHAKE_WORKTREES>/handshake_main`):
 
 - Ensure the permanent GitHub backup branches exist:
   - `just ensure-permanent-backup-branches`
-- Sync the deterministic topology registry:
-  - `just topology-registry-sync`
+- Sync the deterministic topology ledger:
+  - `just gov-check --sync-topology`
 - Create an immutable out-of-repo snapshot:
   - `just backup-snapshot`
 

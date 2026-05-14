@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Diagnostics-Debug-Bundle-Bridge-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "4c5cfecb2f178e413d8a63d375fe92dc1a559c8fc1ffe4ab2d62065fab43f450",
+    "projection_sha256": "9b0bd2daa2bc5ea85bf51d3d83ec44de6e8353c4e17b07a68fa5c74311af9eba",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-003-Sandbox-Validation-Promotion-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

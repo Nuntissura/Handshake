@@ -12,7 +12,7 @@ This document defines the repo-resilience layer for Handshake governance.
 
 ## Commands
 
-- `just topology-registry-sync`
+- `just gov-check --sync-topology`
 - `just backup-snapshot [label] [out_root] [nas_root]`
 - `just backup-status`
 - `just backup-snapshot-nas [label]`
@@ -27,6 +27,7 @@ This document defines the repo-resilience layer for Handshake governance.
 ## Policy
 
 - `main` is the only canonical integrated branch.
+- `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` is the single authoritative topology ledger. The permanent checkout layout and helper-command contract live under `git_topology_contract`; `GIT_TOPOLOGY_REGISTRY.md/json` are deprecated, non-authoritative compatibility references.
 - Post-`RGF-75` evaluation outcome: no separate stable product integration branch is required while `main` remains clean, repo-local artifact leakage stays blocked, and governed worktree hygiene continues to pass.
 - `user_ilja` and `gov_kernel` are backup branches on GitHub.
 - Permanent non-main worktrees (`wt-ilja`, `wt-gov-kernel`) inherit product code and root-level LLM files from local `main`. Their matching GitHub branches are safety copies, not the refresh source for that base.

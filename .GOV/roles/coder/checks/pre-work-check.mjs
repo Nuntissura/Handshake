@@ -32,6 +32,7 @@ import {
   DIRECT_REVIEW_CONTRACT_VERSION,
   DIRECT_REVIEW_HEALTH_GATE,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
+  INTEGRATION_BATCH_REVIEW_HEALTH_GATE,
   parseJsonlFile,
 } from '../../../roles_shared/scripts/lib/wp-communications-lib.mjs';
 import {
@@ -118,6 +119,24 @@ function parseSingleField(text, label) {
   const re = new RegExp(`^\\s*-\\s*(?:\\*\\*)?${label}(?:\\*\\*)?\\s*:\\s*(.+)\\s*$`, 'mi');
   const m = text.match(re);
   return m ? m[1].trim() : '';
+}
+
+function normalizePolicyToken(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function isNoneLikePolicyValue(value) {
+  const normalized = normalizePolicyToken(value);
+  return !normalized || normalized === 'NONE' || normalized === 'N/A' || normalized === 'NA' || normalized === 'NULL' || normalized === 'DISABLED';
+}
+
+function packetDisablesWpValidator(packetContent) {
+  const technicalAdvisor = normalizePolicyToken(parseSingleField(packetContent, 'TECHNICAL_ADVISOR'));
+  const wpValidatorGate = normalizePolicyToken(parseSingleField(packetContent, 'WP_VALIDATOR_GATE'));
+  const communicationHealthGate = normalizePolicyToken(parseSingleField(packetContent, 'COMMUNICATION_HEALTH_GATE'));
+  return technicalAdvisor === 'NONE'
+    || wpValidatorGate === 'DISABLED'
+    || communicationHealthGate === INTEGRATION_BATCH_REVIEW_HEALTH_GATE;
 }
 
 function parseRepairFieldTokens(value) {
@@ -691,6 +710,7 @@ if (!fs.existsSync(taskPacketDir)) {
 
     const remoteBackupBranch = parseSingleField(packetContent, 'REMOTE_BACKUP_BRANCH');
     const remoteBackupUrl = parseSingleField(packetContent, 'REMOTE_BACKUP_URL');
+    const wpValidatorDisabled = packetDisablesWpValidator(packetContent);
     const hasModernSessionPolicyFields = Boolean(
       parseSingleField(packetContent, 'SESSION_CONTROL_REQUESTS_FILE')
       || parseSingleField(packetContent, 'SESSION_CONTROL_RESULTS_FILE')
@@ -719,15 +739,31 @@ if (!fs.existsSync(taskPacketDir)) {
       ['ROLE_SESSION_REASONING_CONFIG_VALUE', ROLE_SESSION_REASONING_CONFIG_VALUE],
       ['CODER_STARTUP_COMMAND', 'just coder-startup'],
       ['CODER_RESUME_COMMAND', `just coder-next ${WP_ID}`],
-      ['WP_VALIDATOR_LOCAL_BRANCH', defaultWpValidatorBranch(WP_ID)],
-      ['WP_VALIDATOR_LOCAL_WORKTREE_DIR', defaultWpValidatorWorktreeDir(WP_ID)],
-      ['WP_VALIDATOR_STARTUP_COMMAND', 'just validator-startup WP_VALIDATOR'],
-      ['WP_VALIDATOR_RESUME_COMMAND', `just validator-next WP_VALIDATOR ${WP_ID}`],
       ['INTEGRATION_VALIDATOR_LOCAL_BRANCH', defaultIntegrationValidatorBranch(WP_ID)],
       ['INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR', defaultIntegrationValidatorWorktreeDir(WP_ID)],
       ['INTEGRATION_VALIDATOR_STARTUP_COMMAND', 'just validator-startup INTEGRATION_VALIDATOR'],
       ['INTEGRATION_VALIDATOR_RESUME_COMMAND', `just validator-next INTEGRATION_VALIDATOR ${WP_ID}`],
     ];
+    if (!wpValidatorDisabled) {
+      expectedFields.push(
+        ['WP_VALIDATOR_LOCAL_BRANCH', defaultWpValidatorBranch(WP_ID)],
+        ['WP_VALIDATOR_LOCAL_WORKTREE_DIR', defaultWpValidatorWorktreeDir(WP_ID)],
+        ['WP_VALIDATOR_STARTUP_COMMAND', 'just validator-startup WP_VALIDATOR'],
+        ['WP_VALIDATOR_RESUME_COMMAND', `just validator-next WP_VALIDATOR ${WP_ID}`],
+      );
+    } else {
+      for (const label of [
+        'WP_VALIDATOR_LOCAL_BRANCH',
+        'WP_VALIDATOR_LOCAL_WORKTREE_DIR',
+        'WP_VALIDATOR_STARTUP_COMMAND',
+        'WP_VALIDATOR_RESUME_COMMAND',
+      ]) {
+        const actual = parseSingleField(packetContent, label);
+        if (actual && !isNoneLikePolicyValue(actual)) {
+          errors.push(`${label} must be N/A or omitted when WP_VALIDATOR_GATE=DISABLED (got: ${actual})`);
+        }
+      }
+    }
 
     if (hasModernSessionPolicyFields) {
       expectedFields.push(
@@ -749,11 +785,17 @@ if (!fs.existsSync(taskPacketDir)) {
     if (!remoteBackupBranch) {
       errors.push('REMOTE_BACKUP_BRANCH missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-03-12');
     } else if (packetUsesSharedRemoteWpBackup(packetFormatVersion)) {
-      expectedFields.push(['WP_VALIDATOR_REMOTE_BACKUP_BRANCH', remoteBackupBranch]);
+      if (!wpValidatorDisabled) expectedFields.push(['WP_VALIDATOR_REMOTE_BACKUP_BRANCH', remoteBackupBranch]);
       expectedFields.push(['INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH', remoteBackupBranch]);
     } else {
-      expectedFields.push(['WP_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultWpValidatorBranch(WP_ID)]);
+      if (!wpValidatorDisabled) expectedFields.push(['WP_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultWpValidatorBranch(WP_ID)]);
       expectedFields.push(['INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH', defaultIntegrationValidatorBranch(WP_ID)]);
+    }
+    if (wpValidatorDisabled) {
+      const disabledRemoteBackupBranch = parseSingleField(packetContent, 'WP_VALIDATOR_REMOTE_BACKUP_BRANCH');
+      if (disabledRemoteBackupBranch && !isNoneLikePolicyValue(disabledRemoteBackupBranch)) {
+        errors.push(`WP_VALIDATOR_REMOTE_BACKUP_BRANCH must be N/A or omitted when WP_VALIDATOR_GATE=DISABLED (got: ${disabledRemoteBackupBranch})`);
+      }
     }
 
     for (const [label, expected] of expectedFields) {
@@ -767,9 +809,18 @@ if (!fs.existsSync(taskPacketDir)) {
       const roleProfiles = [
         ['ORCHESTRATOR', '', 'ORCHESTRATOR_REASONING_STRENGTH'],
         ['CODER', 'CODER_MODEL', 'CODER_REASONING_STRENGTH'],
-        ['WP_VALIDATOR', 'WP_VALIDATOR_MODEL', 'WP_VALIDATOR_REASONING_STRENGTH'],
         ['INTEGRATION_VALIDATOR', 'INTEGRATION_VALIDATOR_MODEL', 'INTEGRATION_VALIDATOR_REASONING_STRENGTH'],
       ];
+      if (!wpValidatorDisabled) {
+        roleProfiles.splice(2, 0, ['WP_VALIDATOR', 'WP_VALIDATOR_MODEL', 'WP_VALIDATOR_REASONING_STRENGTH']);
+      } else {
+        for (const label of ['WP_VALIDATOR_MODEL_PROFILE', 'WP_VALIDATOR_MODEL', 'WP_VALIDATOR_REASONING_STRENGTH']) {
+          const actual = parseSingleField(packetContent, label);
+          if (actual && !isNoneLikePolicyValue(actual)) {
+            errors.push(`${label} must be N/A or omitted when WP_VALIDATOR_GATE=DISABLED (got: ${actual})`);
+          }
+        }
+      }
 
       for (const [roleName, modelLabel, reasoningLabel] of roleProfiles) {
         const field = roleModelProfileField(roleName);
@@ -804,13 +855,17 @@ if (!fs.existsSync(taskPacketDir)) {
     if (!remoteBackupUrl) {
       errors.push('REMOTE_BACKUP_URL missing/invalid for packets with PACKET_FORMAT_VERSION >= 2026-03-12');
     } else if (packetUsesSharedRemoteWpBackup(packetFormatVersion)) {
-      if (validatorBackupUrl !== remoteBackupUrl) {
+      if (!wpValidatorDisabled && validatorBackupUrl !== remoteBackupUrl) {
         errors.push(`WP_VALIDATOR_REMOTE_BACKUP_URL must mirror REMOTE_BACKUP_URL (${remoteBackupUrl}; got: ${validatorBackupUrl || '<missing>'})`);
+      } else if (wpValidatorDisabled && validatorBackupUrl && !isNoneLikePolicyValue(validatorBackupUrl)) {
+        errors.push(`WP_VALIDATOR_REMOTE_BACKUP_URL must be N/A or omitted when WP_VALIDATOR_GATE=DISABLED (got: ${validatorBackupUrl})`);
       }
     } else {
       const legacyWpValidatorRemoteBackupUrl = buildRemoteBackupUrl(remoteBackupUrl.replace(/\/tree\/.*$/, ''), defaultWpValidatorBranch(WP_ID));
-      if (validatorBackupUrl !== legacyWpValidatorRemoteBackupUrl) {
+      if (!wpValidatorDisabled && validatorBackupUrl !== legacyWpValidatorRemoteBackupUrl) {
         errors.push(`WP_VALIDATOR_REMOTE_BACKUP_URL must remain ${legacyWpValidatorRemoteBackupUrl} for packets with PACKET_FORMAT_VERSION < 2026-03-16 (got: ${validatorBackupUrl || '<missing>'})`);
+      } else if (wpValidatorDisabled && validatorBackupUrl && !isNoneLikePolicyValue(validatorBackupUrl)) {
+        errors.push(`WP_VALIDATOR_REMOTE_BACKUP_URL must be N/A or omitted when WP_VALIDATOR_GATE=DISABLED (got: ${validatorBackupUrl})`);
       }
     }
 
@@ -839,6 +894,10 @@ if (!fs.existsSync(taskPacketDir)) {
 
     const communicationContract = parseSingleField(packetContent, 'COMMUNICATION_CONTRACT');
     const communicationHealthGate = parseSingleField(packetContent, 'COMMUNICATION_HEALTH_GATE');
+    const wpValidatorDisabled = packetDisablesWpValidator(packetContent);
+    const expectedCommunicationHealthGate = wpValidatorDisabled
+      ? INTEGRATION_BATCH_REVIEW_HEALTH_GATE
+      : DIRECT_REVIEW_HEALTH_GATE;
 
     if (communicationContract !== DIRECT_REVIEW_CONTRACT_VERSION) {
       errors.push(
@@ -846,10 +905,10 @@ if (!fs.existsSync(taskPacketDir)) {
         + `(expected ${DIRECT_REVIEW_CONTRACT_VERSION}; got: ${communicationContract || '<missing>'})`
       );
     }
-    if (communicationHealthGate !== DIRECT_REVIEW_HEALTH_GATE) {
+    if (communicationHealthGate !== expectedCommunicationHealthGate) {
       errors.push(
         `COMMUNICATION_HEALTH_GATE missing/invalid for orchestrator-managed packets with PACKET_FORMAT_VERSION >= ${DIRECT_REVIEW_PACKET_FORMAT_VERSION} `
-        + `(expected ${DIRECT_REVIEW_HEALTH_GATE}; got: ${communicationHealthGate || '<missing>'})`
+        + `(expected ${expectedCommunicationHealthGate}; got: ${communicationHealthGate || '<missing>'})`
       );
     }
   }
