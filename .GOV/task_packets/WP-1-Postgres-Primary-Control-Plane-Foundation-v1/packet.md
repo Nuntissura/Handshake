@@ -199,6 +199,25 @@ Requirements:
 Verdict: PASS
 Blockers: NONE
 Next: NONE
+## WORKTREE_CLEANUP_STATUS (STATUS-SYNC APPENDIX; PRODUCT-CODE ONLY)
+- CHECK_TYPE: PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT
+- CHECKED_AT_UTC: 2026-05-14T20:52:00Z
+- CHECKED_BY: INTEGRATION_VALIDATOR
+- MAIN_HEAD: c5fa320e18ef9e1f13993811df77d30c3a25a538
+- WORKTREE_DIR: ../wtc-plane-foundation-v1
+- WORK_BRANCH: feat/WP-1-Postgres-Primary-Control-Plane-Foundation-v1
+- WORKTREE_HEAD: d7f3f760945c21076d75188fb2c90f1eafb155c3
+- BRANCH_HEAD_ANCESTOR_OF_MAIN: YES
+- COMMITTED_PRODUCT_DIFF_VS_MAIN_COUNT: 0
+- TRACKED_DIRTY_PRODUCT_COUNT: 0
+- UNTRACKED_PRODUCT_COUNT: 0
+- CLEANUP_RECOMMENDATION: READY_FOR_OPERATOR_APPROVED_WORKTREE_DELETE
+- SUMMARY: Branch product commits are contained in main and no local product drift was found in the worktree.
+- EVIDENCE:
+  - no_committed_product_diff_vs_main
+  - no_tracked_dirty_product_paths
+  - no_untracked_product_paths
+
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:

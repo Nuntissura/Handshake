@@ -199,6 +199,25 @@ Requirements:
 Verdict: PASS
 Blockers: NONE
 Next: NONE
+## WORKTREE_CLEANUP_STATUS (STATUS-SYNC APPENDIX; PRODUCT-CODE ONLY)
+- CHECK_TYPE: PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT
+- CHECKED_AT_UTC: 2026-05-14T20:52:00Z
+- CHECKED_BY: INTEGRATION_VALIDATOR
+- MAIN_HEAD: c5fa320e18ef9e1f13993811df77d30c3a25a538
+- WORKTREE_DIR: ../wtc-closeout-posture-v1
+- WORK_BRANCH: feat/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1
+- WORKTREE_HEAD: eddcf18ba08898dcf2b4a99e5b901ad80dba8aaa
+- BRANCH_HEAD_ANCESTOR_OF_MAIN: YES
+- COMMITTED_PRODUCT_DIFF_VS_MAIN_COUNT: 0
+- TRACKED_DIRTY_PRODUCT_COUNT: 3
+- UNTRACKED_PRODUCT_COUNT: 0
+- CLEANUP_RECOMMENDATION: NOT_DELETE_SAFE_DIRTY_PRODUCT_DRIFT
+- SUMMARY: Branch product commits are contained in main, but the local worktree has three tracked product edits that differ from main.
+- EVIDENCE:
+  - tracked_dirty_product: src/backend/handshake_core/src/locus/sqlite_store.rs
+  - tracked_dirty_product: src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs
+  - tracked_dirty_product: src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs
+
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:

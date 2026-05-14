@@ -217,6 +217,25 @@ Requirements:
 Verdict: PENDING
 Blockers: Implementation is in progress; awaiting coder handoff to WP validator.
 Next: CODER completes in-scope work and records CODER_HANDOFF with proof.
+## WORKTREE_CLEANUP_STATUS (STATUS-SYNC APPENDIX; PRODUCT-CODE ONLY)
+- CHECK_TYPE: PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT
+- CHECKED_AT_UTC: 2026-05-14T20:52:00Z
+- CHECKED_BY: INTEGRATION_VALIDATOR
+- MAIN_HEAD: c5fa320e18ef9e1f13993811df77d30c3a25a538
+- WORKTREE_DIR: ../wtc-preuse-hardening-v1
+- WORK_BRANCH: feat/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- WORKTREE_HEAD: 55cedf7459298f1e52ced8d89a37602b47e31731
+- BRANCH_HEAD_ANCESTOR_OF_MAIN: YES
+- COMMITTED_PRODUCT_DIFF_VS_MAIN_COUNT: 0
+- TRACKED_DIRTY_PRODUCT_COUNT: 1
+- UNTRACKED_PRODUCT_COUNT: 97
+- CLEANUP_RECOMMENDATION: NOT_DELETE_SAFE_UNCOMMITTED_PRODUCT_WORK
+- SUMMARY: The branch HEAD itself is contained in main, but the worktree carries uncommitted product work that is not contained in main.
+- EVIDENCE:
+  - tracked_dirty_product: src/backend/handshake_core/src/lib.rs
+  - untracked_product_count: 97
+  - examples: src/backend/handshake_core/src/kernel/action_catalog.rs, src/backend/handshake_core/src/kernel/crdt/mod.rs, src/backend/handshake_core/tests/kernel_action_catalog_tests.rs
+
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:

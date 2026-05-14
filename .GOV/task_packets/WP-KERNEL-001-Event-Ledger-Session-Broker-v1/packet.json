@@ -216,22 +216,27 @@
     "validator_verdict_reminder": "PENDING; Kernel Builder does not self-issue PASS."
   },
   "lifecycle": {
-    "current_main_compatibility_baseline_sha": "NONE",
-    "current_main_compatibility_status": "NOT_RUN",
-    "current_main_compatibility_verified_at_utc": "N/A",
-    "current_wp_status": "READY_FOR_INTEGRATION_VALIDATOR_RECHECK",
+    "current_main_compatibility_baseline_sha": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
+    "current_main_compatibility_status": "COMPATIBLE",
+    "current_main_compatibility_verified_at_utc": "2026-05-14T20:52:00Z",
+    "current_wp_status": "DONE_VALIDATED",
     "integration_validator_of_record": "INTEGRATION_VALIDATOR:WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
-    "main_containment_status": "NOT_STARTED",
-    "main_containment_verified_at_utc": "",
-    "merged_main_commit": "NONE",
+    "main_containment_status": "CONTAINED_IN_MAIN",
+    "main_containment_verified_at_utc": "2026-05-14T20:52:00Z",
+    "merged_main_commit": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
     "packet_format_version": "2026-04-06",
-    "packet_widening_decision": "NONE",
+    "packet_widening_decision": "NOT_REQUIRED",
     "packet_widening_evidence": "N/A",
     "risk_tier": "HIGH",
-    "status": "In Progress",
+    "status": "Validated (PASS)",
     "user_review_status": "APPROVED",
     "user_signature": "ilja140520260015",
-    "wp_validator_of_record": "NONE"
+    "wp_validator_of_record": "NONE",
+    "validation_verdict": "PASS",
+    "validation_verdict_recorded_at_utc": "2026-05-14T20:52:00Z",
+    "validation_actor_role": "INTEGRATION_VALIDATOR",
+    "validation_actor_session": "INTEGRATION_VALIDATOR-20260514-203508",
+    "validation_evidence_pointer": "main merge commit c5fa320e18ef9e1f13993811df77d30c3a25a538 plus product-code containment recheck INTEGRATION_VALIDATOR-20260514-205202"
   },
   "markdown_projection": {
     "generated_at_utc": "2026-05-14T19:55:48.693Z",
@@ -368,7 +373,7 @@
     "worktree_dir": "../wtc-session-broker-v1",
     "worktree_status": "CREATED_VERIFIED"
   },
-  "updated_at_utc": "2026-05-14T19:45:00Z",
+  "updated_at_utc": "2026-05-14T20:52:00Z",
   "validation_topology": {
     "kernel_builder_self_checks_are_validation": false,
     "mt_review_authority": "INTEGRATION_VALIDATOR_BATCH",
@@ -410,5 +415,25 @@
     "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/THREAD.md",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
   },
-  "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"
+  "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+  "worktree_cleanup_status": {
+    "checked_at_utc": "2026-05-14T20:52:00Z",
+    "checked_by": "INTEGRATION_VALIDATOR",
+    "check_type": "PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT",
+    "main_head": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
+    "worktree_dir": "../wtc-session-broker-v1",
+    "work_branch": "feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+    "worktree_head": "064fa4c8177413f40d658325a34733d4050ad7a3",
+    "branch_head_ancestor_of_main": true,
+    "committed_product_diff_vs_main_count": 0,
+    "tracked_dirty_product_count": 0,
+    "untracked_product_count": 0,
+    "cleanup_recommendation": "READY_FOR_OPERATOR_APPROVED_WORKTREE_DELETE",
+    "summary": "Branch product commits are contained in main through merge commit c5fa320e18ef9e1f13993811df77d30c3a25a538 and no local product drift was found.",
+    "evidence": [
+      "no_committed_product_diff_vs_main",
+      "no_tracked_dirty_product_paths",
+      "no_untracked_product_paths"
+    ]
+  }
 }

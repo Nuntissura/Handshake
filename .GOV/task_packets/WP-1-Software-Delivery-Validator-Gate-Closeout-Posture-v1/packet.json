@@ -75,7 +75,7 @@
     "work_branch": "feat/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
     "worktree_dir": "../wtc-closeout-posture-v1"
   },
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-14T20:52:00Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "communication_contract": "DIRECT_REVIEW_V1",
@@ -87,5 +87,25 @@
     "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/RUNTIME_STATUS.json",
     "session_start_authority": "ORCHESTRATOR_ONLY"
   },
-  "wp_id": "WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1"
+  "wp_id": "WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
+  "worktree_cleanup_status": {
+    "checked_at_utc": "2026-05-14T20:52:00Z",
+    "checked_by": "INTEGRATION_VALIDATOR",
+    "check_type": "PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT",
+    "main_head": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
+    "worktree_dir": "../wtc-closeout-posture-v1",
+    "work_branch": "feat/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
+    "worktree_head": "eddcf18ba08898dcf2b4a99e5b901ad80dba8aaa",
+    "branch_head_ancestor_of_main": true,
+    "committed_product_diff_vs_main_count": 0,
+    "tracked_dirty_product_count": 3,
+    "untracked_product_count": 0,
+    "cleanup_recommendation": "NOT_DELETE_SAFE_DIRTY_PRODUCT_DRIFT",
+    "summary": "Branch product commits are contained in main, but the local worktree has three tracked product edits that differ from main.",
+    "evidence": [
+      "tracked_dirty_product: src/backend/handshake_core/src/locus/sqlite_store.rs",
+      "tracked_dirty_product: src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs",
+      "tracked_dirty_product: src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs"
+    ]
+  }
 }

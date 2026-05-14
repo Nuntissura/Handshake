@@ -199,6 +199,33 @@ Copy this into each new task packet and fill all fields.
 Verdict: PASS
 Blockers: NONE
 Next: NONE
+## WORKTREE_CLEANUP_STATUS (STATUS-SYNC APPENDIX; PRODUCT-CODE ONLY)
+- CHECK_TYPE: PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT
+- CHECKED_AT_UTC: 2026-05-14T20:52:00Z
+- CHECKED_BY: INTEGRATION_VALIDATOR
+- MAIN_HEAD: c5fa320e18ef9e1f13993811df77d30c3a25a538
+- WORKTREE_DIR: ../wtc-surface-discipline-v1
+- WORK_BRANCH: feat/WP-1-Software-Delivery-Projection-Surface-Discipline-v1
+- WORKTREE_HEAD: eb59e9819c7cc2729c169c723dab3932d5d7b9d4
+- BRANCH_HEAD_ANCESTOR_OF_MAIN: NO
+- COMMITTED_PRODUCT_DIFF_VS_MAIN_COUNT: 10
+- TRACKED_DIRTY_PRODUCT_COUNT: 0
+- UNTRACKED_PRODUCT_COUNT: 0
+- CLEANUP_RECOMMENDATION: NOT_DELETE_SAFE_BRANCH_HEAD_NOT_CONTAINED
+- SUMMARY: The packet records an earlier contained main merge, but the current worktree branch HEAD has product changes not contained in main.
+- EVIDENCE:
+  - committed_product_diff_vs_main_count: 10
+  - diff: .cargo/config.toml
+  - diff: src/backend/handshake_core/src/flight_recorder/mod.rs
+  - diff: src/backend/handshake_core/src/locus/mod.rs
+  - diff: src/backend/handshake_core/src/locus/task_board.rs
+  - diff: src/backend/handshake_core/src/locus/types.rs
+  - diff: src/backend/handshake_core/src/role_mailbox.rs
+  - diff: src/backend/handshake_core/src/runtime_governance.rs
+  - diff: src/backend/handshake_core/src/storage/locus_sqlite.rs
+  - diff: src/backend/handshake_core/src/workflows.rs
+  - diff: src/backend/handshake_core/tests/micro_task_executor_tests.rs
+
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
