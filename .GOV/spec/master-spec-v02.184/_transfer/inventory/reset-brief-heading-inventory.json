@@ -1,0 +1,169 @@
+{
+  "artifact_type": "reset-brief-heading-inventory",
+  "generated_at": "2026-05-13T03:55:50.736Z",
+  "source_file": ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md",
+  "source_sha256": "0c752aaa527845f375ca71ec463f8e98db15ebec90fd2880f2e087bd1406a63a",
+  "total_lines": 857,
+  "headings_outside_fences": [
+    {
+      "line": 1,
+      "level": 1,
+      "text": "Handshake V2 Kernel Reset Brief"
+    },
+    {
+      "line": 9,
+      "level": 2,
+      "text": "0. No-Context Handoff"
+    },
+    {
+      "line": 42,
+      "level": 2,
+      "text": "1. Plain Decision"
+    },
+    {
+      "line": 48,
+      "level": 2,
+      "text": "2. Operator Intent"
+    },
+    {
+      "line": 67,
+      "level": 2,
+      "text": "3. New Product Thesis"
+    },
+    {
+      "line": 87,
+      "level": 2,
+      "text": "4. Day-One Rules"
+    },
+    {
+      "line": 108,
+      "level": 2,
+      "text": "5. Corrected State Model"
+    },
+    {
+      "line": 147,
+      "level": 2,
+      "text": "6. Proposed Kernel MVP"
+    },
+    {
+      "line": 149,
+      "level": 3,
+      "text": "6.0 Current Industry Pattern Scan"
+    },
+    {
+      "line": 206,
+      "level": 3,
+      "text": "6.1 Deterministic Runtime"
+    },
+    {
+      "line": 225,
+      "level": 3,
+      "text": "6.2 CRDT Collaboration Layer"
+    },
+    {
+      "line": 241,
+      "level": 3,
+      "text": "6.3 Local Model Runtime"
+    },
+    {
+      "line": 263,
+      "level": 3,
+      "text": "6.4 Inference Lab"
+    },
+    {
+      "line": 287,
+      "level": 3,
+      "text": "6.5 Sandboxed Execution"
+    },
+    {
+      "line": 312,
+      "level": 3,
+      "text": "6.6 Operator Surface"
+    },
+    {
+      "line": 360,
+      "level": 3,
+      "text": "6.7 Visual Debugging"
+    },
+    {
+      "line": 383,
+      "level": 3,
+      "text": "6.8 FEMS / Memory"
+    },
+    {
+      "line": 409,
+      "level": 3,
+      "text": "6.9 Karpathy-Style Self-Improvement Loop"
+    },
+    {
+      "line": 440,
+      "level": 3,
+      "text": "6.10 Deterministic Code Checking"
+    },
+    {
+      "line": 462,
+      "level": 3,
+      "text": "6.11 Cloud Model Constraints"
+    },
+    {
+      "line": 532,
+      "level": 3,
+      "text": "6.12 Minimal Technical Contracts"
+    },
+    {
+      "line": 639,
+      "level": 2,
+      "text": "7. Proposed First Build Slice"
+    },
+    {
+      "line": 641,
+      "level": 3,
+      "text": "7.0 Build First Proposal"
+    },
+    {
+      "line": 731,
+      "level": 3,
+      "text": "Week 1: Product Kernel State"
+    },
+    {
+      "line": 740,
+      "level": 3,
+      "text": "Week 2: CRDT Workspace + Promotion"
+    },
+    {
+      "line": 747,
+      "level": 3,
+      "text": "Week 3: Sandbox Execution"
+    },
+    {
+      "line": 754,
+      "level": 3,
+      "text": "Week 4: Local Model + Memory V0"
+    },
+    {
+      "line": 762,
+      "level": 2,
+      "text": "8. What To Freeze From Current Governance"
+    },
+    {
+      "line": 782,
+      "level": 2,
+      "text": "9. Research Anchors"
+    },
+    {
+      "line": 818,
+      "level": 2,
+      "text": "10. Open Questions Before Rebuild"
+    },
+    {
+      "line": 830,
+      "level": 2,
+      "text": "11. Recommended Decision"
+    },
+    {
+      "line": 836,
+      "level": 2,
+      "text": "12. No-Context Acceptance Criteria"
+    }
+  ]
+}

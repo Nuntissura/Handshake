@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Message-Thread-Contract-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "bf325c9033b1daa42d68d433e1c56ef39efb05e36e9eef9cbd3ea6f593d9be00",
+    "projection_sha256": "76dbd481279c14c161aee604bf7fe6ac8eae26c4685b486d26449cffe811b1ac",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

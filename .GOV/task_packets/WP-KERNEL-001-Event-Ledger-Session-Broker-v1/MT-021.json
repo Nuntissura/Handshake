@@ -37,12 +37,12 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-13T16:22:07.806Z",
-    "generator": "artifact-policy-backfill.mjs",
+    "generated_at_utc": "2026-05-13T22:44:17.405Z",
+    "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-021.md",
     "projection_hash": "81c40a22ee9881d6",
-    "source_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/MT-021.json",
-    "source_hash": "7c87b3c7e22e11b1",
+    "source_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json",
+    "source_hash": "3f5b29c0de86f3db",
     "status": "GENERATED_IN_SYNC"
   },
   "mt_id": "MT-021",

@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_STUB_TEMPLATE
+# TASK_PACKET_STUB_TEMPLATE
 
 This is a BACKLOG STUB. It is NOT an executable Task Packet.
 
@@ -17,7 +17,9 @@ Rules:
 - WP_ID: WP-1-Role-Turn-Isolation-v1
 - BASE_WP_ID: WP-1-Role-Turn-Isolation
 - CREATED_AT: 2026-01-30T00:00:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)
+- FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- FOLD_STATUS: COMPLETE_STUB_FOLDED
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.123.md 7.6.3 (Phase 1) -> [ADD v02.123] Implement role-turn isolation as the default execution mode for role passes
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -30,7 +32,7 @@ Rules:
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
-  - Define and implement a â€œrole turnâ€ execution model: explicit role reset + context window reset boundaries per role pass.
+  - Define and implement a “role turn” execution model: explicit role reset + context window reset boundaries per role pass.
   - Persist per-turn pins/inputs so replays can follow the same effective turn boundaries and selected spans.
   - Ensure traces/provenance record requested vs effective execution mode (isolated vs non-isolated).
 - OUT_OF_SCOPE:
@@ -44,7 +46,7 @@ Rules:
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Depends on: workflow/job execution runner and trace artifact plumbing (pins/hashes).
-- Requires: clear definition of what constitutes a â€œturn resetâ€ across supported model backends.
+- Requires: clear definition of what constitutes a “turn reset” across supported model backends.
 
 ## RISKS / UNKNOWNs (DRAFT)
 - Risk: added latency/cost due to isolation; must remain configurable but default-safe.

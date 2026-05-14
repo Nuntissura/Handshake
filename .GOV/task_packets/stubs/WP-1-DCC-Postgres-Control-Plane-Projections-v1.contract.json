@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-DCC-Postgres-Control-Plane-Projections-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "bcc5adb8d8cb0cdabf20bdb50fa49ea1d3ae40ca56cff7ecf22e4c53e980d018",
+    "projection_sha256": "04eb17fe4ce385e05b88820df6a99120a30832e442997ca44d938da53219256a",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

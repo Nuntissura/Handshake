@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "b0377704e89922c158720fe9bf32237f8358ef6847e4339726cbaeacb8ccccb1",
+    "projection_sha256": "c51bdd45189dff514a9890f490bcd3bd8b58ef34fd9b9db704eb78d1abdf0eea",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

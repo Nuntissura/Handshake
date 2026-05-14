@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_STUB_TEMPLATE
+# TASK_PACKET_STUB_TEMPLATE
 
 This is a BACKLOG STUB. It is NOT an executable Task Packet.
 
@@ -17,7 +17,9 @@ Rules:
 - WP_ID: WP-1-Governance-Pack-v1
 - BASE_WP_ID: WP-1-Governance-Pack
 - CREATED_AT: 2026-01-12T21:49:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)
+- FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- FOLD_STATUS: COMPLETE_STUB_FOLDED
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: NO
 - BUILD_ORDER_VALUE_TIER: HIGH
@@ -25,11 +27,11 @@ Rules:
 - BUILD_ORDER_DEPENDS_ON: WP-1-Product-Governance-Artifact-Registry, WP-1-Product-Governance-Check-Runner, WP-1-Governance-Workflow-Mirror, WP-1-Project-Agnostic-Workflow-State-Registry, WP-1-Workflow-Transition-Automation-Registry
 - BUILD_ORDER_BLOCKS: NONE
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
-- ROADMAP_POINTER: AÂ§7.6.3 (Phase 1) -> governance kernel adoption; local-first agentic posture
+- ROADMAP_POINTER: A§7.6.3 (Phase 1) -> governance kernel adoption; local-first agentic posture
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
-  - AÂ§7.5.4.8 Governance Pack: Project-Specific Instantiation (HARD)
-  - AÂ§7.5.4 Governance Kernel (HARD)
-  - AÂ§2.6.8 Prompt-to-Spec Governance Pipeline (Normative)
+  - A§7.5.4.8 Governance Pack: Project-Specific Instantiation (HARD)
+  - A§7.5.4 Governance Kernel (HARD)
+  - A§2.6.8 Prompt-to-Spec Governance Pipeline (Normative)
 
 ## INTENT (DRAFT)
 - What: Implement Governance Pack generation/instantiation in Handshake so projects can adopt the same strict workflow without Handshake-specific hardcoding.

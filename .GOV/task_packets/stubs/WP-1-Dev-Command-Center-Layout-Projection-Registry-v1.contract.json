@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Layout-Projection-Registry-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "35a4dad6c2a6463b0ba2bf28309a9f410c2eef8e7c45c92463bb76c60b464c71",
+    "projection_sha256": "3763dda232e62b94d5e5ab19d1b6696f8c295a524d837aeac6a51b69e733cf20",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

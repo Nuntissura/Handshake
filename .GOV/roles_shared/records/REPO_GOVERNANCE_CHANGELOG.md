@@ -21,6 +21,16 @@
 
 ## Entries
 
+### 2026.05.14.01 / GOV-CHANGE-20260514-01
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Added Handshake Codex law for preservation-first consolidation and no-context-complete work artifacts.
+- Contract impact: Work packet, stub, refinement, task-board, note, and planned-work consolidation now preserves prior intent and unresolved work by default; every Work Packet, stub, refinement, and microtask contract or projection must carry enough detail for a model with no prior conversation context to implement, promote, split, or validate the work.
+- Driver evidence: Operator request on 2026-05-14 to add the global consolidation-preservation behavior to the Handshake Codex and require detailed no-context work artifacts.
+- Files changed: `.GOV/codex/Handshake_Codex_v1.4.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, and `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`.
+- Verification: PASS - `just gov-check`.
+
 ### 2026.05.13.08 / GOV-CHANGE-20260513-08
 
 - Status: APPLIED

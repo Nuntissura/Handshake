@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-LocalFirst-Agentic-MCP-Posture-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "eaaf9ea2f49e7baab0deec309750fbd8d9c48a155ee06774ae19d4d8de37a7cf",
+    "projection_sha256": "98d9cea2ac821605b1a28d975a3ba6ec5299ab5d684f1b97e9436c2e3269b592",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

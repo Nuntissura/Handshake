@@ -1,8 +1,10 @@
-﻿# Task Packet Stub: WP-1-Inbox-Role-Mailbox-Alignment-v1
+# Task Packet Stub: WP-1-Inbox-Role-Mailbox-Alignment-v1
 
-**Status:** STUB (Not Activated)
+**Status:** SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)
 
 ## Identity
+- FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- FOLD_STATUS: COMPLETE_STUB_FOLDED
 - WP_ID: WP-1-Inbox-Role-Mailbox-Alignment-v1
 - BASE_WP_ID: WP-1-Inbox-Role-Mailbox-Alignment
 - Created: 2026-01-28

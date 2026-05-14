@@ -17,7 +17,9 @@ Rules:
 - WP_ID: WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1
 - BASE_WP_ID: WP-1-FEMS-Memory-Poisoning-Drift-Guardrails
 - CREATED_AT: 2026-02-25T00:00:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)
+- FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- FOLD_STATUS: COMPLETE_STUB_FOLDED
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.138.md 7.6.3 (Phase 1) -> Key risks section [ADD v02.138] memory poisoning / drift risk + mitigations.
 - ROADMAP_ADD_COVERAGE: SPEC=v02.138; PHASE=7.6.3; LINES=46295

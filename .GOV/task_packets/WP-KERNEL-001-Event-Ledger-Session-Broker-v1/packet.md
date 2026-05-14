@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=1d9d99349e283775 projection_hash=fdefb512122955be generated_at_utc=2026-05-13T19:45:38.366Z generator=master-spec-correction-sync.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=0c41b167950aaf67 projection_hash=58669ca77e969e29 generated_at_utc=2026-05-14T00:07:20.330Z generator=ensure-wp-communications.mjs -->
 # TASK_PACKET_TEMPLATE
 
 This is an official product Work Packet projection. It is blocked until the pending operator signature and spec-enrichment blocker are resolved.
@@ -15,23 +15,32 @@ This is an official product Work Packet projection. It is blocked until the pend
 - REQUESTOR: Operator
 - AGENT_ID: Kernel Builder
 - ROLE: Kernel Builder
-- REFINEMENT_ENFORCEMENT_PROFILE: KERNEL_BUILDER_HYDRATED_RESEARCH_V1
-- PACKET_HYDRATION_PROFILE: KERNEL_BUILDER_HYDRATED_RESEARCH_V1
+- ROLE_CONSOLIDATION_MODE: KERNEL_BUILDER_CONSOLIDATED_PRE_INTEGRATION
+- KERNEL_BUILDER_CONSOLIDATED_ROLE_PROFILE: OPENAI_GPT_5_5_XHIGH
+- INTEGRATION_VALIDATOR_SESSION_POLICY: SEPARATE_PASS_SESSION
+- INTEGRATION_VALIDATOR_LAUNCH_STATE: DEFERRED_NOT_STARTED
+- REFINEMENT_ENFORCEMENT_PROFILE: KERNEL_BUILDER_ACTIVATION_MODE_V1
+- PACKET_HYDRATION_PROFILE: KERNEL_BUILDER_ACTIVATION_MODE_V1
 - WORKFLOW_LANE: ORCHESTRATOR_MANAGED
 - EXECUTION_OWNER: CODER_A
 - WORKFLOW_AUTHORITY: ORCHESTRATOR
-- TECHNICAL_ADVISOR: WP_VALIDATOR
+- TECHNICAL_ADVISOR: NONE
 - TECHNICAL_AUTHORITY: INTEGRATION_VALIDATOR
 - MERGE_AUTHORITY: INTEGRATION_VALIDATOR
+- VALIDATION_TOPOLOGY: INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1
+- PER_MT_WP_VALIDATOR_REVIEW: DISABLED
+- MT_REVIEW_AUTHORITY: INTEGRATION_VALIDATOR_BATCH
+- SPEC_REVIEW_AUTHORITY: INTEGRATION_VALIDATOR_SCOPED_MASTER_SPEC
+- KERNEL_BUILDER_RECEIPT_COMPAT_ROLE: CODER
 - AGENTIC_MODE: NO
 - ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
 - ORCHESTRATOR_REASONING_STRENGTH: EXTRA_HIGH
 - ACTIVATION_MANAGER_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
-- CODER_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH
-- CODER_MODEL: gpt-5.4
+- CODER_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
+- CODER_MODEL: gpt-5.5
 - CODER_REASONING_STRENGTH: EXTRA_HIGH
-- WP_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH
-- WP_VALIDATOR_MODEL: claude-opus-4-7
+- WP_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
+- WP_VALIDATOR_MODEL: gpt-5.5
 - WP_VALIDATOR_REASONING_STRENGTH: EXTRA_HIGH
 - INTEGRATION_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
 - INTEGRATION_VALIDATOR_MODEL: gpt-5.5
@@ -82,16 +91,21 @@ This is an official product Work Packet projection. It is blocked until the pend
 - CLAUSE_CLOSURE_MONITOR_PROFILE: CLAUSE_MONITOR_V1
 - SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
 - DATA_CONTRACT_PROFILE: LLM_FIRST_DATA_V1
+- TOUCHED_FILE_BUDGET: 15
+- BROAD_TOOL_ALLOWLIST: NONE
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Blocked
-- CURRENT_WP_STATUS: BLOCKED_PENDING_OPERATOR_SIGNATURE_AND_SPEC_ENRICHMENT
-- USER_REVIEW_STATUS: PENDING_OPERATOR_SIGNATURE
-- USER_SIGNATURE: PENDING_OPERATOR_SIGNATURE
-- USER_APPROVAL_EVIDENCE: Operator requested kernel packet/refinement/microtask creation on 2026-05-13; one-time activation signature still required before coder launch.
+- **Status:** In Progress
+- CURRENT_WP_STATUS: READY_FOR_DEV
+- USER_REVIEW_STATUS: APPROVED
+- USER_SIGNATURE: ilja140520260015
+- USER_APPROVAL_EVIDENCE: APPROVE REFINEMENT WP-KERNEL-001-Event-Ledger-Session-Broker-v1
 - MAIN_CONTAINMENT_STATUS: NOT_STARTED
 - MERGED_MAIN_COMMIT: NONE
 - CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
-- PACKET_WIDENING_DECISION: NOT_REQUIRED
+- CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
+- CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
+- PACKET_WIDENING_DECISION: NONE
+- PACKET_WIDENING_EVIDENCE: N/A
 - ZERO_DELTA_PROOF_ALLOWED: NO
 - RISK_TIER: HIGH
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
@@ -102,8 +116,8 @@ This is an official product Work Packet projection. It is blocked until the pend
 - BUILD_ORDER_BLOCKS: WP-1-Software-Delivery-Runtime-Truth, WP-1-Workflow-Transition-Automation-Registry, WP-1-Dev-Command-Center-MVP, WP-1-FEMS-Working-Memory-Checkpoint-Schema, WP-1-Session-Spawn-Tree-DCC-Visualization, WP-1-Session-Spawn-Conversation-Distillation, WP-1-Visual-Debugging-Loop, WP-KERNEL-002-CRDT-Workspace-Promotion, WP-KERNEL-003-Sandbox-Validation-Promotion, WP-KERNEL-004-Local-Model-Memory-Runtime
 - STUB_WP_IDS: WP-KERNEL-001-Event-Ledger-Session-Broker-v1, WP-1-Postgres-Control-Plane-Shift-Bundle-v1, WP-1-Postgres-Dev-Test-Container-Matrix-v1, WP-1-Postgres-Control-Plane-Leases-Backpressure-v1, WP-1-ModelSession-Postgres-Queue-Workers-v1, WP-1-FEMS-Postgres-Memory-Store-v1, WP-1-Workflow-Engine-Postgres-Durable-Execution-v1, WP-1-DCC-Postgres-Control-Plane-Projections-v1, WP-1-SQLite-Cache-Offline-Boundaries-v1
 - SPEC_TARGET: .GOV/spec/SPEC_CURRENT.md
-- SPEC_TARGET_RESOLVED: .GOV/spec/SPEC_CURRENT.md -> .GOV/spec/master-spec-v02.183/indexed-spec-manifest.json (v02.183)
-- SPEC_ANCHOR: .GOV/spec/master-spec-v02.183/spec-modules/02-system-architecture.md, .GOV/spec/master-spec-v02.183/spec-modules/03-local-first-infrastructure.md, .GOV/spec/master-spec-v02.183/spec-modules/04-llm-infrastructure.md, .GOV/spec/master-spec-v02.183/spec-modules/05-security-and-observability.md, .GOV/spec/master-spec-v02.183/spec-modules/10-product-surfaces.md, .GOV/spec/master-spec-v02.183/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+- SPEC_TARGET_RESOLVED: .GOV/spec/SPEC_CURRENT.md -> .GOV/spec/master-spec-v02.184/indexed-spec-manifest.json
+- SPEC_ANCHOR: .GOV/spec/master-spec-v02.184/spec-modules/02-system-architecture.md, .GOV/spec/master-spec-v02.184/spec-modules/03-local-first-infrastructure.md, .GOV/spec/master-spec-v02.184/spec-modules/04-llm-infrastructure.md, .GOV/spec/master-spec-v02.184/spec-modules/05-security-and-observability.md, .GOV/spec/master-spec-v02.184/spec-modules/10-product-surfaces.md, .GOV/spec/master-spec-v02.184/spec-modules/11-shared-dev-platform-and-oss-foundations.md
 - IN_SCOPE_PATHS: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/storage/mod.rs, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/migrations/**, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/mcp/gate.rs, src/backend/handshake_core/src/llm/**, src/backend/handshake_core/src/flight_recorder/**, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/tests/**, app/src-tauri/src/**, app/package.json
 - OUT_OF_SCOPE: full Dev Command Center UI, full CRDT workspace implementation, sandboxed patch runner, full FEMS/local memory runtime, creative/media/calendar/document/lens/presentation runtime backfills, repo-governance implementation changes outside this packet's governance artifacts
 - LOCAL_BRANCH: feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1
@@ -111,37 +125,39 @@ This is an official product Work Packet projection. It is blocked until the pend
 - REMOTE_BACKUP_BRANCH: feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1
 - REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1
 - REMOTE_BACKUP_LIFECYCLE: TEMPORARY
-- BACKUP_PUSH_STATUS: REQUIRED_BEFORE_DESTRUCTIVE_OPS
+- BACKUP_PUSH_STATUS: PUSHED_TO_ORIGIN
 - HEARTBEAT_INTERVAL_MINUTES: 15
 - STALE_AFTER_MINUTES: 45
 - MAX_CODER_REVISION_CYCLES: 3
 - MAX_VALIDATOR_REVIEW_CYCLES: 3
 - MAX_RELAY_ESCALATION_CYCLES: 2
+- COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1
+- COMMUNICATION_HEALTH_GATE: INTEGRATION_BATCH_REVIEW_BLOCKING
 - WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: WP_VALIDATOR:WP-KERNEL-001-Event-Ledger-Session-Broker-v1
+- WP_VALIDATOR_OF_RECORD: NONE
 - INTEGRATION_VALIDATOR_OF_RECORD: INTEGRATION_VALIDATOR:WP-KERNEL-001-Event-Ledger-Session-Broker-v1
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
-Blockers: Awaiting operator USER_SIGNATURE and indexed Master Spec enrichment before coder launch.
-Next: Kernel Builder or Orchestrator resolves the spec-enrichment blocker, then Operator provides USER_SIGNATURE before any coder session starts.
+Blockers: Implementation is in progress; awaiting coder handoff to WP validator.
+Next: CODER completes in-scope work and records CODER_HANDOFF with proof.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
-  - CLAUSE: Kernel V1 product authority is a Postgres EventLedger and must not use SQLite authority, cache, offline, fallback, or test authority for the first kernel slice | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/migrations/** | TESTS: cargo test -p handshake_core kernel_event_ledger --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: EventLedger row links KernelTaskRun, SessionRun, event_type, actor, causation_id, correlation_id, payload, created_at | DEBT_IDS: SPECDEBT-KERNEL-001 | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
+  - CLAUSE: Kernel V1 product authority is a Postgres EventLedger and must not use SQLite authority, cache, offline, fallback, or test authority for the first kernel slice | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/storage/postgres.rs, src/backend/handshake_core/migrations/** | TESTS: cargo test -p handshake_core kernel_event_ledger --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: EventLedger row links KernelTaskRun, SessionRun, event_type, actor, causation_id, correlation_id, payload, created_at | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
   - CLAUSE: SessionBroker state must be durable, replayable, claim-safe, cancellable, and restart-reconstructable from the ledger | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/workflows.rs, src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test -p handshake_core kernel_session_broker --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: one SessionRun transitions queued, claimed, running, completed, cancelled, retryable, dead_lettered without process-local authority | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
   - CLAUSE: ContextBundle and replaceable ModelAdapter must record the exact context allowed to a dummy/echo local adapter without binding kernel semantics to a provider trace | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/llm/**, src/backend/handshake_core/src/storage/mod.rs | TESTS: cargo test -p handshake_core kernel_context_adapter --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: dummy adapter emits response, tool request, and artifact proposal linked to a ContextBundle hash | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
   - CLAUSE: ToolGate, ArtifactStore, ValidationRunner, and PromotionGate decisions must be ledger-linked and operator-reviewable before authority transition | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/mcp/gate.rs, src/backend/handshake_core/src/runtime_governance.rs, src/backend/handshake_core/src/flight_recorder/** | TESTS: cargo test -p handshake_core kernel_gate_artifact_validation --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: allow or deny tool request, artifact proposal, validation pass or fail, and approve or reject promotion all share ledger correlation | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
   - CLAUSE: TraceProjection must reconstruct the complete proof run after restart from product authority, with Flight Recorder only mirroring diagnostics | CODE_SURFACES: src/backend/handshake_core/src/kernel/**, src/backend/handshake_core/src/flight_recorder/**, src/backend/handshake_core/tests/** | TESTS: cargo test -p handshake_core kernel_trace_projection_restart --target-dir ../Handshake_Artifacts/handshake-cargo-target | EXAMPLES: replay shows task intent, context, adapter output, tool decision, artifact evidence, validation evidence, and promotion decision after process restart | DEBT_IDS: NONE | CODER_STATUS: UNPROVEN | VALIDATOR_STATUS: PENDING
 
 ## SPEC_DEBT_STATUS (AUTHORITATIVE SNAPSHOT; MUTABLE)
-- OPEN_SPEC_DEBT: YES
-- BLOCKING_SPEC_DEBT: YES
-- DEBT_IDS: SPECDEBT-KERNEL-001
+- OPEN_SPEC_DEBT: NO
+- BLOCKING_SPEC_DEBT: NO
+- DEBT_IDS: NONE
 - Rule: if any clause row is PARTIAL or DEFERRED, DEBT_IDS must not be NONE and OPEN_SPEC_DEBT must be YES.
 
 ## SHARED_SURFACE_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
@@ -170,6 +186,41 @@ Next: Kernel Builder or Orchestrator resolves the spec-enrichment blocker, then 
   - KernelTaskRun KTR-EXAMPLE with SessionRun SR-EXAMPLE emits TASK_INTENT_RECORDED, SESSION_CLAIMED, CONTEXT_BUNDLE_RECORDED, MODEL_RESPONSE_RECORDED, TOOL_DECISION_RECORDED, ARTIFACT_PROPOSED, VALIDATION_RECORDED, and PROMOTION_DECIDED events.
   - PromotionGate approve moves an artifact proposal to promoted only after validation evidence and operator approval are ledger-linked; reject records a terminal decision without deleting evidence.
 - Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical contract example.
+
+## DATA_CONTRACT_DECISION (AUTHORITATIVE SNAPSHOT; MUTABLE)
+- DECISION: ACTIVE_REQUIRED
+- REASON: KERNEL001 touches product-owned durable runtime authority, typed event storage, model/session/gate/promotion events, and trace reconstruction surfaces, so the LLM-first data contract is active.
+- EVIDENCE:
+  - IN_SCOPE_PATH: src/backend/handshake_core/src/kernel/** (backend data surface)
+  - IN_SCOPE_PATH: src/backend/handshake_core/src/storage/postgres.rs (backend data surface)
+  - IN_SCOPE_PATH: src/backend/handshake_core/migrations/** (migration/sql surface)
+  - SPEC_TARGET_RESOLVED: .GOV/spec/SPEC_CURRENT.md -> .GOV/spec/master-spec-v02.184/indexed-spec-manifest.json
+
+## DATA_CONTRACT_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
+- DATA_CONTRACT_ACTIVE: YES
+- SQL_POSTURE: SQLITE_NOW_POSTGRES_READY
+- LLM_READABILITY_POSTURE: REQUIRED
+- LOOM_INTERTWINED_POSTURE: REQUIRED_WHEN_APPLICABLE
+- PRIMARY_DATA_SURFACES:
+  - src/backend/handshake_core/src/kernel/**
+  - src/backend/handshake_core/src/storage/mod.rs
+  - src/backend/handshake_core/src/storage/postgres.rs
+  - src/backend/handshake_core/migrations/**
+  - src/backend/handshake_core/src/workflows.rs
+  - src/backend/handshake_core/src/mcp/gate.rs
+  - src/backend/handshake_core/src/llm/**
+  - src/backend/handshake_core/src/flight_recorder/**
+  - src/backend/handshake_core/src/runtime_governance.rs
+  - src/backend/handshake_core/tests/**
+- DATA_CONTRACT_RULES:
+  - Kernel V1 runtime truth must be reconstructable from product-owned Postgres EventLedger events.
+  - SQLite must not be used as Kernel V1 authority, cache, offline, fallback, or test fixture.
+  - ContextBundle, ModelAdapter, ToolGate, ArtifactProposal, ValidationRunner, PromotionGate, and TraceProjection records must preserve stable ids, causation/correlation links, provenance, and parseable typed payloads.
+  - Flight Recorder and Dev Command Center diagnostics are projections unless linked to durable EventLedger event ids.
+- VALIDATOR_DATA_PROOF_HINTS:
+  - Prove the Postgres EventLedger schema and migrations support the KERNEL001 event chain with stable ids, actor, causation, correlation, payload, and timestamp fields.
+  - Prove SessionBroker replay, claim, cancellation, retry, and restart reconstruction are driven by EventLedger state rather than process memory or SQLite.
+  - Prove TraceProjection can reconstruct a complete dummy-adapter proof run after restart from product authority and ledger-linked gate/artifact/validation/promotion evidence.
 
 ## WHAT
 Build the first Kernel V1 product proof as one large but MT-sliced WP: a Postgres-backed EventLedger, SessionBroker, ContextBundle, deterministic dummy ModelAdapter, ToolGate ledger bridge, ArtifactProposal and ArtifactStore linkage, ValidationRunner, PromotionGate, and TraceProjection replay.
@@ -231,8 +282,8 @@ Reject:
 - Provider chat history, terminal transcript, Flight Recorder, or DuckDB as authority.
 - SQLite authority, cache, offline, fallback, or test-fixture use for Kernel V1.
 
-## SPEC_ENRICHMENT_BLOCKER
-This packet is blocked before coder launch because the current indexed Master Spec still contains SQLite-as-local-primary language in modules 02 and 03, while the reset brief requires Kernel V1 to use Postgres/event authority and no SQLite fallback/cache/offline/test authority. The refinement includes proposed indexed-spec enrichment text. After the Operator provides the one-time signature, a spec-writer role must either land that minimal enrichment or explicitly decide that existing Master Spec authority already covers the reset.
+## SPEC_ENRICHMENT_STATUS
+Resolved. SPEC_CURRENT now resolves to `.GOV/spec/master-spec-v02.184/indexed-spec-manifest.json`, whose active indexed modules define Kernel V1 Postgres EventLedger authority, no SQLite Kernel V1 authority/cache/offline/fallback/test permission, and projection-only Flight Recorder/DCC/diagnostic posture. Operator signature has been recorded, the v1 packet is activation-ready, and no blocking spec debt remains.
 
 ## MICROTASK_INDEX
 - MT-001: Reset authority and code reality map.
@@ -273,16 +324,18 @@ This packet is blocked before coder launch because the current indexed Master Sp
 - TraceProjection reconstructs the full proof run from durable product state after restart.
 - A no-context model can inspect a run using stable IDs, stored events, ContextBundle, messages, artifacts, validation evidence, and trace projection.
 - Product commits happen on a WP feature branch/worktree, not on `gov_kernel`.
-- WP Validator and Integration Validator can review each MT independently.
+- Integration Validator can review the full MT evidence batch before the scoped product-code-vs-Master-Spec review; failed MTs return to Kernel Builder as per-MT mitigation work.
 
 ## VALIDATION_PLAN
 - Run packet/governance checks from `wt-gov-kernel`: `just wp-contract-import WP-KERNEL-001-Event-Ledger-Session-Broker-v1`, `just task-packet-stub-contracts --all`, `just build-order-sync`, `just gov-check`.
-- Product implementation validation must run from the product WP worktree after signature and worktree creation.
+- Product implementation self-checks must run from the product WP worktree after signature and worktree creation.
 - Product proof command must distinguish PASS, PRODUCT_FAIL, ENVIRONMENT_BLOCKED, TIMEOUT_INCONCLUSIVE, and unrelated bare cargo failures.
-- At closeout, validator must cite run IDs, event IDs, artifact IDs, command output refs, and trace projection output.
+- Kernel Builder records MT implementation evidence and blocker truth, but does not issue validator PASS/FAIL.
+- Integration Validator first reviews the full MT evidence batch and returns any failed MTs as per-MT mitigation work.
+- After the MT batch passes, Integration Validator performs the WP-scoped product-code-vs-Master-Spec review and must cite run IDs, event IDs, artifact IDs, command output refs, and trace projection output at closeout.
 
 ## RISKS_AND_MITIGATIONS
-- Risk: this WP is large enough for MT bleed. Mitigation: one MT per coder turn, explicit dependencies, and per-MT validation.
+- Risk: this WP is large enough for MT bleed. Mitigation: one MT per Kernel Builder turn, explicit dependencies, typed implementation evidence, and Integration Validator batch MT review before scoped Master Spec review.
 - Risk: current SQLite paths are reused because they are convenient. Mitigation: land MT-005 before broker/promotion work and MT-025 before final proof.
 - Risk: Flight Recorder is mistaken for authority. Mitigation: ledger event IDs may mirror to Flight Recorder, but replay and promotion must read EventLedger.
 - Risk: DCC scope expands into UI. Mitigation: MT-020 allows a minimal structured CLI/API inspector and forbids full DCC UI work.

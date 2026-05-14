@@ -4,6 +4,7 @@ import {
   DIRECT_REVIEW_CONTRACT_VERSION,
   DIRECT_REVIEW_HEALTH_GATE,
   FINAL_AUTHORITY_DIRECT_REVIEW_PACKET_FORMAT_VERSION,
+  INTEGRATION_BATCH_REVIEW_HEALTH_GATE,
   MICROTASK_REVIEW_MODE_VALUES,
   DIRECT_REVIEW_PACKET_FORMAT_VERSION,
   OPERATOR_RULE_RESTATEMENT_INVALIDITY_CODE,
@@ -531,6 +532,13 @@ export function communicationContractApplies({
     );
 }
 
+function communicationHealthGateMode(value = "") {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === DIRECT_REVIEW_HEALTH_GATE) return "DIRECT_REVIEW";
+  if (normalized === INTEGRATION_BATCH_REVIEW_HEALTH_GATE) return "INTEGRATION_BATCH_REVIEW";
+  return "";
+}
+
 function matchingReply(openReceipt, resolutionReceipts) {
   const correlationId = String(openReceipt?.correlation_id || "").trim();
   const openTimestamp = String(openReceipt?.timestamp_utc || "").trim();
@@ -967,7 +975,8 @@ export function evaluateWpCommunicationHealth({
     });
   }
 
-  if (String(communicationHealthGate || "").trim().toUpperCase() !== DIRECT_REVIEW_HEALTH_GATE) {
+  const healthGateMode = communicationHealthGateMode(communicationHealthGate);
+  if (!healthGateMode) {
     return result({
       applicable: true,
       ok: false,
@@ -977,7 +986,7 @@ export function evaluateWpCommunicationHealth({
         `wp_id=${wpId || "<unknown>"}`,
         `packet=${packetPath || "<unknown>"}`,
         `COMMUNICATION_HEALTH_GATE=${communicationHealthGate || "<missing>"}`,
-        `expected=${DIRECT_REVIEW_HEALTH_GATE}`,
+        `expected=${DIRECT_REVIEW_HEALTH_GATE}|${INTEGRATION_BATCH_REVIEW_HEALTH_GATE}`,
       ],
     });
   }
@@ -1279,6 +1288,64 @@ export function evaluateWpCommunicationHealth({
       counts,
       correlations,
       activeWorkflowInvalidityCode: String(activeWorkflowInvalidity?.workflow_invalidity_code || "").trim().toUpperCase() || null,
+      latestValidatorAssessment,
+      latestWpValidatorReviewOutcome,
+    });
+  }
+
+  if (healthGateMode === "INTEGRATION_BATCH_REVIEW") {
+    if (stageOpenReviewPartition.blockingQueue.length > 0 || stageOpenReviewPartition.exceedsOverlapLimit) {
+      return blockingOpenReviewResult();
+    }
+    if (finalIntegrationReviewResolved) {
+      return result({
+        applicable: true,
+        ok: true,
+        state: "COMM_OK",
+        message: "Integration Validator batch review is resolved",
+        details: [
+          ...details,
+          `health_gate_mode=${healthGateMode}`,
+          `final_review_correlation=${integrationFinalPair.openReceipt?.correlation_id || "<missing>"}`,
+          `final_review_resolution=${integrationFinalPair.reply?.receipt_kind || "<missing>"}`,
+        ],
+        counts,
+        correlations,
+        latestValidatorAssessment,
+        latestWpValidatorReviewOutcome,
+      });
+    }
+    if (integrationFinalOpenReceipts.length > 0 && !integrationFinalPair.reply) {
+      return result({
+        applicable: true,
+        ok: normalizedStage === "VERDICT",
+        state: "COMM_WAITING_FOR_FINAL_REVIEW",
+        message: "Waiting on Integration Validator batch MT review before scoped Master Spec review",
+        details: [
+          ...details,
+          `health_gate_mode=${healthGateMode}`,
+          `review_sequence=ALL_MT_BATCH_THEN_SCOPED_MASTER_SPEC`,
+          `final_review_correlation=${integrationFinalPair.openReceipt?.correlation_id || "<missing>"}`,
+        ],
+        counts,
+        correlations,
+        latestValidatorAssessment,
+        latestWpValidatorReviewOutcome,
+      });
+    }
+    return result({
+      applicable: true,
+      ok: true,
+      state: "COMM_WAITING_FOR_HANDOFF",
+      message: "Integration batch review gate active; Kernel Builder may continue MT implementation until batch handoff",
+      details: [
+        ...details,
+        `health_gate_mode=${healthGateMode}`,
+        `review_sequence=ALL_MT_BATCH_THEN_SCOPED_MASTER_SPEC`,
+        "wp_validator_kickoff_required=NO",
+      ],
+      counts,
+      correlations,
       latestValidatorAssessment,
       latestWpValidatorReviewOutcome,
     });
@@ -2067,6 +2134,24 @@ export function deriveWpCommunicationAutoRoute({
       });
       break;
     case "COMM_WAITING_FOR_FINAL_REVIEW":
+      if (
+        Number(evaluation?.counts?.integrationFinalOpenReceipts || 0) > 0
+        && Number(evaluation?.counts?.integrationFinalResolutionReceipts || 0) === 0
+      ) {
+        projection = route({
+          state: evaluation.state,
+          nextExpectedActor: "INTEGRATION_VALIDATOR",
+          nextExpectedSession: integrationValidatorSession,
+          waitingOn: "INTEGRATION_VALIDATOR_REVIEW",
+          waitingOnSession: integrationValidatorSession,
+          validatorTrigger: "HANDOFF_READY",
+          validatorTriggerReason: "Kernel Builder batch handoff recorded; Integration Validator review required",
+          readyForValidation: true,
+          readyForValidationReason: "Integration Validator must review all MT evidence before scoped Master Spec review",
+          notificationSummary: "AUTO_ROUTE: Integration Validator batch MT review required",
+        });
+        break;
+      }
       projection = route({
         state: evaluation.state,
         nextExpectedActor: "CODER",

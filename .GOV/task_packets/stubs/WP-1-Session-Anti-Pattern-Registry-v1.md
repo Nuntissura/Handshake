@@ -17,7 +17,9 @@ Rules:
 - WP_ID: WP-1-Session-Anti-Pattern-Registry-v1
 - BASE_WP_ID: WP-1-Session-Anti-Pattern-Registry
 - CREATED_AT: 2026-02-25T00:00:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)
+- FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- FOLD_STATUS: COMPLETE_STUB_FOLDED
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.138.md 7.6.3 (Phase 1) -> key risk hardening for ADD v02.137 multi-session orchestration.
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):

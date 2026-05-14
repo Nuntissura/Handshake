@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Workflow-Engine-Postgres-Durable-Execution-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "2abaaf481d34acade35ea172b26db947d1a9525f77dde0cd42493832af01f84c",
+    "projection_sha256": "a71faa909c438baa787db988c5797c448f14127f2b26320c53f9801ab9190139",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

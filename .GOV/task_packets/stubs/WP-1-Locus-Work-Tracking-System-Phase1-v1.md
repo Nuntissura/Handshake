@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_STUB_TEMPLATE
+# TASK_PACKET_STUB_TEMPLATE
 
 This is a BACKLOG STUB. It is NOT an executable Task Packet.
 
@@ -17,7 +17,9 @@ Rules:
 - WP_ID: WP-1-Locus-Work-Tracking-System-Phase1-v1
 - BASE_WP_ID: WP-1-Locus-Work-Tracking-System-Phase1
 - CREATED_AT: 2026-01-25T00:00:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)
+- FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- FOLD_STATUS: COMPLETE_STUB_FOLDED
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.116.md 7.6.3 (Phase 1) -> [ADD v02.116] Locus Work Tracking System (2.3.15) - Phase 1
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):

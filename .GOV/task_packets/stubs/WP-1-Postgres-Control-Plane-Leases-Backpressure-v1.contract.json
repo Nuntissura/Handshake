@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Leases-Backpressure-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "a7483370b3e309abcbee0b1e5c18615410c2ada92db22c57f1246f0ede802f93",
+    "projection_sha256": "406cf69aa4431565903144e92b8821ff6395485f7417714721923adf5682b6d4",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

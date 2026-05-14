@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Git-Engine-Decision-Gate-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "edfb98b8ca3bcc137ecfcc2766396ada0776d971a3d080616894b91005d4e7b8",
+    "projection_sha256": "788d8bb9b5978ae53ec3b5382ab78bb2b48904e92aecc531510a7ffd57edd8cb",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,
@@ -59,9 +59,9 @@
     "planned_execution_owner_range": ""
   },
   "draft_scope": {
-    "intent": "- What: Record and enforce a single Phase 1 â€œRepo engineâ€ implementation path (git CLI `external_process` vs `go-git` vs `libgit2`) and ensure the chosen posture is reflected in OSS governance + capability gating.\n- Why: Prevent drift (multiple git backends), license posture mistakes, and nondeterministic repo behavior across platforms.",
+    "intent": "- What: Record and enforce a single Phase 1 “Repo engine” implementation path (git CLI `external_process` vs `go-git` vs `libgit2`) and ensure the chosen posture is reflected in OSS governance + capability gating.\n- Why: Prevent drift (multiple git backends), license posture mistakes, and nondeterministic repo behavior across platforms.",
     "scope_sketch": "- IN_SCOPE:\n  - Decision record (ADR or equivalent) naming the single MVP path and the rationale.\n  - Enforcement: code/config/registry prevents accidental use of non-selected backends.\n  - Default posture: `git` CLI `external_process` unless/ until a different choice is explicitly recorded.\n  - OSS Register alignment for the chosen backend(s) and explicit license posture recording.\n- OUT_OF_SCOPE:\n  - Implementing full repo-management UX or advanced git features (rebases, interactive staging, etc.).\n  - Phase 2+ remote execution / multi-user git collaboration.",
-    "acceptance_criteria": "- A single â€œrepo engine backendâ€ is selected and enforced; no silent fallback to another implementation.\n- OSS Register contains accurate entries for any git backend dependencies used.\n- Capability gating + Flight Recorder logging cover repo engine execution paths (no bypass).",
+    "acceptance_criteria": "- A single “repo engine backend” is selected and enforced; no silent fallback to another implementation.\n- OSS Register contains accurate entries for any git backend dependencies used.\n- Capability gating + Flight Recorder logging cover repo engine execution paths (no bypass).",
     "risks_unknowns": "- Risk: license posture mistakes (libgit2 is unusual); must be explicit and enforced.\n- Risk: platform-specific behavior differences across backends; enforcement must be deterministic and auditable.",
     "governance_artifact_stance": ""
   },

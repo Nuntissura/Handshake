@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Inbox-Role-Mailbox-Alignment-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "4af0d85eb3693f4f33a4de1917422831d342dce89c3860fe53e8520a41578031",
+    "projection_sha256": "59fd6ec9174474ea97600ec132ebc4dad7ea72c5c8e618ebe8c72356d7f94038",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "f160424f7dd05647fec455d6eee7acbd0f1774d58d4b948963d4af9c58cce5a7",
+    "projection_sha256": "1621c4c7b5f7f2df26266921ffa920f1a3ccf2b00cc92a1cf744d76cdc050327",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
