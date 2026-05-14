@@ -115,6 +115,11 @@ pub fn kernel002_action_catalog() -> KernelActionCatalogV1 {
             product_screenshot_capture_project_action(),
             visual_debugging_loop_project_action(),
             markdown_mirror_sync_drift_guard_project_action(),
+            task_contract_lifecycle_project_action(),
+            work_packet_full_detail_project_action(),
+            work_packet_contract_activate_action(),
+            microtask_contract_extract_action(),
+            local_model_microtask_loop_project_action(),
         ],
     }
 }
@@ -1947,6 +1952,264 @@ fn markdown_mirror_sync_drift_guard_project_action() -> KernelCatalogActionV1 {
                 "action_catalog_id",
                 "dcc_queue_item",
                 "banner_id",
+            ],
+        ),
+    }
+}
+
+fn task_contract_lifecycle_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.task_contract_lifecycle.project",
+        title: "Project Task Contract Lifecycle".to_string(),
+        input_schema_id: "hsk.kernel.task_contract_lifecycle@1".to_string(),
+        result_schema_id: "hsk.kernel.task_contract_lifecycle_projection@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.task_contract_lifecycle.project")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "task_contract_lifecycle",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "task_contract_lifecycle_projection",
+            "KernelTaskContractLifecycleProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("task_contract_lifecycle_states"),
+            hook("task_contract_authority_rules"),
+            hook("task_contract_provenance_hashes"),
+            hook("task_contract_receipt_events"),
+            hook("task_contract_projection_hooks"),
+            hook("task_contract_failure_states"),
+        ],
+        dcc_preview: dcc_preview(
+            "task-contract-lifecycle",
+            "Project stub, work-packet, and microtask contract lifecycle states, provenance, hooks, and failure paths.",
+            &[
+                "contract_kind",
+                "lifecycle_state",
+                "transition_id",
+                "receipt_event",
+                "projection_hook",
+                "validation_hook",
+                "failure_state",
+            ],
+        ),
+    }
+}
+
+fn work_packet_full_detail_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.work_packet_full_detail.project",
+        title: "Project Work Packet Full-Detail Authority".to_string(),
+        input_schema_id: "hsk.kernel.work_packet_full_detail_authority@1".to_string(),
+        result_schema_id: "hsk.kernel.work_packet_full_detail_projection@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.work_packet_full_detail.project")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "work_packet_full_detail_authority",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "work_packet_full_detail_projection",
+            "KernelWorkPacketFullDetailProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("work_packet_no_context_execution"),
+            hook("work_packet_source_plan_one_to_one"),
+            hook("work_packet_projection_provenance"),
+            hook("work_packet_no_sidecar_authority"),
+            hook("work_packet_round_trip_loss"),
+        ],
+        dcc_preview: dcc_preview(
+            "work-packet-full-detail",
+            "Project packet-as-authority coverage, MT source plan, projection provenance, and round-trip generation posture.",
+            &[
+                "wp_id",
+                "authority_file",
+                "declared_microtask_count",
+                "source_hash",
+                "projection_hash",
+                "generator",
+                "failure_state",
+            ],
+        ),
+    }
+}
+
+fn work_packet_contract_activate_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.work_packet_contract.activate",
+        title: "Activate Work Packet Contract From Stub".to_string(),
+        input_schema_id: "hsk.kernel.work_packet_contract_activation@1".to_string(),
+        result_schema_id: "hsk.kernel.work_packet_contract_activation_result@1".to_string(),
+        role_eligibility: vec![
+            "ORCHESTRATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.stub_contract.read"),
+            capability("kernel.work_packet_contract.generate"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "ProposalBox",
+            "hsk.write_box.proposal@1",
+            "work_packet_contract_activation",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "stub_contract_to_work_packet_contract",
+            "KernelWorkPacketContractActivationProposedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("stub_promotion_preserves_operator_intent"),
+            hook("stub_promotion_preserves_source_hashes"),
+            hook("stub_promotion_imports_folded_details"),
+            hook("stub_promotion_preserves_dependencies"),
+            hook("stub_promotion_preserves_constraints"),
+            hook("stub_promotion_preserves_acceptance_criteria"),
+            hook("stub_promotion_preserves_verification"),
+            hook("stub_promotion_preserves_status_provenance"),
+        ],
+        dcc_preview: dcc_preview(
+            "work-packet-contract-activation",
+            "Preview stub-to-work-packet activation with intent, hashes, folded detail, scope, verification, and status provenance preserved.",
+            &[
+                "stub_contract_id",
+                "target_wp_id",
+                "source_hash",
+                "folded_source_count",
+                "activation_signature",
+                "status_provenance",
+            ],
+        ),
+    }
+}
+
+fn microtask_contract_extract_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.microtask_contract.extract",
+        title: "Extract Microtask Contracts From Work Packet".to_string(),
+        input_schema_id: "hsk.kernel.microtask_contract_extraction@1".to_string(),
+        result_schema_id: "hsk.wp_contract_import_result@1".to_string(),
+        role_eligibility: vec![
+            "ORCHESTRATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.work_packet_contract.read"),
+            capability("kernel.microtask_contract.generate"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "ArtifactBox",
+            "hsk.write_box.artifact@1",
+            "microtask_contract_generation",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "work_packet_contract_to_microtask_contracts",
+            "KernelMicrotaskContractExtractionProposedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("microtask_extraction_preserves_source_hashes"),
+            hook("microtask_extraction_preserves_folded_details"),
+            hook("microtask_extraction_preserves_dependencies"),
+            hook("microtask_extraction_preserves_constraints"),
+            hook("microtask_extraction_preserves_acceptance_criteria"),
+            hook("microtask_extraction_preserves_verification"),
+            hook("microtask_extraction_preserves_status_provenance"),
+            hook("microtask_extraction_records_source_contract_id"),
+        ],
+        dcc_preview: dcc_preview(
+            "microtask-contract-extraction",
+            "Preview deterministic MT contract/projection extraction from packet authority with source ids, hashes, and status provenance.",
+            &[
+                "wp_id",
+                "declared_microtask_count",
+                "source_contract_id",
+                "source_hash",
+                "projection_hash",
+                "generator",
+            ],
+        ),
+    }
+}
+
+fn local_model_microtask_loop_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.local_model_microtask_loop.project",
+        title: "Project Local Model Fresh-Context Microtask Loop".to_string(),
+        input_schema_id: "hsk.kernel.local_model_fresh_context_mt_loop@1".to_string(),
+        result_schema_id: "hsk.kernel.local_model_fresh_context_mt_loop_projection@1"
+            .to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "LOCAL_SMALL_MODEL".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.local_model_microtask_loop.project")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "local_model_microtask_loop",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "local_model_microtask_loop_projection",
+            "KernelLocalModelMicrotaskLoopProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("local_model_fresh_context_input_bundle"),
+            hook("local_model_locus_governed_actions"),
+            hook("local_model_write_box_outputs"),
+            hook("local_model_retry_budget_and_requeue"),
+            hook("local_model_verifier_handoff"),
+            hook("local_model_memory_checkpoint_input"),
+            hook("local_model_receipt_emission"),
+            hook("local_model_final_mt_outcome"),
+            hook("local_model_scope_guard"),
+        ],
+        dcc_preview: dcc_preview(
+            "local-model-mt-loop",
+            "Project fresh-context one-MT local model execution, write-box outputs, retry/requeue, verifier handoff, memory checkpoint, receipts, and final outcome paths.",
+            &[
+                "wp_id",
+                "mt_id",
+                "executor_kind",
+                "queue_reason_code",
+                "retry_budget",
+                "verifier_role",
+                "final_outcome",
             ],
         ),
     }
