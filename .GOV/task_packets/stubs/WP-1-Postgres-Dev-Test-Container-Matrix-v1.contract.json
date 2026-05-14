@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Postgres-Dev-Test-Container-Matrix-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "fa7d06125f95851335964035492d67096e8e3051ebd80bab9557fca7eccbfb5e",
+    "projection_sha256": "6bac590d3cc3b982b6c2d9c62aa4beba3add90a6b8b84ef38f3b2378d6520871",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

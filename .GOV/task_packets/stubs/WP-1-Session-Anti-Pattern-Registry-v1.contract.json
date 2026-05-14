@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Session-Anti-Pattern-Registry-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "207ae7c5a6f3080155c1ad1a7f6ab3a484f2618d202c37c2ef9fb616020aaa36",
+    "projection_sha256": "59d5784ab24c6d2eb80799571118e8800ba882a52d733302bf8e5fbf28e91a12",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

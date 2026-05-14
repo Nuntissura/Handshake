@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-FEMS-Write-Time-Safeguards-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "478b61d701afed3d04e4ac4224bc6299c998f74271adb4fe170ac9be577a4701",
+    "projection_sha256": "d978033cac123103d23caeabbf813f528a1d1c65b450e947d4a76e736a08d814",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

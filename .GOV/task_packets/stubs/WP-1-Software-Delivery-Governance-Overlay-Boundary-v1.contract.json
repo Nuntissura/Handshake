@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Governance-Overlay-Boundary-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "949cb0143adb074ec46d5c84bfe200987103e23c442a4b5e7530a5e07e06ed09",
+    "projection_sha256": "e7582797fe0b0b629a9a141208b0efefb68a79c451bf74f451673462feaf1ae4",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

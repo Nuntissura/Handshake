@@ -19,8 +19,10 @@ Rules:
 - CREATED_AT: 2026-05-06T12:45:00Z
 - STUB_STATUS: SUPERSEDED_AS_KERNEL_ACTIVATION_VEHICLE
 - SUPERSEDED_BY: WP-KERNEL-001-Event-Ledger-Session-Broker-v1
+- KERNEL002_RESIDUAL_FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- KERNEL002_FOLD_STATUS: COMPLETE_STUB_FOLDED_FOR_RESIDUAL_SCOPE
 - SUPERSEDED_PACKET_FILE: .GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.md
-- SUPERSESSION_SCOPE: Kernel-first event-ledger/session-broker activation vehicle only; residual FEMS memory-store, full DCC projection, and generic workflow durable-execution scope remain preserved for downstream packets and stubs.
+- SUPERSESSION_SCOPE: Kernel-first event-ledger/session-broker activation vehicle only; residual FEMS memory-store, full DCC projection, generic workflow durable-execution, and transitive Postgres-control-plane obligations are folded into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1.
 - BUILD_ORDER_DOMAIN: CROSS_BOUNDARY
 - BUILD_ORDER_TECH_BLOCKER: YES
 - BUILD_ORDER_VALUE_TIER: HIGH

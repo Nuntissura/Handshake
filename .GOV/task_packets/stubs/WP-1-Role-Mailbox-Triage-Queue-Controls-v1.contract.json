@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Triage-Queue-Controls-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "3206b9b86e84af4e8bcc431bc342adb9b4f40f3818db5c03d71bad4a4eca8f9f",
+    "projection_sha256": "1ca835aa303c19fcefbd663c0e44cfa25827a2abda2ab8f328344201920cc730",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

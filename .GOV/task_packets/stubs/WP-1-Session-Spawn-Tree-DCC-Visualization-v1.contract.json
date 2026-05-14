@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "4ee8fcb66087a2a03bb37e2699ff3f5aa29ec175839e16786cea9501ab2517f0",
+    "projection_sha256": "d036dfb1b12c48f67c896ff793196f2384762dd6897e4b3bab8875568192fce3",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

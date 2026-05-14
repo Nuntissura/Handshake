@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Locus-Work-Tracking-System-Phase1-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "6a4fa49233f7d36102c4b585bdbaa67703e12f14aef1a4dc1841fc49ff11900d",
+    "projection_sha256": "49bb119f165f35502c464dc7bbbb7cbfcc3795f77ecb0ca02a6b8e3ae58e5895",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

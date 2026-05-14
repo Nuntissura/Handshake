@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Workflow-Transition-Automation-Registry-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "31e8380e93c8dff47d2ac1b8d93a89984ac9db32e6d9d08ba8112f15caa65b59",
+    "projection_sha256": "9bc13df6d21c45f94cbb9f350b6dea95f25586a2fc02c774ab8445528187c378",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

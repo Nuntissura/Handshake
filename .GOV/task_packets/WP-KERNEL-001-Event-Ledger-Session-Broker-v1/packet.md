@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=30f54663ef6ce590 projection_hash=8edfcb9c6b5ab833 generated_at_utc=2026-05-13T23:00:43.285Z generator=kernel-builder-activation-phase2.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=0c41b167950aaf67 projection_hash=58669ca77e969e29 generated_at_utc=2026-05-14T00:07:20.330Z generator=ensure-wp-communications.mjs -->
 # TASK_PACKET_TEMPLATE
 
 This is an official product Work Packet projection. It is blocked until the pending operator signature and spec-enrichment blocker are resolved.
@@ -24,9 +24,14 @@ This is an official product Work Packet projection. It is blocked until the pend
 - WORKFLOW_LANE: ORCHESTRATOR_MANAGED
 - EXECUTION_OWNER: CODER_A
 - WORKFLOW_AUTHORITY: ORCHESTRATOR
-- TECHNICAL_ADVISOR: WP_VALIDATOR
+- TECHNICAL_ADVISOR: NONE
 - TECHNICAL_AUTHORITY: INTEGRATION_VALIDATOR
 - MERGE_AUTHORITY: INTEGRATION_VALIDATOR
+- VALIDATION_TOPOLOGY: INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1
+- PER_MT_WP_VALIDATOR_REVIEW: DISABLED
+- MT_REVIEW_AUTHORITY: INTEGRATION_VALIDATOR_BATCH
+- SPEC_REVIEW_AUTHORITY: INTEGRATION_VALIDATOR_SCOPED_MASTER_SPEC
+- KERNEL_BUILDER_RECEIPT_COMPAT_ROLE: CODER
 - AGENTIC_MODE: NO
 - ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
 - ORCHESTRATOR_REASONING_STRENGTH: EXTRA_HIGH
@@ -89,7 +94,7 @@ This is an official product Work Packet projection. It is blocked until the pend
 - TOUCHED_FILE_BUDGET: 15
 - BROAD_TOOL_ALLOWLIST: NONE
 - SPEC_DEBT_REGISTRY: .GOV/roles_shared/records/SPEC_DEBT_REGISTRY.md
-- **Status:** Ready for Dev
+- **Status:** In Progress
 - CURRENT_WP_STATUS: READY_FOR_DEV
 - USER_REVIEW_STATUS: APPROVED
 - USER_SIGNATURE: ilja140520260015
@@ -127,19 +132,19 @@ This is an official product Work Packet projection. It is blocked until the pend
 - MAX_VALIDATOR_REVIEW_CYCLES: 3
 - MAX_RELAY_ESCALATION_CYCLES: 2
 - COMMUNICATION_CONTRACT: DIRECT_REVIEW_V1
-- COMMUNICATION_HEALTH_GATE: HANDOFF_VERDICT_BLOCKING
+- COMMUNICATION_HEALTH_GATE: INTEGRATION_BATCH_REVIEW_BLOCKING
 - WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1
 - WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/THREAD.md
 - WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/RUNTIME_STATUS.json
 - WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/RECEIPTS.jsonl
-- WP_VALIDATOR_OF_RECORD: WP_VALIDATOR:WP-KERNEL-001-Event-Ledger-Session-Broker-v1
+- WP_VALIDATOR_OF_RECORD: NONE
 - INTEGRATION_VALIDATOR_OF_RECORD: INTEGRATION_VALIDATOR:WP-KERNEL-001-Event-Ledger-Session-Broker-v1
 - PACKET_FORMAT_VERSION: 2026-04-06
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
-Verdict: READY_FOR_DEV
-Blockers: NONE for governed coder handoff. Integration Validator remains a separate later pass/session and is not launched by Activation Mode.
-Next: Governed development may claim feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1 at ../wtc-session-broker-v1; Kernel Builder Activation Mode has not edited product code or launched downstream sessions.
+Verdict: PENDING
+Blockers: Implementation is in progress; awaiting coder handoff to WP validator.
+Next: CODER completes in-scope work and records CODER_HANDOFF with proof.
 ## CLAUSE_CLOSURE_MATRIX (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - Rule: this is the live packet-scope monitor for diff-scoped spec closure. Update statuses honestly; do not silently broaden or narrow clause scope after signature. Each row should point to TESTS, EXAMPLES, or governed debt.
 - CLAUSE_ROWS:
@@ -319,16 +324,18 @@ Resolved. SPEC_CURRENT now resolves to `.GOV/spec/master-spec-v02.184/indexed-sp
 - TraceProjection reconstructs the full proof run from durable product state after restart.
 - A no-context model can inspect a run using stable IDs, stored events, ContextBundle, messages, artifacts, validation evidence, and trace projection.
 - Product commits happen on a WP feature branch/worktree, not on `gov_kernel`.
-- WP Validator and Integration Validator can review each MT independently.
+- Integration Validator can review the full MT evidence batch before the scoped product-code-vs-Master-Spec review; failed MTs return to Kernel Builder as per-MT mitigation work.
 
 ## VALIDATION_PLAN
 - Run packet/governance checks from `wt-gov-kernel`: `just wp-contract-import WP-KERNEL-001-Event-Ledger-Session-Broker-v1`, `just task-packet-stub-contracts --all`, `just build-order-sync`, `just gov-check`.
-- Product implementation validation must run from the product WP worktree after signature and worktree creation.
+- Product implementation self-checks must run from the product WP worktree after signature and worktree creation.
 - Product proof command must distinguish PASS, PRODUCT_FAIL, ENVIRONMENT_BLOCKED, TIMEOUT_INCONCLUSIVE, and unrelated bare cargo failures.
-- At closeout, validator must cite run IDs, event IDs, artifact IDs, command output refs, and trace projection output.
+- Kernel Builder records MT implementation evidence and blocker truth, but does not issue validator PASS/FAIL.
+- Integration Validator first reviews the full MT evidence batch and returns any failed MTs as per-MT mitigation work.
+- After the MT batch passes, Integration Validator performs the WP-scoped product-code-vs-Master-Spec review and must cite run IDs, event IDs, artifact IDs, command output refs, and trace projection output at closeout.
 
 ## RISKS_AND_MITIGATIONS
-- Risk: this WP is large enough for MT bleed. Mitigation: one MT per coder turn, explicit dependencies, and per-MT validation.
+- Risk: this WP is large enough for MT bleed. Mitigation: one MT per Kernel Builder turn, explicit dependencies, typed implementation evidence, and Integration Validator batch MT review before scoped Master Spec review.
 - Risk: current SQLite paths are reused because they are convenient. Mitigation: land MT-005 before broker/promotion work and MT-025 before final proof.
 - Risk: Flight Recorder is mistaken for authority. Mitigation: ledger event IDs may mirror to Flight Recorder, but replay and promotion must read EventLedger.
 - Risk: DCC scope expands into UI. Mitigation: MT-020 allows a minimal structured CLI/API inspector and forbids full DCC UI work.

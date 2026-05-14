@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "d3bb810783b291489c0ac14a2ddd2448fe410b2cfe6e324b929d6585ee5a72c0",
+    "projection_sha256": "95e01622f67ba328e0cc423599b4b81cdabec57880f2a10ce2a52b44826ce3ab",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

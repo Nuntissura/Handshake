@@ -2,20 +2,18 @@
   "activation_readiness": {
     "branch": "feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
     "communication_contract": "DIRECT_REVIEW_V1",
-    "communication_health_gate": "HANDOFF_VERDICT_BLOCKING",
+    "communication_health_gate": "INTEGRATION_BATCH_REVIEW_BLOCKING",
     "downstream_launches_started_by_activation_mode": false,
     "integration_validator_session_policy": "SEPARATE_PASS_SESSION",
     "microtask_count": 27,
     "product_code_edited_during_activation": false,
-    "remaining_issues": [
-      "WP communication health remains COMM_MISSING_KICKOFF until a governed downstream kickoff/claim is intentionally launched; Activation Mode did not launch one."
-    ],
+    "remaining_issues": [],
     "remote_backup_status": "PUSHED_TO_ORIGIN",
-    "runtime_publication": "READY_FOR_DEV_BOOTSTRAP_WAITING_ON_DOWNSTREAM_KICKOFF",
+    "runtime_publication": "READY_FOR_DEV_KERNEL_BUILDER_MT_IMPLEMENTATION_READY",
     "spec_debt_status": "NONE_BLOCKING",
     "spec_target_resolved": ".GOV/spec/SPEC_CURRENT.md -> .GOV/spec/master-spec-v02.184/indexed-spec-manifest.json",
     "status": "READY_FOR_DEV",
-    "updated_at_utc": "2026-05-13T22:49:32.451Z",
+    "updated_at_utc": "2026-05-14T00:06:58.230Z",
     "user_signature": "ilja140520260015",
     "worktree_dir": "../wtc-session-broker-v1"
   },
@@ -98,18 +96,18 @@
     "packet_widening_decision": "NONE",
     "packet_widening_evidence": "N/A",
     "risk_tier": "HIGH",
-    "status": "Ready for Dev",
+    "status": "In Progress",
     "user_review_status": "APPROVED",
     "user_signature": "ilja140520260015",
-    "wp_validator_of_record": "WP_VALIDATOR:WP-KERNEL-001-Event-Ledger-Session-Broker-v1"
+    "wp_validator_of_record": "NONE"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-13T23:00:43.285Z",
-    "generator": "kernel-builder-activation-phase2.mjs",
+    "generated_at_utc": "2026-05-14T00:07:20.330Z",
+    "generator": "ensure-wp-communications.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.md",
-    "projection_hash": "8edfcb9c6b5ab833",
+    "projection_hash": "58669ca77e969e29",
     "source_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json",
-    "source_hash": "30f54663ef6ce590",
+    "source_hash": "0c41b167950aaf67",
     "status": "GENERATED_IN_SYNC"
   },
   "microtasks": {
@@ -180,7 +178,8 @@
     "operator_instruction": "All pre-integration roles consolidated to Kernel Builder at GPT 5.5 extra-high reasoning; Integration Validator remains a separate pass/session.",
     "orchestrator_model_profile": "OPENAI_GPT_5_5_XHIGH",
     "policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
-    "wp_validator_model_profile": "OPENAI_GPT_5_5_XHIGH"
+    "wp_validator_model_profile": "OPENAI_GPT_5_5_XHIGH",
+    "wp_validator_session_policy": "FOLDED_INTO_KERNEL_BUILDER_NO_PER_MT_GATE"
   },
   "schema_id": "hsk.work_packet_contract@1",
   "schema_version": "work_packet_contract_v1",
@@ -237,22 +236,47 @@
     "worktree_dir": "../wtc-session-broker-v1",
     "worktree_status": "CREATED_VERIFIED"
   },
-  "updated_at_utc": "2026-05-13T23:00:43.285Z",
+  "updated_at_utc": "2026-05-14T00:06:58.230Z",
+  "validation_topology": {
+    "kernel_builder_self_checks_are_validation": false,
+    "mt_review_authority": "INTEGRATION_VALIDATOR_BATCH",
+    "per_mt_wp_validator_review": "DISABLED",
+    "policy": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "receipt_compatibility": {
+      "actor_role": "CODER",
+      "mode": "CODER_COMPATIBLE_UNTIL_KERNEL_BUILDER_RECEIPT_ROLE_EXISTS",
+      "required_session_marker": "KERNEL_BUILDER"
+    },
+    "sequence": [
+      "KERNEL_BUILDER_IMPLEMENTS_MT_BY_MT",
+      "KERNEL_BUILDER_RECORDS_IMPLEMENTATION_EVIDENCE",
+      "INTEGRATION_VALIDATOR_REVIEWS_ALL_MT_EVIDENCE_FIRST",
+      "FAILED_MTS_RETURN_TO_KERNEL_BUILDER_AS_PER_MT_MITIGATION_WORK",
+      "INTEGRATION_VALIDATOR_PERFORMS_SCOPED_PRODUCT_CODE_VS_MASTER_SPEC_REVIEW_AFTER_MT_BATCH_PASS"
+    ],
+    "spec_review_authority": "INTEGRATION_VALIDATOR_SCOPED_MASTER_SPEC"
+  },
   "workflow": {
     "authority": "ORCHESTRATOR",
     "communication_contract": "DIRECT_REVIEW_V1",
     "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
-    "communication_health_gate": "HANDOFF_VERDICT_BLOCKING",
+    "communication_health_gate": "INTEGRATION_BATCH_REVIEW_BLOCKING",
     "execution_owner": "CODER_A",
     "host_preference": "HANDSHAKE_ACP_BROKER",
     "integration_validator_session_policy": "SEPARATE_PASS_SESSION",
     "kernel_builder_activation_mode": "PHASE2_READY_FOR_DEV_PRELAUNCH_COMPLETE",
+    "kernel_builder_receipt_compat_role": "CODER",
     "lane": "ORCHESTRATOR_MANAGED",
+    "mt_review_authority": "INTEGRATION_VALIDATOR_BATCH",
     "notifications_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/NOTIFICATIONS.jsonl",
+    "per_mt_wp_validator_review": "DISABLED",
     "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/RECEIPTS.jsonl",
     "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/RUNTIME_STATUS.json",
     "session_start_authority": "ORCHESTRATOR_ONLY",
-    "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/THREAD.md"
+    "spec_review_authority": "INTEGRATION_VALIDATOR_SCOPED_MASTER_SPEC",
+    "technical_advisor": "NONE",
+    "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/THREAD.md",
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
   },
   "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"
 }

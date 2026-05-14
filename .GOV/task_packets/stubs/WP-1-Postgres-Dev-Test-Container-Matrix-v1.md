@@ -19,6 +19,8 @@ Rules:
 - CREATED_AT: 2026-05-05T17:55:00Z
 - STUB_STATUS: SUPERSEDED (FOLDED INTO WP-1-Postgres-Control-Plane-Shift-Bundle-v1)
 - FOLDED_INTO: WP-1-Postgres-Control-Plane-Shift-Bundle-v1
+- KERNEL002_TRANSITIVE_FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- KERNEL002_FOLD_STATUS: FULL_STUB_FOLDED_TRANSITIVE
 - KERNEL_RESET_TRANSFERRED_TO: WP-KERNEL-001-Event-Ledger-Session-Broker-v1
 - KERNEL_RESET_TRANSFER_SCOPE: Postgres dev/test profile and migration proof requirements for Kernel V1 EventLedger/SessionBroker; use Kernel001 packet/refinement/MTs for activation.
 - BUILD_ORDER_DOMAIN: BACKEND

@@ -18,7 +18,7 @@ Use this brief after `just kernel-builder-startup`. It is operational memory for
 - ACTION: BUILD_RESET_FOCUS
 - TRIGGER: before planning, packet authoring, or product implementation for Kernel V1
 - FAILURE_PATTERN: spending the session repairing ACP or repo-governance drift instead of moving Handshake Kernel V1 product code forward
-- DO: keep repo governance to the minimum needed for Task Board, Build Order, WPs, microtasks, restartability, and validator handoff
+- DO: keep repo governance to the minimum needed for Task Board, Build Order, WPs, microtasks, restartability, and packet-declared validator handoff
 - DO_NOT: patch governance workflow surfaces for polish, parity, or abstract correctness while product-kernel work can continue safely
 - VERIFY: the next action either updates kernel-build artifacts or product code, or names a concrete safety/restartability blocker
 - SOURCE: KERNEL_BUILDER_PROTOCOL, Operator reset instruction 2026-05-13
@@ -38,7 +38,7 @@ Use this brief after `just kernel-builder-startup`. It is operational memory for
 - ACTION: VALIDATION_BOUNDARY
 - TRIGGER: after tests pass, self-checks pass, or product code appears complete
 - FAILURE_PATTERN: presenting Kernel Builder self-checks as validator PASS/FAIL or merge readiness
-- DO: record tests and self-checks as implementation evidence, then hand off to Classic Validator or the Operator-designated validator
+- DO: record tests and self-checks as implementation evidence, then hand off to Integration Validator, Classic Validator, or the Operator-designated validator according to packet topology
 - DO_NOT: issue final validation, merge approval, spec compliance verdict, or acceptance-row closure
 - VERIFY: final language separates implementation evidence from validator authority
 - SOURCE: KERNEL_BUILDER_PROTOCOL
@@ -52,6 +52,26 @@ Use this brief after `just kernel-builder-startup`. It is operational memory for
 - DO_NOT: edit product code through the gov-kernel worktree or edit governance files through product worktree junctions
 - VERIFY: `git status --short --branch` in the product worktree matches the intended branch before and after edits
 - SOURCE: KERNEL_BUILDER_PROTOCOL, AGENTS.md worktree law
+
+### RAM-KERNEL_BUILDER-PAPERWORK-001
+
+- ACTION: FOLDED_IMPLEMENTATION_PAPERWORK
+- TRIGGER: when implementing any ready-for-dev Kernel Builder WP
+- FAILURE_PATTERN: product code advances while MT board, receipts, runtime status, repomem, packet projections, task-board/build-order truth, or validator handoff state stays stale
+- DO: claim one unblocked MT, emit typed intent/claim, implement inside the declared product worktree, run proof or record blocker, update typed receipts/runtime/MT state, commit on the WP branch, push recovery checkpoints, and hand off through the packet-declared typed review surface
+- DO_NOT: rely on chat memory, Markdown-only notes, unstaged local state, or narrative handoff as the source of restart truth
+- VERIFY: a fresh no-context Kernel Builder can resume from packet JSON, MT contracts, runtime JSON, receipts JSONL, branch state, and repomem without reading this chat
+- SOURCE: KERNEL_BUILDER_PROTOCOL Product Implementation Mode
+
+### RAM-KERNEL_BUILDER-INTEGRATION_BATCH-001
+
+- ACTION: INTEGRATION_BATCH_REVIEW_TOPOLOGY
+- TRIGGER: when a folded Kernel Builder WP does not explicitly declare a WP Validator per-MT gate
+- FAILURE_PATTERN: stopping each MT for WP Validator review or asking Integration Validator for product-code-vs-Master-Spec review before all MT evidence has been reviewed
+- DO: build MT-by-MT, collect implementation evidence, hand off the full MT batch to Integration Validator, mitigate failed MTs, then wait for the scoped Master Spec review only after the MT batch passes
+- DO_NOT: treat Kernel Builder self-checks as MT validation, require a WP Validator kickoff by default, or bypass Integration Validator final authority
+- VERIFY: runtime status, receipts, and packet fields show `INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1` or the packet's explicit alternative
+- SOURCE: KERNEL_BUILDER_PROTOCOL Validation Handoff Topology
 
 ### RAM-KERNEL_BUILDER-SPEC_RESOLVER-001
 

@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-FEMS-MT-Handoff-Memory-Context-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "2fcf8539ce8fdeafe983c4585f04c8001e00896849d7dc90421c5a4edb2dfed3",
+    "projection_sha256": "ced3129a768e77b0487cbc588d9775c459f410bf3395ae494699ed83ef34380e",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-FEMS-Postgres-Memory-Store-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "f3d77fc67144ccfd3e6aeee01a683318f1cfdf69f07ed3c4dccc9de8e5b21a29",
+    "projection_sha256": "1a127385dde611aefef3f7c8d2b81608b3c162a924c9d160d1f2ac84e881c299",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

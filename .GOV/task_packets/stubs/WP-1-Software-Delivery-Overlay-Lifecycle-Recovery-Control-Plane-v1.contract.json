@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "4c9c9de3ebea742c40fd3072cd26d219de0a86faf9bcaf0ad6009df18b54df58",
+    "projection_sha256": "7b3a8e4124b8ce15f3436214f684cc92c432bfaea95e59ab619a01f9b234e1b2",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

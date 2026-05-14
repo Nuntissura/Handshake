@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "81d08167ecd52d00b4057a3d898392cc890596c94eced1c99844f7c66b2c7776",
+    "projection_sha256": "eb9d30b79938049ae29fd4ce695aab52692f6adbcc5ec1b6daba425f6acd9035",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

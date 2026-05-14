@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Markdown-Mirror-Sync-Drift-Guard-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "aa5ad6b368a1777ef33d4b41e78ac1bc0f5a3a1df9cadaf03863722be98ffa0b",
+    "projection_sha256": "8200048dd6a5275553ac045cf98279bad3ae0e478f61adf729db7fce02a9829c",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Work-Profiles-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "4ac98b03e6af6d5ba41980575b98391f5c6f5e70b846a3dce84b283711a7b36f",
+    "projection_sha256": "30f9aa262dabf4ce0da30ddbed3f50c8fea113e295281d0a784681321eebbff5",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

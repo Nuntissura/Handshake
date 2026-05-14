@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "87f289e590265545d732edca5e4faf41f10697ababbabbe990bac647e820fb98",
+    "projection_sha256": "5256c73b4bea5e7e24cdd3b46d42d6e0f758295fe3ae7d0c24a8f4002988770e",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

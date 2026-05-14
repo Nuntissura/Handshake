@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Governance-Pack-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "f443c20ffc9895c12a9896c385e9fcfb6581f1aa179f459402d45acaef417d3e",
+    "projection_sha256": "5db44a3233e4dc673bee49efd15ed66e49b0952cd0fd7c2db5f3b626ea8fe515",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,
@@ -56,7 +56,7 @@
   },
   "spec_trace": {
     "spec_target": ".GOV/roles_shared/SPEC_CURRENT.md",
-    "roadmap_pointer": "AÂ§7.6.3 (Phase 1) -> governance kernel adoption; local-first agentic posture",
+    "roadmap_pointer": "A§7.6.3 (Phase 1) -> governance kernel adoption; local-first agentic posture",
     "roadmap_add_coverage": ""
   },
   "session_policy": {

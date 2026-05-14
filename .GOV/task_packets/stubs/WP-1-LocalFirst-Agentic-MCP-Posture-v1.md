@@ -1,8 +1,10 @@
-﻿# Task Packet Stub: WP-1-LocalFirst-Agentic-MCP-Posture-v1
+# Task Packet Stub: WP-1-LocalFirst-Agentic-MCP-Posture-v1
 
-**Status:** STUB (Not Activated)
+**Status:** SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)
 
 ## Identity
+- FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- FOLD_STATUS: COMPLETE_STUB_FOLDED
 - WP_ID: WP-1-LocalFirst-Agentic-MCP-Posture-v1
 - BASE_WP_ID: WP-1-LocalFirst-Agentic-MCP-Posture
 - Created: 2026-01-12
@@ -28,5 +30,4 @@ This stub tracks the work to make the local-first agentic stance enforceable in 
 3. Create `.GOV/refinements/WP-1-LocalFirst-Agentic-MCP-Posture-v1.md`.
 4. Create official task packet via `just create-task-packet WP-1-LocalFirst-Agentic-MCP-Posture-v1`.
 5. Update `.GOV/roles_shared/TASK_BOARD.md` to move `WP-1-LocalFirst-Agentic-MCP-Posture-v1` out of STUB when activated.
-
 

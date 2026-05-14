@@ -1,4 +1,4 @@
-﻿# TASK_PACKET_STUB_TEMPLATE
+# TASK_PACKET_STUB_TEMPLATE
 
 This is a BACKLOG STUB. It is NOT an executable Task Packet.
 
@@ -17,7 +17,9 @@ Rules:
 - WP_ID: WP-1-Git-Engine-Decision-Gate-v1
 - BASE_WP_ID: WP-1-Git-Engine-Decision-Gate
 - CREATED_AT: 2026-01-30T00:00:00Z
-- STUB_STATUS: STUB (NOT READY FOR DEV)
+- STUB_STATUS: SUPERSEDED (FOLDED INTO WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1)
+- FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
+- FOLD_STATUS: COMPLETE_STUB_FOLDED
 - SPEC_TARGET: .GOV/roles_shared/SPEC_CURRENT.md
 - ROADMAP_POINTER: Handshake_Master_Spec_v02.123.md 7.6.3 (Phase 1) -> Git engine integration decision gate (git CLI external_process vs libgit2 vs go-git)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
@@ -25,7 +27,7 @@ Rules:
   - Handshake_Master_Spec_v02.123.md 11.7 OSS Register (go-git/libgit2 entries and integration posture) (Normative)
 
 ## INTENT (DRAFT)
-- What: Record and enforce a single Phase 1 â€œRepo engineâ€ implementation path (git CLI `external_process` vs `go-git` vs `libgit2`) and ensure the chosen posture is reflected in OSS governance + capability gating.
+- What: Record and enforce a single Phase 1 “Repo engine” implementation path (git CLI `external_process` vs `go-git` vs `libgit2`) and ensure the chosen posture is reflected in OSS governance + capability gating.
 - Why: Prevent drift (multiple git backends), license posture mistakes, and nondeterministic repo behavior across platforms.
 
 ## SCOPE_SKETCH (DRAFT)
@@ -39,7 +41,7 @@ Rules:
   - Phase 2+ remote execution / multi-user git collaboration.
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
-- A single â€œrepo engine backendâ€ is selected and enforced; no silent fallback to another implementation.
+- A single “repo engine backend” is selected and enforced; no silent fallback to another implementation.
 - OSS Register contains accurate entries for any git backend dependencies used.
 - Capability gating + Flight Recorder logging cover repo engine execution paths (no bypass).
 

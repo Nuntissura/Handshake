@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-ModelSession-Postgres-Queue-Workers-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "42b20ed2dd8c520a019032edb51973ab49b57c67c90212bc1efd47b79c6ff745",
+    "projection_sha256": "95e8f5959f9a4343ebcc7ed2617f1227ab546e980df4d263efeb621b7f0c6e7e",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
