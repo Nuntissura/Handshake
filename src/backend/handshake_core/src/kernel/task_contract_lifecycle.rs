@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+use super::crdt::persistence::sha256_hex;
 use std::collections::HashSet;
 
 pub const TASK_CONTRACT_LIFECYCLE_SCHEMA_ID: &str = "hsk.kernel.task_contract_lifecycle@1";
@@ -5,14 +8,14 @@ pub const STUB_CONTRACT_SCHEMA_ID: &str = "hsk.work_packet_stub_contract@1";
 pub const WORK_PACKET_CONTRACT_SCHEMA_ID: &str = "hsk.work_packet_contract@1";
 pub const MICRO_TASK_CONTRACT_SCHEMA_ID: &str = "hsk.microtask_contract@1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ContractKind {
     Stub,
     WorkPacket,
     MicroTask,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ContractLifecycleState {
     StubInactive,
     StubReadyForPromotion,
@@ -29,7 +32,7 @@ pub enum ContractLifecycleState {
     Failed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ContractAuthorityRule {
     MachineContractAuthority,
     GeneratedProjectionOnly,
@@ -40,7 +43,7 @@ pub enum ContractAuthorityRule {
     ValidationHookRequired,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ContractFailureState {
     MissingRequiredField,
     SourceHashMismatch,
@@ -51,13 +54,13 @@ pub enum ContractFailureState {
     AuthorityBoundaryViolation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProvenanceHashV1 {
     pub hash_kind: String,
     pub hash_value: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContractSourceImportV1 {
     pub import_id: String,
     pub source_ref: String,
@@ -66,7 +69,7 @@ pub struct ContractSourceImportV1 {
     pub provenance_hash: ProvenanceHashV1,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContractLifecycleTransitionV1 {
     pub transition_id: String,
     pub from: ContractLifecycleState,
@@ -77,9 +80,9 @@ pub struct ContractLifecycleTransitionV1 {
     pub validation_hook_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContractSchemaDefinitionV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub contract_kind: ContractKind,
     pub contract_id: String,
     pub lifecycle_state: ContractLifecycleState,
@@ -94,9 +97,9 @@ pub struct ContractSchemaDefinitionV1 {
     pub failure_states: Vec<ContractFailureState>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskContractLifecycleV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub lifecycle_id: String,
     pub stub_contract: ContractSchemaDefinitionV1,
     pub work_packet_contract: ContractSchemaDefinitionV1,
@@ -110,7 +113,7 @@ pub struct TaskContractLifecycleV1 {
     pub markdown_authority_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskContractLifecycleValidationError {
     pub field: &'static str,
     pub message: &'static str,
@@ -160,7 +163,7 @@ pub fn build_kernel002_task_contract_lifecycle() -> TaskContractLifecycleV1 {
     let transitions = transitions();
 
     TaskContractLifecycleV1 {
-        schema_id: TASK_CONTRACT_LIFECYCLE_SCHEMA_ID,
+        schema_id: TASK_CONTRACT_LIFECYCLE_SCHEMA_ID.to_string(),
         lifecycle_id: "kernel002-task-contract-lifecycle-mt051".to_string(),
         stub_contract: contract_schema(
             STUB_CONTRACT_SCHEMA_ID,
@@ -623,19 +626,16 @@ fn source_imports() -> Vec<ContractSourceImportV1> {
             "source-import-stub-template",
             ".GOV/templates/TASK_PACKET_STUB_TEMPLATE.md",
             "template.task_packet_stub",
-            "7a4e3b5130202b5c",
         ),
         source_import(
             "source-import-packet-contract",
             ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json",
             "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
-            "744309d8eba07f2e",
         ),
         source_import(
             "source-import-mt051-contract",
             ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-051.json",
             "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-051",
-            "d5ee0b452f6e9ee5",
         ),
     ]
 }
@@ -644,7 +644,6 @@ fn source_import(
     import_id: &str,
     source_ref: &str,
     source_contract_id: &str,
-    hash_value: &str,
 ) -> ContractSourceImportV1 {
     ContractSourceImportV1 {
         import_id: import_id.to_string(),
@@ -652,8 +651,11 @@ fn source_import(
         source_contract_id: source_contract_id.to_string(),
         required: true,
         provenance_hash: ProvenanceHashV1 {
-            hash_kind: "blake3-16".to_string(),
-            hash_value: hash_value.to_string(),
+            hash_kind: "sha256".to_string(),
+            hash_value: source_hash(
+                "task-contract-source-import",
+                &[import_id, source_ref, source_contract_id],
+            ),
         },
     }
 }
@@ -788,7 +790,7 @@ fn contract_schema(
     failure_states: &[ContractFailureState],
 ) -> ContractSchemaDefinitionV1 {
     ContractSchemaDefinitionV1 {
-        schema_id,
+        schema_id: schema_id.to_string(),
         contract_kind,
         contract_id: contract_id.to_string(),
         lifecycle_state,
@@ -798,8 +800,11 @@ fn contract_schema(
             .map(|field| (*field).to_string())
             .collect(),
         provenance_hashes: vec![ProvenanceHashV1 {
-            hash_kind: "blake3-16".to_string(),
-            hash_value: "744309d8eba07f2e".to_string(),
+            hash_kind: "sha256".to_string(),
+            hash_value: source_hash(
+                "task-contract-schema",
+                &[schema_id, contract_id, contract_kind_label(contract_kind)],
+            ),
         }],
         source_import_refs: source_import_refs
             .iter()
@@ -948,11 +953,29 @@ fn validate_hash(
 ) {
     require_non_empty(errors, field, &hash.hash_kind);
     require_non_empty(errors, field, &hash.hash_value);
-    if hash.hash_value.len() < 16 {
-        errors.push(error(
-            field,
-            "provenance hash must include at least a 16-character digest",
-        ));
+    if hash.hash_kind != "sha256" || !is_sha256_digest(&hash.hash_value) {
+        errors.push(error(field, "provenance hash must be a sha256 digest"));
+    }
+}
+
+fn source_hash(domain: &str, parts: &[&str]) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
+    )
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
+}
+
+fn contract_kind_label(kind: ContractKind) -> &'static str {
+    match kind {
+        ContractKind::Stub => "stub",
+        ContractKind::WorkPacket => "work-packet",
+        ContractKind::MicroTask => "microtask",
     }
 }
 

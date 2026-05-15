@@ -35,6 +35,10 @@ fn generated_status_projection_contract_declares_authoritative_sources_and_targe
             "{source_kind:?} must be an authoritative projection source"
         );
     }
+    assert!(contract
+        .sources
+        .iter()
+        .all(|source| is_sha256_digest(&source.source_hash)));
 
     for target_kind in [
         GeneratedStatusTargetKind::PacketStatus,
@@ -55,6 +59,21 @@ fn generated_status_projection_contract_declares_authoritative_sources_and_targe
             "{target_kind:?} must regenerate as a projection-only target"
         );
     }
+    assert!(contract.targets.iter().any(|target| {
+        target.kind == GeneratedStatusTargetKind::MicroTaskStatus
+            && target.target_ref.ends_with("/MT-055.md#status")
+            && !target.target_ref.contains("/microtasks/")
+    }));
+    assert!(contract.targets.iter().any(|target| {
+        target.kind == GeneratedStatusTargetKind::TaskBoardRow
+            && target.target_ref
+                == ".GOV/roles_shared/records/TASK_BOARD.md#WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"
+    }));
+    assert!(contract.targets.iter().any(|target| {
+        target.kind == GeneratedStatusTargetKind::TraceabilityRow
+            && target.target_ref
+                == ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md#WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"
+    }));
 }
 
 #[test]
@@ -119,6 +138,22 @@ fn generated_status_projection_rejects_non_authority_and_direct_manual_status_ed
 }
 
 #[test]
+fn generated_status_projection_json_round_trips() {
+    let contract = build_kernel002_generated_documentation_status_projection();
+    let projection = project_generated_documentation_status(&contract).expect("projection derives");
+
+    let json = serde_json::to_string(&contract).expect("contract serializes");
+    let decoded: handshake_core::kernel::generated_documentation_status_projection::GeneratedDocumentationStatusProjectionV1 =
+        serde_json::from_str(&json).expect("contract deserializes");
+    assert_eq!(decoded, contract);
+
+    let json = serde_json::to_string(&projection).expect("projection serializes");
+    let decoded: handshake_core::kernel::generated_documentation_status_projection::GeneratedDocumentationStatusProjectionResultV1 =
+        serde_json::from_str(&json).expect("projection deserializes");
+    assert_eq!(decoded, projection);
+}
+
+#[test]
 fn generated_status_projection_records_failure_states_and_existing_authority_refs() {
     let contract = build_kernel002_generated_documentation_status_projection();
 
@@ -167,4 +202,10 @@ fn kernel_action_catalog_exposes_generated_status_projection_action() {
         .validation_hooks
         .iter()
         .any(|hook| hook.hook_id == "generated_status_machine_authority_sources"));
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
 }

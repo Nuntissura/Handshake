@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+use super::crdt::persistence::sha256_hex;
 use std::collections::HashSet;
 
 use super::action_envelope::AuthorityEffect;
@@ -10,13 +13,13 @@ pub const MICRO_TASK_CONTRACT_SCHEMA_ID: &str = "hsk.microtask_contract@1";
 
 const WP_ID: &str = "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MechanicalContractOperationKind {
     StubToWorkPacketPromotion,
     WorkPacketToMicrotaskExtraction,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PreservedContractField {
     OperatorIntent,
     SourceHashes,
@@ -28,7 +31,7 @@ pub enum PreservedContractField {
     StatusProvenance,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GeneratedContractArtifactKind {
     WorkPacketContract,
     WorkPacketProjection,
@@ -39,7 +42,7 @@ pub enum GeneratedContractArtifactKind {
     TraceabilityProjection,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MechanicalContractFailureState {
     MissingOperatorIntent,
     SourceHashMismatch,
@@ -55,17 +58,17 @@ pub enum MechanicalContractFailureState {
     DirectMutationBypass,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeterministicContractCommandV1 {
     pub command_id: String,
     pub command_line: String,
     pub script_ref: String,
     pub dry_run_supported: bool,
     pub repair_mode_supported: bool,
-    pub output_schema_id: &'static str,
+    pub output_schema_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceFoldMapEntryV1 {
     pub source_ref: String,
     pub source_contract_id: String,
@@ -73,7 +76,7 @@ pub struct SourceFoldMapEntryV1 {
     pub preservation_rule: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FieldPreservationManifestEntryV1 {
     pub field: PreservedContractField,
     pub source_path: String,
@@ -81,7 +84,7 @@ pub struct FieldPreservationManifestEntryV1 {
     pub required: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeneratedContractArtifactRefV1 {
     pub artifact_id: String,
     pub kind: GeneratedContractArtifactKind,
@@ -90,14 +93,14 @@ pub struct GeneratedContractArtifactRefV1 {
     pub source_hash: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MechanicalContractOperationV1 {
     pub operation_id: String,
     pub kind: MechanicalContractOperationKind,
     pub action_id: String,
     pub transition_action_ids: Vec<String>,
-    pub source_schema_id: &'static str,
-    pub target_schema_id: &'static str,
+    pub source_schema_id: String,
+    pub target_schema_id: String,
     pub command: DeterministicContractCommandV1,
     pub required_preserved_fields: Vec<PreservedContractField>,
     pub source_fold_map: Vec<SourceFoldMapEntryV1>,
@@ -109,9 +112,9 @@ pub struct MechanicalContractOperationV1 {
     pub authority_effect: AuthorityEffect,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MechanicalContractGenerationV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub wp_id: String,
     pub operations: Vec<MechanicalContractOperationV1>,
     pub provenance_fields: Vec<String>,
@@ -119,7 +122,7 @@ pub struct MechanicalContractGenerationV1 {
     pub direct_mutation_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MechanicalContractGenerationValidationError {
     pub field: &'static str,
     pub message: &'static str,
@@ -138,7 +141,7 @@ impl MechanicalContractGenerationV1 {
 
 pub fn build_kernel002_mechanical_contract_generation() -> MechanicalContractGenerationV1 {
     MechanicalContractGenerationV1 {
-        schema_id: MECHANICAL_CONTRACT_GENERATION_SCHEMA_ID,
+        schema_id: MECHANICAL_CONTRACT_GENERATION_SCHEMA_ID.to_string(),
         wp_id: WP_ID.to_string(),
         operations: vec![stub_promotion_operation(), microtask_extraction_operation()],
         provenance_fields: vec![
@@ -381,6 +384,11 @@ fn validate_operation(
                 &operation.generated_artifacts,
                 GeneratedContractArtifactKind::TaskBoardProjection,
             );
+            require_artifact_kind(
+                errors,
+                &operation.generated_artifacts,
+                GeneratedContractArtifactKind::TraceabilityProjection,
+            );
         }
     }
 }
@@ -430,10 +438,10 @@ fn validate_artifacts(
             "operations.generated_artifacts.source_contract_id",
             &artifact.source_contract_id,
         );
-        if artifact.source_hash.len() < 16 {
+        if !is_sha256_digest(&artifact.source_hash) {
             errors.push(error(
                 "operations.generated_artifacts.source_hash",
-                "generated artifacts must record a source hash",
+                "generated artifacts must record a sha256 source hash",
             ));
         }
     }
@@ -525,8 +533,8 @@ fn stub_promotion_operation() -> MechanicalContractOperationV1 {
             "kernel.stub_contract.prepare_promotion".to_string(),
             "kernel.work_packet_contract.activate".to_string(),
         ],
-        source_schema_id: WORK_PACKET_STUB_CONTRACT_SCHEMA_ID,
-        target_schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID,
+        source_schema_id: WORK_PACKET_STUB_CONTRACT_SCHEMA_ID.to_string(),
+        target_schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID.to_string(),
         command: DeterministicContractCommandV1 {
             command_id: "task-packet-stub-contracts-check".to_string(),
             command_line: "just task-packet-stub-contracts --check".to_string(),
@@ -534,7 +542,7 @@ fn stub_promotion_operation() -> MechanicalContractOperationV1 {
                 .to_string(),
             dry_run_supported: true,
             repair_mode_supported: true,
-            output_schema_id: WORK_PACKET_STUB_CONTRACT_SCHEMA_ID,
+            output_schema_id: WORK_PACKET_STUB_CONTRACT_SCHEMA_ID.to_string(),
         },
         required_preserved_fields: required_preserved_fields().to_vec(),
         source_fold_map: vec![
@@ -564,21 +572,18 @@ fn stub_promotion_operation() -> MechanicalContractOperationV1 {
                 GeneratedContractArtifactKind::WorkPacketContract,
                 ".GOV/task_packets/{wp_id}/packet.json",
                 "hsk.work_packet_stub_contract@1:WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
-                "c9668ed8a5f42d21",
             ),
             artifact(
                 "artifact-active-packet-md",
                 GeneratedContractArtifactKind::WorkPacketProjection,
                 ".GOV/task_packets/{wp_id}/packet.md",
                 "hsk.work_packet_contract@1:{wp_id}",
-                "edb5123ab8260de7",
             ),
             artifact(
                 "artifact-active-refinement-json",
                 GeneratedContractArtifactKind::RefinementContract,
                 ".GOV/task_packets/{wp_id}/refinement.json",
                 "hsk.work_packet_contract@1:{wp_id}",
-                "7ce22fe78f8cbfd3",
             ),
         ],
         receipt_events: vec!["STATUS".to_string(), "SPEC_CONFIRMATION".to_string()],
@@ -599,15 +604,15 @@ fn microtask_extraction_operation() -> MechanicalContractOperationV1 {
         kind: MechanicalContractOperationKind::WorkPacketToMicrotaskExtraction,
         action_id: "kernel.microtask_contract.extract".to_string(),
         transition_action_ids: vec!["kernel.microtask_contract.extract".to_string()],
-        source_schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID,
-        target_schema_id: MICRO_TASK_CONTRACT_SCHEMA_ID,
+        source_schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID.to_string(),
+        target_schema_id: MICRO_TASK_CONTRACT_SCHEMA_ID.to_string(),
         command: DeterministicContractCommandV1 {
             command_id: "wp-contract-import-dry-run".to_string(),
             command_line: format!("just wp-contract-import {WP_ID} --dry-run --no-repair"),
             script_ref: ".GOV/roles_shared/scripts/wp/wp-contract-import.mjs".to_string(),
             dry_run_supported: true,
             repair_mode_supported: true,
-            output_schema_id: "hsk.wp_contract_import_result@1",
+            output_schema_id: "hsk.wp_contract_import_result@1".to_string(),
         },
         required_preserved_fields: required_preserved_fields().to_vec(),
         source_fold_map: vec![
@@ -640,28 +645,24 @@ fn microtask_extraction_operation() -> MechanicalContractOperationV1 {
                 GeneratedContractArtifactKind::MicrotaskContract,
                 ".GOV/task_packets/{wp_id}/MT-*.json",
                 "hsk.work_packet_contract@1:{wp_id}",
-                "0e92f69f5fc9d65c",
             ),
             artifact(
                 "artifact-microtask-md-glob",
                 GeneratedContractArtifactKind::MicrotaskProjection,
                 ".GOV/task_packets/{wp_id}/MT-*.md",
                 "hsk.work_packet_contract@1:{wp_id}",
-                "12f3f18ec8773b2c",
             ),
             artifact(
                 "artifact-task-board-row",
                 GeneratedContractArtifactKind::TaskBoardProjection,
-                ".GOV/task_packets/TASK_BOARD.md#{wp_id}",
+                ".GOV/roles_shared/records/TASK_BOARD.md#{wp_id}",
                 "hsk.work_packet_contract@1:{wp_id}",
-                "15955b89678c621a",
             ),
             artifact(
                 "artifact-traceability-row",
                 GeneratedContractArtifactKind::TraceabilityProjection,
-                ".GOV/task_packets/WP_TRACEABILITY_REGISTRY.md#{wp_id}",
+                ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md#{wp_id}",
                 "hsk.work_packet_contract@1:{wp_id}",
-                "744309d8eba07f2e",
             ),
         ],
         receipt_events: vec!["STATUS".to_string(), "CLAIM".to_string()],
@@ -682,14 +683,46 @@ fn artifact(
     kind: GeneratedContractArtifactKind,
     path_template: &str,
     source_contract_id: &str,
-    source_hash: &str,
 ) -> GeneratedContractArtifactRefV1 {
     GeneratedContractArtifactRefV1 {
         artifact_id: artifact_id.to_string(),
         kind,
         path_template: path_template.to_string(),
         source_contract_id: source_contract_id.to_string(),
-        source_hash: source_hash.to_string(),
+        source_hash: source_hash(
+            "mechanical-contract-generation",
+            &[
+                artifact_id,
+                generated_artifact_kind_label(kind),
+                path_template,
+                source_contract_id,
+            ],
+        ),
+    }
+}
+
+fn source_hash(domain: &str, parts: &[&str]) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
+    )
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
+}
+
+fn generated_artifact_kind_label(kind: GeneratedContractArtifactKind) -> &'static str {
+    match kind {
+        GeneratedContractArtifactKind::WorkPacketContract => "work-packet-contract",
+        GeneratedContractArtifactKind::WorkPacketProjection => "work-packet-projection",
+        GeneratedContractArtifactKind::RefinementContract => "refinement-contract",
+        GeneratedContractArtifactKind::MicrotaskContract => "microtask-contract",
+        GeneratedContractArtifactKind::MicrotaskProjection => "microtask-projection",
+        GeneratedContractArtifactKind::TaskBoardProjection => "task-board-projection",
+        GeneratedContractArtifactKind::TraceabilityProjection => "traceability-projection",
     }
 }
 

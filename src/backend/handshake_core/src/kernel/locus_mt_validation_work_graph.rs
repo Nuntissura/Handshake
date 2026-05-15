@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+use super::crdt::persistence::sha256_hex;
 use super::validator_verdict_mediation_contract::{ValidatorVerdictKind, VerdictRoutingOutcome};
 
 pub const LOCUS_MT_VALIDATION_WORK_GRAPH_SCHEMA_ID: &str =
@@ -5,7 +8,7 @@ pub const LOCUS_MT_VALIDATION_WORK_GRAPH_SCHEMA_ID: &str =
 pub const LOCUS_MT_VALIDATION_WORK_GRAPH_PROJECTION_SCHEMA_ID: &str =
     "hsk.kernel.locus_mt_validation_work_graph_projection@1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LocusGraphNodeKind {
     MicroTask,
     ValidatorVerdict,
@@ -13,7 +16,7 @@ pub enum LocusGraphNodeKind {
     ActorLease,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LocusGraphNodeState {
     Ready,
     InProgress,
@@ -24,7 +27,7 @@ pub enum LocusGraphNodeState {
     Remediation,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LocusGraphEdgeKind {
     DependsOn,
     Blocks,
@@ -33,14 +36,14 @@ pub enum LocusGraphEdgeKind {
     LeasedBy,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LocusGraphSourceKind {
     MachineContract,
     ProseReport,
     ChatMessage,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LocusGraphFailureState {
     MissingMtNodes,
     MissingValidatorVerdicts,
@@ -52,7 +55,7 @@ pub enum LocusGraphFailureState {
     ChatMessageUsedAsTruth,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusMtGraphNodeV1 {
     pub node_id: String,
     pub mt_id: String,
@@ -62,7 +65,7 @@ pub struct LocusMtGraphNodeV1 {
     pub evidence_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusWorkGraphEdgeV1 {
     pub edge_id: String,
     pub from_node_id: String,
@@ -71,7 +74,7 @@ pub struct LocusWorkGraphEdgeV1 {
     pub source_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusValidatorVerdictGraphV1 {
     pub verdict_id: String,
     pub mt_id: String,
@@ -81,7 +84,7 @@ pub struct LocusValidatorVerdictGraphV1 {
     pub source_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusActorLeaseGraphV1 {
     pub lease_id: String,
     pub mt_id: String,
@@ -91,7 +94,7 @@ pub struct LocusActorLeaseGraphV1 {
     pub source_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusPassFailHistoryEntryV1 {
     pub history_id: String,
     pub mt_id: String,
@@ -100,23 +103,23 @@ pub struct LocusPassFailHistoryEntryV1 {
     pub evidence_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusWorkGraphSourceRefV1 {
     pub source_ref: String,
     pub source_kind: LocusGraphSourceKind,
     pub source_hash: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusWorkGraphResearchBasisV1 {
     pub source_ref: String,
     pub pattern_found: String,
     pub selected_reuse: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusMtValidationWorkGraphContractV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub contract_id: String,
     pub wp_id: String,
     pub mt_id: String,
@@ -136,7 +139,7 @@ pub struct LocusMtValidationWorkGraphContractV1 {
     pub folded_source_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusMtValidationWorkGraphProjectionV1 {
     pub schema_id: String,
     pub source_contract_id: String,
@@ -154,7 +157,7 @@ pub struct LocusMtValidationWorkGraphProjectionV1 {
     pub status_mutation_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocusMtValidationWorkGraphError {
     pub field: &'static str,
     pub message: &'static str,
@@ -164,7 +167,7 @@ pub fn build_kernel002_locus_mt_validation_work_graph() -> LocusMtValidationWork
     let wp_id = "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1";
 
     LocusMtValidationWorkGraphContractV1 {
-        schema_id: LOCUS_MT_VALIDATION_WORK_GRAPH_SCHEMA_ID,
+        schema_id: LOCUS_MT_VALIDATION_WORK_GRAPH_SCHEMA_ID.to_string(),
         contract_id: "kernel002-locus-mt-validation-work-graph-mt061".to_string(),
         wp_id: wp_id.to_string(),
         mt_id: "MT-061".to_string(),
@@ -633,8 +636,15 @@ fn machine_source(source_ref: &str) -> LocusWorkGraphSourceRefV1 {
     LocusWorkGraphSourceRefV1 {
         source_ref: source_ref.to_string(),
         source_kind: LocusGraphSourceKind::MachineContract,
-        source_hash: format!("sha256:{source_ref}"),
+        source_hash: source_hash("kernel002-mt061", &[source_ref]),
     }
+}
+
+fn source_hash(domain: &str, parts: &[&str]) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
+    )
 }
 
 fn require_non_empty(

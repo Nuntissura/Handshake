@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use std::collections::HashSet;
 
 pub const WORK_PACKET_FULL_DETAIL_AUTHORITY_SCHEMA_ID: &str =
@@ -8,7 +10,7 @@ pub const MICRO_TASK_CONTRACT_SCHEMA_ID: &str = "hsk.microtask_contract@1";
 
 const WP_ID: &str = "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WorkPacketFullDetailSection {
     Purpose,
     ArchitectureContext,
@@ -26,7 +28,7 @@ pub enum WorkPacketFullDetailSection {
     MicrotaskSourcePlan,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MicrotaskPlanSourceField {
     MtId,
     Title,
@@ -44,7 +46,7 @@ pub enum MicrotaskPlanSourceField {
     RedTeamProfile,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GeneratedArtifactKind {
     MicrotaskJsonContract,
     MarkdownProjection,
@@ -54,7 +56,7 @@ pub enum GeneratedArtifactKind {
     MirrorDoc,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WorkPacketAuthorityFailureState {
     MissingFullDetail,
     MissingSourcePlan,
@@ -67,10 +69,10 @@ pub enum WorkPacketAuthorityFailureState {
     NoContextExecutionBlocked,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkPacketFullDetailAuthoritySurfaceV1 {
     pub authority_file: String,
-    pub contract_schema_id: &'static str,
+    pub contract_schema_id: String,
     pub required_sections: Vec<WorkPacketFullDetailSection>,
     pub source_refs: Vec<String>,
     pub can_execute_without_microtask_files: bool,
@@ -78,9 +80,9 @@ pub struct WorkPacketFullDetailAuthoritySurfaceV1 {
     pub prohibited_dependency_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MicrotaskSourcePlanV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub source_packet_ref: String,
     pub contract_glob: String,
     pub declared_microtask_count: usize,
@@ -92,7 +94,7 @@ pub struct MicrotaskSourcePlanV1 {
     pub source_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RegenerationContractV1 {
     pub generator: String,
     pub dry_run_command: String,
@@ -102,12 +104,12 @@ pub struct RegenerationContractV1 {
     pub validation_hooks: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkPacketFullDetailAuthorityV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub wp_id: String,
-    pub parent_contract_schema_id: &'static str,
-    pub microtask_contract_schema_id: &'static str,
+    pub parent_contract_schema_id: String,
+    pub microtask_contract_schema_id: String,
     pub packet_contract_ref: String,
     pub refinement_contract_ref: String,
     pub full_detail_authority: WorkPacketFullDetailAuthoritySurfaceV1,
@@ -120,7 +122,7 @@ pub struct WorkPacketFullDetailAuthorityV1 {
     pub manual_sidecar_authority_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkPacketFullDetailAuthorityValidationError {
     pub field: &'static str,
     pub message: &'static str,
@@ -128,15 +130,15 @@ pub struct WorkPacketFullDetailAuthorityValidationError {
 
 pub fn build_kernel002_work_packet_full_detail_authority() -> WorkPacketFullDetailAuthorityV1 {
     WorkPacketFullDetailAuthorityV1 {
-        schema_id: WORK_PACKET_FULL_DETAIL_AUTHORITY_SCHEMA_ID,
+        schema_id: WORK_PACKET_FULL_DETAIL_AUTHORITY_SCHEMA_ID.to_string(),
         wp_id: WP_ID.to_string(),
-        parent_contract_schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID,
-        microtask_contract_schema_id: MICRO_TASK_CONTRACT_SCHEMA_ID,
+        parent_contract_schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID.to_string(),
+        microtask_contract_schema_id: MICRO_TASK_CONTRACT_SCHEMA_ID.to_string(),
         packet_contract_ref: packet_ref("packet.json"),
         refinement_contract_ref: packet_ref("refinement.json"),
         full_detail_authority: WorkPacketFullDetailAuthoritySurfaceV1 {
             authority_file: packet_ref("packet.json"),
-            contract_schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID,
+            contract_schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID.to_string(),
             required_sections: required_full_detail_sections().to_vec(),
             source_refs: vec![
                 "packet.json#scope.summary".to_string(),
@@ -161,7 +163,7 @@ pub fn build_kernel002_work_packet_full_detail_authority() -> WorkPacketFullDeta
             ],
         },
         microtask_source_plan: MicrotaskSourcePlanV1 {
-            schema_id: MICROTASK_SOURCE_PLAN_SCHEMA_ID,
+            schema_id: MICROTASK_SOURCE_PLAN_SCHEMA_ID.to_string(),
             source_packet_ref: packet_ref("packet.json"),
             contract_glob: packet_ref("MT-*.json"),
             declared_microtask_count: 61,

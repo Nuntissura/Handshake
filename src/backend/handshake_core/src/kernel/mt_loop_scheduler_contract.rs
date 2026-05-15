@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 use super::validator_verdict_mediation_contract::{ValidatorVerdictKind, VerdictRoutingOutcome};
 
 pub const MT_LOOP_SCHEDULER_SCHEMA_ID: &str = "hsk.kernel.mt_loop_scheduler@1";
 pub const MT_LOOP_SCHEDULER_PROJECTION_SCHEMA_ID: &str =
     "hsk.kernel.mt_loop_scheduler_projection@1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DispatchDecisionKind {
     DispatchNextCoder,
     HoldForLease,
@@ -13,7 +15,7 @@ pub enum DispatchDecisionKind {
     Escalate,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LoopPrerequisiteKind {
     ClaimLease,
     CurrentCoderCompletion,
@@ -22,7 +24,7 @@ pub enum LoopPrerequisiteKind {
     VerdictState,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LoopSchedulerFailureState {
     MissingClaimLease,
     MissingCurrentCoderCompletion,
@@ -33,7 +35,7 @@ pub enum LoopSchedulerFailureState {
     DependentAdvancedBeforeRemediation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoopSchedulerClaimLeaseV1 {
     pub lease_id: String,
     pub claimant_session_id: String,
@@ -43,7 +45,7 @@ pub struct LoopSchedulerClaimLeaseV1 {
     pub evidence_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoopSchedulerCurrentCoderV1 {
     pub coder_session_id: String,
     pub claimed_mt_id: String,
@@ -52,7 +54,7 @@ pub struct LoopSchedulerCurrentCoderV1 {
     pub handoff_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoopSchedulerDependencyStateV1 {
     pub parent_mt_refs: Vec<String>,
     pub blocked_by_refs: Vec<String>,
@@ -60,7 +62,7 @@ pub struct LoopSchedulerDependencyStateV1 {
     pub remediation_before_dependents: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoopSchedulerRetryBudgetV1 {
     pub max_attempts: u32,
     pub remaining_attempts: u32,
@@ -68,7 +70,7 @@ pub struct LoopSchedulerRetryBudgetV1 {
     pub terminal_action_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoopSchedulerVerdictStateV1 {
     pub verdict_id: String,
     pub verdict: ValidatorVerdictKind,
@@ -77,16 +79,16 @@ pub struct LoopSchedulerVerdictStateV1 {
     pub remediation_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoopSchedulerResearchBasisV1 {
     pub source_ref: String,
     pub pattern_found: String,
     pub selected_reuse: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MtLoopSchedulerContractV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub contract_id: String,
     pub wp_id: String,
     pub mt_id: String,
@@ -106,7 +108,7 @@ pub struct MtLoopSchedulerContractV1 {
     pub folded_source_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MtLoopSchedulerProjectionV1 {
     pub schema_id: String,
     pub source_contract_id: String,
@@ -123,7 +125,7 @@ pub struct MtLoopSchedulerProjectionV1 {
     pub status_mutation_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MtLoopSchedulerError {
     pub field: &'static str,
     pub message: &'static str,
@@ -133,7 +135,7 @@ pub fn build_kernel002_mt_loop_scheduler() -> MtLoopSchedulerContractV1 {
     let wp_id = "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1";
 
     MtLoopSchedulerContractV1 {
-        schema_id: MT_LOOP_SCHEDULER_SCHEMA_ID,
+        schema_id: MT_LOOP_SCHEDULER_SCHEMA_ID.to_string(),
         contract_id: "kernel002-mt060-loop-scheduler".to_string(),
         wp_id: wp_id.to_string(),
         mt_id: "MT-060".to_string(),

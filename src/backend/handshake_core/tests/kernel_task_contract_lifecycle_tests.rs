@@ -3,7 +3,7 @@ use handshake_core::kernel::{
     action_envelope::AuthorityEffect,
     task_contract_lifecycle::{
         build_kernel002_task_contract_lifecycle, validate_task_contract_lifecycle,
-        ContractAuthorityRule, ContractFailureState, ContractLifecycleState,
+        ContractAuthorityRule, ContractFailureState, ContractLifecycleState, ProvenanceHashV1,
     },
 };
 
@@ -75,7 +75,12 @@ fn task_contract_lifecycle_preserves_transitions_provenance_hooks_and_failure_st
     assert!(lifecycle
         .source_imports
         .iter()
-        .all(|source| source.provenance_hash.hash_value.len() >= 16));
+        .all(|source| is_sha256_digest(&source.provenance_hash.hash_value)));
+    assert!(lifecycle
+        .stub_contract
+        .provenance_hashes
+        .iter()
+        .all(|hash| is_sha256_digest(&hash.hash_value)));
     assert!(lifecycle
         .failure_states
         .contains(&ContractFailureState::SourceHashMismatch));
@@ -115,6 +120,42 @@ fn task_contract_lifecycle_rejects_shadow_authority_and_incomplete_failure_paths
 }
 
 #[test]
+fn task_contract_lifecycle_rejects_fake_provenance_digests() {
+    let mut lifecycle = build_kernel002_task_contract_lifecycle();
+    lifecycle.source_imports[0].provenance_hash = ProvenanceHashV1 {
+        hash_kind: "sha256".to_string(),
+        hash_value: "zzzzzzzzzzzzzzzz".to_string(),
+    };
+    let errors = validate_task_contract_lifecycle(&lifecycle)
+        .expect_err("source imports must reject fake hashes");
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "source_imports.provenance_hash"));
+
+    let mut lifecycle = build_kernel002_task_contract_lifecycle();
+    lifecycle.stub_contract.provenance_hashes[0] = ProvenanceHashV1 {
+        hash_kind: "sha256".to_string(),
+        hash_value: "sha256:not-a-real-digest".to_string(),
+    };
+    let errors = validate_task_contract_lifecycle(&lifecycle)
+        .expect_err("contract schema provenance must reject fake hashes");
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "stub_contract.provenance_hashes"));
+}
+
+#[test]
+fn task_contract_lifecycle_json_round_trips() {
+    let lifecycle = build_kernel002_task_contract_lifecycle();
+
+    let json = serde_json::to_string(&lifecycle).expect("lifecycle serializes");
+    let decoded: handshake_core::kernel::task_contract_lifecycle::TaskContractLifecycleV1 =
+        serde_json::from_str(&json).expect("lifecycle deserializes");
+
+    assert_eq!(decoded, lifecycle);
+}
+
+#[test]
 fn kernel_action_catalog_exposes_task_contract_lifecycle_projection_action() {
     let catalog = kernel002_action_catalog();
     validate_kernel_action_catalog(&catalog).expect("catalog validates");
@@ -128,4 +169,10 @@ fn kernel_action_catalog_exposes_task_contract_lifecycle_projection_action() {
         .validation_hooks
         .iter()
         .any(|hook| hook.hook_id == "task_contract_lifecycle_states"));
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
 }

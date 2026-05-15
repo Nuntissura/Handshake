@@ -1,22 +1,24 @@
+use serde::{Deserialize, Serialize};
+
 pub const VALIDATOR_VERDICT_MEDIATION_SCHEMA_ID: &str = "hsk.kernel.validator_verdict_mediation@1";
 pub const VALIDATOR_VERDICT_MEDIATION_PROJECTION_SCHEMA_ID: &str =
     "hsk.kernel.validator_verdict_mediation_projection@1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ValidatorVerdictKind {
     Pass,
     Fail,
     MediationRequired,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum VerdictRoutingOutcome {
     MayAdvance,
     MustLoopBack,
     MustEscalate,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum VerdictSeverity {
     Info,
     Low,
@@ -25,7 +27,7 @@ pub enum VerdictSeverity {
     Critical,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReproducibilityKind {
     Deterministic,
     Intermittent,
@@ -33,7 +35,7 @@ pub enum ReproducibilityKind {
     NotApplicable,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DependencyImpactKind {
     None,
     BlocksDependents,
@@ -41,7 +43,7 @@ pub enum DependencyImpactKind {
     EscalatesPacket,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MediationInstructionKind {
     Repair,
     ClarifyScope,
@@ -50,7 +52,7 @@ pub enum MediationInstructionKind {
     Recheck,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ValidatorVerdictFailureState {
     MissingVerdict,
     MissingFailedAcceptanceCriteria,
@@ -65,21 +67,21 @@ pub enum ValidatorVerdictFailureState {
     AdvanceWithCriticalFailure,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorVerdictActorV1 {
     pub actor_role: String,
     pub actor_session: String,
     pub review_batch_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorDependencyImpactV1 {
     pub kind: DependencyImpactKind,
     pub impacted_refs: Vec<String>,
     pub summary: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorVerdictContractV1 {
     pub verdict_id: String,
     pub wp_id: String,
@@ -99,7 +101,7 @@ pub struct ValidatorVerdictContractV1 {
     pub generated_without_model_status_edit: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MediationInstructionContractV1 {
     pub instruction_id: String,
     pub instruction_kind: MediationInstructionKind,
@@ -112,16 +114,16 @@ pub struct MediationInstructionContractV1 {
     pub creates_remediation_microtask: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorVerdictResearchBasisV1 {
     pub source_ref: String,
     pub pattern_found: String,
     pub selected_reuse: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorVerdictMediationContractV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub contract_id: String,
     pub wp_id: String,
     pub mt_id: String,
@@ -135,7 +137,7 @@ pub struct ValidatorVerdictMediationContractV1 {
     pub folded_source_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorVerdictMediationProjectionV1 {
     pub schema_id: String,
     pub source_contract_id: String,
@@ -156,7 +158,7 @@ pub struct ValidatorVerdictMediationProjectionV1 {
     pub routing_outcome: VerdictRoutingOutcome,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorVerdictMediationError {
     pub field: &'static str,
     pub message: &'static str,
@@ -168,7 +170,7 @@ pub fn build_kernel002_validator_verdict_mediation_contract() -> ValidatorVerdic
     let mt_id = "MT-057";
 
     ValidatorVerdictMediationContractV1 {
-        schema_id: VALIDATOR_VERDICT_MEDIATION_SCHEMA_ID,
+        schema_id: VALIDATOR_VERDICT_MEDIATION_SCHEMA_ID.to_string(),
         contract_id: "kernel002-validator-verdict-mediation-mt057".to_string(),
         wp_id: wp_id.to_string(),
         mt_id: mt_id.to_string(),

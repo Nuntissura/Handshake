@@ -1,8 +1,11 @@
+use serde::{Deserialize, Serialize};
+
+use super::crdt::persistence::sha256_hex;
 pub const VALIDATOR_FINDING_REPORTS_SCHEMA_ID: &str = "hsk.kernel.validator_finding_reports@1";
 pub const VALIDATOR_FINDING_REPORTS_PROJECTION_SCHEMA_ID: &str =
     "hsk.kernel.validator_finding_reports_projection@1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ValidatorFindingReportKind {
     Issue,
     Bug,
@@ -10,7 +13,7 @@ pub enum ValidatorFindingReportKind {
     OutOfScope,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FindingRoutingOutcome {
     AppendToValidatorVerdict,
     CreateRemediationMicrotask,
@@ -20,7 +23,7 @@ pub enum FindingRoutingOutcome {
     EscalateToOperator,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProposedDestinationKind {
     CurrentWorkPacket,
     RemediationMicrotask,
@@ -30,7 +33,7 @@ pub enum ProposedDestinationKind {
     OperatorDecision,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FindingSourceKind {
     ValidatorVerdict,
     TestOutput,
@@ -40,7 +43,7 @@ pub enum FindingSourceKind {
     ExternalReference,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AffectedSurfaceKind {
     ProductCode,
     ProductTest,
@@ -50,7 +53,7 @@ pub enum AffectedSurfaceKind {
     OperatorWorkflow,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FindingProofKind {
     ReproductionSteps,
     ProofCommand,
@@ -59,14 +62,14 @@ pub enum FindingProofKind {
     NegativeCounterexample,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReportAuthorityMode {
     MachineContractOnly,
     GeneratedMarkdownProjection,
     ProseOnlyReport,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ValidatorFindingReportFailureState {
     MissingValidatorReasoning,
     MissingSourceRefs,
@@ -79,34 +82,34 @@ pub enum ValidatorFindingReportFailureState {
     OutOfScopeWithoutParkingDestination,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FindingSourceRefV1 {
     pub source_ref: String,
     pub source_kind: FindingSourceKind,
     pub source_hash: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AffectedSurfaceRefV1 {
     pub surface_ref: String,
     pub surface_kind: AffectedSurfaceKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FindingProofRefV1 {
     pub proof_kind: FindingProofKind,
     pub proof_ref: String,
     pub result_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProposedFindingDestinationV1 {
     pub destination_kind: ProposedDestinationKind,
     pub destination_ref: String,
     pub owner_role: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorFindingReportCoreV1 {
     pub report_id: String,
     pub wp_id: String,
@@ -124,14 +127,14 @@ pub struct ValidatorFindingReportCoreV1 {
     pub status_mutation_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IssueReportContractV1 {
     pub core: ValidatorFindingReportCoreV1,
     pub issue_summary: String,
     pub classification_tags: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BugReportContractV1 {
     pub core: ValidatorFindingReportCoreV1,
     pub observed_behavior: String,
@@ -139,30 +142,30 @@ pub struct BugReportContractV1 {
     pub reproduction_steps: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GapReportContractV1 {
     pub core: ValidatorFindingReportCoreV1,
     pub gap_statement: String,
     pub missing_contract_fields: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OutOfScopeReportContractV1 {
     pub core: ValidatorFindingReportCoreV1,
     pub rejected_scope_statement: String,
     pub parking_reason: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorFindingReportResearchBasisV1 {
     pub source_ref: String,
     pub pattern_found: String,
     pub selected_reuse: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorFindingReportsContractV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub contract_id: String,
     pub wp_id: String,
     pub mt_id: String,
@@ -189,7 +192,7 @@ impl ValidatorFindingReportsContractV1 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorFindingReportsProjectionV1 {
     pub schema_id: String,
     pub source_contract_id: String,
@@ -205,7 +208,7 @@ pub struct ValidatorFindingReportsProjectionV1 {
     pub prose_only_report_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorFindingReportError {
     pub field: String,
     pub message: String,
@@ -216,7 +219,7 @@ pub fn build_kernel002_validator_finding_reports() -> ValidatorFindingReportsCon
     let mt_id = "MT-058";
 
     ValidatorFindingReportsContractV1 {
-        schema_id: VALIDATOR_FINDING_REPORTS_SCHEMA_ID,
+        schema_id: VALIDATOR_FINDING_REPORTS_SCHEMA_ID.to_string(),
         contract_id: "kernel002-validator-finding-reports-mt058".to_string(),
         wp_id: wp_id.to_string(),
         mt_id: mt_id.to_string(),
@@ -799,7 +802,28 @@ fn source(source_ref: &str, source_kind: FindingSourceKind) -> FindingSourceRefV
     FindingSourceRefV1 {
         source_ref: source_ref.to_string(),
         source_kind,
-        source_hash: format!("sha256:{source_ref}:mt058"),
+        source_hash: source_hash(
+            "kernel002-mt058",
+            &[source_ref, finding_source_kind_label(source_kind)],
+        ),
+    }
+}
+
+fn source_hash(domain: &str, parts: &[&str]) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
+    )
+}
+
+fn finding_source_kind_label(kind: FindingSourceKind) -> &'static str {
+    match kind {
+        FindingSourceKind::ValidatorVerdict => "validator-verdict",
+        FindingSourceKind::TestOutput => "test-output",
+        FindingSourceKind::SourceFile => "source-file",
+        FindingSourceKind::WorkPacketContract => "work-packet-contract",
+        FindingSourceKind::MicrotaskContract => "microtask-contract",
+        FindingSourceKind::ExternalReference => "external-reference",
     }
 }
 

@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+use super::crdt::persistence::sha256_hex;
 use std::collections::HashSet;
 
 pub const CODER_HANDOFF_VALIDATION_REQUEST_SCHEMA_ID: &str =
@@ -5,7 +8,7 @@ pub const CODER_HANDOFF_VALIDATION_REQUEST_SCHEMA_ID: &str =
 pub const CODER_HANDOFF_VALIDATION_REQUEST_PROJECTION_SCHEMA_ID: &str =
     "hsk.kernel.coder_handoff_validation_request_projection@1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CoderHandoffArtifactKind {
     SourceFile,
     TestFile,
@@ -13,21 +16,21 @@ pub enum CoderHandoffArtifactKind {
     GeneratedProjection,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CoderHandoffTestOutcome {
     Passed,
     BlockedByKnownExternalDrift,
     Failed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum KnownBlockerDisposition {
     NoneObserved,
     ExternalUnrelatedDrift,
     RequiresValidatorDecision,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CoderHandoffFailureState {
     MissingMicrotaskIdentity,
     MissingActorSession,
@@ -43,14 +46,14 @@ pub enum CoderHandoffFailureState {
     ReviewRequestWouldMutateStatus,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderHandoffActorV1 {
     pub actor_role: String,
     pub actor_session: String,
     pub work_profile_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClaimedMicrotaskScopeV1 {
     pub wp_id: String,
     pub mt_id: String,
@@ -60,35 +63,35 @@ pub struct ClaimedMicrotaskScopeV1 {
     pub claim_receipt_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderTouchedArtifactV1 {
     pub path: String,
     pub kind: CoderHandoffArtifactKind,
     pub source_hash: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderTouchedActionV1 {
     pub action_id: String,
     pub authority_effect: String,
     pub evidence_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderHandoffReceiptRefV1 {
     pub receipt_kind: String,
     pub receipt_ref: String,
     pub correlation_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderHandoffTestEvidenceV1 {
     pub command: String,
     pub outcome: CoderHandoffTestOutcome,
     pub evidence_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderKnownBlockerV1 {
     pub blocker_id: String,
     pub disposition: KnownBlockerDisposition,
@@ -96,7 +99,7 @@ pub struct CoderKnownBlockerV1 {
     pub evidence_ref: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RequestedValidationReviewV1 {
     pub target_role: String,
     pub target_session_ref: String,
@@ -109,16 +112,16 @@ pub struct RequestedValidationReviewV1 {
     pub generated_without_model_status_edit: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderHandoffResearchBasisV1 {
     pub source_ref: String,
     pub pattern_found: String,
     pub selected_reuse: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderHandoffValidationRequestContractV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub handoff_id: String,
     pub wp_id: String,
     pub mt_id: String,
@@ -139,7 +142,7 @@ pub struct CoderHandoffValidationRequestContractV1 {
 
 pub type CoderHandoffContractV1 = CoderHandoffValidationRequestContractV1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderHandoffValidationRequestProjectionV1 {
     pub schema_id: String,
     pub source_handoff_id: String,
@@ -155,7 +158,7 @@ pub struct CoderHandoffValidationRequestProjectionV1 {
     pub status_mutation_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CoderHandoffValidationRequestError {
     pub field: &'static str,
     pub message: &'static str,
@@ -168,7 +171,7 @@ pub fn build_kernel002_coder_handoff_validation_request() -> CoderHandoffValidat
     let correlation_id = "MT-056";
 
     CoderHandoffValidationRequestContractV1 {
-        schema_id: CODER_HANDOFF_VALIDATION_REQUEST_SCHEMA_ID,
+        schema_id: CODER_HANDOFF_VALIDATION_REQUEST_SCHEMA_ID.to_string(),
         handoff_id: "kernel002-coder-handoff-validation-request-mt056".to_string(),
         wp_id: wp_id.to_string(),
         mt_id: mt_id.to_string(),
@@ -657,7 +660,23 @@ fn artifact(path: &str, kind: CoderHandoffArtifactKind) -> CoderTouchedArtifactV
     CoderTouchedArtifactV1 {
         path: path.to_string(),
         kind,
-        source_hash: format!("sha256:{path}:mt056"),
+        source_hash: source_hash("kernel002-mt056", &[path, artifact_kind_label(kind)]),
+    }
+}
+
+fn source_hash(domain: &str, parts: &[&str]) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
+    )
+}
+
+fn artifact_kind_label(kind: CoderHandoffArtifactKind) -> &'static str {
+    match kind {
+        CoderHandoffArtifactKind::SourceFile => "source-file",
+        CoderHandoffArtifactKind::TestFile => "test-file",
+        CoderHandoffArtifactKind::ProofHarnessFile => "proof-harness-file",
+        CoderHandoffArtifactKind::GeneratedProjection => "generated-projection",
     }
 }
 

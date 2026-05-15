@@ -1,26 +1,29 @@
+use serde::{Deserialize, Serialize};
+
+use super::crdt::persistence::sha256_hex;
 pub const REMEDIATION_WORK_GENERATION_SCHEMA_ID: &str = "hsk.kernel.remediation_work_generation@1";
 pub const REMEDIATION_WORK_GENERATION_PROJECTION_SCHEMA_ID: &str =
     "hsk.kernel.remediation_work_generation_projection@1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RemediationWorkKind {
     MicroTask,
     PacketStub,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RemediationDestinationKind {
     SamePacketMicrotask,
     NewPacketStub,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RemediationGenerationSourceKind {
     ValidatorVerdictContract,
     ValidatorFindingReportContract,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RemediationGenerationFailureState {
     MissingParentLinks,
     MissingDependencyState,
@@ -33,7 +36,7 @@ pub enum RemediationGenerationFailureState {
     ProseSourceUsed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemediationSourceRefV1 {
     pub source_ref: String,
     pub source_kind: RemediationGenerationSourceKind,
@@ -41,21 +44,21 @@ pub struct RemediationSourceRefV1 {
     pub prose_source: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemediationDependencyStateV1 {
     pub blocked_by_refs: Vec<String>,
     pub unlocks_refs: Vec<String>,
     pub blocks_dependents: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemediationRetryBudgetV1 {
     pub max_attempts: u32,
     pub attempts_consumed: u32,
     pub terminal_action: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidatorRecheckRequirementV1 {
     pub required: bool,
     pub validator_role: String,
@@ -63,7 +66,7 @@ pub struct ValidatorRecheckRequirementV1 {
     pub evidence_required: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemediationMicroTaskContractV1 {
     pub contract_id: String,
     pub parent_wp_id: String,
@@ -79,7 +82,7 @@ pub struct RemediationMicroTaskContractV1 {
     pub status_mutation_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemediationPacketStubContractV1 {
     pub stub_id: String,
     pub parent_wp_id: String,
@@ -93,16 +96,16 @@ pub struct RemediationPacketStubContractV1 {
 
 pub type StubContractV1 = RemediationPacketStubContractV1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemediationResearchBasisV1 {
     pub source_ref: String,
     pub pattern_found: String,
     pub selected_reuse: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemediationWorkGenerationContractV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub contract_id: String,
     pub wp_id: String,
     pub mt_id: String,
@@ -117,7 +120,7 @@ pub struct RemediationWorkGenerationContractV1 {
 
 pub type RemediationWorkContractV1 = RemediationWorkGenerationContractV1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemediationWorkGenerationProjectionV1 {
     pub schema_id: String,
     pub source_contract_id: String,
@@ -133,7 +136,7 @@ pub struct RemediationWorkGenerationProjectionV1 {
     pub prose_source_allowed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RemediationWorkGenerationError {
     pub field: String,
     pub message: String,
@@ -144,7 +147,7 @@ pub fn build_kernel002_remediation_work_generation() -> RemediationWorkGeneratio
     let mt_id = "MT-059";
 
     RemediationWorkGenerationContractV1 {
-        schema_id: REMEDIATION_WORK_GENERATION_SCHEMA_ID,
+        schema_id: REMEDIATION_WORK_GENERATION_SCHEMA_ID.to_string(),
         contract_id: format!("{wp_id}-{mt_id}-remediation-work-generation"),
         wp_id: wp_id.to_string(),
         mt_id: mt_id.to_string(),
@@ -152,13 +155,25 @@ pub fn build_kernel002_remediation_work_generation() -> RemediationWorkGeneratio
             RemediationSourceRefV1 {
                 source_ref: format!("validator-verdict-contract://{wp_id}/MT-057"),
                 source_kind: RemediationGenerationSourceKind::ValidatorVerdictContract,
-                source_hash: "sha256:kernel002-mt057-validator-verdict-contract".to_string(),
+                source_hash: source_hash(
+                    "kernel002-mt059",
+                    &[
+                        "validator-verdict-contract",
+                        &format!("validator-verdict-contract://{wp_id}/MT-057"),
+                    ],
+                ),
                 prose_source: false,
             },
             RemediationSourceRefV1 {
                 source_ref: format!("validator-finding-report-contract://{wp_id}/MT-058"),
                 source_kind: RemediationGenerationSourceKind::ValidatorFindingReportContract,
-                source_hash: "sha256:kernel002-mt058-validator-finding-report-contract".to_string(),
+                source_hash: source_hash(
+                    "kernel002-mt059",
+                    &[
+                        "validator-finding-report-contract",
+                        &format!("validator-finding-report-contract://{wp_id}/MT-058"),
+                    ],
+                ),
                 prose_source: false,
             },
         ],
@@ -274,6 +289,13 @@ pub fn build_kernel002_remediation_work_generation() -> RemediationWorkGeneratio
             "MT-058 validator finding report contract".to_string(),
         ],
     }
+}
+
+fn source_hash(domain: &str, parts: &[&str]) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
+    )
 }
 
 pub fn project_remediation_work_generation(

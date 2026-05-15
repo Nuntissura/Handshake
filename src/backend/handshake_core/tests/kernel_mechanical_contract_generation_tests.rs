@@ -65,7 +65,7 @@ fn mechanical_generation_preserves_required_contract_detail_and_provenance() {
             assert!(operation.required_preserved_fields.contains(&required));
         }
         assert!(operation.generated_artifacts.iter().all(|artifact| {
-            !artifact.source_contract_id.is_empty() && artifact.source_hash.len() >= 16
+            !artifact.source_contract_id.is_empty() && is_sha256_digest(&artifact.source_hash)
         }));
         assert!(operation
             .status_provenance_fields
@@ -93,6 +93,15 @@ fn mechanical_generation_preserves_required_contract_detail_and_provenance() {
         .generated_artifacts
         .iter()
         .any(|artifact| artifact.kind == GeneratedContractArtifactKind::TaskBoardProjection));
+    assert!(extraction.generated_artifacts.iter().any(|artifact| {
+        artifact.kind == GeneratedContractArtifactKind::TraceabilityProjection
+            && artifact.path_template
+                == ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md#{wp_id}"
+    }));
+    assert!(extraction.generated_artifacts.iter().any(|artifact| {
+        artifact.kind == GeneratedContractArtifactKind::TaskBoardProjection
+            && artifact.path_template == ".GOV/roles_shared/records/TASK_BOARD.md#{wp_id}"
+    }));
 }
 
 #[test]
@@ -117,12 +126,31 @@ fn mechanical_generation_rejects_detail_loss_or_missing_hashes() {
         .iter()
         .any(|error| error.field == "operations.generated_artifacts.source_contract_id"));
 
+    let mut generation = build_kernel002_mechanical_contract_generation();
+    generation.operations[1].generated_artifacts[0].source_hash = "zzzzzzzzzzzzzzzz".to_string();
+    let errors = validate_mechanical_contract_generation(&generation)
+        .expect_err("generated artifacts must reject fake source hashes");
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "operations.generated_artifacts.source_hash"));
+
     assert!(generation
         .failure_states
         .contains(&MechanicalContractFailureState::FoldedDetailLoss));
     assert!(generation
         .failure_states
         .contains(&MechanicalContractFailureState::StatusProvenanceLoss));
+}
+
+#[test]
+fn mechanical_generation_json_round_trips() {
+    let generation = build_kernel002_mechanical_contract_generation();
+
+    let json = serde_json::to_string(&generation).expect("mechanical generation serializes");
+    let decoded: handshake_core::kernel::mechanical_contract_generation::MechanicalContractGenerationV1 =
+        serde_json::from_str(&json).expect("mechanical generation deserializes");
+
+    assert_eq!(decoded, generation);
 }
 
 #[test]
@@ -153,4 +181,10 @@ fn kernel_action_catalog_exposes_mechanical_promotion_and_extraction_actions() {
         .validation_hooks
         .iter()
         .any(|hook| hook.hook_id == "microtask_extraction_preserves_source_hashes"));
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
 }

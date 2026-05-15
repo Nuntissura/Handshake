@@ -201,7 +201,7 @@ pub enum LoopFailureState {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalModelFreshContextMicrotaskLoopV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub contract_id: String,
     pub wp_id: String,
     pub mt_id: String,
@@ -233,9 +233,9 @@ pub struct LocalModelFreshContextMicrotaskLoopV1 {
     pub product_authority_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalModelMicrotaskLoopProjectionV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub contract_id: String,
     pub wp_id: String,
     pub mt_id: String,
@@ -249,7 +249,7 @@ pub struct LocalModelMicrotaskLoopProjectionV1 {
     pub mutates_authority_directly: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalModelMicrotaskLoopValidationError {
     pub field: &'static str,
     pub message: &'static str,
@@ -261,7 +261,7 @@ pub fn build_kernel002_local_model_microtask_loop() -> LocalModelFreshContextMic
     let local_route_id = "work-profile:local-small-model:mt-loop".to_string();
 
     LocalModelFreshContextMicrotaskLoopV1 {
-        schema_id: LOCAL_MODEL_FRESH_CONTEXT_MT_LOOP_SCHEMA_ID,
+        schema_id: LOCAL_MODEL_FRESH_CONTEXT_MT_LOOP_SCHEMA_ID.to_string(),
         contract_id: "kernel002-local-model-fresh-context-mt-loop-v1".to_string(),
         wp_id: wp_id.clone(),
         mt_id: mt_id.clone(),
@@ -660,7 +660,7 @@ pub fn project_local_model_microtask_loop(
     validate_local_model_microtask_loop(contract)?;
 
     Ok(LocalModelMicrotaskLoopProjectionV1 {
-        schema_id: LOCAL_MODEL_FRESH_CONTEXT_MT_LOOP_PROJECTION_SCHEMA_ID,
+        schema_id: LOCAL_MODEL_FRESH_CONTEXT_MT_LOOP_PROJECTION_SCHEMA_ID.to_string(),
         contract_id: contract.contract_id.clone(),
         wp_id: contract.wp_id.clone(),
         mt_id: contract.mt_id.clone(),

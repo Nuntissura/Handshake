@@ -147,7 +147,7 @@ pub struct DccMvpRuntimeSurfaceV1 {
     pub folded_source_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DccSelectedWorkProjectionV1 {
     pub schema_id: String,
     pub work_item: DccWorkItemV1,
@@ -158,11 +158,11 @@ pub struct DccSelectedWorkProjectionV1 {
     pub approval_previews: Vec<DccApprovalPreviewV1>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DccGovernedActionPreviewV1 {
     pub schema_id: String,
     pub work_id: String,
-    pub action_id: &'static str,
+    pub action_id: String,
     pub request_allowed: bool,
     pub authority_effect: AuthorityEffect,
     pub approval_posture: ApprovalPosture,
@@ -170,7 +170,7 @@ pub struct DccGovernedActionPreviewV1 {
     pub approval_preview_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DccMvpRuntimeSurfaceValidationError {
     pub field: &'static str,
     pub message: &'static str,
@@ -401,7 +401,7 @@ pub fn preview_dcc_governed_action(
     Ok(DccGovernedActionPreviewV1 {
         schema_id: "hsk.kernel.dcc_governed_action_preview@1".to_string(),
         work_id: selection.work_item.work_id,
-        action_id: action.action_id,
+        action_id: action.action_id.to_string(),
         request_allowed: true,
         authority_effect: action.authority_effect,
         approval_posture: action.approval_posture,

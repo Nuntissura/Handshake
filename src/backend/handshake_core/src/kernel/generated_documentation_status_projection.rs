@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+use super::crdt::persistence::sha256_hex;
 use std::collections::{HashMap, HashSet};
 
 pub const GENERATED_DOCUMENTATION_STATUS_PROJECTION_SCHEMA_ID: &str =
@@ -5,7 +8,7 @@ pub const GENERATED_DOCUMENTATION_STATUS_PROJECTION_SCHEMA_ID: &str =
 pub const GENERATED_DOCUMENTATION_STATUS_PROJECTION_RESULT_SCHEMA_ID: &str =
     "hsk.kernel.generated_documentation_status_projection_result@1";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GeneratedStatusSourceKind {
     Contract,
     ReceiptLedger,
@@ -28,7 +31,7 @@ impl GeneratedStatusSourceKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GeneratedStatusTargetKind {
     PacketStatus,
     MicroTaskStatus,
@@ -39,14 +42,14 @@ pub enum GeneratedStatusTargetKind {
     OperatorSummary,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ManualStatusEditDisposition {
     DenyDirectEdit,
     CaptureAsAdvisoryNormalization,
     AcceptAsAuthority,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GeneratedStatusFailureState {
     ManualStatusEditAttempt,
     NonAuthoritativeSourceUsed,
@@ -58,7 +61,7 @@ pub enum GeneratedStatusFailureState {
     DirectTaskBoardMutation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeneratedStatusSourceRefV1 {
     pub source_id: String,
     pub kind: GeneratedStatusSourceKind,
@@ -68,7 +71,7 @@ pub struct GeneratedStatusSourceRefV1 {
     pub authoritative: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeneratedStatusTargetV1 {
     pub target_id: String,
     pub kind: GeneratedStatusTargetKind,
@@ -82,7 +85,7 @@ pub struct GeneratedStatusTargetV1 {
     pub manual_edit_disposition: ManualStatusEditDisposition,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeneratedStatusRegenerationContractV1 {
     pub deterministic_regeneration: bool,
     pub machine_readable_authority_only: bool,
@@ -94,16 +97,16 @@ pub struct GeneratedStatusRegenerationContractV1 {
     pub denied_source_kinds: Vec<GeneratedStatusSourceKind>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeneratedStatusResearchBasisV1 {
     pub source_ref: String,
     pub pattern_found: String,
     pub selected_reuse: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeneratedDocumentationStatusProjectionV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub contract_id: String,
     pub wp_id: String,
     pub mt_id: String,
@@ -116,7 +119,7 @@ pub struct GeneratedDocumentationStatusProjectionV1 {
     pub folded_source_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeneratedDocumentationStatusProjectionResultV1 {
     pub schema_id: String,
     pub contract_id: String,
@@ -132,7 +135,7 @@ pub struct GeneratedDocumentationStatusProjectionResultV1 {
     pub mutates_task_board: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeneratedDocumentationStatusProjectionValidationError {
     pub field: &'static str,
     pub message: &'static str,
@@ -149,7 +152,7 @@ pub fn build_kernel002_generated_documentation_status_projection(
     ];
 
     GeneratedDocumentationStatusProjectionV1 {
-        schema_id: GENERATED_DOCUMENTATION_STATUS_PROJECTION_SCHEMA_ID,
+        schema_id: GENERATED_DOCUMENTATION_STATUS_PROJECTION_SCHEMA_ID.to_string(),
         contract_id: "kernel002-generated-documentation-status-projection-mt055".to_string(),
         wp_id: "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1".to_string(),
         mt_id: "MT-055".to_string(),
@@ -163,7 +166,7 @@ pub fn build_kernel002_generated_documentation_status_projection(
             source(
                 "mt-contract-mt055",
                 GeneratedStatusSourceKind::Contract,
-                ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/microtasks/MT-055.json",
+                ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-055.json",
                 "hsk.microtask_contract@1",
             ),
             source(
@@ -197,7 +200,7 @@ pub fn build_kernel002_generated_documentation_status_projection(
             target(
                 "microtask-status-projection",
                 GeneratedStatusTargetKind::MicroTaskStatus,
-                ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/microtasks/MT-055.md#status",
+                ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-055.md#status",
                 "hsk.generated_microtask_status_projection@1",
                 &source_ids,
                 ManualStatusEditDisposition::DenyDirectEdit,
@@ -205,7 +208,7 @@ pub fn build_kernel002_generated_documentation_status_projection(
             target(
                 "task-board-row-projection",
                 GeneratedStatusTargetKind::TaskBoardRow,
-                ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/task-board.row",
+                ".GOV/roles_shared/records/TASK_BOARD.md#WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
                 "hsk.generated_task_board_row_projection@1",
                 &source_ids,
                 ManualStatusEditDisposition::DenyDirectEdit,
@@ -213,7 +216,7 @@ pub fn build_kernel002_generated_documentation_status_projection(
             target(
                 "traceability-row-projection",
                 GeneratedStatusTargetKind::TraceabilityRow,
-                ".GOV/traceability/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1.rows",
+                ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md#WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
                 "hsk.generated_traceability_row_projection@1",
                 &source_ids,
                 ManualStatusEditDisposition::DenyDirectEdit,
@@ -666,9 +669,16 @@ fn source(
         kind,
         source_ref: source_ref.to_string(),
         schema_id: schema_id.to_string(),
-        source_hash: format!("sha256:{source_id}:kernel002-mt055"),
+        source_hash: source_hash("kernel002-mt055", &[source_id, source_ref, schema_id]),
         authoritative: true,
     }
+}
+
+fn source_hash(domain: &str, parts: &[&str]) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
+    )
 }
 
 fn target(

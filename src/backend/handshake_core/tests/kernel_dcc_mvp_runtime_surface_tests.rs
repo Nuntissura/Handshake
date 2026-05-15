@@ -44,6 +44,8 @@ fn dcc_runtime_surface_selects_work_and_exposes_state_without_authority_bypass()
 fn dcc_runtime_surface_previews_governed_actions_through_catalog() {
     let surface = sample_surface();
     let catalog = kernel002_action_catalog();
+    let selection = select_dcc_work_item(&surface, "work-kernel002-mt024")
+        .expect("selected DCC work item projects");
 
     let preview = preview_dcc_governed_action(
         &surface,
@@ -69,6 +71,16 @@ fn dcc_runtime_surface_previews_governed_actions_through_catalog() {
         preview.approval_preview_id.as_deref(),
         Some("approval-crdt-patch")
     );
+
+    let json = serde_json::to_string(&selection).expect("DCC selection serializes");
+    let decoded: handshake_core::kernel::dcc_mvp_runtime_surface::DccSelectedWorkProjectionV1 =
+        serde_json::from_str(&json).expect("DCC selection deserializes");
+    assert_eq!(decoded, selection);
+
+    let json = serde_json::to_string(&preview).expect("DCC preview serializes");
+    let decoded: handshake_core::kernel::dcc_mvp_runtime_surface::DccGovernedActionPreviewV1 =
+        serde_json::from_str(&json).expect("DCC preview deserializes");
+    assert_eq!(decoded, preview);
 }
 
 #[test]
