@@ -23,7 +23,10 @@ use handshake_core::workflows::locus::{
     derive_governed_action_preview, derive_governed_action_previews,
     derive_software_delivery_closeout_posture, derive_software_delivery_projection_surface,
     derive_software_delivery_workflow_binding_state, mirror_state_is_advisory_only,
-    task_board::enforce_software_delivery_task_board_projection_authority,
+    task_board::{
+        build_software_delivery_closeout_projection_badge,
+        enforce_software_delivery_task_board_projection_authority,
+    },
     validate_software_delivery_closeout_canonical_truth,
     validate_software_delivery_projection_surface_authority,
     validate_software_delivery_projection_surface_overlay,
@@ -936,16 +939,19 @@ async fn locus_create_and_close_wp_emit_structured_work_packet_packet_and_summar
             .and_then(Value::as_str),
         Some(".handshake/gov/work_packets/WP-PROFILE/packet.json")
     );
-    assert_eq!(
+    let task_packet_evidence_ref = packet_json
+        .get("governance")
+        .and_then(|value| value.get("task_packet_path"))
+        .and_then(Value::as_str)
+        .expect("governance task_packet_path");
+    assert!(
         packet_json
             .get("evidence_refs")
             .and_then(Value::as_array)
-            .and_then(|items| items.first())
-            .and_then(Value::as_str),
-        packet_json
-            .get("governance")
-            .and_then(|value| value.get("task_packet_path"))
-            .and_then(Value::as_str)
+            .is_some_and(|items| items
+                .iter()
+                .any(|item| item.as_str() == Some(task_packet_evidence_ref))),
+        "packet evidence_refs must retain governance task_packet_path evidence"
     );
     assert_eq!(
         packet_metadata
@@ -1363,7 +1369,7 @@ async fn locus_sync_task_board_emits_structured_index_and_view(
     );
     assert_eq!(
         first_row.get("task_board_id").and_then(Value::as_str),
-        Some(".handshake/gov/TASK_BOARD.md")
+        Some("task_board")
     );
     assert_eq!(
         first_row.get("lane_id").and_then(Value::as_str),
@@ -3188,7 +3194,7 @@ async fn micro_task_executor_resumes_from_pause_and_emits_workflow_recovery(
     Ok(())
 }
 
-// ── MT-001: v02.181 software-delivery projection-surface discipline tripwire ─
+// -- MT-001: v02.181 software-delivery projection-surface discipline tripwire -
 
 fn software_delivery_canonical_summary() -> StructuredCollaborationSummaryV1 {
     StructuredCollaborationSummaryV1 {
@@ -3260,7 +3266,23 @@ fn stale_advisory_board_entry(record_id: &str) -> TaskBoardEntryRecordV1 {
         token: "STALE-DONE".to_string(),
         status: "Done (mirror)".to_string(),
         summary_ref: format!(".handshake/gov/work_packets/{record_id}/summary.json"),
+        closeout_badge: None,
     }
+}
+
+fn advisory_closeout_badge_for_projection(
+    projection: &SoftwareDeliveryProjectionSurfaceV1,
+) -> handshake_core::workflows::locus::task_board::SoftwareDeliveryCloseoutProjectionBadgeV1 {
+    build_software_delivery_closeout_projection_badge(
+        &projection.work_packet_id,
+        format!(
+            ".handshake/gov/work_packets/{}/projection_surface.json",
+            projection.work_packet_id
+        ),
+        None,
+        None,
+        projection.workflow_binding_state,
+    )
 }
 
 #[test]
@@ -3286,7 +3308,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
     )
     .expect("software-delivery canonical summary must derive a projection surface");
 
-    // ── Schema and record-kind anchors ───────────────────────────────────────
+    // -- Schema and record-kind anchors ---------------------------------------
     assert_eq!(
         projection.schema_id, SOFTWARE_DELIVERY_PROJECTION_SURFACE_SCHEMA_ID_V1,
         "projection must declare the v02.181 software-delivery schema id"
@@ -3301,7 +3323,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
         "projection must remain scoped to the software_delivery profile"
     );
 
-    // ── Stable-id join: DCC, Task Board, and mailbox refs share the wp_id ──
+    // -- Stable-id join: DCC, Task Board, and mailbox refs share the wp_id --
     assert_eq!(
         projection.work_packet_id, canonical.record_id,
         "projection.work_packet_id must equal canonical record_id"
@@ -3326,7 +3348,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
         "projection must carry the model_session_id stable id"
     );
 
-    // ── Authoritative fields come from the canonical runtime summary ─────────
+    // -- Authoritative fields come from the canonical runtime summary ---------
     assert_eq!(
         projection.workflow_state_family, canonical.workflow_state_family,
         "projection workflow_state_family must equal canonical (Validation), \
@@ -3388,7 +3410,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
          never at advisory /.GOV mirrors"
     );
 
-    // ── Advisory display state survives but stays explicitly advisory ────────
+    // -- Advisory display state survives but stays explicitly advisory --------
     assert_eq!(
         projection.advisory_mirror_state,
         MirrorSyncState::Stale,
@@ -3417,7 +3439,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
         "advisory mailbox thread ids must be sorted, deduped, and exclude empty entries"
     );
 
-    // ── Discipline guard: validator helper passes for canonical-aligned data ─
+    // -- Discipline guard: validator helper passes for canonical-aligned data -
     let validation: StructuredCollaborationValidationResult =
         validate_software_delivery_projection_surface_authority(&projection, &canonical);
     assert!(
@@ -3426,7 +3448,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
         validation.issues
     );
 
-    // ── Discipline guard: validator helper FAILS when mirror text is forced ─
+    // -- Discipline guard: validator helper FAILS when mirror text is forced -
     // Construct a tampered projection that copies the board's mirror values
     // into the authoritative fields. The validator must reject it so a board
     // mirror or mailbox chronology can never be silently promoted to authority.
@@ -3468,7 +3490,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
         );
     }
 
-    // ── Discipline guard: non-software-delivery profiles are refused ────────
+    // -- Discipline guard: non-software-delivery profiles are refused --------
     let mut non_sd = canonical.clone();
     non_sd.project_profile_kind = ProjectProfileKind::Research;
     assert!(
@@ -3476,7 +3498,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
         "projection surface MUST refuse non-software-delivery canonical summaries"
     );
 
-    // ── Discipline guard: misaligned board entry breaks the stable-id join ──
+    // -- Discipline guard: misaligned board entry breaks the stable-id join --
     let mut misaligned = stale_advisory_board_entry("WP-OTHER");
     misaligned.work_packet_id = "WP-OTHER-WRONG".to_string();
     assert!(
@@ -3492,7 +3514,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
          does not match the canonical record_id (stable-id join broken)"
     );
 
-    // ── Round-trip: projection survives serde without losing discipline ────
+    // -- Round-trip: projection survives serde without losing discipline ----
     let serialized = serde_json::to_string(&projection).expect("serialize projection");
     let round_tripped: SoftwareDeliveryProjectionSurfaceV1 =
         serde_json::from_str(&serialized).expect("deserialize projection");
@@ -3508,7 +3530,7 @@ fn dcc_software_delivery_projection_surface_keeps_runtime_authority() {
     );
 }
 
-// ── v02.181 governed-action preview payload tripwire ────────────────────────
+// -- v02.181 governed-action preview payload tripwire ------------------------
 // Packet contract row "Governed action preview payload": every actionable
 // surface (DCC quick actions, Task Board row actions, Role Mailbox escalation
 // controls) MUST inspect a preview carrying action_request_id, target record
@@ -3959,10 +3981,47 @@ fn closeout_runtime_paths() -> (tempfile::TempDir, RuntimeGovernancePaths) {
     (dir, paths)
 }
 
+fn write_committable_validator_gate_record(
+    runtime_paths: &RuntimeGovernancePaths,
+    wp_id: &str,
+    evidence_refs: Vec<String>,
+) {
+    let gate_record_path = runtime_paths.validator_gate_record_path(wp_id);
+    std::fs::create_dir_all(
+        gate_record_path
+            .parent()
+            .expect("validator gate parent directory must exist"),
+    )
+    .expect("create validator gate parent directory");
+    let evidence_refs_for_summary = evidence_refs.clone();
+    std::fs::write(
+        &gate_record_path,
+        serde_json::to_vec(&json!({
+            "gate_summary": {
+                "gate_state_ref": runtime_paths.validator_gate_display(wp_id),
+                "gate_record_id": format!("validator_gate:{wp_id}"),
+                "phase": "committable",
+                "check_evidence": [{
+                    "gate_phase": "committable",
+                    "check_result_status": "pass",
+                    "role_proof": "WP_VALIDATOR",
+                    "session_proof": "wp_validator:gate-session-1",
+                    "evidence_refs": evidence_refs,
+                }],
+                "evidence_refs": evidence_refs_for_summary,
+            }
+        }))
+        .expect("serialize validator gate record"),
+    )
+    .expect("write validator gate record");
+}
+
 fn canonical_software_delivery_summary_for_closeout(
     runtime_paths: &RuntimeGovernancePaths,
     wp_id: &str,
 ) -> StructuredCollaborationSummaryV1 {
+    let gate_record_ref = runtime_paths.validator_gate_record_display(wp_id);
+    write_committable_validator_gate_record(runtime_paths, wp_id, vec![gate_record_ref.clone()]);
     StructuredCollaborationSummaryV1 {
         schema_id: "hsk.structured_collaboration_summary@1".to_string(),
         schema_version: "1".to_string(),
@@ -3972,11 +4031,11 @@ fn canonical_software_delivery_summary_for_closeout(
         updated_at: "2026-04-27T18:00:00Z".to_string(),
         mirror_state: MirrorSyncState::CanonicalOnly,
         authority_refs: vec![runtime_paths.work_packet_packet_display(wp_id)],
-        evidence_refs: vec![runtime_paths.validator_gate_record_display(wp_id)],
+        evidence_refs: vec![gate_record_ref],
         mirror_contract: None,
         workflow_state_family: WorkflowStateFamily::Validation,
         queue_reason_code: WorkflowQueueReasonCode::ValidationWait,
-        allowed_action_ids: Vec::new(),
+        allowed_action_ids: vec!["validate".to_string(), "repair".to_string()],
         transition_rule_ids: transition_rule_ids_for_family(WorkflowStateFamily::Validation),
         queue_automation_rule_ids: queue_automation_rule_ids_for_reason(
             WorkflowQueueReasonCode::ValidationWait,
@@ -4003,11 +4062,18 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     // canonical fields verbatim. Checkpoint id is propagated and reduced to
     // its canonical record ref + id pair. Governed-action resolution refs
     // are sorted + deduped.
+    let approve_decision_ref = runtime_paths.governance_decision_display("approve-1");
+    let validate_decision_ref = runtime_paths.governance_decision_display("validate-1");
+    let advisory_decision_ref = format!(
+        "{}nested/validate-1.json",
+        runtime_paths.governance_decisions_dir_display()
+    );
     let governed_actions = vec![
-        "governed_action_resolution:approve:1".to_string(),
-        "governed_action_resolution:validate:1".to_string(),
-        "".to_string(),                                     // empty must be filtered
-        "governed_action_resolution:approve:1".to_string(), // duplicate must be deduped
+        approve_decision_ref.clone(),
+        validate_decision_ref.clone(),
+        "".to_string(), // empty must be filtered
+        advisory_decision_ref,
+        approve_decision_ref.clone(), // duplicate must be deduped
     ];
     let posture = derive_software_delivery_closeout_posture(
         &canonical,
@@ -4046,10 +4112,7 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     );
     assert_eq!(
         posture.governed_action_resolution_refs,
-        vec![
-            "governed_action_resolution:approve:1".to_string(),
-            "governed_action_resolution:validate:1".to_string(),
-        ],
+        vec![approve_decision_ref, validate_decision_ref],
         "governed_action_resolution_refs must be sorted + deduped + filtered"
     );
     assert_eq!(posture.evidence_refs, canonical.evidence_refs);
@@ -4265,6 +4328,8 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     // Done with no blockers -> ReadyToClose.
     let mut done = canonical.clone();
     done.workflow_state_family = WorkflowStateFamily::Done;
+    done.allowed_action_ids = vec!["archive".to_string(), "archive_work_packet".to_string()];
+    done.next_action = Some("archive".to_string());
     done.blockers.clear();
     let done_posture = derive_software_delivery_closeout_posture(&done, &runtime_paths, None, &[])
         .expect("Done with truth refs must derive a closeout posture");
@@ -4280,6 +4345,8 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     // Done with blockers -> PendingBlockers.
     let mut blocked = canonical.clone();
     blocked.workflow_state_family = WorkflowStateFamily::Done;
+    blocked.allowed_action_ids = vec!["archive".to_string(), "archive_work_packet".to_string()];
+    blocked.next_action = Some("archive".to_string());
     let blocked_posture =
         derive_software_delivery_closeout_posture(&blocked, &runtime_paths, None, &[])
             .expect("Done with truth refs must derive a closeout posture even with blockers");
@@ -4295,6 +4362,8 @@ fn closeout_projection_requires_gate_evidence_and_owner_truth() {
     // Active family with both truth refs -> NotEligible.
     let mut active_full = canonical.clone();
     active_full.workflow_state_family = WorkflowStateFamily::Active;
+    active_full.allowed_action_ids = vec!["update".to_string(), "complete".to_string()];
+    active_full.next_action = Some("update".to_string());
     let active_posture =
         derive_software_delivery_closeout_posture(&active_full, &runtime_paths, None, &[])
             .expect("Active with truth refs must still derive (state=NotEligible)");
@@ -4738,8 +4807,8 @@ fn closeout_posture_not_written_when_validation_fails_for_unrelated_reason() {
     assert!(summary_path.exists());
 }
 
-// ── MT-004: v02.181 software-delivery overlay extension records and
-// lifecycle semantics tripwire ─────────────────────────────────────────────
+// -- MT-004: v02.181 software-delivery overlay extension records and
+// lifecycle semantics tripwire ---------------------------------------------
 
 fn overlay_canonical_summary(
     runtime_paths: &RuntimeGovernancePaths,
@@ -4865,7 +4934,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
     )
     .expect("overlay projection must derive for software_delivery canonical");
 
-    // ── Schema/anchor invariants persist across the overlay extension ────────
+    // -- Schema/anchor invariants persist across the overlay extension --------
     assert_eq!(
         projection.schema_id,
         SOFTWARE_DELIVERY_PROJECTION_SURFACE_SCHEMA_ID_V1
@@ -4888,7 +4957,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         Some("session-coder-mt004")
     );
 
-    // ── Claim/lease overlay surfaces by stable id and canonical path ────────
+    // -- Claim/lease overlay surfaces by stable id and canonical path --------
     assert_eq!(
         projection.claim_lease_record_id.as_deref(),
         Some("claim-mt004-A"),
@@ -4913,7 +4982,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         "claim_lease_record_ref must validate as canonical for the same record_id binding"
     );
 
-    // ── Queued instructions are sorted, deduped, and ref-aligned by id ──────
+    // -- Queued instructions are sorted, deduped, and ref-aligned by id ------
     assert_eq!(
         projection.queued_instruction_record_ids,
         vec![
@@ -4940,7 +5009,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         );
     }
 
-    // ── Workflow binding lifecycle state derives from canonical truth ───────
+    // -- Workflow binding lifecycle state derives from canonical truth -------
     assert_eq!(
         projection.workflow_binding_state,
         Some(SoftwareDeliveryWorkflowBindingState::ValidationWait),
@@ -4948,7 +5017,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
          is in the Validation family AND validator-gate posture is active"
     );
 
-    // ── Spec invariants: validation_wait requires active validator gate ────
+    // -- Spec invariants: validation_wait requires active validator gate ----
     let no_gate_posture = SoftwareDeliveryBindingGatePosture {
         has_active_validator_gate: false,
         ..gate_posture
@@ -4960,7 +5029,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
          must NOT promote the binding to ValidationWait"
     );
 
-    // ── Spec invariants: approval_wait requires unresolved governed actions ─
+    // -- Spec invariants: approval_wait requires unresolved governed actions -
     let mut approval_canonical = canonical.clone();
     approval_canonical.workflow_state_family = WorkflowStateFamily::Approval;
     approval_canonical.queue_reason_code = WorkflowQueueReasonCode::ApprovalWait;
@@ -4994,7 +5063,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         "Approval family + unresolved governed actions = ApprovalWait"
     );
 
-    // ── Spec invariants: closeout_pending derives from canonical truth ─────
+    // -- Spec invariants: closeout_pending derives from canonical truth -----
     let mut done_canonical = canonical.clone();
     done_canonical.workflow_state_family = WorkflowStateFamily::Done;
     done_canonical.queue_reason_code = WorkflowQueueReasonCode::ReadyForHuman;
@@ -5045,7 +5114,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         "workflow_canceled wins over family lifecycle"
     );
 
-    // ── Discipline guard: foreign-WP claim/lease breaks stable-id join ─────
+    // -- Discipline guard: foreign-WP claim/lease breaks stable-id join -----
     let foreign_claim = GovernanceClaimLeaseRecordV1 {
         work_packet_id: "WP-OTHER".to_string(),
         ..claim.clone()
@@ -5068,7 +5137,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
          (stable-id join broken)"
     );
 
-    // ── Discipline guard: foreign-WP queued instruction breaks stable-id join
+    // -- Discipline guard: foreign-WP queued instruction breaks stable-id join
     let foreign_instruction = GovernanceQueuedInstructionRecordV1 {
         work_packet_id: "WP-OTHER".to_string(),
         ..instructions[0].clone()
@@ -5091,7 +5160,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
          (stable-id join broken)"
     );
 
-    // ── Discipline guard: non-software-delivery profile is refused ─────────
+    // -- Discipline guard: non-software-delivery profile is refused ---------
     let mut non_sd = canonical.clone();
     non_sd.project_profile_kind = ProjectProfileKind::Research;
     assert!(
@@ -5111,7 +5180,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         "overlay projection MUST refuse non-software_delivery canonical summaries"
     );
 
-    // ── Validator helper: passes for canonical-aligned overlay ─────────────
+    // -- Validator helper: passes for canonical-aligned overlay -------------
     let overlay_validation = validate_software_delivery_projection_surface_overlay(
         &projection,
         &canonical,
@@ -5124,7 +5193,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         overlay_validation.issues
     );
 
-    // ── Validator helper: rejects spoofed claim/lease record ref ───────────
+    // -- Validator helper: rejects spoofed claim/lease record ref -----------
     let spoofed = SoftwareDeliveryProjectionSurfaceV1 {
         claim_lease_record_ref: Some(format!(
             "{}notes/claim_leases/{wp_id}/claim-mt004-A.json",
@@ -5150,7 +5219,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         "overlay validator must surface claim_lease_record_ref issue"
     );
 
-    // ── Validator helper: rejects unsorted queued-instruction ids ──────────
+    // -- Validator helper: rejects unsorted queued-instruction ids ----------
     let unsorted = SoftwareDeliveryProjectionSurfaceV1 {
         queued_instruction_record_ids: vec![
             "instr-002-resume".to_string(),
@@ -5173,7 +5242,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         "overlay validator must reject unsorted queued_instruction_record_ids"
     );
 
-    // ── Validator helper: rejects mismatched workflow_binding_state ────────
+    // -- Validator helper: rejects mismatched workflow_binding_state --------
     let mismatched = SoftwareDeliveryProjectionSurfaceV1 {
         workflow_binding_state: Some(SoftwareDeliveryWorkflowBindingState::Settled),
         ..projection.clone()
@@ -5201,7 +5270,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         "overlay validator must surface workflow_binding_state SummaryJoinMismatch"
     );
 
-    // ── Base authority validator must continue to pass on the same surface ─
+    // -- Base authority validator must continue to pass on the same surface -
     let base_validation =
         validate_software_delivery_projection_surface_authority(&projection, &canonical);
     assert!(
@@ -5210,7 +5279,7 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
         base_validation.issues
     );
 
-    // ── Round-trip: serde preserves the overlay extension fields ───────────
+    // -- Round-trip: serde preserves the overlay extension fields -----------
     let serialized = serde_json::to_string(&projection).expect("serialize overlay projection");
     let round_tripped: SoftwareDeliveryProjectionSurfaceV1 =
         serde_json::from_str(&serialized).expect("deserialize overlay projection");
@@ -5223,10 +5292,13 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
     );
     assert!(round_overlay_validation.ok);
 
-    // ── Role Mailbox advisory triage row surfaces same stable ids ──────────
+    // -- Role Mailbox advisory triage row surfaces same stable ids ----------
     let triage_row: SoftwareDeliveryOverlayTriageRowV1 =
-        build_software_delivery_overlay_triage_row(&projection)
-            .expect("triage row must build for software_delivery projection");
+        build_software_delivery_overlay_triage_row(
+            &projection,
+            advisory_closeout_badge_for_projection(&projection),
+        )
+        .expect("triage row must build for software_delivery projection");
     assert_eq!(triage_row.work_packet_id, projection.work_packet_id);
     assert_eq!(triage_row.workflow_run_id, projection.workflow_run_id);
     assert_eq!(
@@ -5258,7 +5330,11 @@ fn projection_surface_exposes_claim_and_queued_instruction_ids() {
     let mut non_sd_projection = projection.clone();
     non_sd_projection.project_profile_kind = ProjectProfileKind::Research;
     assert!(
-        build_software_delivery_overlay_triage_row(&non_sd_projection).is_none(),
+        build_software_delivery_overlay_triage_row(
+            &non_sd_projection,
+            advisory_closeout_badge_for_projection(&non_sd_projection),
+        )
+        .is_none(),
         "advisory triage row MUST refuse non-software_delivery projections"
     );
 }
@@ -5987,7 +6063,7 @@ fn production_writes_workflow_run_lifecycle_record_before_projection_surface() {
     let workspace_root = runtime_paths.workspace_root().to_path_buf();
     let wp_id = "WP-1-Software-Delivery-LifecycleWriter-Approval";
 
-    // Pre-condition: no synthetic sidecar — the canonical record must come
+    // Pre-condition: no synthetic sidecar -- the canonical record must come
     // from production code, not a test helper.
     let lifecycle_path = runtime_paths.workflow_run_record_path(wp_id);
     assert!(
@@ -6019,7 +6095,7 @@ fn production_writes_workflow_run_lifecycle_record_before_projection_surface() {
     canonical.evidence_refs.clear();
 
     // Drive the production wrapper that `emit_runtime_structured_work_packet_artifacts`
-    // calls — no test helper materializes the lifecycle sidecar here.
+    // calls -- no test helper materializes the lifecycle sidecar here.
     let surface =
         read_emitted_projection_surface(&runtime_paths, &workspace_root, wp_id, &canonical);
 
@@ -6082,7 +6158,7 @@ fn production_writes_workflow_run_lifecycle_record_before_projection_surface() {
     assert!(!written.workflow_settled);
 
     // The projection surface MUST reach ApprovalWait through the runtime-backed
-    // sidecar — proving the writer ran BEFORE the projection surface emitter.
+    // sidecar -- proving the writer ran BEFORE the projection surface emitter.
     assert_eq!(
         surface.workflow_binding_state,
         Some(SoftwareDeliveryWorkflowBindingState::ApprovalWait),
@@ -6181,7 +6257,7 @@ fn role_mailbox_software_delivery_triage_remains_advisory() {
     let workspace_root = runtime_paths.workspace_root().to_path_buf();
     let wp_id = "WP-1-Software-Delivery-MailboxAdvisory";
 
-    // ── 1. Materialize canonical software-delivery overlay state ──────────
+    // -- 1. Materialize canonical software-delivery overlay state ----------
     let claim = overlay_claim_lease(wp_id, "claim-mt005-A");
     let claim_path = runtime_paths.claim_lease_record_path(wp_id, &claim.record_id);
     std::fs::create_dir_all(claim_path.parent().expect("claim_leases parent dir"))
@@ -6232,9 +6308,12 @@ fn role_mailbox_software_delivery_triage_remains_advisory() {
     let surface_before = std::fs::read(&surface_path).expect("snapshot projection surface");
     let lifecycle_before = std::fs::read(&lifecycle_path).expect("snapshot workflow_run lifecycle");
 
-    // ── 2. Build the advisory triage row from the canonical projection ────
-    let triage_row = build_software_delivery_overlay_triage_row(&projection)
-        .expect("triage row must build for software_delivery projection");
+    // -- 2. Build the advisory triage row from the canonical projection ----
+    let triage_row = build_software_delivery_overlay_triage_row(
+        &projection,
+        advisory_closeout_badge_for_projection(&projection),
+    )
+    .expect("triage row must build for software_delivery projection");
     assert_eq!(triage_row.work_packet_id, wp_id);
     assert_eq!(
         triage_row.claim_lease_record_id.as_deref(),
@@ -6257,7 +6336,7 @@ fn role_mailbox_software_delivery_triage_remains_advisory() {
         "advisory triage row MUST surface canonical queued instruction record id"
     );
 
-    // ── 3. Mutate the triage row in arbitrary ways (simulating a mailbox
+    // -- 3. Mutate the triage row in arbitrary ways (simulating a mailbox
     //       reader/UI clobber attempt: forge stable ids, inject a settled
     //       binding state, swap claim/lease and queued instruction ids).
     let mut mutated = triage_row.clone();
@@ -6279,7 +6358,7 @@ fn role_mailbox_software_delivery_triage_remains_advisory() {
     let _: SoftwareDeliveryOverlayTriageRowV1 =
         serde_json::from_str(&serialized).expect("deserialize mutated triage row");
 
-    // ── 4. Canonical state on disk MUST be byte-identical to the snapshot ─
+    // -- 4. Canonical state on disk MUST be byte-identical to the snapshot -
     let claim_after = std::fs::read(&claim_path).expect("re-read claim/lease");
     let instr_after = std::fs::read(&instr_path).expect("re-read queued instruction");
     let surface_after = std::fs::read(&surface_path).expect("re-read projection surface");
@@ -6302,20 +6381,27 @@ fn role_mailbox_software_delivery_triage_remains_advisory() {
         "mailbox triage row mutation MUST NOT mutate runtime workflow_run lifecycle record"
     );
 
-    // ── 5. Triage row builder remains bounded by software_delivery profile ─
+    // -- 5. Triage row builder remains bounded by software_delivery profile -
     let mut foreign_profile = projection.clone();
     foreign_profile.project_profile_kind = ProjectProfileKind::Research;
     assert!(
-        build_software_delivery_overlay_triage_row(&foreign_profile).is_none(),
+        build_software_delivery_overlay_triage_row(
+            &foreign_profile,
+            advisory_closeout_badge_for_projection(&foreign_profile),
+        )
+        .is_none(),
         "mailbox triage row builder MUST refuse non-software_delivery projections \
          (authority boundary: the advisory surface only applies to software_delivery work)"
     );
 
-    // ── 6. Re-deriving the triage row from the unchanged projection MUST
+    // -- 6. Re-deriving the triage row from the unchanged projection MUST
     //       continue to surface canonical truth (proves the mutated copy
-    //       was a local clone with no link back to canonical state). ──────
-    let re_derived = build_software_delivery_overlay_triage_row(&projection)
-        .expect("triage row re-derivation must succeed");
+    //       was a local clone with no link back to canonical state). ------
+    let re_derived = build_software_delivery_overlay_triage_row(
+        &projection,
+        advisory_closeout_badge_for_projection(&projection),
+    )
+    .expect("triage row re-derivation must succeed");
     assert_eq!(
         re_derived, triage_row,
         "re-derived triage row MUST match the original; mailbox mutations do not \
@@ -6447,7 +6533,7 @@ async fn locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait(
     )
     .await?;
 
-    // ── Base case: no mailbox wait ──
+    // -- Base case: no mailbox wait --
     let progress_base = run_locus_job(
         &state,
         "locus_get_mt_progress_v1",
@@ -6509,7 +6595,7 @@ async fn locus_mt_progress_workflow_parity_with_emitted_packet_and_mailbox_wait(
         "base MT without mailbox wait should not have mailbox_response_wait reason"
     );
 
-    // ── Mailbox wait case ──
+    // -- Mailbox wait case --
     let progress_mailbox = run_locus_job(
         &state,
         "locus_get_mt_progress_v1",

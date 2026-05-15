@@ -33,7 +33,7 @@ pub enum LocusAuthorityMode {
     EventLedgerAuthority,
     CrdtWorkspaceAuthority,
     ProjectionOnly,
-    LegacySqliteAuthority,
+    LegacyLocalStoreAuthority,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -103,7 +103,7 @@ pub struct LocusWorkTrackingResetContractV1 {
     pub schema_id: String,
     pub contract_id: String,
     pub folded_stub_id: String,
-    pub sqlite_authority_allowed: bool,
+    pub legacy_local_authority_allowed: bool,
     pub capabilities: Vec<LocusTrackingCapabilityV1>,
     pub work_packets: Vec<LocusWorkPacketRecordV1>,
     pub micro_tasks: Vec<LocusMicroTaskRecordV1>,
@@ -168,10 +168,10 @@ pub fn validate_locus_work_tracking_reset_contract(
         });
     }
 
-    if contract.sqlite_authority_allowed {
+    if contract.legacy_local_authority_allowed {
         errors.push(LocusWorkTrackingResetValidationError {
-            field: "sqlite_authority_allowed",
-            message: "legacy SQLite authority must be replaced by product authority",
+            field: "legacy_local_authority_allowed",
+            message: "legacy local authority must be replaced by product authority",
         });
     }
 
@@ -348,10 +348,10 @@ fn validate_capabilities(
         require_vec(errors, "authority_refs", &capability.authority_refs);
         require_vec(errors, "folded_source_refs", &capability.folded_source_refs);
 
-        if capability.authority_mode == LocusAuthorityMode::LegacySqliteAuthority {
+        if capability.authority_mode == LocusAuthorityMode::LegacyLocalStoreAuthority {
             errors.push(LocusWorkTrackingResetValidationError {
                 field: "authority_mode",
-                message: "SQLite authority is not allowed after the Locus reset migration",
+                message: "legacy local authority is not allowed after the Locus reset migration",
             });
         }
 

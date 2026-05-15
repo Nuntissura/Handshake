@@ -110,7 +110,7 @@ const KERNEL002_MANUAL_SECTIONS: &[KernelModelManualSection] = &[
         title: "Safety Constraints",
         instructions: &[
             "Never directly edit authority artifacts, generated mirrors, task status, or runtime truth records to change kernel state.",
-            "Never treat SQLite, markdown, mailbox chronology, or UI-local truth as Kernel002 authority.",
+            "Never treat legacy local storage, markdown, mailbox chronology, or UI-local truth as Kernel002 authority.",
             "Keep product code and repo-governance overlays separate; imported .GOV artifacts are source evidence only.",
         ],
     },

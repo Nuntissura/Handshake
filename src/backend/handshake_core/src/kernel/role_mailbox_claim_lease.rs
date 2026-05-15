@@ -566,19 +566,20 @@ fn validate_lease_expiry(
     errors: &mut Vec<RoleMailboxClaimLeaseValidationError>,
     lease: &RoleMailboxClaimLeaseV1,
 ) {
+    let stale_or_expired = lease.lease_expired || lease.lease_state == ClaimLeaseState::Expired;
     if lease.lease_state == ClaimLeaseState::Expired && !lease.lease_expired {
         errors.push(RoleMailboxClaimLeaseValidationError {
             field: "lease_expired",
             message: "expired lease state requires the lease-expired field",
         });
     }
-    if lease.lease_expired && lease.lease_age_seconds == 0 {
+    if stale_or_expired && lease.lease_age_seconds == 0 {
         errors.push(RoleMailboxClaimLeaseValidationError {
             field: "lease_age_seconds",
             message: "expired or stale leases require a non-zero lease age",
         });
     }
-    if lease.lease_expired
+    if stale_or_expired
         && lease.takeover_policy == RoleMailboxTakeoverPolicy::StaleLeaseRequiresApproval
         && lease.takeover_legality != RoleMailboxTakeoverLegality::RequiresApproval
     {

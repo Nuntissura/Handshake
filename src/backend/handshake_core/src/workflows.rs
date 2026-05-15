@@ -30,9 +30,10 @@ use crate::{
         CapabilityRegistryWorkflowParams,
     },
     flight_recorder::{
-        canonical_json_sha256_hex, EventFilter, FlightRecorderActor, FlightRecorderEvent,
-        FlightRecorderEventType, FrEvt008SecurityViolation, FrEvtGovWorkPacketActivated,
-        FrEvtSessionCheckpointCreated, FrEvtSessionRecoveryAttempted, FrEvtWorkflowRecovery,
+        canonical_json_sha256_hex, model_run_activity_span_id, model_session_span_id, EventFilter,
+        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+        FrEvt008SecurityViolation, FrEvtGovWorkPacketActivated, FrEvtSessionCheckpointCreated,
+        FrEvtSessionRecoveryAttempted, FrEvtWorkflowRecovery,
     },
     governance_pack::{export_governance_pack, GovernancePackExportRequest},
     llm::{
@@ -5384,9 +5385,44 @@ fn gather_software_delivery_governed_action_resolution_refs(
             }
         })
         .collect();
+    if let Ok(bytes) = fs::read(runtime_paths.validator_gate_record_path(&summary.record_id)) {
+        if let Ok(gate_record) = serde_json::from_slice::<Value>(&bytes) {
+            collect_canonical_governance_decision_refs_from_value(
+                &gate_record,
+                runtime_paths,
+                &mut governed_action_resolution_refs,
+            );
+        }
+    }
     governed_action_resolution_refs.sort();
     governed_action_resolution_refs.dedup();
     governed_action_resolution_refs
+}
+
+fn collect_canonical_governance_decision_refs_from_value(
+    value: &Value,
+    runtime_paths: &RuntimeGovernancePaths,
+    out: &mut Vec<String>,
+) {
+    match value {
+        Value::String(reference) => {
+            let normalized = reference.trim();
+            if runtime_paths.is_canonical_governance_decision_ref(normalized) {
+                out.push(normalized.to_string());
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                collect_canonical_governance_decision_refs_from_value(item, runtime_paths, out);
+            }
+        }
+        Value::Object(map) => {
+            for item in map.values() {
+                collect_canonical_governance_decision_refs_from_value(item, runtime_paths, out);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn read_software_delivery_projection_surface(
@@ -7326,13 +7362,20 @@ pub async fn recover_session_from_checkpoint(
         previous_state: checkpointed_session.state.as_str().to_string(),
         reason: "crash_recovery".to_string(),
     };
+    let mut payload_value = serde_json::to_value(&payload).unwrap_or(json!({}));
+    if let Some(map) = payload_value.as_object_mut() {
+        map.insert(
+            "type".to_string(),
+            Value::String("session_recovery_attempted".to_string()),
+        );
+    }
     record_event_safely(
         state,
         FlightRecorderEvent::new(
             FlightRecorderEventType::SessionRecoveryAttempted,
             FlightRecorderActor::System,
             Uuid::new_v4(),
-            serde_json::to_value(&payload).unwrap_or(json!({})),
+            payload_value,
         ),
     )
     .await;
@@ -7515,7 +7558,9 @@ async fn emit_session_scheduler_enqueue_event(
             payload,
         )
         .with_job_id(job.job_id.to_string())
-        .with_model_session_id(metadata.session_id.clone()),
+        .with_model_session_id(metadata.session_id.clone())
+        .with_session_span(session_span_for_id(&metadata.session_id))
+        .with_activity_span(model_run_span_for_job(job)),
     )
     .await
 }
@@ -7548,7 +7593,9 @@ async fn emit_session_scheduler_dispatch_event(
             payload,
         )
         .with_job_id(job.job_id.to_string())
-        .with_model_session_id(metadata.session_id.clone()),
+        .with_model_session_id(metadata.session_id.clone())
+        .with_session_span(session_span_for_id(&metadata.session_id))
+        .with_activity_span(model_run_span_for_job(job)),
     )
     .await
 }
@@ -7587,7 +7634,9 @@ async fn emit_session_scheduler_rate_limited_event(
             payload,
         )
         .with_job_id(job.job_id.to_string())
-        .with_model_session_id(metadata.session_id.clone()),
+        .with_model_session_id(metadata.session_id.clone())
+        .with_session_span(session_span_for_id(&metadata.session_id))
+        .with_activity_span(model_run_span_for_job(job)),
     )
     .await
 }
@@ -7622,7 +7671,9 @@ async fn emit_session_scheduler_cancelled_event(
             payload,
         )
         .with_job_id(job.job_id.to_string())
-        .with_model_session_id(metadata.session_id.clone()),
+        .with_model_session_id(metadata.session_id.clone())
+        .with_session_span(session_span_for_id(&metadata.session_id))
+        .with_activity_span(model_run_span_for_job(job)),
     )
     .await
 }
@@ -7717,6 +7768,7 @@ fn spawn_announce_back_status(final_status: &JobState) -> &'static str {
 async fn emit_session_spawn_announce_back_event(
     state: &AppState,
     trace_id: Uuid,
+    job: &AiJob,
     metadata: &ModelRunMetadata,
     final_status: &JobState,
     summary_artifact_id: Option<String>,
@@ -7739,7 +7791,11 @@ async fn emit_session_spawn_announce_back_event(
             FlightRecorderActor::System,
             trace_id,
             payload,
-        ),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_model_session_id(metadata.session_id.clone())
+        .with_session_span(session_span_for_id(&metadata.session_id))
+        .with_activity_span(model_run_span_for_job(job)),
     )
     .await
 }
@@ -7768,6 +7824,186 @@ async fn emit_session_cascade_cancel_event(
         ),
     )
     .await
+}
+
+fn session_span_for_id(session_id: &str) -> String {
+    model_session_span_id(session_id)
+}
+
+fn model_run_span_for_job(job: &AiJob) -> String {
+    model_run_activity_span_id(job.job_id.to_string().as_str())
+}
+
+async fn emit_session_created_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job: &AiJob,
+    metadata: &ModelRunMetadata,
+) -> Result<(), WorkflowError> {
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionCreated,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "session.created",
+                "event_id": "FR-EVT-SESS-001",
+                "session_id": metadata.session_id,
+                "state": "CREATED",
+                "job_id": job.job_id.to_string(),
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_model_session_id(metadata.session_id.clone())
+        .with_session_span(session_span_for_id(&metadata.session_id)),
+    )
+    .await
+}
+
+async fn emit_session_state_change_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job: &AiJob,
+    session_id: &str,
+    from_state: &str,
+    to_state: &str,
+) -> Result<(), WorkflowError> {
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionStateChange,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "session.state_change",
+                "event_id": "FR-EVT-SESS-002",
+                "session_id": session_id,
+                "from_state": from_state,
+                "to_state": to_state,
+                "job_id": job.job_id.to_string(),
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_model_session_id(session_id.to_string())
+        .with_session_span(session_span_for_id(session_id))
+        .with_activity_span(model_run_span_for_job(job)),
+    )
+    .await
+}
+
+async fn emit_session_message_event(
+    state: &AppState,
+    trace_id: Uuid,
+    job: &AiJob,
+    session_id: &str,
+    message: &crate::storage::SessionMessage,
+) -> Result<(), WorkflowError> {
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionMessage,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "session.message",
+                "event_id": "FR-EVT-SESS-003",
+                "session_id": session_id,
+                "message_id": message.message_id.as_str(),
+                "role": message.role.as_str(),
+                "token_count": message.token_count,
+                "content_artifact_id": message.content_artifact_id.as_str(),
+                "redacted": message.redacted,
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_model_session_id(session_id.to_string())
+        .with_session_span(session_span_for_id(session_id))
+        .with_activity_span(model_run_span_for_job(job)),
+    )
+    .await
+}
+
+async fn emit_session_completed_observability_events(
+    state: &AppState,
+    trace_id: Uuid,
+    job: &AiJob,
+    metadata: &ModelRunMetadata,
+    output_payload: Option<&Value>,
+) -> Result<(), WorkflowError> {
+    let messages = state
+        .storage
+        .list_session_messages(metadata.session_id.as_str())
+        .await?;
+    let total_tokens: i64 = messages
+        .iter()
+        .filter_map(|message| message.token_count)
+        .sum();
+    let output = match output_payload {
+        Some(value) => value.clone(),
+        None => state
+            .storage
+            .get_ai_job(job.job_id.to_string().as_str())
+            .await?
+            .job_outputs
+            .unwrap_or(Value::Null),
+    };
+    let total_cost_usd = output
+        .get("estimated_cost_usd")
+        .and_then(Value::as_f64)
+        .or(metadata.estimated_cost_usd);
+
+    record_event_required(
+        state,
+        FlightRecorderEvent::new(
+            FlightRecorderEventType::SessionCompleted,
+            FlightRecorderActor::System,
+            trace_id,
+            json!({
+                "type": "session.completed",
+                "event_id": "FR-EVT-SESS-004",
+                "session_id": metadata.session_id,
+                "job_id": job.job_id.to_string(),
+                "total_tokens": total_tokens,
+                "messages_count": messages.len() as u64,
+                "total_cost_usd": total_cost_usd,
+            }),
+        )
+        .with_job_id(job.job_id.to_string())
+        .with_model_session_id(metadata.session_id.clone())
+        .with_session_span(session_span_for_id(&metadata.session_id))
+        .with_activity_span(model_run_span_for_job(job)),
+    )
+    .await?;
+
+    if let Some(threshold) = metadata.max_tokens_budget {
+        if total_tokens > threshold {
+            record_event_required(
+                state,
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::SessionBudgetWarning,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "session.budget_warning",
+                        "event_id": "FR-EVT-SESS-005",
+                        "session_id": metadata.session_id,
+                        "job_id": job.job_id.to_string(),
+                        "metric": "total_tokens",
+                        "current_value": total_tokens as f64,
+                        "threshold_value": threshold as f64,
+                    }),
+                )
+                .with_job_id(job.job_id.to_string())
+                .with_model_session_id(metadata.session_id.clone())
+                .with_session_span(session_span_for_id(&metadata.session_id))
+                .with_activity_span(model_run_span_for_job(job)),
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
 }
 
 async fn ensure_model_session_artifact_refs(
@@ -7801,6 +8037,7 @@ async fn ensure_model_session_artifact_refs(
         })
         .await?;
     state.session_registry.upsert_session(session).await;
+    emit_session_created_event(state, derive_trace_id(job, None), job, metadata).await?;
 
     if state
         .session_registry
@@ -7867,7 +8104,7 @@ async fn ensure_model_session_artifact_refs(
             .await;
         }
 
-        state
+        let stored_message = state
             .storage
             .append_session_message(NewSessionMessage {
                 message_id: entry.message_id.clone(),
@@ -7881,6 +8118,14 @@ async fn ensure_model_session_artifact_refs(
                 attachments,
             })
             .await?;
+        emit_session_message_event(
+            state,
+            derive_trace_id(job, None),
+            job,
+            &metadata.session_id,
+            &stored_message,
+        )
+        .await?;
     }
 
     Ok(())
@@ -8174,6 +8419,15 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
         )
         .await?;
     state.session_registry.upsert_session(session).await;
+    emit_session_state_change_event(
+        state,
+        trace_id,
+        &job,
+        &metadata.session_id,
+        "CREATED",
+        "ACTIVE",
+    )
+    .await?;
 
     emit_session_scheduler_dispatch_event(state, trace_id, &job, &metadata, queue_wait_ms).await?;
 
@@ -8259,14 +8513,12 @@ async fn run_model_run_dispatch_loop(state: AppState) -> Result<(), WorkflowErro
                 )
                 .await?;
 
-                if denied.backoff_ms > 0 {
-                    let state_clone = state.clone();
-                    let backoff_ms = denied.backoff_ms;
-                    tokio::spawn(async move {
-                        sleep(Duration::from_millis(backoff_ms)).await;
-                        kick_model_run_dispatcher(state_clone);
-                    });
-                }
+                let retry_ms = denied.backoff_ms.max(100);
+                let state_clone = state.clone();
+                tokio::spawn(async move {
+                    sleep(Duration::from_millis(retry_ms)).await;
+                    kick_model_run_dispatcher(state_clone);
+                });
 
                 break;
             }
@@ -8594,7 +8846,7 @@ async fn run_model_run_job(
     let content_artifact_id = string_opt(model_run_inputs(job), "assistant_content_artifact_id")
         .unwrap_or_else(|| format!("artifact:model_run:{}/{}", metadata.session_id, job.job_id));
 
-    state
+    let stored_message = state
         .storage
         .append_session_message(NewSessionMessage {
             message_id: None,
@@ -8608,9 +8860,10 @@ async fn run_model_run_job(
             attachments: Vec::new(),
         })
         .await?;
+    emit_session_message_event(state, trace_id, job, &metadata.session_id, &stored_message).await?;
 
     let output = json!({
-        "session_id": metadata.session_id,
+        "session_id": metadata.session_id.as_str(),
         "response_ref": {
             "content_hash": content_hash,
             "content_artifact_id": content_artifact_id,
@@ -8624,6 +8877,29 @@ async fn run_model_run_job(
         "timeout_ms": metadata.timeout_ms,
         "estimated_cost_usd": metadata.estimated_cost_usd,
     });
+
+    emit_session_state_change_event(
+        state,
+        trace_id,
+        job,
+        &metadata.session_id,
+        "ACTIVE",
+        "COMPLETED",
+    )
+    .await?;
+    emit_session_completed_observability_events(state, trace_id, job, &metadata, Some(&output))
+        .await?;
+    if metadata.parent_session_id.is_some() {
+        emit_session_spawn_announce_back_event(
+            state,
+            trace_id,
+            job,
+            &metadata,
+            &JobState::Completed,
+            Some(content_artifact_id.clone()),
+        )
+        .await?;
+    }
 
     Ok(RunJobOutcome {
         state: JobState::Completed,
@@ -8639,6 +8915,7 @@ async fn finalize_model_run_after_terminal(
     final_status: &JobState,
     status_reason: &str,
     trace_id: Uuid,
+    output_payload: Option<&Value>,
 ) -> Result<(), WorkflowError> {
     let metadata = parse_model_run_metadata(job)?;
     let mut session_state = match final_status {
@@ -8746,6 +9023,7 @@ async fn finalize_model_run_after_terminal(
         );
     }
 
+    let terminal_session_state = session_state.clone();
     let session = state
         .storage
         .update_model_session_state_with_merge_back_artifact(
@@ -8755,21 +9033,26 @@ async fn finalize_model_run_after_terminal(
             merge_back_artifact,
         )
         .await?;
-    if let Some(worktree_path) = worktree_path_for_cleanup {
-        if let Err(err) = cleanup_session_worktree(&repo_root, &worktree_path) {
-            tracing::warn!(
-                "cleanup_session_worktree failed for session_id={} at {}: {}",
-                metadata.session_id,
-                worktree_path.display(),
-                err,
-            );
-        }
-        let _ = state
-            .session_registry
-            .clear_session_worktree_allocation(&metadata.session_id)
-            .await;
-    }
     state.session_registry.upsert_session(session).await;
+    emit_session_state_change_event(
+        state,
+        trace_id,
+        job,
+        &metadata.session_id,
+        "ACTIVE",
+        terminal_session_state.as_str(),
+    )
+    .await?;
+    if matches!(terminal_session_state, ModelSessionState::Completed) {
+        emit_session_completed_observability_events(
+            state,
+            trace_id,
+            job,
+            &metadata,
+            output_payload,
+        )
+        .await?;
+    }
 
     if matches!(final_status, JobState::Cancelled) {
         let cancel_event_already_recorded = state
@@ -8804,11 +9087,18 @@ async fn finalize_model_run_after_terminal(
     }
 
     if metadata.parent_session_id.is_some() {
-        let job_outputs = state
-            .storage
-            .get_ai_job(job.job_id.to_string().as_str())
-            .await?;
-        let summary_artifact_id = job_outputs.job_outputs.as_ref().and_then(|value| {
+        let stored_job_outputs;
+        let output_value = match output_payload {
+            Some(value) => Some(value),
+            None => {
+                stored_job_outputs = state
+                    .storage
+                    .get_ai_job(job.job_id.to_string().as_str())
+                    .await?;
+                stored_job_outputs.job_outputs.as_ref()
+            }
+        };
+        let summary_artifact_id = output_value.and_then(|value| {
             value
                 .get("summary_artifact_id")
                 .and_then(Value::as_str)
@@ -8828,6 +9118,7 @@ async fn finalize_model_run_after_terminal(
         emit_session_spawn_announce_back_event(
             state,
             trace_id,
+            job,
             &metadata,
             final_status,
             summary_artifact_id,
@@ -8836,6 +9127,20 @@ async fn finalize_model_run_after_terminal(
     }
 
     kick_model_run_dispatcher(state.clone());
+    if let Some(worktree_path) = worktree_path_for_cleanup {
+        if let Err(err) = cleanup_session_worktree(&repo_root, &worktree_path) {
+            tracing::warn!(
+                "cleanup_session_worktree failed for session_id={} at {}: {}",
+                metadata.session_id,
+                worktree_path.display(),
+                err,
+            );
+        }
+        let _ = state
+            .session_registry
+            .clear_session_worktree_allocation(&metadata.session_id)
+            .await;
+    }
     Ok(())
 }
 
@@ -9329,8 +9634,15 @@ async fn run_and_finalize_workflow_job(
         .await?;
 
     if matches!(job.job_kind, JobKind::ModelRun) {
-        finalize_model_run_after_terminal(&state, &job, &final_status, &status_reason, trace_id)
-            .await?;
+        finalize_model_run_after_terminal(
+            &state,
+            &job,
+            &final_status,
+            &status_reason,
+            trace_id,
+            output_payload.as_ref(),
+        )
+        .await?;
     }
 
     record_event_safely(
@@ -15303,6 +15615,15 @@ fn apply_runtime_structured_micro_task_registry(
     wp_id: &str,
     tracked_mt: &mut locus::TrackedMicroTask,
 ) -> Result<(), WorkflowError> {
+    if let Some(boundary) = read_work_packet_profile_boundary_from_runtime(runtime_paths, wp_id) {
+        if tracked_mt.project_profile_kind == locus::ProjectProfileKind::Generic {
+            tracked_mt.project_profile_kind = boundary.project_profile_kind;
+        }
+        if tracked_mt.profile_extension.is_none() {
+            tracked_mt.profile_extension = boundary.profile_extension;
+        }
+    }
+
     let packet_display = runtime_paths.micro_task_packet_display(wp_id, &tracked_mt.mt_id);
     let summary_display = runtime_paths.micro_task_summary_display(wp_id, &tracked_mt.mt_id);
     let evidence_refs = vec![summary_display.clone()];

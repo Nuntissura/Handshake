@@ -245,6 +245,19 @@ fn work_packet_status_str(status: WorkPacketStatus) -> &'static str {
     }
 }
 
+fn canonical_work_packet_status_for_storage(value: &str) -> &str {
+    match value.trim() {
+        "STUB" | "UNKNOWN" | "stub" => "stub",
+        "READY" | "READY_FOR_DEV" | "ready" => "ready",
+        "IN_PROGRESS" | "in_progress" => "in_progress",
+        "BLOCKED" | "blocked" => "blocked",
+        "GATED" | "gated" => "gated",
+        "DONE" | "done" => "done",
+        "CANCELLED" | "cancelled" => "cancelled",
+        other => other,
+    }
+}
+
 fn task_board_status_str(status: TaskBoardStatus) -> &'static str {
     match status {
         TaskBoardStatus::Unknown => "STUB",
@@ -1010,7 +1023,7 @@ pub(crate) async fn locus_task_board_update_work_packet(
         WHERE wp_id = $5
         "#,
     )
-    .bind(status)
+    .bind(canonical_work_packet_status_for_storage(status))
     .bind(task_board_status)
     .bind(updated_at)
     .bind(metadata)

@@ -115,6 +115,18 @@ pub fn kernel002_action_catalog() -> KernelActionCatalogV1 {
             product_screenshot_capture_project_action(),
             visual_debugging_loop_project_action(),
             markdown_mirror_sync_drift_guard_project_action(),
+            task_contract_lifecycle_project_action(),
+            work_packet_full_detail_project_action(),
+            work_packet_contract_activate_action(),
+            microtask_contract_extract_action(),
+            local_model_microtask_loop_project_action(),
+            generated_documentation_status_projection_project_action(),
+            coder_handoff_validation_request_project_action(),
+            validator_verdict_mediation_project_action(),
+            validator_finding_reports_project_action(),
+            remediation_work_generation_project_action(),
+            mt_loop_scheduler_project_action(),
+            locus_mt_validation_work_graph_project_action(),
         ],
     }
 }
@@ -684,12 +696,12 @@ fn postgres_residual_project_action() -> KernelCatalogActionV1 {
         validation_hooks: vec![
             hook("postgres_residual_mapping"),
             hook("postgres_storage_authority"),
-            hook("sqlite_boundary"),
+            hook("legacy_storage_reset_boundary"),
             hook("folded_source_stubs"),
         ],
         dcc_preview: dcc_preview(
             "postgres-residual-scope",
-            "Project folded Postgres control-plane residuals, target kernel mappings, blockers, and SQLite boundaries.",
+            "Project folded Postgres control-plane residuals, target kernel mappings, blockers, and reset-boundary storage exclusions.",
             &[
                 "source_stub_id",
                 "kind",
@@ -728,7 +740,7 @@ fn locus_work_tracking_project_action() -> KernelCatalogActionV1 {
             "STATUS",
         ),
         validation_hooks: vec![
-            hook("locus_sqlite_authority_removed"),
+            hook("locus_legacy_authority_removed"),
             hook("locus_dependency_query"),
             hook("locus_occupancy_state"),
             hook("flight_recorder_event_family"),
@@ -1947,6 +1959,631 @@ fn markdown_mirror_sync_drift_guard_project_action() -> KernelCatalogActionV1 {
                 "action_catalog_id",
                 "dcc_queue_item",
                 "banner_id",
+            ],
+        ),
+    }
+}
+
+fn task_contract_lifecycle_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.task_contract_lifecycle.project",
+        title: "Project Task Contract Lifecycle".to_string(),
+        input_schema_id: "hsk.kernel.task_contract_lifecycle@1".to_string(),
+        result_schema_id: "hsk.kernel.task_contract_lifecycle_projection@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.task_contract_lifecycle.project")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "task_contract_lifecycle",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "task_contract_lifecycle_projection",
+            "KernelTaskContractLifecycleProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("task_contract_lifecycle_states"),
+            hook("task_contract_authority_rules"),
+            hook("task_contract_provenance_hashes"),
+            hook("task_contract_receipt_events"),
+            hook("task_contract_projection_hooks"),
+            hook("task_contract_failure_states"),
+        ],
+        dcc_preview: dcc_preview(
+            "task-contract-lifecycle",
+            "Project stub, work-packet, and microtask contract lifecycle states, provenance, hooks, and failure paths.",
+            &[
+                "contract_kind",
+                "lifecycle_state",
+                "transition_id",
+                "receipt_event",
+                "projection_hook",
+                "validation_hook",
+                "failure_state",
+            ],
+        ),
+    }
+}
+
+fn work_packet_full_detail_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.work_packet_full_detail.project",
+        title: "Project Work Packet Full-Detail Authority".to_string(),
+        input_schema_id: "hsk.kernel.work_packet_full_detail_authority@1".to_string(),
+        result_schema_id: "hsk.kernel.work_packet_full_detail_projection@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.work_packet_full_detail.project")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "work_packet_full_detail_authority",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "work_packet_full_detail_projection",
+            "KernelWorkPacketFullDetailProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("work_packet_no_context_execution"),
+            hook("work_packet_source_plan_one_to_one"),
+            hook("work_packet_projection_provenance"),
+            hook("work_packet_no_sidecar_authority"),
+            hook("work_packet_round_trip_loss"),
+        ],
+        dcc_preview: dcc_preview(
+            "work-packet-full-detail",
+            "Project packet-as-authority coverage, MT source plan, projection provenance, and round-trip generation posture.",
+            &[
+                "wp_id",
+                "authority_file",
+                "declared_microtask_count",
+                "source_hash",
+                "projection_hash",
+                "generator",
+                "failure_state",
+            ],
+        ),
+    }
+}
+
+fn work_packet_contract_activate_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.work_packet_contract.activate",
+        title: "Activate Work Packet Contract From Stub".to_string(),
+        input_schema_id: "hsk.kernel.work_packet_contract_activation@1".to_string(),
+        result_schema_id: "hsk.kernel.work_packet_contract_activation_result@1".to_string(),
+        role_eligibility: vec![
+            "ORCHESTRATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.stub_contract.read"),
+            capability("kernel.work_packet_contract.generate"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "ProposalBox",
+            "hsk.write_box.proposal@1",
+            "work_packet_contract_activation",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "stub_contract_to_work_packet_contract",
+            "KernelWorkPacketContractActivationProposedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("stub_promotion_preserves_operator_intent"),
+            hook("stub_promotion_preserves_source_hashes"),
+            hook("stub_promotion_imports_folded_details"),
+            hook("stub_promotion_preserves_dependencies"),
+            hook("stub_promotion_preserves_constraints"),
+            hook("stub_promotion_preserves_acceptance_criteria"),
+            hook("stub_promotion_preserves_verification"),
+            hook("stub_promotion_preserves_status_provenance"),
+        ],
+        dcc_preview: dcc_preview(
+            "work-packet-contract-activation",
+            "Preview stub-to-work-packet activation with intent, hashes, folded detail, scope, verification, and status provenance preserved.",
+            &[
+                "stub_contract_id",
+                "target_wp_id",
+                "source_hash",
+                "folded_source_count",
+                "activation_signature",
+                "status_provenance",
+            ],
+        ),
+    }
+}
+
+fn microtask_contract_extract_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.microtask_contract.extract",
+        title: "Extract Microtask Contracts From Work Packet".to_string(),
+        input_schema_id: "hsk.kernel.microtask_contract_extraction@1".to_string(),
+        result_schema_id: "hsk.wp_contract_import_result@1".to_string(),
+        role_eligibility: vec![
+            "ORCHESTRATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![
+            capability("kernel.work_packet_contract.read"),
+            capability("kernel.microtask_contract.generate"),
+        ],
+        expected_write_boxes: vec![expected_box(
+            "ArtifactBox",
+            "hsk.write_box.artifact@1",
+            "microtask_contract_generation",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::RequiresPromotionGate,
+        promotion_path: promotion_path(
+            "work_packet_contract_to_microtask_contracts",
+            "KernelMicrotaskContractExtractionProposedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("microtask_extraction_preserves_source_hashes"),
+            hook("microtask_extraction_preserves_folded_details"),
+            hook("microtask_extraction_preserves_dependencies"),
+            hook("microtask_extraction_preserves_constraints"),
+            hook("microtask_extraction_preserves_acceptance_criteria"),
+            hook("microtask_extraction_preserves_verification"),
+            hook("microtask_extraction_preserves_status_provenance"),
+            hook("microtask_extraction_records_source_contract_id"),
+        ],
+        dcc_preview: dcc_preview(
+            "microtask-contract-extraction",
+            "Preview deterministic MT contract/projection extraction from packet authority with source ids, hashes, and status provenance.",
+            &[
+                "wp_id",
+                "declared_microtask_count",
+                "source_contract_id",
+                "source_hash",
+                "projection_hash",
+                "generator",
+            ],
+        ),
+    }
+}
+
+fn local_model_microtask_loop_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.local_model_microtask_loop.project",
+        title: "Project Local Model Fresh-Context Microtask Loop".to_string(),
+        input_schema_id: "hsk.kernel.local_model_fresh_context_mt_loop@1".to_string(),
+        result_schema_id: "hsk.kernel.local_model_fresh_context_mt_loop_projection@1"
+            .to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "LOCAL_SMALL_MODEL".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.local_model_microtask_loop.project")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "local_model_microtask_loop",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "local_model_microtask_loop_projection",
+            "KernelLocalModelMicrotaskLoopProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("local_model_fresh_context_input_bundle"),
+            hook("local_model_locus_governed_actions"),
+            hook("local_model_write_box_outputs"),
+            hook("local_model_retry_budget_and_requeue"),
+            hook("local_model_verifier_handoff"),
+            hook("local_model_memory_checkpoint_input"),
+            hook("local_model_receipt_emission"),
+            hook("local_model_final_mt_outcome"),
+            hook("local_model_scope_guard"),
+        ],
+        dcc_preview: dcc_preview(
+            "local-model-mt-loop",
+            "Project fresh-context one-MT local model execution, write-box outputs, retry/requeue, verifier handoff, memory checkpoint, receipts, and final outcome paths.",
+            &[
+                "wp_id",
+                "mt_id",
+                "executor_kind",
+                "queue_reason_code",
+                "retry_budget",
+                "verifier_role",
+                "final_outcome",
+            ],
+        ),
+    }
+}
+
+fn generated_documentation_status_projection_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.generated_documentation_status_projection.project",
+        title: "Project Generated Documentation and Status".to_string(),
+        input_schema_id: "hsk.kernel.generated_documentation_status_projection@1".to_string(),
+        result_schema_id: "hsk.kernel.generated_documentation_status_projection_result@1"
+            .to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability(
+            "kernel.generated_documentation_status_projection.project",
+        )],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "generated_documentation_status_projection",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "generated_documentation_status_projection",
+            "KernelGeneratedDocumentationStatusProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("generated_status_machine_authority_sources"),
+            hook("generated_status_required_targets"),
+            hook("generated_status_no_manual_authority"),
+            hook("generated_status_advisory_normalization"),
+            hook("generated_status_deterministic_regeneration"),
+            hook("generated_status_projection_hashes"),
+            hook("generated_status_dcc_operator_views"),
+        ],
+        dcc_preview: dcc_preview(
+            "generated-status-projection",
+            "Project packet, MT, task-board, traceability, DCC, mirror, and operator summary status from machine-readable authority.",
+            &[
+                "wp_id",
+                "mt_id",
+                "source_kind",
+                "target_kind",
+                "manual_edit_disposition",
+                "projection_hash_ref",
+                "direct_edit_denial_action_id",
+            ],
+        ),
+    }
+}
+
+fn coder_handoff_validation_request_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.coder_handoff_validation_request.project",
+        title: "Project Coder Handoff Validation Request".to_string(),
+        input_schema_id: "hsk.kernel.coder_handoff_validation_request@1".to_string(),
+        result_schema_id: "hsk.kernel.coder_handoff_validation_request_projection@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "WP_VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability(
+            "kernel.coder_handoff_validation_request.project",
+        )],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "coder_handoff_validation_request",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "coder_handoff_validation_request_projection",
+            "KernelCoderHandoffValidationRequestProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("coder_handoff_identity_scope"),
+            hook("coder_handoff_touched_artifacts"),
+            hook("coder_handoff_receipts_tests_evidence"),
+            hook("coder_handoff_known_blockers"),
+            hook("coder_handoff_review_request_generation"),
+            hook("coder_handoff_no_status_mutation"),
+        ],
+        dcc_preview: dcc_preview(
+            "coder-handoff-validation-request",
+            "Project coder MT handoff evidence into a WP Validator review request without manual status mutation.",
+            &[
+                "wp_id",
+                "mt_id",
+                "actor_session",
+                "touched_artifacts",
+                "test_outcomes",
+                "known_blockers",
+                "review_request_receipt_kind",
+            ],
+        ),
+    }
+}
+
+fn validator_verdict_mediation_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.validator_verdict_mediation.project",
+        title: "Project Validator Verdict and Mediation".to_string(),
+        input_schema_id: "hsk.kernel.validator_verdict_mediation@1".to_string(),
+        result_schema_id: "hsk.kernel.validator_verdict_mediation_projection@1".to_string(),
+        role_eligibility: vec![
+            "WP_VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability(
+            "kernel.validator_verdict_mediation.project",
+        )],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "validator_verdict_mediation",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "validator_verdict_mediation_projection",
+            "KernelValidatorVerdictMediationProjectedV1",
+            "VALIDATOR_REVIEW",
+        ),
+        validation_hooks: vec![
+            hook("validator_verdict_identity_scope"),
+            hook("validator_verdict_failed_acceptance_criteria"),
+            hook("validator_verdict_evidence_refs"),
+            hook("validator_verdict_severity_reproducibility"),
+            hook("validator_verdict_dependency_impact"),
+            hook("validator_verdict_routing"),
+            hook("validator_verdict_no_status_mutation"),
+        ],
+        dcc_preview: dcc_preview(
+            "validator-verdict-mediation",
+            "Project validator pass, fail, and mediation verdicts with evidence, remediation, dependency impact, and routing outcome.",
+            &[
+                "wp_id",
+                "mt_id",
+                "verdict",
+                "failed_acceptance_criteria",
+                "severity",
+                "reproducibility",
+                "dependency_impact",
+                "routing_outcome",
+            ],
+        ),
+    }
+}
+
+fn validator_finding_reports_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.validator_finding_reports.project",
+        title: "Project Validator Finding Reports".to_string(),
+        input_schema_id: "hsk.kernel.validator_finding_reports@1".to_string(),
+        result_schema_id: "hsk.kernel.validator_finding_reports_projection@1".to_string(),
+        role_eligibility: vec![
+            "WP_VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.validator_finding_reports.project")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "validator_finding_reports",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "validator_finding_reports_projection",
+            "KernelValidatorFindingReportsProjectedV1",
+            "VALIDATOR_REVIEW",
+        ),
+        validation_hooks: vec![
+            hook("validator_finding_report_kinds"),
+            hook("validator_finding_report_reasoning"),
+            hook("validator_finding_report_source_refs"),
+            hook("validator_finding_report_surfaces"),
+            hook("validator_finding_report_proof"),
+            hook("validator_finding_report_destinations"),
+            hook("validator_finding_report_no_prose_authority"),
+        ],
+        dcc_preview: dcc_preview(
+            "validator-finding-reports",
+            "Project validator issue, bug, gap, and out-of-scope reports with source refs, proof, destinations, and routing.",
+            &[
+                "wp_id",
+                "mt_id",
+                "report_kind",
+                "source_refs",
+                "affected_surfaces",
+                "proposed_destination",
+                "routing_outcome",
+            ],
+        ),
+    }
+}
+
+fn remediation_work_generation_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.remediation_work_generation.project",
+        title: "Project Remediation Work Generation".to_string(),
+        input_schema_id: "hsk.kernel.remediation_work_generation@1".to_string(),
+        result_schema_id: "hsk.kernel.remediation_work_generation_projection@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "WP_VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.remediation_work_generation.project")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "remediation_work_generation",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "remediation_work_generation_projection",
+            "KernelRemediationWorkGenerationProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("remediation_generation_parent_links"),
+            hook("remediation_generation_dependency_state"),
+            hook("remediation_generation_acceptance_criteria"),
+            hook("remediation_generation_allowed_actions"),
+            hook("remediation_generation_write_boxes"),
+            hook("remediation_generation_evidence_refs"),
+            hook("remediation_generation_retry_budget"),
+            hook("remediation_generation_validator_recheck"),
+        ],
+        dcc_preview: dcc_preview(
+            "remediation-work-generation",
+            "Project remediation microtasks and packet stubs from validator verdict/report contracts.",
+            &[
+                "wp_id",
+                "mt_id",
+                "parent_mt_refs",
+                "parent_report_refs",
+                "dependency_blockers",
+                "retry_budget",
+                "validator_recheck",
+            ],
+        ),
+    }
+}
+
+fn mt_loop_scheduler_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.mt_loop_scheduler.project",
+        title: "Project MT Loop Scheduler".to_string(),
+        input_schema_id: "hsk.kernel.mt_loop_scheduler@1".to_string(),
+        result_schema_id: "hsk.kernel.mt_loop_scheduler_projection@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "WP_VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.mt_loop_scheduler.project")],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "mt_loop_scheduler",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "mt_loop_scheduler_projection",
+            "KernelMtLoopSchedulerProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("mt_loop_scheduler_lease_state"),
+            hook("mt_loop_scheduler_current_coder_completion"),
+            hook("mt_loop_scheduler_dependency_state"),
+            hook("mt_loop_scheduler_retry_budget"),
+            hook("mt_loop_scheduler_verdict_state"),
+            hook("mt_loop_scheduler_remediation_before_dependents"),
+            hook("mt_loop_scheduler_no_status_mutation"),
+        ],
+        dcc_preview: dcc_preview(
+            "mt-loop-scheduler",
+            "Project next-coder dispatch from lease, coder completion, dependency, retry, and verdict state.",
+            &[
+                "wp_id",
+                "mt_id",
+                "next_mt_id",
+                "decision",
+                "blocked_prerequisites",
+                "remediation_required",
+                "status_mutation_allowed",
+            ],
+        ),
+    }
+}
+
+fn locus_mt_validation_work_graph_project_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.locus_mt_validation_work_graph.project",
+        title: "Project Locus MT Validation Work Graph".to_string(),
+        input_schema_id: "hsk.kernel.locus_mt_validation_work_graph@1".to_string(),
+        result_schema_id: "hsk.kernel.locus_mt_validation_work_graph_projection@1".to_string(),
+        role_eligibility: vec![
+            "CODER".to_string(),
+            "WP_VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability(
+            "kernel.locus_mt_validation_work_graph.project",
+        )],
+        expected_write_boxes: vec![expected_box(
+            "ReadOnlyProjectionBox",
+            "hsk.write_box.readonly_projection@1",
+            "locus_mt_validation_work_graph",
+        )],
+        authority_effect: AuthorityEffect::ProjectionOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "locus_mt_validation_work_graph_projection",
+            "KernelLocusMtValidationWorkGraphProjectedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("locus_mt_graph_nodes"),
+            hook("locus_mt_graph_validator_verdicts"),
+            hook("locus_mt_graph_remediation_edges"),
+            hook("locus_mt_graph_blocked_escalated_states"),
+            hook("locus_mt_graph_actor_leases"),
+            hook("locus_mt_graph_pass_fail_history"),
+            hook("locus_mt_graph_no_prose_or_chat_truth"),
+            hook("locus_mt_graph_no_status_mutation"),
+        ],
+        dcc_preview: dcc_preview(
+            "locus-mt-validation-work-graph",
+            "Project MT validation-loop graph state from typed nodes, verdicts, remediation edges, leases, and pass/fail history.",
+            &[
+                "wp_id",
+                "mt_id",
+                "mt_node_ids",
+                "remediation_edge_count",
+                "blocked_node_ids",
+                "escalated_node_ids",
+                "actor_lease_refs",
+                "pass_fail_history_refs",
             ],
         ),
     }

@@ -1967,6 +1967,7 @@ pub fn validate_structured_collaboration_record(
         StructuredCollaborationRecordFamily::RoleMailboxIndex => {
             require_non_empty_string(obj.get("generated_at"), "generated_at", &mut result);
             require_value_array(obj.get("threads"), "threads", &mut result);
+            validate_role_mailbox_index_threads(obj.get("threads"), &mut result);
         }
         StructuredCollaborationRecordFamily::RoleMailboxThreadLine => {
             require_non_empty_string(obj.get("message_id"), "message_id", &mut result);
@@ -1983,6 +1984,7 @@ pub fn validate_structured_collaboration_record(
                 "transcription_links",
                 &mut result,
             );
+            validate_role_mailbox_thread_links(obj.get("transcription_links"), &mut result);
         }
         StructuredCollaborationRecordFamily::DccCompactSummary => {
             require_non_empty_string(obj.get("status"), "status", &mut result);
@@ -2397,6 +2399,122 @@ fn require_value_array(
             format!("{field} is required"),
         ),
     }
+}
+
+fn validate_role_mailbox_index_threads(
+    value: Option<&Value>,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(Value::Array(threads)) = value else {
+        return;
+    };
+
+    for (index, thread) in threads.iter().enumerate() {
+        let Some(thread_obj) = thread.as_object() else {
+            continue;
+        };
+        validate_redacted_single_line(
+            thread_obj.get("subject_redacted"),
+            &format!("threads[{index}].subject_redacted"),
+            result,
+        );
+    }
+}
+
+fn validate_role_mailbox_thread_links(
+    value: Option<&Value>,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    let Some(Value::Array(links)) = value else {
+        return;
+    };
+
+    for (index, link) in links.iter().enumerate() {
+        let Some(link_obj) = link.as_object() else {
+            continue;
+        };
+        validate_redacted_single_line(
+            link_obj.get("note_redacted"),
+            &format!("transcription_links[{index}].note_redacted"),
+            result,
+        );
+    }
+}
+
+fn validate_redacted_single_line(
+    value: Option<&Value>,
+    field: &str,
+    result: &mut StructuredCollaborationValidationResult,
+) {
+    match value {
+        Some(Value::String(actual)) if !actual.trim().is_empty() => {
+            if actual.contains('\r')
+                || actual.contains('\n')
+                || contains_unredacted_secret_marker(actual)
+            {
+                result.push_issue(
+                    StructuredCollaborationValidationCode::InvalidFieldValue,
+                    field,
+                    Some("redacted single-line string".to_string()),
+                    Some("[REDACTION_DRIFT]".to_string()),
+                    format!("{field} must remain redacted and single-line"),
+                );
+            }
+        }
+        Some(Value::String(actual)) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldValue,
+            field,
+            Some("redacted single-line string".to_string()),
+            Some(actual.clone()),
+            format!("{field} must not be empty"),
+        ),
+        Some(other) => result.push_issue(
+            StructuredCollaborationValidationCode::InvalidFieldType,
+            field,
+            Some("string".to_string()),
+            Some(json_type_name(other).to_string()),
+            format!("{field} must be a string"),
+        ),
+        None => result.push_issue(
+            StructuredCollaborationValidationCode::MissingField,
+            field,
+            Some("redacted single-line string".to_string()),
+            None,
+            format!("{field} is required"),
+        ),
+    }
+}
+
+fn contains_unredacted_secret_marker(value: &str) -> bool {
+    let lower = strip_redaction_markers(&value.to_ascii_lowercase());
+    [
+        "password=",
+        "password:",
+        "api_key=",
+        "apikey=",
+        "secret=",
+        "token=",
+        "bearer ",
+    ]
+    .iter()
+    .any(|marker| lower.contains(marker))
+}
+
+fn strip_redaction_markers(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    let mut rest = value;
+    while let Some(start) = rest.find("[redacted:") {
+        out.push_str(&rest[..start]);
+        let marker_rest = &rest[start..];
+        let Some(end) = marker_rest.find(']') else {
+            out.push_str(marker_rest);
+            return out;
+        };
+        out.push_str("[redacted]");
+        rest = &marker_rest[end + 1..];
+    }
+    out.push_str(rest);
+    out
 }
 
 fn require_u64_like(

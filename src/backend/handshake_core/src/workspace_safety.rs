@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -350,6 +351,12 @@ pub fn collect_merge_back_artifact(
 }
 
 pub fn session_worktree_path(repo_root: &Path, session_id: &str) -> PathBuf {
+    if let Ok(root) = env::var("HANDSHAKE_SESSION_WORKTREE_ROOT") {
+        let trimmed = root.trim();
+        if !trimmed.is_empty() {
+            return PathBuf::from(trimmed).join(session_id);
+        }
+    }
     repo_root
         .parent()
         .unwrap_or(repo_root)
@@ -367,6 +374,7 @@ pub fn ensure_session_worktree_allocation(
         let _ = Command::new("git")
             .arg("-C")
             .arg(repo_root)
+            .args(["-c", "core.longpaths=true"])
             .args(["worktree", "remove", "--force"])
             .arg(&worktree_path)
             .output();
@@ -382,6 +390,7 @@ pub fn ensure_session_worktree_allocation(
     let output = Command::new("git")
         .arg("-C")
         .arg(repo_root)
+        .args(["-c", "core.longpaths=true"])
         .args(["worktree", "add", "--detach"])
         .arg(&worktree_path)
         .arg("HEAD")
@@ -404,6 +413,7 @@ pub fn cleanup_session_worktree(repo_root: &Path, worktree_path: &Path) -> io::R
     let output = Command::new("git")
         .arg("-C")
         .arg(repo_root)
+        .args(["-c", "core.longpaths=true"])
         .args(["worktree", "remove", "--force"])
         .arg(worktree_path)
         .output()?;
@@ -421,7 +431,12 @@ pub fn cleanup_session_worktree(repo_root: &Path, worktree_path: &Path) -> io::R
 }
 
 fn run_git_text_command(cwd: &str, args: &[&str]) -> io::Result<String> {
-    let output = Command::new("git").arg("-C").arg(cwd).args(args).output()?;
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(cwd)
+        .args(["-c", "core.longpaths=true"])
+        .args(args)
+        .output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();

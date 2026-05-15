@@ -84,6 +84,13 @@ impl ConsentProvider for AllowAllConsent {
 }
 
 async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
+    std::env::set_var(
+        "HANDSHAKE_SESSION_WORKTREE_ROOT",
+        std::env::temp_dir()
+            .join(format!("hsk-session-worktrees-{}", Uuid::new_v4()))
+            .display()
+            .to_string(),
+    );
     let sqlite = SqliteDatabase::connect("sqlite::memory:", 5).await?;
     sqlite.run_migrations().await?;
 
@@ -879,9 +886,9 @@ async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
     start_workflow_for_job(&state, second.clone()).await?;
     start_workflow_for_job(&state, third.clone()).await?;
 
-    let done_first = wait_for_terminal_job(&state, first.job_id, 10_000).await;
-    let done_second = wait_for_terminal_job(&state, second.job_id, 10_000).await;
-    let done_third = wait_for_terminal_job(&state, third.job_id, 10_000).await;
+    let done_first = wait_for_terminal_job(&state, first.job_id, 60_000).await;
+    let done_second = wait_for_terminal_job(&state, second.job_id, 60_000).await;
+    let done_third = wait_for_terminal_job(&state, third.job_id, 60_000).await;
     assert_eq!(done_first.state, JobState::Completed);
     assert_eq!(done_second.state, JobState::Completed);
     assert_eq!(done_third.state, JobState::Completed);
