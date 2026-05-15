@@ -5,9 +5,10 @@ import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
 import { DocumentView } from "./components/DocumentView";
 import { CanvasView } from "./components/CanvasView";
 import { DebugPanel } from "./components/DebugPanel";
+import { KernelDccProjectionView } from "./components/KernelDccProjectionView";
 import { FontManagerView } from "./components/FontManagerView";
 import { MediaDownloaderView } from "./components/MediaDownloaderView";
-import { BundleScopeInput } from "./lib/api";
+import { getKernelDccProjection, type BundleScopeInput, type KernelDccProjectionSurfaceV1 } from "./lib/api";
 import { AiJobsDrawer } from "./components/AiJobsDrawer";
 import { ViewModeToggle } from "./components/ViewModeToggle";
 import type { ViewMode } from "./lib/viewMode";
@@ -30,7 +31,14 @@ function App() {
   const [selectedCanvasId, setSelectedCanvasId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => loadViewModeFromStorage());
   const [activeView, setActiveView] = useState<
-    "workspace" | "media-downloader" | "fonts" | "flight-recorder" | "problems" | "jobs" | "timeline"
+    | "workspace"
+    | "media-downloader"
+    | "fonts"
+    | "flight-recorder"
+    | "kernel-dcc"
+    | "problems"
+    | "jobs"
+    | "timeline"
   >("workspace");
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [selection, setSelection] = useState<EvidenceSelection | null>(null);
@@ -40,10 +48,31 @@ function App() {
   const [timelineNav, setTimelineNav] = useState<{ job_id?: string; wsid?: string; event_id?: string } | null>(null);
   const [timelineWindow, setTimelineWindow] = useState<{ start: string; end: string; wsid?: string } | null>(null);
   const [ans001TimelineOpen, setAns001TimelineOpen] = useState(false);
+  const [kernelDccSurface, setKernelDccSurface] = useState<KernelDccProjectionSurfaceV1 | null>(null);
+  const [kernelDccLoading, setKernelDccLoading] = useState(false);
+  const [kernelDccError, setKernelDccError] = useState<string | null>(null);
 
   useEffect(() => {
     saveViewModeToStorage(viewMode);
   }, [viewMode]);
+
+  const loadKernelDccProjection = () => {
+    setKernelDccLoading(true);
+    setKernelDccError(null);
+    setKernelDccSurface(null);
+
+    getKernelDccProjection()
+      .then((surface) => {
+        setKernelDccSurface(surface);
+      })
+      .catch((err) => {
+        setKernelDccSurface(null);
+        setKernelDccError(err instanceof Error ? err.message : "Failed to load Kernel DCC projection");
+      })
+      .finally(() => {
+        setKernelDccLoading(false);
+      });
+  };
 
   return (
     <main className="app-shell">
@@ -75,6 +104,15 @@ function App() {
               onClick={() => setActiveView("flight-recorder")}
             >
               Flight Recorder
+            </button>
+            <button
+              className={activeView === "kernel-dcc" ? "active" : ""}
+              onClick={() => {
+                setActiveView("kernel-dcc");
+                loadKernelDccProjection();
+              }}
+            >
+              Kernel DCC
             </button>
             <button 
               className={activeView === "problems" ? "active" : ""} 
@@ -170,6 +208,25 @@ function App() {
           ) : activeView === "flight-recorder" ? (
             <div className="content-panel content-panel--full">
               <FlightRecorderView />
+            </div>
+          ) : activeView === "kernel-dcc" ? (
+            <div className="content-panel content-panel--full">
+              {kernelDccLoading ? (
+                <div className="content-card">
+                  <h2>Loading Kernel DCC projection...</h2>
+                </div>
+              ) : kernelDccError ? (
+                <div className="content-card">
+                  <h2>Kernel DCC projection unavailable</h2>
+                  <p className="muted">{kernelDccError}</p>
+                </div>
+              ) : kernelDccSurface ? (
+                <KernelDccProjectionView surface={kernelDccSurface} />
+              ) : (
+                <div className="content-card">
+                  <h2>Kernel DCC projection unavailable</h2>
+                </div>
+              )}
             </div>
           ) : activeView === "problems" ? (
             <div className="content-panel content-panel--full">

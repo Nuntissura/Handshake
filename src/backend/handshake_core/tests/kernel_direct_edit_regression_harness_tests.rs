@@ -153,6 +153,7 @@ fn attempt(
         attempt_id: attempt_id.to_string(),
         actor_id: "actor-model-1".to_string(),
         actor_kind: "model".to_string(),
+        role_id: "CODER".to_string(),
         target_path: ".GOV/task_packets/WP-KERNEL-002/packet.json".to_string(),
         target_class,
         operation: operation.to_string(),

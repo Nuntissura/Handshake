@@ -8,9 +8,11 @@ use super::{
     },
     dcc_mvp_runtime_surface::{
         select_dcc_work_item, validate_dcc_mvp_runtime_surface, ApprovalScope,
-        DccApprovalPreviewV1, DccEvidenceItemV1, DccEvidenceKind, DccMvpRuntimeSurfaceV1,
-        DccPanelKind, DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1,
-        DccSelectedWorkProjectionV1, DccSessionRuntimeStateV1, DccWorkItemV1, DccWorktreeStateV1,
+        DccApprovalPreviewV1, DccDirectEditDenialRowV1, DccEvidenceItemV1, DccEvidenceKind,
+        DccFreshnessBadgeV1, DccMvpRuntimeSurfaceV1, DccPanelKind, DccPromotionPreviewRowV1,
+        DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1, DccSelectedWorkProjectionV1,
+        DccSessionRuntimeStateV1, DccStableElementIdV1, DccWorkItemV1, DccWorktreeStateV1,
+        DccWriteBoxQueueRowV1,
     },
     direct_edit_guard::{
         guard_direct_edit_attempt, DirectEditAttemptV1, DirectEditDecisionStatus,
@@ -19,7 +21,8 @@ use super::{
     model_manual::{kernel002_no_context_model_manual, ManualTopic},
     write_boxes::{
         validate_write_box_common, CRDTWorkspaceBox, PromotionBox, ProposalBox, WriteBoxCommon,
-        WriteBoxKind, WriteBoxLifecycleState, WriteBoxOwnerRef, WriteBoxValidationState,
+        WriteBoxKind, WriteBoxLifecycleState, WriteBoxOwnerRef, WriteBoxPayloadRef,
+        WriteBoxReplayMetadataV1, WriteBoxTargetRef, WriteBoxValidationState,
         WriteBoxValidationStatus,
     },
 };
@@ -788,6 +791,10 @@ fn step(
     }
 }
 
+pub fn build_pre_use_dcc_mvp_runtime_surface() -> DccMvpRuntimeSurfaceV1 {
+    pre_use_dcc_surface()
+}
+
 fn pre_use_dcc_surface() -> DccMvpRuntimeSurfaceV1 {
     DccMvpRuntimeSurfaceV1 {
         schema_id: "hsk.kernel.dcc_mvp_runtime_surface@1".to_string(),
@@ -911,6 +918,99 @@ fn pre_use_dcc_surface() -> DccMvpRuntimeSurfaceV1 {
                 "PROMOTION_GATE_DENIED",
             ),
         ],
+        write_box_queue_rows: vec![
+            DccWriteBoxQueueRowV1 {
+                row_id: "write-box-row-preuse-crdt".to_string(),
+                write_box_id: "wb-preuse-crdt-workspace".to_string(),
+                work_id: WORK_ID.to_string(),
+                kind: WriteBoxKind::CrdtWorkspace,
+                lifecycle_state: WriteBoxLifecycleState::Validated,
+                actor_id: "actor-kernel-builder".to_string(),
+                target_refs: vec!["authority://kernel/document/preuse".to_string()],
+                validation_state: WriteBoxValidationState::Valid,
+                denial_receipt_refs: Vec::new(),
+                promotion_receipt_refs: vec!["receipt://kernel002/preuse-promotion-queued".to_string()],
+                stable_element_id: "dcc.write_box_queue.row.wb-preuse-crdt-workspace".to_string(),
+            },
+            DccWriteBoxQueueRowV1 {
+                row_id: "write-box-row-preuse-promotion".to_string(),
+                write_box_id: "wb-preuse-promotion".to_string(),
+                work_id: WORK_ID.to_string(),
+                kind: WriteBoxKind::Promotion,
+                lifecycle_state: WriteBoxLifecycleState::PromotionQueued,
+                actor_id: "actor-kernel-builder".to_string(),
+                target_refs: vec!["authority://kernel/document/preuse".to_string()],
+                validation_state: WriteBoxValidationState::Valid,
+                denial_receipt_refs: Vec::new(),
+                promotion_receipt_refs: vec!["receipt://kernel002/preuse-promotion-requested".to_string()],
+                stable_element_id: "dcc.write_box_queue.row.wb-preuse-promotion".to_string(),
+            },
+        ],
+        direct_edit_denials: vec![DccDirectEditDenialRowV1 {
+            row_id: "direct-edit-denial-row-preuse".to_string(),
+            denial_id: "denial-preuse-authority-attempt".to_string(),
+            work_id: WORK_ID.to_string(),
+            actor_id: "actor-kernel-builder".to_string(),
+            target_ref: ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json".to_string(),
+            attempted_action: "raw_authority_file_write".to_string(),
+            recovery_instruction: "Use a registered write-box action".to_string(),
+            ui_response_ref: "dcc://direct-edit-denials/preuse-authority-attempt".to_string(),
+            api_response_ref: "api://kernel/direct-edit-denials/preuse-authority-attempt".to_string(),
+            stable_element_id: "dcc.direct_edit_denial.row.preuse-authority-attempt".to_string(),
+        }],
+        promotion_previews: vec![DccPromotionPreviewRowV1 {
+            row_id: "promotion-preview-row-preuse".to_string(),
+            preview_id: "promotion-preview-preuse".to_string(),
+            work_id: WORK_ID.to_string(),
+            write_box_id: "wb-preuse-promotion".to_string(),
+            promotion_target_ref: "authority://kernel/document/preuse".to_string(),
+            request_event_ref: Some("eventledger://stream-preuse/promotion-requested".to_string()),
+            accepted_event_ref: None,
+            rejected_event_ref: None,
+            freshness_badge_id: "freshness-preuse-crdt".to_string(),
+            stable_element_id: "dcc.promotion_preview.row.wb-preuse-promotion".to_string(),
+        }],
+        freshness_badges: vec![DccFreshnessBadgeV1 {
+            badge_id: "freshness-preuse-crdt".to_string(),
+            source_projection_id: "dcc-preuse-crdt-projection".to_string(),
+            source_ref: "eventledger://stream-preuse".to_string(),
+            state_vector: "sv-preuse-validated".to_string(),
+            updated_at_ref: "eventledger://stream-preuse/latest".to_string(),
+            stale: false,
+            stable_element_id: "dcc.freshness_badge.preuse-crdt".to_string(),
+        }],
+        stable_element_ids: vec![
+            DccStableElementIdV1 {
+                element_id: "dcc.write_box_queue.row.wb-preuse-crdt-workspace".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "write_box_queue_row".to_string(),
+                source_ref: "writebox://wb-preuse-crdt-workspace".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.write_box_queue.row.wb-preuse-promotion".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "write_box_queue_row".to_string(),
+                source_ref: "writebox://wb-preuse-promotion".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.direct_edit_denial.row.preuse-authority-attempt".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "direct_edit_denial_row".to_string(),
+                source_ref: "denial://denial-preuse-authority-attempt".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.promotion_preview.row.wb-preuse-promotion".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "promotion_preview_row".to_string(),
+                source_ref: "writebox://wb-preuse-promotion".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.freshness_badge.preuse-crdt".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "freshness_badge".to_string(),
+                source_ref: "eventledger://stream-preuse".to_string(),
+            },
+        ],
         catalog_action_refs: required_catalog_actions()
             .iter()
             .map(|value| (*value).to_string())
@@ -942,6 +1042,10 @@ fn required_panel_kinds() -> Vec<DccPanelKind> {
         DccPanelKind::WorktreeState,
         DccPanelKind::SessionState,
         DccPanelKind::ActionCatalog,
+        DccPanelKind::WriteBoxQueue,
+        DccPanelKind::DirectEditDenialView,
+        DccPanelKind::PromotionPreview,
+        DccPanelKind::FreshnessBadges,
         DccPanelKind::ProposalState,
         DccPanelKind::DiffEvidence,
         DccPanelKind::ApprovalPreview,
@@ -981,6 +1085,7 @@ fn direct_authority_attempt() -> DirectEditAttemptV1 {
         attempt_id: "preuse-authority-attempt".to_string(),
         actor_id: "actor-kernel-builder".to_string(),
         actor_kind: "model".to_string(),
+        role_id: "CODER".to_string(),
         target_path: ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json".to_string(),
         target_class: DirectEditTargetClass::AuthorityArtifact,
         operation: "raw_authority_file_write".to_string(),
@@ -1000,12 +1105,28 @@ fn write_box_common(
     WriteBoxCommon {
         write_box_id: write_box_id.to_string(),
         kind,
+        schema_version: "hsk.write_box.v1".to_string(),
         workspace_id: "workspace-kernel002-preuse".to_string(),
         owner: WriteBoxOwnerRef {
             actor_id: "actor-kernel-builder".to_string(),
             actor_kind: "model".to_string(),
             role_id: "CODER".to_string(),
         },
+        crdt_site_id: "site-kernel002-preuse".to_string(),
+        target_refs: vec![WriteBoxTargetRef {
+            target_id: "document-kernel002-preuse".to_string(),
+            target_kind: "crdt_document".to_string(),
+            authority_class: "pre_promotion_workspace".to_string(),
+        }],
+        base_snapshot_refs: vec!["postgres://kernel_crdt_snapshots/preuse-base".to_string()],
+        intent_summary: format!("Kernel002 pre-use acceptance envelope for {write_box_id}"),
+        operation_payload_refs: vec![WriteBoxPayloadRef {
+            payload_id: format!("payload-{write_box_id}"),
+            payload_kind: "kernel002_preuse_evidence".to_string(),
+            payload_ref: format!("postgres://kernel_crdt_updates/{write_box_id}/payload"),
+            payload_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
+        }],
         lifecycle_state,
         allowed_transitions: vec![
             WriteBoxLifecycleState::Open,
@@ -1020,6 +1141,17 @@ fn write_box_common(
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
+        receipt_refs: vec![format!("receipt://write-box-created/{write_box_id}")],
+        denial_receipt_refs: if lifecycle_state == WriteBoxLifecycleState::Denied {
+            vec![format!("receipt://write-box-denied/{write_box_id}")]
+        } else {
+            Vec::new()
+        },
+        promotion_receipt_refs: if authority_effect == AuthorityEffect::EventLedgerAuthorityWrite {
+            vec![format!("receipt://promotion-requested/{write_box_id}")]
+        } else {
+            Vec::new()
+        },
         validation_status: WriteBoxValidationStatus {
             state: WriteBoxValidationState::Valid,
             check_ids: check_ids.iter().map(|value| (*value).to_string()).collect(),
@@ -1028,6 +1160,18 @@ fn write_box_common(
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
+        replay_metadata: WriteBoxReplayMetadataV1 {
+            replay_plan_ref:
+                "crdt-replay-plan://workspace-kernel002-preuse/document-kernel002-preuse"
+                    .to_string(),
+            replay_order_key: format!(
+                "workspace-kernel002-preuse/document-kernel002-preuse/{write_box_id}"
+            ),
+            idempotency_key: format!("write-box:{write_box_id}:preuse"),
+            source_event_refs: vec![format!(
+                "eventledger://event-ledger-stream-preuse/{write_box_id}"
+            )],
+        },
     }
 }
 

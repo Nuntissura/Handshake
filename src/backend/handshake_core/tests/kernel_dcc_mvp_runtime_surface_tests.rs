@@ -3,10 +3,13 @@ use handshake_core::kernel::{
     action_envelope::{ApprovalPosture, AuthorityEffect},
     dcc_mvp_runtime_surface::{
         preview_dcc_governed_action, select_dcc_work_item, validate_dcc_mvp_runtime_surface,
-        ApprovalScope, DccApprovalPreviewV1, DccEvidenceItemV1, DccEvidenceKind,
-        DccMvpRuntimeSurfaceV1, DccPanelKind, DccProposalStateV1, DccProposalStatus,
-        DccRuntimePanelV1, DccSessionRuntimeStateV1, DccWorkItemV1, DccWorktreeStateV1,
+        ApprovalScope, DccApprovalPreviewV1, DccDirectEditDenialRowV1, DccEvidenceItemV1,
+        DccEvidenceKind, DccFreshnessBadgeV1, DccMvpRuntimeSurfaceV1, DccPanelKind,
+        DccPromotionPreviewRowV1, DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1,
+        DccSessionRuntimeStateV1, DccStableElementIdV1, DccWorkItemV1, DccWorktreeStateV1,
+        DccWriteBoxQueueRowV1,
     },
+    write_boxes::{WriteBoxKind, WriteBoxLifecycleState, WriteBoxValidationState},
 };
 
 #[test]
@@ -38,6 +41,23 @@ fn dcc_runtime_surface_selects_work_and_exposes_state_without_authority_bypass()
         selection.approval_previews[0].denied_failure_code,
         "DCC_APPROVAL_DENIED"
     );
+    assert_eq!(
+        selection.write_box_queue_rows[0].write_box_id,
+        "wb-crdt-patch-1"
+    );
+    assert_eq!(
+        selection.direct_edit_denials[0].attempted_action,
+        "raw_authority_patch"
+    );
+    assert_eq!(
+        selection.promotion_previews[0].promotion_target_ref,
+        "authority://kernel/document/document-kernel"
+    );
+    assert_eq!(selection.freshness_badges[0].state_vector, "sv-3");
+    assert!(selection
+        .stable_element_ids
+        .iter()
+        .any(|element| element.element_id == "dcc.write_box_queue.row.wb-crdt-patch-1"));
 }
 
 #[test]
@@ -206,6 +226,80 @@ fn sample_surface() -> DccMvpRuntimeSurfaceV1 {
             requires_same_turn_approval: false,
             denied_failure_code: "DCC_APPROVAL_DENIED".to_string(),
         }],
+        write_box_queue_rows: vec![DccWriteBoxQueueRowV1 {
+            row_id: "write-box-row-crdt-patch-1".to_string(),
+            write_box_id: "wb-crdt-patch-1".to_string(),
+            work_id: "work-kernel002-mt024".to_string(),
+            kind: WriteBoxKind::CrdtWorkspace,
+            lifecycle_state: WriteBoxLifecycleState::ReadyForValidation,
+            actor_id: "actor-kernel-builder".to_string(),
+            target_refs: vec!["authority://kernel/document/document-kernel".to_string()],
+            validation_state: WriteBoxValidationState::Pending,
+            denial_receipt_refs: Vec::new(),
+            promotion_receipt_refs: vec![
+                "receipt://promotion/requested/wb-crdt-patch-1".to_string()
+            ],
+            stable_element_id: "dcc.write_box_queue.row.wb-crdt-patch-1".to_string(),
+        }],
+        direct_edit_denials: vec![DccDirectEditDenialRowV1 {
+            row_id: "direct-edit-denial-row-attempt-1".to_string(),
+            denial_id: "denial-attempt-1".to_string(),
+            work_id: "work-kernel002-mt024".to_string(),
+            actor_id: "actor-kernel-builder".to_string(),
+            target_ref: ".GOV/task_packets/WP-KERNEL-002/packet.json".to_string(),
+            attempted_action: "raw_authority_patch".to_string(),
+            recovery_instruction: "Use a registered write-box action".to_string(),
+            ui_response_ref: "dcc://direct-edit-denials/attempt-1".to_string(),
+            api_response_ref: "api://kernel/direct-edit-denials/attempt-1".to_string(),
+            stable_element_id: "dcc.direct_edit_denial.row.denial-attempt-1".to_string(),
+        }],
+        promotion_previews: vec![DccPromotionPreviewRowV1 {
+            row_id: "promotion-preview-row-wb-crdt-patch-1".to_string(),
+            preview_id: "promotion-preview-crdt-patch-1".to_string(),
+            work_id: "work-kernel002-mt024".to_string(),
+            write_box_id: "wb-crdt-patch-1".to_string(),
+            promotion_target_ref: "authority://kernel/document/document-kernel".to_string(),
+            request_event_ref: Some("eventledger://event-ledger-stream-crdt/requested".to_string()),
+            accepted_event_ref: None,
+            rejected_event_ref: None,
+            freshness_badge_id: "freshness-crdt-patch-1".to_string(),
+            stable_element_id: "dcc.promotion_preview.row.wb-crdt-patch-1".to_string(),
+        }],
+        freshness_badges: vec![DccFreshnessBadgeV1 {
+            badge_id: "freshness-crdt-patch-1".to_string(),
+            source_projection_id: "dcc-crdt-projection".to_string(),
+            source_ref: "eventledger://event-ledger-stream-crdt".to_string(),
+            state_vector: "sv-3".to_string(),
+            updated_at_ref: "eventledger://event-ledger-stream-crdt/update-3".to_string(),
+            stale: false,
+            stable_element_id: "dcc.freshness_badge.crdt-patch-1".to_string(),
+        }],
+        stable_element_ids: vec![
+            DccStableElementIdV1 {
+                element_id: "dcc.write_box_queue.row.wb-crdt-patch-1".to_string(),
+                surface_id: "kernel002-dcc-mvp-runtime-mt024".to_string(),
+                element_kind: "write_box_queue_row".to_string(),
+                source_ref: "writebox://wb-crdt-patch-1".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.direct_edit_denial.row.denial-attempt-1".to_string(),
+                surface_id: "kernel002-dcc-mvp-runtime-mt024".to_string(),
+                element_kind: "direct_edit_denial_row".to_string(),
+                source_ref: "denial://denial-attempt-1".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.promotion_preview.row.wb-crdt-patch-1".to_string(),
+                surface_id: "kernel002-dcc-mvp-runtime-mt024".to_string(),
+                element_kind: "promotion_preview_row".to_string(),
+                source_ref: "writebox://wb-crdt-patch-1".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.freshness_badge.crdt-patch-1".to_string(),
+                surface_id: "kernel002-dcc-mvp-runtime-mt024".to_string(),
+                element_kind: "freshness_badge".to_string(),
+                source_ref: "eventledger://event-ledger-stream-crdt".to_string(),
+            },
+        ],
         catalog_action_refs: vec![
             "kernel.crdt_workspace.propose_patch".to_string(),
             "kernel.write_box.promote".to_string(),
@@ -238,6 +332,10 @@ fn required_panel_kinds() -> Vec<DccPanelKind> {
         DccPanelKind::WorktreeState,
         DccPanelKind::SessionState,
         DccPanelKind::ActionCatalog,
+        DccPanelKind::WriteBoxQueue,
+        DccPanelKind::DirectEditDenialView,
+        DccPanelKind::PromotionPreview,
+        DccPanelKind::FreshnessBadges,
         DccPanelKind::ProposalState,
         DccPanelKind::DiffEvidence,
         DccPanelKind::ApprovalPreview,

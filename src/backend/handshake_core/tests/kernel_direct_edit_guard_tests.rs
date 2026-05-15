@@ -2,8 +2,8 @@ use handshake_core::kernel::{
     action_catalog::kernel002_action_catalog,
     action_envelope::KernelActionDenialV1,
     direct_edit_guard::{
-        guard_direct_edit_attempt, DirectEditAttemptV1, DirectEditDecisionStatus,
-        DirectEditTargetClass,
+        guard_direct_edit_attempt, validate_write_box_direct_edit_denied, DirectEditAttemptV1,
+        DirectEditDecisionStatus, DirectEditTargetClass,
     },
 };
 
@@ -12,6 +12,7 @@ fn authority_attempt() -> DirectEditAttemptV1 {
         attempt_id: "attempt-001".to_string(),
         actor_id: "actor-model-1".to_string(),
         actor_kind: "model".to_string(),
+        role_id: "CODER".to_string(),
         target_path: ".GOV/task_packets/WP-KERNEL-002/packet.json".to_string(),
         target_class: DirectEditTargetClass::AuthorityArtifact,
         operation: "raw_patch".to_string(),
@@ -41,6 +42,47 @@ fn raw_authority_edit_attempt_is_denied_with_actionable_replacements() {
         denial.event_mappings[0].event_kind,
         "KernelDirectEditDeniedV1"
     );
+
+    let write_box_evidence = decision
+        .write_box_direct_edit_denied
+        .as_ref()
+        .expect("durable WriteBoxDirectEditDeniedV1 evidence");
+    validate_write_box_direct_edit_denied(write_box_evidence)
+        .expect("direct-edit denial evidence must validate");
+    assert_eq!(write_box_evidence.actor.actor_id, "actor-model-1");
+    assert_eq!(write_box_evidence.actor.role_id, "CODER");
+    assert_eq!(
+        write_box_evidence.target.target_ref,
+        ".GOV/task_packets/WP-KERNEL-002/packet.json"
+    );
+    assert_eq!(write_box_evidence.attempted_action, "raw_patch");
+    assert_eq!(
+        write_box_evidence.recovery_instruction,
+        "Use kernel.crdt_workspace.propose_patch or kernel.mirror_advisory.capture through the Kernel Action Catalog"
+    );
+    assert_eq!(
+        write_box_evidence.ui_response_ref,
+        "dcc://direct-edit-denials/attempt-001"
+    );
+    assert_eq!(
+        write_box_evidence.api_response_ref,
+        "api://kernel/direct-edit-denials/attempt-001"
+    );
+}
+
+#[test]
+fn direct_edit_denial_validation_requires_role_attribution() {
+    let catalog = kernel002_action_catalog();
+    let decision = guard_direct_edit_attempt(&authority_attempt(), &catalog);
+    let mut evidence = decision
+        .write_box_direct_edit_denied
+        .expect("durable WriteBoxDirectEditDeniedV1 evidence");
+
+    evidence.actor.role_id.clear();
+    let errors = validate_write_box_direct_edit_denied(&evidence)
+        .expect_err("direct-edit denial evidence must retain role attribution");
+
+    assert!(errors.iter().any(|error| error.field == "actor.role_id"));
 }
 
 #[test]

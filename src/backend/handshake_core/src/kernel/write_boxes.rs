@@ -45,6 +45,29 @@ pub struct WriteBoxOwnerRef {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WriteBoxTargetRef {
+    pub target_id: String,
+    pub target_kind: String,
+    pub authority_class: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WriteBoxPayloadRef {
+    pub payload_id: String,
+    pub payload_kind: String,
+    pub payload_ref: String,
+    pub payload_sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WriteBoxReplayMetadataV1 {
+    pub replay_plan_ref: String,
+    pub replay_order_key: String,
+    pub idempotency_key: String,
+    pub source_event_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WriteBoxValidationStatus {
     pub state: WriteBoxValidationState,
     pub check_ids: Vec<String>,
@@ -78,14 +101,24 @@ pub struct WriteBoxSchemaFamilyV1 {
 pub struct WriteBoxCommon {
     pub write_box_id: String,
     pub kind: WriteBoxKind,
+    pub schema_version: String,
     pub workspace_id: String,
     pub owner: WriteBoxOwnerRef,
+    pub crdt_site_id: String,
+    pub target_refs: Vec<WriteBoxTargetRef>,
+    pub base_snapshot_refs: Vec<String>,
+    pub intent_summary: String,
+    pub operation_payload_refs: Vec<WriteBoxPayloadRef>,
     pub lifecycle_state: WriteBoxLifecycleState,
     pub allowed_transitions: Vec<WriteBoxLifecycleState>,
     pub authority_effect: AuthorityEffect,
     pub evidence_refs: Vec<String>,
+    pub receipt_refs: Vec<String>,
+    pub denial_receipt_refs: Vec<String>,
+    pub promotion_receipt_refs: Vec<String>,
     pub validation_status: WriteBoxValidationStatus,
     pub projection_rules: Vec<String>,
+    pub replay_metadata: WriteBoxReplayMetadataV1,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -298,22 +331,149 @@ pub fn validate_write_box_common(
     let mut errors = Vec::new();
 
     require_non_empty(&mut errors, "write_box_id", &common.write_box_id);
+    require_non_empty(&mut errors, "schema_version", &common.schema_version);
     require_non_empty(&mut errors, "workspace_id", &common.workspace_id);
     require_non_empty(&mut errors, "owner.actor_id", &common.owner.actor_id);
     require_non_empty(&mut errors, "owner.actor_kind", &common.owner.actor_kind);
     require_non_empty(&mut errors, "owner.role_id", &common.owner.role_id);
+    require_non_empty(&mut errors, "crdt_site_id", &common.crdt_site_id);
+    require_vec(&mut errors, "target_refs", &common.target_refs);
+    require_vec(
+        &mut errors,
+        "base_snapshot_refs",
+        &common.base_snapshot_refs,
+    );
+    require_non_empty(&mut errors, "intent_summary", &common.intent_summary);
+    require_vec(
+        &mut errors,
+        "operation_payload_refs",
+        &common.operation_payload_refs,
+    );
     require_vec(
         &mut errors,
         "allowed_transitions",
         &common.allowed_transitions,
     );
     require_vec(&mut errors, "evidence_refs", &common.evidence_refs);
+    require_vec(&mut errors, "receipt_refs", &common.receipt_refs);
     require_vec(
         &mut errors,
         "validation_status.check_ids",
         &common.validation_status.check_ids,
     );
     require_vec(&mut errors, "projection_rules", &common.projection_rules);
+    require_non_empty(
+        &mut errors,
+        "replay_metadata.replay_plan_ref",
+        &common.replay_metadata.replay_plan_ref,
+    );
+    require_non_empty(
+        &mut errors,
+        "replay_metadata.replay_order_key",
+        &common.replay_metadata.replay_order_key,
+    );
+    require_non_empty(
+        &mut errors,
+        "replay_metadata.idempotency_key",
+        &common.replay_metadata.idempotency_key,
+    );
+    require_vec(
+        &mut errors,
+        "replay_metadata.source_event_refs",
+        &common.replay_metadata.source_event_refs,
+    );
+
+    for target in &common.target_refs {
+        require_non_empty(&mut errors, "target_refs.target_id", &target.target_id);
+        require_non_empty(&mut errors, "target_refs.target_kind", &target.target_kind);
+        require_non_empty(
+            &mut errors,
+            "target_refs.authority_class",
+            &target.authority_class,
+        );
+    }
+
+    for payload in &common.operation_payload_refs {
+        require_non_empty(
+            &mut errors,
+            "operation_payload_refs.payload_id",
+            &payload.payload_id,
+        );
+        require_non_empty(
+            &mut errors,
+            "operation_payload_refs.payload_kind",
+            &payload.payload_kind,
+        );
+        require_non_empty(
+            &mut errors,
+            "operation_payload_refs.payload_ref",
+            &payload.payload_ref,
+        );
+        require_non_empty(
+            &mut errors,
+            "operation_payload_refs.payload_sha256",
+            &payload.payload_sha256,
+        );
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+pub fn validate_promotion_box(
+    promotion: &PromotionBox,
+) -> Result<(), Vec<WriteBoxValidationError>> {
+    let mut errors = validate_write_box_common(&promotion.common)
+        .err()
+        .unwrap_or_default();
+
+    if promotion.common.kind != WriteBoxKind::Promotion {
+        errors.push(WriteBoxValidationError {
+            field: "common.kind",
+            message: "promotion box must use promotion kind",
+        });
+    }
+    if promotion.common.authority_effect != AuthorityEffect::EventLedgerAuthorityWrite {
+        errors.push(WriteBoxValidationError {
+            field: "common.authority_effect",
+            message: "promotion box must route through EventLedger authority write",
+        });
+    }
+    require_non_empty(
+        &mut errors,
+        "promotion_target_ref",
+        &promotion.promotion_target_ref,
+    );
+
+    if let Some(event_ledger_ref) = &promotion.event_ledger_ref {
+        require_non_empty(&mut errors, "event_ledger_ref", event_ledger_ref);
+    }
+
+    if promotion.common.lifecycle_state == WriteBoxLifecycleState::Promoted {
+        match &promotion.event_ledger_ref {
+            Some(event_ledger_ref) => {
+                require_non_empty(&mut errors, "event_ledger_ref", event_ledger_ref);
+            }
+            None => errors.push(WriteBoxValidationError {
+                field: "event_ledger_ref",
+                message: "promoted promotion box must cite EventLedger append",
+            }),
+        }
+        require_vec(
+            &mut errors,
+            "common.promotion_receipt_refs",
+            &promotion.common.promotion_receipt_refs,
+        );
+        if promotion.common.validation_status.state != WriteBoxValidationState::Valid {
+            errors.push(WriteBoxValidationError {
+                field: "common.validation_status.state",
+                message: "promoted promotion box must retain valid validation status",
+            });
+        }
+    }
 
     if errors.is_empty() {
         Ok(())

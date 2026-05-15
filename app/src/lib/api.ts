@@ -210,6 +210,197 @@ export type HealthResponse = {
   db_status?: string;
 };
 
+export type DccPanelKind =
+  | "WorkSelection"
+  | "WorktreeState"
+  | "SessionState"
+  | "ActionCatalog"
+  | "WriteBoxQueue"
+  | "DirectEditDenialView"
+  | "PromotionPreview"
+  | "FreshnessBadges"
+  | "ProposalState"
+  | "DiffEvidence"
+  | "ApprovalPreview"
+  | "Timeline";
+
+export type DccEvidenceKind =
+  | "DiffPatch"
+  | "FlightRecorderEvent"
+  | "Receipt"
+  | "Screenshot"
+  | "ValidationOutput";
+
+export type DccProposalStatus = "Draft" | "AwaitingApproval" | "Approved" | "Denied" | "Promoted";
+export type DccApprovalScope = "Once" | "Job" | "Workspace";
+
+export type DccRuntimePanelV1 = {
+  panel_id: string;
+  kind: DccPanelKind;
+  projection_only: boolean;
+  source_refs: string[];
+  visible_state_fields: string[];
+};
+
+export type DccWorkItemV1 = {
+  work_id: string;
+  wp_id: string;
+  mt_id: string | null;
+  status: string;
+  worktree_id: string;
+  session_ids: string[];
+  proposal_ids: string[];
+  evidence_ids: string[];
+  allowed_action_ids: string[];
+};
+
+export type DccWorktreeStateV1 = {
+  worktree_id: string;
+  path_ref: string;
+  branch: string;
+  dirty: boolean;
+  diff_ref: string | null;
+  linked_work_ids: string[];
+};
+
+export type DccSessionRuntimeStateV1 = {
+  session_id: string;
+  role: string;
+  model_id: string;
+  backend: string;
+  worktree_id: string;
+  wp_id: string;
+  mt_id: string | null;
+  state: string;
+};
+
+export type DccProposalStateV1 = {
+  proposal_id: string;
+  work_id: string;
+  action_id: string;
+  status: DccProposalStatus;
+  evidence_ids: string[];
+  approval_preview_id: string | null;
+};
+
+export type DccEvidenceItemV1 = {
+  evidence_id: string;
+  kind: DccEvidenceKind;
+  evidence_ref: string;
+  work_id: string;
+};
+
+export type DccApprovalPreviewV1 = {
+  preview_id: string;
+  action_id: string;
+  scope_options: DccApprovalScope[];
+  requires_same_turn_approval: boolean;
+  denied_failure_code: string;
+};
+
+export type WriteBoxKind =
+  | "Draft"
+  | "CrdtWorkspace"
+  | "Proposal"
+  | "Patch"
+  | "Artifact"
+  | "MirrorAdvisory"
+  | "Memory"
+  | "Execution"
+  | "Promotion";
+export type WriteBoxLifecycleState =
+  | "Open"
+  | "ReadyForValidation"
+  | "ValidationFailed"
+  | "Validated"
+  | "PromotionQueued"
+  | "Promoted"
+  | "Denied"
+  | "Archived";
+export type WriteBoxValidationState = "Pending" | "Valid" | "Invalid" | "Denied";
+
+export type DccWriteBoxQueueRowV1 = {
+  row_id: string;
+  write_box_id: string;
+  work_id: string;
+  kind: WriteBoxKind;
+  lifecycle_state: WriteBoxLifecycleState;
+  actor_id: string;
+  target_refs: string[];
+  validation_state: WriteBoxValidationState;
+  denial_receipt_refs: string[];
+  promotion_receipt_refs: string[];
+  stable_element_id: string;
+};
+
+export type DccDirectEditDenialRowV1 = {
+  row_id: string;
+  denial_id: string;
+  work_id: string;
+  actor_id: string;
+  target_ref: string;
+  attempted_action: string;
+  recovery_instruction: string;
+  ui_response_ref: string;
+  api_response_ref: string;
+  stable_element_id: string;
+};
+
+export type DccPromotionPreviewRowV1 = {
+  row_id: string;
+  preview_id: string;
+  work_id: string;
+  write_box_id: string;
+  promotion_target_ref: string;
+  request_event_ref: string | null;
+  accepted_event_ref: string | null;
+  rejected_event_ref: string | null;
+  freshness_badge_id: string;
+  stable_element_id: string;
+};
+
+export type DccFreshnessBadgeV1 = {
+  badge_id: string;
+  source_projection_id: string;
+  source_ref: string;
+  state_vector: string;
+  updated_at_ref: string;
+  stale: boolean;
+  stable_element_id: string;
+};
+
+export type DccStableElementIdV1 = {
+  element_id: string;
+  surface_id: string;
+  element_kind: string;
+  source_ref: string;
+};
+
+export type KernelDccProjectionSurfaceV1 = {
+  schema_id: string;
+  surface_id: string;
+  folded_stub_id: string;
+  panels: DccRuntimePanelV1[];
+  work_items: DccWorkItemV1[];
+  worktrees: DccWorktreeStateV1[];
+  sessions: DccSessionRuntimeStateV1[];
+  proposals: DccProposalStateV1[];
+  evidence: DccEvidenceItemV1[];
+  approval_previews: DccApprovalPreviewV1[];
+  write_box_queue_rows: DccWriteBoxQueueRowV1[];
+  direct_edit_denials: DccDirectEditDenialRowV1[];
+  promotion_previews: DccPromotionPreviewRowV1[];
+  freshness_badges: DccFreshnessBadgeV1[];
+  stable_element_ids: DccStableElementIdV1[];
+  catalog_action_refs: string[];
+  direct_authority_mutation_allowed: boolean;
+  ungoverned_tool_execution_allowed: boolean;
+  destructive_git_ops_require_same_turn_approval: boolean;
+  flight_recorder_event_types: string[];
+  product_authority_refs: string[];
+  folded_source_refs: string[];
+};
+
 export type WorkflowRun = {
   id: string;
   job_id: string;
@@ -558,6 +749,10 @@ export async function getLogTail(limit = 200): Promise<LogTailResponse> {
 
 export async function getHealth(): Promise<HealthResponse> {
   return request("/health");
+}
+
+export async function getKernelDccProjection(): Promise<KernelDccProjectionSurfaceV1> {
+  return request("/api/kernel/dcc_projection");
 }
 
 export type FlightEventFilters = {

@@ -2,12 +2,28 @@ use handshake_core::kernel::action_envelope::AuthorityEffect;
 use handshake_core::kernel::crdt::context_slice::CrdtMaterializedFieldV1;
 use handshake_core::kernel::crdt::identity::{CrdtAuthorityLinksV1, CrdtWorkspaceIdentityV1};
 use handshake_core::kernel::crdt::promotion_bridge::{
-    bridge_crdt_state_to_promotion, CrdtPromotionBridgeInputV1, CrdtPromotionBridgeStatus,
+    bridge_crdt_state_to_promotion, promote_crdt_state_through_event_ledger,
+    required_crdt_promotion_failure_receipts, CrdtPromotionBridgeInputV1,
+    CrdtPromotionBridgeStatus,
 };
 use handshake_core::kernel::crdt::validity_guard::{
     validate_crdt_state_for_promotion, CrdtMaterializedStateV1, CrdtPromotionValidationDecision,
     CrdtSchemaFieldRequirementV1, CrdtSchemaGuardContractV1,
 };
+use handshake_core::kernel::KernelEventType;
+use handshake_core::storage::{tests::postgres_backend_from_env, StorageError};
+use uuid::Uuid;
+
+async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core::storage::Database>
+{
+    match postgres_backend_from_env().await {
+        Ok(db) => db,
+        Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
+            panic!("ENVIRONMENT_BLOCKED: Kernel002 CRDT promotion bridge tests require POSTGRES_TEST_URL; {msg}");
+        }
+        Err(err) => panic!("failed to init postgres backend: {err:?}"),
+    }
+}
 
 #[test]
 fn kernel_crdt_promotion_bridge_accepts_validated_state_and_emits_eventledger_mapping() {
@@ -53,6 +69,18 @@ fn kernel_crdt_promotion_bridge_accepts_validated_state_and_emits_eventledger_ma
         event.event_schema_id,
         "hsk.event.kernel_crdt_promotion_accepted@1"
     );
+    let event_kinds: Vec<_> = result
+        .event_mappings
+        .iter()
+        .map(|mapping| mapping.event_kind.as_str())
+        .collect();
+    assert_eq!(
+        event_kinds,
+        vec![
+            "KernelCrdtPromotionRequestedV1",
+            "KernelCrdtPromotionAcceptedV1"
+        ]
+    );
 }
 
 #[test]
@@ -74,7 +102,22 @@ fn kernel_crdt_promotion_bridge_rejects_invalid_state_as_non_authoritative_evide
     assert_eq!(result.status, CrdtPromotionBridgeStatus::Rejected);
     assert!(result.artifact_proposal.is_none());
     assert!(result.promotion_gate_input.is_none());
-    assert!(result.event_mapping.is_none());
+    let event = result
+        .event_mapping
+        .expect("rejected path must emit rejected EventLedger mapping");
+    assert_eq!(event.event_kind, "KernelCrdtPromotionRejectedV1");
+    let event_kinds: Vec<_> = result
+        .event_mappings
+        .iter()
+        .map(|mapping| mapping.event_kind.as_str())
+        .collect();
+    assert_eq!(
+        event_kinds,
+        vec![
+            "KernelCrdtPromotionRequestedV1",
+            "KernelCrdtPromotionRejectedV1"
+        ]
+    );
 
     let evidence = result
         .rejection_evidence
@@ -85,6 +128,21 @@ fn kernel_crdt_promotion_bridge_rejects_invalid_state_as_non_authoritative_evide
     );
     assert_eq!(evidence.state_hash.len(), 64);
     assert!(!evidence.validation_errors.is_empty());
+    let failure_codes: Vec<_> = evidence
+        .failure_receipts
+        .iter()
+        .map(|receipt| receipt.failure_code.as_str())
+        .collect();
+    for required in [
+        "duplicate_promotion_request",
+        "stale_state_vector",
+        "simultaneous_operator_model_promotion",
+        "validation_failed_after_merge",
+        "postgres_write_failed",
+        "projection_rebuild_failed",
+    ] {
+        assert!(failure_codes.contains(&required));
+    }
 }
 
 #[test]
@@ -104,6 +162,85 @@ fn kernel_crdt_promotion_bridge_requires_validation_report_alignment() {
     });
 
     assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn kernel_crdt_promotion_bridge_appends_request_and_decision_events_to_postgres_ledger() {
+    let db = postgres_or_environment_blocked().await;
+    let suffix = Uuid::new_v4().simple().to_string();
+    let state = sample_state_for_suffix(&suffix);
+    let validation_report = validate_crdt_state_for_promotion(&state, &sample_schema_guard());
+    let input = CrdtPromotionBridgeInputV1 {
+        bridge_id: format!("bridge-ledger-{suffix}"),
+        artifact_proposal_id: format!("artifact-proposal-ledger-{suffix}"),
+        promotion_gate_id: format!("promotion-gate-ledger-{suffix}"),
+        promotion_target_ref: format!("authority://kernel/document/document-kernel-{suffix}"),
+        state,
+        validation_report,
+    };
+
+    let result = promote_crdt_state_through_event_ledger(db.as_ref(), input)
+        .await
+        .expect("promotion bridge must append EventLedger request and accepted events");
+
+    assert_eq!(
+        result.bridge_result.status,
+        CrdtPromotionBridgeStatus::Accepted
+    );
+    assert_eq!(result.appended_events.len(), 2);
+    assert_eq!(
+        result.appended_events[0].event_type,
+        KernelEventType::PromotionRequested
+    );
+    assert_eq!(
+        result.appended_events[1].event_type,
+        KernelEventType::PromotionAccepted
+    );
+    assert_eq!(
+        result.appended_events[1].causation_id.as_deref(),
+        Some(result.appended_events[0].event_id.as_str())
+    );
+    assert_eq!(
+        result.appended_events[1].payload["promotion_target_ref"],
+        format!("authority://kernel/document/document-kernel-{suffix}")
+    );
+
+    let mapping_keys: Vec<_> = result
+        .bridge_result
+        .event_mappings
+        .iter()
+        .map(|mapping| mapping.idempotency_key.as_str())
+        .collect();
+    let persisted_keys: Vec<_> = result
+        .appended_events
+        .iter()
+        .map(|event| event.idempotency_key.as_str())
+        .collect();
+    assert_eq!(
+        mapping_keys, persisted_keys,
+        "promotion bridge mappings must cite the exact persisted EventLedger idempotency keys"
+    );
+}
+
+#[test]
+fn kernel_crdt_promotion_failure_receipts_cover_required_replay_cases() {
+    let receipts = required_crdt_promotion_failure_receipts("bridge-failure-proof");
+    let failure_codes: Vec<_> = receipts
+        .iter()
+        .map(|receipt| receipt.failure_code.as_str())
+        .collect();
+
+    for required in [
+        "duplicate_promotion_request",
+        "stale_state_vector",
+        "simultaneous_operator_model_promotion",
+        "validation_failed_after_merge",
+        "postgres_write_failed",
+        "projection_rebuild_failed",
+    ] {
+        assert!(failure_codes.contains(&required), "missing {required}");
+    }
+    assert!(receipts.iter().all(|receipt| receipt.replayable));
 }
 
 fn sample_state() -> CrdtMaterializedStateV1 {
@@ -127,6 +264,15 @@ fn sample_state() -> CrdtMaterializedStateV1 {
             },
         ],
     }
+}
+
+fn sample_state_for_suffix(suffix: &str) -> CrdtMaterializedStateV1 {
+    let mut state = sample_state();
+    state.identity.workspace_id = format!("workspace-kernel-{suffix}");
+    state.identity.document_id = format!("document-kernel-{suffix}");
+    state.identity.crdt_document_id = format!("crdt-document-kernel-{suffix}");
+    state.identity.authority_links.event_ledger_stream_id = format!("event-ledger-stream-{suffix}");
+    state
 }
 
 fn sample_schema_guard() -> CrdtSchemaGuardContractV1 {

@@ -80,6 +80,13 @@ fn promotion_and_denial_actions_encode_authority_boundaries() {
         .promotion_path
         .lawful_replacement_action_ids
         .contains(&"kernel.crdt_workspace.propose_patch"));
+    assert!(
+        denial
+            .expected_write_boxes
+            .iter()
+            .any(|write_box| write_box.write_box_schema_id == "hsk.write_box_direct_edit_denied@1"),
+        "direct-edit denial action must declare the concrete denial evidence schema"
+    );
 }
 
 #[test]

@@ -427,7 +427,7 @@ fn direct_edit_deny_action() -> KernelCatalogActionV1 {
         capability_requirements: vec![capability("kernel.direct_edit.guard")],
         expected_write_boxes: vec![expected_box(
             "DenialEvidenceBox",
-            "hsk.write_box.denial_evidence@1",
+            "hsk.write_box_direct_edit_denied@1",
             "attempt_target",
         )],
         authority_effect: AuthorityEffect::None,

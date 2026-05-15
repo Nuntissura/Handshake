@@ -4,14 +4,19 @@ use serde::{Deserialize, Serialize};
 
 use super::action_catalog::KernelActionCatalogV1;
 use super::action_envelope::{ApprovalPosture, AuthorityEffect};
+use super::write_boxes::{WriteBoxKind, WriteBoxLifecycleState, WriteBoxValidationState};
 
 pub const FOLDED_DCC_MVP_STUB_ID: &str = "WP-1-Dev-Command-Center-MVP-v1";
 
-const REQUIRED_PANEL_KINDS: [DccPanelKind; 8] = [
+const REQUIRED_PANEL_KINDS: [DccPanelKind; 12] = [
     DccPanelKind::WorkSelection,
     DccPanelKind::WorktreeState,
     DccPanelKind::SessionState,
     DccPanelKind::ActionCatalog,
+    DccPanelKind::WriteBoxQueue,
+    DccPanelKind::DirectEditDenialView,
+    DccPanelKind::PromotionPreview,
+    DccPanelKind::FreshnessBadges,
     DccPanelKind::ProposalState,
     DccPanelKind::DiffEvidence,
     DccPanelKind::ApprovalPreview,
@@ -24,6 +29,10 @@ pub enum DccPanelKind {
     WorktreeState,
     SessionState,
     ActionCatalog,
+    WriteBoxQueue,
+    DirectEditDenialView,
+    PromotionPreview,
+    FreshnessBadges,
     ProposalState,
     DiffEvidence,
     ApprovalPreview,
@@ -127,6 +136,68 @@ pub struct DccApprovalPreviewV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DccWriteBoxQueueRowV1 {
+    pub row_id: String,
+    pub write_box_id: String,
+    pub work_id: String,
+    pub kind: WriteBoxKind,
+    pub lifecycle_state: WriteBoxLifecycleState,
+    pub actor_id: String,
+    pub target_refs: Vec<String>,
+    pub validation_state: WriteBoxValidationState,
+    pub denial_receipt_refs: Vec<String>,
+    pub promotion_receipt_refs: Vec<String>,
+    pub stable_element_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DccDirectEditDenialRowV1 {
+    pub row_id: String,
+    pub denial_id: String,
+    pub work_id: String,
+    pub actor_id: String,
+    pub target_ref: String,
+    pub attempted_action: String,
+    pub recovery_instruction: String,
+    pub ui_response_ref: String,
+    pub api_response_ref: String,
+    pub stable_element_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DccPromotionPreviewRowV1 {
+    pub row_id: String,
+    pub preview_id: String,
+    pub work_id: String,
+    pub write_box_id: String,
+    pub promotion_target_ref: String,
+    pub request_event_ref: Option<String>,
+    pub accepted_event_ref: Option<String>,
+    pub rejected_event_ref: Option<String>,
+    pub freshness_badge_id: String,
+    pub stable_element_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DccFreshnessBadgeV1 {
+    pub badge_id: String,
+    pub source_projection_id: String,
+    pub source_ref: String,
+    pub state_vector: String,
+    pub updated_at_ref: String,
+    pub stale: bool,
+    pub stable_element_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DccStableElementIdV1 {
+    pub element_id: String,
+    pub surface_id: String,
+    pub element_kind: String,
+    pub source_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DccMvpRuntimeSurfaceV1 {
     pub schema_id: String,
     pub surface_id: String,
@@ -138,6 +209,11 @@ pub struct DccMvpRuntimeSurfaceV1 {
     pub proposals: Vec<DccProposalStateV1>,
     pub evidence: Vec<DccEvidenceItemV1>,
     pub approval_previews: Vec<DccApprovalPreviewV1>,
+    pub write_box_queue_rows: Vec<DccWriteBoxQueueRowV1>,
+    pub direct_edit_denials: Vec<DccDirectEditDenialRowV1>,
+    pub promotion_previews: Vec<DccPromotionPreviewRowV1>,
+    pub freshness_badges: Vec<DccFreshnessBadgeV1>,
+    pub stable_element_ids: Vec<DccStableElementIdV1>,
     pub catalog_action_refs: Vec<String>,
     pub direct_authority_mutation_allowed: bool,
     pub ungoverned_tool_execution_allowed: bool,
@@ -156,6 +232,11 @@ pub struct DccSelectedWorkProjectionV1 {
     pub proposals: Vec<DccProposalStateV1>,
     pub evidence: Vec<DccEvidenceItemV1>,
     pub approval_previews: Vec<DccApprovalPreviewV1>,
+    pub write_box_queue_rows: Vec<DccWriteBoxQueueRowV1>,
+    pub direct_edit_denials: Vec<DccDirectEditDenialRowV1>,
+    pub promotion_previews: Vec<DccPromotionPreviewRowV1>,
+    pub freshness_badges: Vec<DccFreshnessBadgeV1>,
+    pub stable_element_ids: Vec<DccStableElementIdV1>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -192,6 +273,27 @@ pub fn validate_dcc_mvp_runtime_surface(
         &mut errors,
         "catalog_action_refs",
         &surface.catalog_action_refs,
+    );
+    require_vec(
+        &mut errors,
+        "write_box_queue_rows",
+        &surface.write_box_queue_rows,
+    );
+    require_vec(
+        &mut errors,
+        "direct_edit_denials",
+        &surface.direct_edit_denials,
+    );
+    require_vec(
+        &mut errors,
+        "promotion_previews",
+        &surface.promotion_previews,
+    );
+    require_vec(&mut errors, "freshness_badges", &surface.freshness_badges);
+    require_vec(
+        &mut errors,
+        "stable_element_ids",
+        &surface.stable_element_ids,
     );
     require_vec(
         &mut errors,
@@ -342,6 +444,60 @@ pub fn select_dcc_work_item(
         .filter(|approval| approval_ids.contains(approval.preview_id.as_str()))
         .cloned()
         .collect();
+    let write_box_queue_rows: Vec<DccWriteBoxQueueRowV1> = surface
+        .write_box_queue_rows
+        .iter()
+        .filter(|row| row.work_id == work_item.work_id)
+        .cloned()
+        .collect();
+    let direct_edit_denials: Vec<DccDirectEditDenialRowV1> = surface
+        .direct_edit_denials
+        .iter()
+        .filter(|row| row.work_id == work_item.work_id)
+        .cloned()
+        .collect();
+    let promotion_previews: Vec<DccPromotionPreviewRowV1> = surface
+        .promotion_previews
+        .iter()
+        .filter(|row| row.work_id == work_item.work_id)
+        .cloned()
+        .collect();
+    let freshness_badge_ids: HashSet<&str> = promotion_previews
+        .iter()
+        .map(|preview| preview.freshness_badge_id.as_str())
+        .collect();
+    let freshness_badges: Vec<DccFreshnessBadgeV1> = surface
+        .freshness_badges
+        .iter()
+        .filter(|badge| freshness_badge_ids.contains(badge.badge_id.as_str()))
+        .cloned()
+        .collect();
+    let stable_ids_needed: HashSet<&str> = write_box_queue_rows
+        .iter()
+        .map(|row| row.stable_element_id.as_str())
+        .chain(
+            direct_edit_denials
+                .iter()
+                .map(|row| row.stable_element_id.as_str()),
+        )
+        .chain(
+            promotion_previews
+                .iter()
+                .map(|row| row.stable_element_id.as_str()),
+        )
+        .chain(
+            surface
+                .freshness_badges
+                .iter()
+                .map(|badge| badge.stable_element_id.as_str()),
+        )
+        .collect();
+    let stable_element_ids: Vec<DccStableElementIdV1> = surface
+        .stable_element_ids
+        .iter()
+        .filter(|element| stable_ids_needed.contains(element.element_id.as_str()))
+        .cloned()
+        .collect();
 
     Ok(DccSelectedWorkProjectionV1 {
         schema_id: "hsk.kernel.dcc_selected_work_projection@1".to_string(),
@@ -351,6 +507,11 @@ pub fn select_dcc_work_item(
         proposals,
         evidence,
         approval_previews,
+        write_box_queue_rows,
+        direct_edit_denials,
+        promotion_previews,
+        freshness_badges,
+        stable_element_ids,
     })
 }
 
@@ -480,6 +641,16 @@ fn validate_state_refs(
         .approval_previews
         .iter()
         .map(|approval| approval.preview_id.as_str())
+        .collect();
+    let stable_element_ids: HashSet<&str> = surface
+        .stable_element_ids
+        .iter()
+        .map(|element| element.element_id.as_str())
+        .collect();
+    let freshness_badge_ids: HashSet<&str> = surface
+        .freshness_badges
+        .iter()
+        .map(|badge| badge.badge_id.as_str())
         .collect();
 
     for work in &surface.work_items {
@@ -640,6 +811,156 @@ fn validate_state_refs(
             errors.push(DccMvpRuntimeSurfaceValidationError {
                 field: "approval_previews.action_id",
                 message: "approval preview action must be catalog referenced",
+            });
+        }
+    }
+
+    for row in &surface.write_box_queue_rows {
+        require_non_empty(errors, "write_box_queue_rows.row_id", &row.row_id);
+        require_non_empty(
+            errors,
+            "write_box_queue_rows.write_box_id",
+            &row.write_box_id,
+        );
+        require_non_empty(errors, "write_box_queue_rows.work_id", &row.work_id);
+        require_non_empty(errors, "write_box_queue_rows.actor_id", &row.actor_id);
+        require_vec(errors, "write_box_queue_rows.target_refs", &row.target_refs);
+        require_non_empty(
+            errors,
+            "write_box_queue_rows.stable_element_id",
+            &row.stable_element_id,
+        );
+        if !work_ids.contains(row.work_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "write_box_queue_rows.work_id",
+                message: "write-box queue row references unknown work",
+            });
+        }
+        if !stable_element_ids.contains(row.stable_element_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "write_box_queue_rows.stable_element_id",
+                message: "write-box queue row must have stable element id",
+            });
+        }
+    }
+
+    for row in &surface.direct_edit_denials {
+        require_non_empty(errors, "direct_edit_denials.row_id", &row.row_id);
+        require_non_empty(errors, "direct_edit_denials.denial_id", &row.denial_id);
+        require_non_empty(errors, "direct_edit_denials.work_id", &row.work_id);
+        require_non_empty(errors, "direct_edit_denials.actor_id", &row.actor_id);
+        require_non_empty(errors, "direct_edit_denials.target_ref", &row.target_ref);
+        require_non_empty(
+            errors,
+            "direct_edit_denials.attempted_action",
+            &row.attempted_action,
+        );
+        require_non_empty(
+            errors,
+            "direct_edit_denials.recovery_instruction",
+            &row.recovery_instruction,
+        );
+        require_non_empty(
+            errors,
+            "direct_edit_denials.ui_response_ref",
+            &row.ui_response_ref,
+        );
+        require_non_empty(
+            errors,
+            "direct_edit_denials.api_response_ref",
+            &row.api_response_ref,
+        );
+        if !work_ids.contains(row.work_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "direct_edit_denials.work_id",
+                message: "direct-edit denial row references unknown work",
+            });
+        }
+        if !stable_element_ids.contains(row.stable_element_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "direct_edit_denials.stable_element_id",
+                message: "direct-edit denial row must have stable element id",
+            });
+        }
+    }
+
+    for row in &surface.promotion_previews {
+        require_non_empty(errors, "promotion_previews.row_id", &row.row_id);
+        require_non_empty(errors, "promotion_previews.preview_id", &row.preview_id);
+        require_non_empty(errors, "promotion_previews.work_id", &row.work_id);
+        require_non_empty(errors, "promotion_previews.write_box_id", &row.write_box_id);
+        require_non_empty(
+            errors,
+            "promotion_previews.promotion_target_ref",
+            &row.promotion_target_ref,
+        );
+        require_non_empty(
+            errors,
+            "promotion_previews.freshness_badge_id",
+            &row.freshness_badge_id,
+        );
+        if !work_ids.contains(row.work_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "promotion_previews.work_id",
+                message: "promotion preview references unknown work",
+            });
+        }
+        if !freshness_badge_ids.contains(row.freshness_badge_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "promotion_previews.freshness_badge_id",
+                message: "promotion preview must link freshness badge",
+            });
+        }
+        if !stable_element_ids.contains(row.stable_element_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "promotion_previews.stable_element_id",
+                message: "promotion preview must have stable element id",
+            });
+        }
+    }
+
+    for badge in &surface.freshness_badges {
+        require_non_empty(errors, "freshness_badges.badge_id", &badge.badge_id);
+        require_non_empty(
+            errors,
+            "freshness_badges.source_projection_id",
+            &badge.source_projection_id,
+        );
+        require_non_empty(errors, "freshness_badges.source_ref", &badge.source_ref);
+        require_non_empty(errors, "freshness_badges.state_vector", &badge.state_vector);
+        require_non_empty(
+            errors,
+            "freshness_badges.updated_at_ref",
+            &badge.updated_at_ref,
+        );
+        if !stable_element_ids.contains(badge.stable_element_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "freshness_badges.stable_element_id",
+                message: "freshness badge must have stable element id",
+            });
+        }
+    }
+
+    let mut element_id_uniques = HashSet::new();
+    for element in &surface.stable_element_ids {
+        require_non_empty(errors, "stable_element_ids.element_id", &element.element_id);
+        require_non_empty(errors, "stable_element_ids.surface_id", &element.surface_id);
+        require_non_empty(
+            errors,
+            "stable_element_ids.element_kind",
+            &element.element_kind,
+        );
+        require_non_empty(errors, "stable_element_ids.source_ref", &element.source_ref);
+        if !element_id_uniques.insert(element.element_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "stable_element_ids.element_id",
+                message: "stable element ids must be unique",
+            });
+        }
+        if element.surface_id != surface.surface_id {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "stable_element_ids.surface_id",
+                message: "stable element id must belong to this surface",
             });
         }
     }

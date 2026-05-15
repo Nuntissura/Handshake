@@ -6,7 +6,11 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::kernel::{KernelError, KernelTraceInspector, TraceProjection};
+use crate::kernel::{
+    build_pre_use_dcc_mvp_runtime_surface,
+    dcc_mvp_runtime_surface::validate_dcc_mvp_runtime_surface, DccMvpRuntimeSurfaceV1, KernelError,
+    KernelTraceInspector, TraceProjection,
+};
 use crate::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -73,8 +77,21 @@ pub async fn inspect_trace_projection(
     Ok(Json(projection))
 }
 
+pub async fn dcc_projection() -> ApiResult<DccMvpRuntimeSurfaceV1> {
+    let surface = build_pre_use_dcc_mvp_runtime_surface();
+    validate_dcc_mvp_runtime_surface(&surface).map_err(|errors| {
+        api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "kernel_dcc_projection_invalid",
+            format!("backend DCC projection failed validation: {errors:?}"),
+        )
+    })?;
+    Ok(Json(surface))
+}
+
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/kernel/trace_projection", get(inspect_trace_projection))
+        .route("/kernel/dcc_projection", get(dcc_projection))
         .with_state(state)
 }

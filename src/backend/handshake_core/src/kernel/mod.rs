@@ -71,7 +71,9 @@ pub mod workflow_transition_registry;
 pub mod write_boxes;
 
 pub use context_bundle::*;
+pub use dcc_mvp_runtime_surface::DccMvpRuntimeSurfaceV1;
 pub use model_adapter::*;
+pub use pre_use_kernel_acceptance_run::build_pre_use_dcc_mvp_runtime_surface;
 #[cfg(feature = "runtime-full")]
 pub use promotion::*;
 #[cfg(feature = "runtime-full")]
@@ -147,6 +149,9 @@ pub enum KernelEventType {
     ArtifactStored,
     ValidationRecorded,
     PromotionDecided,
+    PromotionRequested,
+    PromotionAccepted,
+    PromotionRejected,
     FlightRecorderMirrorRecorded,
     TraceReplayed,
 }
@@ -174,6 +179,9 @@ impl KernelEventType {
             Self::ArtifactStored => "ARTIFACT_STORED",
             Self::ValidationRecorded => "VALIDATION_RECORDED",
             Self::PromotionDecided => "PROMOTION_DECIDED",
+            Self::PromotionRequested => "PROMOTION_REQUESTED",
+            Self::PromotionAccepted => "PROMOTION_ACCEPTED",
+            Self::PromotionRejected => "PROMOTION_REJECTED",
             Self::FlightRecorderMirrorRecorded => "FLIGHT_RECORDER_MIRROR_RECORDED",
             Self::TraceReplayed => "TRACE_REPLAYED",
         }
@@ -201,6 +209,9 @@ impl KernelEventType {
             KernelEventType::ArtifactStored,
             KernelEventType::ValidationRecorded,
             KernelEventType::PromotionDecided,
+            KernelEventType::PromotionRequested,
+            KernelEventType::PromotionAccepted,
+            KernelEventType::PromotionRejected,
             KernelEventType::FlightRecorderMirrorRecorded,
             KernelEventType::TraceReplayed,
         ]
