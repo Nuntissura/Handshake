@@ -21,6 +21,16 @@
 
 ## Entries
 
+### 2026.05.16.01 / GOV-CHANGE-20260516-01
+
+- Status: APPLIED
+- Scope: Repo Governance
+- Summary: Created `HANDSHAKE_BUILD_RULES.json` as the authority registry for build-time and handoff-time gates.
+- Contract impact: New cross-WP authority registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` defines five build-time pillars (INT/SWARM/VIS/QUIET/MAN) with 23 active rules and 3 deferred pillars (UI/SMP/COST). Rules are cite-only against existing Codex, AGENTS, role-protocol, and global authority; refinement and enrichment scope is intentionally untouched. JSON is the only authority surface; no Markdown projection is created by default per CX-205L and `[GLOBAL-GOVARTIFACTS-001..003]`. Enforcement mechanism declared as `PACKET_ACCEPTANCE_MATRIX_EXTENSION` per CX-503B1 with wiring (packet hydration emits HBR rows; validator scan verifies evidence) deferred to a follow-up RGF.
+- Driver evidence: Operator request on 2026-05-16 to create a Handshake-language build-rules authority modeled on the CKC `CKC_GOV/build_rules.md` pattern, with explicit operator scope correction during draft: build rules must enforce build-time/handoff-time gates (interconnectivity proof, parallel agent + operator swarm safety, visual + operator-GUI verification, quiet/non-intrusive operation, in-product ModelManual currency) and must not duplicate refinement or enrichment authority.
+- Files changed: `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`, `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md`, `.GOV/roles_shared/records/REPO_GOVERNANCE_CHANGELOG.md`, `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` (synced to register the new records surface).
+- Verification: PARTIAL - new file passed `governance-structure-bundle-check`, `topology-bundle-check governance-topology-check`, `repo-governance-board-check`, `spec-current-check`, `spec-bundle-check`, `computed-policy-gate-check`, `build-order-check`, `cache-stability-check`, `verb-coverage-check`, `memory-health-check`, `memory-maintenance` after `just gov-check --sync-topology`. Pre-existing `gov-check` failures (packet-truth-bundle for `WP-1-Photo-Studio-v2` SUPERSEDED-while-active and stale `FLAT_PACKET_LEGACY_INVENTORY.json`; wp-comm-bundle for `WP-1-Atelier-Lens-Consolidation-v1` legacy communication paths; session-bundle; semantic-proof; topology-bundle drive-agnostic-check flagging pre-existing absolute paths in `VALIDATOR_PROTOCOL.md` and `atelier-lens-consolidation-packet-generator.mjs`) are unchanged by this change and are tracked under prior governance debt (memory ref: MT-049 `gov-check exit 1`). `RESIDUAL_ARTIFACT_WRITER_INVENTORY.json` was run-synced during verification but reverted from this commit because the sync also captured writer entries for prior-session-modified scripts that belong to other in-flight work.
+
 ### 2026.05.14.02 / GOV-CHANGE-20260514-02
 
 - Status: APPLIED

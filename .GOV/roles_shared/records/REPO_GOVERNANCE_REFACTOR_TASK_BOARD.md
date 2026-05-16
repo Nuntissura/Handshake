@@ -22,6 +22,7 @@
 - Current completed follow-on added 2026-05-14: `RGF-320` records Codex law for preservation-first work consolidation and no-context-complete WP, stub, refinement, and microtask artifacts.
 - Current completed follow-on added 2026-05-14: `RGF-321` folds the legacy git topology registry into the single machine-readable governance topology ledger and deprecates `GIT_TOPOLOGY_REGISTRY.md/json` as non-authoritative compatibility references.
 - Current completed follow-on added 2026-05-14: `RGF-322` creates the deprecated governance archive taxonomy under `.GOV/reference/legacy/deprecated/` and moves the old topology registry reference there.
+- Current completed follow-on added 2026-05-16: `RGF-323` creates `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` as the authority registry for build-time/handoff-time gates (5 pillars: INT/SWARM/VIS/QUIET/MAN; 23 active rules; 3 deferred pillars UI/SMP/COST). JSON authority only per CX-205L and `[GLOBAL-GOVARTIFACTS-001..003]`; no Markdown projection by default. Cite-only relationships to existing Codex/AGENTS/protocol authority; refinement and enrichment scope intentionally untouched. Enforcement mechanism = `PACKET_ACCEPTANCE_MATRIX_EXTENSION` per CX-503B1, with wiring deferred to a follow-up RGF that extends packet hydration to auto-generate HBR rows and extends validator scan to verify evidence per row before PASS.
 
 ## Status Keys
 
