@@ -46,7 +46,7 @@ Rules:
     - Contradiction count (unresolved conflicts in queue).
     - Average importance of active items (0.3-0.7 healthy).
     - Last hygiene run timestamp and summary.
-    - Retrieval degradation tier distribution (how often FTS5-only vs full hybrid).
+    - Retrieval degradation tier distribution (how often PostgreSQL keyword/full-text only vs full hybrid).
   - Color-coded health status per signal (green/amber/red thresholds).
   - Hygiene report artifact viewer (output from FEMS Hygiene Manager Job).
 - OUT_OF_SCOPE:

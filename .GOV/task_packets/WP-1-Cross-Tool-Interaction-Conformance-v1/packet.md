@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Cross-Tool-Interaction-Conformance-v1/packet.json source_hash=364e7dd4ddfbc04c projection_hash=77e5da8598302508 generated_at_utc=2026-05-06T16:33:39.112Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Cross-Tool-Interaction-Conformance-v1/packet.json source_hash=c00a09b11c2ff9ab projection_hash=77e5da8598302508 generated_at_utc=2026-05-14T21:13:39.475Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Cross-Tool-Interaction-Conformance-v1
 
 ## METADATA

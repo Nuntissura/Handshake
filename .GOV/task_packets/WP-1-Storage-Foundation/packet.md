@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Storage-Foundation/packet.json source_hash=ec391b8d70d994e9 projection_hash=c557f2d8678fb754 generated_at_utc=2026-05-06T16:33:39.531Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Storage-Foundation/packet.json source_hash=72c49f14d366f8c2 projection_hash=c557f2d8678fb754 generated_at_utc=2026-05-14T21:13:39.816Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Storage-Foundation
 
 ## Metadata

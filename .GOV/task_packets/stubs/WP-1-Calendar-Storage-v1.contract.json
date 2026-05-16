@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Calendar-Storage-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "74b4cae3e627b605f455773e8038db82d2bf6ece8e479ce1d3ec17e22f38cfcd",
+    "projection_sha256": "d1252f561c16ab7bb9262412884788732acc827177ae6a0b47f95f2b761bb3a0",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -67,9 +67,9 @@
     "planned_execution_owner_range": ""
   },
   "draft_scope": {
-    "intent": "- What: Add persistent storage for CalendarSource/CalendarEvent with portable migrations and a Database-trait-conformant DAL.\n- Why: Calendar lens and sync cannot be correct or auditable without durable, queryable event persistence.",
-    "scope_sketch": "- IN_SCOPE:\n  - Portable migrations for:\n    - calendar_sources (id, kind/provider, display_name, created_at, config/provenance)\n    - calendar_events (id, source_id, start_ts, end_ts, title, location, raw_ref/provenance)\n    - indexes for time-range queries (source_id + start/end).\n  - Storage API surface for:\n    - upsert/list sources\n    - upsert/query events (idempotent)\n    - delete-by-source (disconnect).\n- OUT_OF_SCOPE:\n  - Full-text indexing and embeddings for calendar notes (layer later).\n  - Complex recurrence expansion beyond a stored raw field in MVP.",
-    "acceptance_criteria": "- Calendar sources and events persist and can be queried by time window efficiently.\n- Migrations run cleanly on SQLite and Postgres (no runtime DDL hacks).\n- A small conformance test suite verifies portable schema + basic CRUD.",
+    "intent": "- What: Add persistent PostgreSQL storage for CalendarSource/CalendarEvent with numbered migrations and a Database-trait-conformant DAL.\n- Why: Calendar lens and sync cannot be correct or auditable without durable, queryable event persistence.",
+    "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL migrations for:\n    - calendar_sources (id, kind/provider, display_name, created_at, config/provenance)\n    - calendar_events (id, source_id, start_ts, end_ts, title, location, raw_ref/provenance)\n    - indexes for time-range queries (source_id + start/end).\n  - Storage API surface for:\n    - upsert/list sources\n    - upsert/query events (idempotent)\n    - delete-by-source (disconnect).\n- OUT_OF_SCOPE:\n  - Full-text indexing and embeddings for calendar notes (layer later).\n  - Complex recurrence expansion beyond a stored raw field in MVP.",
+    "acceptance_criteria": "- Calendar sources and events persist and can be queried by time window efficiently.\n- Migrations run cleanly on PostgreSQL with no runtime DDL hacks.\n- A small conformance test suite verifies PostgreSQL schema + basic CRUD. No SQLite test target, fixture, fallback, compatibility path, or temporary adapter is allowed.",
     "risks_unknowns": "- Recurrence and timezone normalization decisions can cause long-term drift; must be versioned.\n- Event privacy requires clear provenance and policy hooks (separate stub).",
     "governance_artifact_stance": ""
   },

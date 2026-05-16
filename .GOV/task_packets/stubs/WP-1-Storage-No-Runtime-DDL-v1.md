@@ -28,11 +28,11 @@ Rules:
 - ROADMAP_POINTER: Audit remediation against Handshake_Master_Spec_v02.139.md (portable migrations posture)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - Handshake_Master_Spec_v02.139.md Portable migrations posture (no hidden runtime schema mutation)
-  - Handshake_Master_Spec_v02.139.md Dual-backend correctness (SQLite + Postgres parity)
+  - Handshake_Master_Spec_v02.139.md PostgreSQL correctness (older SQLite parity language superseded by reset)
 
 ## INTENT (DRAFT)
-- What: Remove runtime schema mutation (CREATE/ALTER at runtime) by moving all schema evolution into numbered migrations for both backends.
-- Why: Runtime DDL creates schema drift, breaks portability auditing, and can hide Postgres/SQLite parity bugs.
+- What: Remove runtime schema mutation (CREATE/ALTER at runtime) by moving all schema evolution into numbered PostgreSQL migrations.
+- Why: Runtime DDL creates schema drift, breaks migration auditing, and can hide PostgreSQL authority bugs. SQLite parity is superseded by the reset and must not be retained as a test or fixture path.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:

@@ -40,7 +40,7 @@ Rules:
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
   - Unify Loom block, edge, search, view, and source-anchor semantics under portable backend contracts.
-  - Preserve stable meaning across SQLite-now / PostgreSQL-ready storage, export, replay, and bounded artifact transfer.
+  - Preserve stable meaning across PostgreSQL storage, export, replay, and bounded artifact transfer. The old local-first storage posture is superseded and must not be implemented through SQLite in any form.
   - Clarify what downstream Loom-consuming packets may assume about portable block-edge/search/view/source-anchor behavior.
 - OUT_OF_SCOPE:
   - Full Loom product expansion.

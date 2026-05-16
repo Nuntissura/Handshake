@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.json source_hash=63472558f8698d5b projection_hash=607b4b9a69773dc4 generated_at_utc=2026-05-06T16:33:39.451Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.json source_hash=d36347abb30352e4 projection_hash=607b4b9a69773dc4 generated_at_utc=2026-05-14T21:13:39.744Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 
 Requirements (HARD):

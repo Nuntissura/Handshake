@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/packet.json source_hash=f6fcec45835e5b4c projection_hash=5e36273d02a2105b generated_at_utc=2026-05-06T16:33:39.304Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1/packet.json source_hash=ce2036c76abbcfce projection_hash=5e36273d02a2105b generated_at_utc=2026-05-14T21:13:39.641Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Model-Onboarding-ContextPacks-v1
 
 ## METADATA

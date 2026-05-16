@@ -53,6 +53,16 @@ Use this brief after `just kernel-builder-startup`. It is operational memory for
 - VERIFY: `git status --short --branch` in the product worktree matches the intended branch before and after edits
 - SOURCE: KERNEL_BUILDER_PROTOCOL, AGENTS.md worktree law
 
+### RAM-KERNEL_BUILDER-SUBAGENT-001
+
+- ACTION: SUBAGENT_OVERSIGHT
+- TRIGGER: before using sub-agents during packet activation or product MT execution
+- FAILURE_PATTERN: delegating implementation/review work without `KERNEL_BUILDER` review and acceptance of final delegated output
+- DO: use read/write sub-agents where practical when packet rules or Operator instruction explicitly permit; review and verify all sub-agent outputs before advancing any claim, state, or handoff; sub-agents must not create or switch worktrees.
+- DO_NOT: treat sub-agent output as finished truth; do not proceed to commit/state advance on unreviewed delegated changes; do not allow sub-agents to perform worktree creation
+- VERIFY: a no-context Kernel Builder can identify the delegated action, the review performed, and remaining risks in repomem, receipts, and runtime state
+- SOURCE: KERNEL_BUILDER_PROTOCOL
+
 ### RAM-KERNEL_BUILDER-PAPERWORK-001
 
 - ACTION: FOLDED_IMPLEMENTATION_PAPERWORK

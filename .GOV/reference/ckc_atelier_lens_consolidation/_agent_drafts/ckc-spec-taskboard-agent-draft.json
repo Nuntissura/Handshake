@@ -1,0 +1,618 @@
+{
+  "file_id": "ckc-spec-taskboard-agent-draft",
+  "file_kind": "greenroom-extraction-draft",
+  "updated_at": "2026-05-16",
+  "target_context": "Handshake Atelier/Lens consolidation",
+  "sources": [
+    {
+      "path": "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/spec/CastKit_Codex_Spec_v00.075.md",
+      "kind": "spec",
+      "notes": "Current CKC working spec v00.075."
+    },
+    {
+      "path": "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/taskboard/TASK_BOARD.md",
+      "kind": "taskboard",
+      "notes": "Authoritative CKC work status and current focus."
+    }
+  ],
+  "hard_rejections": [
+    "SQLite forbidden in any form for Handshake.",
+    "Electron is not authority for Handshake architecture.",
+    "Localhost intake is not authority for Handshake integration design.",
+    "CKC namespace must migrate to Handshake-owned Atelier/Lens vocabulary.",
+    ".GOV is not product output."
+  ],
+  "capability_clusters": [
+    {
+      "id": "image_first_library",
+      "name": "Image-first library and structured authoring surface",
+      "source_refs": [
+        "spec:1491-1518",
+        "spec:655-676",
+        "taskboard:23-31"
+      ],
+      "requirements": [
+        "Images are the hero surface beside structured sheet/editor content.",
+        "Global and per-entity carousel/photo modes exist.",
+        "Controls, filters, and command bars are minimal or hidden by default.",
+        "Ratings and filters affect slideshow/gallery behavior."
+      ],
+      "handshake_overlap": [
+        "Lens image browsing and review.",
+        "Atelier structured subject/profile authoring.",
+        "Shared rating/tag/filter vocabulary."
+      ]
+    },
+    {
+      "id": "intake_inbox_triage",
+      "name": "Intake, Inbox, and triage",
+      "source_refs": [
+        "spec:21-25",
+        "spec:556-569",
+        "taskboard:114",
+        "taskboard:140-145"
+      ],
+      "requirements": [
+        "Persistent intake batches.",
+        "Accepted, pending, and rejected lanes.",
+        "Linked or loose classification.",
+        "Optional linkage to structured records, versions, and collections.",
+        "Pending Inbox lifecycle and filesystem health checks."
+      ],
+      "handshake_overlap": [
+        "Lens canonical import and triage lane.",
+        "Atelier delayed assignment of assets to subject/project/version records.",
+        "Agent-readable batch audit and recovery state."
+      ]
+    },
+    {
+      "id": "collections_contact_sheets",
+      "name": "Collections, playlists, and contact sheets",
+      "source_refs": [
+        "spec:21-25",
+        "spec:896-907",
+        "taskboard:89",
+        "taskboard:146-147",
+        "taskboard:154"
+      ],
+      "requirements": [
+        "Curated cross-entity image sets.",
+        "Collection notes, tags, optional links, batch tag application.",
+        "SVG plus manifest contact sheets with source IDs, hashes, tags, and layout metadata.",
+        "Raster contact sheet export remains planned."
+      ],
+      "handshake_overlap": [
+        "Lens review sets and visual comparison sheets.",
+        "Atelier planning boards and shot/reference collections.",
+        "Manifest-backed artifacts for agent workflows."
+      ]
+    },
+    {
+      "id": "pose_identity_workflow",
+      "name": "Pose, identity reference, sidecars, and workflow replay",
+      "source_refs": [
+        "spec:27-30",
+        "spec:80-123",
+        "spec:140-168",
+        "taskboard:125-133",
+        "taskboard:149-151"
+      ],
+      "requirements": [
+        "Blank, single-photo, and collection pose workbench contexts.",
+        "Deterministic no-space derivative sidecar paths.",
+        "Body, face, hand, and head-pose control metadata.",
+        "Identity/reference profile crops and downstream bridge payloads.",
+        "Workflow replay can inject identity/reference payloads."
+      ],
+      "handshake_overlap": [
+        "Lens source-plus-derivative artifact model.",
+        "Atelier reusable identity/reference assets.",
+        "Production workflow provenance and replay concepts."
+      ],
+      "cautions": [
+        "PoseKit/Rig/Workflow names must migrate.",
+        "CKC localhost ComfyUI bridge is not authority.",
+        "Deep calibration/history UX is blocked in CKC."
+      ]
+    },
+    {
+      "id": "llm_automation_parallel_ops",
+      "name": "LLM automation, visual debugging, and parallel operation",
+      "source_refs": [
+        "spec:15-19",
+        "spec:331-358",
+        "spec:521-553",
+        "taskboard:113",
+        "taskboard:115",
+        "taskboard:119",
+        "taskboard:155",
+        "taskboard:171-174"
+      ],
+      "requirements": [
+        "Manual-command-dispatch consistency is tested.",
+        "State inspection, command execution, screenshot capture, sessions, leases, and logs are exposed.",
+        "Background automation must not steal focus.",
+        "Parallel editing uses PostgreSQL source of truth, leases, optimistic revisions, append-only events, and limited safe-shape CRDT merges."
+      ],
+      "handshake_overlap": [
+        "First-class agent operation layer.",
+        "Parallel model workflow support.",
+        "Reproducible visual verification and recovery."
+      ]
+    },
+    {
+      "id": "storage_portability_governance_split",
+      "name": "Storage, portability, and governance/product split",
+      "source_refs": [
+        "spec:439-440",
+        "spec:505-517",
+        "spec:571-579",
+        "taskboard:112",
+        "taskboard:137",
+        "taskboard:169"
+      ],
+      "requirements": [
+        "PostgreSQL is the default/current CKC provider for new runs.",
+        "No-space generated artifact paths.",
+        "Governance and product output are separate.",
+        "SQLite remains in CKC only as legacy/test fallback, which Handshake rejects."
+      ],
+      "handshake_overlap": [
+        "PostgreSQL-first or approved non-SQLite storage.",
+        "No-space artifact naming.",
+        "Governance/product split."
+      ]
+    }
+  ],
+  "data_entities": [
+    {
+      "ckc_name": "ImageAsset",
+      "meaning": "Image file plus metadata, tags, ratings, hashes, palette/dHash, provenance, and sidecar role.",
+      "handshake_candidate": "Lens asset/reference/media item"
+    },
+    {
+      "ckc_name": "Character",
+      "meaning": "Structured subject record with sheet fields, public ID, icon, and images.",
+      "handshake_candidate": "Atelier subject/model/character/project entity"
+    },
+    {
+      "ckc_name": "FieldValue/SheetVersion",
+      "meaning": "Structured field values with versioning, validation, diff, merge, and revert.",
+      "handshake_candidate": "Versioned profile/spec records"
+    },
+    {
+      "ckc_name": "Notes/Stories/Moodboards",
+      "meaning": "Separate document and canvas libraries with smart tags.",
+      "handshake_candidate": "Atelier notebook/story/board surfaces"
+    },
+    {
+      "ckc_name": "Collection/CollectionItem",
+      "meaning": "Curated image sets/playlists with export and slideshow behavior.",
+      "handshake_candidate": "Lens collection/contact set/shot set"
+    },
+    {
+      "ckc_name": "IntakeBatch/IngestionBatch/IngestionRejection",
+      "meaning": "Import, triage, dedup, acceptance, pending, and rejection audit records.",
+      "handshake_candidate": "Import batch and triage audit"
+    },
+    {
+      "ckc_name": "Rig",
+      "meaning": "Pose/control representation derived from source images.",
+      "handshake_candidate": "Pose/control derivative artifact"
+    },
+    {
+      "ckc_name": "IdentityProfile",
+      "meaning": "Deterministic reference crop plus landmarks, measurements, pose metadata, and bridge payload.",
+      "handshake_candidate": "Identity/reference profile"
+    },
+    {
+      "ckc_name": "WorkflowSpec/WorkflowHistory/Prompt/StoryBeat",
+      "meaning": "Workflow provenance, prompt/story metadata, and replay surfaces.",
+      "handshake_candidate": "Generator workflow run/capture/replay record"
+    },
+    {
+      "ckc_name": "AutomationSession/Lease/Event/Revision",
+      "meaning": "Parallel model/operator coordination and audit state.",
+      "handshake_candidate": "Agent session, operation lease, event journal, revision ledger"
+    },
+    {
+      "ckc_name": "ContactSheetManifest",
+      "meaning": "Generated visual artifact manifest with source IDs, hashes, tags, and layout metadata.",
+      "handshake_candidate": "Review sheet manifest"
+    }
+  ],
+  "evolved_features": [
+    {
+      "id": "minimal_ui_and_navigation",
+      "features": [
+        "Hidden controls and command bars",
+        "Drawer navigation",
+        "Command palette",
+        "Global search",
+        "Fullscreen and slideshow",
+        "Hotkeys"
+      ],
+      "source_refs": [
+        "taskboard:23-31",
+        "taskboard:50",
+        "taskboard:92",
+        "taskboard:103"
+      ],
+      "handshake_value": "Improves Lens/Atelier operator speed and reduces visual clutter."
+    },
+    {
+      "id": "import_convenience",
+      "features": [
+        "Drag/drop import",
+        "Clipboard image paste",
+        "URL capture",
+        "Inbox/watch-folder import",
+        "Direct ingress cleanup toward Intake"
+      ],
+      "source_refs": [
+        "taskboard:75-76",
+        "taskboard:84",
+        "taskboard:141"
+      ],
+      "handshake_value": "Makes asset capture cheap while preserving a canonical triage path."
+    },
+    {
+      "id": "bulk_and_search_power_tools",
+      "features": [
+        "Batch metadata edit",
+        "Bulk character operations",
+        "Tag manager",
+        "Smart folders",
+        "Exact duplicate and near-duplicate search",
+        "Visual similarity search",
+        "Color tools",
+        "Performance caps"
+      ],
+      "source_refs": [
+        "taskboard:77-87",
+        "taskboard:103",
+        "taskboard:107-110"
+      ],
+      "handshake_value": "High ROI for large Lens libraries and repeated Atelier cleanup work."
+    },
+    {
+      "id": "moodboard_maturity",
+      "features": [
+        "Layers",
+        "Transform",
+        "Undo/redo",
+        "Text and sticky notes",
+        "Gradient tools",
+        "Zoom/pan/grid",
+        "Shapes/connectors/masks",
+        "Selection tools",
+        "Numeric inspector",
+        "Guides/rulers",
+        "Layer folders/search/tags",
+        "Styling and export"
+      ],
+      "source_refs": [
+        "taskboard:68-74",
+        "taskboard:94-102"
+      ],
+      "handshake_value": "Atelier can reuse the capability shape for production boards if moodboards are in scope."
+    },
+    {
+      "id": "recovery_and_diagnostics",
+      "features": [
+        "Library diagnostics",
+        "Missing media repair",
+        "Backup/restore",
+        "Reset modes",
+        "Filesystem health",
+        "Recoverable deletion",
+        "Orphan adoption"
+      ],
+      "source_refs": [
+        "taskboard:45-48",
+        "taskboard:93",
+        "taskboard:145",
+        "taskboard:153",
+        "spec:202-222"
+      ],
+      "handshake_value": "Reduces data loss and helps agents recover without guessing."
+    },
+    {
+      "id": "agent_convenience",
+      "features": [
+        "Automation manual",
+        "Manual-command consistency tests",
+        "State inspection",
+        "Visual capture",
+        "Sessions/leases/logs",
+        "Background-safe mode"
+      ],
+      "source_refs": [
+        "taskboard:113",
+        "taskboard:115",
+        "taskboard:119",
+        "taskboard:138-140",
+        "taskboard:155"
+      ],
+      "handshake_value": "Directly supports parallel LLM operation and reproducible validation."
+    }
+  ],
+  "overlap_candidates": [
+    {
+      "id": "lens_asset_intake",
+      "base_scope": "Persistent asset intake and triage lane.",
+      "reuse_from_ckc": [
+        "Persistent batches",
+        "Accepted/pending/rejected lanes",
+        "Linked/loose classification",
+        "Pending Inbox",
+        "Derivative recognition",
+        "Filesystem health"
+      ],
+      "handshake_changes": [
+        "Rename CKC entities",
+        "Remove CKC paths/names",
+        "Use Handshake storage rules with no SQLite"
+      ],
+      "validation": [
+        "Parse batch state",
+        "Verify file/source traceability",
+        "Capture GUI triage flow"
+      ]
+    },
+    {
+      "id": "lens_collections_contact_sheets",
+      "base_scope": "Curated review sets and manifest-backed contact sheets.",
+      "reuse_from_ckc": [
+        "Collections with notes/tags",
+        "Batch tag application",
+        "SVG plus manifest contact sheets",
+        "Source IDs/hashes/layout metadata"
+      ],
+      "handshake_changes": [
+        "Adopt Handshake naming",
+        "Defer raster export unless needed"
+      ],
+      "validation": [
+        "Manifest parseability",
+        "Source ID/hash traceability",
+        "No-space artifact paths"
+      ]
+    },
+    {
+      "id": "atelier_authoring_surface",
+      "base_scope": "Side-by-side references and structured editable profile/spec data.",
+      "reuse_from_ckc": [
+        "Image plus sheet layout",
+        "Notes/stories/moodboards",
+        "Versioned fields",
+        "Diff/merge/revert",
+        "No silent field drops"
+      ],
+      "handshake_changes": [
+        "Replace character-sheet taxonomy with Atelier domain model",
+        "Prevent governance leakage into product UI"
+      ],
+      "validation": [
+        "Round-trip structured fields",
+        "Version recovery",
+        "Responsive layout capture"
+      ]
+    },
+    {
+      "id": "lens_derivative_artifacts",
+      "base_scope": "Source assets linked to generated/derived sidecars.",
+      "reuse_from_ckc": [
+        "Deterministic sidecar paths",
+        "Derivative hiding in normal galleries",
+        "Explicit sidecar listing",
+        "Archive/restore controls"
+      ],
+      "handshake_changes": [
+        "Map Pose/OpenPose only if Lens owns pose/control outputs",
+        "Migrate PoseKit/Rig naming"
+      ],
+      "validation": [
+        "Source-derivative linkage",
+        "Gallery filtering",
+        "Archive/restore audit"
+      ]
+    },
+    {
+      "id": "agent_operation_layer",
+      "base_scope": "Manual, command map, automation state, leases, logs, and visual verification.",
+      "reuse_from_ckc": [
+        "Manual-command-dispatch consistency tests",
+        "Automation sessions",
+        "Leases",
+        "State JSON",
+        "Screenshot capture",
+        "Background-safe operation"
+      ],
+      "handshake_changes": [
+        "Implement as Handshake authority",
+        "Do not copy CKC names or product paths"
+      ],
+      "validation": [
+        "Command map consistency test",
+        "Parallel lease recovery test",
+        "Normal and constrained viewport captures"
+      ]
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "sqlite_forbidden",
+      "source_evidence": [
+        "spec:516-517",
+        "taskboard:137",
+        "taskboard:169"
+      ],
+      "ckc_state": "CKC retains SQLite as legacy/test fallback and has planned SQLite removal/quarantine.",
+      "handshake_decision": "Reject SQLite in any form.",
+      "mitigation": "Do not import CKC SQLite references into Handshake architecture, specs, tests, examples, or fixtures."
+    },
+    {
+      "id": "electron_not_authority",
+      "source_evidence": [
+        "spec:68",
+        "spec:116",
+        "spec:1300",
+        "spec:1384"
+      ],
+      "ckc_state": "CKC uses Electron contextBridge, nativeImage, webContents capture, and electron-builder.",
+      "handshake_decision": "Treat Electron as CKC implementation detail only.",
+      "mitigation": "Reuse behavior constraints such as non-focus-stealing capture, not Electron APIs as requirements."
+    },
+    {
+      "id": "localhost_intake_not_authority",
+      "source_evidence": [
+        "taskboard:127"
+      ],
+      "ckc_state": "CKC has localhost-only ComfyUI intake/server behavior with bearer token support.",
+      "handshake_decision": "Do not make localhost intake canonical.",
+      "mitigation": "Redesign integration around Handshake-owned transport, auth, provenance, and replay contracts."
+    },
+    {
+      "id": "namespace_migration_required",
+      "source_evidence": [
+        "spec:1-9",
+        "spec:108-123",
+        "taskboard:125-133"
+      ],
+      "ckc_state": "CKC names include CastKit Codex, CKC, CKC_GOV, CKC_main, PoseKit, Rig, Workflow, and CastKitCodexBridge.",
+      "handshake_decision": "Migrate all CKC names into Handshake Atelier/Lens vocabulary.",
+      "mitigation": "Create explicit name mapping before authoring Handshake specs or taskboard rows."
+    },
+    {
+      "id": "gov_not_product_output",
+      "source_evidence": [
+        "taskboard:1-10",
+        "taskboard:111"
+      ],
+      "ckc_state": "CKC governance lives in CKC_GOV and stale product doc mirrors were removed.",
+      "handshake_decision": ".GOV is governance/reference only, not product output.",
+      "mitigation": "Keep generated product docs, exports, and UI help separate from .GOV paths and labels."
+    }
+  ],
+  "taskboard_status_signals": [
+    {
+      "status": "DONE",
+      "items": [
+        "WP-0001..WP-0115 mostly complete, including portfolio, media metadata, moodboards, exports, search, collections, PostgreSQL storage, automation, intake, PoseKit, workflow replay, identity profiles, hand detection, and multi-rig tabs."
+      ],
+      "source_refs": [
+        "taskboard:21-133"
+      ]
+    },
+    {
+      "status": "REVIEW",
+      "items": [
+        "WP-0122..WP-0132, WP-0134..WP-0135, and WP-0137 are in review.",
+        "WP-0137 fixed product/manual dispatch drift, PostgreSQL-compatible regression coverage, and full npm test pass."
+      ],
+      "source_refs": [
+        "taskboard:140-155",
+        "taskboard:158"
+      ]
+    },
+    {
+      "status": "BLOCKED",
+      "items": [
+        "WP-0133 PoseKit calibration, markers, and history is blocked by deeper interaction needs."
+      ],
+      "source_refs": [
+        "taskboard:151",
+        "taskboard:184"
+      ]
+    },
+    {
+      "status": "PLANNED",
+      "items": [
+        "WP-0112 multi-subject scenes.",
+        "WP-0114 Pose tab polish.",
+        "WP-0116 extended keyboard shortcuts.",
+        "WP-0117 stylized portrait landmark detector research.",
+        "WP-0119 PostgreSQL-first testing and SQLite removal.",
+        "WP-0136 raster contact sheet export."
+      ],
+      "source_refs": [
+        "taskboard:130",
+        "taskboard:132",
+        "taskboard:134-137",
+        "taskboard:154"
+      ]
+    },
+    {
+      "status": "CONCEPT",
+      "items": [
+        "WP-0118 model prompt-response matrix is parked as future brainstorming, not current work."
+      ],
+      "source_refs": [
+        "taskboard:136",
+        "taskboard:168"
+      ]
+    },
+    {
+      "status": "DEFERRED",
+      "items": [
+        "Packaged-build smoke for WP-0099/WP-0100/WP-0103/WP-0104.",
+        "NAS mirror backup.",
+        "DB-backed live PostgreSQL container verification."
+      ],
+      "source_refs": [
+        "taskboard:182"
+      ]
+    }
+  ],
+  "unresolved_work": [
+    {
+      "id": "sqlite_removal",
+      "source_refs": [
+        "taskboard:137",
+        "taskboard:169"
+      ],
+      "ckc_status": "Planned.",
+      "handshake_implication": "Start stricter than CKC: no SQLite fallback or fixture dependence."
+    },
+    {
+      "id": "raster_contact_sheet_export",
+      "source_refs": [
+        "spec:24",
+        "taskboard:154",
+        "taskboard:173"
+      ],
+      "ckc_status": "Planned.",
+      "handshake_implication": "Adopt SVG/manifest first; add raster only if Lens needs it."
+    },
+    {
+      "id": "posekit_calibration_history",
+      "source_refs": [
+        "taskboard:151"
+      ],
+      "ckc_status": "Blocked.",
+      "handshake_implication": "Do not assume deep pose-edit UX is solved."
+    },
+    {
+      "id": "multi_subject_scenes",
+      "source_refs": [
+        "taskboard:130"
+      ],
+      "ckc_status": "Planned.",
+      "handshake_implication": "Treat multi-subject control as future scope unless explicitly required."
+    },
+    {
+      "id": "stylized_detector_research",
+      "source_refs": [
+        "taskboard:135"
+      ],
+      "ckc_status": "Planned research.",
+      "handshake_implication": "Reuse the research shape, but run a current Handshake-specific field pass."
+    }
+  ],
+  "notes": [
+    "This draft is source-grounded extraction, not a final Handshake spec.",
+    "CKC REVIEW rows should be treated as implemented but not fully accepted until review evidence is accepted.",
+    "Behavioral patterns are more reusable than CKC code names or implementation stack."
+  ]
+}

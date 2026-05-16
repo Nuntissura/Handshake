@@ -1,0 +1,290 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/MT-*.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.json",
+    "packet_projection": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.md",
+    "refinement_contract": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.json"
+  },
+  "base_wp_id": "WP-1-Atelier-Lens-Consolidation",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-16T03:39:00.000Z",
+  "data_contract": {
+    "decision": "WAIVED_NOT_DATA_BEARING",
+    "no_sqlite_rule": "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths. PostgreSQL/EventLedger/ArtifactStore are the only accepted storage and evidence direction.",
+    "profile": "NONE",
+    "reason": "Governance-only activation packet; product data contracts must be handled by future implementation WPs."
+  },
+  "lifecycle": {
+    "clause_closure_monitor_profile": "CLAUSE_MONITOR_V1",
+    "coder_model": "gpt-5.5",
+    "coder_model_profile": "OPENAI_GPT_5_5_XHIGH",
+    "coder_reasoning_strength": "EXTRA_HIGH",
+    "current_main_compatibility_baseline_sha": "NONE",
+    "current_main_compatibility_status": "NOT_RUN",
+    "current_main_compatibility_verified_at_utc": "N/A",
+    "current_wp_status": "READY_FOR_DEV",
+    "integration_validator_model": "gpt-5.5",
+    "integration_validator_model_profile": "OPENAI_GPT_5_5_XHIGH",
+    "integration_validator_of_record": "UNCLAIMED",
+    "integration_validator_reasoning_strength": "EXTRA_HIGH",
+    "main_containment_status": "NOT_STARTED",
+    "main_containment_verified_at_utc": "N/A",
+    "merged_main_commit": "NONE",
+    "packet_format_version": "2026-04-06",
+    "packet_widening_decision": "NONE",
+    "packet_widening_evidence": "N/A",
+    "risk_tier": "HIGH",
+    "status": "Ready for Dev",
+    "user_signature": "ilja160520260339",
+    "wp_validator_model": "gpt-5.5",
+    "wp_validator_model_profile": "OPENAI_GPT_5_5_XHIGH",
+    "wp_validator_of_record": "UNCLAIMED",
+    "wp_validator_reasoning_strength": "EXTRA_HIGH"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-16T03:39:00.000Z",
+    "generator": ".GOV/roles_shared/scripts/wp/atelier-lens-consolidation-packet-generator.mjs",
+    "path": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.md",
+    "projection_hash": "fafad6e975386c0f",
+    "source_file": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.json",
+    "source_hash": "271d92217128db5a",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "microtasks": {
+    "active_id": null,
+    "contract_glob": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/MT-*.json",
+    "count": 75,
+    "declared_ids": [
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-027",
+      "MT-028",
+      "MT-029",
+      "MT-030",
+      "MT-031",
+      "MT-032",
+      "MT-033",
+      "MT-034",
+      "MT-035",
+      "MT-036",
+      "MT-037",
+      "MT-038",
+      "MT-039",
+      "MT-040",
+      "MT-041",
+      "MT-042",
+      "MT-043",
+      "MT-044",
+      "MT-045",
+      "MT-046",
+      "MT-047",
+      "MT-048",
+      "MT-049",
+      "MT-050",
+      "MT-051",
+      "MT-052",
+      "MT-053",
+      "MT-054",
+      "MT-055",
+      "MT-056",
+      "MT-057",
+      "MT-058",
+      "MT-059",
+      "MT-060",
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-065",
+      "MT-066",
+      "MT-067",
+      "MT-068",
+      "MT-069",
+      "MT-070",
+      "MT-071",
+      "MT-072",
+      "MT-073",
+      "MT-074",
+      "MT-075"
+    ],
+    "next_id": "MT-001"
+  },
+  "red_team": {
+    "assumptions_to_attack": [
+      "CKC and Atelier/Lens are separate enough to split now.",
+      "CKC convenience features can be deferred without recording their intent.",
+      "SQLite can be harmless in test or fixture harnesses.",
+      "Electron/localhost patterns can be copied into Handshake because they worked in CKC."
+    ],
+    "minimum_controls": [
+      "Preservation map and evolved feature register are acceptance evidence.",
+      "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths. PostgreSQL/EventLedger/ArtifactStore are the only accepted storage and evidence direction.",
+      "Future CKC rebuild stubs remain gated until this packet closes and CKC research is complete."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true
+  },
+  "refinement": {
+    "activation_manager_required": true,
+    "contract_file": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.json",
+    "enforcement_profile": "SIGNED_REFINEMENT_REQUIRED",
+    "hydration_profile": "GREENROOM_REFERENCE_AND_STUB_PRESERVATION",
+    "projection_file": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.md",
+    "status": "READY_FOR_DEV"
+  },
+  "research_basis": [
+    {
+      "pattern": "Image pipeline receipts need explicit output file, filename prefix, subfolder, and workflow prompt context; Handshake should map this into ArtifactStore/EventLedger receipts.",
+      "source": "ComfyUI SaveImage node documentation",
+      "url": "https://docs.comfy.org/built-in-nodes/SaveImage"
+    },
+    {
+      "pattern": "ComfyUI integration must tolerate node API evolution and should use an adapter boundary instead of embedding CKC assumptions.",
+      "source": "ComfyUI V3 custom node migration documentation",
+      "url": "https://docs.comfy.org/custom-nodes/v3_migration"
+    },
+    {
+      "pattern": "Community workflows preserve generation metadata in output images; Handshake should preserve prompt/workflow metadata as explicit artifact provenance.",
+      "source": "ComfyUI-SaveImageWithMetaData GitHub project",
+      "url": "https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData"
+    },
+    {
+      "pattern": "Pose sidecars need stable schemas for body, face, and hand keypoints; CKC PoseKit should become a Handshake pose artifact contract.",
+      "source": "OpenPose output documentation",
+      "url": "https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/doc/02_output.md"
+    },
+    {
+      "pattern": "Visual/debug surfaces should be reproducible through deterministic snapshots and explicit evidence paths for model review.",
+      "source": "Playwright visual comparisons",
+      "url": "https://playwright.dev/docs/test-snapshots"
+    },
+    {
+      "pattern": "Parallel model edits should flow through CRDT-friendly document and artifact boundaries instead of single-owner desktop state.",
+      "source": "Automerge local-first CRDT overview",
+      "url": "https://automerge.org/"
+    },
+    {
+      "pattern": "Search/tag/similarity features can start PostgreSQL-first with full-text search before specialized vector or media indexes.",
+      "source": "PostgreSQL full text search documentation",
+      "url": "https://www.postgresql.org/docs/17/textsearch.html"
+    },
+    {
+      "pattern": "Window/tab/workspace behavior should translate to Handshake/Tauri-controlled surfaces rather than CKC Electron IPC authority.",
+      "source": "Tauri WebviewWindow API reference",
+      "url": "https://tauri.app/reference/javascript/api/namespacewebviewwindow/"
+    }
+  ],
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "Every source Atelier/Lens-adjacent stub is represented by a source-backed preservation row.",
+      "CKC is preserved as an evolved sibling of Atelier/Lens and prompt-diary intent, not treated as a competing app.",
+      "The overlap matrix maps CKC clusters to Handshake owners across Atelier/Lens, Photo Studio, Studio runtime, Loom/media/archive, artifact, and visual-debug surfaces.",
+      "Every CKC evolved or convenience feature is classified as fold, dependency, defer, conflict, or operator-decision-needed.",
+      "CKC runtime assumptions are translated to Handshake PostgreSQL/EventLedger/ArtifactStore/CRDT/promotion boundaries.",
+      "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths. PostgreSQL/EventLedger/ArtifactStore are the only accepted storage and evidence direction.",
+      "Electron IPC, CKC localhost intake authority, .GOV product outputs, and CKC product namespace authority are rejected or translated.",
+      "Future CKC rebuild stubs are deferred until this packet, CKC greenroom review, and CKC research basis are complete.",
+      "The packet is detailed enough for no-context model execution and validator review without rereading all legacy stubs.",
+      "Packet, refinement, microtask, taskboard, traceability, inventory, and projection contracts validate with the packet truth bundle."
+    ],
+    "allowed_paths": [
+      ".GOV/reference/ckc_atelier_lens_consolidation/**",
+      ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/**",
+      ".GOV/task_packets/stubs/WP-1-Atelier-Lens-Consolidation-v1.md",
+      ".GOV/task_packets/stubs/WP-1-Atelier-Lens-Consolidation-v1.contract.json",
+      ".GOV/roles_shared/records/TASK_BOARD.md",
+      ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
+      ".GOV/roles_shared/records/FLAT_PACKET_LEGACY_INVENTORY.json",
+      ".GOV/roles_shared/scripts/wp/atelier-lens-consolidation-packet-generator.mjs"
+    ],
+    "broad_tool_allowlist": [
+      "NONE"
+    ],
+    "forbidden_paths": [
+      "src/**",
+      "app/**",
+      "tests/**",
+      ".GOV/spec/**",
+      "../handshake_main/**",
+      "D:/Projects/LLM projects/CastKit-Codex/**"
+    ],
+    "spec_anchors": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/spec/master-spec-v02.185/spec-modules/12-end-of-file-appendices.md#FEAT-ATELIER-LENS",
+      ".GOV/spec/master-spec-v02.185/spec-modules/12-end-of-file-appendices.md#FEAT-PHOTO-STUDIO",
+      ".GOV/spec/master-spec-v02.185/spec-modules/12-end-of-file-appendices.md#PRIM-Moodboard",
+      ".GOV/spec/master-spec-v02.185/spec-modules/12-end-of-file-appendices.md#TOOL-COMFYUI",
+      ".GOV/spec/master-spec-v02.185/spec-modules/10-product-surfaces.md#Photo-Studio-and-Library-DAM-functions",
+      ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md#PostgreSQL-EventLedger-only-reset"
+    ],
+    "summary": "Promote CKC greenroom evidence and Atelier/Lens-adjacent stub preservation into one official Ready for Dev governance packet.",
+    "touched_file_budget": 140,
+    "why": "The operator wants CKC folded into Handshake Atelier/Lens without losing pre-existing Atelier/Lens intent or CKC convenience-driven evolution."
+  },
+  "source_control": {
+    "backup_push_status": "NOT_REQUIRED",
+    "canonical_branch": "main",
+    "merge_base_sha": "NONE",
+    "remote_backup_branch": "NONE",
+    "remote_backup_url": "NONE",
+    "work_branch": "codex/wp-1-atelier-lens-consolidation-v1",
+    "worktree_dir": "Handshake Worktrees/wt-gov-kernel"
+  },
+  "updated_at_utc": "2026-05-16T03:39:00.000Z",
+  "workflow": {
+    "authority": "ORCHESTRATOR",
+    "communication_contract": "WP_COMMUNICATION_V1",
+    "communication_dir": ".GOV/roles_shared/communications/WP-1-Atelier-Lens-Consolidation-v1",
+    "communication_health_gate": "REQUIRED_BEFORE_CLAIM",
+    "execution_owner": "CODER_A",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "lane": "ORCHESTRATOR_MANAGED",
+    "notifications_file": ".GOV/roles_shared/communications/WP-1-Atelier-Lens-Consolidation-v1/NOTIFICATIONS.jsonl",
+    "receipts_file": ".GOV/roles_shared/communications/WP-1-Atelier-Lens-Consolidation-v1/RECEIPTS.jsonl",
+    "runtime_status_file": ".GOV/roles_shared/communications/WP-1-Atelier-Lens-Consolidation-v1/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "thread_file": ".GOV/roles_shared/communications/WP-1-Atelier-Lens-Consolidation-v1/THREAD.md"
+  },
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1"
+}

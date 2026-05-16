@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Front-End-Memory-System-v1/packet.json source_hash=cb47f0d6d1a92df2 projection_hash=67b95557e0a0cfb4 generated_at_utc=2026-05-06T16:33:39.188Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Front-End-Memory-System-v1/packet.json source_hash=3b10ba734f299202 projection_hash=67b95557e0a0cfb4 generated_at_utc=2026-05-14T21:13:39.546Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Front-End-Memory-System-v1
 
 ## METADATA

@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Capability-SSoT/packet.json source_hash=8e26663d4ff802cb projection_hash=ccf9cd40e245947c generated_at_utc=2026-05-06T16:33:39.105Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Capability-SSoT/packet.json source_hash=8b7cf9ab2aec6559 projection_hash=ccf9cd40e245947c generated_at_utc=2026-05-14T21:13:39.467Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Capability-SSoT
 
 ## Metadata

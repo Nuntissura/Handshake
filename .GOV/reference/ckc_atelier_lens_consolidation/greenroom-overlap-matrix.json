@@ -1,0 +1,107 @@
+{
+  "schema_id": "handshake.reference.ckc_greenroom_overlap_matrix@1",
+  "file_id": "ckc-greenroom-overlap-matrix",
+  "file_kind": "greenroom_overlap_matrix",
+  "updated_at": "2026-05-16",
+  "status": "reference_only_not_execution_authority",
+  "wp": "WP-1-Atelier-Lens-Consolidation-v1",
+  "storage_constraint": "Handshake is PostgreSQL-only; SQLite is forbidden in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.",
+  "rows": [
+    {
+      "id": "OVR-001",
+      "overlap_area": "Character sheets and Atelier identity",
+      "ckc_sources": ["app/backend/db.js", "app/backend/library.js", "src/ui/views/CharacterView.tsx"],
+      "handshake_sources": ["WP-1-Atelier-Lens-v2", "WP-1-Photo-Studio-v2", "WP-1-Atelier-Collaboration-Panel-v1", "FEAT-ATELIER-LENS"],
+      "decision": "fold_into_atelier_lens_core",
+      "preserve": ["stable public/internal IDs", "protected fields", "append-only sheet versions", "selective merge/apply", "byte-preserved user text", "role/provenance rules"]
+    },
+    {
+      "id": "OVR-002",
+      "overlap_area": "Media viewer / DAM / Photo Studio",
+      "ckc_sources": ["app/backend/db.js", "app/backend/library.js", "src/ui/views/LibraryView.tsx", "src/ui/components/MediaPane.tsx", "src/ui/views/CharacterView.tsx"],
+      "handshake_sources": ["WP-1-Photo-Studio-v2", "WP-1-Stage-Media-Artifact-Portability-v1", "Loom/media downloader stubs"],
+      "decision": "fold_with_artifact_store_dependency",
+      "preserve": ["image-first browsing", "thumbnails", "metadata", "provenance", "missing-file diagnostics", "archive/restore", "sidecar hiding"]
+    },
+    {
+      "id": "OVR-003",
+      "overlap_area": "Intake / Inbox / pending review",
+      "ckc_sources": ["app/backend/library.js", "src/ui/views/IntakeSorterView.tsx", "CKC taskboard WP-0094", "CKC taskboard WP-0124", "CKC taskboard WP-0125", "CKC taskboard WP-0126"],
+      "handshake_sources": ["WP-1-Stage-Media-Artifact-Portability-v1", "WP-1-Media-Downloader-v2", "WP-1-Media-Downloader-Loom-Bridge-v1"],
+      "decision": "fold_as_atelier_intake_subsystem",
+      "preserve": ["persistent batches", "accept/reject/pending", "loose/linked modes", "source preservation", "character/sheet/collection linkage", "resume after route switch/restart"]
+    },
+    {
+      "id": "OVR-004",
+      "overlap_area": "Collections and contact sheets",
+      "ckc_sources": ["app/backend/db.js", "app/backend/library.js", "CKC taskboard WP-0128", "CKC taskboard WP-0129", "CKC taskboard WP-0136"],
+      "handshake_sources": ["WP-1-Loom-MVP-v1", "WP-1-Photo-Studio-v2", "WP-1-Artifact-System-Foundations-v1"],
+      "decision": "fold_with_raster_export_deferred",
+      "preserve": ["notes/tags", "optional character/sheet-version links", "SVG/contact-sheet manifests", "source IDs/hashes", "layout metadata", "planned PNG/JPG path"]
+    },
+    {
+      "id": "OVR-005",
+      "overlap_area": "Sidecars, versioning, recovery",
+      "ckc_sources": ["app/backend/db.js", "app/backend/library.js", "CKC taskboard WP-0130", "CKC taskboard WP-0132", "CKC taskboard WP-0134", "CKC taskboard WP-0135"],
+      "handshake_sources": ["WP-1-Lens-ViewMode-v1", "WP-1-Artifact-System-Foundations-v1", "WP-1-Stage-Media-Artifact-Portability-v1"],
+      "decision": "fold_with_artifact_and_event_lineage",
+      "preserve": ["sidecar visibility projection", "archive/restore", "optimistic revision checks", "append-only events", "deletion preview", "no silent source deletion"]
+    },
+    {
+      "id": "OVR-006",
+      "overlap_area": "PoseKit / OpenPose / identity",
+      "ckc_sources": ["src/posekit/core.mjs", "src/posekit/poseDetection.worker.ts", "app/backend/library.js", "CKC taskboard WP-0107..WP-0115", "CKC taskboard WP-0131", "CKC taskboard WP-0132", "CKC taskboard WP-0133"],
+      "handshake_sources": ["FEAT-ATELIER-LENS", "FEAT-PHOTO-STUDIO", "TOOL-COMFYUI"],
+      "decision": "fold_as_deferred_ckc_atelier_feature_family",
+      "preserve": ["blank/single/collection workbench modes", "identity profile lineage", "deterministic OpenPose sidecars", "multi-rig tabs", "blocked calibration/history debt"]
+    },
+    {
+      "id": "OVR-007",
+      "overlap_area": "ComfyUI workflow lineage",
+      "ckc_sources": ["comfyui_node/castkit_codex_bridge.py", "app/backend/intakeServer.js", "app/backend/comfyuiClient.js", "app/backend/library.js", "CKC taskboard WP-0109"],
+      "handshake_sources": ["TOOL-COMFYUI", "WP-1-Photo-Studio-v2", "WP-1-Studio-Runtime-Visibility-v1"],
+      "decision": "fold_intent_reject_localhost_authority",
+      "preserve": ["workflow receipts", "prompt extraction", "replay", "stats", "identity reference payloads", "output image registration", "non-fatal bridge failure posture"]
+    },
+    {
+      "id": "OVR-008",
+      "overlap_area": "Search, tags, links, similarity",
+      "ckc_sources": ["app/backend/library.js", "app/backend/db.js", "app/backend/dhash.js", "app/backend/palette.js", "CKC taskboard WP-0016/WP-0054/WP-0059/WP-0066/WP-0067/WP-0083/WP-0089"],
+      "handshake_sources": ["WP-1-Lens-Extraction-Tier-v1", "WP-1-Lens-ViewMode-v1", "WP-1-Loom-MVP-v1"],
+      "decision": "fold_into_lens_projection_search_layer",
+      "preserve": ["snippets", "jump targets", "tag manager", "saved searches", "backlinks", "palettes", "dHash similarity", "AI tag suggestions"]
+    },
+    {
+      "id": "OVR-009",
+      "overlap_area": "Docs, stories, moodboards, prompt diary intent",
+      "ckc_sources": ["app/backend/db.js", "app/backend/library.js", "src/ui/components/MoodboardCanvas.tsx", "CKC taskboard WP-0005/WP-0071..WP-0082"],
+      "handshake_sources": ["prompt diaries", "FEAT-ATELIER-LENS", "WP-1-Loom-MVP-v1", "WP-1-Structured-Collaboration-Artifact-Family-v1"],
+      "decision": "fold_into_atelier_lens_creative_planning_layer",
+      "preserve": ["docs inside character workflow", "moodboard structured JSON", "layers/folders", "corkboard/outliner", "links/backlinks", "exports", "text preservation"]
+    },
+    {
+      "id": "OVR-010",
+      "overlap_area": "Automation, model manual, visual diagnostics",
+      "ckc_sources": ["app/backend/automationManual.js", "app/backend/automationCommandMap.js", "app/backend/automationControl.js", "app/backend/automationStealth.js", "CKC taskboard WP-0093/WP-0095/WP-0099/WP-0122/WP-0137"],
+      "handshake_sources": ["GLOBAL-BUILD-MANUAL", "GLOBAL-BUILD-DIAG", "WP-1-Visual-Debugging-Loop-v1", "WP-1-Studio-Runtime-Visibility-v1"],
+      "decision": "fold_as_model_operation_requirement",
+      "preserve": ["command catalog", "sessions/leases", "heartbeats", "command log", "renderer state", "captures", "no OS-level input", "no focus stealing", "manual/command consistency tests"]
+    },
+    {
+      "id": "OVR-011",
+      "overlap_area": "Exports, backups, share packs, web portfolio",
+      "ckc_sources": ["app/backend/library.js", "app/backend/backup.js", "app/templates/web-portfolio", "CKC taskboard WP-0006/WP-0063/WP-0087/WP-0105/WP-0106"],
+      "handshake_sources": ["WP-1-Artifact-System-Foundations-v1", "WP-1-Stage-Media-Artifact-Portability-v1", "WP-1-Structured-Collaboration-Artifact-Family-v1"],
+      "decision": "fold_through_artifact_export_job_layer",
+      "preserve": ["no-space names", "safe subsets", "LLM packs", "manifests", "backup version guard", "orphan adoption", "checksums", "offline portfolio intent"]
+    },
+    {
+      "id": "OVR-012",
+      "overlap_area": "Parallel editing / event log / revisions",
+      "ckc_sources": ["app/backend/db.js", "app/backend/library.js", "app/backend/automationManual.js", "CKC taskboard WP-0134"],
+      "handshake_sources": ["WP-KERNEL-001-Event-Ledger-Session-Broker-v1", "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1", "WP-KERNEL-003-Sandbox-Validation-Promotion-v1"],
+      "decision": "fold_into_eventledger_crdt_boundary",
+      "preserve": ["PostgreSQL source of truth", "sessions/leases", "EventLedger events", "optimistic revisions", "CRDT only for safe merge shapes"]
+    }
+  ]
+}

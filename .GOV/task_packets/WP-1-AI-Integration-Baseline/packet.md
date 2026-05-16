@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AI-Integration-Baseline/packet.json source_hash=83342a0a6a2ec81d projection_hash=53e1d4a9307e86c5 generated_at_utc=2026-05-06T16:33:38.966Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AI-Integration-Baseline/packet.json source_hash=e3af5102c508708e projection_hash=53e1d4a9307e86c5 generated_at_utc=2026-05-14T21:13:39.370Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-AI-Integration-Baseline
 
 ## Metadata

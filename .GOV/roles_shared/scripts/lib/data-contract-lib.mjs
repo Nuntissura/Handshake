@@ -2,6 +2,8 @@ export const DATA_CONTRACT_PACKET_MIN_VERSION = "2026-04-01";
 export const DATA_CONTRACT_PROFILE_VALUES = ["NONE", "LLM_FIRST_DATA_V1"];
 export const DATA_CONTRACT_DECISION_VALUES = ["ACTIVE_REQUIRED", "WAIVED_NOT_DATA_BEARING"];
 export const DATA_CONTRACT_SQL_POSTURE_VALUES = [
+  "POSTGRESQL_ONLY",
+  // Legacy parse-only value retained so pre-reset packets can be read as historical evidence.
   "SQLITE_NOW_POSTGRES_READY",
   "BACKEND_NEUTRAL",
   "NOT_APPLICABLE",
@@ -112,7 +114,7 @@ function collectStructuredDataContractEvidence(refinementData = null) {
     ...(Array.isArray(refinementData?.codeRealitySummary) ? refinementData.codeRealitySummary.map((value) => `CODE_REALITY_EVIDENCE: ${value}`) : []),
   ];
   for (const signal of structuredSignals) {
-    if (/(LLM[- ]friendly data|LLM[- ]first|SQL to PostgreSQL shift readiness|SQLite-now\s*\/\s*PostgreSQL-ready|postgresql-ready|Loom|Locus|persist(?:ed|ence)?|schema|machine-readable|provenance|stable ids?|relations?)/i.test(signal)) {
+    if (/(LLM[- ]friendly data|LLM[- ]first|SQL to PostgreSQL shift readiness|PostgreSQL[- ]only|postgresql-ready|Loom|Locus|persist(?:ed|ence)?|schema|machine-readable|provenance|stable ids?|relations?)/i.test(signal)) {
       evidence.push(signal);
     }
   }
@@ -179,7 +181,7 @@ export function validateDataContractSection(packetContent = "", { packetPath = "
     errors.push(`${packetPath || "<packet>"}: DATA_CONTRACT_ACTIVE must be YES for DATA_CONTRACT_PROFILE=LLM_FIRST_DATA_V1`);
   }
   if (!monitoring.sqlPosture || monitoring.sqlPosture === "NOT_APPLICABLE") {
-    errors.push(`${packetPath || "<packet>"}: SQL_POSTURE must be SQLITE_NOW_POSTGRES_READY or BACKEND_NEUTRAL for active data contract packets`);
+    errors.push(`${packetPath || "<packet>"}: SQL_POSTURE must be POSTGRESQL_ONLY or BACKEND_NEUTRAL for active data contract packets; SQLITE_NOW_POSTGRES_READY is legacy pre-reset evidence only`);
   }
   if (monitoring.llmReadabilityPosture !== "REQUIRED") {
     errors.push(`${packetPath || "<packet>"}: LLM_READABILITY_POSTURE must be REQUIRED for active data contract packets`);
@@ -265,17 +267,17 @@ export function formatDataContractMonitoringSection({ profile = "NONE", inScopeP
   return `
 ## DATA_CONTRACT_MONITORING (AUTHORITATIVE SNAPSHOT; MUTABLE)
 - DATA_CONTRACT_ACTIVE: YES
-- SQL_POSTURE: SQLITE_NOW_POSTGRES_READY
+- SQL_POSTURE: POSTGRESQL_ONLY
 - LLM_READABILITY_POSTURE: REQUIRED
 - LOOM_INTERTWINED_POSTURE: REQUIRED_WHEN_APPLICABLE
 - PRIMARY_DATA_SURFACES:
 ${formattedSurfaces}
 - DATA_CONTRACT_RULES:
-  - Keep persisted and emitted structure SQL-backed and PostgreSQL-ready; do not introduce fresh SQLite-only semantics unless the packet or spec explicitly requires them.
+  - Keep persisted and emitted structure PostgreSQL-backed; do not introduce SQLite semantics, fixtures, caches, fallbacks, compatibility paths, harnesses, examples, temporary adapters, or tests.
   - Prefer explicit machine-readable fields, enums, ids, relations, and provenance over presentation-only strings, overloaded text blobs, or parser-only implied meaning.
   - Preserve stable ids, explicit relations, backlink-friendly fields, provenance anchors, and retrieval-friendly summaries so Loom and graph/search consumers can traverse the data without reparsing UI text.
 - VALIDATOR_DATA_PROOF_HINTS:
-  - Prove the touched data surfaces remain SQLite-now and PostgreSQL-ready or justify any backend-specific semantics explicitly.
+  - Prove the touched data surfaces remain PostgreSQL-only and do not introduce SQLite in any form.
   - Prove the emitted or persisted shapes stay LLM-first readable and parseable with stable field names and explicit structured values.
   - Prove Loom-facing ids, relations, provenance anchors, and retrieval fields remain explicit where the packet touches them.
 `;

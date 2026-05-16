@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ACE-Runtime-v2/packet.json source_hash=db94e6fc040d183c projection_hash=87827fdf403b23f6 generated_at_utc=2026-05-06T16:33:38.948Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ACE-Runtime-v2/packet.json source_hash=4a5137c0efed18d4 projection_hash=87827fdf403b23f6 generated_at_utc=2026-05-14T21:13:39.360Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-ACE-Runtime-v2
 
 ## METADATA

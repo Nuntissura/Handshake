@@ -1,0 +1,361 @@
+{
+  "file_id": "ckc-spec-taskboard-map",
+  "file_kind": "ckc_preservation_map",
+  "updated_at": "2026-05-16",
+  "sources": {
+    "spec": "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/spec/CastKit_Codex_Spec_v00.075.md",
+    "taskboard": "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/taskboard/TASK_BOARD.md"
+  },
+  "capability_clusters": [
+    {
+      "id": "media-viewer-dam",
+      "name": "Media viewer / DAM",
+      "source_anchors": ["spec:4.2-7", "spec:Appendix A layout/photo goals", "taskboard:WP-0003", "taskboard:WP-0004", "taskboard:WP-0007", "taskboard:WP-0014", "taskboard:WP-0025", "taskboard:WP-0026", "taskboard:WP-0030", "taskboard:WP-0045", "taskboard:WP-0047", "taskboard:WP-0060", "taskboard:WP-0061", "taskboard:WP-0088", "taskboard:WP-0127", "taskboard:WP-0130"],
+      "preserved_intent": [
+        "Image-first portfolio viewer with global and per-character carousel/photo surfaces.",
+        "Full-image display, horizontal thumbnails, slideshow, fullscreen, filters, ratings, favorites, notes, tags, provenance, missing-media states, and repair workflows.",
+        "Media rows distinguish normal images, pending rows, deleted/archive rows, and OpenPose sidecars."
+      ],
+      "handshake_notes": ["Preserve behavior, but move product output paths away from .GOV and replace CKC labels."]
+    },
+    {
+      "id": "character-sheets",
+      "name": "Character sheets",
+      "source_anchors": ["spec:1-3", "spec:4.3.1", "spec:8-10", "spec:Appendix A hard rules/sheet editor/exports", "taskboard:WP-0005", "taskboard:WP-0006", "taskboard:WP-0032", "taskboard:WP-0033", "taskboard:WP-0037", "taskboard:WP-0046", "taskboard:WP-0085", "taskboard:WP-0090", "taskboard:WP-0103", "taskboard:WP-0104", "taskboard:WP-0125", "taskboard:WP-0135"],
+      "preserved_intent": [
+        "Character sheet plus portfolio viewer is the core product shape.",
+        "User-authored text is byte-preserved with no rewriting, censorship, field hiding, or silent field loss.",
+        "Sheet parsing, structured block editing, protected public IDs, merge/versioning, templates, cloning, and bulk character operations are first-class."
+      ],
+      "handshake_notes": ["Replace CKC schema names with Handshake-native storage contracts and keep text preservation tests."]
+    },
+    {
+      "id": "inbox-intake",
+      "name": "Inbox / Intake",
+      "source_anchors": ["spec:4.1 Image Intake Sorter", "spec:11.2", "spec:11.3", "spec:v00.075 intake summary", "taskboard:WP-0055", "taskboard:WP-0056", "taskboard:WP-0094", "taskboard:WP-0100", "taskboard:WP-0123", "taskboard:WP-0124", "taskboard:WP-0125", "taskboard:WP-0126"],
+      "preserved_intent": [
+        "Direct image ingress routes toward Intake.",
+        "Persistent batches, item selection, resume, linked/loose classification, pending Inbox parking, character/sheet/collection linkage, and explicit clipboard/URL import actions.",
+        "Pending lifecycle is safe and never silently deletes source files."
+      ],
+      "handshake_notes": ["Treat full batch sheet-field editing and per-batch Inbox folder UI as follow-up debt."]
+    },
+    {
+      "id": "collections-contact-sheets",
+      "name": "Collections / contact sheets",
+      "source_anchors": ["spec:11.10", "spec:11.16", "spec:v00.075 contact sheets", "taskboard:WP-0063", "taskboard:WP-0069", "taskboard:WP-0128", "taskboard:WP-0129", "taskboard:WP-0136"],
+      "preserved_intent": [
+        "Collections are cross-character curated image sets with notes, tags, optional character/sheet-version links, slideshow, and export.",
+        "Contact sheets have SVG plus manifest provenance, deterministic no-space paths, source IDs/hashes, tags, layout metadata, and optional character/sheet-version links.",
+        "Raster contact sheet export remains planned."
+      ],
+      "handshake_notes": ["Use Handshake artifact roots and managers instead of CKC_GOV/targets paths."]
+    },
+    {
+      "id": "sidecars-versioning",
+      "name": "Sidecars / versioning",
+      "source_anchors": ["spec:4.3", "spec:10", "spec:v00.070", "spec:v00.075 sidecars/recoverable deletion", "taskboard:WP-0033", "taskboard:WP-0100", "taskboard:WP-0105", "taskboard:WP-0106", "taskboard:WP-0127", "taskboard:WP-0130", "taskboard:WP-0132", "taskboard:WP-0134", "taskboard:WP-0135"],
+      "preserved_intent": [
+        "Sheet versions are append-only and reverts create new versions.",
+        "OpenPose PNG/JSON artifacts are sidecars hidden from normal galleries unless requested.",
+        "Archive/restore, orphan manifests, event logs, entity revisions, compatibility fixtures, migration invariants, and idempotency checks preserve data safety."
+      ],
+      "handshake_notes": ["Port reset/orphan intent without CKC installer assumptions."]
+    },
+    {
+      "id": "posekit-openpose",
+      "name": "PoseKit / OpenPose",
+      "source_anchors": ["spec:v00.071-v00.074", "spec:v00.075 PoseKit Workbench", "taskboard:WP-0107", "taskboard:WP-0108", "taskboard:WP-0110", "taskboard:WP-0111", "taskboard:WP-0112", "taskboard:WP-0113", "taskboard:WP-0114", "taskboard:WP-0115", "taskboard:WP-0131", "taskboard:WP-0132", "taskboard:WP-0133"],
+      "preserved_intent": [
+        "PoseKit workbench supports blank, single-photo, and collection contexts with durable rigs and session-scoped workspace tabs.",
+        "OpenPose output includes body-18, face-70, hand-left-21, hand-right-21, zero-filled hands when absent, yaw/pitch/roll head pose, and sidecar exports.",
+        "Identity profiles store deterministic crops, landmarks, measurements, pose metadata, and bridge payloads.",
+        "Blocked calibration/history interaction work remains explicit."
+      ],
+      "handshake_notes": ["Keep WP-0133 debt as a dedicated interaction pass before claiming parity."]
+    },
+    {
+      "id": "comfyui-bridge",
+      "name": "ComfyUI bridge",
+      "source_anchors": ["taskboard:WP-0109", "taskboard:WP-0111", "taskboard:WP-0112", "taskboard:WP-0118"],
+      "preserved_intent": [
+        "Localhost-only intake/replay with token support, workflow history, prompt extraction, replay, stats, and registered outputs.",
+        "Workflow and Pose tabs expose replay paths.",
+        "Identity profile references can flow into IPAdapter or face-reference workflows.",
+        "Prompt-response matrix remains future intent."
+      ],
+      "handshake_notes": ["Rename CastKitCodexBridge and CKC API strings to Handshake-native names."]
+    },
+    {
+      "id": "automation-debug-manual",
+      "name": "Automation / debug / manual",
+      "source_anchors": ["spec:4.1 Automation/debugger", "spec:v00.065", "spec:v00.075 Governance and Verification", "taskboard:WP-0093", "taskboard:WP-0095", "taskboard:WP-0099", "taskboard:WP-0120", "taskboard:WP-0121", "taskboard:WP-0122", "taskboard:WP-0137"],
+      "preserved_intent": [
+        "Model-facing automation exposes typed commands, state, sessions, heartbeats, leases, logs, and captures.",
+        "Background automation must not focus, foreground, use OS input, or steal attention.",
+        "In-app manual and command dispatcher must be consistency-tested.",
+        "UI WPs require normal and constrained visual captures plus console/runtime error reporting."
+      ],
+      "handshake_notes": ["Adapt to Handshake's runtime while keeping product code out of .GOV."]
+    },
+    {
+      "id": "search-tags-similarity",
+      "name": "Search / tags / similarity",
+      "source_anchors": ["spec:11.1", "spec:11.6", "spec:11.12-11.14", "spec:12.1", "spec:12.2", "spec:12.7", "taskboard:WP-0016", "taskboard:WP-0054", "taskboard:WP-0059", "taskboard:WP-0065", "taskboard:WP-0066", "taskboard:WP-0067", "taskboard:WP-0083", "taskboard:WP-0084", "taskboard:WP-0089"],
+      "preserved_intent": [
+        "Global search spans sheets, docs, moodboards, images, tags, and provenance with grouped results and jump targets.",
+        "Smart folders, tag manager, links/backlinks, AI suggestions, palette search, duplicate detection, and perceptual similarity are power-user workflows.",
+        "Tag operations mutate structured tags only and never rewrite free text."
+      ],
+      "handshake_notes": ["Do not copy SQLite or FTS5 into Handshake in any form; port behavior to PostgreSQL/search storage."]
+    },
+    {
+      "id": "exports",
+      "name": "Exports",
+      "source_anchors": ["spec:Appendix A exports", "spec:11.10", "spec:11.20", "spec:11.29", "spec:12.5", "spec:12.8", "taskboard:WP-0006", "taskboard:WP-0063", "taskboard:WP-0073", "taskboard:WP-0082", "taskboard:WP-0087", "taskboard:WP-0090", "taskboard:WP-0129", "taskboard:WP-0136"],
+      "preserved_intent": [
+        "Export hub covers empty templates, LLM packs, filled sheets, image sets, moodboards, collections, share packs, backups, web portfolios, contact sheets, and batch exports.",
+        "Exports support field/section selection and presets.",
+        "Generated names are no-space, portable, and provenance-preserving."
+      ],
+      "handshake_notes": ["Replace CKC default paths and D-drive rule with Handshake path-safety and artifact-root rules."]
+    }
+  ],
+  "source_requirements": [
+    {"id": "REQ-001", "cluster_id": "character-sheets", "source": "spec:1 Non-negotiables", "requirement": "No censorship, no rewriting, no euphemizing; store and export user text byte-for-byte."},
+    {"id": "REQ-002", "cluster_id": "character-sheets", "source": "spec:1 Non-negotiables", "requirement": "Adult and explicit fields are first-class and always enabled."},
+    {"id": "REQ-003", "cluster_id": "character-sheets", "source": "spec:1 Non-negotiables", "requirement": "Template integrity gates prevent silent Field ID drops and preserve descriptor-on-same-line formatting."},
+    {"id": "REQ-004", "cluster_id": "media-viewer-dam", "source": "spec:Appendix A layout/navigation", "requirement": "Default experience is a two-panel image-first portfolio viewer beside the character sheet."},
+    {"id": "REQ-005", "cluster_id": "media-viewer-dam", "source": "spec:6 Media pane chrome", "requirement": "Media pane has non-overlay header controls, slideshow, controls panel, bottom metadata, empty filter state, horizontal thumbnails, keyboard navigation, fullscreen, and dropzone."},
+    {"id": "REQ-006", "cluster_id": "media-viewer-dam", "source": "spec:5 LibraryRoot diagnostics", "requirement": "Active library and missing media are visible; repair by hash is dry-run by default and writes a report."},
+    {"id": "REQ-007", "cluster_id": "character-sheets", "source": "spec:4.3.1 Character identity", "requirement": "Internal character ID is stable storage key; public Character ID is system-managed and protected."},
+    {"id": "REQ-008", "cluster_id": "character-sheets", "source": "spec:9 Sheet editor", "requirement": "Enum fields accept free text while offering suggestions; suggestions are field-specific and explicit."},
+    {"id": "REQ-009", "cluster_id": "character-sheets", "source": "spec:10 Sheet ingest/merge", "requirement": "Sheet ingest/merge is selective, diffed, append-only, versioned, and protects CHAR-ID-001."},
+    {"id": "REQ-010", "cluster_id": "inbox-intake", "source": "spec:4.1 Image Intake Sorter", "requirement": "Folder-only Intake sorts into pass/reject/pending; linked mode imports accepted/pending and preserves rejected sources."},
+    {"id": "REQ-011", "cluster_id": "inbox-intake", "source": "spec:v00.075 Intake", "requirement": "Persistent Intake batches support selection, linked/loose classification, character/sheet/collection linkage, pending Inbox parking, and OpenPose derivative recognition."},
+    {"id": "REQ-012", "cluster_id": "collections-contact-sheets", "source": "spec:v00.075 Collections", "requirement": "Collections carry notes, tags, optional character/sheet-version links, additive batch tag application, and contact-sheet creation."},
+    {"id": "REQ-013", "cluster_id": "collections-contact-sheets", "source": "spec:v00.075 Contact sheets", "requirement": "Contact sheets are SVG plus manifest artifacts with source IDs/hashes, tags, layout metadata, and optional character/sheet-version linkage."},
+    {"id": "REQ-014", "cluster_id": "sidecars-versioning", "source": "spec:v00.075 Sidecars", "requirement": "Normal gallery and collection flows hide deleted/archived rows and OpenPose sidecars unless explicitly requested."},
+    {"id": "REQ-015", "cluster_id": "posekit-openpose", "source": "spec:v00.075 PoseKit Workbench", "requirement": "PoseKit opens blank, single-photo, or collection workbench contexts and reports context/source/sidecar counts."},
+    {"id": "REQ-016", "cluster_id": "posekit-openpose", "source": "spec:v00.073 Hand detection", "requirement": "OpenPose exports include body, face, and hand arrays; hand arrays are canonical 63-float left/right arrays with zero-filled absent hands."},
+    {"id": "REQ-017", "cluster_id": "posekit-openpose", "source": "spec:v00.071 Head pose", "requirement": "PoseKit head pose persists yaw/pitch/roll with quaternion-backed math and UI reset paths."},
+    {"id": "REQ-018", "cluster_id": "posekit-openpose", "source": "spec:v00.072 Identity profiles", "requirement": "Identity profiles store deterministic face crop, landmarks, measurements, pose metadata, and bridge payload."},
+    {"id": "REQ-019", "cluster_id": "comfyui-bridge", "source": "taskboard:WP-0109", "requirement": "ComfyUI bridge supports localhost intake, history, prompt extraction, replay, stats, registered outputs, and replay from Workflow/Pose tabs."},
+    {"id": "REQ-020", "cluster_id": "automation-debug-manual", "source": "spec:v00.065 Automation", "requirement": "Automation exposes typed state, manual, sessions, leases, logs, commands, renderer/backend dispatch, and captures."},
+    {"id": "REQ-021", "cluster_id": "automation-debug-manual", "source": "spec:v00.065 Background stealth", "requirement": "Background automation must not show, focus, foreground, notify, flash, use global shortcuts, or use OS input APIs."},
+    {"id": "REQ-022", "cluster_id": "automation-debug-manual", "source": "spec:v00.075 Manual hardening", "requirement": "Manual, command map, dispatcher, and preload wiring must be consistency-tested."},
+    {"id": "REQ-023", "cluster_id": "search-tags-similarity", "source": "spec:11.1 Links", "requirement": "Links and backlinks connect characters, docs, and images without silent auto-rewrite."},
+    {"id": "REQ-024", "cluster_id": "search-tags-similarity", "source": "spec:11.6 Tag manager", "requirement": "Tag manager renames/merges structured tags, shows counts, pins tags, and preserves free text byte-for-byte."},
+    {"id": "REQ-025", "cluster_id": "search-tags-similarity", "source": "spec:12.1 Global search", "requirement": "Global search spans sheets, notes, stories, moodboards, image metadata, with grouped results, snippets, and jump targets."},
+    {"id": "REQ-026", "cluster_id": "search-tags-similarity", "source": "spec:12.2 AI tagging", "requirement": "AI tag suggestions are optional, review/apply only, confidence-bearing, cancellable in bulk, and local-server compatible."},
+    {"id": "REQ-027", "cluster_id": "search-tags-similarity", "source": "spec:12.7 Visual similarity", "requirement": "Visual similarity uses perceptual hashes or equivalent, thresholded results, and safe jump-to behavior."},
+    {"id": "REQ-028", "cluster_id": "exports", "source": "spec:Appendix A Exports", "requirement": "Empty and filled character exports preserve canonical template bytes and support LLM-friendly field/section presets."},
+    {"id": "REQ-029", "cluster_id": "exports", "source": "spec:11.20 Backup/restore", "requirement": "Backups use manifest and checksums, validate before restore, and require explicit restore confirmation."},
+    {"id": "REQ-030", "cluster_id": "exports", "source": "spec:12.5 Web portfolio export", "requirement": "Static web portfolio export produces offline HTML/CSS/JS and optimized/copy images with field/image scope controls."},
+    {"id": "REQ-031", "cluster_id": "sidecars-versioning", "source": "spec:v00.070 Compatibility", "requirement": "Compatibility checks pin legacy fixtures, additive migrations, handler routing, template field IDs, idempotency, backup traceability, and indexes."},
+    {"id": "REQ-032", "cluster_id": "sidecars-versioning", "source": "spec:v00.075 Parallel editing", "requirement": "Parallel editing uses PostgreSQL source of truth, sessions/leases, optimistic revisions, append-only product events, and limited safe CRDT-style merges."}
+  ],
+  "taskboard_status": [
+    {
+      "status": "done",
+      "wp_ids": ["WP-0001..WP-0111", "WP-0113", "WP-0115", "WP-0120", "WP-0121"],
+      "meaning": "Taskboard marks these items DONE. Preserve them as completed CKC source intent and validation shape, not as Handshake proof.",
+      "capability_coverage": ["media-viewer-dam", "character-sheets", "inbox-intake", "collections-contact-sheets", "sidecars-versioning", "posekit-openpose", "comfyui-bridge", "automation-debug-manual", "search-tags-similarity", "exports"]
+    },
+    {
+      "status": "in-review",
+      "wp_ids": ["WP-0122", "WP-0123", "WP-0124", "WP-0125", "WP-0126", "WP-0127", "WP-0128", "WP-0129", "WP-0130", "WP-0131", "WP-0132", "WP-0134", "WP-0135", "WP-0137"],
+      "meaning": "Taskboard marks these items REVIEW. Preserve implemented intent and useful evidence while requiring fresh Handshake verification.",
+      "capability_coverage": ["inbox-intake", "collections-contact-sheets", "sidecars-versioning", "posekit-openpose", "automation-debug-manual"]
+    },
+    {
+      "status": "blocked",
+      "wp_ids": ["WP-0133"],
+      "meaning": "PoseKit calibration, markers, and history are blocked on draggable calibration overlay, missing-marker placement flow, 3D/live split editing, and forked history.",
+      "capability_coverage": ["posekit-openpose"]
+    },
+    {
+      "status": "future/planned",
+      "wp_ids": ["WP-0112", "WP-0114", "WP-0116", "WP-0117", "WP-0118", "WP-0119", "WP-0136"],
+      "meaning": "Planned/concept/research intent for multi-subject scenes, Pose polish, shortcuts, detector research, prompt-response matrix, PostgreSQL-only testing, explicit SQLite rejection, and raster contact sheets.",
+      "capability_coverage": ["posekit-openpose", "comfyui-bridge", "collections-contact-sheets", "sidecars-versioning"]
+    },
+    {
+      "status": "useful-test-evidence",
+      "wp_ids": ["WP-0099", "WP-0103", "WP-0104", "WP-0105", "WP-0106", "WP-0108", "WP-0109", "WP-0110", "WP-0111", "WP-0113", "WP-0115", "WP-0122..WP-0137"],
+      "meaning": "Preserve test patterns: manual-command consistency, synthetic input invariants, background stealth, parser/validator/block editor, reset/orphan manifests, compatibility suites, PoseKit math/UI/live captures, PostgreSQL regression tests, tsc/build/full npm test evidence.",
+      "capability_coverage": ["automation-debug-manual", "character-sheets", "sidecars-versioning", "posekit-openpose", "collections-contact-sheets"]
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "CONFLICT-001",
+      "type": "sqlite",
+      "ckc_assumption": "SQLite tables, SQLite FTS5, triggers, better-sqlite3, and db/codex.db appear in older spec examples and fallback paths.",
+      "handshake_reset_rule": "Use PostgreSQL only. SQLite is not accepted in Handshake in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths.",
+      "mitigation": "Port behavior to PostgreSQL storage interfaces and require no-SQLite tripwires."
+    },
+    {
+      "id": "CONFLICT-002",
+      "type": "standalone-app",
+      "ckc_assumption": "Electron standalone app, portable exe, NSIS reset modes, app.getPath userData, CKC_main, and package scripts.",
+      "handshake_reset_rule": "Rebuild as Handshake product modules unless the operator explicitly chooses standalone packaging.",
+      "mitigation": "Separate product capabilities from packaging and create Handshake-native runtime roots."
+    },
+    {
+      "id": "CONFLICT-003",
+      "type": "product-strings",
+      "ckc_assumption": "CastKit Codex, CKC, CKC_main, CKC_GOV, ckc-config.json, ckc IPC names, CastKitCodexBridge.",
+      "handshake_reset_rule": "Rename product-facing strings and namespaces to Handshake/Atelier Lens equivalents.",
+      "mitigation": "Run naming migration matrix before implementation."
+    },
+    {
+      "id": "CONFLICT-004",
+      "type": "governance-boundary",
+      "ckc_assumption": "Dev automation captures and build outputs write under CKC_GOV/targets.",
+      "handshake_reset_rule": "Handshake product runtime must not read or write .GOV; build/test/tool outputs belong under external artifact roots.",
+      "mitigation": "Route captures, exports, caches, and reports to configured product runtime/artifact roots."
+    },
+    {
+      "id": "CONFLICT-005",
+      "type": "absolute-paths",
+      "ckc_assumption": "Evidence references D:/ sample paths and old OpenRepose folders.",
+      "handshake_reset_rule": "New stored paths must be repo-relative, runtime-root-relative, or operator-configured.",
+      "mitigation": "Keep absolute paths as historical source evidence only."
+    },
+    {
+      "id": "CONFLICT-006",
+      "type": "reset-architecture",
+      "ckc_assumption": "CKC installer reset modes use NSIS and CKC library layout.",
+      "handshake_reset_rule": "Reset behavior must be product-native, bounded, reversible where possible, and aligned with destructive-operation safety.",
+      "mitigation": "Model reset/orphan recovery as Handshake-native storage lifecycle features."
+    },
+    {
+      "id": "CONFLICT-007",
+      "type": "stale-authority",
+      "ckc_assumption": "Earlier CKC docs/gov mirrors existed in product docs before cleanup.",
+      "handshake_reset_rule": "Machine-readable governance contracts are authoritative; Markdown is projection/reference when typed contracts exist.",
+      "mitigation": "Avoid parallel manual JSON/Markdown sidecars as co-authority."
+    },
+    {
+      "id": "CONFLICT-008",
+      "type": "search-architecture",
+      "ckc_assumption": "FTS5 implementation details are embedded in spec examples.",
+      "handshake_reset_rule": "Preserve search behavior, not the SQLite/FTS5 implementation.",
+      "mitigation": "Use Handshake PostgreSQL/search-indexing architecture with equivalent result semantics."
+    }
+  ],
+  "preserved_goals": [
+    "Rebuild CKC capability intent inside Handshake as a character portfolio, DAM, sheet, intake, collection, PoseKit, ComfyUI, automation, search, and export system.",
+    "Preserve user-authored content byte-for-byte and keep adult/explicit fields first-class.",
+    "Keep image-first workflows central across carousel, photos, metadata, tags, ratings, annotations, collections, contact sheets, and exports.",
+    "Make ingestion safe with explicit user actions, persistent batches, pending lifecycle, linked/loose modes, and no silent deletes.",
+    "Maintain identity and versioning through internal IDs, public IDs, sheet versions, sidecars, provenance, event logs, revisions, manifests, and recovery reports.",
+    "Support mass-parallel model/operator work through automation state, leases, manuals, captures, debug surfaces, and command consistency tests.",
+    "Integrate PoseKit/OpenPose with image collections, workflow history, identity profiles, and ComfyUI replay.",
+    "Make search, tags, similarity, palette, duplicate detection, and batch operations power-user-grade.",
+    "Provide exports for humans, LLMs, sharing, backups, web portfolios, contact sheets, and production handoffs.",
+    "Replace CKC-specific standalone assumptions with Handshake-native product modules, storage boundaries, and artifact hygiene."
+  ],
+  "proposed_wp_mapping": [
+    {
+      "wp_id": "WP-HS-CKC-001",
+      "title": "Core Library, Character, Sheet, Media, And Governance-Compatible Storage",
+      "goal": "Establish the Handshake-native data model and UI foundation for the image-first character portfolio, sheet editor, DAM viewer, versioning, tags, ratings, metadata, docs/moodboards, and recoverable media behavior.",
+      "capability_clusters": ["media-viewer-dam", "character-sheets", "search-tags-similarity", "sidecars-versioning"],
+      "depends_on": [],
+      "microtask_buckets": [
+        {"id": "MT-001", "outline": "Source preservation registry", "depends_on": []},
+        {"id": "MT-002", "outline": "Naming migration matrix", "depends_on": ["MT-001"]},
+        {"id": "MT-003", "outline": "Storage contract for characters, images, sheets, docs, moodboards, tags, ratings, provenance, versions, and revisions", "depends_on": ["MT-001", "MT-002"]},
+        {"id": "MT-004", "outline": "PostgreSQL-only migrations and storage-interface design", "depends_on": ["MT-003"]},
+        {"id": "MT-005", "outline": "Product data root, export root, cache root, and external artifact root without .GOV writes", "depends_on": ["MT-002", "MT-003"]},
+        {"id": "MT-006", "outline": "Internal and public character ID model", "depends_on": ["MT-003"]},
+        {"id": "MT-007", "outline": "Canonical sheet template importer", "depends_on": ["MT-006"]},
+        {"id": "MT-008", "outline": "Sheet parser and type validator", "depends_on": ["MT-007"]},
+        {"id": "MT-009", "outline": "Structured sheet editor", "depends_on": ["MT-008"]},
+        {"id": "MT-010", "outline": "Sheet ingest, merge, diff, apply, and append-only version UI", "depends_on": ["MT-009"]},
+        {"id": "MT-011", "outline": "Sheet archive/delete impact checks", "depends_on": ["MT-010"]},
+        {"id": "MT-012", "outline": "Media asset model", "depends_on": ["MT-003", "MT-005"]},
+        {"id": "MT-013", "outline": "Media viewer shell", "depends_on": ["MT-012"]},
+        {"id": "MT-014", "outline": "Thumbnail strip", "depends_on": ["MT-013"]},
+        {"id": "MT-015", "outline": "Media metadata bar", "depends_on": ["MT-012", "MT-013"]},
+        {"id": "MT-016", "outline": "Viewer navigation", "depends_on": ["MT-013", "MT-015"]},
+        {"id": "MT-017", "outline": "Missing media diagnostics", "depends_on": ["MT-012", "MT-013"]},
+        {"id": "MT-018", "outline": "Repair-by-hash workflow", "depends_on": ["MT-017"]},
+        {"id": "MT-019", "outline": "Docs mode foundation", "depends_on": ["MT-003", "MT-013"]},
+        {"id": "MT-020", "outline": "Moodboard baseline", "depends_on": ["MT-019", "MT-012"]},
+        {"id": "MT-021", "outline": "Moodboard power layers", "depends_on": ["MT-020"]},
+        {"id": "MT-022", "outline": "Tag manager and saved searches baseline", "depends_on": ["MT-003", "MT-015", "MT-019"]},
+        {"id": "MT-023", "outline": "Character templates, cloning, and batch operations", "depends_on": ["MT-006", "MT-009", "MT-012"]},
+        {"id": "MT-024", "outline": "Core visual/debug verification", "depends_on": ["MT-013", "MT-009", "MT-019"]}
+      ]
+    },
+    {
+      "wp_id": "WP-HS-CKC-002",
+      "title": "Intake, Collections, Sidecars, PoseKit, OpenPose, And ComfyUI Production Workflows",
+      "goal": "Rebuild the production workflow layer that moves images from intake to curated collections, contact sheets, PoseKit rigs, OpenPose sidecars, identity profiles, workflow replay, and ComfyUI bridge outputs.",
+      "capability_clusters": ["inbox-intake", "collections-contact-sheets", "sidecars-versioning", "posekit-openpose", "comfyui-bridge"],
+      "depends_on": ["WP-HS-CKC-001"],
+      "microtask_buckets": [
+        {"id": "MT-025", "outline": "Intake navigation and import gate", "depends_on": ["MT-012", "MT-013"]},
+        {"id": "MT-026", "outline": "Persistent intake batches", "depends_on": ["MT-025"]},
+        {"id": "MT-027", "outline": "Intake viewer and compare controls", "depends_on": ["MT-026", "MT-013"]},
+        {"id": "MT-028", "outline": "Linked and loose classification", "depends_on": ["MT-026", "MT-012"]},
+        {"id": "MT-029", "outline": "Character, sheet, and collection linking", "depends_on": ["MT-028", "MT-010"]},
+        {"id": "MT-030", "outline": "Pending Inbox lifecycle", "depends_on": ["MT-028"]},
+        {"id": "MT-031", "outline": "Clipboard paste import", "depends_on": ["MT-025", "MT-012"]},
+        {"id": "MT-032", "outline": "URL import", "depends_on": ["MT-025", "MT-012"]},
+        {"id": "MT-033", "outline": "Image sourcing adapter", "depends_on": ["MT-028", "MT-029"]},
+        {"id": "MT-034", "outline": "Per-character scripts", "depends_on": ["MT-033", "MT-006"]},
+        {"id": "MT-035", "outline": "Intake filesystem hardening", "depends_on": ["MT-030", "MT-033"]},
+        {"id": "MT-036", "outline": "Collections v2 model", "depends_on": ["MT-012", "MT-010"]},
+        {"id": "MT-037", "outline": "Collections UI", "depends_on": ["MT-036"]},
+        {"id": "MT-038", "outline": "Contact sheet SVG and manifest", "depends_on": ["MT-036", "MT-005"]},
+        {"id": "MT-039", "outline": "Contact sheet actions and listing", "depends_on": ["MT-027", "MT-037", "MT-038"]},
+        {"id": "MT-040", "outline": "Raster contact sheet export", "depends_on": ["MT-038", "MT-039"]},
+        {"id": "MT-041", "outline": "OpenPose sidecar role model", "depends_on": ["MT-012", "MT-038"]},
+        {"id": "MT-042", "outline": "PoseKit schema", "depends_on": ["MT-012", "MT-003"]},
+        {"id": "MT-043", "outline": "PoseKit workbench routing", "depends_on": ["MT-037", "MT-042"]},
+        {"id": "MT-044", "outline": "PoseKit detection pipeline", "depends_on": ["MT-042"]},
+        {"id": "MT-045", "outline": "PoseKit rendering and calibration", "depends_on": ["MT-044"]},
+        {"id": "MT-046", "outline": "PoseKit workspace tabs", "depends_on": ["MT-043", "MT-045"]},
+        {"id": "MT-047", "outline": "PoseKit blocked interaction pass", "depends_on": ["MT-045", "MT-046"]},
+        {"id": "MT-048", "outline": "Identity profiles", "depends_on": ["MT-044", "MT-006"]},
+        {"id": "MT-049", "outline": "ComfyUI bridge and workflow replay", "depends_on": ["MT-041", "MT-048"]}
+      ]
+    },
+    {
+      "wp_id": "WP-HS-CKC-003",
+      "title": "Automation, Manual, Search, Similarity, Export, Backup, Parallel Editing, And Hardening",
+      "goal": "Add the model-facing operation layer, global search/tag/similarity intelligence, export/backup surfaces, parallel-editing controls, compatibility tests, and verification gates required for Handshake-scale rebuild quality.",
+      "capability_clusters": ["automation-debug-manual", "search-tags-similarity", "exports", "sidecars-versioning"],
+      "depends_on": ["WP-HS-CKC-001", "WP-HS-CKC-002"],
+      "microtask_buckets": [
+        {"id": "MT-050", "outline": "Automation command registry", "depends_on": ["MT-024", "MT-049"]},
+        {"id": "MT-051", "outline": "Automation state inspection", "depends_on": ["MT-050"]},
+        {"id": "MT-052", "outline": "Sessions, leases, and logs", "depends_on": ["MT-050"]},
+        {"id": "MT-053", "outline": "Background-safe capture", "depends_on": ["MT-051"]},
+        {"id": "MT-054", "outline": "Synthetic input invariants", "depends_on": ["MT-050"]},
+        {"id": "MT-055", "outline": "In-app model manual", "depends_on": ["MT-050", "MT-051"]},
+        {"id": "MT-056", "outline": "Manual and dispatcher consistency tests", "depends_on": ["MT-055"]},
+        {"id": "MT-057", "outline": "GUI visual debug suite", "depends_on": ["MT-053", "MT-056"]},
+        {"id": "MT-058", "outline": "Global search backend", "depends_on": ["MT-003", "MT-022", "MT-036"]},
+        {"id": "MT-059", "outline": "Search UI", "depends_on": ["MT-058"]},
+        {"id": "MT-060", "outline": "Smart folders", "depends_on": ["MT-058"]},
+        {"id": "MT-061", "outline": "Links and backlinks", "depends_on": ["MT-019", "MT-058"]},
+        {"id": "MT-062", "outline": "AI-assisted tagging", "depends_on": ["MT-015", "MT-050"]},
+        {"id": "MT-063", "outline": "Palette and color search", "depends_on": ["MT-012", "MT-058"]},
+        {"id": "MT-064", "outline": "Exact duplicate workflow", "depends_on": ["MT-012", "MT-058"]},
+        {"id": "MT-065", "outline": "Perceptual similarity", "depends_on": ["MT-012", "MT-058"]},
+        {"id": "MT-066", "outline": "Export hub foundation", "depends_on": ["MT-010", "MT-012", "MT-036"]},
+        {"id": "MT-067", "outline": "Advanced exports", "depends_on": ["MT-021", "MT-040", "MT-066"]},
+        {"id": "MT-068", "outline": "Backup and restore", "depends_on": ["MT-005", "MT-066"]},
+        {"id": "MT-069", "outline": "Parallel editing and event policy", "depends_on": ["MT-003", "MT-052"]},
+        {"id": "MT-070", "outline": "Compatibility suite", "depends_on": ["MT-004", "MT-033", "MT-068"]},
+        {"id": "MT-071", "outline": "PostgreSQL-first proof", "depends_on": ["MT-004", "MT-069", "MT-070"]},
+        {"id": "MT-072", "outline": "Final hardening gate", "depends_on": ["MT-056", "MT-057", "MT-067", "MT-071"]}
+      ]
+    }
+  ]
+}

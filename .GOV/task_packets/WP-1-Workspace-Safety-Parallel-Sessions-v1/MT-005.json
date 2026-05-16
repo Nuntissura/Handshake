@@ -1,4 +1,19 @@
 {
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/MT-005.json",
     "microtask_projection": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/MT-005.md",
@@ -22,12 +37,12 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T16:33:39.645Z",
+    "generated_at_utc": "2026-05-14T21:13:39.909Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/MT-005.md",
     "projection_hash": "9ed5f01e2682b398",
     "source_file": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/packet.json",
-    "source_hash": "e937cfe98ab9c7ca",
+    "source_hash": "e7380bbf093bf4c4",
     "status": "GENERATED_IN_SYNC"
   },
   "mt_id": "MT-005",

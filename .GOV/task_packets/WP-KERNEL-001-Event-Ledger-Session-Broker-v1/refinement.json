@@ -29,7 +29,7 @@
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-13",
   "markdown_projection": {
-    "generated_at_utc": "2026-05-14T19:55:49.015Z",
+    "generated_at_utc": "2026-05-14T21:13:39.914Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/refinement.md",
     "projection_hash": "21cf4a6beb7a8f31",

@@ -31,7 +31,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "608ccfe651ea0e61370bea59ba6e0f402d63bf454b2dd522f3da9030a3077688",
+    "projection_sha256": "5aa9fa642a124fec68c8099fd97fa09b5b585ab558d605ce6d18b3d2104f5e46",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {

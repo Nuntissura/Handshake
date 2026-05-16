@@ -38,12 +38,12 @@ Rules:
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
   - Injection scoring formula: `importance * recency_decay * access_boost * scope_match * staleness_factor * trust_multiplier * session_diversity_cap`. Deterministic — same inputs always produce same ranking.
-  - Progressive retrieval tiers: Tier 1 exact match (~0ms) → Tier 2 FTS5 keyword (~5ms) → Tier 3 vector similarity (~50ms) → Tier 4 graph traversal (~100ms). Each tier is optional; pack builds from whatever tiers complete within a configurable time budget.
-  - Graceful degradation: under load, skip Tier 3-4 and build from FTS5-only. Log degradation tier in MemoryPack warnings. No hard failure — always produce a pack.
+  - Progressive retrieval tiers: Tier 1 exact match (~0ms) → Tier 2 PostgreSQL keyword/full-text (~5ms target) → Tier 3 vector similarity (~50ms) → Tier 4 graph traversal (~100ms). Each tier is optional; pack builds from whatever tiers complete within a configurable time budget.
+  - Graceful degradation: under load, skip Tier 3-4 and build from PostgreSQL keyword/full-text only. Log degradation tier in MemoryPack warnings. No hard failure — always produce a pack.
   - CRAG-style quality scoring: score retrieval confidence per item before inclusion. Below threshold → discard rather than waste the ≤24 item budget on low-quality matches.
   - Truncation determinism: when items exceed budget, drop by ascending score. Log truncated item IDs in MemoryPack warnings. Same score set always produces same truncation.
   - Spec update: replace hard p95 latency target with degradation tier definitions.
-  - Cross-encoder reranking (research §4.1): optional Tier 2.5 — after FTS5 broad retrieval, narrow with BGE-reranker (self-hosted cross-encoder). +50-100ms but significantly better precision. Skipped under load (progressive degradation), used when latency budget allows.
+  - Cross-encoder reranking (research §4.1): optional Tier 2.5 — after PostgreSQL broad retrieval, narrow with BGE-reranker (self-hosted cross-encoder). +50-100ms but significantly better precision. Skipped under load (progressive degradation), used when latency budget allows.
   - Contextual compression at pack-build (research §4.1): after retrieval and scoring, compress each selected item's content to only the parts relevant to the current query/scope. EmbeddingsFilter (cheap, fast) for default, LLM-based extraction as optional high-quality mode. Allows fitting 30+ items in the ≤500 token budget instead of the ≤24 item hard cap.
 - OUT_OF_SCOPE:
   - Embedding model selection (separate decision, nomic-embed-text recommended).
@@ -53,14 +53,14 @@ Rules:
 ## PILLAR_FORCE_MULTIPLIERS (DRAFT)
 - TOUCHED_OR_UNKNOWN_PILLARS:
   - PILLAR: Front End Memory System | STATUS: TOUCHED | NOTES: primary pillar; defines the scoring and retrieval that builds every MemoryPack | Stub follow-up: THIS_STUB
-  - PILLAR: RAG | STATUS: TOUCHED | NOTES: shares retrieval infrastructure (FTS5, vector, graph); progressive retrieval pattern applies to both | Stub follow-up: NONE
+  - PILLAR: RAG | STATUS: TOUCHED | NOTES: shares retrieval infrastructure (PostgreSQL keyword/full-text, vector, graph); progressive retrieval pattern applies to both | Stub follow-up: NONE
   - PILLAR: LLM-friendly data | STATUS: TOUCHED | NOTES: scoring formula determines what LLM-friendly memory data reaches the model | Stub follow-up: NONE
   - PILLAR: Execution / Job Runtime | STATUS: TOUCHED | NOTES: degradation tiers interact with session scheduler load awareness | Stub follow-up: NONE
   - PILLAR: Flight Recorder | STATUS: TOUCHED | NOTES: FR-EVT-MEM-004 records degradation tier used, items considered vs selected | Stub follow-up: NONE
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
 - Scoring formula produces identical rankings given identical inputs (deterministic).
-- MemoryPack builds succeed under simulated heavy CPU load by degrading to FTS5-only tier.
+- MemoryPack builds succeed under simulated heavy CPU load by degrading to PostgreSQL keyword/full-text only.
 - Degradation tier and skipped tiers are logged in MemoryPack warnings and FR-EVT-MEM-004.
 - Low-confidence retrieval results (below configurable threshold) are excluded from pack.
 - Truncation is deterministic and logged.

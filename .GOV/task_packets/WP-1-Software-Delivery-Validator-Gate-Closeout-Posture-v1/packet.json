@@ -1,4 +1,19 @@
 {
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
   "authority_files": {
     "microtask_contract_glob": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/MT-*.json",
     "packet_contract": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.json",
@@ -17,12 +32,12 @@
     "user_signature": "ilja040520260128"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T16:33:39.496Z",
+    "generated_at_utc": "2026-05-14T21:13:39.787Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.md",
-    "projection_hash": "b33cdff10d1c16b3",
+    "projection_hash": "938f27baf1b11318",
     "source_file": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.json",
-    "source_hash": "3eccc68d0ba9b053",
+    "source_hash": "3bd1878350a905f5",
     "status": "GENERATED_IN_SYNC"
   },
   "microtasks": {
@@ -87,25 +102,25 @@
     "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/RUNTIME_STATUS.json",
     "session_start_authority": "ORCHESTRATOR_ONLY"
   },
-  "wp_id": "WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
   "worktree_cleanup_status": {
+    "branch_head_ancestor_of_main": true,
+    "check_type": "PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT",
     "checked_at_utc": "2026-05-14T20:52:00Z",
     "checked_by": "INTEGRATION_VALIDATOR",
-    "check_type": "PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT",
-    "main_head": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
-    "worktree_dir": "../wtc-closeout-posture-v1",
-    "work_branch": "feat/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
-    "worktree_head": "eddcf18ba08898dcf2b4a99e5b901ad80dba8aaa",
-    "branch_head_ancestor_of_main": true,
-    "committed_product_diff_vs_main_count": 0,
-    "tracked_dirty_product_count": 3,
-    "untracked_product_count": 0,
     "cleanup_recommendation": "NOT_DELETE_SAFE_DIRTY_PRODUCT_DRIFT",
-    "summary": "Branch product commits are contained in main, but the local worktree has three tracked product edits that differ from main.",
+    "committed_product_diff_vs_main_count": 0,
     "evidence": [
       "tracked_dirty_product: src/backend/handshake_core/src/locus/sqlite_store.rs",
       "tracked_dirty_product: src/backend/handshake_core/src/spec_router/spec_prompt_compiler.rs",
       "tracked_dirty_product: src/backend/handshake_core/src/spec_router/spec_prompt_pack.rs"
-    ]
-  }
+    ],
+    "main_head": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
+    "summary": "Branch product commits are contained in main, but the local worktree has three tracked product edits that differ from main.",
+    "tracked_dirty_product_count": 3,
+    "untracked_product_count": 0,
+    "work_branch": "feat/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
+    "worktree_dir": "../wtc-closeout-posture-v1",
+    "worktree_head": "eddcf18ba08898dcf2b4a99e5b901ad80dba8aaa"
+  },
+  "wp_id": "WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1"
 }

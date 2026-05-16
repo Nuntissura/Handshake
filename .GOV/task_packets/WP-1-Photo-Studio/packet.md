@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Photo-Studio/packet.json source_hash=cf179ab8f67caed1 projection_hash=1cd18b2e2f46d57f generated_at_utc=2026-05-06T16:33:39.362Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Photo-Studio/packet.json source_hash=790350d4cb27de2a projection_hash=1cd18b2e2f46d57f generated_at_utc=2026-05-14T21:13:39.662Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Photo-Studio
 
 ## Metadata

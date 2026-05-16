@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ACE-Auditability/packet.json source_hash=2994b40f4e484386 projection_hash=d91fe4bb96fc25f1 generated_at_utc=2026-05-06T16:33:38.937Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ACE-Auditability/packet.json source_hash=db978468fe4771a0 projection_hash=d91fe4bb96fc25f1 generated_at_utc=2026-05-14T21:13:39.340Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-ACE-Auditability
 
 ## Metadata

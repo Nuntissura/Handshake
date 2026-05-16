@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ACE-Validators-v3/packet.json source_hash=ac0a1f4bff0b0d23 projection_hash=7252a5677be68e60 generated_at_utc=2026-05-06T16:33:38.956Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ACE-Validators-v3/packet.json source_hash=f07af439d27b21fa projection_hash=7252a5677be68e60 generated_at_utc=2026-05-14T21:13:39.365Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-ACE-Validators-v3
 
 ## Metadata

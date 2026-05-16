@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Migration-Framework/packet.json source_hash=26cff621aaad2b9a projection_hash=d492bab7264cc18b generated_at_utc=2026-05-06T16:33:39.301Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Migration-Framework/packet.json source_hash=da1d726a08d3e483 projection_hash=d492bab7264cc18b generated_at_utc=2026-05-14T21:13:39.638Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Migration-Framework
 
 ## Metadata

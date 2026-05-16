@@ -1,0 +1,124 @@
+{
+  "file_id": "ckc-atelier-lens-wp-stub-coverage-audit-20260516",
+  "file_kind": "coverage_audit",
+  "updated_at": "2026-05-16",
+  "status": "reference_only_not_execution_authority",
+  "scope": {
+    "official_microtasks_touched": false,
+    "draft_microtask_suites_rebuilt": true,
+    "stubs": [
+      "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1",
+      "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1",
+      "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1"
+    ]
+  },
+  "repair_pass_status": {
+    "official_microtasks_generated": false,
+    "gate": "activation_refinement_and_user_signature_required_before_official_mt_expansion",
+    "draft_microtask_suite_repair": [
+      {
+        "wp_id": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1",
+        "draft_microtask_count": 80,
+        "path": ".GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1/MT_SUITE.md"
+      },
+      {
+        "wp_id": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1",
+        "draft_microtask_count": 51,
+        "path": ".GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1/MT_SUITE.md"
+      },
+      {
+        "wp_id": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1",
+        "draft_microtask_count": 66,
+        "path": ".GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1/MT_SUITE.md"
+      }
+    ],
+    "core_data_intake_repaired": [
+      "prior-packet inspection requirements for sparse Atelier/Lens and Photo Studio stubs",
+      "active Media Downloader v2 payload",
+      "Media Downloader v1 historical details",
+      "ASR format/provisioning decisions",
+      "Loom video wrapper/caption/transcript details",
+      "CKC docs/stories/moodboard/relationship/media-review/import/export/reset coverage",
+      "CKC taskboard evidence-maturity rules",
+      "README/spec drift"
+    ],
+    "pose_comfyui_repaired": [
+      "concrete Rig/OpenPose/IdentityProfile/WorkflowReceipt minimum fields",
+      "output-first registration failure recovery",
+      "external tool/model capability posture",
+      "workflow spec registry and image-sourcing adapter details",
+      "multi-rig state preservation",
+      "blocked WP-0133 handling",
+      "planned PoseKit carry-forward rows"
+    ],
+    "model_workflow_diagnostics_repaired": [
+      "manual/action-catalog field requirements",
+      "session/lease/heartbeat detail",
+      "visual debugging loop details",
+      "local LLM/AI tagging visibility",
+      "build/release/install diagnostics",
+      "diagnostic bundle contents",
+      "stale-doc/spec drift detection",
+      "CKC operational status-maturity rules"
+    ]
+  },
+  "old_stub_owner_map": [
+    {"source_stub": "WP-1-Atelier-Lens-v2", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "folded"},
+    {"source_stub": "WP-1-Photo-Studio-v2", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "folded"},
+    {"source_stub": "WP-1-Atelier-Collaboration-Panel-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "baseline_dependency"},
+    {"source_stub": "WP-1-Lens-Extraction-Tier-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "folded"},
+    {"source_stub": "WP-1-Lens-ViewMode-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "baseline_dependency"},
+    {"source_stub": "WP-1-Stage-Media-Artifact-Portability-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "folded"},
+    {"source_stub": "WP-1-Stage-ASR-Transcript-Lineage-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "folded"},
+    {"source_stub": "WP-1-Studio-Runtime-Visibility-v1", "owner": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1", "handling": "folded_dependency"},
+    {"source_stub": "WP-1-ASR-Transcribe-Media-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "folded"},
+    {"source_stub": "WP-1-Video-Archive-Loom-Integration-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "folded"},
+    {"source_stub": "WP-1-Loom-MVP-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "baseline_dependency"},
+    {"source_stub": "WP-1-Loom-Storage-Portability-v4", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "baseline_dependency"},
+    {"source_stub": "WP-1-Loom-Preview-VideoPosterFrames-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "folded"},
+    {"source_stub": "WP-1-Media-Downloader-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "historical_source"},
+    {"source_stub": "WP-1-Media-Downloader-Loom-Bridge-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "folded"},
+    {"source_stub": "WP-1-Product-Screenshot-Visual-Validation-v1", "owner": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1", "handling": "inherited_validation"},
+    {"source_stub": "WP-1-Visual-Debugging-Loop-v1", "owner": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1", "handling": "inherited_validation"},
+    {"source_stub": "WP-1-Calendar-Lens-v3", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "separate_pattern_source"},
+    {"source_stub": "WP-1-Artifact-System-Foundations-v1", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1", "handling": "foundational_dependency"},
+    {"source_stub": "WP-1-Structured-Collaboration-Artifact-Family-v1", "owner": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1", "handling": "foundational_dependency"}
+  ],
+  "ckc_evolved_feature_owner_map": [
+    {"id": "EVOL-001", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-002", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-003", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-004", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-005", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-006", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-007", "owner": "split_core_pose"},
+    {"id": "EVOL-008", "owner": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1"},
+    {"id": "EVOL-009", "owner": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1"},
+    {"id": "EVOL-010", "owner": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1"},
+    {"id": "EVOL-011", "owner": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1"},
+    {"id": "EVOL-012", "owner": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1"},
+    {"id": "EVOL-013", "owner": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1"},
+    {"id": "EVOL-014", "owner": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1"},
+    {"id": "EVOL-015", "owner": "split_core_pose"},
+    {"id": "EVOL-016", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-017", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-018", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-019", "owner": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1"},
+    {"id": "EVOL-020", "owner": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1"},
+    {"id": "EVOL-021", "owner": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1"},
+    {"id": "EVOL-022", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-023", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-024", "owner": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1"},
+    {"id": "EVOL-025", "owner": "split_diagnostics_core"},
+    {"id": "EVOL-026", "owner": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1"}
+  ],
+  "rejected_runtime_assumptions": [
+    "SQLite in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths",
+    "Electron main/preload as product authority",
+    "CKC localhost intake authority",
+    "CKC product namespace in Handshake runtime",
+    "Product outputs under .GOV",
+    "Machine-local absolute paths as runtime authority",
+    "Direct LLM execution of product operations"
+  ]
+}

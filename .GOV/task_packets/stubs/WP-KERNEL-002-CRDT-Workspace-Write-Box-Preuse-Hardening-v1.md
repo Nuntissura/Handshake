@@ -330,7 +330,7 @@ Activation Manager must convert this draft into official packet microtask files 
 
 ### MT-022 Postgres Control-Plane Residual Scope
 - Focus: fold `WP-1-Postgres-Control-Plane-Shift-Bundle-v1` plus its transitive folded stubs.
-- Acceptance: residual live Postgres service proof, leases/backpressure, ModelSession queues, FEMS memory store, durable workflow execution, DCC projections, and SQLite boundary obligations are carried into Kernel002 or explicitly mapped to Kernel003/Kernel004 without reopening the old bundle.
+- Acceptance: residual live Postgres service proof, leases/backpressure, ModelSession queues, FEMS memory store, durable workflow execution, DCC projections, and no-SQLite replacement obligations are carried into Kernel002 or explicitly mapped to Kernel003/Kernel004 without reopening the old bundle.
 
 ### MT-023 Locus Work Tracking Reset Migration
 - Focus: fold `WP-1-Locus-Work-Tracking-System-Phase1-v1`.

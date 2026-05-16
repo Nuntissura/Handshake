@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "9844a5c564c3cd977f6d064fe795a905f1849d1e1eab793a85d03f743283b77d",
+    "projection_sha256": "903ebd4ac5ddcf2dddd9df1c8ee152e07baa42ae8c5c7ef4bda38012fdcf6582",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -67,7 +67,7 @@
     "intent": "- What: make Context Pack build/select/refresh/freshness outcomes first-class Flight Recorder evidence with stable pack-hash linkage.\n- Why: distillation, replay, model onboarding, and prompt/context reuse cannot depend on hidden cache decisions or transient in-memory state.",
     "scope_sketch": "- IN_SCOPE:\n  - emit bounded Flight Recorder events for:\n    - pack build\n    - pack reuse\n    - pack refresh\n    - freshness allow/deny/require-rebuild decisions\n  - persist stable pack hash / source-hash / freshness-policy linkage\n  - deep-link pack decisions into jobs/spec-router traces/debug bundles without dumping full payloads by default\n  - add targeted tests that fail if Context Pack visibility regresses\n- OUT_OF_SCOPE:\n  - broad UI polish\n  - changing Context Pack payload schema beyond what recorder visibility requires",
     "acceptance_criteria": "- Context Pack build/select/refresh paths emit recorder-visible events with stable pack hashes and bounded policy metadata.\n- Replay/debug surfaces can correlate pack decisions to jobs/spec-router flows without reading hidden runtime state.\n- Tests fail if pack-visibility events or hash linkage disappear.",
-    "risks_unknowns": "- Full payload logging would leak too much retrieval context; event payloads must stay bounded and policy-safe.\n- Hash/link semantics must remain stable across SQLite-now / PostgreSQL-later portability.",
+    "risks_unknowns": "- Full payload logging would leak too much retrieval context; event payloads must stay bounded and policy-safe.\n- Hash/link semantics must remain stable under PostgreSQL authority. The old local-first storage posture is superseded and must not be implemented through SQLite in any form.",
     "governance_artifact_stance": ""
   },
   "activation_contract": {

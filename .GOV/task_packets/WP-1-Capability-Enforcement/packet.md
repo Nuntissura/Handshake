@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Capability-Enforcement/packet.json source_hash=6ae1e4edb587d539 projection_hash=a0493c15a3518980 generated_at_utc=2026-05-06T16:33:39.103Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Capability-Enforcement/packet.json source_hash=03592b116105618c projection_hash=a0493c15a3518980 generated_at_utc=2026-05-14T21:13:39.465Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Capability-Enforcement
 
 ## Metadata

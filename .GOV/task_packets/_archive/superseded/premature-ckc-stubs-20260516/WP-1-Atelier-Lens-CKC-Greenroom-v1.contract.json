@@ -1,0 +1,97 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Atelier-Lens-CKC-Greenroom-v1",
+  "base_wp_id": "WP-1-Atelier-Lens-CKC-Greenroom",
+  "created_at_utc": "2026-05-16T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Greenroom-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Greenroom-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Greenroom-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "b98930a0d6de428a960208544370cb6f8b9f56857f1c40380e69858d71d21fae",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "GOV",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "NONE"
+    ],
+    "blocks": [
+      "WP-1-Atelier-Lens-CKC-Kernel",
+      "WP-1-Atelier-Lens-CKC-Vertical-Slice"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "FEAT-ATELIER-LENS; FEAT-PHOTO-STUDIO; TOOL-COMFYUI; PRIM-Moodboard; CKC consolidation source material",
+    "roadmap_add_coverage": "SPEC=v02.185; PHASE=7.6.3; LINES=12-end-of-file-appendices:155,889,4376,5728; 10-product-surfaces:4872,5134,5391,5797"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Consolidate CastKit Codex code, spec, taskboard, and existing Handshake Atelier/Lens-adjacent stubs into a no-loss greenroom source register for a Handshake-native rebuild.\n- Why: Speed the rebuild of a core Atelier/Lens feature without dropping CKC goals, prompt-diary lineage, or already-planned Handshake technical requirements.",
+    "scope_sketch": "- IN_SCOPE:\n  - Preserve CKC code/spec/taskboard intent as source requirements.\n  - Preserve existing Handshake Atelier/Lens, Photo Studio, Lens tier/ViewMode, Studio runtime, Stage/media, ASR, Loom/media, screenshot, visual-debug, and artifact-foundation stub intent.\n  - Produce the conflict matrix for SQLite, Electron, localhost intake, CKC product strings, product-output paths, and sparse legacy stubs.\n  - Produce namespace migration, non-SQLite parity case register, acceptance gates, and official packet handoff material.\n  - Use `.GOV/reference/ckc_atelier_lens_consolidation/consolidated-runway.md` and `.json` as source reference.\n- OUT_OF_SCOPE:\n  - Product runtime implementation.\n  - UI rebuild.\n  - CKC feature parity claims.\n  - Marking downstream CKC WPs Ready for Dev.",
+    "acceptance_criteria": "- The greenroom register preserves CKC capability clusters and existing Handshake stub goals without silent deletion.\n- Each conflict has a Handshake-native resolution or a deferred decision.\n- The downstream CKC Kernel and Vertical Slice packet scopes can be created from the register without rereading the full CKC app/spec/taskboard.\n- Existing validated or superseded stubs are classified as baseline, source material, inherited requirement, or separate dependency.\n- SQLite is explicitly rejected in every Handshake context: runtime, tests, fixtures, compatibility, imports, fallback, cache, examples, harnesses, and temporary adapters. Electron/localhost-intake assumptions are rejected for Kernel V1 runtime authority.",
+    "risks_unknowns": "- Risk: consolidation compresses away old intents; control by keeping source-path-backed carry-forward rows.\n- Risk: CKC speed goal causes runtime architecture shortcuts; control by rejecting SQLite absolutely and rejecting Electron/localhost authority before implementation.\n- Risk: stubs with sparse contracts hide meaningful Markdown intent; control by preserving Markdown projection content before supersession.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

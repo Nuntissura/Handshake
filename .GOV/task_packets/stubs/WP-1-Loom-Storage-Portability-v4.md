@@ -39,14 +39,14 @@ Rules:
 - IN_SCOPE:
   - Re-validate the exact Loom portability clauses still required by the current spec and by any future remediation refinement.
   - Narrow the remediation to concrete proof gaps or fresh defects found on current `main`; avoid speculative churn if the audited Loom slice is already materially correct.
-  - Preserve dual-backend evidence for graph traversal, directional edges, metrics recomputation, and source-anchor durability where those clauses remain in scope.
+  - Preserve PostgreSQL-only evidence for graph traversal, directional edges, metrics recomputation, and source-anchor durability where those clauses remain in scope. Older dual-backend language is superseded by the no-SQLite reset.
 - OUT_OF_SCOPE:
   - Broad Loom feature expansion unrelated to storage portability.
   - Media bridge or archive integration work owned by downstream Loom packets.
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
 - Any remaining Loom portability remediation is tied to explicit current-spec clauses and current-main evidence, not to the old v3 packet narrative alone.
-- If a concrete Loom defect exists, the remediation packet proves it with validator-owned checks on both supported backends.
+- If a concrete Loom defect exists, the remediation packet proves it with validator-owned PostgreSQL checks.
 - If no concrete Loom defect remains, the future refinement must say so explicitly and reduce scope rather than inventing new churn.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
@@ -55,7 +55,7 @@ Rules:
 
 ## RISKS / UNKNOWNs (DRAFT)
 - The v3 packet mixed concrete storage work with broader closure claims; refinement must narrow the next packet to what is still actually open.
-- Dual-backend proof can become expensive if the next remediation broadens beyond the audited slice.
+- Broad storage proof can become expensive if the next remediation broadens beyond the audited slice.
 
 ## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)
 - [ ] Confirm the requirement exists in Master Spec Main Body (not just Roadmap).

@@ -1,4 +1,19 @@
 {
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
   "authority_files": {
     "microtask_contract_glob": ".GOV/task_packets/WP-1-AI-Job-Model-v4/MT-*.json",
     "packet_contract": ".GOV/task_packets/WP-1-AI-Job-Model-v4/packet.json",
@@ -18,12 +33,12 @@
     "user_signature": "ilja200120260048"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T16:33:38.984Z",
+    "generated_at_utc": "2026-05-14T21:13:39.378Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-AI-Job-Model-v4/packet.md",
     "projection_hash": "a4fce376372e8d49",
     "source_file": ".GOV/task_packets/WP-1-AI-Job-Model-v4/packet.json",
-    "source_hash": "cd217f9ed7c05634",
+    "source_hash": "8a5e951d48c047b4",
     "status": "GENERATED_IN_SYNC"
   },
   "microtasks": {

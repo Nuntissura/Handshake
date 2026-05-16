@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1/packet.json source_hash=c1ac3c180aa4bd9e projection_hash=f5ff4a5b9ab190a8 generated_at_utc=2026-05-06T16:33:39.510Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1/packet.json source_hash=220cc0a509f5253f projection_hash=f5ff4a5b9ab190a8 generated_at_utc=2026-05-14T21:13:39.801Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Spec-Enrichment-Product-Governance-Consistency-v1
 
 ## METADATA

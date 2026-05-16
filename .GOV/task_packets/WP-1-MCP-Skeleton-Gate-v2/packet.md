@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MCP-Skeleton-Gate-v2/packet.json source_hash=2e6788b473b1d3b6 projection_hash=e4c4b6585017e4df generated_at_utc=2026-05-06T16:33:39.265Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MCP-Skeleton-Gate-v2/packet.json source_hash=4ebd11e0621062e1 projection_hash=e4c4b6585017e4df generated_at_utc=2026-05-14T21:13:39.617Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-MCP-Skeleton-Gate-v2
 
 ## METADATA

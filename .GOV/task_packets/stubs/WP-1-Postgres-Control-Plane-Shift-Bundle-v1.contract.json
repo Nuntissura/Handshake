@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "1621c4c7b5f7f2df26266921ffa920f1a3ccf2b00cc92a1cf744d76cdc050327",
+    "projection_sha256": "bbc354d5fe78bf7c741fb3d15edff15615ea3edceb2e04bf04682b08da525635",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -47,7 +47,6 @@
       "WP-1-Postgres-Primary-Control-Plane-Foundation",
       "WP-1-Storage-Abstraction-Layer",
       "WP-1-Storage-Trait-Purity",
-      "WP-1-Dual-Backend-Tests",
       "WP-1-Migration-Framework",
       "WP-1-ModelSession-Core-Scheduler",
       "WP-1-Workflow-Engine",
@@ -68,7 +67,7 @@
   },
   "spec_trace": {
     "spec_target": ".GOV/spec/SPEC_CURRENT.md",
-    "roadmap_pointer": "SPEC_CURRENT PostgreSQL-primary storage, ModelSession, FEMS, workflow durable execution, DCC runtime truth, and SQLite cache/offline boundary anchors",
+    "roadmap_pointer": "SPEC_CURRENT PostgreSQL-primary storage, ModelSession, FEMS, workflow durable execution, DCC runtime truth, and no-SQLite boundary anchors",
     "roadmap_add_coverage": ""
   },
   "session_policy": {
@@ -81,7 +80,7 @@
   "draft_scope": {
     "intent": "- What: Fold the immediate PostgreSQL-primary follow-on stubs into one larger control-plane shift WP, while keeping implementation split into microtasks small enough for cheaper coding-focused models.\n- Why: The governance workflow can now babysit a larger packet mechanically, and the PostgreSQL pivot is tightly coupled enough that separate packets would force repeated setup, repeated schema decisions, repeated runtime-source labeling, and repeated DCC/FEMS/workflow handoff drift.\n- Why now: `WP-1-Postgres-Primary-Control-Plane-Foundation-v1` is validated and contained in `main`, so follow-on work can build from an approved PostgreSQL-primary storage mode instead of rediscovering the same foundation.",
     "scope_sketch": "",
-    "acceptance_criteria": "- The bundle activates into an official WP with the minimum MT decomposition above or an equivalent finer-grained split that keeps coder assignments bounded.\n- Activation Manager may create 20+ MTs and should do so whenever a smaller split improves deterministic execution, review targeting, restart recovery, or local/small-cloud model suitability.\n- PostgreSQL-required runtime/control-plane operations fail closed when PostgreSQL authority is unavailable.\n- SQLite is allowed only as cache, offline, embedded demo, search index, or rebuildable local projection where explicitly labeled.\n- Queue/lease/backpressure primitives are shared by ModelSession, FEMS, and workflow jobs instead of independently reimplemented.\n- DCC projections read canonical PostgreSQL state or clearly labeled derived projection state.\n- Foundation carry-over risks are either resolved or carried forward as explicit non-blocking/product blockers by Integration Validator.\n- Loom storage and video/archive stubs remain separate and are not activated through this bundle.",
+    "acceptance_criteria": "- The bundle activates into an official WP with the minimum MT decomposition above or an equivalent finer-grained split that keeps coder assignments bounded.\n- Activation Manager may create 20+ MTs and should do so whenever a smaller split improves deterministic execution, review targeting, restart recovery, or local/small-cloud model suitability.\n- PostgreSQL-required runtime/control-plane operations fail closed when PostgreSQL authority is unavailable.\n- SQLite is not allowed as cache, offline, embedded demo, search index, rebuildable local projection, fixture, fallback, compatibility path, example, harness, temporary adapter, or test target.\n- Queue/lease/backpressure primitives are shared by ModelSession, FEMS, and workflow jobs instead of independently reimplemented.\n- DCC projections read canonical PostgreSQL state or clearly labeled derived projection state.\n- Foundation carry-over risks are either resolved or carried forward as explicit non-blocking/product blockers by Integration Validator.\n- Loom storage and video/archive stubs remain separate and are not activated through this bundle.",
     "risks_unknowns": "- Risk: the bundle is too large if MTs are allowed to bleed into each other; activation must enforce one MT per coder turn and one review route per MT.\n- Risk: live PostgreSQL tests may be slow under host load; activation should set generous bounded timeouts and classify inconclusive environment failures separately from product failures.\n- Risk: memory poisoning safeguards may need to land with MT-005 rather than as a later FEMS follow-up.\n- Unknown: whether pgvector belongs in this bundle or remains an indexing/cache follow-up.\n- Unknown: whether CI should require PostgreSQL live-service checks immediately or begin as a gated required profile.",
     "governance_artifact_stance": ""
   },

@@ -57,7 +57,7 @@ Rules:
 
 ## RISKS / UNKNOWNs (DRAFT)
 - Full payload logging would leak too much retrieval context; event payloads must stay bounded and policy-safe.
-- Hash/link semantics must remain stable across SQLite-now / PostgreSQL-later portability.
+- Hash/link semantics must remain stable under PostgreSQL authority. The old local-first storage posture is superseded and must not be implemented through SQLite in any form.
 
 ## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)
 - [ ] Confirm the requirement exists in Master Spec Main Body (not just Roadmap).

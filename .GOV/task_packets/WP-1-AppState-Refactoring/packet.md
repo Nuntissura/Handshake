@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AppState-Refactoring/packet.json source_hash=bd81f89e2c586b9d projection_hash=fb131899f0fd434b generated_at_utc=2026-05-06T16:33:39.007Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AppState-Refactoring/packet.json source_hash=e0a0801d941a357a projection_hash=fb131899f0fd434b generated_at_utc=2026-05-14T21:13:39.390Z generator=wp-contract-import.mjs -->
 # Work Packet: WP-1-AppState-Refactoring
 
 **Status:** READY FOR DEV ðŸ”´  

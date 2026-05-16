@@ -36,7 +36,7 @@ Rules:
 ## Why this stub exists
 This stub exists because `WP-1-Storage-Trait-Purity-v1` intentionally stopped at honest capability law. It removed hidden backend branching, but it did not implement true PostgreSQL support for structured collaboration artifacts or the Locus-backed canonical work-state paths that consume them.
 
-Current code still returns `StorageError::NotImplemented("structured collaboration artifacts")` from `PostgresDatabase` for `structured_collab_work_packet_row`, `structured_collab_work_packet_rows`, `structured_collab_micro_task_metadata`, `structured_collab_micro_task_status_rows`, and `structured_collab_micro_task_rows`, while SQLite remains the only real implementation surface.
+Current code still returns `StorageError::NotImplemented("structured collaboration artifacts")` from `PostgresDatabase` for `structured_collab_work_packet_row`, `structured_collab_work_packet_rows`, `structured_collab_micro_task_metadata`, `structured_collab_micro_task_status_rows`, and `structured_collab_micro_task_rows`. Any older SQLite implementation surface is rejected migration/removal debt, not a supported Handshake path.
 
 ## Prior packet
 - Prior WP_ID: `WP-1-Storage-Trait-Purity-v1`
@@ -46,8 +46,8 @@ Current code still returns `StorageError::NotImplemented("structured collaborati
 - / STUB: PostgreSQL still capability-denies canonical Work Packet, Micro-Task, and Task Board artifact paths, so backend portability is honest but not yet parity-complete for structured collaboration state.
 
 ## INTENT (DRAFT)
-- What: implement real PostgreSQL parity for canonical structured collaboration artifacts and the minimum Locus-backed read/write paths needed to keep Work Packets, Micro-Tasks, and Task Board projections backend-portable.
-- Why: as long as Postgres can only deny these paths, structured collaboration remains effectively SQLite-only and the product cannot honestly claim portable canonical work-state persistence beyond the local-first backend.
+- What: implement real PostgreSQL support for canonical structured collaboration artifacts and the minimum Locus-backed read/write paths needed to keep Work Packets, Micro-Tasks, and Task Board projections durable under PostgreSQL authority.
+- Why: as long as Postgres can only deny these paths, structured collaboration lacks an accepted storage implementation; SQLite is not a valid fallback, fixture, cache, compatibility path, or test target.
 
 ## CURRENT_CODE_SURFACES (DRAFT)
 - `src/backend/handshake_core/src/storage/mod.rs`
@@ -74,8 +74,8 @@ Current code still returns `StorageError::NotImplemented("structured collaborati
     - `structured_collab_micro_task_status_rows`
     - `structured_collab_micro_task_rows`
     - any required write/update path such as `locus_task_board_update_work_packet` or a bounded subset of `execute_locus_operation`
-  - preserve the same base-envelope, compact-summary, `workflow_state_family`, `queue_reason_code`, `allowed_action_ids`, `project_profile_kind`, and `mirror_state` semantics on both backends
-  - add dual-backend conformance tests for canonical read/list/update flows and negative-path regression checks
+  - preserve the same base-envelope, compact-summary, `workflow_state_family`, `queue_reason_code`, `allowed_action_ids`, `project_profile_kind`, and `mirror_state` semantics on PostgreSQL-backed records
+  - add PostgreSQL conformance tests for canonical read/list/update flows and negative-path regression checks
   - make any remaining unsupported Locus operations explicit and narrow instead of hiding them behind a blanket backend denial
 - OUT_OF_SCOPE:
   - Dev Command Center UI work
@@ -84,8 +84,8 @@ Current code still returns `StorageError::NotImplemented("structured collaborati
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
 - PostgreSQL no longer returns `NotImplemented("structured collaboration artifacts")` for the canonical structured artifact flows claimed by the packet.
-- The same canonical structured Work Packet, Micro-Task, and Task Board record families round-trip on SQLite and PostgreSQL with matching base-envelope semantics.
-- Dual-backend tests prove at least one read-single, read-list, status/metadata, and update/sync path for structured collaboration records on both backends.
+- The same canonical structured Work Packet, Micro-Task, and Task Board record families round-trip on PostgreSQL with matching base-envelope semantics.
+- PostgreSQL tests prove at least one read-single, read-list, status/metadata, and update/sync path for structured collaboration records. No SQLite test target, fixture, fallback, compatibility path, cache, or temporary adapter is allowed.
 - Any remaining unsupported Locus operations are individually declared and tested instead of piggybacking on a broad backend denial.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
@@ -95,7 +95,7 @@ Current code still returns `StorageError::NotImplemented("structured collaborati
 
 ## RISKS / UNKNOWNs (DRAFT)
 - Scope can silently explode into "full Locus Postgres backend" unless the refinement keeps the contract bounded to canonical structured artifact parity.
-- Schema choices that are too SQLite-shaped may force a later rewrite instead of true portable parity.
+- Schema choices that are too shaped by legacy SQLite may force a later rewrite instead of true PostgreSQL authority.
 - Parity work touches shared workflow and task-board projection code, so regression coverage must be broader than a single storage-file patch.
 
 ## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)

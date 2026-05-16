@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Runtime-Governance-NoExpect-v1/packet.json source_hash=58be6e6191537e07 projection_hash=ae30f680c5ce9b2b generated_at_utc=2026-05-06T16:33:39.440Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Runtime-Governance-NoExpect-v1/packet.json source_hash=2b74122d7776a2fd projection_hash=ae30f680c5ce9b2b generated_at_utc=2026-05-14T21:13:39.731Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Runtime-Governance-NoExpect-v1
 
 ## METADATA

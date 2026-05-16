@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Media-Downloader-v2/packet.json source_hash=b216b53f2168caf8 projection_hash=45c8d0d60b87e67c generated_at_utc=2026-05-06T16:33:39.268Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Media-Downloader-v2/packet.json source_hash=458417c8f323ccdc projection_hash=45c8d0d60b87e67c generated_at_utc=2026-05-14T21:13:39.620Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Media-Downloader-v2
 
 ## METADATA

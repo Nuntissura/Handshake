@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.json source_hash=7b3d450b699c537a projection_hash=aa9a302ebb341051 generated_at_utc=2026-05-06T16:33:39.242Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Loom-Storage-Portability-v3/packet.json source_hash=0adad1cf612debf1 projection_hash=aa9a302ebb341051 generated_at_utc=2026-05-14T21:13:39.593Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Loom-Storage-Portability-v3
 
 ## METADATA

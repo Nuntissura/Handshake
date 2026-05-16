@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.json source_hash=aa61291c2d724412 projection_hash=bb0f045653edbf4d generated_at_utc=2026-05-06T16:33:39.449Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.json source_hash=fb9b9db2ad51de13 projection_hash=bb0f045653edbf4d generated_at_utc=2026-05-14T21:13:39.741Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

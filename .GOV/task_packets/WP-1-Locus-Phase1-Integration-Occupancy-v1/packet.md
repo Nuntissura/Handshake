@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/packet.json source_hash=3ee3be8fc2d67de1 projection_hash=a4d1a62c928305d0 generated_at_utc=2026-05-06T16:33:39.225Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1/packet.json source_hash=3253a3532538058c projection_hash=a4d1a62c928305d0 generated_at_utc=2026-05-14T21:13:39.586Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Locus-Phase1-Integration-Occupancy-v1
 
 ## METADATA

@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ModelSession-Core-Scheduler-v1/packet.json source_hash=08ff47dc85c7d7cc projection_hash=c9f3ea5d6989ca50 generated_at_utc=2026-05-06T16:33:39.309Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-ModelSession-Core-Scheduler-v1/packet.json source_hash=aac57c43731b27a0 projection_hash=c9f3ea5d6989ca50 generated_at_utc=2026-05-14T21:13:39.645Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-ModelSession-Core-Scheduler-v1
 
 ## METADATA

@@ -1,0 +1,83 @@
+{
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-003-Sandbox-Validation-Promotion-v1/MT-003.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-003-Sandbox-Validation-Promotion-v1/MT-003.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-003-Sandbox-Validation-Promotion-v1/packet.json"
+  },
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-15T00:40:02.917Z",
+  "handoff": {
+    "coder_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "wp_validator_session": null
+  },
+  "lifecycle": {
+    "active": false,
+    "blocks": [],
+    "depends_on": [
+      "MT-002"
+    ],
+    "status": "PENDING",
+    "validator_verdict": "PENDING"
+  },
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-15T00:58:04.573Z",
+    "generator": "kernel-builder-projection-repair.mjs",
+    "path": ".GOV/task_packets/WP-KERNEL-003-Sandbox-Validation-Promotion-v1/MT-003.md",
+    "projection_hash": "4890393cff0b41e8",
+    "source_file": ".GOV/task_packets/WP-KERNEL-003-Sandbox-Validation-Promotion-v1/MT-003.json",
+    "source_hash": "5de05f4bb78ce170",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-003",
+  "red_team": {
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted."
+    ]
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "scope": {
+    "acceptance_criteria": [
+      "MT-003 Current Product API Inventory: inspect product modules for KB001/KB002 and existing check/artifact/governance APIs. Acceptance: packet targets real files or declares missing upstream blockers."
+    ],
+    "allowed_paths": [
+      "src/backend/handshake_core/src/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [],
+    "proof_targets": [
+      "rg EventLedger src/backend/handshake_core",
+      "rg WriteBox src/backend/handshake_core"
+    ],
+    "risk_if_missed": "coder may invent duplicate authority.",
+    "summary": "MT-003 Current Product API Inventory: inspect product modules for KB001/KB002 and existing check/artifact/governance APIs. Acceptance: packet targets real files or declares missing upstream blockers."
+  },
+  "updated_at_utc": null,
+  "wp_id": "WP-KERNEL-003-Sandbox-Validation-Promotion-v1"
+}

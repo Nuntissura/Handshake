@@ -1,0 +1,79 @@
+{
+  "file_id": "mt-001-012-inventory-synthesis",
+  "file_kind": "inventory_synthesis",
+  "updated_at": "2026-05-16",
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1",
+  "status": "complete",
+  "covered_mt_ids": [
+    "MT-001",
+    "MT-002",
+    "MT-003",
+    "MT-004",
+    "MT-005",
+    "MT-006",
+    "MT-007",
+    "MT-008",
+    "MT-009",
+    "MT-010",
+    "MT-011",
+    "MT-012"
+  ],
+  "source_artifacts": [
+    ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.json",
+    ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-007-008-ckc-spec-taskboard-inventory.json",
+    ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-009-012-handshake-anchor-inventory.json"
+  ],
+  "ckc_code_findings": [
+    "CKC is useful source evidence for library, character, intake, PoseKit, workflow, ComfyUI, export, settings, and automation surfaces.",
+    "CKC runtime shape is Electron/Vite/React with an Electron main process, preload command bridge, React renderer, and model-visible automation/diagnostic command surface.",
+    "CKC backend is concentrated in app/backend/library.js; Handshake should split bounded services rather than copy CKC's monolith.",
+    "CKC PoseKit evidence includes MediaPipe model assets, worker-based detection, OpenPose JSON/PNG export, rig calibration, identity profiles, and ComfyUI replay.",
+    "CKC ComfyUI bridge shows a strong pattern: generation output is saved by ComfyUI first, then registered into the product through a local intake endpoint.",
+    "CKC behavior tests are useful coverage inspiration, but CKC SQLite fixtures and compatibility tests are rejected for Handshake."
+  ],
+  "ckc_spec_taskboard_findings": [
+    "CKC evidence clusters around governance/verification, automation/manual consistency, Intake/Inbox, Collections/contact sheets, PoseKit/OpenPose, parallel editing, recoverable deletion, storage/runtime, and product UX preservation.",
+    "CKC taskboard inventory found 135 work-packet rows: 113 DONE, 14 REVIEW, 1 BLOCKED, 1 CONCEPT, and 6 planned variants.",
+    "WP-0133 PoseKit calibration/history remains blocked and must not be silently imported as solved Handshake behavior.",
+    "WP-0136 raster contact sheet export is planned, not shipped evidence.",
+    "WP-0119 SQLite removal/quarantine remains planned in CKC; Handshake must go further and forbid SQLite everywhere.",
+    "CKC review-batch evidence is valuable but not final Handshake proof."
+  ],
+  "handshake_anchor_findings": [
+    "The current worktree is governance-kernel-only, so product code anchors are candidate paths from packet evidence until verified in the product worktree.",
+    "Existing Atelier/Lens intent is split across the active consolidation packet, WP-1-Atelier-Lens-v2, validated WP-1-Atelier-Collaboration-Panel-v1, WP-1-Lens-Extraction-Tier-v1, validated WP-1-Lens-ViewMode-v1, and adjacent Lens-pattern stubs.",
+    "Adjacent Photo/Studio/media/Loom/ASR/artifact work supplies the reusable implementation runway.",
+    "Supersession risk is real around old Atelier/Lens, Photo Studio, Media Downloader v1, Loom portability v1-v3, superseded visual-debug stubs, and archived premature CKC rebuild stubs.",
+    "Archived premature CKC stubs remain evidence only and must not be revived directly."
+  ],
+  "translation_decisions": [
+    "Preserve CKC capability intent, not CKC implementation shape.",
+    "Translate storage and collaboration to PostgreSQL, EventLedger, ArtifactStore, CRDT/workspace contracts, and governed Handshake runtime boundaries.",
+    "Translate CKC automation/manual/debugger concepts into Handshake diagnostics, command receipts, model-facing manuals, and visual verification surfaces.",
+    "Translate CKC UI evidence into workflows and state requirements, not a GUI copy.",
+    "Treat CKC DONE rows as historical evidence, REVIEW rows as implemented-but-not-final evidence, and BLOCKED/PLANNED/CONCEPT rows as risk or backlog signals.",
+    "Product code anchors must be re-verified in the product worktree before implementation."
+  ],
+  "sqlite_rejection": "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.",
+  "next_tranche": {
+    "mt_ids": [
+      "MT-013",
+      "MT-014",
+      "MT-015",
+      "MT-016",
+      "MT-017",
+      "MT-018",
+      "MT-019",
+      "MT-020",
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026"
+    ],
+    "status": "ready",
+    "instruction": "Extract requirements before authoring any CKC rebuild stubs."
+  },
+  "ckc_rebuild_stubs_created": false
+}

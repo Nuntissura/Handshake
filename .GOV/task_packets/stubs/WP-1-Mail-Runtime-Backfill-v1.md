@@ -48,7 +48,7 @@ Rules:
   - Visibility and storage:
     - DCC/operator visibility.
     - Flight Recorder event expectations.
-    - SQLite-now / PostgreSQL-ready persistence expectations.
+    - PostgreSQL-only persistence expectations. The old local-first storage posture is superseded and must not be implemented through SQLite in any form.
 - OUT_OF_SCOPE:
   - Full mail product implementation.
   - Provider-specific sync integrations beyond the canonical runtime contract.

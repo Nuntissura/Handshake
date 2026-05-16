@@ -1,4 +1,19 @@
 {
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Calendar-Storage-v2/MT-005.json",
     "microtask_projection": ".GOV/task_packets/WP-1-Calendar-Storage-v2/MT-005.md",
@@ -22,12 +37,12 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T16:33:39.065Z",
+    "generated_at_utc": "2026-05-14T21:13:39.421Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Calendar-Storage-v2/MT-005.md",
     "projection_hash": "3264c70423b36574",
     "source_file": ".GOV/task_packets/WP-1-Calendar-Storage-v2/packet.json",
-    "source_hash": "3d1e5d7d3f1a2dae",
+    "source_hash": "eb5963d3d162ac21",
     "status": "GENERATED_IN_SYNC"
   },
   "mt_id": "MT-005",

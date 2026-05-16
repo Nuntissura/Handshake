@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Cloud-Escalation-Consent-v2/packet.json source_hash=7ed5c38d5af0998f projection_hash=d87902381f1a3370 generated_at_utc=2026-05-06T16:33:39.110Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Cloud-Escalation-Consent-v2/packet.json source_hash=d091a646d62d7ba4 projection_hash=d87902381f1a3370 generated_at_utc=2026-05-14T21:13:39.472Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Cloud-Escalation-Consent-v2
 
 ## METADATA

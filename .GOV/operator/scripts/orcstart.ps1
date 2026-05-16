@@ -12,6 +12,8 @@ $promptDoc = Join-Path $scriptRoot "..\docs_local\Handshake_Role_Startup_Prompts
 $role = if ($env:ORCSTART_ROLE) { $env:ORCSTART_ROLE.Trim().ToUpperInvariant() } else { "ORCHESTRATOR" }
 $repoDisplay = "../" + (Split-Path -Leaf $repoRoot)
 $promptDocDisplay = ".GOV/operator/docs_local/Handshake_Role_Startup_Prompts.md"
+$kbstartCmdDisplay = ".\kbstart.cmd"
+$includeLauncherBindings = ($env:ORCSTART_EXPOSE_LAUNCHER_BINDINGS -ne "0")
 $minimumStartupTimeoutMs = 600000
 $recommendedStartupTimeoutMs = 1200000
 $startupTimeoutGuidance = "Startup can take several minutes. Use shell timeout >= $minimumStartupTimeoutMs ms / 10 minutes; $recommendedStartupTimeoutMs ms / 20 minutes is recommended on this host under load."
@@ -35,15 +37,22 @@ $sharedAuthorityFiles = @(
   (New-AuthorityFile -Key "CODEX" -DisplayPath ".GOV/codex/Handshake_Codex_v1.4.md" -LocalPath ".GOV\codex\Handshake_Codex_v1.4.md")
 )
 
+$bindingFileSources = @(
+  (New-AuthorityFile -Key "KBSTART_CMD" -DisplayPath $kbstartCmdDisplay -LocalPath "kbstart.cmd")
+)
+if ($includeLauncherBindings) {
+  $bindingFileSources += (New-AuthorityFile -Key "ORCSTART_PS1" -DisplayPath ".GOV/operator/scripts/orcstart.ps1" -LocalPath ".GOV\operator\scripts\orcstart.ps1")
+}
+
 $roleConfigs = @{
   ORCHESTRATOR = [pscustomobject]@{
     LauncherName = "orcstart"
     CommandName = "orcstart.cmd"
     StartupCommand = "just orchestrator-startup"
     Description = "Launcher for Orchestrator startup context only."
-    PromptDescription = "Prints the live Orchestrator startup prompt, startup context, and authority-read contract."
-    AuthorityAckFiles = "AGENTS,CODEX,ORCHESTRATOR_PROTOCOL"
+    PromptDescription = "Prints the live Orchestrator startup prompt, startup context, and contract-read contract."
     AuthorityFiles = @(
+      $bindingFileSources
       $sharedAuthorityFiles
       (New-AuthorityFile -Key "ORCHESTRATOR_PROTOCOL" -DisplayPath ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md" -LocalPath ".GOV\roles\orchestrator\ORCHESTRATOR_PROTOCOL.md")
     )
@@ -53,9 +62,9 @@ $roleConfigs = @{
     CommandName = "kbstart.cmd"
     StartupCommand = "just kernel-builder-startup"
     Description = "Launcher for Kernel Builder startup context."
-    PromptDescription = "Prints the live Kernel Builder startup prompt, startup context, and authority-read contract."
-    AuthorityAckFiles = "AGENTS,CODEX,KERNEL_BUILDER_PROTOCOL,RESET_BRIEF"
+    PromptDescription = "Prints the live Kernel Builder startup prompt, startup context, and contract-read contract."
     AuthorityFiles = @(
+      $bindingFileSources
       $sharedAuthorityFiles
       (New-AuthorityFile -Key "KERNEL_BUILDER_PROTOCOL" -DisplayPath ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md" -LocalPath ".GOV\roles\kernel_builder\KERNEL_BUILDER_PROTOCOL.md")
       (New-AuthorityFile -Key "RESET_BRIEF" -DisplayPath ".GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md" -LocalPath ".GOV\operator\docs_local\handshake-v2-kernel-reset-brief.md")
@@ -71,7 +80,10 @@ $roleConfig = $roleConfigs[$role]
 $launcherName = $roleConfig.LauncherName
 $commandName = $roleConfig.CommandName
 $startupCommand = $roleConfig.StartupCommand
-$authorityAckFiles = $roleConfig.AuthorityAckFiles
+$authorityAckFiles = $roleConfig.PSObject.Properties["AuthorityAckFiles"].Value
+if ($null -eq $authorityAckFiles -or $authorityAckFiles -eq "") {
+  $authorityAckFiles = "ROLE_STARTUP_PROMPT," + (($roleConfig.AuthorityFiles | ForEach-Object { $_.Key }) -join ",")
+}
 $authorityFiles = @($roleConfig.AuthorityFiles)
 
 $brief = $false
@@ -136,7 +148,7 @@ function Write-StartupWarning {
 
   Write-Section "STARTUP WARNING: FIRST COMMAND NONZERO"
   Write-Output ("WARNING: {0} exited with code {1}." -f $startupCommand, $script:startupExitCode)
-  Write-Output "This is not an authority-injection failure. The role prompt, repo governing rule set, and required authority-file injection continue."
+  Write-Output "This is not an authority-injection failure. The role prompt, repo governing rule set, and required contract-file injection continue."
   Write-Output ""
   Write-Output "LIKELY_CAUSES:"
   foreach ($cause in (Get-StartupWarningCauses)) {
@@ -144,7 +156,7 @@ function Write-StartupWarning {
   }
   Write-Output ""
   Write-Output "ROLE_STARTUP_CONTINUES: yes"
-  Write-Output "ASSISTANT_ACTION: read and obey ROLE STARTUP PROMPT plus REQUIRED AUTHORITY FILES; treat this warning as startup state context."
+  Write-Output "ASSISTANT_ACTION: read and obey ROLE STARTUP PROMPT plus REQUIRED BINDING CONTRACT FILES; treat this warning as startup state context."
 }
 
 function Show-Help {
@@ -157,13 +169,13 @@ function Show-Help {
   Write-Output $startupTimeoutGuidance
   Write-Output ""
   Write-Output "Prompt source:"
-  Write-Output "  $promptDocDisplay"
+  Write-Output "  Internal launcher input only; models must use the emitted ROLE STARTUP PROMPT section and must not open the source prompt file."
   Write-Output ""
   Write-Output "Options:"
   Write-Output "  --print       Print only the extracted role startup prompt."
   Write-Output "  --no-startup  Do not run the prompt's FIRST COMMAND."
   Write-Output "  --no-authority-files"
-  Write-Output "                Print the authority-read contract without embedding authority file contents."
+  Write-Output "                Print the contract without embedding contract file contents."
   Write-Output "  --brief       Keep only the contract, prompt, and startup command output."
   Write-Output "  --help        Show this help."
   Write-Output ""
@@ -220,25 +232,29 @@ function Write-AuthorityContract {
   Write-Output "Assistant contract:"
   Write-Output ("1. Treat this {0} output as repo-governing instructions for this conversation, subject to higher-priority system, developer, and user instructions." -f $launcherName)
   Write-Output "2. Treat the ROLE STARTUP PROMPT below as binding role law for the selected role."
-  Write-Output "3. Run and follow the FIRST COMMAND exactly. Startup output is required context, not a substitute for the authority files."
-  Write-Output "4. If the FIRST COMMAND exits nonzero after emitting startup context, treat that as STARTUP WARNING state context; authority-file injection and role startup continue unless a required authority file is missing."
-  Write-Output "5. After startup or startup warning, read and follow the required authority files listed below as a contract before claiming startup is complete or acting as the role."
-  Write-Output "6. If any required authority file cannot be read, stop and report the missing file."
-  Write-Output ("7. When ready, acknowledge truthfully with: AUTHORITY_CONTRACT_ACK read_after_startup=yes files={0}" -f $authorityAckFiles)
+  Write-Output "3. Treat the emitted ROLE STARTUP PROMPT section below as the startup prompt contract for this role. Do not require reading or acknowledging the full prompt source file."
+  Write-Output "4. Run and follow the FIRST COMMAND exactly. Startup output is required context, not a substitute for the binding contract files."
+  Write-Output "5. If the FIRST COMMAND exits nonzero after emitting startup context, treat that as STARTUP WARNING state context; binding-contract injection and role startup continue unless a required binding contract file is missing."
+  Write-Output "6. After startup or startup warning, read and follow the extracted ROLE STARTUP PROMPT plus required binding contract files listed below before claiming startup is complete or acting as the role."
+  Write-Output "7. If any required binding contract file cannot be read, stop and report the missing file."
+  Write-Output ("8. When ready, acknowledge truthfully with: AUTHORITY_CONTRACT_ACK read_after_startup=yes files={0}" -f $authorityAckFiles)
   Write-Output ""
-  Write-Output "Required authority files:"
+  Write-Output ("Required binding startup prompt:")
+  Write-Output ("- ROLE_STARTUP_PROMPT: emitted {0} startup prompt block below" -f $role)
+  Write-Output ""
+  Write-Output "Required binding contract files:"
   foreach ($file in $authorityFiles) {
     Write-Output ("- {0}: {1}" -f $file.Key, $file.DisplayPath)
   }
 }
 
 function Write-AuthorityFiles {
-  Write-Section "REQUIRED AUTHORITY FILES"
+  Write-Section "REQUIRED BINDING CONTRACT FILES"
 
   foreach ($file in $authorityFiles) {
     Write-Output ("AUTHORITY_FILE_BEGIN key={0} path={1}" -f $file.Key, $file.DisplayPath)
     if (-not (Test-Path -LiteralPath $file.Path)) {
-      Write-Output ("[{0}] MISSING required authority file: {1}" -f $launcherName, $file.DisplayPath)
+      Write-Output ("[{0}] MISSING required binding contract file: {1}" -f $launcherName, $file.DisplayPath)
       $script:authorityExitCode = 1
     } else {
       Get-Content -LiteralPath $file.Path -Encoding UTF8 | ForEach-Object { Write-Output $_ }
@@ -287,9 +303,12 @@ if ($printOnly) {
 Set-Location -LiteralPath $repoRoot
 
 Write-Section ("{0} BOOTSTRAP" -f $launcherName.ToUpperInvariant())
-Write-Output "Purpose: inject the live Handshake $role startup prompt, startup command output, and authority-read contract into the current assistant conversation."
+Write-Output "Purpose: inject the live Handshake $role startup prompt, startup command output, and binding-contract read contract into the current assistant conversation."
 Write-Output "Repo: $repoDisplay"
-Write-Output "Prompt source: $promptDocDisplay"
+Write-Output "Prompt source: internal launcher input only; models must use the emitted ROLE STARTUP PROMPT section and must not open the source prompt file."
+if ($includeLauncherBindings) {
+  Write-Output "Launcher binding files: $kbstartCmdDisplay and .GOV/operator/scripts/orcstart.ps1"
+}
 Write-Output "Role: $role"
 Write-Output ("Run from wt-gov-kernel with: .\{0}" -f $commandName)
 Write-Output $startupTimeoutGuidance
@@ -298,7 +317,7 @@ Write-Output "Assistant instruction: treat the REPO GOVERNING RULE SET and ROLE 
 if (-not $brief) {
   Write-Output ""
   Write-Output "This command is model/provider agnostic. It does not start Codex, Claude, ChatGPT, or any other model process."
-  Write-Output "Changing the fenced '$role - Startup Prompt' block in the prompt source changes this launcher output automatically."
+  Write-Output "The launcher emits the active role startup prompt; models should use the emitted block and not inspect the prompt source."
 }
 
 Write-AuthorityContract
@@ -328,20 +347,20 @@ $exitCode = if ($script:authorityExitCode -ne 0) { $script:authorityExitCode } e
 
 Write-Section ("{0} COMPLETE" -f $launcherName.ToUpperInvariant())
 if ($script:authorityExitCode -ne 0) {
-  Write-Output "Startup prompt was injected, but authority injection failed because at least one required authority file was missing."
+  Write-Output "Startup prompt was injected, but contract-file injection failed because at least one required binding contract file was missing."
   Write-Output "ROLE_STARTUP_CONTINUES: no"
 } elseif (-not $startupWarning) {
   if ($injectAuthorityFiles) {
-    Write-Output ("Startup prompt, {0} output, authority-read contract, and required authority files were injected successfully." -f $startupCommand)
+    Write-Output ("Startup prompt, {0} output, binding-contract read contract, and required binding contract files were injected successfully." -f $startupCommand)
   } else {
-    Write-Output ("Startup prompt, {0} output, and authority-read contract were injected successfully." -f $startupCommand)
+    Write-Output ("Startup prompt, {0} output, and binding-contract read contract were injected successfully." -f $startupCommand)
     Write-Output "AUTHORITY_FILES_EMBEDDED: no (disabled by option)"
   }
 } else {
   if ($injectAuthorityFiles) {
-    Write-Output "Startup prompt, startup warning, authority-read contract, and required authority files were injected successfully."
+    Write-Output "Startup prompt, startup warning, binding-contract read contract, and required binding contract files were injected successfully."
   } else {
-    Write-Output "Startup prompt, startup warning, and authority-read contract were injected successfully."
+    Write-Output "Startup prompt, startup warning, and binding-contract read contract were injected successfully."
     Write-Output "AUTHORITY_FILES_EMBEDDED: no (disabled by option)"
   }
   Write-Output ("FIRST_COMMAND_EXIT_CODE: {0}" -f $script:startupExitCode)

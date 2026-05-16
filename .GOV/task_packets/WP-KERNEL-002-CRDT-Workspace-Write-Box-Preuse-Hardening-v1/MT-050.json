@@ -20,7 +20,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json"
   },
   "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "created_at_utc": "2026-05-14T04:54:49.177Z",
+  "created_at_utc": null,
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
@@ -37,34 +37,35 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-14T08:23:40.507Z",
-    "generator": "kernel-builder-activation-repair.mjs",
+    "generated_at_utc": "2026-05-14T21:13:40.001Z",
+    "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-050.md",
     "projection_hash": "b1f64f21f618807a",
-    "source_file": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-050.json",
-    "source_hash": "6fbc55cb9b08defd",
+    "source_file": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json",
+    "source_hash": "8aee306b8071b797",
     "status": "GENERATED_IN_SYNC"
   },
   "mt_id": "MT-050",
   "red_team": {
     "minimum_controls": [
-      "Exactly one primary proof target per MT unless the packet records why not.",
-      "MT identity must be stable and referenced by receipt correlation.",
-      "Generated projection drift must not wake Coder or Validator by itself."
+      "Use contract-first identity and preserve projection hash."
     ],
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
     "required": true,
     "risks": [
-      "Broad MT scope can hide multiple review targets.",
-      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
-      "Receipt routing may target an old MT if contract identity is omitted."
+      "Imported MT contract may under-capture prose-only review or proof instructions."
     ]
   },
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-050 Pre-Use Kernel Acceptance Run: prove Kernel001 + Kernel002 are usable before real kernel operation. Acceptance: a no-context model follows the manual to draft in CRDT, submit a proposal, trigger validation, receive a promotion/denial, view DCC projections, and inspect evidence without direct authority-file edits."
+      "MT-050 Pre-Use Kernel Acceptance Run: prove Kernel001 + Kernel002 are usable before real kernel operation. Acceptance: a no-context model follows the manual to draft in CRDT",
+      "submit a proposal",
+      "trigger validation",
+      "receive a promotion/denial",
+      "view DCC projections",
+      "and inspect evidence without direct authority-file edits."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/kernel/**",

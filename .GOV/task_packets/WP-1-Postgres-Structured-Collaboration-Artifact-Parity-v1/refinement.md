@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/packet.json source_hash=214d92d3e47f4726 projection_hash=db43f825dcdb4bbc generated_at_utc=2026-05-06T16:33:39.378Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/packet.json source_hash=8c6aab3f9bfdb8a2 projection_hash=db43f825dcdb4bbc generated_at_utc=2026-05-14T21:13:39.679Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 
 Requirements (HARD):

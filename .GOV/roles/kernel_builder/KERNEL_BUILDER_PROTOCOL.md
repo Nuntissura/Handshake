@@ -39,7 +39,7 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - Patch repo governance only when the blocker creates likely data loss, prevents required startup/visibility, blocks safe product edits, or prevents task-board/build-order/WP/microtask truth from staying restartable.
 - Keep refinement and spec enrichment minimal. Add only the detail needed for no-context implementation, validation, or product safety.
 - Continue updating the active Task Board, Build Order, work packets, and microtasks so the build remains restartable.
-- Within active packet permissions and repo law, `KERNEL_BUILDER` is expected to use sub-agents for read and write work wherever practical; speed is the aim, but not at the cost of accuracy, source authority, or verification.
+- Within active packet permissions and repo law, `KERNEL_BUILDER` is encouraged to use read/write sub-agents wherever practical; speed is the aim, but sub-agent outputs must be reviewed, checked, and corrected by `KERNEL_BUILDER` before being treated as authoritative. `KERNEL_BUILDER` remains responsible for all sub-agent actions and outcomes.
 - Keep those repo-governance surfaces machine-facing and role-facing by default. Human-readable prose is a projection or working aid, not a second source of truth.
 - Treat existing Markdown-heavy governance artifacts as migration safety rails only. Do not copy them into future kernel-build WPs, refinements, microtasks, task-state records, or handoffs as the authoring pattern.
 - New model-created kernel governance artifacts should start from typed JSON/JSONL/YAML-compatible contracts; Markdown is generated only when an explicit projection/report contract or current Operator request requires it.
@@ -70,9 +70,12 @@ If these disagree, higher-priority repo law wins. The reset brief controls build
 - create repo-local operator-surface documents, indexes, or viewers unless explicitly requested in the current task;
 - issue validator PASS/FAIL verdicts;
 - merge to `main`, approve final product correctness, or replace Classic Validator judgment;
+- merge to `main` without final `ARTIFACT_DIR_CLEANUP` evidence after WP validation passing and before closeout merge action;
 - treat self-tests as validation authority;
 - use product edits as an excuse to rewrite repo governance;
 - leave packet, MT, receipt, runtime, or task-board truth stale after implementation progress that changes the restart state;
+- create additional worktrees or switch to a different worktree while implementing product code or running remediation for an active WP; sub-agents must not create worktrees;
+- generate product-code artifacts in any worktree other than the WP-declared `wtc-*` worktree;
 - commit `.GOV/` files on feature branches or commit product code on `gov_kernel`;
 - delete worktrees, reset branches, clean untracked files, or run destructive cleanup without the same-turn Operator approval required by repo law.
 
@@ -99,7 +102,7 @@ Activation Mode must follow this lifecycle, stopping at the first unresolved blo
 5. Record refinement, operator signature, workflow lane, execution owner, role model profiles, and prepare/worktree gates through the existing deterministic helpers.
 6. Hydrate or repair the official packet contract first, then regenerate or repair Markdown projection as a safety-net view.
 7. Create or repair microtask contracts so every folded stub intent and packet acceptance row has an independently trackable implementation unit unless the packet records a concrete rationale for broader MT scope.
-8. Create or verify the packet branch, declared `wtc-*` worktree, `.GOV` junction, backup-branch readiness, and artifact-output hygiene without bypassing unresolved signature or spec-enrichment blockers.
+8. Create or verify the packet branch, declared `wtc-*` worktree, `.GOV` junction, backup-branch readiness, and artifact-output hygiene without bypassing unresolved signature or spec-enrichment blockers. Worktree creation is expected here and should be complete before product coding starts.
 9. Refresh Task Board, Build Order, traceability, stub status, packet communication runtime state, and receipts so packet state can be recovered without chat history.
 10. Emit exactly one current handoff block: `REFINEMENT_HANDOFF_SUMMARY` when operator review/signature is still needed, or `ACTIVATION_READINESS` when pre-launch artifacts are ready or mechanically blocked.
 
@@ -160,12 +163,13 @@ NEXT_ORCHESTRATOR_ACTION: <launch/repair/request-signature/request-enrichment>
 ## Worktree Discipline
 
 - Startup and governance-authoring happens from `wt-gov-kernel` on `gov_kernel`.
-- Product implementation happens in a declared product worktree and branch. Prefer a packet-declared `wtc-*` worktree on `feat/WP-*`.
+- Product implementation work happens only in the WP-declared `wtc-*` product worktree on the declared `feat/WP-*` branch. All product-code changes for a WP must stay in that worktree (no diverging parallel worktrees for the same WP).
+- WP worktree creation is allowed only in the WP creation/activation phase before any product coding or remediation starts. Creating or switching worktrees is prohibited after product work or remediation begins.
 - `../handshake_main` is the canonical integration checkout and a product-code reference. Do not edit it directly unless the Operator explicitly instructs direct-main work for the reset.
 - Never edit product code through `wt-gov-kernel`.
 - Never edit `.GOV/` through a WP worktree junction.
 - New files, folders, artifacts, and generated paths must not contain spaces.
-- Build/test/tool outputs must stay under `../Handshake_Artifacts/`.
+- Build/test/tool/tooling artifacts (including test logs, lint/build outputs, tooling caches, and Cargo build artifacts) must stay under the repository-relative artifacts root resolved as `../Handshake_Artifacts/` (or `${HANDSHAKE_ARTIFACTS_ROOT}` when explicitly configured) and must be cleaned after WP validation passes before merge-to-main.
 
 ## Kernel Builder Product Implementation Mode
 
@@ -192,7 +196,7 @@ For each implementation session:
 5. If no MT board exists, populate it from the packet's declared MT contracts before claiming work.
 6. Claim exactly one unblocked MT at a time unless the packet explicitly permits a grouped MT slice and records the grouping rationale.
 7. Before implementing the MT, emit a typed intent/claim receipt with WP ID, MT ID, session key, planned files, proof commands, and any known scope risk.
-8. Implement only the claimed MT scope in the product worktree, using sub-agents only when the packet records operator approval or the current operator instruction explicitly permits them.
+8. Implement only the claimed MT scope in the product worktree, using read/write sub-agents when packet rules or the operator instruction explicitly allows it, and review all delegated work before advancing state. `KERNEL_BUILDER` remains responsible for all sub-agent actions and outcomes.
 9. Run the MT's proof commands or record the exact blocker. Build/test/tool outputs must use `../Handshake_Artifacts/`.
 10. Update typed MT/packet/runtime/receipt state from the authoritative gov root when the MT status, evidence, blocker, or next actor changes; regenerate projections instead of hand-maintaining Markdown as authority.
 11. Commit product-code checkpoints on the assigned `feat/WP-*` branch only after the diff is scoped, tests or blockers are recorded, and `.GOV/` files are absent from the product commit.
@@ -243,6 +247,61 @@ PACKET_STATE_UPDATES: <receipts/runtime/MT/task-board changes>
 OPEN_BLOCKERS: <blockers or NONE>
 VALIDATION_BOUNDARY: <validator/operator action required or NONE>
 NEXT_ACTOR: <KERNEL_BUILDER|WP_VALIDATOR|INTEGRATION_VALIDATOR|OPERATOR>
+```
+
+## PASS-Ready Handoff Hardening
+
+Kernel Builder may not claim PASS-ready, validation-ready, or merge-ready from symbol, schema, descriptor, projection, or fixture-test evidence when the resolved Master Spec requires runtime behavior, durable storage, EventLedger authority, UI exposure, or replayable failure receipts.
+
+Before any final Kernel Builder handoff for medium-risk or high-risk product packets, Kernel Builder must attach or include a `SPEC_MUST_TO_PROOF_MATRIX` derived from the resolved current Master Spec modules and packet acceptance rows. Each normative MUST that the WP claims to satisfy must map to at least one proof class:
+
+- `runtime_behavior`: executable product behavior path exists and is tested.
+- `durable_storage`: migration, storage API, persistence/reload behavior, and compatibility path exist and are tested.
+- `eventledger_append`: the implementation appends or rejects through the actual EventLedger authority path, with idempotency and replay evidence.
+- `ui_projection`: the product UI or backend projection surface exposes the required state with stable identifiers or the packet explicitly marks UI scope out of scope.
+- `negative_guard`: tests prove forbidden paths fail closed.
+- `test_only`: proof is limited to a unit/fixture/contract test and cannot satisfy a runtime, storage, EventLedger, UI, or replay-receipt MUST by itself.
+
+Kernel Builder must treat `test_only` as advisory evidence. A `test_only` row may support another proof class, but it must not be the sole proof for a Master Spec MUST that names product behavior, persistence, promotion, authority, recovery, UI exposure, or durable evidence.
+
+Kernel Builder must run an anti-scaffold gate before final handoff. If the WP adds or changes files, types, or functions named like `*Contract*`, `*Descriptor*`, `*Mapping*`, `*Projection*`, `*Schema*`, `*Receipt*`, `*Evidence*`, or similar declarative surfaces, the handoff must identify the executable consumer for each surface. Required examples:
+
+- CRDT update or snapshot contract -> Postgres migration or storage method, append/list/replay API, restart/reload test, and no hidden SQLite authority path.
+- EventLedger mapping or receipt contract -> actual append/reject path, idempotency behavior, and duplicate/stale/rejected-path tests.
+- Write-box or action-catalog schema -> runtime request path that uses the catalog/write box before mutation or promotion.
+- Direct-edit denial evidence -> durable denial record with actor, target, attempted action, denial reason, recovery instruction, linked UI or API response, receipt refs, and EventLedger refs when required by spec.
+- DCC/backend projection -> product UI or API projection rows with stable identifiers, freshness state, and controls that cannot bypass authority.
+
+Kernel Builder must run current-main interaction checks before final handoff and report the exact outputs:
+
+- `git fetch origin main`
+- `git merge-base --is-ancestor origin/main HEAD`
+- `git merge-tree origin/main HEAD` or an equivalent clean merge-tree scan against the current integration target
+- product proof commands on the integrated candidate or replayed current-main candidate, not only on a stale branch-local tree
+
+Kernel Builder must include primitive retention proof for medium-risk and high-risk packets. The proof must show that every declared MT primitive, module, action id, storage surface, test file, and acceptance helper that was added or preserved by the packet still exists in the handoff candidate. If a primitive was intentionally removed, the packet must name the superseding primitive and the validation evidence that proves no behavior was lost.
+
+Kernel Builder must add required negative tests for kernel authority work. The exact tests depend on the WP, but final handoff must include tests that fail when required behavior is absent. For Kernel V1 work, expected negative tests include:
+
+- missing required write-box fields are rejected;
+- CRDT updates and snapshots persist and replay after reconnect when persistence is in scope;
+- promotion appends actual EventLedger events and rejects duplicate or stale idempotency/state-vector requests;
+- direct edits to authority records fail closed and produce the required denial evidence;
+- DCC or API controls cannot directly mutate EventLedger authority or silently treat CRDT state as authority;
+- projection freshness or rebuild failure leaves replayable evidence when the spec requires it.
+
+Before final handoff, Kernel Builder must run a self-validator pass and record the result in the handoff: "Find at least five ways Integration Validator could fail this against the resolved current Master Spec." Each candidate failure must include the source anchor, product path, evidence checked, and disposition: `FIXED`, `PROVEN_SAFE`, `OUT_OF_SCOPE_BY_PACKET`, or `OPEN_BLOCKER`. If fewer than five plausible failure modes exist, Kernel Builder must state why and still cover current-main interaction, primitive retention, scaffold/runtime mismatch, negative guards, and UI/storage/EventLedger surfaces as applicable.
+
+The final handoff must therefore include these additional fields when applicable:
+
+```text
+CURRENT_MAIN_INTERACTION_CHECKS: <commands and PASS/FAIL outputs>
+ARTIFACT_DIR_CLEANUP: <whether artifacts root has been cleaned per-WP after validation-passing; includes command + path evidence; resolve path via `${HANDSHAKE_ARTIFACTS_ROOT}` with fallback `../Handshake_Artifacts/`>
+PRIMITIVE_RETENTION_PROOF: <paths/actions/tests/primitives preserved or superseded>
+SPEC_MUST_TO_PROOF_MATRIX: <anchor -> MUST -> proof_class -> evidence>
+ANTI_SCAFFOLD_GATE: <declarative surfaces -> executable consumers>
+NEGATIVE_GUARD_TESTS: <tests proving forbidden or missing behavior fails closed>
+SELF_VALIDATOR_ATTACKS: <five plausible Integration Validator failures and dispositions>
 ```
 
 ## Kernel Builder Validation Handoff Topology

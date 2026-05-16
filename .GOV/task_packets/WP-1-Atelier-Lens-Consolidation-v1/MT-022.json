@@ -1,0 +1,62 @@
+{
+  "acceptance": [
+    "Source-backed output.",
+    "No silent loss of Atelier/Lens or CKC intent.",
+    "No CKC-only runtime authority copied into Handshake.",
+    "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths. PostgreSQL/EventLedger/ArtifactStore are the only accepted storage and evidence direction."
+  ],
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "category": "Requirement extraction",
+  "clause": "Extract automation/manual/debug requirements",
+  "code_surfaces": [
+    ".GOV/reference/ckc_atelier_lens_consolidation/**",
+    ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/**"
+  ],
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-16T03:39:00.000Z",
+  "depends_on": [
+    "MT-021"
+  ],
+  "execution_evidence": {
+    "completed_at_utc": null,
+    "completion_note": null,
+    "evidence_artifacts": []
+  },
+  "expected_tests": [
+    "node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs",
+    "node .GOV/roles_shared/checks/packet-contract-projection-check.mjs"
+  ],
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-16T03:39:00.000Z",
+    "generator": ".GOV/roles_shared/scripts/wp/atelier-lens-consolidation-packet-generator.mjs",
+    "path": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/MT-022.md",
+    "projection_hash": "dc54292a38fc91ca",
+    "source_file": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/MT-022.json",
+    "source_hash": "28017300740e434d",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "mt_id": "MT-022",
+  "no_sqlite_rule": "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths. PostgreSQL/EventLedger/ArtifactStore are the only accepted storage and evidence direction.",
+  "risk_if_missed": "The official consolidation packet could become incomplete and force later rework.",
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "slug": "extract-automation-manual-debug-requirements",
+  "status": "PENDING",
+  "title": "Extract automation/manual/debug requirements",
+  "updated_at_utc": "2026-05-16T03:39:00.000Z",
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1"
+}

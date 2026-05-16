@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AI-Ready-Data-Architecture-v1/packet.json source_hash=ff7a4ea5c9448bc7 projection_hash=c5d5436d66c9ef3b generated_at_utc=2026-05-06T16:33:38.989Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AI-Ready-Data-Architecture-v1/packet.json source_hash=18053977a201d963 projection_hash=c5d5436d66c9ef3b generated_at_utc=2026-05-14T21:13:39.380Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-AI-Ready-Data-Architecture-v1
 
 ## METADATA

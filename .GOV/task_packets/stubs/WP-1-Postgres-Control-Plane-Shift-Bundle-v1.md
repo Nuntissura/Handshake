@@ -27,7 +27,7 @@ Rules:
 - BUILD_ORDER_TECH_BLOCKER: YES
 - BUILD_ORDER_VALUE_TIER: HIGH
 - BUILD_ORDER_RISK_TIER: HIGH
-- BUILD_ORDER_DEPENDS_ON: WP-1-Postgres-Primary-Control-Plane-Foundation, WP-1-Storage-Abstraction-Layer, WP-1-Storage-Trait-Purity, WP-1-Dual-Backend-Tests, WP-1-Migration-Framework, WP-1-ModelSession-Core-Scheduler, WP-1-Workflow-Engine, WP-1-Front-End-Memory-System, WP-1-Dev-Command-Center-Control-Plane-Backend
+- BUILD_ORDER_DEPENDS_ON: WP-1-Postgres-Primary-Control-Plane-Foundation, WP-1-Storage-Abstraction-Layer, WP-1-Storage-Trait-Purity, WP-1-Migration-Framework, WP-1-ModelSession-Core-Scheduler, WP-1-Workflow-Engine, WP-1-Front-End-Memory-System, WP-1-Dev-Command-Center-Control-Plane-Backend
 - BUILD_ORDER_BLOCKS: WP-1-FEMS-Bitemporal-Indexing, WP-1-FEMS-Working-Memory-Checkpoint-Schema, WP-1-FEMS-Injection-Scoring-Graceful-Degradation, WP-1-FEMS-Outcome-Feedback-Loop, WP-1-FEMS-Pinned-Core-Memory, WP-1-Dev-Command-Center-MVP, WP-1-Session-Spawn-Tree-DCC-Visualization, WP-1-Workflow-Transition-Automation-Registry, WP-1-Workflow-Projection-Correlation
 - SPEC_TARGET: .GOV/spec/SPEC_CURRENT.md
 - ROLE_MODEL_PROFILE_POLICY: ROLE_MODEL_PROFILE_CATALOG_V1
@@ -36,7 +36,7 @@ Rules:
 - CODER_MODEL_PROFILE: OPENAI_GPT_5_4_XHIGH
 - WP_VALIDATOR_MODEL_PROFILE: CLAUDE_CODE_OPUS_4_7_THINKING_XHIGH
 - INTEGRATION_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
-- ROADMAP_POINTER: SPEC_CURRENT PostgreSQL-primary storage, ModelSession, FEMS, workflow durable execution, DCC runtime truth, and SQLite cache/offline boundary anchors
+- ROADMAP_POINTER: SPEC_CURRENT PostgreSQL-primary storage, ModelSession, FEMS, workflow durable execution, DCC runtime truth, and no-SQLite boundary anchors
 - FOLDS_STUBS:
   - WP-1-Postgres-Dev-Test-Container-Matrix-v1
   - WP-1-Postgres-Control-Plane-Leases-Backpressure-v1
@@ -52,7 +52,7 @@ Rules:
   - WP-1-Media-Downloader-Loom-Bridge-v1
   - WP-1-Loom-Preview-VideoPosterFrames-v1
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
-  - Storage portability, dual-backend, PostgreSQL-primary, and SQLite cache/offline anchors around Master Spec storage sections.
+  - PostgreSQL-primary and no-SQLite reset anchors around Master Spec storage sections. Older storage portability, dual-backend, and SQLite cache/offline anchors are superseded.
   - ModelSession scheduler, memory policy, provider profile, and parallel-session runtime anchors.
   - FEMS memory integration anchors, including shared memory records, replay, safeguards, and pack provenance.
   - Workflow durable execution anchors for workflow instance state, checkpoints, retries, and resumption.
@@ -69,8 +69,8 @@ Rules:
 - MT-003 authority/freshness labels need downstream enforcement consumption.
 
 ## BUNDLE_SCOPE_POLICY
-- This bundle intentionally includes PostgreSQL-primary control-plane follow-ons plus the SQLite cache/offline boundary because that boundary prevents split-brain fallback during the same pivot.
-- This bundle intentionally excludes Loom. Loom still uses SQLite today and should use PostgreSQL in the future, but it remains a separate stub/WP family because it has distinct product surface, media/archive semantics, and historical smoketest lineage.
+- This bundle intentionally includes PostgreSQL-primary control-plane follow-ons plus the no-SQLite boundary because that boundary prevents split-brain fallback during the same pivot.
+- This bundle intentionally excludes Loom. Any legacy Loom SQLite surface is migration/removal debt and must move to PostgreSQL through its own stub/WP family because it has distinct product surface, media/archive semantics, and historical smoketest lineage.
 - Activation must preserve microtask-sized implementation slices. A larger WP is allowed only if every coder assignment stays bounded by a packet MT and each MT can be reviewed independently.
 - There is no upper MT-count bias for this bundle. Activation Manager must prefer 20+ small deterministic MTs over fewer broad MTs when that improves trackability, restart recovery, validator targeting, or suitability for smaller local/cloud coding models.
 - The MT list below is a minimum decomposition guide, not a cap. During activation, split any MT again if its code surfaces, test proof, or failure modes would force a small coder model to reason across unrelated authority boundaries.
@@ -109,8 +109,8 @@ Rules:
 - Fold rationale: DCC should project the same canonical state introduced by the earlier MTs instead of inferring it from stale mirrors.
 
 ### WP-1-SQLite-Cache-Offline-Boundaries-v1
-- Intent carried forward: explicit SQLite cache, index, offline, and rebuildable-projection boundaries so SQLite does not become accidental runtime authority.
-- Fold rationale: PostgreSQL-primary implementation must fail closed when authority is required and must label any SQLite cache/offline projection from the start.
+- Intent carried forward: explicit no-SQLite cache, index, offline, fallback, fixture, compatibility, harness, example, temporary-adapter, and rebuildable-projection boundaries so SQLite does not become accidental runtime authority.
+- Fold rationale: PostgreSQL-primary implementation must fail closed when authority is required and must reject any SQLite cache/offline projection from the start.
 
 ## MICRO_TASK_PLAN (DRAFT MINIMUM DECOMPOSITION)
 
@@ -134,9 +134,9 @@ Activation Manager must convert this bundle into concrete official packet microt
 - Focus: PostgreSQL-required mode declaration, storage authority errors, and fail-closed runtime behavior when PostgreSQL authority is unavailable.
 - Acceptance: authoritative control-plane writes cannot silently fall back to SQLite under PostgreSQL-required mode.
 
-### MT-005 SQLite Cache and Offline Boundary Labels
-- Focus: SQLite cache/offline/index labels, source identifiers, freshness timestamps, and rebuildability metadata.
-- Acceptance: any SQLite-derived control-plane read surface advertises source/freshness and cannot masquerade as PostgreSQL authority.
+### MT-005 No-SQLite Cache and Offline Boundary Labels
+- Focus: no-SQLite cache/offline/index labels, source identifiers, freshness timestamps, and rebuildability metadata for non-SQLite derived projections.
+- Acceptance: any non-authoritative control-plane read surface advertises source/freshness and no SQLite-derived surface can masquerade as PostgreSQL authority.
 
 ### MT-006 SQLite Write Guard for Control-Plane Authority Paths
 - Focus: explicit rejection of SQLite writes for runtime/control-plane authority surfaces that now require PostgreSQL.
@@ -231,7 +231,7 @@ Activation Manager must convert this bundle into concrete official packet microt
 - The bundle activates into an official WP with the minimum MT decomposition above or an equivalent finer-grained split that keeps coder assignments bounded.
 - Activation Manager may create 20+ MTs and should do so whenever a smaller split improves deterministic execution, review targeting, restart recovery, or local/small-cloud model suitability.
 - PostgreSQL-required runtime/control-plane operations fail closed when PostgreSQL authority is unavailable.
-- SQLite is allowed only as cache, offline, embedded demo, search index, or rebuildable local projection where explicitly labeled.
+- SQLite is not allowed as cache, offline, embedded demo, search index, rebuildable local projection, fixture, fallback, compatibility path, example, harness, temporary adapter, or test target.
 - Queue/lease/backpressure primitives are shared by ModelSession, FEMS, and workflow jobs instead of independently reimplemented.
 - DCC projections read canonical PostgreSQL state or clearly labeled derived projection state.
 - Foundation carry-over risks are either resolved or carried forward as explicit non-blocking/product blockers by Integration Validator.

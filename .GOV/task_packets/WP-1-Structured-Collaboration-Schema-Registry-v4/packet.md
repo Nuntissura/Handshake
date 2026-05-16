@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/packet.json source_hash=1e63f0057c587823 projection_hash=54f0503cafbba75e generated_at_utc=2026-05-06T16:33:39.589Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/packet.json source_hash=e6b1990d17b93257 projection_hash=54f0503cafbba75e generated_at_utc=2026-05-14T21:13:39.860Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

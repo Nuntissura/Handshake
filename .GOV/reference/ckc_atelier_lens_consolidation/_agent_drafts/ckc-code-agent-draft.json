@@ -1,0 +1,401 @@
+{
+  "architecture_files": [
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\package.json",
+      "does": "Defines CKC as private Electron/Vite/React app with Node tests, package/release scripts, Electron Builder output, and dependencies including pg, sqlite3, MediaPipe, Three, React Three Fiber."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\README.md",
+      "does": "Documents CKC_main product code versus CKC_GOV governance/artifacts split, dev/build/package commands, and backup workflow."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\main.js",
+      "does": "Electron main process for config, custom ckc protocol, IPC, automation jobs/capture, backup/restore jobs, ComfyUI intake server, and reference window."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\preload.js",
+      "does": "Exposes window.ckc API for characters, media, templates, sheets, collections, intake, PoseKit, identity, ComfyUI workflow, docs, search, exports, diagnostics, backup, and automation."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js",
+      "does": "Database adapter and schema. Contains PostgreSQL provider plus SQLite fallback/compat paths and all durable table definitions."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js",
+      "does": "Main backend service layer for library initialization, characters, sheet parsing/versioning, images, search, collections, contact sheets, intake, exports, backup support, PoseKit, identity, ComfyUI, audit and repair."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\App.tsx",
+      "does": "React app shell/router for library, character, export hub, intake, pose, workflow, settings/managers, global search, command palette, and automation renderer state."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts",
+      "does": "Frontend type contract for CKC entities, IPC methods, job statuses, and UI-facing data models."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationManual.js",
+      "does": "In-app model/operator manual with feature groups, wired commands, roadmap/preload-only distinction, and notes."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationCommandMap.js",
+      "does": "Canonical pure-data registry of automation commands by control, renderer, and backend groups."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\posekit\\core.mjs",
+      "does": "PoseKit core math and rendering: body-18, hand-21, face-70 mapping, yaw/head-pose quaternion math, calibration, OpenPose JSON/canvas output."
+    },
+    {
+      "path": "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\comfyui_node\\castkit_codex_bridge.py",
+      "does": "ComfyUI custom output node that saves images, packages workflow/identity metadata, and posts to CKC intake."
+    }
+  ],
+  "capability_clusters": [
+    {
+      "cluster": "media_viewer_dam",
+      "capabilities": ["carousel", "thumbnail grid", "fullscreen slideshow", "ratings", "favorites", "notes", "tags", "source provenance", "pins", "palettes", "color filter", "dHash similarity", "duplicate review", "AI tag suggestions", "archive/delete impact"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\MediaPane.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\LibraryView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\dhash.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\palette.js"]
+    },
+    {
+      "cluster": "character_sheets_templates",
+      "capabilities": ["canonical template parsing", "typed fields", "block and block-list editors", "validation", "protected fields", "selective ingest", "diff/revert", "template-derived characters", "clone with or without images"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\templates\\CHARACTER_SHEET__v2.00.txt", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\templates\\character_templates", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\templateParser.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\sheet.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\validation.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetEditor.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetIngestMergeTools.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetVersionTools.tsx"]
+    },
+    {
+      "cluster": "intake_inbox_ingestion",
+      "capabilities": ["folder scan", "atomic and loose intake batches", "linked intake", "selection", "accepted pending rejected classification", "character/sheet/collection assignment", "source URL import", "clipboard import", "web capture URL tracking", "external image-sourcing task ingestion", "rejections and audit"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\IntakeSorterView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\intakeServer.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\imageSourcingAdapter.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\imageSourcingHandlers\\v00_19.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"]
+    },
+    {
+      "cluster": "collections_contact_sheets",
+      "capabilities": ["cross-character collections", "collection metadata", "collection image list", "apply tags to collection", "contact sheet generation", "contact sheet registry", "intake contact sheets"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\LibraryView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\IntakeSorterView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\SettingsView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"]
+    },
+    {
+      "cluster": "sidecars_versioning_recovery",
+      "capabilities": ["sheet versions", "diff/revert", "entity revisions", "product events", "audit log", "orphan manifests", "adoption", "missing image repair by hash", "diagnostics", "backup manifest", "SHA256SUMS", "version-gated restore"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\backup.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\resetModes.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetVersionTools.tsx"]
+    },
+    {
+      "cluster": "posekit_openpose_identity",
+      "capabilities": ["MediaPipe body/face/hand detection", "deterministic fallback rig", "body-18", "face-70", "hand-21", "head pose YXZ quaternion", "calibration", "multi-rig workspaces", "OpenPose PNG sidecars", "identity profile crop bundles", "identity replay injection"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\posekit\\core.mjs", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\posekit\\poseDetectionClient.ts", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\posekit\\poseDetection.worker.ts", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\public\\posekit_models", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\PoseView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\Pose3DViewport.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"]
+    },
+    {
+      "cluster": "comfyui_pipeline_receipts",
+      "capabilities": ["custom ComfyUI output node", "localhost intake", "workflow JSON receipt", "prompt extraction", "seed/model/sampler metadata", "dedupe", "workflow replay", "history polling", "output image registration"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\comfyuiClient.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\intakeServer.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\comfyui_node\\castkit_codex_bridge.py", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\WorkflowView.tsx"]
+    },
+    {
+      "cluster": "automation_manual_debug",
+      "capabilities": ["model manual", "command registry", "sessions", "leases", "heartbeats", "command log", "renderer state", "DOM input", "synthetic input", "capture", "background stealth", "diagnostics"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationManual.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationCommandMap.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationControl.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationStealth.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\App.tsx"]
+    },
+    {
+      "cluster": "search_tags_similarity",
+      "capabilities": ["global search across sheets docs moodboards images", "saved searches", "scope flags", "include/exclude tags", "any/all tags", "tag stats", "merge/rename tags", "tag templates", "tag rules", "dHash similarity"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\GlobalSearchModal.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\LibraryView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\MediaPane.tsx"]
+    },
+    {
+      "cluster": "exports_backups_share_packs",
+      "capabilities": ["empty template export", "field pack export", "image set export", "share pack", "web portfolio", "moodboard PNG/PDF", "backup snapshot", "restore job"],
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\ExportHubView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\BatchExportDialog.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\backup.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\templates\\web-portfolio"]
+    }
+  ],
+  "data_models": [
+    {
+      "entity": "Character",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts"],
+      "fields_summary": "Internal character_id, optional public_id, display_name, template id/version/hash, search blobs, icon image/focus, is_system, deleted_at, timestamps."
+    },
+    {
+      "entity": "Template_FieldValue_TemplateSpinOff_ProtectedField",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\templateParser.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts"],
+      "fields_summary": "Canonical template AST/raw text, per-character field values, spinoff field lists/formats, protected fields scoped globally or by character."
+    },
+    {
+      "entity": "ImageAsset",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"],
+      "fields_summary": "Image id, character id, relative path, file hash, dimensions, favorite/rating/notes/tags/suggested tags, storage/source fields, palette, dHash, review status, media role, lineage/intake/sheet refs, deletion/revision metadata."
+    },
+    {
+      "entity": "Rig_RigWorkspace_OpenposeSidecar",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\posekit\\core.mjs", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts"],
+      "fields_summary": "Rig id, character id, portrait image id, pose JSON, calibration JSON, status/timestamps; session workspace list; OpenPose sidecars represented as media-role image assets."
+    },
+    {
+      "entity": "IdentityProfile",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts"],
+      "fields_summary": "Profile id, character id, source image/rig, cropped face image, crop/manifest relative paths, landmarks, measurements, pose metadata, bridge payload, soft delete and timestamps."
+    },
+    {
+      "entity": "Prompt_StoryBeat_WorkflowHistory",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\WorkflowView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts"],
+      "fields_summary": "Prompt kind/title/text/tags; story beat title/body/prompt ids/order; workflow history from registered image workflow metadata and prompts."
+    },
+    {
+      "entity": "Docs_LinkIndex_StoryBoard",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\CharacterView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts"],
+      "fields_summary": "Note, story, and moodboard docs; structured moodboard JSON; story board JSON; backlink index for bracket links."
+    },
+    {
+      "entity": "SavedSearch_Tag_TagTemplate_TagRule",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\LibraryView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts"],
+      "fields_summary": "Saved query text, scope flags, tag filters/excludes/mode, gallery filters; tags, character tags, tag templates, derived tag rules, tag stats."
+    },
+    {
+      "entity": "Collection_CollectionItem_ContactSheet",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\LibraryView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\vite-env.d.ts"],
+      "fields_summary": "Named image collections with ordered items; generated contact sheets with source type/id, image ids, layout, relative path, tags, optional character/sheet version refs."
+    },
+    {
+      "entity": "IntakeBatch_IntakeBatchItem_IngestionBatch_IngestionRejection",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\IntakeSorterView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\imageSourcingAdapter.js"],
+      "fields_summary": "UI intake source dir/status/kind/defaults and items; external ingestion batch audit with dataset/task/spec/lane and rejection rows."
+    },
+    {
+      "entity": "AuditLog_EntityRevision_ProductEvent_CkcMigration",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"],
+      "fields_summary": "Event audit, revision counters, product event log, metadata and migration cursor tables."
+    }
+  ],
+  "workflows": [
+    {
+      "name": "library_to_character_navigation",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\App.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\LibraryView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\CharacterView.tsx"],
+      "summary": "Main app routes between library, character, exports, intake, pose, workflow, settings/managers; command palette/global search can open characters, docs, and tag-filtered library views."
+    },
+    {
+      "name": "character_sheet_ingest_versioning",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetIngestMergeTools.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetVersionTools.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"],
+      "summary": "Preview pasted/file sheet text, select mapped fields, apply with validation and protected field checks, create versions, diff versions, preview/apply selective revert."
+    },
+    {
+      "name": "media_metadata_review",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\MediaPane.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"],
+      "summary": "Import/view/select images, edit metadata, apply ratings/favorites/tags/notes, view backlinks and OpenPose sidecars, scan palettes, find similar images, archive/delete with impact preview."
+    },
+    {
+      "name": "intake_sorter",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\IntakeSorterView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"],
+      "summary": "Pick folder, create batch, select/compare items, assign to character/sheet/collection, classify accepted/pending/rejected, create contact sheet."
+    },
+    {
+      "name": "collections_contact_sheets",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\LibraryView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\SettingsView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"],
+      "summary": "Create/update collections, add/remove images, apply tags to collection images, list images, create/list contact sheets."
+    },
+    {
+      "name": "posekit_rig_openpose",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\PoseView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\posekit\\core.mjs", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"],
+      "summary": "Open pose workbench for blank/single/collection context, detect pose, edit calibration/markers/reframe/head pose, create/update rigs, manage rig workspace tabs, export OpenPose PNG."
+    },
+    {
+      "name": "identity_profile_and_workflow_replay",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\PoseView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\WorkflowView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\comfyui_node\\castkit_codex_bridge.py"],
+      "summary": "Create identity profiles from image/rig, store face bundle and bridge payload, select profile in workflow view, replay ComfyUI workflow with injected identity inputs."
+    },
+    {
+      "name": "comfyui_output_registration",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\intakeServer.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\comfyuiClient.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\comfyui_node\\castkit_codex_bridge.py", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"],
+      "summary": "Bridge or replay sends workflow/output payload; CKC registers output image, stores workflow/metadata/prompts, dedupes by hash, can poll history and fetch output images."
+    },
+    {
+      "name": "exports_backup_restore",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\ExportHubView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\backup.js"],
+      "summary": "Choose export/backup locations, export templates/field packs/image sets/share packs/web portfolios/moodboards, run backup and restore jobs with status polling."
+    },
+    {
+      "name": "automation_parallel_model_operation",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationControl.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationManual.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationCommandMap.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\App.tsx"],
+      "summary": "Model creates session, heartbeats state, acquires/release leases, navigates with registered commands, captures state/screens, logs events, and avoids attention surfaces in background mode."
+    }
+  ],
+  "tests_fixtures": [
+    {
+      "area": "automation_manual_debug",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\automation_manual_consistency.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\automation_input_injection_invariants.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\automation_background_stealth_invariants.test.js"],
+      "proves": "Manual commands resolve to wired commands, input avoids OS-level injection libraries, background mode does not steal attention."
+    },
+    {
+      "area": "database_compatibility",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_postgres_provider.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\migration_invariants.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\legacy_fixture_compatibility.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\fixtures\\legacy"],
+      "proves": "Postgres translator and migrations exist, while SQLite legacy fixture compatibility is explicitly maintained."
+    },
+    {
+      "area": "sheets_templates",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_sheet.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_sheet_ingest_versions.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_character_templates.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\template_parser_unions.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\validation_field_types.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\template_field_id_immutability.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\fixtures\\template_v2_00_field_ids.json"],
+      "proves": "Sheet parsing, validation, immutable field IDs, ingest/version diff/revert, and character templates."
+    },
+    {
+      "area": "media_dam",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_duplicates.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_similarity_search.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_image_annotations.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_ratings_filters.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_image_meta_batch.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_ai_tagging_suggestions.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_repair_missing_images.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\adopt_orphan_images.test.js"],
+      "proves": "Duplicates, similarity, pins, ratings/filters, batch metadata, AI tag suggestions, repair and adoption."
+    },
+    {
+      "area": "intake_ingestion",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\intake_server.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_ingestion_batches.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\ingestion_idempotency.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\ingestion_handler_routing.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\spec_canon_consistency.test.js"],
+      "proves": "Local intake security/dispatch, ingestion batch audit, idempotent import, handler routing, spec/adapter consistency."
+    },
+    {
+      "area": "collections_contact_sheets",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_collections.test.js"],
+      "proves": "Collections persist and can store images from multiple characters."
+    },
+    {
+      "area": "posekit_identity_comfyui",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\posekit_core.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\hand_openpose_export.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_posekit_crud.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_posekit_schema.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_posekit_workflow.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\identity_profile_crud.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\identity_profile_replay_injection.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\comfyui_node_contract.test.js"],
+      "proves": "Pose serialization/rendering, hands/OpenPose, rig CRUD/schema, workflow lineage/replay, identity profile bundles and injection, ComfyUI node mapping."
+    },
+    {
+      "area": "search_docs_exports_backup",
+      "paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_global_search.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_saved_searches.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_docs.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_links_backlinks.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_story_board.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_exports.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_export_hub.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_backup_restore.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backup_version_traceability.test.js"],
+      "proves": "Global search/saved filters, docs/backlinks/story board, exports, backup/restore manifest and version traceability."
+    }
+  ],
+  "evolved_features": [
+    {
+      "feature": "model_operator_automation_manual",
+      "why_preserve": "Turns product operation into a testable model-facing contract rather than hidden UI lore.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationManual.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationCommandMap.js"]
+    },
+    {
+      "feature": "parallel_agent_sessions_leases_logs",
+      "why_preserve": "Supports safe concurrent model operation and auditable actions.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationControl.js"]
+    },
+    {
+      "feature": "background_stealth_contract",
+      "why_preserve": "Prevents automation from stealing focus or interrupting operator work.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationStealth.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\automation_background_stealth_invariants.test.js"]
+    },
+    {
+      "feature": "saved_searches_scope_tags_gallery_filters",
+      "why_preserve": "Encodes repeated curation queries and reduces operator rework.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\LibraryView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_saved_searches.test.js"]
+    },
+    {
+      "feature": "selective_sheet_ingest_revert_protected_fields",
+      "why_preserve": "Allows partial LLM/operator sheet updates without overwriting locked identity fields.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetIngestMergeTools.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetVersionTools.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_sheet_ingest_versions.test.js"]
+    },
+    {
+      "feature": "media_annotations_palettes_similarity_duplicates",
+      "why_preserve": "Adds DAM-grade review, recovery, and similarity tooling beyond plain asset storage.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\MediaPane.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_image_annotations.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_similarity_search.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_duplicates.test.js"]
+    },
+    {
+      "feature": "intake_batches_with_contact_sheets",
+      "why_preserve": "Keeps review/classification work durable and resumable.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\IntakeSorterView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js"]
+    },
+    {
+      "feature": "openpose_sidecars_as_assets",
+      "why_preserve": "Treats control images as versioned first-class media lineage, not loose files.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\posekit\\core.mjs", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\hand_openpose_export.test.js"]
+    },
+    {
+      "feature": "identity_profile_replay_payloads",
+      "why_preserve": "Carries face/identity references into generation workflows with traceable metadata.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\identity_profile_crud.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\identity_profile_replay_injection.test.js"]
+    },
+    {
+      "feature": "workflow_receipts_replay_history",
+      "why_preserve": "Preserves generation reproducibility and downstream auditability.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\comfyuiClient.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_posekit_workflow.test.js"]
+    },
+    {
+      "feature": "orphan_adoption_repair_backup_traceability",
+      "why_preserve": "Reduces data loss risk during resets, moves, and missing-file incidents.",
+      "source_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\backup.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\resetModes.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\adopt_orphan_images.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backup_version_traceability.test.js"]
+    }
+  ],
+  "conflicts": [
+    {
+      "conflict": "SQLite exists throughout CKC but is forbidden for Handshake.",
+      "evidence_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\package.json", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\fixtures\\legacy"],
+      "rejection": "Do not import CKC SQLite runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temp harnesses, imports, exports, or product paths into Handshake."
+    },
+    {
+      "conflict": "Electron/main/preload/IPC are CKC runtime implementation details.",
+      "evidence_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\main.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\preload.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\App.tsx"],
+      "rejection": "Use as capability evidence only; do not treat Electron or localhost UI as Handshake runtime authority."
+    },
+    {
+      "conflict": "CKC localhost ComfyUI intake is local desktop integration.",
+      "evidence_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\intakeServer.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\comfyui_node\\castkit_codex_bridge.py"],
+      "rejection": "Preserve receipt/schema concepts, but do not make localhost intake authoritative for Handshake."
+    },
+    {
+      "conflict": "CKC file library root is a central persistence mechanism.",
+      "evidence_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\backup.js"],
+      "rejection": "Handshake should make PostgreSQL canonical; external media/object paths should be governed by DB rows."
+    },
+    {
+      "conflict": "CKC SQL compatibility translator converts SQLite idioms to Postgres.",
+      "evidence_paths": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_postgres_provider.test.js"],
+      "rejection": "Handshake should use native PostgreSQL SQL/migrations and no compatibility adapter."
+    }
+  ],
+  "overlap_register_rows": [
+    {
+      "id": "CKC-EVOLVED-001",
+      "feature": "Model-facing automation manual and command registry",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationManual.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\automationCommandMap.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\automation_manual_consistency.test.js"],
+      "handshake_action": "Preserve as Handshake agent manual/API command catalog with tests against implemented routes/services."
+    },
+    {
+      "id": "CKC-EVOLVED-002",
+      "feature": "Media DAM metadata and viewer affordances",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\MediaPane.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_similarity_search.test.js"],
+      "handshake_action": "Preserve ratings, favorites, notes, tags, source provenance, pins, palettes, similarity, duplicate review."
+    },
+    {
+      "id": "CKC-EVOLVED-003",
+      "feature": "Selective sheet ingest/version/revert",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetIngestMergeTools.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\SheetVersionTools.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_sheet_ingest_versions.test.js"],
+      "handshake_action": "Preserve as PostgreSQL sheet revision workflow with protected fields and selective apply/revert."
+    },
+    {
+      "id": "CKC-EVOLVED-004",
+      "feature": "Intake batches and classification",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\IntakeSorterView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_ingestion_batches.test.js"],
+      "handshake_action": "Preserve batch intake model, selection/status, assignment, contact sheet output; reject localhost-only authority."
+    },
+    {
+      "id": "CKC-EVOLVED-005",
+      "feature": "Collections/contact sheets",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\LibraryView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_collections.test.js"],
+      "handshake_action": "Preserve cross-character collections, bulk tag apply, contact sheets."
+    },
+    {
+      "id": "CKC-EVOLVED-006",
+      "feature": "PoseKit/OpenPose sidecars",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\posekit\\core.mjs", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\views\\PoseView.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\hand_openpose_export.test.js"],
+      "handshake_action": "Preserve rig/calibration/head-pose/openpose/hand/face concepts; persist in PostgreSQL-native schema."
+    },
+    {
+      "id": "CKC-EVOLVED-007",
+      "feature": "Identity profile replay metadata",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\db.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\identity_profile_crud.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\identity_profile_replay_injection.test.js"],
+      "handshake_action": "Preserve identity profile entity and workflow injection receipts; reject CKC local bridge as runtime authority."
+    },
+    {
+      "id": "CKC-EVOLVED-008",
+      "feature": "ComfyUI workflow receipts/replay",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\comfyuiClient.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\library.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_posekit_workflow.test.js"],
+      "handshake_action": "Preserve workflow JSON, prompts, seed/model/sampler metadata, output lineage, replay receipt model."
+    },
+    {
+      "id": "CKC-EVOLVED-009",
+      "feature": "Recovery/diagnostics/backup",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\backup.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\app\\backend\\resetModes.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_backup_restore.test.js"],
+      "handshake_action": "Preserve diagnostics, repair by hash, versioned backup manifest; implement PostgreSQL-native dump/restore and object-store checks."
+    },
+    {
+      "id": "CKC-EVOLVED-010",
+      "feature": "Search/tag intelligence",
+      "ckc_evidence": ["D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\src\\ui\\components\\GlobalSearchModal.tsx", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_global_search.test.js", "D:\\Projects\\LLM projects\\CastKit-Codex\\CKC_main\\test\\backend_saved_searches.test.js"],
+      "handshake_action": "Preserve multi-surface search, saved filters, tag stats/merge/rename/templates/rules; use PostgreSQL indexes/search."
+    }
+  ]
+}

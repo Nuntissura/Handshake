@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Loom-Storage-Portability-v4/packet.json source_hash=7383336de44b692e projection_hash=e79467b4555e078b generated_at_utc=2026-05-06T16:33:39.254Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-1-Loom-Storage-Portability-v4/packet.json source_hash=107aa31228990482 projection_hash=e79467b4555e078b generated_at_utc=2026-05-14T21:13:39.606Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT (MASTER SPEC)
 
 Requirements (HARD):

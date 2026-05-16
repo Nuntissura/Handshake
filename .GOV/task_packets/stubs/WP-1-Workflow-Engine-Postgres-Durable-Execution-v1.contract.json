@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Workflow-Engine-Postgres-Durable-Execution-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "a71faa909c438baa787db988c5797c448f14127f2b26320c53f9801ab9190139",
+    "projection_sha256": "7636c390061bd34521b1d62eb57f1784b619b4fe58d99323cf7ca7ebfb7652ae",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -71,7 +71,7 @@
   "draft_scope": {
     "intent": "- What: Move workflow-engine durable execution state, checkpoints, node outcomes, retries, and resumability metadata onto PostgreSQL-primary storage.\n- Why: The self-hosting control plane needs workflows and AI jobs to survive process restarts and coordinate with ModelSession queues through the same authoritative database.",
     "scope_sketch": "- IN_SCOPE:\n  - PostgreSQL persistence for workflow instance state, node execution state, checkpoint payloads, retry counters, and terminal outcomes.\n  - Integration with shared lease/backpressure primitives for runnable workflow work.\n  - Migration-backed schema and tests for crash recovery, resume idempotence, retry bounds, and stale-lease recovery.\n  - Explicit retention and artifact-link fields for Flight Recorder and DCC projections.\n- OUT_OF_SCOPE:\n  - New workflow node types.\n  - Operator UI redesign.\n  - Replacing structured collaboration artifact mirrors.",
-    "acceptance_criteria": "- Workflow execution can stop and resume from PostgreSQL state without replaying completed nodes incorrectly.\n- Parallel workflow workers cannot execute the same node claim concurrently.\n- Retry and terminal failure states are queryable for DCC/runtime truth projection.\n- SQLite use, if any, is cache/offline/index scoped and not the workflow runtime authority.",
+    "acceptance_criteria": "- Workflow execution can stop and resume from PostgreSQL state without replaying completed nodes incorrectly.\n- Parallel workflow workers cannot execute the same node claim concurrently.\n- Retry and terminal failure states are queryable for DCC/runtime truth projection.\n- SQLite use is not allowed for workflow authority, cache, offline, index, fixture, fallback, compatibility, harness, example, temporary-adapter, or test roles. Workflow execution state is PostgreSQL-only.",
     "risks_unknowns": "- Risk: existing workflow contracts may still say SQLite durable execution; activation should include spec enrichment before code work if the Master Spec is not yet updated.\n- Unknown: checkpoint payload size and retention policy may require artifact indirection rather than storing all payload bytes in PostgreSQL.",
     "governance_artifact_stance": ""
   },

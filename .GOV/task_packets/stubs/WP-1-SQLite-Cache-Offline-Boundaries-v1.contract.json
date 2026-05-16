@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "c51bdd45189dff514a9890f490bcd3bd8b58ef34fd9b9db704eb78d1abdf0eea",
+    "projection_sha256": "a2df9d147bde75c6a08b896bb0d7aea00a0e7b2a46ed19c16e2eb02b56e1eaa9",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -64,10 +64,10 @@
     "planned_execution_owner_range": ""
   },
   "draft_scope": {
-    "intent": "- What: Define and implement the boundary between PostgreSQL-primary runtime authority and SQLite as cache, search index, embedded/offline mode, or rebuildable local projection.\n- Why: Moving early to PostgreSQL-primary should not remove local-first ergonomics, but SQLite must stop being an accidental second authority for self-hosted control-plane state.",
-    "scope_sketch": "- IN_SCOPE:\n  - Clear storage-mode policy for Postgres-primary, SQLite-cache, SQLite-offline, and test modes.\n  - Guardrails that prevent runtime control-plane writes from silently landing in SQLite when PostgreSQL authority is required.\n  - Rebuild/invalidation semantics for SQLite indexes and local projections derived from PostgreSQL or file authorities.\n  - Tests for mode detection, missing PostgreSQL behavior, and stale cache invalidation.\n- OUT_OF_SCOPE:\n  - Replacing PostgreSQL runtime storage.\n  - Implementing full offline sync conflict resolution.\n  - New UI beyond status/error surfaces needed for DCC projection.",
-    "acceptance_criteria": "- The app can report which storage mode is active and which surfaces are authoritative.\n- Runtime control-plane writes fail closed when PostgreSQL is required but unavailable.\n- SQLite indexes/projections are rebuildable and carry freshness/source metadata.\n- Tests prove SQLite fallback does not hide PostgreSQL outages for control-plane operations.",
-    "risks_unknowns": "- Risk: \"fallback\" can become silent split brain; activation should define explicit operator-visible degradation states.\n- Unknown: whether embedded single-user demos should allow SQLite-primary mode behind a clear non-control-plane profile.",
+    "intent": "- What: Retire the old boundary proposal and define PostgreSQL-only runtime authority with no SQLite cache, search index, embedded/offline mode, rebuildable local projection, fixture, fallback, compatibility path, harness, or temporary adapter.\n- Why: Moving to PostgreSQL-primary must not leave SQLite as an accidental second authority or accepted convenience layer for self-hosted control-plane state.",
+    "scope_sketch": "- IN_SCOPE:\n  - Clear storage-mode policy for PostgreSQL authority and non-SQLite derived projections.\n  - Guardrails that prevent runtime control-plane writes from silently landing outside PostgreSQL authority.\n  - Rebuild/invalidation semantics for non-SQLite indexes and local projections derived from PostgreSQL or file authorities.\n  - Tests for mode detection, missing PostgreSQL behavior, and stale projection invalidation without SQLite.\n- OUT_OF_SCOPE:\n  - Replacing PostgreSQL runtime storage.\n  - Implementing full offline sync conflict resolution.\n  - New UI beyond status/error surfaces needed for DCC projection.",
+    "acceptance_criteria": "- The app can report which storage mode is active and which surfaces are authoritative.\n- Runtime control-plane writes fail closed when PostgreSQL is required but unavailable.\n- Non-SQLite indexes/projections are rebuildable and carry freshness/source metadata.\n- Tests prove no SQLite fallback, fixture, cache, compatibility path, harness, or temporary adapter can hide PostgreSQL outages for control-plane operations.",
+    "risks_unknowns": "- Risk: any fallback can become silent split brain; activation should define explicit operator-visible degradation states that do not use SQLite.\n- Unknown: whether embedded single-user demos need a non-PostgreSQL profile. SQLite is not an accepted answer for that profile.",
     "governance_artifact_stance": ""
   },
   "activation_contract": {

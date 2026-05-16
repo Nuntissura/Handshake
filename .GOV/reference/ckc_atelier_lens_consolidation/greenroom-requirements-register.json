@@ -1,0 +1,133 @@
+{
+  "schema_id": "handshake.reference.ckc_greenroom_requirements_register@1",
+  "file_id": "ckc-greenroom-requirements-register",
+  "file_kind": "greenroom_requirements_register",
+  "updated_at": "2026-05-16",
+  "status": "reference_only_not_execution_authority",
+  "source_material": {
+    "ckc": [
+      "D:/Projects/LLM projects/CastKit-Codex/CKC_main",
+      "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/spec/CastKit_Codex_Spec_v00.075.md",
+      "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/taskboard/TASK_BOARD.md"
+    ],
+    "handshake": [
+      ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md",
+      ".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md",
+      ".GOV/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.md",
+      ".GOV/task_packets/stubs/WP-1-Lens-Extraction-Tier-v1.md",
+      ".GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.md",
+      ".GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.md",
+      ".GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.md",
+      ".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.md"
+    ]
+  },
+  "ckc_capability_clusters": [
+    {
+      "id": "media_viewer_dam",
+      "preserve": ["image-first portfolio browsing", "character galleries", "slideshow", "fullscreen", "metadata", "missing-media states", "repair flows", "ratings", "favorites", "tags", "notes", "provenance", "deleted/archive visibility", "OpenPose sidecar hiding"]
+    },
+    {
+      "id": "character_sheets",
+      "preserve": ["character profile plus sheet core shape", "byte-preserved user text", "explicit/adult fields first-class", "protected public IDs", "internal IDs", "append-only versions", "templates", "cloning", "merge preview", "selective apply"]
+    },
+    {
+      "id": "inbox_intake",
+      "preserve": ["direct image ingress", "persistent batches", "accept/reject/pending", "linked/loose mode", "character/sheet/collection linkage", "source preservation", "no silent deletes"]
+    },
+    {
+      "id": "collections_contact_sheets",
+      "preserve": ["cross-character curated image sets", "collection notes/tags", "optional character/sheet-version links", "slideshow", "export", "SVG contact sheet with manifest", "source IDs/hashes", "tags", "layout metadata", "raster contact-sheet follow-up"]
+    },
+    {
+      "id": "sidecars_versioning",
+      "preserve": ["OpenPose PNG/JSON sidecars", "append-only sheet versions", "reverts-as-new-version", "archive/restore", "orphan manifests", "event logs", "entity revisions", "compatibility fixtures", "migrations", "idempotency checks"]
+    },
+    {
+      "id": "posekit_openpose",
+      "preserve": ["blank/single-photo/collection workbench modes", "body-18", "face-70", "left/right hand-21 arrays", "zero-filled absent hands", "yaw/pitch/roll", "identity profiles", "deterministic crops", "landmarks", "measurements", "blocked calibration/history debt"]
+    },
+    {
+      "id": "comfyui_bridge",
+      "preserve": ["local workflow/run lineage", "history", "prompt extraction", "replay", "stats", "registered outputs", "workflow/Pose tab replay paths", "identity reference payload intent", "prompt-response matrix later scope"]
+    },
+    {
+      "id": "automation_debug_manual",
+      "preserve": ["typed command map", "in-app manual", "automation sessions", "leases", "heartbeats", "command log", "captures", "background/no-focus/no-OS-input invariants", "visual captures", "command/manual consistency tests"]
+    },
+    {
+      "id": "search_tags_similarity",
+      "preserve": ["global search", "grouped results", "snippets", "jump targets", "tag manager", "links/backlinks", "AI suggestions", "palettes", "duplicates", "perceptual similarity"]
+    },
+    {
+      "id": "exports",
+      "preserve": ["empty templates", "LLM packs", "filled sheets", "image sets", "moodboards", "collections", "share packs", "backups", "web portfolios", "contact sheets", "batch exports", "field/section selections", "presets", "no-space names", "provenance"]
+    }
+  ],
+  "handshake_stub_goals": [
+    {"wp_id": "WP-1-Atelier-Lens-v2", "preserve": ["role claiming", "SceneState", "ConflictSet"]},
+    {"wp_id": "WP-1-Photo-Studio-v2", "preserve": ["skeleton surface", "thumbnails", "recipes"]},
+    {"wp_id": "WP-1-Atelier-Collaboration-Panel-v1", "preserve": ["selection-scoped role suggestions", "range-bounded patching", "provenance"]},
+    {"wp_id": "WP-1-Lens-Extraction-Tier-v1", "preserve": ["Tier0/Tier1/Tier2", "Tier1 default", "explicit override", "requested/effective trace", "validation"]},
+    {"wp_id": "WP-1-Lens-ViewMode-v1", "preserve": ["NSFW default", "explicit SFW toggle", "SFW hard-drop projection", "immutable raw artifacts", "trace-visible filter"]},
+    {"wp_id": "WP-1-Stage-Media-Artifact-Portability-v1", "preserve": ["portable artifact manifests", "bundle index", "retention evidence", "storage portability", "replayable provenance"]},
+    {"wp_id": "WP-1-Stage-ASR-Transcript-Lineage-v1", "preserve": ["source hashes", "media probe facts", "capture/session provenance", "timing anchors", "searchable transcript linkage"]},
+    {"wp_id": "WP-1-Studio-Runtime-Visibility-v1", "preserve": ["Studio job/tool/workflow mapping", "DCC/operator projection", "Flight Recorder linkage", "Locus/WP linkage", "storage posture"]}
+  ],
+  "non_negotiables": [
+    "No user-authored sheet or prompt text may be silently rewritten, censored, euphemized, hidden, normalized, or dropped.",
+    "Adult/explicit fields remain first-class product data.",
+    "Public character IDs are protected system-managed fields; internal IDs remain stable storage keys.",
+    "Sheet changes are diffed, selective, append-only, and versioned.",
+    "Import/intake never silently deletes sources.",
+    "ViewMode is projection-only and must not mutate raw or derived artifacts.",
+    "LensExtractionTier is separate from content tier.",
+    "ComfyUI outputs require typed workflow/run receipts and artifact lineage.",
+    "Product runtime must not use .GOV as product output, cache, or artifact root.",
+    "Handshake must not use SQLite in any form. This includes runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths. Handshake uses PostgreSQL only."
+  ],
+  "minimum_greenroom_outputs": [
+    "requirements register",
+    "translation/conflict matrix",
+    "stub preservation matrix",
+    "capability-cluster map",
+    "Atelier/Lens versus CKC overlap matrix",
+    "CKC evolved-feature and convenience-driven requirement register",
+    "CKC taskboard status signal summary",
+    "source fixture/test inventory excluding all SQLite fixtures and SQLite-backed tests",
+    "namespace migration notes",
+    "microtask map with 60+ buckets",
+    "corrected reference brief feeding WP-1-Atelier-Lens-Consolidation-v1"
+  ],
+  "ckc_taskboard_status_signals": [
+    {
+      "status": "completed_base",
+      "scope": "WP-0001 through WP-0115",
+      "meaning": "CKC already includes portfolio layout, media metadata, moodboards, exports, search, collections, PostgreSQL storage, automation, intake, PoseKit pipeline, workflow replay, identity profiles, hand detection, and multi-rig tabs."
+    },
+    {
+      "status": "review_batch",
+      "scope": "WP-0122 through WP-0132, WP-0134, WP-0135, and WP-0137",
+      "meaning": "Treat as implemented evidence that still needs review-batch GUI/sample-corpus evidence before being called fully accepted."
+    },
+    {
+      "status": "blocked",
+      "scope": "WP-0133",
+      "meaning": "Preserve PoseKit calibration debt: draggable calibration overlay, missing-marker placement flow, 3D/live split editing, and forked history."
+    },
+    {
+      "status": "planned",
+      "scope": "WP-0112, WP-0114, WP-0116, WP-0117, WP-0119, and WP-0136",
+      "meaning": "Treat as backlog candidates, not already-shipped behavior."
+    },
+    {
+      "status": "concept",
+      "scope": "WP-0118",
+      "meaning": "Preserve model prompt-response matrix as later research, not current implementation scope."
+    },
+    {
+      "status": "unresolved_storage",
+      "scope": "WP-0119",
+      "meaning": "CKC PostgreSQL-first testing and SQLite removal remains unresolved in CKC; Handshake must not inherit ambiguity and must stay SQLite-free."
+    }
+  ]
+}

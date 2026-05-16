@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Validator-Error-Codes-v1/packet.json source_hash=7b5609523f456dad projection_hash=f053d6db92c5c249 generated_at_utc=2026-05-06T16:33:39.623Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Validator-Error-Codes-v1/packet.json source_hash=683f46bb7c189aaa projection_hash=f053d6db92c5c249 generated_at_utc=2026-05-14T21:13:39.885Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Validator-Error-Codes-v1 (Remediation)
 
 ## Metadata

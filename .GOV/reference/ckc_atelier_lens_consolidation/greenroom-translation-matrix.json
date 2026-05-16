@@ -1,0 +1,50 @@
+{
+  "schema_id": "handshake.reference.ckc_greenroom_translation_matrix@1",
+  "file_id": "ckc-greenroom-translation-matrix",
+  "file_kind": "greenroom_translation_matrix",
+  "updated_at": "2026-05-16",
+  "status": "reference_only_not_execution_authority",
+  "translation_stance": {
+    "preserve": ["domain behavior", "source requirements", "non-SQLite behavior tests as parity evidence", "operator workflows", "model-facing automation ideas", "media/character/ComfyUI/PoseKit provenance goals"],
+    "adapt": ["JS backend services to Rust services", "Electron IPC to Tauri commands", "CKC file/folder assumptions to Handshake artifact roots", "CKC tests to Rust/Tauri/Postgres parity tests", "CKC automation manual to Handshake action catalog"],
+    "reject_for_runtime": ["SQLite in any form, including runtime/tests/fixtures/mocks/examples/fallbacks/cache/compatibility adapters/temporary harnesses/imports/exports/product paths", "Electron main/preload authority", "localhost intake authority", ".GOV product outputs", "CKC product namespace"]
+  },
+  "module_boundaries": [
+    "atelier_core",
+    "atelier_sheet",
+    "atelier_media",
+    "atelier_intake",
+    "atelier_collections",
+    "atelier_sidecars",
+    "atelier_posekit",
+    "atelier_comfy",
+    "atelier_search",
+    "atelier_exports",
+    "atelier_automation",
+    "kernel_event_bridge"
+  ],
+  "conflicts": [
+    {"id": "storage", "ckc_assumption": "SQLite, FTS5, runtime DDL, SQL translator, db/codex.db fixtures", "handshake_resolution": "PostgreSQL/EventLedger authority only. SQLite is not accepted in Handshake in any form, including runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths."},
+    {"id": "app_shell", "ckc_assumption": "Electron main/preload, BrowserWindow, IPC bridge", "handshake_resolution": "Tauri/Rust command boundary and React projection"},
+    {"id": "intake", "ckc_assumption": "Localhost CKC intake endpoint as runtime authority", "handshake_resolution": "Typed Handshake endpoint or artifact proposal path with EventLedger lineage"},
+    {"id": "namespace", "ckc_assumption": "CKC/CastKit product names and paths", "handshake_resolution": "Handshake/Atelier/Lens namespace and portable no-space artifact names"},
+    {"id": "product_artifacts", "ckc_assumption": "CKC outputs under CKC_GOV/targets", "handshake_resolution": "Product runtime/artifact roots, not .GOV"},
+    {"id": "search", "ckc_assumption": "SQLite FTS5 implementation details", "handshake_resolution": "Preserve behavior and use Handshake search/index architecture"},
+    {"id": "automation", "ckc_assumption": "Process-local sessions/leases", "handshake_resolution": "Postgres/EventLedger-backed leases and receipts"},
+    {"id": "ui_scope", "ckc_assumption": "CKC feature-rich React/Electron views", "handshake_resolution": "Later React projections after kernel contracts; no GUI parity in Kernel WP"}
+  ],
+  "source_test_translation": [
+    "sheet parser and protected field behavior using non-SQLite parity fixtures",
+    "template parser and descriptor validation",
+    "no silent rewrite / byte preservation",
+    "character public/internal ID split",
+    "media provenance and missing-media diagnostics",
+    "intake idempotency and state transitions without SQLite fixtures",
+    "sidecar hiding and OpenPose JSON shape",
+    "PoseKit hand/body/face/head-pose schema",
+    "ComfyUI bridge payload and workflow receipt shape",
+    "automation command map/manual consistency",
+    "backup/export manifest checksum behavior",
+    "tags/search/similarity projection behavior"
+  ]
+}

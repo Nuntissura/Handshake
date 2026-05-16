@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Flight-Recorder-v2/packet.json source_hash=f0288cadfa596fe7 projection_hash=cf165193f836cc29 generated_at_utc=2026-05-06T16:33:39.176Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Flight-Recorder-v2/packet.json source_hash=50ab8f8a6472d7cb projection_hash=cf165193f836cc29 generated_at_utc=2026-05-14T21:13:39.534Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Flight-Recorder-v2
 
 ## Metadata

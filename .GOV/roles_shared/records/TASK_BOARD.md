@@ -73,6 +73,7 @@ Entry format (recommended):
 
 A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`) is an official packet under `.GOV/task_packets/` (not a stub).
 
+- **[WP-1-Atelier-Lens-Consolidation-v1]** - [READY_FOR_DEV]
 
 
 
@@ -100,7 +101,6 @@ A WP is only Ready for Dev if its Active Packet (per `.GOV/roles_shared/records/
 ## Stub Backlog (Not Activated)
 
 Note: This section is an **inventory list**, not a priority order. Do not infer importance from list order; use `.GOV/roles_shared/records/BUILD_ORDER.md` (Priority Views) and the per-WP `BUILD_ORDER_*` metadata instead.
-- **[WP-KERNEL-003-Sandbox-Validation-Promotion-v1]** - [STUB]
 - **[WP-1-Video-Archive-Loom-Integration-v1]** - [STUB]
 - **[WP-1-Media-Downloader-Loom-Bridge-v1]** - [STUB]
 - **[WP-1-Loom-Preview-VideoPosterFrames-v1]** - [STUB]
@@ -131,8 +131,11 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-1-MTE-LoRA-Wiring-v1]** - [STUB]
 - **[WP-1-AI-UX-Rewrite-v2]** - [STUB]
 - **[WP-1-PDF-Pipeline-v2]** - [STUB]
-- **[WP-1-Photo-Studio-v2]** - [STUB]
-- **[WP-1-Atelier-Lens-v2]** - [STUB]
+- **[WP-1-Photo-Studio-v2]** - [SUPERSEDED]
+- **[WP-1-Atelier-Lens-v2]** - [SUPERSEDED]
+- **[WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1]** - [STUB]
+- **[WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1]** - [STUB]
+- **[WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1]** - [STUB]
 - **[WP-1-Studio-Runtime-Visibility-v1]** - [STUB]
 - **[WP-1-Calendar-Lens-v3]** - [STUB]
 - **[WP-1-Calendar-Policy-Integration-v1]** - [STUB]
@@ -173,6 +176,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
+- **[WP-KERNEL-003-Sandbox-Validation-Promotion-v1]** - [IN_PROGRESS]
 - **[WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1]** - [IN_PROGRESS]
 
 

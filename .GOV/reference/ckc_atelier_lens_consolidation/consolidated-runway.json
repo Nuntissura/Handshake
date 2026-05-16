@@ -1,0 +1,267 @@
+{
+  "schema_id": "handshake.reference.ckc_atelier_lens_consolidated_runway@1",
+  "file_id": "ckc-atelier-lens-consolidated-runway",
+  "file_kind": "reference_runway",
+  "updated_at": "2026-05-16",
+  "status": "reference_only_not_execution_authority",
+  "source_reports": [
+    ".GOV/reference/ckc_atelier_lens_consolidation/ckc-code-greenroom.json",
+    ".GOV/reference/ckc_atelier_lens_consolidation/ckc-spec-taskboard-map.json",
+    ".GOV/reference/ckc_atelier_lens_consolidation/handshake-stub-preservation-map.json"
+  ],
+  "consolidation_law": [
+    "Preserve CKC intent before changing implementation shape.",
+    "Preserve all existing Atelier/Lens-adjacent stub intent before consolidating.",
+    "Treat CKC as an evolved sibling expression of Atelier/Lens and prompt-diary intent, not as optional inspiration.",
+    "Treat CKC convenience-driven extras as requirement evidence; classify each as folded, dependency, deferred, conflict, or operator-decision-needed.",
+    "Merge overlapping CKC and Atelier/Lens goals through explicit overlap rows instead of letting either source erase the other.",
+    "Surface conflicts explicitly and resolve through layered scope or supersession.",
+    "Treat CKC code/spec/taskboard as prototype evidence and requirement source, not as Handshake runtime architecture.",
+    "Rebuild in Handshake-native stack: Rust/Tauri, PostgreSQL, EventLedger, artifact store, validation/promotion gates, selective Yjs/CRDT, and React projections later.",
+    "Reject CKC SQLite/Electron/localhost-intake for Handshake in any form. SQLite is not accepted in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths."
+  ],
+  "capability_clusters": [
+    "media_viewer_dam",
+    "character_sheets_templates",
+    "inbox_intake",
+    "collections_contact_sheets",
+    "sidecars_versioning_recovery",
+    "posekit_openpose_identity",
+    "comfyui_workflow_lineage",
+    "automation_manual_debug",
+    "search_tags_similarity",
+    "exports_backups_sharepacks"
+  ],
+  "conflicts": [
+    {
+      "id": "CONFLICT-SQLITE",
+      "source_assumption": "CKC SQLite/FTS5/runtime DDL/SQL translator.",
+      "handshake_resolution": "PostgreSQL/EventLedger authority only. SQLite is not accepted in Handshake in any form, including runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths."
+    },
+    {
+      "id": "CONFLICT-ELECTRON",
+      "source_assumption": "CKC Electron main/preload IPC and BrowserWindow shell.",
+      "handshake_resolution": "Tauri/Rust command boundary and product-owned runtime state."
+    },
+    {
+      "id": "CONFLICT-LOCALHOST-INTAKE",
+      "source_assumption": "CKC localhost intake endpoint as runtime authority.",
+      "handshake_resolution": "Typed integration endpoint or artifact proposal path with EventLedger lineage."
+    },
+    {
+      "id": "CONFLICT-PRODUCT-NAMESPACE",
+      "source_assumption": "CKC and CastKit Codex names in product strings, APIs, bridge node, and paths.",
+      "handshake_resolution": "Handshake/Atelier/Lens namespaces and no-space portable artifact names."
+    },
+    {
+      "id": "CONFLICT-SPARSE-STUBS",
+      "source_assumption": "Some existing stub contracts are thin.",
+      "handshake_resolution": "Preserve Markdown intent and prior paths in greenroom before official activation."
+    }
+  ],
+  "preserved_stub_strategy": [
+    {
+      "wp_id": "WP-1-Atelier-Lens-v2",
+      "decision": "source_material_for_atelier_lens_consolidation",
+      "preserve": ["role claiming", "SceneState", "ConflictSet"]
+    },
+    {
+      "wp_id": "WP-1-Photo-Studio-v2",
+      "decision": "source_material_for_atelier_lens_consolidation",
+      "preserve": ["skeleton surface", "thumbnails", "recipes"]
+    },
+    {
+      "wp_id": "WP-1-Atelier-Collaboration-Panel-v1",
+      "decision": "validated_parallel_baseline",
+      "preserve": ["selection-scoped role suggestions", "range-bounded patches", "provenance"]
+    },
+    {
+      "wp_id": "WP-1-Lens-Extraction-Tier-v1",
+      "decision": "fold_into_atelier_lens_consolidation_then_later_kernel",
+      "preserve": ["Tier0/Tier1/Tier2", "Tier1 default", "requested/effective trace"]
+    },
+    {
+      "wp_id": "WP-1-Lens-ViewMode-v1",
+      "decision": "validated_projection_baseline",
+      "preserve": ["projection-only filtering", "raw artifact immutability", "trace-visible ViewMode"]
+    },
+    {
+      "wp_id": "WP-1-Stage-Media-Artifact-Portability-v1",
+      "decision": "fold_into_atelier_lens_consolidation_then_later_kernel",
+      "preserve": ["portable artifact manifest", "bundle index", "retention evidence", "replayable provenance"]
+    },
+    {
+      "wp_id": "WP-1-Stage-ASR-Transcript-Lineage-v1",
+      "decision": "later_media_intelligence_source",
+      "preserve": ["source hash", "media probe facts", "timing anchors", "searchable transcript linkage"]
+    },
+    {
+      "wp_id": "WP-1-Studio-Runtime-Visibility-v1",
+      "decision": "fold_into_atelier_lens_consolidation_then_later_kernel_visibility",
+      "preserve": ["Studio runtime mapping", "DCC/operator projection", "Flight Recorder linkage", "Locus linkage"]
+    }
+  ],
+  "wp_runway": [
+    {
+      "wp_id": "WP-1-Atelier-Lens-Consolidation-v1",
+      "status": "active_stub_backlog",
+      "goal": "Create the single preservation-first Atelier/Lens consolidation packet before any CKC rebuild stubs are created.",
+      "microtask_target_min": 60,
+      "microtask_target_max": null,
+      "in_scope": [
+        "Preserve all existing Atelier/Lens/Photo/Studio/media/Loom/artifact/visual-debug stub goals",
+        "Fold CKC into Atelier/Lens as an evolved sibling source with overlapping intent",
+        "Atelier/Lens versus CKC overlap matrix",
+        "CKC evolved-feature and convenience-driven requirement register",
+        "Conflict matrix",
+        "Namespace migration matrix",
+        "PostgreSQL-only parity case register",
+        "No-loss official packet handoff draft"
+      ],
+      "out_of_scope": ["product runtime implementation", "UI rebuild", "CKC rebuild/kernel/vertical-slice stubs", "CKC feature parity claims before research and consolidation"],
+      "microtask_buckets": [
+        "CKC source inventory",
+        "CKC test inventory",
+        "CKC spec requirement extraction",
+        "CKC taskboard status extraction",
+        "Handshake stub preservation map",
+        "Prior packet and supersession scan",
+        "Namespace migration matrix",
+        "Runtime conflict matrix",
+        "SQLite absolute rejection and no-test/no-fixture tripwire plan",
+        "Electron rejection and Tauri mapping",
+        "Product-output path hygiene plan",
+        "Character/sheet requirement register",
+        "Media/DAM requirement register",
+        "Intake requirement register",
+        "Collections/contact-sheet requirement register",
+        "PoseKit/OpenPose requirement register",
+        "ComfyUI requirement register",
+        "Automation/manual/debug requirement register",
+        "Search/tag/similarity requirement register",
+        "Export/backup/share-pack requirement register",
+        "Existing Handshake stub carry-forward matrix",
+        "Atelier/Lens versus CKC overlap matrix",
+        "CKC evolved-feature and convenience-driven requirement register",
+        "Red-team scenarios and controls",
+        "Validator acceptance model",
+        "Official packet handoff draft"
+      ]
+    },
+    {
+      "wp_id": "WP-1-Atelier-Lens-CKC-Kernel-v1",
+      "status": "deferred_do_not_create_until_consolidation_greenroom_research_complete",
+      "goal": "Implement the Handshake-native CKC kernel without full GUI scope.",
+      "microtask_target_min": 80,
+      "microtask_target_max": 120,
+      "in_scope": [
+        "Rust domain modules",
+        "PostgreSQL migrations",
+        "EventLedger events",
+        "Artifact store integration",
+        "Validation/promotion hook points",
+        "Tauri command facade",
+        "CKC PostgreSQL-only parity case harness"
+      ],
+      "out_of_scope": ["full dockable GUI", "full PoseKit calibration UI", "full ComfyUI generation UI", "CKC direct runtime dependency"],
+      "microtask_buckets": [
+        "Crate/module skeleton",
+        "Domain ID types",
+        "Character profile model",
+        "Public/internal character ID split",
+        "Sheet template parser contract",
+        "Sheet value parser contract",
+        "Sheet validation error model",
+        "Sheet version append-only model",
+        "Media asset model",
+        "Media hash/provenance model",
+        "Media review/status model",
+        "Media tag/rating/favorite model",
+        "Sidecar model",
+        "Archive/restore/recovery model",
+        "Intake batch model",
+        "Intake item state machine",
+        "Collection model",
+        "Contact sheet manifest model",
+        "Moodboard reference model",
+        "PoseKit rig metadata model",
+        "OpenPose sidecar contract",
+        "Identity profile contract",
+        "ComfyUI workflow receipt",
+        "ComfyUI run lineage",
+        "Workflow spec registry",
+        "Search projection contract",
+        "Link/backlink model",
+        "Similarity/palette projection hooks",
+        "Export manifest model",
+        "Backup manifest model",
+        "Automation command catalog",
+        "Automation lease/session model",
+        "Model manual contract",
+        "EventLedger event definitions",
+        "Artifact store integration",
+        "Validation/promotion hook points",
+        "Tauri command facade",
+        "Postgres migrations",
+        "Fixture import harness",
+        "CKC parity test harness"
+      ]
+    },
+    {
+      "wp_id": "WP-1-Atelier-Lens-CKC-Vertical-Slice-v1",
+      "status": "deferred_do_not_create_until_consolidation_greenroom_research_and_kernel_contract_complete",
+      "goal": "Make the new CKC kernel useful through a narrow character/media/ComfyUI lineage path.",
+      "microtask_target_min": 60,
+      "microtask_target_max": 90,
+      "in_scope": [
+        "Create/import character",
+        "Attach media",
+        "Parse/version sheet",
+        "Run small intake batch",
+        "Create collection/contact-sheet manifest",
+        "Record ComfyUI recipe/run receipt",
+        "Expose projection/API output for later UI work"
+      ],
+      "out_of_scope": ["full production GUI", "full CKC parity", "advanced PoseKit calibration", "batch ComfyUI orchestration"],
+      "microtask_buckets": [
+        "Vertical-slice fixture set",
+        "Character create/import command",
+        "Character read/projection command",
+        "Sheet parse command",
+        "Sheet diff/apply command",
+        "Sheet version projection",
+        "Media attach command",
+        "Media hash/provenance test",
+        "Media missing-file diagnostic",
+        "Intake create batch",
+        "Intake classify item",
+        "Intake accept/pending/reject transitions",
+        "Collection create command",
+        "Contact-sheet manifest generation",
+        "Sidecar hide/show projection",
+        "OpenPose sidecar fixture ingest",
+        "PoseKit metadata projection",
+        "ComfyUI recipe receipt command",
+        "ComfyUI run lineage event",
+        "Export manifest projection",
+        "Search/tag smoke projection",
+        "Automation command list projection",
+        "Screenshot/debug evidence inheritance check",
+        "End-to-end replay and validation bundle"
+      ]
+    }
+  ],
+  "activation_order": [
+    "WP-1-Atelier-Lens-Consolidation-v1",
+    "CKC greenroom review",
+    "CKC research basis",
+    "Future CKC rebuild stubs only after consolidation/research"
+  ],
+  "next_governed_mutations": [
+    "Promote WP-1-Atelier-Lens-Consolidation-v1 through refinement and USER_SIGNATURE when ready.",
+    "Do not create CKC rebuild stubs until the consolidation, greenroom review, and CKC research basis are complete.",
+    "Update WP traceability registry only after deciding how deferred CKC rebuild packet families layer under Atelier/Lens.",
+    "Run build-order sync after registry and stub metadata are intentionally updated.",
+    "Preserve CKC overlap and convenience-driven extras in the consolidation packet before implementation planning."
+  ]
+}

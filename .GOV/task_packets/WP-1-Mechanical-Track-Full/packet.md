@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Mechanical-Track-Full/packet.json source_hash=684ecce101bb5e84 projection_hash=e2ed38c4668b47ea generated_at_utc=2026-05-06T16:33:39.267Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Mechanical-Track-Full/packet.json source_hash=a90ce51a77a33cad projection_hash=e2ed38c4668b47ea generated_at_utc=2026-05-14T21:13:39.619Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Mechanical-Track-Full
 
 ## Metadata

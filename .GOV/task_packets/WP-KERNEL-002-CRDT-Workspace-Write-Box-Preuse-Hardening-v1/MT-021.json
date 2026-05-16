@@ -20,7 +20,7 @@
     "packet_contract": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json"
   },
   "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "created_at_utc": "2026-05-14T04:54:49.177Z",
+  "created_at_utc": null,
   "handoff": {
     "coder_session": null,
     "review_request_receipt_id": null,
@@ -37,34 +37,37 @@
     "validator_verdict": "PENDING"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-14T08:23:40.507Z",
-    "generator": "kernel-builder-activation-repair.mjs",
+    "generated_at_utc": "2026-05-14T21:13:39.972Z",
+    "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-021.md",
     "projection_hash": "452648bbdc746d24",
-    "source_file": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/MT-021.json",
-    "source_hash": "b90aafe3c1c93e7c",
+    "source_file": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json",
+    "source_hash": "bf01a300335e7557",
     "status": "GENERATED_IN_SYNC"
   },
   "mt_id": "MT-021",
   "red_team": {
     "minimum_controls": [
-      "Exactly one primary proof target per MT unless the packet records why not.",
-      "MT identity must be stable and referenced by receipt correlation.",
-      "Generated projection drift must not wake Coder or Validator by itself."
+      "Use contract-first identity and preserve projection hash."
     ],
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
     "required": true,
     "risks": [
-      "Broad MT scope can hide multiple review targets.",
-      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
-      "Receipt routing may target an old MT if contract identity is omitted."
+      "Imported MT contract may under-capture prose-only review or proof instructions."
     ]
   },
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "scope": {
     "acceptance_criteria": [
-      "MT-021 Overlay Lifecycle and Recovery Control Plane: fold `WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane-v1`. Acceptance: start, steer, cancel, close, recover, checkpoint replay, partial failure, and restart posture are record-backed and projection-safe."
+      "MT-021 Overlay Lifecycle and Recovery Control Plane: fold `WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane-v1`. Acceptance: start",
+      "steer",
+      "cancel",
+      "close",
+      "recover",
+      "checkpoint replay",
+      "partial failure",
+      "and restart posture are record-backed and projection-safe."
     ],
     "allowed_paths": [
       "src/backend/handshake_core/src/kernel/**",

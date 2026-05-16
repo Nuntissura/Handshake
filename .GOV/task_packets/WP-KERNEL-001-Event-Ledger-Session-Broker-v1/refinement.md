@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=ee7c634f0c25cb05 projection_hash=21cf4a6beb7a8f31 generated_at_utc=2026-05-14T19:55:49.015Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=ee7c634f0c25cb05 projection_hash=21cf4a6beb7a8f31 generated_at_utc=2026-05-14T21:13:39.914Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT
 
 ## METADATA

@@ -1,4 +1,19 @@
 {
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
   "authority_files": {
     "microtask_contract_glob": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/MT-*.json",
     "packet_contract": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.json",
@@ -17,12 +32,12 @@
     "user_signature": "ilja090420260043"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-06T16:33:39.458Z",
+    "generated_at_utc": "2026-05-14T21:13:39.752Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.md",
     "projection_hash": "267f0ce7cb5f56a5",
     "source_file": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.json",
-    "source_hash": "8d9be9ce7e613a3f",
+    "source_hash": "294c530b8a5b7cd9",
     "status": "GENERATED_IN_SYNC"
   },
   "microtasks": {
