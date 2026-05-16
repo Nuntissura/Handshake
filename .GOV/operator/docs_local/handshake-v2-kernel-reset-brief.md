@@ -844,6 +844,39 @@ Guardrails:
 - Do not import CKC SQLite, Electron IPC, localhost authority, CKC product namespace, machine-local paths, or direct LLM execution into Handshake.
 - Do not redo the old Atelier/Lens or Photo Studio consolidation work; use the three canonical CKC stubs and their `draft_microtasks` contract handoff.
 
+### Week 6: Principal Authority + Profile/CRM Layer
+
+Week 6 introduces the kernel-level subject of authority — the Principal primitive — plus visitor-pass + MCP scrutiny mechanics, plus the Profile/CRM facet that lets the Operator carry multiple personas (e.g., adult production vs SFW work) on top of a single Principal identity.
+
+Why this slot:
+
+- Principal is foundational schema (event ledger, write boxes, CRDT identity, sessions, sandboxes, capability grants all bind to a subject). Adding it later means migrating every existing event-ledger row, reshaping `KernelActor`, rewiring capability grants — exactly the "harness mirrors the product" debt the reset brief is escaping.
+- The Operator's stated multi-user + agent/bot model maps to this primitive: Handshake-spawned agents inherit transparently from a parent Principal (no per-agent account), external agents get short-lived visitor-pass Principals with narrow caps, MCP clients get the highest-scrutiny Principal kind with default-deny scope and per-tool-call same-turn approval defaults.
+- Week 4 is already heavy with Local Model + Memory V0 + Build-Rules establishment. Week 5 is the massive three-WP Atelier-Lens-CKC fold-in. Slotting Principal Authority before Week 4 would inflate it; slotting it into Week 5 would compete with the production-feature work. Week 6 is the right home.
+- Postgres Row-Level Security is the cheap and bulletproof enforcement layer for "locked away by default" — this layer is much easier to add now than after the event ledger and CRDT identity tables grow.
+
+Canonical Week 6 WP stubs:
+
+- `WP-KERNEL-006-Principal-Authority-Foundation-v1` — Phase A. Principal table + kind enum (Operator, Collaborator, HandshakeSpawnedAgent, ExternalAgent, McpClient), Postgres RLS, `KernelActor` → `PrincipalRef` migration, spawned-agent capability MIN inheritance, RootOperator break-glass recovery readable from local config. Stub authority lives in the `.contract.json`; no Markdown projection is generated.
+- `WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1` — Phase B. Per-MCP-server Principal allocated on connect with fingerprinted manifest, default-deny scope, per-tool-call same-turn approval default, visible audit badges in the operator-surface trace, short-lived visitor-pass for external agents, operator admin surface for create/list/scope/revoke. Reuses existing `ToolGate` + `approval_preview` machinery from KERNEL-001/002; no parallel approval system. Depends on KERNEL-006.
+- `WP-KERNEL-008-Principal-Profile-CRM-Layer-v1` — Phase C. `Profile` table linked to `Principal` (intentionally separate tables — auth and persona never share a row); multiple Profiles per Principal enables adult/SFW persona switching; FEMS memory scope, preferences, project binding, and operator suggestions all hang off the active Profile; persona switch is a typed event that never touches authority. Depends on KERNEL-006 and KERNEL-007.
+
+Numbering note:
+
+- KERNEL-004 is reserved for Week 4 (Local Model + Memory V0 kernel infra) and KERNEL-005 is reserved for any Week 5 kernel-tier packet that emerges from the CKC fold-in. Week 6 jumps to KERNEL-006/007/008 to keep the gap explicit and intentional.
+
+Stub-level only:
+
+- These are intentionally stub-shaped. Each carries `KEY_OPEN_QUESTIONS` that refinement must resolve before activation. The Operator wants room to explore the design further before the contracts are locked. Do not promote any of these to a signed packet until the corresponding refinement closes its open questions.
+
+Guardrails:
+
+- Principal is identity + access only. Profile is preference + memory scope only. Neither carries adult-production legal paperwork, consent records, or performer records — those remain Operator-owned per [CX-123A] / [CX-123B] / [GLOBAL-PRODUCTION-010..017].
+- KERNEL-008 must not modify the capability schema. Capability grants are KERNEL-006 territory exclusively.
+- ExternalAgent / McpClient Principals cannot spawn child Principals; only HandshakeSpawnedAgent inheritance from KERNEL-006 is allowed.
+- No SQLite anywhere in Principal/Profile authority storage. PostgreSQL/EventLedger per [CX-503R].
+- Stub contracts are `.contract.json` only; no Markdown projection is generated per the operator's no-`.md` directive. Discovery in `WP_TRACEABILITY_REGISTRY` / `TASK_BOARD` / `BUILD_ORDER` is deferred until those `.md`-primary surfaces are converted to JSON-primary (see `REFACTOR-MD-ELIMINATION-V1.json`).
+
 ## 8. What To Freeze From Current Governance
 
 Freeze external repo governance to:
