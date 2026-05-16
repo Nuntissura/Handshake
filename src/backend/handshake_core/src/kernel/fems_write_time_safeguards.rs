@@ -9,7 +9,7 @@ pub enum FemsResetStoragePrimitive {
     Postgres,
     EventLedger,
     CrdtSearchIndex,
-    LegacySqlite,
+    LegacyLocalStore,
     LegacyFts5,
 }
 
@@ -121,7 +121,7 @@ pub struct FemsWriteTimeSafeguardReportV1 {
     pub audit_event_refs: Vec<String>,
     pub warnings: Vec<String>,
     pub uses_llm_calls: bool,
-    pub uses_sqlite_fts5_authority: bool,
+    pub uses_legacy_search_authority: bool,
     pub authoritative_storage_primitives: Vec<FemsResetStoragePrimitive>,
 }
 
@@ -319,7 +319,7 @@ pub fn evaluate_fems_write_time_safeguards(
         audit_event_refs,
         warnings,
         uses_llm_calls: false,
-        uses_sqlite_fts5_authority: false,
+        uses_legacy_search_authority: false,
         authoritative_storage_primitives: safeguards.config.storage_primitives.clone(),
     })
 }
@@ -364,14 +364,14 @@ fn validate_config(
         || config.storage_primitives.iter().any(|primitive| {
             matches!(
                 primitive,
-                FemsResetStoragePrimitive::LegacySqlite | FemsResetStoragePrimitive::LegacyFts5
+                FemsResetStoragePrimitive::LegacyLocalStore | FemsResetStoragePrimitive::LegacyFts5
             )
         })
     {
         errors.push(FemsWriteTimeSafeguardValidationError {
             field: "config.storage_primitives",
             message:
-                "write-time safeguards must use Postgres/EventLedger/CRDT search, not SQLite/FTS5 authority",
+                "write-time safeguards must use Postgres/EventLedger/CRDT search, not legacy local/FTS authority",
         });
     }
 }
@@ -491,7 +491,7 @@ fn validate_scope_resolutions(
         require_non_empty(errors, "scope_resolutions.state_ref", &resolution.state_ref);
         if matches!(
             resolution.checked_with_primitive,
-            FemsResetStoragePrimitive::LegacySqlite | FemsResetStoragePrimitive::LegacyFts5
+            FemsResetStoragePrimitive::LegacyLocalStore | FemsResetStoragePrimitive::LegacyFts5
         ) {
             errors.push(FemsWriteTimeSafeguardValidationError {
                 field: "scope_resolutions.checked_with_primitive",

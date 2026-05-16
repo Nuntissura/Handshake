@@ -929,6 +929,11 @@ impl DuckDbFlightRecorder {
                 "session_scheduler.cancelled" | "session_scheduler_cancelled" => {
                     super::FlightRecorderEventType::SessionSchedulerCancelled
                 }
+                "session.created" => super::FlightRecorderEventType::SessionCreated,
+                "session.state_change" => super::FlightRecorderEventType::SessionStateChange,
+                "session.message" => super::FlightRecorderEventType::SessionMessage,
+                "session.completed" => super::FlightRecorderEventType::SessionCompleted,
+                "session.budget_warning" => super::FlightRecorderEventType::SessionBudgetWarning,
                 "session.spawn_requested" => super::FlightRecorderEventType::SessionSpawnRequested,
                 "session.spawn_accepted" => super::FlightRecorderEventType::SessionSpawnAccepted,
                 "session.spawn_rejected" => super::FlightRecorderEventType::SessionSpawnRejected,
@@ -1703,7 +1708,7 @@ mod tests {
             Some("policy-roundtrip".to_string())
         );
         assert_eq!(stored.wsids, vec!["ws-1".to_string(), "ws-2".to_string()]);
-        assert_eq!(stored.payload["scheduler"], "unit-test");
+        assert_eq!(stored.payload["event_id"], "FR-EVT-SESS-SCHED-001");
         assert_eq!(stored.payload["session_id"], "session-roundtrip");
         Ok(())
     }

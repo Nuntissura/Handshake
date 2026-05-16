@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use super::action_catalog::KernelActionCatalogV1;
-use super::action_envelope::{EventLedgerMapping, KernelActionDenialV1, KernelReceiptMapping};
+use super::action_envelope::{
+    EventLedgerMapping, KernelActionDenialV1, KernelActorRef, KernelReceiptMapping,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DirectEditTargetClass {
@@ -27,6 +29,7 @@ pub struct DirectEditAttemptV1 {
     pub attempt_id: String,
     pub actor_id: String,
     pub actor_kind: String,
+    pub role_id: String,
     pub target_path: String,
     pub target_class: DirectEditTargetClass,
     pub operation: String,
@@ -37,8 +40,37 @@ pub struct DirectEditAttemptV1 {
 pub struct DirectEditDecisionV1 {
     pub status: DirectEditDecisionStatus,
     pub denial: Option<KernelActionDenialV1>,
+    pub write_box_direct_edit_denied: Option<WriteBoxDirectEditDeniedV1>,
     pub lawful_action_id: Option<String>,
     pub evidence_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WriteBoxDirectEditTargetV1 {
+    pub target_ref: String,
+    pub target_class: DirectEditTargetClass,
+    pub authority_class: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WriteBoxDirectEditDeniedV1 {
+    pub schema_id: String,
+    pub evidence_id: String,
+    pub actor: KernelActorRef,
+    pub target: WriteBoxDirectEditTargetV1,
+    pub attempted_action: String,
+    pub denial_reason: String,
+    pub recovery_instruction: String,
+    pub ui_response_ref: String,
+    pub api_response_ref: String,
+    pub receipt_refs: Vec<String>,
+    pub event_ledger_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WriteBoxDirectEditDeniedValidationError {
+    pub field: &'static str,
+    pub message: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -105,6 +137,7 @@ pub fn guard_direct_edit_attempt(
         DirectEditTargetClass::ProductCode => DirectEditDecisionV1 {
             status: DirectEditDecisionStatus::Allowed,
             denial: None,
+            write_box_direct_edit_denied: None,
             lawful_action_id: None,
             evidence_refs: vec![evidence_ref(attempt, "product_code_edit_allowed")],
         },
@@ -159,7 +192,7 @@ fn deny_authority_edit(
 ) -> DirectEditDecisionV1 {
     let replacements = replacement_actions(catalog);
     let evidence_refs = vec![evidence_ref(attempt, "raw_authority_edit_attempt")];
-    let denial = denial_evidence(
+    let (denial, write_box_direct_edit_denied) = denial_evidence(
         attempt,
         "direct_authority_edit_denied",
         format!(
@@ -173,6 +206,7 @@ fn deny_authority_edit(
     DirectEditDecisionV1 {
         status: DirectEditDecisionStatus::Denied,
         denial: Some(denial),
+        write_box_direct_edit_denied: Some(write_box_direct_edit_denied),
         lawful_action_id: Some("kernel.direct_edit.deny".to_string()),
         evidence_refs,
     }
@@ -186,7 +220,7 @@ fn wrap_with_action(
 ) -> DirectEditDecisionV1 {
     let evidence_refs = vec![evidence_ref(attempt, evidence_kind)];
     let Some(action) = catalog.action(action_id) else {
-        let denial = denial_evidence(
+        let (denial, write_box_direct_edit_denied) = denial_evidence(
             attempt,
             "registered_action_missing",
             format!(
@@ -199,6 +233,7 @@ fn wrap_with_action(
         return DirectEditDecisionV1 {
             status: DirectEditDecisionStatus::Denied,
             denial: Some(denial),
+            write_box_direct_edit_denied: Some(write_box_direct_edit_denied),
             lawful_action_id: Some("kernel.direct_edit.deny".to_string()),
             evidence_refs,
         };
@@ -207,6 +242,7 @@ fn wrap_with_action(
     DirectEditDecisionV1 {
         status: DirectEditDecisionStatus::Wrapped,
         denial: None,
+        write_box_direct_edit_denied: None,
         lawful_action_id: Some(action.action_id.to_string()),
         evidence_refs,
     }
@@ -226,6 +262,7 @@ fn guard_dcc_quick_action(
     DirectEditDecisionV1 {
         status: DirectEditDecisionStatus::Wrapped,
         denial: None,
+        write_box_direct_edit_denied: None,
         lawful_action_id: Some(action_id.to_string()),
         evidence_refs: vec![evidence_ref(attempt, "dcc_quick_action_wrapped")],
     }
@@ -236,7 +273,7 @@ fn deny_dcc_quick_action(
     catalog: &KernelActionCatalogV1,
 ) -> DirectEditDecisionV1 {
     let evidence_refs = vec![evidence_ref(attempt, "dcc_quick_action_unregistered")];
-    let denial = denial_evidence(
+    let (denial, write_box_direct_edit_denied) = denial_evidence(
         attempt,
         "dcc_quick_action_unregistered",
         format!(
@@ -250,6 +287,7 @@ fn deny_dcc_quick_action(
     DirectEditDecisionV1 {
         status: DirectEditDecisionStatus::Denied,
         denial: Some(denial),
+        write_box_direct_edit_denied: Some(write_box_direct_edit_denied),
         lawful_action_id: Some("kernel.direct_edit.deny".to_string()),
         evidence_refs,
     }
@@ -274,13 +312,25 @@ fn denial_evidence(
     reason: String,
     lawful_replacement_action_ids: Vec<String>,
     evidence_refs: &[String],
-) -> KernelActionDenialV1 {
-    KernelActionDenialV1 {
+) -> (KernelActionDenialV1, WriteBoxDirectEditDeniedV1) {
+    let denial_id = format!("denial-{}", attempt.attempt_id);
+    let receipt_refs = vec![format!(
+        "receipt://direct-edit-denial/{}",
+        attempt.attempt_id
+    )];
+    let event_ledger_refs = vec![format!(
+        "eventledger://direct-edit-denied/{}",
+        attempt.trace_id
+    )];
+    let recovery_instruction =
+        "Use kernel.crdt_workspace.propose_patch or kernel.mirror_advisory.capture through the Kernel Action Catalog"
+            .to_string();
+    let denial = KernelActionDenialV1 {
         schema_id: "hsk.kernel_action_denial@1".to_string(),
-        denial_id: format!("denial-{}", attempt.attempt_id),
+        denial_id: denial_id.clone(),
         request_trace_id: attempt.trace_id.clone(),
         denial_code: denial_code.to_string(),
-        reason,
+        reason: reason.clone(),
         lawful_replacement_action_ids,
         evidence_refs: evidence_refs.to_vec(),
         receipt_mappings: vec![KernelReceiptMapping {
@@ -293,7 +343,29 @@ fn denial_evidence(
             event_schema_id: "hsk.event.kernel_direct_edit_denied@1".to_string(),
             idempotency_key: attempt.trace_id.clone(),
         }],
-    }
+    };
+    let write_box_evidence = WriteBoxDirectEditDeniedV1 {
+        schema_id: "hsk.write_box_direct_edit_denied@1".to_string(),
+        evidence_id: denial_id,
+        actor: KernelActorRef {
+            actor_id: attempt.actor_id.clone(),
+            actor_kind: attempt.actor_kind.clone(),
+            role_id: attempt.role_id.clone(),
+        },
+        target: WriteBoxDirectEditTargetV1 {
+            target_ref: attempt.target_path.clone(),
+            target_class: attempt.target_class,
+            authority_class: direct_edit_authority_class(attempt.target_class).to_string(),
+        },
+        attempted_action: attempt.operation.clone(),
+        denial_reason: reason,
+        recovery_instruction,
+        ui_response_ref: format!("dcc://direct-edit-denials/{}", attempt.attempt_id),
+        api_response_ref: format!("api://kernel/direct-edit-denials/{}", attempt.attempt_id),
+        receipt_refs,
+        event_ledger_refs,
+    };
+    (denial, write_box_evidence)
 }
 
 fn evidence_ref(attempt: &DirectEditAttemptV1, evidence_kind: &str) -> String {
@@ -301,4 +373,84 @@ fn evidence_ref(attempt: &DirectEditAttemptV1, evidence_kind: &str) -> String {
         "hsk.direct_edit_evidence:{}:{}:{}",
         evidence_kind, attempt.attempt_id, attempt.trace_id
     )
+}
+
+fn direct_edit_authority_class(target_class: DirectEditTargetClass) -> &'static str {
+    match target_class {
+        DirectEditTargetClass::AuthorityArtifact => "authority_artifact",
+        DirectEditTargetClass::GeneratedFile => "generated_file",
+        DirectEditTargetClass::GeneratedMirror => "generated_mirror",
+        DirectEditTargetClass::CrdtWorkspace => "crdt_workspace",
+        DirectEditTargetClass::RoleMailboxReply => "role_mailbox_reply",
+        DirectEditTargetClass::DccQuickAction => "dcc_quick_action",
+        DirectEditTargetClass::GitAction => "git_action",
+        DirectEditTargetClass::ProductCode => "product_code",
+    }
+}
+
+pub fn validate_write_box_direct_edit_denied(
+    evidence: &WriteBoxDirectEditDeniedV1,
+) -> Result<(), Vec<WriteBoxDirectEditDeniedValidationError>> {
+    let mut errors = Vec::new();
+    require_non_empty(&mut errors, "schema_id", &evidence.schema_id);
+    require_non_empty(&mut errors, "evidence_id", &evidence.evidence_id);
+    require_non_empty(&mut errors, "actor.actor_id", &evidence.actor.actor_id);
+    require_non_empty(&mut errors, "actor.actor_kind", &evidence.actor.actor_kind);
+    require_non_empty(&mut errors, "actor.role_id", &evidence.actor.role_id);
+    require_non_empty(
+        &mut errors,
+        "target.target_ref",
+        &evidence.target.target_ref,
+    );
+    require_non_empty(
+        &mut errors,
+        "target.authority_class",
+        &evidence.target.authority_class,
+    );
+    require_non_empty(&mut errors, "attempted_action", &evidence.attempted_action);
+    require_non_empty(&mut errors, "denial_reason", &evidence.denial_reason);
+    require_non_empty(
+        &mut errors,
+        "recovery_instruction",
+        &evidence.recovery_instruction,
+    );
+    require_non_empty(&mut errors, "ui_response_ref", &evidence.ui_response_ref);
+    require_non_empty(&mut errors, "api_response_ref", &evidence.api_response_ref);
+    require_vec(&mut errors, "receipt_refs", &evidence.receipt_refs);
+    require_vec(
+        &mut errors,
+        "event_ledger_refs",
+        &evidence.event_ledger_refs,
+    );
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn require_non_empty(
+    errors: &mut Vec<WriteBoxDirectEditDeniedValidationError>,
+    field: &'static str,
+    value: &str,
+) {
+    if value.trim().is_empty() {
+        errors.push(WriteBoxDirectEditDeniedValidationError {
+            field,
+            message: "value must not be empty",
+        });
+    }
+}
+
+fn require_vec<T>(
+    errors: &mut Vec<WriteBoxDirectEditDeniedValidationError>,
+    field: &'static str,
+    value: &[T],
+) {
+    if value.is_empty() {
+        errors.push(WriteBoxDirectEditDeniedValidationError {
+            field,
+            message: "at least one value is required",
+        });
+    }
 }

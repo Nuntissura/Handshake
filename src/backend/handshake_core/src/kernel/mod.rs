@@ -9,6 +9,7 @@ use crate::storage::ControlPlaneStorageMode;
 
 pub mod action_catalog;
 pub mod action_envelope;
+pub mod coder_handoff_validation_request;
 pub mod context_bundle;
 pub mod crdt;
 pub mod crdt_adr;
@@ -21,15 +22,20 @@ pub mod fems_mt_handoff_memory_context;
 pub mod fems_working_memory_checkpoint;
 pub mod fems_write_time_safeguards;
 pub mod fold_manifest;
+pub mod generated_documentation_status_projection;
 pub mod git_engine_decision_gate;
 pub mod governance_overlay_boundary;
 pub mod governance_pack_instantiation;
 pub mod local_first_mcp_posture;
+pub mod local_model_microtask_loop;
+pub mod locus_mt_validation_work_graph;
 pub mod locus_work_tracking_reset;
 pub mod markdown_mirror_sync_drift_guard;
+pub mod mechanical_contract_generation;
 pub mod mirror_advisory;
 pub mod model_adapter;
 pub mod model_manual;
+pub mod mt_loop_scheduler_contract;
 pub mod overlay_coordination_records;
 pub mod overlay_lifecycle_recovery;
 pub mod postgres_control_plane_residual;
@@ -39,6 +45,7 @@ pub mod product_screenshot_capture;
 pub mod promotion;
 #[cfg(feature = "runtime-full")]
 pub mod proof;
+pub mod remediation_work_generation_contract;
 pub mod reset_invariants;
 pub mod role_mailbox_claim_lease;
 pub mod role_mailbox_contract;
@@ -52,15 +59,21 @@ pub mod session_broker;
 pub mod session_spawn_conversation_distillation;
 pub mod session_spawn_tree_dcc;
 pub mod software_delivery_runtime_truth;
+pub mod task_contract_lifecycle;
 #[cfg(feature = "runtime-full")]
 pub mod trace_projection;
+pub mod validator_finding_report_contract;
+pub mod validator_verdict_mediation_contract;
 pub mod visual_debugging_loop;
+pub mod work_packet_full_detail_authority;
 pub mod work_profiles;
 pub mod workflow_transition_registry;
 pub mod write_boxes;
 
 pub use context_bundle::*;
+pub use dcc_mvp_runtime_surface::DccMvpRuntimeSurfaceV1;
 pub use model_adapter::*;
+pub use pre_use_kernel_acceptance_run::build_pre_use_dcc_mvp_runtime_surface;
 #[cfg(feature = "runtime-full")]
 pub use promotion::*;
 #[cfg(feature = "runtime-full")]
@@ -136,6 +149,9 @@ pub enum KernelEventType {
     ArtifactStored,
     ValidationRecorded,
     PromotionDecided,
+    PromotionRequested,
+    PromotionAccepted,
+    PromotionRejected,
     FlightRecorderMirrorRecorded,
     TraceReplayed,
 }
@@ -163,6 +179,9 @@ impl KernelEventType {
             Self::ArtifactStored => "ARTIFACT_STORED",
             Self::ValidationRecorded => "VALIDATION_RECORDED",
             Self::PromotionDecided => "PROMOTION_DECIDED",
+            Self::PromotionRequested => "PROMOTION_REQUESTED",
+            Self::PromotionAccepted => "PROMOTION_ACCEPTED",
+            Self::PromotionRejected => "PROMOTION_REJECTED",
             Self::FlightRecorderMirrorRecorded => "FLIGHT_RECORDER_MIRROR_RECORDED",
             Self::TraceReplayed => "TRACE_REPLAYED",
         }
@@ -190,6 +209,9 @@ impl KernelEventType {
             KernelEventType::ArtifactStored,
             KernelEventType::ValidationRecorded,
             KernelEventType::PromotionDecided,
+            KernelEventType::PromotionRequested,
+            KernelEventType::PromotionAccepted,
+            KernelEventType::PromotionRejected,
             KernelEventType::FlightRecorderMirrorRecorded,
             KernelEventType::TraceReplayed,
         ]

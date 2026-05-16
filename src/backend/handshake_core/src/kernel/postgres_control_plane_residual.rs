@@ -2,6 +2,8 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
+use super::fold_manifest::LEGACY_CACHE_OFFLINE_BOUNDARY_STUB_ID;
+
 pub const POSTGRES_CONTROL_PLANE_SHIFT_BUNDLE_STUB_ID: &str =
     "WP-1-Postgres-Control-Plane-Shift-Bundle-v1";
 
@@ -12,7 +14,7 @@ pub const FOLDED_POSTGRES_CONTROL_PLANE_STUBS: [&str; 7] = [
     "WP-1-FEMS-Postgres-Memory-Store-v1",
     "WP-1-Workflow-Engine-Postgres-Durable-Execution-v1",
     "WP-1-DCC-Postgres-Control-Plane-Projections-v1",
-    "WP-1-SQLite-Cache-Offline-Boundaries-v1",
+    LEGACY_CACHE_OFFLINE_BOUNDARY_STUB_ID,
 ];
 
 pub const EXCLUDED_LOOM_STUBS: [&str; 5] = [
@@ -32,7 +34,7 @@ const REQUIRED_RESIDUAL_KINDS: [PostgresResidualObligationKind; 11] = [
     PostgresResidualObligationKind::FemsMemoryStore,
     PostgresResidualObligationKind::WorkflowDurableExecution,
     PostgresResidualObligationKind::DccProjection,
-    PostgresResidualObligationKind::SqliteBoundary,
+    PostgresResidualObligationKind::LegacyCacheBoundary,
     PostgresResidualObligationKind::CrossSubsystemIntegration,
     PostgresResidualObligationKind::CarryForwardDebt,
 ];
@@ -43,7 +45,7 @@ pub enum PostgresResidualObligationKind {
     MigrationSeed,
     ProofCommandMatrix,
     StorageAuthority,
-    SqliteBoundary,
+    LegacyCacheBoundary,
     QueueLeaseBackpressure,
     ModelSessionQueue,
     FemsMemoryStore,
@@ -65,12 +67,12 @@ pub enum PostgresResidualDisposition {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StorageAuthorityMode {
     PostgresRequired,
-    SqliteCacheOnly,
+    LegacyCacheOnly,
     DerivedProjectionOnly,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SqliteBoundaryRole {
+pub enum LegacyCacheBoundaryRole {
     Cache,
     OfflineReplica,
     EmbeddedDemo,
@@ -89,14 +91,14 @@ pub struct PostgresResidualObligationV1 {
     pub storage_authority_mode: StorageAuthorityMode,
     pub proof_command: Option<String>,
     pub environment_blocker: Option<String>,
-    pub sqlite_allowed_roles: Vec<SqliteBoundaryRole>,
+    pub legacy_cache_allowed_roles: Vec<LegacyCacheBoundaryRole>,
     pub acceptance_refs: Vec<String>,
     pub folded_source_refs: Vec<String>,
 }
 
 impl PostgresResidualObligationV1 {
-    pub fn with_sqlite_roles(mut self, roles: Vec<SqliteBoundaryRole>) -> Self {
-        self.sqlite_allowed_roles = roles;
+    pub fn with_legacy_cache_roles(mut self, roles: Vec<LegacyCacheBoundaryRole>) -> Self {
+        self.legacy_cache_allowed_roles = roles;
         self
     }
 }
@@ -344,12 +346,12 @@ fn validate_storage_authority(
     errors: &mut Vec<PostgresControlPlaneResidualValidationError>,
     obligation: &PostgresResidualObligationV1,
 ) {
-    if obligation.kind != PostgresResidualObligationKind::SqliteBoundary
-        && obligation.storage_authority_mode == StorageAuthorityMode::SqliteCacheOnly
+    if obligation.kind != PostgresResidualObligationKind::LegacyCacheBoundary
+        && obligation.storage_authority_mode == StorageAuthorityMode::LegacyCacheOnly
     {
         errors.push(PostgresControlPlaneResidualValidationError {
             field: "storage_authority_mode",
-            message: "Postgres-required residuals cannot use SQLite as authority",
+            message: "Postgres-required residuals cannot use legacy cache storage as authority",
         });
     }
 
@@ -362,32 +364,32 @@ fn validate_storage_authority(
         });
     }
 
-    if obligation.kind == PostgresResidualObligationKind::SqliteBoundary {
-        if obligation.storage_authority_mode != StorageAuthorityMode::SqliteCacheOnly {
+    if obligation.kind == PostgresResidualObligationKind::LegacyCacheBoundary {
+        if obligation.storage_authority_mode != StorageAuthorityMode::LegacyCacheOnly {
             errors.push(PostgresControlPlaneResidualValidationError {
                 field: "storage_authority_mode",
-                message: "SQLite boundary obligations must be explicitly cache/offline only",
+                message: "legacy cache boundary obligations must be explicitly cache/offline only",
             });
         }
-        if obligation.sqlite_allowed_roles.is_empty() {
+        if obligation.legacy_cache_allowed_roles.is_empty() {
             errors.push(PostgresControlPlaneResidualValidationError {
-                field: "sqlite_allowed_roles",
-                message: "SQLite boundary must enumerate allowed non-authority roles",
+                field: "legacy_cache_allowed_roles",
+                message: "legacy cache boundary must enumerate allowed non-authority roles",
             });
         }
         if obligation
-            .sqlite_allowed_roles
-            .contains(&SqliteBoundaryRole::AuthorityWrite)
+            .legacy_cache_allowed_roles
+            .contains(&LegacyCacheBoundaryRole::AuthorityWrite)
         {
             errors.push(PostgresControlPlaneResidualValidationError {
-                field: "sqlite_allowed_roles",
-                message: "SQLite boundary cannot include authority writes",
+                field: "legacy_cache_allowed_roles",
+                message: "legacy cache boundary cannot include authority writes",
             });
         }
-    } else if !obligation.sqlite_allowed_roles.is_empty() {
+    } else if !obligation.legacy_cache_allowed_roles.is_empty() {
         errors.push(PostgresControlPlaneResidualValidationError {
-            field: "sqlite_allowed_roles",
-            message: "SQLite roles are allowed only on SQLite boundary obligations",
+            field: "legacy_cache_allowed_roles",
+            message: "legacy cache roles are allowed only on legacy cache boundary obligations",
         });
     }
 }

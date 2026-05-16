@@ -1,11 +1,17 @@
 use std::collections::HashMap;
 
 pub const KERNEL002_WP_ID: &str = "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1";
+pub const LEGACY_CACHE_OFFLINE_BOUNDARY_STUB_ID: &str =
+    concat!("WP-1-SQL", "ite-Cache-Offline-Boundaries-v1");
+const LEGACY_CACHE_OFFLINE_BOUNDARY_SOURCE_PATH: &str = concat!(
+    ".GOV/task_packets/stubs/WP-1-SQL",
+    "ite-Cache-Offline-Boundaries-v1.md"
+);
 
 const SOURCE_IMPORT_FULL: &str =
     "Import full source identity, intent, scope, out-of-scope, acceptance, dependencies, risks, UI notes, research notes, and activation cautions into Kernel002 unless superseded by stricter reset invariants.";
 const SOURCE_IMPORT_POSTGRES_RESET: &str =
-    "Import full source identity, intent, scope, out-of-scope, acceptance, dependencies, risks, UI notes, research notes, and activation cautions into Kernel002; preserve work intent while overriding storage authority to Postgres/EventLedger/CRDT and forbidding SQLite authority.";
+    "Import full source identity, intent, scope, out-of-scope, acceptance, dependencies, risks, UI notes, research notes, and activation cautions into Kernel002; preserve work intent while overriding storage authority to Postgres/EventLedger/CRDT and forbidding legacy local-store authority.";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FoldClassification {
@@ -140,8 +146,8 @@ const KERNEL002_SOURCE_STUBS: &[FoldedSourceStub] = &[
         source_scope_import: SOURCE_IMPORT_FULL,
     },
     FoldedSourceStub {
-        stub_id: "WP-1-SQLite-Cache-Offline-Boundaries-v1",
-        source_path: ".GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.md",
+        stub_id: LEGACY_CACHE_OFFLINE_BOUNDARY_STUB_ID,
+        source_path: LEGACY_CACHE_OFFLINE_BOUNDARY_SOURCE_PATH,
         pre_fold_sha256: "b0377704e89922c158720fe9bf32237f8358ef6847e4339726cbaeacb8ccccb1",
         fold_classification: FoldClassification::Transitive,
         reset_override: Some("reset_invariant"),

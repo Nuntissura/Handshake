@@ -11,6 +11,10 @@ GOV_ROOT := env_var_or_default('HANDSHAKE_GOV_ROOT', '.GOV')
 # External build/test artifacts (Cargo target dir) MUST live outside the repo working tree.
 CARGO_TARGET_DIR := "../Handshake_Artifacts/handshake-cargo-target"
 
+# Command-receipt artifact root for governance recipes wrapped with
+# `handshake command receipt run`. Stable filenames are produced via `--slug`.
+COMMAND_RECEIPT_ROOT := "../Handshake_Artifacts/handshake-product/command-receipts"
+
 dev: preflight-ollama
 	node -e "const {execFileSync}=require('child_process'); const path=require('path'); const repo=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim(); const cargoTarget=path.resolve(repo,'{{CARGO_TARGET_DIR}}'); execFileSync('pnpm',['-C','app','run','tauri','dev'],{stdio:'inherit', env:{...process.env, CARGO_TARGET_DIR:cargoTarget}});"
 
@@ -55,10 +59,22 @@ validate:
 codex-check:
 	node "{{GOV_ROOT}}/roles_shared/checks/codex-check.mjs"
 
+# Builds the handshake binary into the external Cargo target dir once. Subsequent
+# governance recipes invoke `cargo run --bin handshake -- command receipt run ...`
+# which reuses the cached build; this dedicated recipe documents the prerequisite
+# and is reused so the first wrapped recipe per session pays the build cost only
+# once. Operator portability: paths stay repo-relative (no drive letters) per
+# [GLOBAL-PORTABILITY].
+_ensure-handshake-bin:
+	cargo build --quiet --bin handshake --target-dir "{{CARGO_TARGET_DIR}}" --manifest-path src/backend/handshake_core/Cargo.toml
+
 # Governance-only checks (drive-agnostic + lifecycle UX + task board integrity).
-gov-check:
+# Wrapped with `handshake command receipt run` so a fresh validator running
+# `just gov-check` auto-produces a durable receipt at
+# `{{COMMAND_RECEIPT_ROOT}}/gov-check.json` with the current candidate SHA.
+gov-check: _ensure-handshake-bin
 	just docs-check
-	node "{{GOV_ROOT}}/roles_shared/checks/gov-check.mjs"
+	cargo run --quiet --bin handshake --target-dir "{{CARGO_TARGET_DIR}}" --manifest-path src/backend/handshake_core/Cargo.toml -- command receipt run --command-line "node {{GOV_ROOT}}/roles_shared/checks/gov-check.mjs" --expected-exit-code 0 --artifact-root "{{COMMAND_RECEIPT_ROOT}}" --slug "gov-check"
 
 gov-shared-tests:
 	node --test {{GOV_ROOT}}/roles_shared/tests/*.test.mjs
@@ -167,8 +183,11 @@ spec-debt-sync wp-id:
 	node "{{GOV_ROOT}}/roles_shared/scripts/debt/spec-debt-sync.mjs" {{wp-id}}
 
 # Build order (derived view) maintenance [CX-BO-001]
-build-order-sync:
-	node "{{GOV_ROOT}}/roles_shared/scripts/build-order-sync.mjs"
+build-order-sync: _ensure-handshake-bin
+	cargo run --quiet --bin handshake --target-dir "{{CARGO_TARGET_DIR}}" --manifest-path src/backend/handshake_core/Cargo.toml -- command receipt run --command-line "node {{GOV_ROOT}}/roles_shared/scripts/build-order-sync.mjs" --expected-exit-code 0 --artifact-root "{{COMMAND_RECEIPT_ROOT}}" --slug "build-order-sync"
+
+task-packet-stub-contracts *args: _ensure-handshake-bin
+	cargo run --quiet --bin handshake --target-dir "{{CARGO_TARGET_DIR}}" --manifest-path src/backend/handshake_core/Cargo.toml -- command receipt run --command-line "node {{GOV_ROOT}}/roles_shared/scripts/wp/task-packet-stub-contracts.mjs {{args}}" --expected-exit-code 0 --artifact-root "{{COMMAND_RECEIPT_ROOT}}" --slug "task-packet-stub-contracts"
 
 build-order-check:
 	node "{{GOV_ROOT}}/roles_shared/checks/build-order-check.mjs"

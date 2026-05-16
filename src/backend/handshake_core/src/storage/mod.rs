@@ -8,7 +8,10 @@ use uuid::Uuid;
 
 use crate::workspace_safety::MergeBackArtifact;
 
-use crate::kernel::{KernelEvent, KernelSessionLease, NewKernelEvent, SessionRun, SessionRunState};
+use crate::kernel::{
+    crdt::{persistence::CrdtUpdateRecordV1, snapshot::CrdtSnapshotRecordV1},
+    KernelEvent, KernelSessionLease, NewKernelEvent, SessionRun, SessionRunState,
+};
 
 use crate::ai_ready_data::records::{
     BronzeRecord, EmbeddingModelRecord, EmbeddingRegistry, NewBronzeRecord, NewSilverRecord,
@@ -2171,6 +2174,23 @@ pub trait Database: Send + Sync {
     ) -> StorageResult<SessionMessage>;
     async fn list_session_messages(&self, session_id: &str) -> StorageResult<Vec<SessionMessage>>;
     async fn append_kernel_event(&self, event: NewKernelEvent) -> StorageResult<KernelEvent>;
+    async fn append_kernel_events_atomic(
+        &self,
+        _events: Vec<NewKernelEvent>,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        Err(StorageError::NotImplemented(
+            "atomic kernel EventLedger append requires Postgres",
+        ))
+    }
+    async fn append_kernel_event_pair_atomic_with_causation(
+        &self,
+        _first: NewKernelEvent,
+        _second: NewKernelEvent,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        Err(StorageError::NotImplemented(
+            "atomic causation-linked kernel EventLedger append requires Postgres",
+        ))
+    }
     async fn list_kernel_events_for_session(
         &self,
         session_run_id: &str,
@@ -2180,6 +2200,60 @@ pub trait Database: Send + Sync {
         aggregate_type: &str,
         aggregate_id: &str,
     ) -> StorageResult<Vec<KernelEvent>>;
+    async fn append_kernel_crdt_update(
+        &self,
+        _record: CrdtUpdateRecordV1,
+        _update_bytes: Vec<u8>,
+    ) -> StorageResult<CrdtUpdateRecordV1> {
+        Err(StorageError::NotImplemented(
+            "kernel CRDT update persistence requires Postgres",
+        ))
+    }
+    async fn list_kernel_crdt_updates(
+        &self,
+        _workspace_id: &str,
+        _document_id: &str,
+        _crdt_document_id: &str,
+    ) -> StorageResult<Vec<CrdtUpdateRecordV1>> {
+        Err(StorageError::NotImplemented(
+            "kernel CRDT update replay requires Postgres",
+        ))
+    }
+    async fn read_kernel_crdt_update_bytes(
+        &self,
+        _update_bytes_ref: &str,
+    ) -> StorageResult<Vec<u8>> {
+        Err(StorageError::NotImplemented(
+            "kernel CRDT update byte reads require Postgres",
+        ))
+    }
+    async fn append_kernel_crdt_snapshot(
+        &self,
+        _record: CrdtSnapshotRecordV1,
+        _snapshot_bytes: Vec<u8>,
+    ) -> StorageResult<CrdtSnapshotRecordV1> {
+        Err(StorageError::NotImplemented(
+            "kernel CRDT snapshot persistence requires Postgres",
+        ))
+    }
+    async fn list_kernel_crdt_snapshots(
+        &self,
+        _workspace_id: &str,
+        _document_id: &str,
+        _crdt_document_id: &str,
+    ) -> StorageResult<Vec<CrdtSnapshotRecordV1>> {
+        Err(StorageError::NotImplemented(
+            "kernel CRDT snapshot replay requires Postgres",
+        ))
+    }
+    async fn read_kernel_crdt_snapshot_bytes(
+        &self,
+        _snapshot_bytes_ref: &str,
+    ) -> StorageResult<Vec<u8>> {
+        Err(StorageError::NotImplemented(
+            "kernel CRDT snapshot byte reads require Postgres",
+        ))
+    }
     async fn enqueue_kernel_session_run(&self, session: SessionRun) -> StorageResult<SessionRun>;
     async fn enqueue_kernel_session_run_and_record_event(
         &self,

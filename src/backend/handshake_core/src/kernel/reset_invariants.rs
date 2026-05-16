@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use super::fold_manifest::{FoldManifest, KERNEL002_WP_ID};
+use super::fold_manifest::{FoldManifest, KERNEL002_WP_ID, LEGACY_CACHE_OFFLINE_BOUNDARY_STUB_ID};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LegacyResetTopic {
-    SqliteAuthority,
+    LegacyLocalAuthority,
     MarkdownAuthority,
     MailboxChronology,
     UiLocalTruth,
@@ -113,7 +113,7 @@ impl ResetInvariantMatrix {
         }
 
         for topic in [
-            LegacyResetTopic::SqliteAuthority,
+            LegacyResetTopic::LegacyLocalAuthority,
             LegacyResetTopic::MarkdownAuthority,
             LegacyResetTopic::MailboxChronology,
             LegacyResetTopic::UiLocalTruth,
@@ -144,23 +144,23 @@ pub fn kernel002_reset_invariant_matrix() -> ResetInvariantMatrix {
 
 const KERNEL002_RESET_RECONCILIATIONS: &[ResetReconciliation] = &[
     ResetReconciliation {
-        source_stub_id: "WP-1-SQLite-Cache-Offline-Boundaries-v1",
-        topic: LegacyResetTopic::SqliteAuthority,
-        legacy_assumption: "SQLite cache/offline boundary work can be mistaken for local runtime authority.",
+        source_stub_id: LEGACY_CACHE_OFFLINE_BOUNDARY_STUB_ID,
+        topic: LegacyResetTopic::LegacyLocalAuthority,
+        legacy_assumption: "Legacy cache/offline boundary work can be mistaken for local runtime authority.",
         reset_disposition: ResetDisposition::PostgresEventLedgerCrdtAuthority,
         kernel_semantics: "Preserve offline/cache intent only; Kernel002 authority is Postgres/EventLedger/CRDT and promotion commits authority events through EventLedger.",
     },
     ResetReconciliation {
         source_stub_id: "WP-1-FEMS-Write-Time-Safeguards-v1",
-        topic: LegacyResetTopic::SqliteAuthority,
-        legacy_assumption: "FEMS safeguard records and FTS-style search were scoped around local SQLite storage.",
+        topic: LegacyResetTopic::LegacyLocalAuthority,
+        legacy_assumption: "FEMS safeguard records and FTS-style search were scoped around legacy local storage.",
         reset_disposition: ResetDisposition::PostgresEventLedgerCrdtAuthority,
         kernel_semantics: "Preserve novelty, contradiction, dedup, and audit semantics; authoritative FEMS writes use Postgres/EventLedger/CRDT storage/search primitives.",
     },
     ResetReconciliation {
         source_stub_id: "WP-1-Locus-Work-Tracking-System-Phase1-v1",
-        topic: LegacyResetTopic::SqliteAuthority,
-        legacy_assumption: "Locus work tracking rows could remain authoritative in SQLite-backed task-board state.",
+        topic: LegacyResetTopic::LegacyLocalAuthority,
+        legacy_assumption: "Locus work tracking rows could remain authoritative in legacy local task-board state.",
         reset_disposition: ResetDisposition::PostgresEventLedgerCrdtAuthority,
         kernel_semantics: "Preserve work graph and task-board intent; authoritative Locus state is Postgres/EventLedger/CRDT and generated views remain projections.",
     },

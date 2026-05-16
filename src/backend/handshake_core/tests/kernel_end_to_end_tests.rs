@@ -3,8 +3,9 @@ use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
 };
 use handshake_core::kernel::{
-    DummyEchoModelAdapter, KernelEventType, KernelProofRunner, KernelTraceInspector,
-    OperatorPromotionApproval, StructuredSummaryModelAdapter, TraceProjection,
+    DccMvpRuntimeSurfaceV1, DummyEchoModelAdapter, KernelEventType, KernelProofRunner,
+    KernelTraceInspector, OperatorPromotionApproval, StructuredSummaryModelAdapter,
+    TraceProjection,
 };
 use handshake_core::llm::{
     CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
@@ -431,6 +432,44 @@ async fn kernel_trace_inspector_api_route_returns_trace_projection() {
     assert_eq!(projection.session_run_id, result.session_run_id);
     assert_eq!(projection.authority_source, "postgres_event_ledger");
     assert!(projection.contains_event_type(KernelEventType::PromotionDecided));
+}
+
+#[tokio::test]
+async fn kernel_dcc_projection_api_route_returns_backend_validated_surface() {
+    let db = postgres_or_environment_blocked().await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind test API listener");
+    let addr = listener.local_addr().expect("test API listener addr");
+    let app = handshake_core::api::kernel::routes(test_app_state(db));
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app)
+            .await
+            .expect("kernel DCC projection API server");
+    });
+
+    let surface = reqwest::get(format!("http://{addr}/kernel/dcc_projection"))
+        .await
+        .expect("DCC projection response")
+        .error_for_status()
+        .expect("successful DCC projection status")
+        .json::<DccMvpRuntimeSurfaceV1>()
+        .await
+        .expect("DCC projection JSON");
+    server.abort();
+
+    assert_eq!(surface.schema_id, "hsk.kernel.dcc_mvp_runtime_surface@1");
+    assert!(!surface.panels.is_empty());
+    assert!(!surface.work_items.is_empty());
+    assert!(!surface.write_box_queue_rows.is_empty());
+    assert!(!surface.direct_edit_denials.is_empty());
+    assert!(!surface.promotion_previews.is_empty());
+    assert!(!surface.freshness_badges.is_empty());
+    assert!(surface
+        .write_box_queue_rows
+        .iter()
+        .all(|row| !row.work_id.trim().is_empty()));
+    assert!(!surface.direct_authority_mutation_allowed);
 }
 
 #[tokio::test]

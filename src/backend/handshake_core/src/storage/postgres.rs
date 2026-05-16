@@ -16,8 +16,16 @@ use super::{
     WorkflowNodeExecution, WorkflowRun, Workspace, WriteContext,
 };
 use crate::kernel::{
-    context_bundle::canonical_json_bytes, KernelActor, KernelEvent, KernelEventType,
-    KernelSessionLease, NewKernelEvent, SessionBroker, SessionRun, SessionRunState,
+    context_bundle::canonical_json_bytes,
+    crdt::{
+        persistence::{
+            sha256_hex as crdt_sha256_hex, validate_crdt_update_record, CrdtReplayMetadataV1,
+            CrdtStorageAuthorityPosture, CrdtUpdateRecordV1,
+        },
+        snapshot::{validate_crdt_snapshot_record, CrdtSnapshotRecordV1},
+    },
+    KernelActor, KernelEvent, KernelEventType, KernelSessionLease, NewKernelEvent, SessionBroker,
+    SessionRun, SessionRunState,
 };
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
@@ -242,6 +250,19 @@ fn work_packet_status_str(status: WorkPacketStatus) -> &'static str {
         WorkPacketStatus::Gated => "gated",
         WorkPacketStatus::Done => "done",
         WorkPacketStatus::Cancelled => "cancelled",
+    }
+}
+
+fn canonical_work_packet_status_for_storage(value: &str) -> &str {
+    match value.trim() {
+        "STUB" | "UNKNOWN" | "stub" => "stub",
+        "READY" | "READY_FOR_DEV" | "ready" => "ready",
+        "IN_PROGRESS" | "in_progress" => "in_progress",
+        "BLOCKED" | "blocked" => "blocked",
+        "GATED" | "gated" => "gated",
+        "DONE" | "done" => "done",
+        "CANCELLED" | "cancelled" => "cancelled",
+        other => other,
     }
 }
 
@@ -1010,7 +1031,7 @@ pub(crate) async fn locus_task_board_update_work_packet(
         WHERE wp_id = $5
         "#,
     )
-    .bind(status)
+    .bind(canonical_work_packet_status_for_storage(status))
     .bind(task_board_status)
     .bind(updated_at)
     .bind(metadata)
@@ -1525,6 +1546,95 @@ fn map_kernel_event(row: PgRow) -> StorageResult<KernelEvent> {
         source_component: row.get("source_component"),
         payload: serde_json::from_str(payload_raw.as_str())?,
         created_at: map_timestamp(&row, "created_at"),
+    })
+}
+
+fn crdt_storage_authority_str(authority: CrdtStorageAuthorityPosture) -> &'static str {
+    match authority {
+        CrdtStorageAuthorityPosture::PostgresEventLedger => "postgres_event_ledger",
+        CrdtStorageAuthorityPosture::FileSystemAuthority => "filesystem_authority",
+        CrdtStorageAuthorityPosture::MemoryOnly => "memory_only",
+    }
+}
+
+fn parse_crdt_storage_authority(value: &str) -> StorageResult<CrdtStorageAuthorityPosture> {
+    match value {
+        "postgres_event_ledger" => Ok(CrdtStorageAuthorityPosture::PostgresEventLedger),
+        "filesystem_authority" => Ok(CrdtStorageAuthorityPosture::FileSystemAuthority),
+        "memory_only" => Ok(CrdtStorageAuthorityPosture::MemoryOnly),
+        _ => Err(StorageError::Validation("invalid CRDT storage authority")),
+    }
+}
+
+async fn ensure_kernel_crdt_event_ref_exists(pool: &PgPool, event_id: &str) -> StorageResult<()> {
+    if event_id.trim().is_empty() {
+        return Err(StorageError::Validation(
+            "kernel CRDT EventLedger event ref is missing",
+        ));
+    }
+    let exists = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM kernel_event_ledger WHERE event_id = $1)",
+    )
+    .bind(event_id)
+    .fetch_one(pool)
+    .await?;
+    if exists {
+        Ok(())
+    } else {
+        Err(StorageError::Validation(
+            "kernel CRDT EventLedger event ref is missing",
+        ))
+    }
+}
+
+fn map_kernel_crdt_update(row: PgRow) -> StorageResult<CrdtUpdateRecordV1> {
+    let replay_metadata_raw: String = row.get("replay_metadata_json");
+    let storage_authority_raw: String = row.get("storage_authority");
+    let update_seq: i64 = row.get("update_seq");
+    Ok(CrdtUpdateRecordV1 {
+        schema_id: row.get("schema_id"),
+        workspace_id: row.get("workspace_id"),
+        document_id: row.get("document_id"),
+        crdt_document_id: row.get("crdt_document_id"),
+        update_id: row.get("update_id"),
+        update_seq: update_seq as u64,
+        update_sha256: row.get("update_sha256"),
+        update_bytes_ref: row.get("update_bytes_ref"),
+        actor_id: row.get("actor_id"),
+        actor_kind: row.get("actor_kind"),
+        session_id: row.get("session_id"),
+        trace_id: row.get("trace_id"),
+        state_vector_before: row.get("state_vector_before"),
+        state_vector_after: row.get("state_vector_after"),
+        replay_metadata: serde_json::from_str::<CrdtReplayMetadataV1>(&replay_metadata_raw)?,
+        event_ledger_stream_id: row.get("event_ledger_stream_id"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+        storage_authority: parse_crdt_storage_authority(&storage_authority_raw)?,
+    })
+}
+
+fn map_kernel_crdt_snapshot(row: PgRow) -> StorageResult<CrdtSnapshotRecordV1> {
+    let promotion_evidence_raw: String = row.get("promotion_evidence_update_ids");
+    let storage_authority_raw: String = row.get("storage_authority");
+    let covered_update_seq: i64 = row.get("covered_update_seq");
+    Ok(CrdtSnapshotRecordV1 {
+        schema_id: row.get("schema_id"),
+        snapshot_id: row.get("snapshot_id"),
+        workspace_id: row.get("workspace_id"),
+        document_id: row.get("document_id"),
+        crdt_document_id: row.get("crdt_document_id"),
+        covered_update_seq: covered_update_seq as u64,
+        state_vector: row.get("state_vector"),
+        snapshot_sha256: row.get("snapshot_sha256"),
+        snapshot_bytes_ref: row.get("snapshot_bytes_ref"),
+        actor_id: row.get("actor_id"),
+        actor_kind: row.get("actor_kind"),
+        event_ledger_stream_id: row.get("event_ledger_stream_id"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+        promotion_evidence_update_ids: serde_json::from_str::<Vec<String>>(
+            &promotion_evidence_raw,
+        )?,
+        storage_authority: parse_crdt_storage_authority(&storage_authority_raw)?,
     })
 }
 
@@ -6927,6 +7037,32 @@ impl super::Database for PostgresDatabase {
         append_kernel_event_with_executor(&self.pool, event).await
     }
 
+    async fn append_kernel_events_atomic(
+        &self,
+        events: Vec<NewKernelEvent>,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        let mut tx = self.pool.begin().await?;
+        let mut appended = Vec::with_capacity(events.len());
+        for event in events {
+            appended.push(append_kernel_event_with_executor(&mut *tx, event).await?);
+        }
+        tx.commit().await?;
+        Ok(appended)
+    }
+
+    async fn append_kernel_event_pair_atomic_with_causation(
+        &self,
+        first: NewKernelEvent,
+        mut second: NewKernelEvent,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        let mut tx = self.pool.begin().await?;
+        let first_event = append_kernel_event_with_executor(&mut *tx, first).await?;
+        second.causation_id = Some(first_event.event_id.clone());
+        let second_event = append_kernel_event_with_executor(&mut *tx, second).await?;
+        tx.commit().await?;
+        Ok(vec![first_event, second_event])
+    }
+
     async fn list_kernel_events_for_session(
         &self,
         session_run_id: &str,
@@ -6999,6 +7135,342 @@ impl super::Database for PostgresDatabase {
         .await?;
 
         rows.into_iter().map(map_kernel_event).collect()
+    }
+
+    async fn append_kernel_crdt_update(
+        &self,
+        record: CrdtUpdateRecordV1,
+        update_bytes: Vec<u8>,
+    ) -> StorageResult<CrdtUpdateRecordV1> {
+        validate_crdt_update_record(&record)
+            .map_err(|_| StorageError::Validation("invalid kernel CRDT update record"))?;
+        if crdt_sha256_hex(&update_bytes) != record.update_sha256 {
+            return Err(StorageError::Validation(
+                "kernel CRDT update bytes do not match update_sha256",
+            ));
+        }
+        ensure_kernel_crdt_event_ref_exists(&self.pool, &record.event_ledger_event_id).await?;
+        let update_seq = i64::try_from(record.update_seq)
+            .map_err(|_| StorageError::Validation("kernel CRDT update sequence too large"))?;
+        let replay_metadata_json = serde_json::to_string(&record.replay_metadata)?;
+
+        let maybe_row = sqlx::query(
+            r#"
+            INSERT INTO kernel_crdt_updates (
+                schema_id,
+                workspace_id,
+                document_id,
+                crdt_document_id,
+                update_id,
+                update_seq,
+                update_sha256,
+                update_bytes_ref,
+                update_bytes,
+                actor_id,
+                actor_kind,
+                session_id,
+                trace_id,
+                state_vector_before,
+                state_vector_after,
+                replay_metadata_json,
+                event_ledger_stream_id,
+                event_ledger_event_id,
+                storage_authority
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                $10, $11, $12, $13, $14, $15, $16::jsonb,
+                $17, $18, $19
+            )
+            ON CONFLICT (workspace_id, document_id, crdt_document_id, update_id) DO NOTHING
+            RETURNING
+                schema_id,
+                workspace_id,
+                document_id,
+                crdt_document_id,
+                update_id,
+                update_seq,
+                update_sha256,
+                update_bytes_ref,
+                actor_id,
+                actor_kind,
+                session_id,
+                trace_id,
+                state_vector_before,
+                state_vector_after,
+                replay_metadata_json::text AS replay_metadata_json,
+                event_ledger_stream_id,
+                event_ledger_event_id,
+                storage_authority
+            "#,
+        )
+        .bind(&record.schema_id)
+        .bind(&record.workspace_id)
+        .bind(&record.document_id)
+        .bind(&record.crdt_document_id)
+        .bind(&record.update_id)
+        .bind(update_seq)
+        .bind(&record.update_sha256)
+        .bind(&record.update_bytes_ref)
+        .bind(update_bytes)
+        .bind(&record.actor_id)
+        .bind(&record.actor_kind)
+        .bind(&record.session_id)
+        .bind(&record.trace_id)
+        .bind(&record.state_vector_before)
+        .bind(&record.state_vector_after)
+        .bind(replay_metadata_json)
+        .bind(&record.event_ledger_stream_id)
+        .bind(&record.event_ledger_event_id)
+        .bind(crdt_storage_authority_str(record.storage_authority))
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let stored = match maybe_row {
+            Some(row) => map_kernel_crdt_update(row)?,
+            None => {
+                let rows = self
+                    .list_kernel_crdt_updates(
+                        &record.workspace_id,
+                        &record.document_id,
+                        &record.crdt_document_id,
+                    )
+                    .await?;
+                rows.into_iter()
+                    .find(|stored| stored.update_id == record.update_id)
+                    .ok_or(StorageError::Conflict(
+                        "kernel CRDT update idempotency conflict",
+                    ))?
+            }
+        };
+        if stored != record {
+            return Err(StorageError::Conflict(
+                "kernel CRDT update idempotency conflict",
+            ));
+        }
+        Ok(stored)
+    }
+
+    async fn list_kernel_crdt_updates(
+        &self,
+        workspace_id: &str,
+        document_id: &str,
+        crdt_document_id: &str,
+    ) -> StorageResult<Vec<CrdtUpdateRecordV1>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                schema_id,
+                workspace_id,
+                document_id,
+                crdt_document_id,
+                update_id,
+                update_seq,
+                update_sha256,
+                update_bytes_ref,
+                actor_id,
+                actor_kind,
+                session_id,
+                trace_id,
+                state_vector_before,
+                state_vector_after,
+                replay_metadata_json::text AS replay_metadata_json,
+                event_ledger_stream_id,
+                event_ledger_event_id,
+                storage_authority
+            FROM kernel_crdt_updates
+            WHERE workspace_id = $1
+              AND document_id = $2
+              AND crdt_document_id = $3
+            ORDER BY update_seq ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(document_id)
+        .bind(crdt_document_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(map_kernel_crdt_update).collect()
+    }
+
+    async fn read_kernel_crdt_update_bytes(
+        &self,
+        update_bytes_ref: &str,
+    ) -> StorageResult<Vec<u8>> {
+        sqlx::query_scalar::<_, Vec<u8>>(
+            r#"
+            SELECT update_bytes
+            FROM kernel_crdt_updates
+            WHERE update_bytes_ref = $1
+            "#,
+        )
+        .bind(update_bytes_ref)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or(StorageError::NotFound("kernel CRDT update bytes"))
+    }
+
+    async fn append_kernel_crdt_snapshot(
+        &self,
+        record: CrdtSnapshotRecordV1,
+        snapshot_bytes: Vec<u8>,
+    ) -> StorageResult<CrdtSnapshotRecordV1> {
+        validate_crdt_snapshot_record(&record)
+            .map_err(|_| StorageError::Validation("invalid kernel CRDT snapshot record"))?;
+        if crdt_sha256_hex(&snapshot_bytes) != record.snapshot_sha256 {
+            return Err(StorageError::Validation(
+                "kernel CRDT snapshot bytes do not match snapshot_sha256",
+            ));
+        }
+        ensure_kernel_crdt_event_ref_exists(&self.pool, &record.event_ledger_event_id).await?;
+        let covered_update_seq = i64::try_from(record.covered_update_seq).map_err(|_| {
+            StorageError::Validation("kernel CRDT snapshot covered sequence too large")
+        })?;
+        let promotion_evidence_json = serde_json::to_string(&record.promotion_evidence_update_ids)?;
+
+        let maybe_row = sqlx::query(
+            r#"
+            INSERT INTO kernel_crdt_snapshots (
+                schema_id,
+                snapshot_id,
+                workspace_id,
+                document_id,
+                crdt_document_id,
+                covered_update_seq,
+                state_vector,
+                snapshot_sha256,
+                snapshot_bytes_ref,
+                snapshot_bytes,
+                actor_id,
+                actor_kind,
+                event_ledger_stream_id,
+                event_ledger_event_id,
+                promotion_evidence_update_ids,
+                storage_authority
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                $10, $11, $12, $13, $14, $15::jsonb, $16
+            )
+            ON CONFLICT (workspace_id, document_id, crdt_document_id, snapshot_id) DO NOTHING
+            RETURNING
+                schema_id,
+                snapshot_id,
+                workspace_id,
+                document_id,
+                crdt_document_id,
+                covered_update_seq,
+                state_vector,
+                snapshot_sha256,
+                snapshot_bytes_ref,
+                actor_id,
+                actor_kind,
+                event_ledger_stream_id,
+                event_ledger_event_id,
+                promotion_evidence_update_ids::text AS promotion_evidence_update_ids,
+                storage_authority
+            "#,
+        )
+        .bind(&record.schema_id)
+        .bind(&record.snapshot_id)
+        .bind(&record.workspace_id)
+        .bind(&record.document_id)
+        .bind(&record.crdt_document_id)
+        .bind(covered_update_seq)
+        .bind(&record.state_vector)
+        .bind(&record.snapshot_sha256)
+        .bind(&record.snapshot_bytes_ref)
+        .bind(snapshot_bytes)
+        .bind(&record.actor_id)
+        .bind(&record.actor_kind)
+        .bind(&record.event_ledger_stream_id)
+        .bind(&record.event_ledger_event_id)
+        .bind(promotion_evidence_json)
+        .bind(crdt_storage_authority_str(record.storage_authority))
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let stored = match maybe_row {
+            Some(row) => map_kernel_crdt_snapshot(row)?,
+            None => {
+                let rows = self
+                    .list_kernel_crdt_snapshots(
+                        &record.workspace_id,
+                        &record.document_id,
+                        &record.crdt_document_id,
+                    )
+                    .await?;
+                rows.into_iter()
+                    .find(|stored| stored.snapshot_id == record.snapshot_id)
+                    .ok_or(StorageError::Conflict(
+                        "kernel CRDT snapshot idempotency conflict",
+                    ))?
+            }
+        };
+        if stored != record {
+            return Err(StorageError::Conflict(
+                "kernel CRDT snapshot idempotency conflict",
+            ));
+        }
+        Ok(stored)
+    }
+
+    async fn list_kernel_crdt_snapshots(
+        &self,
+        workspace_id: &str,
+        document_id: &str,
+        crdt_document_id: &str,
+    ) -> StorageResult<Vec<CrdtSnapshotRecordV1>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                schema_id,
+                snapshot_id,
+                workspace_id,
+                document_id,
+                crdt_document_id,
+                covered_update_seq,
+                state_vector,
+                snapshot_sha256,
+                snapshot_bytes_ref,
+                actor_id,
+                actor_kind,
+                event_ledger_stream_id,
+                event_ledger_event_id,
+                promotion_evidence_update_ids::text AS promotion_evidence_update_ids,
+                storage_authority
+            FROM kernel_crdt_snapshots
+            WHERE workspace_id = $1
+              AND document_id = $2
+              AND crdt_document_id = $3
+            ORDER BY covered_update_seq DESC, snapshot_id ASC
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(document_id)
+        .bind(crdt_document_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(map_kernel_crdt_snapshot).collect()
+    }
+
+    async fn read_kernel_crdt_snapshot_bytes(
+        &self,
+        snapshot_bytes_ref: &str,
+    ) -> StorageResult<Vec<u8>> {
+        sqlx::query_scalar::<_, Vec<u8>>(
+            r#"
+            SELECT snapshot_bytes
+            FROM kernel_crdt_snapshots
+            WHERE snapshot_bytes_ref = $1
+            "#,
+        )
+        .bind(snapshot_bytes_ref)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or(StorageError::NotFound("kernel CRDT snapshot bytes"))
     }
 
     async fn enqueue_kernel_session_run(&self, session: SessionRun) -> StorageResult<SessionRun> {

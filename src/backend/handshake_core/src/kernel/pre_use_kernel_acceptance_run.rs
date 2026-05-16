@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use super::{
     action_catalog::{kernel002_action_catalog, validate_kernel_action_catalog},
     action_envelope::{
@@ -5,10 +7,13 @@ use super::{
         KernelActionResultV1, KernelReceiptMapping,
     },
     dcc_mvp_runtime_surface::{
-        select_dcc_work_item, validate_dcc_mvp_runtime_surface, ApprovalScope,
-        DccApprovalPreviewV1, DccEvidenceItemV1, DccEvidenceKind, DccMvpRuntimeSurfaceV1,
-        DccPanelKind, DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1,
-        DccSelectedWorkProjectionV1, DccSessionRuntimeStateV1, DccWorkItemV1, DccWorktreeStateV1,
+        dcc_catalog_action_rows_from_catalog, select_dcc_work_item,
+        validate_dcc_mvp_runtime_surface, ApprovalScope, DccApprovalPreviewV1,
+        DccDirectEditDenialRowV1, DccEvidenceItemV1, DccEvidenceKind, DccFreshnessBadgeV1,
+        DccMvpRuntimeSurfaceV1, DccPanelKind, DccPromotionPreviewRowV1,
+        DccPromotionPreviewStaleRisk, DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1,
+        DccSelectedWorkProjectionV1, DccSessionRuntimeStateV1, DccStableElementIdV1,
+        DccWorkItemV1, DccWorktreeStateV1, DccWriteBoxQueueRowV1,
     },
     direct_edit_guard::{
         guard_direct_edit_attempt, DirectEditAttemptV1, DirectEditDecisionStatus,
@@ -17,7 +22,8 @@ use super::{
     model_manual::{kernel002_no_context_model_manual, ManualTopic},
     write_boxes::{
         validate_write_box_common, CRDTWorkspaceBox, PromotionBox, ProposalBox, WriteBoxCommon,
-        WriteBoxKind, WriteBoxLifecycleState, WriteBoxOwnerRef, WriteBoxValidationState,
+        WriteBoxKind, WriteBoxLifecycleState, WriteBoxOwnerRef, WriteBoxPayloadRef,
+        WriteBoxReplayMetadataV1, WriteBoxTargetRef, WriteBoxValidationState,
         WriteBoxValidationStatus,
     },
 };
@@ -30,7 +36,7 @@ const WORK_ID: &str = "work-kernel002-mt050-preuse";
 const WORKTREE_ID: &str = "wtc-preuse-hardening-v1";
 const SESSION_ID: &str = "session-kernel002-preuse-coder";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PreUseKernelAcceptanceStepKind {
     ManualOpened,
     CatalogActionSelected,
@@ -43,13 +49,14 @@ pub enum PreUseKernelAcceptanceStepKind {
     DirectAuthorityEditBlocked,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PreUseKernelAcceptanceOutcome {
     PromotionQueued,
+    Promoted,
     Denied,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PreUseKernelAcceptanceStepV1 {
     pub step_id: String,
     pub kind: PreUseKernelAcceptanceStepKind,
@@ -59,7 +66,7 @@ pub struct PreUseKernelAcceptanceStepV1 {
     pub authority_file_mutation: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PreUseKernelAcceptanceResearchBasisV1 {
     pub sources_checked: Vec<String>,
     pub patterns_found: Vec<String>,
@@ -71,13 +78,13 @@ pub struct PreUseKernelAcceptanceResearchBasisV1 {
     pub validation_plan: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PreUseKernelAcceptanceRunV1 {
-    pub schema_id: &'static str,
+    pub schema_id: String,
     pub run_id: String,
     pub wp_id: String,
     pub mt_id: String,
-    pub manual_id: &'static str,
+    pub manual_id: String,
     pub no_context_model_ready: bool,
     pub manual_topics_confirmed: Vec<String>,
     pub catalog_action_refs: Vec<String>,
@@ -94,7 +101,7 @@ pub struct PreUseKernelAcceptanceRunV1 {
     pub no_direct_authority_file_edits: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PreUseKernelAcceptanceValidationError {
     pub field: &'static str,
     pub message: &'static str,
@@ -144,18 +151,19 @@ pub fn build_kernel002_pre_use_acceptance_run() -> PreUseKernelAcceptanceRunV1 {
         common: write_box_common(
             "writebox-promotion-preuse-mt050",
             WriteBoxKind::Promotion,
-            WriteBoxLifecycleState::PromotionQueued,
+            WriteBoxLifecycleState::Promoted,
             AuthorityEffect::EventLedgerAuthorityWrite,
             &[
                 "proposal://kernel002/preuse-crdt-patch",
                 "validation-report://kernel002/preuse-crdt",
-                "receipt://kernel002/preuse-promotion-queued",
+                "receipt://kernel002/preuse-promotion-committed",
+                "event-ledger://kernel002/preuse-promotion-committed",
             ],
             &["promotion_gate", "idempotency", "event_ledger_append"],
-            &["dcc.promotion_queue", "dcc.event_ledger_preview"],
+            &["dcc.promotion_committed", "dcc.event_ledger_preview"],
         ),
         promotion_target_ref: "authority://kernel002/preuse/document".to_string(),
-        event_ledger_ref: None,
+        event_ledger_ref: Some("event-ledger://kernel002/preuse-promotion-committed".to_string()),
     };
 
     let action_results = vec![
@@ -174,12 +182,16 @@ pub fn build_kernel002_pre_use_acceptance_run() -> PreUseKernelAcceptanceRunV1 {
         },
         KernelActionResultV1 {
             schema_id: "hsk.kernel_action_result@1".to_string(),
-            result_id: "result-preuse-promotion-queued".to_string(),
+            result_id: "result-preuse-promotion-committed".to_string(),
             request_trace_id: "trace-preuse-promote".to_string(),
-            status: KernelActionResultStatus::PromotionQueued,
+            status: KernelActionResultStatus::Promoted,
             write_box_ids: vec![promotion_box.common.write_box_id.clone()],
             receipt_mappings: vec![receipt("STATUS", "trace-preuse-promote")],
-            event_mappings: Vec::new(),
+            event_mappings: vec![event(
+                "KernelWriteBoxPromotionCommittedV1",
+                "hsk.event.kernel_write_box_promotion_committed@1",
+                "kernel002-preuse-promote-v1",
+            )],
             denial: None,
         },
     ];
@@ -205,17 +217,18 @@ pub fn build_kernel002_pre_use_acceptance_run() -> PreUseKernelAcceptanceRunV1 {
         "crdt-update://kernel002/preuse/body".to_string(),
         "proposal://kernel002/preuse-crdt-patch".to_string(),
         "validation-report://kernel002/preuse-crdt".to_string(),
-        "receipt://kernel002/preuse-promotion-queued".to_string(),
+        "receipt://kernel002/preuse-promotion-committed".to_string(),
+        "event-ledger://kernel002/preuse-promotion-committed".to_string(),
         "dcc://kernel002/preuse/selected-work".to_string(),
         "direct-edit-denial://kernel002/preuse-authority-attempt".to_string(),
     ];
 
     PreUseKernelAcceptanceRunV1 {
-        schema_id: PRE_USE_KERNEL_ACCEPTANCE_RUN_SCHEMA_ID,
+        schema_id: PRE_USE_KERNEL_ACCEPTANCE_RUN_SCHEMA_ID.to_string(),
         run_id: "kernel002-pre-use-acceptance-mt050".to_string(),
         wp_id: WP_ID.to_string(),
         mt_id: MT_ID.to_string(),
-        manual_id: manual.manual_id,
+        manual_id: manual.manual_id.to_string(),
         no_context_model_ready: manual.no_prior_context_required,
         manual_topics_confirmed: required_manual_topics()
             .iter()
@@ -227,7 +240,7 @@ pub fn build_kernel002_pre_use_acceptance_run() -> PreUseKernelAcceptanceRunV1 {
         proposal_box,
         promotion_box,
         action_results,
-        promotion_or_denial_observed: PreUseKernelAcceptanceOutcome::PromotionQueued,
+        promotion_or_denial_observed: PreUseKernelAcceptanceOutcome::Promoted,
         dcc_projection,
         direct_edit_decision,
         steps: pre_use_steps(),
@@ -386,17 +399,49 @@ fn validate_write_boxes(
         AuthorityEffect::EventLedgerAuthorityWrite,
     );
 
-    if run.promotion_box.common.lifecycle_state != WriteBoxLifecycleState::PromotionQueued {
-        errors.push(error(
-            "promotion_box.lifecycle_state",
-            "pre-use acceptance queues promotion but does not append authority",
-        ));
-    }
-    if run.promotion_box.event_ledger_ref.is_some() {
-        errors.push(error(
-            "promotion_box.event_ledger_ref",
-            "pre-use acceptance must not commit an EventLedger authority append",
-        ));
+    match run.promotion_or_denial_observed {
+        PreUseKernelAcceptanceOutcome::Promoted => {
+            if run.promotion_box.common.lifecycle_state != WriteBoxLifecycleState::Promoted {
+                errors.push(error(
+                    "promotion_box.lifecycle_state",
+                    "promoted pre-use acceptance must commit the promotion write box",
+                ));
+            }
+            if run.promotion_box.event_ledger_ref.is_none() {
+                errors.push(error(
+                    "promotion_box.event_ledger_ref",
+                    "promoted pre-use acceptance must include an EventLedger authority append reference",
+                ));
+            }
+        }
+        PreUseKernelAcceptanceOutcome::PromotionQueued => {
+            if run.promotion_box.common.lifecycle_state != WriteBoxLifecycleState::PromotionQueued {
+                errors.push(error(
+                    "promotion_box.lifecycle_state",
+                    "queued pre-use acceptance must leave the promotion write box queued",
+                ));
+            }
+            if run.promotion_box.event_ledger_ref.is_some() {
+                errors.push(error(
+                    "promotion_box.event_ledger_ref",
+                    "queued pre-use acceptance must not include an EventLedger authority append",
+                ));
+            }
+        }
+        PreUseKernelAcceptanceOutcome::Denied => {
+            if run.promotion_box.common.lifecycle_state != WriteBoxLifecycleState::Denied {
+                errors.push(error(
+                    "promotion_box.lifecycle_state",
+                    "denied pre-use acceptance must deny the promotion write box",
+                ));
+            }
+            if run.promotion_box.event_ledger_ref.is_none() {
+                errors.push(error(
+                    "promotion_box.event_ledger_ref",
+                    "denied pre-use acceptance must include an EventLedger denial reference",
+                ));
+            }
+        }
     }
     require_vec(
         errors,
@@ -449,15 +494,35 @@ fn validate_action_results(
                 ));
             }
         }
-        PreUseKernelAcceptanceOutcome::Denied => {
-            if !run
-                .action_results
-                .iter()
-                .any(|result| result.status == KernelActionResultStatus::Denied)
-            {
+        PreUseKernelAcceptanceOutcome::Promoted => {
+            if !run.action_results.iter().any(|result| {
+                result.status == KernelActionResultStatus::Promoted
+                    && result
+                        .write_box_ids
+                        .contains(&run.promotion_box.common.write_box_id)
+                    && has_valid_event_mapping(result)
+            }) {
                 errors.push(error(
                     "promotion_or_denial_observed",
-                    "denial outcome must include a denied action result",
+                    "promoted outcome must include EventLedger-backed promotion evidence",
+                ));
+            }
+        }
+        PreUseKernelAcceptanceOutcome::Denied => {
+            if !run.action_results.iter().any(|result| {
+                result.status == KernelActionResultStatus::Denied
+                    && result
+                        .write_box_ids
+                        .contains(&run.promotion_box.common.write_box_id)
+                    && has_valid_event_mapping(result)
+                    && result
+                        .denial
+                        .as_ref()
+                        .is_some_and(|denial| has_valid_denial_mapping(denial))
+            }) {
+                errors.push(error(
+                    "promotion_or_denial_observed",
+                    "denial outcome must include EventLedger-backed promotion denial evidence",
                 ));
             }
         }
@@ -554,6 +619,12 @@ fn validate_direct_edit_decision(
         errors.push(error(
             "direct_edit_decision.lawful_replacement_action_ids",
             "direct-edit denial must route back to CRDT proposal action",
+        ));
+    }
+    if !has_valid_denial_mapping(denial) {
+        errors.push(error(
+            "direct_edit_decision.denial.event_mappings",
+            "direct-edit denial must be backed by a valid EventLedger mapping",
         ));
     }
 }
@@ -667,7 +738,10 @@ fn pre_use_steps() -> Vec<PreUseKernelAcceptanceStepV1> {
             PreUseKernelAcceptanceStepKind::PromotionOrDenialObserved,
             Some("kernel.write_box.promote"),
             Some("writebox-promotion-preuse-mt050"),
-            &["receipt://kernel002/preuse-promotion-queued"],
+            &[
+                "receipt://kernel002/preuse-promotion-committed",
+                "event-ledger://kernel002/preuse-promotion-committed",
+            ],
         ),
         step(
             "step-dcc-projection-viewed",
@@ -684,7 +758,8 @@ fn pre_use_steps() -> Vec<PreUseKernelAcceptanceStepV1> {
             &[
                 "diff://kernel002/preuse/crdt",
                 "validation-output://kernel002/preuse-crdt",
-                "receipt://kernel002/preuse-promotion-queued",
+                "receipt://kernel002/preuse-promotion-committed",
+                "event-ledger://kernel002/preuse-promotion-committed",
             ],
         ),
         step(
@@ -715,6 +790,10 @@ fn step(
             .collect(),
         authority_file_mutation: false,
     }
+}
+
+pub fn build_pre_use_dcc_mvp_runtime_surface() -> DccMvpRuntimeSurfaceV1 {
+    pre_use_dcc_surface()
 }
 
 fn pre_use_dcc_surface() -> DccMvpRuntimeSurfaceV1 {
@@ -820,7 +899,7 @@ fn pre_use_dcc_surface() -> DccMvpRuntimeSurfaceV1 {
             evidence(
                 "evidence-preuse-receipt",
                 DccEvidenceKind::Receipt,
-                "receipt://kernel002/preuse-promotion-queued",
+                "receipt://kernel002/preuse-promotion-committed",
             ),
             evidence(
                 "evidence-preuse-flight-recorder",
@@ -840,10 +919,128 @@ fn pre_use_dcc_surface() -> DccMvpRuntimeSurfaceV1 {
                 "PROMOTION_GATE_DENIED",
             ),
         ],
+        write_box_queue_rows: vec![
+            DccWriteBoxQueueRowV1 {
+                row_id: "write-box-row-preuse-crdt".to_string(),
+                write_box_id: "wb-preuse-crdt-workspace".to_string(),
+                work_id: WORK_ID.to_string(),
+                kind: WriteBoxKind::CrdtWorkspace,
+                lifecycle_state: WriteBoxLifecycleState::Validated,
+                actor_id: "actor-kernel-builder".to_string(),
+                target_refs: vec!["authority://kernel/document/preuse".to_string()],
+                validation_state: WriteBoxValidationState::Valid,
+                denial_receipt_refs: Vec::new(),
+                promotion_receipt_refs: vec!["receipt://kernel002/preuse-promotion-queued".to_string()],
+                event_ledger_event_refs: Vec::new(),
+                stale_state_vector: false,
+                stable_element_id: "dcc.write_box_queue.row.wb-preuse-crdt-workspace".to_string(),
+            },
+            DccWriteBoxQueueRowV1 {
+                row_id: "write-box-row-preuse-promotion".to_string(),
+                write_box_id: "wb-preuse-promotion".to_string(),
+                work_id: WORK_ID.to_string(),
+                kind: WriteBoxKind::Promotion,
+                lifecycle_state: WriteBoxLifecycleState::PromotionQueued,
+                actor_id: "actor-kernel-builder".to_string(),
+                target_refs: vec!["authority://kernel/document/preuse".to_string()],
+                validation_state: WriteBoxValidationState::Valid,
+                denial_receipt_refs: Vec::new(),
+                promotion_receipt_refs: vec!["receipt://kernel002/preuse-promotion-requested".to_string()],
+                event_ledger_event_refs: Vec::new(),
+                stale_state_vector: false,
+                stable_element_id: "dcc.write_box_queue.row.wb-preuse-promotion".to_string(),
+            },
+        ],
+        direct_edit_denials: vec![DccDirectEditDenialRowV1 {
+            row_id: "direct-edit-denial-row-preuse".to_string(),
+            denial_id: "denial-preuse-authority-attempt".to_string(),
+            work_id: WORK_ID.to_string(),
+            actor_id: "actor-kernel-builder".to_string(),
+            target_ref: ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json".to_string(),
+            attempted_action: "raw_authority_file_write".to_string(),
+            recovery_instruction: "Use a registered write-box action".to_string(),
+            ui_response_ref: "dcc://direct-edit-denials/preuse-authority-attempt".to_string(),
+            api_response_ref: "api://kernel/direct-edit-denials/preuse-authority-attempt".to_string(),
+            stable_element_id: "dcc.direct_edit_denial.row.preuse-authority-attempt".to_string(),
+        }],
+        promotion_previews: vec![DccPromotionPreviewRowV1 {
+            row_id: "promotion-preview-row-preuse".to_string(),
+            preview_id: "promotion-preview-preuse".to_string(),
+            work_id: WORK_ID.to_string(),
+            write_box_id: "wb-preuse-promotion".to_string(),
+            promotion_target_ref: "authority://kernel/document/preuse".to_string(),
+            request_event_ref: Some("eventledger://stream-preuse/promotion-requested".to_string()),
+            accepted_event_ref: None,
+            rejected_event_ref: None,
+            state_vector: "sv-preuse-validated".to_string(),
+            validation_check_summaries: vec![
+                "promotion_gate_input_alignment: PASS".to_string(),
+                "crdt_state_vector_match: PASS".to_string(),
+            ],
+            idempotency_key: crate::kernel::crdt::promotion_bridge::promotion_idempotency_key(
+                "bridge-preuse",
+                "requested",
+            ),
+            expected_event_kinds: vec![
+                "KernelCrdtPromotionRequestedV1".to_string(),
+                "KernelCrdtPromotionAcceptedV1".to_string(),
+            ],
+            stale_risk: DccPromotionPreviewStaleRisk::None,
+            freshness_badge_id: "freshness-preuse-crdt".to_string(),
+            stable_element_id: "dcc.promotion_preview.row.wb-preuse-promotion".to_string(),
+        }],
+        freshness_badges: vec![DccFreshnessBadgeV1 {
+            badge_id: "freshness-preuse-crdt".to_string(),
+            source_projection_id: "dcc-preuse-crdt-projection".to_string(),
+            source_ref: "eventledger://stream-preuse".to_string(),
+            state_vector: "sv-preuse-validated".to_string(),
+            updated_at_ref: "eventledger://stream-preuse/latest".to_string(),
+            stale: false,
+            stable_element_id: "dcc.freshness_badge.preuse-crdt".to_string(),
+        }],
+        stable_element_ids: vec![
+            DccStableElementIdV1 {
+                element_id: "dcc.write_box_queue.row.wb-preuse-crdt-workspace".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "write_box_queue_row".to_string(),
+                source_ref: "writebox://wb-preuse-crdt-workspace".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.write_box_queue.row.wb-preuse-promotion".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "write_box_queue_row".to_string(),
+                source_ref: "writebox://wb-preuse-promotion".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.direct_edit_denial.row.preuse-authority-attempt".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "direct_edit_denial_row".to_string(),
+                source_ref: "denial://denial-preuse-authority-attempt".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.promotion_preview.row.wb-preuse-promotion".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "promotion_preview_row".to_string(),
+                source_ref: "writebox://wb-preuse-promotion".to_string(),
+            },
+            DccStableElementIdV1 {
+                element_id: "dcc.freshness_badge.preuse-crdt".to_string(),
+                surface_id: "dcc-preuse-acceptance-mt050".to_string(),
+                element_kind: "freshness_badge".to_string(),
+                source_ref: "eventledger://stream-preuse".to_string(),
+            },
+        ],
         catalog_action_refs: required_catalog_actions()
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
+        catalog_action_rows: dcc_catalog_action_rows_from_catalog(
+            &kernel002_action_catalog(),
+            &required_catalog_actions()
+                .iter()
+                .map(|value| (*value).to_string())
+                .collect::<Vec<_>>(),
+        ),
         direct_authority_mutation_allowed: false,
         ungoverned_tool_execution_allowed: false,
         destructive_git_ops_require_same_turn_approval: true,
@@ -871,6 +1068,10 @@ fn required_panel_kinds() -> Vec<DccPanelKind> {
         DccPanelKind::WorktreeState,
         DccPanelKind::SessionState,
         DccPanelKind::ActionCatalog,
+        DccPanelKind::WriteBoxQueue,
+        DccPanelKind::DirectEditDenialView,
+        DccPanelKind::PromotionPreview,
+        DccPanelKind::FreshnessBadges,
         DccPanelKind::ProposalState,
         DccPanelKind::DiffEvidence,
         DccPanelKind::ApprovalPreview,
@@ -910,6 +1111,7 @@ fn direct_authority_attempt() -> DirectEditAttemptV1 {
         attempt_id: "preuse-authority-attempt".to_string(),
         actor_id: "actor-kernel-builder".to_string(),
         actor_kind: "model".to_string(),
+        role_id: "CODER".to_string(),
         target_path: ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json".to_string(),
         target_class: DirectEditTargetClass::AuthorityArtifact,
         operation: "raw_authority_file_write".to_string(),
@@ -929,18 +1131,35 @@ fn write_box_common(
     WriteBoxCommon {
         write_box_id: write_box_id.to_string(),
         kind,
+        schema_version: "hsk.write_box.v1".to_string(),
         workspace_id: "workspace-kernel002-preuse".to_string(),
         owner: WriteBoxOwnerRef {
             actor_id: "actor-kernel-builder".to_string(),
             actor_kind: "model".to_string(),
             role_id: "CODER".to_string(),
         },
+        crdt_site_id: "site-kernel002-preuse".to_string(),
+        target_refs: vec![WriteBoxTargetRef {
+            target_id: "document-kernel002-preuse".to_string(),
+            target_kind: "crdt_document".to_string(),
+            authority_class: "pre_promotion_workspace".to_string(),
+        }],
+        base_snapshot_refs: vec!["postgres://kernel_crdt_snapshots/preuse-base".to_string()],
+        intent_summary: format!("Kernel002 pre-use acceptance envelope for {write_box_id}"),
+        operation_payload_refs: vec![WriteBoxPayloadRef {
+            payload_id: format!("payload-{write_box_id}"),
+            payload_kind: "kernel002_preuse_evidence".to_string(),
+            payload_ref: format!("postgres://kernel_crdt_updates/{write_box_id}/payload"),
+            payload_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                .to_string(),
+        }],
         lifecycle_state,
         allowed_transitions: vec![
             WriteBoxLifecycleState::Open,
             WriteBoxLifecycleState::ReadyForValidation,
             WriteBoxLifecycleState::Validated,
             WriteBoxLifecycleState::PromotionQueued,
+            WriteBoxLifecycleState::Promoted,
             WriteBoxLifecycleState::Denied,
         ],
         authority_effect,
@@ -948,6 +1167,17 @@ fn write_box_common(
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
+        receipt_refs: vec![format!("receipt://write-box-created/{write_box_id}")],
+        denial_receipt_refs: if lifecycle_state == WriteBoxLifecycleState::Denied {
+            vec![format!("receipt://write-box-denied/{write_box_id}")]
+        } else {
+            Vec::new()
+        },
+        promotion_receipt_refs: if authority_effect == AuthorityEffect::EventLedgerAuthorityWrite {
+            vec![format!("receipt://promotion-requested/{write_box_id}")]
+        } else {
+            Vec::new()
+        },
         validation_status: WriteBoxValidationStatus {
             state: WriteBoxValidationState::Valid,
             check_ids: check_ids.iter().map(|value| (*value).to_string()).collect(),
@@ -956,6 +1186,18 @@ fn write_box_common(
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
+        replay_metadata: WriteBoxReplayMetadataV1 {
+            replay_plan_ref:
+                "crdt-replay-plan://workspace-kernel002-preuse/document-kernel002-preuse"
+                    .to_string(),
+            replay_order_key: format!(
+                "workspace-kernel002-preuse/document-kernel002-preuse/{write_box_id}"
+            ),
+            idempotency_key: format!("write-box:{write_box_id}:preuse"),
+            source_event_refs: vec![format!(
+                "eventledger://event-ledger-stream-preuse/{write_box_id}"
+            )],
+        },
     }
 }
 
@@ -965,6 +1207,28 @@ fn receipt(kind: &str, correlation_id: &str) -> KernelReceiptMapping {
         receipt_schema_id: "hsk.wp_receipt@1".to_string(),
         correlation_id: correlation_id.to_string(),
     }
+}
+
+fn event(event_kind: &str, event_schema_id: &str, idempotency_key: &str) -> EventLedgerMapping {
+    EventLedgerMapping {
+        event_kind: event_kind.to_string(),
+        event_schema_id: event_schema_id.to_string(),
+        idempotency_key: idempotency_key.to_string(),
+    }
+}
+
+fn has_valid_event_mapping(result: &KernelActionResultV1) -> bool {
+    !result.event_mappings.is_empty() && result.event_mappings.iter().all(valid_event_mapping)
+}
+
+fn has_valid_denial_mapping(denial: &KernelActionDenialV1) -> bool {
+    !denial.event_mappings.is_empty() && denial.event_mappings.iter().all(valid_event_mapping)
+}
+
+fn valid_event_mapping(mapping: &EventLedgerMapping) -> bool {
+    !mapping.event_kind.trim().is_empty()
+        && mapping.event_schema_id.starts_with("hsk.event.")
+        && !mapping.idempotency_key.trim().is_empty()
 }
 
 fn research_basis() -> PreUseKernelAcceptanceResearchBasisV1 {
@@ -996,12 +1260,14 @@ fn research_basis() -> PreUseKernelAcceptanceResearchBasisV1 {
         risks: vec![
             "A passing proof could hide direct authority mutation if the DCC and guard evidence are omitted."
                 .to_string(),
-            "Promotion proof could be mistaken for an actual EventLedger append.".to_string(),
+            "Promotion proof could be accepted without an EventLedger-backed result mapping."
+                .to_string(),
         ],
         mitigations: vec![
             "Validation requires direct-edit denial evidence and no authority-file mutation flags."
                 .to_string(),
-            "Promotion remains queued with no EventLedger ref during pre-use acceptance.".to_string(),
+            "Validation requires promotion and denial outcomes to carry EventLedger mappings."
+                .to_string(),
         ],
         validation_plan: vec![
             "Run focused product acceptance tests.".to_string(),

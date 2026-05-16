@@ -170,6 +170,12 @@ pub enum FlightRecorderEventType {
     SessionSchedulerDispatch,
     SessionSchedulerRateLimited,
     SessionSchedulerCancelled,
+    /// FR-EVT-SESS-001..005: Model session lifecycle and budget telemetry.
+    SessionCreated,
+    SessionStateChange,
+    SessionMessage,
+    SessionCompleted,
+    SessionBudgetWarning,
     /// FR-EVT-SESS-SPAWN-001..005: Session Spawn events [4.3.9.14]
     SessionSpawnRequested,
     SessionSpawnAccepted,
@@ -373,6 +379,11 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::SessionSchedulerCancelled => {
                 write!(f, "session_scheduler.cancelled")
             }
+            FlightRecorderEventType::SessionCreated => write!(f, "session.created"),
+            FlightRecorderEventType::SessionStateChange => write!(f, "session.state_change"),
+            FlightRecorderEventType::SessionMessage => write!(f, "session.message"),
+            FlightRecorderEventType::SessionCompleted => write!(f, "session.completed"),
+            FlightRecorderEventType::SessionBudgetWarning => write!(f, "session.budget_warning"),
             FlightRecorderEventType::SessionSpawnRequested => {
                 write!(f, "session.spawn_requested")
             }
