@@ -4,7 +4,7 @@
  * Bundled check that runs all packet/closure/merge truth checks in one pass
  * and collects ALL failures instead of failing on the first one.
  *
- * Replaces 5 individual gov-check imports:
+ * Sub-checks:
  *   - task-board-check.mjs
  *   - packet-closure-monitor-check.mjs
  *   - packet-truth-check.mjs
@@ -13,6 +13,7 @@
  *   - packet-contract-projection-check.mjs
  *   - flat-packet-legacy-inventory-check.mjs
  *   - task-packet-stub-contract-check.mjs
+ *   - wp-traceability-registry-projection-check.mjs (MD-ELIM-PHASE-2)
  */
 
 import { registerFailCaptureHook, failWithMemory } from "../scripts/lib/fail-capture-lib.mjs";
@@ -29,6 +30,7 @@ const failures = runBundledChecks(import.meta.url, [
   "packet-contract-projection-check.mjs",
   "flat-packet-legacy-inventory-check.mjs",
   "task-packet-stub-contract-check.mjs",
+  "wp-traceability-registry-projection-check.mjs",
 ]);
 
 if (failures.length > 0) {

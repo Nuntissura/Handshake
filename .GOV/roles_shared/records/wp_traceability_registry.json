@@ -1,0 +1,1322 @@
+{
+  "schema_id": "hsk.wp_traceability_registry@1",
+  "schema_version": "wp_traceability_registry_v1",
+  "authority_surface": "MACHINE_CONTRACT",
+  "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
+  "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
+  "updated_at_utc": "2026-05-16T23:16:20.165Z",
+  "entries": [
+    {
+      "base_wp_id": "WP-1-ACE-Auditability",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-ACE-Auditability-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-ACE-Auditability-v2",
+      "notes": "stub (remediation); supersedes: WP-1-ACE-Auditability"
+    },
+    {
+      "base_wp_id": "WP-1-ACE-Runtime",
+      "active_packet_path": ".GOV/task_packets/WP-1-ACE-Runtime-v2.md",
+      "task_board_projection": "Done: WP-1-ACE-Runtime-v2",
+      "notes": "active=WP-1-ACE-Runtime-v2; activated from stub .GOV/task_packets/stubs/WP-1-ACE-Runtime-v2.md; supersedes: WP-1-ACE-Runtime"
+    },
+    {
+      "base_wp_id": "WP-1-ACE-Persist-QueryPlan-Trace",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-ACE-Persist-QueryPlan-Trace-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-ACE-Persist-QueryPlan-Trace-v1",
+      "notes": "stub (audit remediation); persist QueryPlan/RetrievalTrace/ContextSnapshot artifacts for doc jobs"
+    },
+    {
+      "base_wp_id": "WP-1-ACE-Validators",
+      "active_packet_path": ".GOV/task_packets/WP-1-ACE-Validators-v4.md",
+      "task_board_projection": "Done: WP-1-ACE-Validators-v4",
+      "notes": "active=WP-1-ACE-Validators-v4; supersedes: WP-1-ACE-Validators, WP-1-ACE-Validators-v2, WP-1-ACE-Validators-v3"
+    },
+    {
+      "base_wp_id": "WP-1-AI-Job-Model",
+      "active_packet_path": ".GOV/task_packets/WP-1-AI-Job-Model-v4.md",
+      "task_board_projection": "Done: WP-1-AI-Job-Model-v4",
+      "notes": "active=WP-1-AI-Job-Model-v4; activated from stub .GOV/task_packets/stubs/WP-1-AI-Job-Model-v4.md; supersedes: WP-1-AI-Job-Model-v3, WP-1-AI-Job-Model-v2"
+    },
+    {
+      "base_wp_id": "WP-1-AI-Ready-Data-Architecture",
+      "active_packet_path": ".GOV/task_packets/WP-1-AI-Ready-Data-Architecture-v1.md",
+      "task_board_projection": "Done: WP-1-AI-Ready-Data-Architecture-v1",
+      "notes": "active=WP-1-AI-Ready-Data-Architecture-v1; activated from stub .GOV/task_packets/stubs/WP-1-AI-Ready-Data-Architecture-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-AIReady-CoreMetadata",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-AIReady-CoreMetadata-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-AIReady-CoreMetadata-v1",
+      "notes": "stub (audit remediation); align CoreMetadata required fields"
+    },
+    {
+      "base_wp_id": "WP-1-AIReady-Index-Evidence-Export",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-AIReady-Index-Evidence-Export-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-AIReady-Index-Evidence-Export-v1",
+      "notes": "stub (spec v02.151); backend export/evidence/portability pass for AI-ready index artifacts, rebuild events, and bounded evidence export"
+    },
+    {
+      "base_wp_id": "WP-1-AIReady-RelationshipIds-GraphRetrieval",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-AIReady-RelationshipIds-GraphRetrieval-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-AIReady-RelationshipIds-GraphRetrieval-v1",
+      "notes": "stub (audit remediation); relationship_id + graph candidates in hybrid retrieval"
+    },
+    {
+      "base_wp_id": "WP-1-Locus-Debug-Bundle-Bridge",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Locus-Debug-Bundle-Bridge-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Locus-Debug-Bundle-Bridge-v1",
+      "notes": "stub (spec v02.152); backend orchestration/projection/replay pass for Locus-scoped debug bundle bridging"
+    },
+    {
+      "base_wp_id": "WP-1-Locus-Phase1-Integration-Occupancy",
+      "active_packet_path": ".GOV/task_packets/WP-1-Locus-Phase1-Integration-Occupancy-v1.md",
+      "task_board_projection": "Done: WP-1-Locus-Phase1-Integration-Occupancy-v1",
+      "notes": "active=WP-1-Locus-Phase1-Integration-Occupancy-v1; activated from stub .GOV/task_packets/stubs/WP-1-Locus-Phase1-Integration-Occupancy-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Locus-Phase1-QueryContract-Autosync",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Locus-Phase1-QueryContract-Autosync-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Locus-Phase1-QueryContract-Autosync-v1",
+      "notes": "stub (audit remediation); query contract alignment + autosync"
+    },
+    {
+      "base_wp_id": "WP-1-Locus-Phase1-Medallion-Search",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Locus-Phase1-Medallion-Search-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Locus-Phase1-Medallion-Search-v1",
+      "notes": "stub (audit remediation); WPBronze/WPSilver + embeddings/keyword search"
+    },
+    {
+      "base_wp_id": "WP-1-AI-UX-Actions",
+      "active_packet_path": ".GOV/task_packets/WP-1-AI-UX-Actions-v2.md",
+      "task_board_projection": "Done: WP-1-AI-UX-Actions-v2",
+      "notes": "active=WP-1-AI-UX-Actions-v2; activated from stub .GOV/task_packets/stubs/WP-1-AI-UX-Actions-v2.md; supersedes: WP-1-AI-UX-Actions"
+    },
+    {
+      "base_wp_id": "WP-1-AI-UX-Rewrite",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-AI-UX-Rewrite-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-AI-UX-Rewrite-v2",
+      "notes": "stub (remediation); supersedes: WP-1-AI-UX-Rewrite"
+    },
+    {
+      "base_wp_id": "WP-1-AI-UX-Summarize-Display",
+      "active_packet_path": ".GOV/task_packets/WP-1-AI-UX-Summarize-Display-v2.md",
+      "task_board_projection": "Done: WP-1-AI-UX-Summarize-Display-v2",
+      "notes": "active=WP-1-AI-UX-Summarize-Display-v2; activated from stub .GOV/task_packets/stubs/WP-1-AI-UX-Summarize-Display-v2.md; supersedes: WP-1-AI-UX-Summarize-Display"
+    },
+    {
+      "base_wp_id": "WP-1-AppState-Refactoring",
+      "active_packet_path": ".GOV/task_packets/WP-1-AppState-Refactoring-v3.md",
+      "task_board_projection": "Done: WP-1-AppState-Refactoring-v3",
+      "notes": "active=WP-1-AppState-Refactoring-v3; supersedes: WP-1-AppState-Refactoring, WP-1-AppState-Refactoring-v2"
+    },
+    {
+      "base_wp_id": "WP-1-Atelier-Lens",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Atelier-Lens-v2",
+      "notes": "stub (remediation); supersedes: WP-1-Atelier-Lens"
+    },
+    {
+      "base_wp_id": "WP-1-Calendar-Lens",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Calendar-Lens-v3.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Calendar-Lens-v3",
+      "notes": "stub (audit remediation); supersedes stub: WP-1-Calendar-Lens-v2"
+    },
+    {
+      "base_wp_id": "WP-1-Calendar-Storage",
+      "active_packet_path": ".GOV/task_packets/WP-1-Calendar-Storage-v2/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Calendar-Storage-v2",
+      "notes": "stub (supersession); supersedes: WP-1-Calendar-Storage-v1 (implemented but never validated, spec-stale v02.141, old refinement workflow without primitive mixing); v2 scheduled for later Phase 1 stages; calendar is a pillar feature requiring cross-cutting primitive discovery"
+    },
+    {
+      "base_wp_id": "WP-1-Calendar-Sync-Engine",
+      "active_packet_path": ".GOV/task_packets/WP-1-Calendar-Sync-Engine-v3/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Calendar-Sync-Engine-v1",
+      "notes": "stub (audit remediation); calendar_sync mechanical runner"
+    },
+    {
+      "base_wp_id": "WP-1-Calendar-Policy-Integration",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Calendar-Policy-Integration-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Calendar-Policy-Integration-v1",
+      "notes": "stub (audit remediation); consent/policy posture for calendar data"
+    },
+    {
+      "base_wp_id": "WP-1-Calendar-Law-Compliance-Tests",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Calendar-Law-Compliance-Tests-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Calendar-Law-Compliance-Tests-v1",
+      "notes": "stub (audit remediation); compliance-critical tests (consent/retention/leak-safety)"
+    },
+    {
+      "base_wp_id": "WP-1-Calendar-Correlation-Export",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Calendar-Correlation-Export-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Calendar-Correlation-Export-v1",
+      "notes": "stub (spec v02.150); backend-heavy matrix expansion for calendar-scoped correlation and bounded export evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Calendar-Mailbox-Correlation",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Calendar-Mailbox-Correlation-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Calendar-Mailbox-Correlation-v1",
+      "notes": "stub (spec v02.151); backend export/evidence/portability pass for calendar window to mailbox thread/message correlation"
+    },
+    {
+      "base_wp_id": "WP-1-Canvas-Typography",
+      "active_packet_path": ".GOV/task_packets/WP-1-Canvas-Typography-v2.md",
+      "task_board_projection": "Done: WP-1-Canvas-Typography-v2",
+      "notes": "active=WP-1-Canvas-Typography-v2; activated from stub .GOV/task_packets/stubs/WP-1-Canvas-Typography-v2.md; supersedes: WP-1-Canvas-Typography"
+    },
+    {
+      "base_wp_id": "WP-1-Capability-SSoT",
+      "active_packet_path": ".GOV/task_packets/WP-1-Capability-SSoT-v2.md",
+      "task_board_projection": "Done: WP-1-Capability-SSoT-v2",
+      "notes": "active=WP-1-Capability-SSoT-v2; activated from stub .GOV/task_packets/stubs/WP-1-Capability-SSoT-v2.md; supersedes: WP-1-Capability-SSoT"
+    },
+    {
+      "base_wp_id": "WP-1-Consent-Audit-Projection",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Consent-Audit-Projection-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Consent-Audit-Projection-v1",
+      "notes": "stub (spec v02.150); backend-heavy matrix expansion for consent/capability audit projection into bundles and DCC"
+    },
+    {
+      "base_wp_id": "WP-1-Cloud-Consent-Evidence-Portability",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Cloud-Consent-Evidence-Portability-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Cloud-Consent-Evidence-Portability-v1",
+      "notes": "stub (spec v02.153); backend capability/diagnostics evidence pass for consent receipt and cloud escalation request portability semantics"
+    },
+    {
+      "base_wp_id": "WP-1-Cross-Tool-Interaction-Conformance",
+      "active_packet_path": ".GOV/task_packets/WP-1-Cross-Tool-Interaction-Conformance-v1.md",
+      "task_board_projection": "Done: WP-1-Cross-Tool-Interaction-Conformance-v1",
+      "notes": "active=WP-1-Cross-Tool-Interaction-Conformance-v1; activated from stub .GOV/task_packets/stubs/WP-1-Cross-Tool-Interaction-Conformance-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Debug-Bundle",
+      "active_packet_path": ".GOV/task_packets/WP-1-Debug-Bundle-v3.md",
+      "task_board_projection": "Done: WP-1-Debug-Bundle-v3",
+      "notes": "active=WP-1-Debug-Bundle-v3; supersedes: WP-1-Debug-Bundle, WP-1-Debug-Bundle-v2"
+    },
+    {
+      "base_wp_id": "WP-1-Dev-Experience-ADRs",
+      "active_packet_path": ".GOV/task_packets/WP-1-Dev-Experience-ADRs-v1.md",
+      "task_board_projection": "Done: WP-1-Dev-Experience-ADRs-v1",
+      "notes": "active=WP-1-Dev-Experience-ADRs-v1; activated from stub .GOV/task_packets/stubs/WP-1-Dev-Experience-ADRs.md"
+    },
+    {
+      "base_wp_id": "WP-1-Loom-MVP",
+      "active_packet_path": ".GOV/task_packets/WP-1-Loom-MVP-v1.md",
+      "task_board_projection": "Done: WP-1-Loom-MVP-v1",
+      "notes": "active=WP-1-Loom-MVP-v1; activated from stub .GOV/task_packets/stubs/WP-1-Loom-MVP-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Handshake-Stage-MVP",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Handshake-Stage-MVP-v1",
+      "notes": "stub (spec v02.131); new Phase 1 roadmap addition"
+    },
+    {
+      "base_wp_id": "WP-1-Distillation",
+      "active_packet_path": ".GOV/task_packets/WP-1-Distillation-v2/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Distillation-v2",
+      "notes": "stub (spec v02.157); late-stage distillation/adapter lineage, eval gating, and LoRA/QLoRA/DoRA promotion discipline; supersedes: WP-1-Distillation"
+    },
+    {
+      "base_wp_id": "WP-1-ContextPack-Recorder-Visibility",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-ContextPack-Recorder-Visibility-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-ContextPack-Recorder-Visibility-v1",
+      "notes": "stub (spec v02.157); bounded Flight Recorder visibility for Context Pack build/select/refresh/freshness decisions and pack-hash lineage"
+    },
+    {
+      "base_wp_id": "WP-1-Dual-Backend-Tests",
+      "active_packet_path": ".GOV/task_packets/WP-1-Dual-Backend-Tests-v2.md",
+      "task_board_projection": "Done: WP-1-Dual-Backend-Tests-v2",
+      "notes": "active=WP-1-Dual-Backend-Tests-v2; supersedes: WP-1-Dual-Backend-Tests"
+    },
+    {
+      "base_wp_id": "WP-1-Editor-Hardening",
+      "active_packet_path": ".GOV/task_packets/WP-1-Editor-Hardening-v2.md",
+      "task_board_projection": "Done: WP-1-Editor-Hardening-v2",
+      "notes": "active=WP-1-Editor-Hardening-v2; activated from stub .GOV/task_packets/stubs/WP-1-Editor-Hardening-v2.md; supersedes: WP-1-Editor-Hardening"
+    },
+    {
+      "base_wp_id": "WP-1-Flight-Recorder",
+      "active_packet_path": ".GOV/task_packets/WP-1-Flight-Recorder-v4.md",
+      "task_board_projection": "Done: WP-1-Flight-Recorder-v4",
+      "notes": "active=WP-1-Flight-Recorder-v4; supersedes: WP-1-Flight-Recorder-v3, WP-1-Flight-Recorder-v2, WP-1-Flight-Recorder"
+    },
+    {
+      "base_wp_id": "WP-1-FR-ModelSessionId",
+      "active_packet_path": ".GOV/task_packets/WP-1-FR-ModelSessionId-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-FR-ModelSessionId-v1",
+      "notes": "stub (audit remediation); add model_session_id to FR envelope + DuckDB"
+    },
+    {
+      "base_wp_id": "WP-1-Flight-Recorder-UI",
+      "active_packet_path": ".GOV/task_packets/WP-1-Flight-Recorder-UI-v3.md",
+      "task_board_projection": "Done: WP-1-Flight-Recorder-UI-v3",
+      "notes": "activated from stub .GOV/task_packets/stubs/WP-1-Flight-Recorder-UI-v3.md; supersedes: WP-1-Flight-Recorder-UI-v2, WP-1-Flight-Recorder-UI"
+    },
+    {
+      "base_wp_id": "WP-1-Gate-Check-Tool",
+      "active_packet_path": ".GOV/task_packets/WP-1-Gate-Check-Tool-v2.md",
+      "task_board_projection": "Done: WP-1-Gate-Check-Tool-v2",
+      "notes": "active=WP-1-Gate-Check-Tool-v2; supersedes: WP-1-Gate-Check-Tool"
+    },
+    {
+      "base_wp_id": "WP-1-Global-Silent-Edit-Guard",
+      "active_packet_path": ".GOV/task_packets/WP-1-Global-Silent-Edit-Guard.md",
+      "task_board_projection": "Done: WP-1-Global-Silent-Edit-Guard",
+      "notes": "active=WP-1-Global-Silent-Edit-Guard (no -vN revision); activated from stub .GOV/task_packets/stubs/WP-1-Global-Silent-Edit-Guard.md"
+    },
+    {
+      "base_wp_id": "WP-1-Governance-Hooks",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Governance-Hooks-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Governance-Hooks-v2",
+      "notes": "stub (remediation); supersedes: WP-1-Governance-Hooks"
+    },
+    {
+      "base_wp_id": "WP-1-Governance-Kernel-Conformance",
+      "active_packet_path": ".GOV/task_packets/WP-1-Governance-Kernel-Conformance-v1.md",
+      "task_board_projection": "Done: WP-1-Governance-Kernel-Conformance-v1",
+      "notes": "active=WP-1-Governance-Kernel-Conformance-v1; activated from stub .GOV/task_packets/stubs/WP-1-Governance-Kernel-Conformance-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Governance-Template-Volume",
+      "active_packet_path": ".GOV/task_packets/WP-1-Governance-Template-Volume-v1.md",
+      "task_board_projection": "Done: WP-1-Governance-Template-Volume-v1",
+      "notes": "active=WP-1-Governance-Template-Volume-v1; activated from stub .GOV/task_packets/stubs/WP-1-Governance-Template-Volume-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Governance-Workflow-Mirror",
+      "active_packet_path": ".GOV/task_packets/WP-1-Governance-Workflow-Mirror-v2/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Governance-Workflow-Mirror-v2",
+      "notes": "stub (remediation); historical packet `.GOV/task_packets/WP-1-Governance-Workflow-Mirror-v1/packet.md` remains audit evidence only; port the missing product workflow-mirror slice onto current main without replaying the stale branch wholesale"
+    },
+    {
+      "base_wp_id": "WP-1-LLM-Core",
+      "active_packet_path": ".GOV/task_packets/WP-1-LLM-Core-v3.md",
+      "task_board_projection": "Done: WP-1-LLM-Core-v3",
+      "notes": "active=WP-1-LLM-Core-v3; supersedes: WP-1-LLM-Core"
+    },
+    {
+      "base_wp_id": "WP-1-MCP-End-to-End",
+      "active_packet_path": ".GOV/task_packets/WP-1-MCP-End-to-End-v2.md",
+      "task_board_projection": "Done: WP-1-MCP-End-to-End-v2",
+      "notes": "active=WP-1-MCP-End-to-End-v2; activated from stub .GOV/task_packets/stubs/WP-1-MCP-End-to-End-v2.md; supersedes: WP-1-MCP-End-to-End"
+    },
+    {
+      "base_wp_id": "WP-1-MCP-Skeleton-Gate",
+      "active_packet_path": ".GOV/task_packets/WP-1-MCP-Skeleton-Gate-v2.md",
+      "task_board_projection": "Done: WP-1-MCP-Skeleton-Gate-v2",
+      "notes": "active=WP-1-MCP-Skeleton-Gate-v2; activated from stub .GOV/task_packets/stubs/WP-1-MCP-Skeleton-Gate-v2.md; supersedes: WP-1-MCP-Skeleton-Gate"
+    },
+    {
+      "base_wp_id": "WP-1-Metrics-Mock-Tokens",
+      "active_packet_path": ".GOV/task_packets/WP-1-Metrics-Mock-Tokens.md",
+      "task_board_projection": "Done: WP-1-Metrics-Mock-Tokens",
+      "notes": "active=WP-1-Metrics-Mock-Tokens (no -vN revision); new packet"
+    },
+    {
+      "base_wp_id": "WP-1-Metrics-OTel",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Metrics-OTel-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Metrics-OTel-v2",
+      "notes": "stub (remediation); supersedes: WP-1-Metrics-OTel"
+    },
+    {
+      "base_wp_id": "WP-1-Metrics-Traces",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Metrics-Traces-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Metrics-Traces-v2",
+      "notes": "stub (remediation); supersedes: WP-1-Metrics-Traces"
+    },
+    {
+      "base_wp_id": "WP-1-MEX-Observability",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-MEX-Observability-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-MEX-Observability-v2",
+      "notes": "stub (remediation); supersedes: WP-1-MEX-Observability"
+    },
+    {
+      "base_wp_id": "WP-1-MEX-Safety-Gates",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-MEX-Safety-Gates-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-MEX-Safety-Gates-v2",
+      "notes": "stub (remediation); supersedes: WP-1-MEX-Safety-Gates"
+    },
+    {
+      "base_wp_id": "WP-1-MEX-UX-Bridges",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-MEX-UX-Bridges-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-MEX-UX-Bridges-v2",
+      "notes": "stub (remediation); supersedes: WP-1-MEX-UX-Bridges"
+    },
+    {
+      "base_wp_id": "WP-1-MEX-v1.2-Runtime",
+      "active_packet_path": ".GOV/task_packets/WP-1-MEX-v1.2-Runtime-v3.md",
+      "task_board_projection": "Done: WP-1-MEX-v1.2-Runtime-v3",
+      "notes": "active=WP-1-MEX-v1.2-Runtime-v3; supersedes: WP-1-MEX-v1.2-Runtime, WP-1-MEX-v1.2-Runtime-v2"
+    },
+    {
+      "base_wp_id": "WP-1-Micro-Task-Executor",
+      "active_packet_path": ".GOV/task_packets/WP-1-Micro-Task-Executor-v1.md",
+      "task_board_projection": "Done: WP-1-Micro-Task-Executor-v1",
+      "notes": "active=WP-1-Micro-Task-Executor-v1; activated from stub .GOV/task_packets/stubs/WP-1-Micro-Task-Executor-v1.md; spec origin v02.114"
+    },
+    {
+      "base_wp_id": "WP-1-MTE-LoRA-Wiring",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-MTE-LoRA-Wiring-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-MTE-LoRA-Wiring-v1",
+      "notes": "stub (audit remediation); LoRA selection must reach provider request boundary"
+    },
+    {
+      "base_wp_id": "WP-1-Migration-Framework",
+      "active_packet_path": ".GOV/task_packets/WP-1-Migration-Framework-v2.md",
+      "task_board_projection": "Done: WP-1-Migration-Framework-v2",
+      "notes": "active=WP-1-Migration-Framework-v2 (remediation); supersedes: WP-1-Migration-Framework"
+    },
+    {
+      "base_wp_id": "WP-1-Model-Profiles",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Model-Profiles-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Model-Profiles-v2",
+      "notes": "stub (remediation); supersedes: WP-1-Model-Profiles"
+    },
+    {
+      "base_wp_id": "WP-1-Model-Onboarding-ContextPacks",
+      "active_packet_path": ".GOV/task_packets/WP-1-Model-Onboarding-ContextPacks-v1.md",
+      "task_board_projection": "Done: WP-1-Model-Onboarding-ContextPacks-v1",
+      "notes": "active=WP-1-Model-Onboarding-ContextPacks-v1; activated from stub .GOV/task_packets/stubs/WP-1-Model-Onboarding-ContextPacks-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Mutation-Traceability",
+      "active_packet_path": ".GOV/task_packets/WP-1-Mutation-Traceability-v2.md",
+      "task_board_projection": "Done: WP-1-Mutation-Traceability-v2",
+      "notes": "active=WP-1-Mutation-Traceability-v2; activated from stub .GOV/task_packets/stubs/WP-1-Mutation-Traceability-v2.md; supersedes: WP-1-Mutation-Traceability"
+    },
+    {
+      "base_wp_id": "WP-1-Operator-Consoles",
+      "active_packet_path": ".GOV/task_packets/WP-1-Operator-Consoles-v3.md",
+      "task_board_projection": "Done: WP-1-Operator-Consoles-v3",
+      "notes": "active=WP-1-Operator-Consoles-v3; supersedes: WP-1-Operator-Consoles, WP-1-Operator-Consoles-v1, WP-1-Operator-Consoles-v2"
+    },
+    {
+      "base_wp_id": "WP-1-OSS-Governance",
+      "active_packet_path": ".GOV/task_packets/WP-1-OSS-Governance-v2.md",
+      "task_board_projection": "Done: WP-1-OSS-Governance-v2",
+      "notes": "active=WP-1-OSS-Governance-v2; activated from stub .GOV/task_packets/stubs/WP-1-OSS-Governance-v2.md; supersedes: WP-1-OSS-Governance"
+    },
+    {
+      "base_wp_id": "WP-1-OSS-Register-Enforcement",
+      "active_packet_path": ".GOV/task_packets/WP-1-OSS-Register-Enforcement-v1.md",
+      "task_board_projection": "Done: WP-1-OSS-Register-Enforcement-v1",
+      "notes": "active=WP-1-OSS-Register-Enforcement-v1"
+    },
+    {
+      "base_wp_id": "WP-1-PDF-Pipeline",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-PDF-Pipeline-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-PDF-Pipeline-v2",
+      "notes": "stub (remediation); supersedes: WP-1-PDF-Pipeline"
+    },
+    {
+      "base_wp_id": "WP-1-Photo-Studio",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Photo-Studio-v2",
+      "notes": "stub (remediation); supersedes: WP-1-Photo-Studio"
+    },
+    {
+      "base_wp_id": "WP-1-Product-Governance-Snapshot",
+      "active_packet_path": ".GOV/task_packets/WP-1-Product-Governance-Snapshot-v4.md",
+      "task_board_projection": "Done: WP-1-Product-Governance-Snapshot-v4",
+      "notes": "active=WP-1-Product-Governance-Snapshot-v4; activated from stub .GOV/task_packets/stubs/WP-1-Product-Governance-Snapshot-v1.md; supersedes: WP-1-Product-Governance-Snapshot-v2, WP-1-Product-Governance-Snapshot-v3"
+    },
+    {
+      "base_wp_id": "WP-1-RAG-Iterative",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-RAG-Iterative-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-RAG-Iterative-v2",
+      "notes": "stub (remediation); supersedes: WP-1-RAG-Iterative"
+    },
+    {
+      "base_wp_id": "WP-1-Role-Mailbox",
+      "active_packet_path": ".GOV/task_packets/WP-1-Role-Mailbox-v1.md",
+      "task_board_projection": "Done: WP-1-Role-Mailbox-v1",
+      "notes": "active=WP-1-Role-Mailbox-v1; activated from stub .GOV/task_packets/stubs/WP-1-Role-Mailbox-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Response-Behavior-ANS-001",
+      "active_packet_path": ".GOV/task_packets/WP-1-Response-Behavior-ANS-001.md",
+      "task_board_projection": "Done: WP-1-Response-Behavior-ANS-001",
+      "notes": "active=WP-1-Response-Behavior-ANS-001; activated from stub .GOV/task_packets/stubs/WP-1-Response-Behavior-ANS-001.md"
+    },
+    {
+      "base_wp_id": "WP-1-Security-Gates",
+      "active_packet_path": ".GOV/task_packets/WP-1-Security-Gates-v3.md",
+      "task_board_projection": "Done: WP-1-Security-Gates-v3",
+      "notes": "active=WP-1-Security-Gates-v3; supersedes: WP-1-Security-Gates, WP-1-Security-Gates-v2"
+    },
+    {
+      "base_wp_id": "WP-1-Semantic-Catalog",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Semantic-Catalog-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Semantic-Catalog-v2",
+      "notes": "stub (remediation); supersedes: WP-1-Semantic-Catalog"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Enrichment-LLM-Core",
+      "active_packet_path": ".GOV/task_packets/WP-1-Spec-Enrichment-LLM-Core-v1.md",
+      "task_board_projection": "Done: WP-1-Spec-Enrichment-LLM-Core-v1",
+      "notes": "active=WP-1-Spec-Enrichment-LLM-Core-v1; terminal historical spec-enrichment packet; current truth absorbed by SPEC_CURRENT v02.179 and validated product WP-1-LLM-Core-v3"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Enrichment-MT-ContextPack-Defaults",
+      "active_packet_path": ".GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2.md",
+      "task_board_projection": "Done: WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2",
+      "notes": "active=WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2; terminal historical spec-enrichment packet; current truth absorbed by SPEC_CURRENT v02.179 and validated product WP-1-Model-Onboarding-ContextPacks-v1"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Enrichment-Product-Governance-Consistency",
+      "active_packet_path": ".GOV/task_packets/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md",
+      "task_board_projection": "Done: WP-1-Spec-Enrichment-Product-Governance-Consistency-v1",
+      "notes": "active=WP-1-Spec-Enrichment-Product-Governance-Consistency-v1; activated from stub .GOV/task_packets/stubs/WP-1-Spec-Enrichment-Product-Governance-Consistency-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Router-Session-Log",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Spec-Router-Session-Log.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Spec-Router-Session-Log",
+      "notes": "stub"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Router-SpecPromptCompiler",
+      "active_packet_path": ".GOV/task_packets/WP-1-Spec-Router-SpecPromptCompiler-v1.md",
+      "task_board_projection": "Done: WP-1-Spec-Router-SpecPromptCompiler-v1",
+      "notes": "active=WP-1-Spec-Router-SpecPromptCompiler-v1; activated from stub .GOV/task_packets/stubs/WP-1-Spec-Router-SpecPromptCompiler-v1.md; spec v02.139; Phase 1 Prompt-to-Spec hardening item 1/3: deterministic SpecPromptPack + SpecPromptCompiler pipeline"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Router-CapabilitySnapshot",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Spec-Router-CapabilitySnapshot-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Spec-Router-CapabilitySnapshot-v1",
+      "notes": "stub (spec v02.139); Phase 1 Prompt->Spec hardening item 2/3: CapabilitySnapshot allowlist artifact enforcement"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Router-Evidence-Portability",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Spec-Router-Evidence-Portability-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Spec-Router-Evidence-Portability-v1",
+      "notes": "stub (spec v02.152); backend orchestration/projection/replay pass for Spec Router prompt/decision artifact portability and replay evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Router-SpecLint",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Spec-Router-SpecLint-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Spec-Router-SpecLint-v1",
+      "notes": "stub (spec v02.139); Phase 1 Prompt->Spec hardening item 3/3: SpecLint preflight gate (G-SPECLINT)"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Creation-System-v2.2.1",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Spec-Creation-System-v2.2.1-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Spec-Creation-System-v2.2.1-v1",
+      "notes": "stub (spec v02.128); main-body addition"
+    },
+    {
+      "base_wp_id": "WP-1-Stage-Media-Artifact-Portability",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Stage-Media-Artifact-Portability-v1",
+      "notes": "stub (spec v02.150); backend-heavy matrix expansion for portable Stage/media evidence and artifact manifests"
+    },
+    {
+      "base_wp_id": "WP-1-Stage-ASR-Transcript-Lineage",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Stage-ASR-Transcript-Lineage-v1",
+      "notes": "stub (spec v02.158); backend Stage/ASR lineage bridge for captured/imported media, transcript artifacts, and later Loom/Lens reuse"
+    },
+    {
+      "base_wp_id": "WP-1-Storage-Abstraction-Layer",
+      "active_packet_path": ".GOV/task_packets/WP-1-Storage-Abstraction-Layer-v3.md",
+      "task_board_projection": "Done: WP-1-Storage-Abstraction-Layer-v3",
+      "notes": "active=WP-1-Storage-Abstraction-Layer-v3; supersedes: WP-1-Storage-Abstraction-Layer, WP-1-Storage-Abstraction-Layer-v2"
+    },
+    {
+      "base_wp_id": "WP-1-Storage-Foundation",
+      "active_packet_path": ".GOV/task_packets/WP-1-Storage-Foundation-v3.md",
+      "task_board_projection": "Done: WP-1-Storage-Foundation-v3",
+      "notes": "active=WP-1-Storage-Foundation-v3; supersedes: WP-1-Storage-Foundation-20251228"
+    },
+    {
+      "base_wp_id": "WP-1-Postgres-MCP-Durable-Progress",
+      "active_packet_path": ".GOV/task_packets/WP-1-Postgres-MCP-Durable-Progress-v1.md",
+      "task_board_projection": "Done: WP-1-Postgres-MCP-Durable-Progress-v1",
+      "notes": "active=WP-1-Postgres-MCP-Durable-Progress-v1; activated from stub .GOV/task_packets/stubs/WP-1-Postgres-MCP-Durable-Progress-v1.md; audit remediation; Postgres MCP durable progress mapping"
+    },
+    {
+      "base_wp_id": "WP-1-Postgres-Structured-Collaboration-Artifact-Parity",
+      "active_packet_path": ".GOV/task_packets/WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Postgres-Structured-Collaboration-Artifact-Parity-v1",
+      "notes": "stub (post-smoketest product follow-on); replace explicit Postgres structured-collaboration artifact denial with real canonical Work Packet, Micro-Task, and Task Board parity"
+    },
+    {
+      "base_wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker",
+      "active_packet_path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.md",
+      "task_board_projection": "Blocked: WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+      "notes": "official kernel reset packet remains blocked after v02.184 enrichment; folds first-slice Postgres/EventLedger authority, SessionBroker, ContextBundle, dummy ModelAdapter, ToolGate, ArtifactStore, ValidationRunner, PromotionGate, and TraceProjection proof; pending operator USER_SIGNATURE before packet lock, MT repair, worktree creation, and coder launch"
+    },
+    {
+      "base_wp_id": "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening",
+      "active_packet_path": ".GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.md",
+      "task_board_projection": "In Progress: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
+      "notes": "Kernel002 pre-use hardening stub; folds complete kernel-adjacent backlog into CRDT workspace, write-box/action catalog, direct-edit denial, mirror drift guard, runtime truth, DCC, Role Mailbox, FEMS checkpoint, and visual-debugging scope."
+    },
+    {
+      "base_wp_id": "WP-KERNEL-003-Sandbox-Validation-Promotion",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-003-Sandbox-Validation-Promotion-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-003-Sandbox-Validation-Promotion-v1",
+      "notes": "Kernel003 folded planning stub; folds sandbox/validation/promotion, bounded MTE execution controls, debug/evidence export bridges, path guardrails, validation preflight, candidate-range truth, closeout bundle, and receipt-driven lane settlement into one future packet."
+    },
+    {
+      "base_wp_id": "WP-1-Storage-Capability-Boundary-Refactor",
+      "active_packet_path": ".GOV/task_packets/WP-1-Storage-Capability-Boundary-Refactor-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Storage-Capability-Boundary-Refactor-v1",
+      "notes": "stub (post-smoketest product follow-on); factor the broad Database trait into narrower capability or domain boundaries before future backend drift hardens"
+    },
+    {
+      "base_wp_id": "WP-1-Storage-No-Runtime-DDL",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Storage-No-Runtime-DDL-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Storage-No-Runtime-DDL-v1",
+      "notes": "stub (audit remediation); move runtime DDL into migrations"
+    },
+    {
+      "base_wp_id": "WP-1-Storage-Trait-Purity",
+      "active_packet_path": ".GOV/task_packets/WP-1-Storage-Trait-Purity-v1/packet.md",
+      "task_board_projection": "Done: WP-1-Storage-Trait-Purity-v1",
+      "notes": "active=WP-1-Storage-Trait-Purity-v1; activated from stub .GOV/task_packets/stubs/WP-1-Storage-Trait-Purity-v1.md; audit remediation; remove downcast escape hatches"
+    },
+    {
+      "base_wp_id": "WP-1-Supply-Chain-MEX",
+      "active_packet_path": ".GOV/task_packets/WP-1-Supply-Chain-MEX-v2.md",
+      "task_board_projection": "Done: WP-1-Supply-Chain-MEX-v2",
+      "notes": "activated from stub .GOV/task_packets/stubs/WP-1-Supply-Chain-MEX-v2.md; supersedes: WP-1-Supply-Chain-MEX"
+    },
+    {
+      "base_wp_id": "WP-1-Supply-Chain-Cargo-Deny-Clean",
+      "active_packet_path": ".GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1.md",
+      "task_board_projection": "Done: WP-1-Supply-Chain-Cargo-Deny-Clean-v1",
+      "notes": "active=WP-1-Supply-Chain-Cargo-Deny-Clean-v1; cargo-deny remediation (advisories + licenses)"
+    },
+    {
+      "base_wp_id": "WP-1-Terminal-LAW",
+      "active_packet_path": ".GOV/task_packets/WP-1-Terminal-LAW-v3.md",
+      "task_board_projection": "Done: WP-1-Terminal-LAW-v3",
+      "notes": "active=WP-1-Terminal-LAW-v3; supersedes: WP-1-Terminal-LAW, WP-1-Terminal-LAW-v2"
+    },
+    {
+      "base_wp_id": "WP-1-Tokenization-Service",
+      "active_packet_path": ".GOV/task_packets/WP-1-Tokenization-Service-v3.md",
+      "task_board_projection": "Done: WP-1-Tokenization-Service-v3",
+      "notes": "active=WP-1-Tokenization-Service-v3; supersedes: WP-1-Tokenization-Service-20251228"
+    },
+    {
+      "base_wp_id": "WP-1-Unified-Tool-Surface-Contract",
+      "active_packet_path": ".GOV/task_packets/WP-1-Unified-Tool-Surface-Contract-v1.md",
+      "task_board_projection": "Done: WP-1-Unified-Tool-Surface-Contract-v1",
+      "notes": "active=WP-1-Unified-Tool-Surface-Contract-v1"
+    },
+    {
+      "base_wp_id": "WP-1-Validator-Error-Codes",
+      "active_packet_path": ".GOV/task_packets/WP-1-Validator-Error-Codes-v1.md",
+      "task_board_projection": "Done: WP-1-Validator-Error-Codes-v1",
+      "notes": "active=WP-1-Validator-Error-Codes-v1"
+    },
+    {
+      "base_wp_id": "WP-1-Workflow-Engine",
+      "active_packet_path": ".GOV/task_packets/WP-1-Workflow-Engine-v4.md",
+      "task_board_projection": "Done: WP-1-Workflow-Engine-v4",
+      "notes": "active=WP-1-Workflow-Engine-v4; supersedes: WP-1-Workflow-Engine-v2, WP-1-Workflow-Engine-v3"
+    },
+    {
+      "base_wp_id": "WP-1-Workflow-Projection-Correlation",
+      "active_packet_path": ".GOV/task_packets/WP-1-Workflow-Projection-Correlation-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Workflow-Projection-Correlation-v1",
+      "notes": "stub (spec v02.150); backend-heavy matrix expansion for workflow/job/FR/Locus correlation and bounded bundle export"
+    },
+    {
+      "base_wp_id": "WP-1-Workspace-Bundle",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Workspace-Bundle-v2.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Workspace-Bundle-v2",
+      "notes": "stub (remediation); supersedes: WP-1-Workspace-Bundle"
+    },
+    {
+      "base_wp_id": "WP-1-Model-Swap-Protocol",
+      "active_packet_path": ".GOV/task_packets/WP-1-Model-Swap-Protocol-v1.md",
+      "task_board_projection": "Done: WP-1-Model-Swap-Protocol-v1",
+      "notes": "active=WP-1-Model-Swap-Protocol-v1; activated from stub .GOV/task_packets/stubs/WP-1-Model-Swap-Protocol-v1.md; new roadmap item"
+    },
+    {
+      "base_wp_id": "WP-1-Cloud-Escalation-Consent",
+      "active_packet_path": ".GOV/task_packets/WP-1-Cloud-Escalation-Consent-v2.md",
+      "task_board_projection": "Done: WP-1-Cloud-Escalation-Consent-v2",
+      "notes": "active=WP-1-Cloud-Escalation-Consent-v2; activated from stub .GOV/task_packets/stubs/WP-1-Cloud-Escalation-Consent-v1.md; anchored to spec v02.133"
+    },
+    {
+      "base_wp_id": "WP-1-Media-Downloader",
+      "active_packet_path": ".GOV/task_packets/WP-1-Media-Downloader-v2.md",
+      "task_board_projection": "Done: WP-1-Media-Downloader-v2",
+      "notes": "active=WP-1-Media-Downloader-v2; activated from stub .GOV/task_packets/stubs/WP-1-Media-Downloader-v1.md; supersedes: WP-1-Media-Downloader-v1; Phase 1 priority: family media salvage (video + images)"
+    },
+    {
+      "base_wp_id": "WP-1-Media-Downloader-Loom-Bridge",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Media-Downloader-Loom-Bridge-v1",
+      "notes": "stub (audit remediation); promote downloader outputs into Loom"
+    },
+    {
+      "base_wp_id": "WP-1-Loom-Preview-VideoPosterFrames",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Loom-Preview-VideoPosterFrames-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Loom-Preview-VideoPosterFrames-v1",
+      "notes": "stub (audit remediation); Tier-1 video poster frames per ThumbnailSpec"
+    },
+    {
+      "base_wp_id": "WP-1-ASR-Transcribe-Media",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-ASR-Transcribe-Media-v1",
+      "notes": "stub (audit remediation); local-first ASR transcription job wiring"
+    },
+    {
+      "base_wp_id": "WP-1-Video-Archive-Loom-Integration",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Video-Archive-Loom-Integration-v1",
+      "notes": "stub (Operator request); Loom/Lens/ASR integration for large video libraries"
+    },
+    {
+      "base_wp_id": "WP-1-Loom-Storage-Portability",
+      "active_packet_path": ".GOV/task_packets/WP-1-Loom-Storage-Portability-v4/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Loom-Storage-Portability-v4",
+      "notes": "active=WP-1-Loom-Storage-Portability-v4; historical failure/live smoketest lineage is modeled below; supersedes historical packets/stubs: WP-1-Loom-Storage-Portability-v3, WP-1-Loom-Storage-Portability-v2, WP-1-Loom-Storage-Portability-v1"
+    },
+    {
+      "base_wp_id": "WP-1-Autonomous-Governance-Protocol",
+      "active_packet_path": ".GOV/task_packets/WP-1-Autonomous-Governance-Protocol-v2.md",
+      "task_board_projection": "Done: WP-1-Autonomous-Governance-Protocol-v2",
+      "notes": "active=WP-1-Autonomous-Governance-Protocol-v2; activated from stub .GOV/task_packets/stubs/WP-1-Autonomous-Governance-Protocol-v1.md; anchored to spec v02.132"
+    },
+    {
+      "base_wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+      "notes": "stub (spec v02.122); new Phase 1 roadmap addition"
+    },
+    {
+      "base_wp_id": "WP-1-ModelSession-Core-Scheduler",
+      "active_packet_path": ".GOV/task_packets/WP-1-ModelSession-Core-Scheduler-v1.md",
+      "task_board_projection": "Done: WP-1-ModelSession-Core-Scheduler-v1",
+      "notes": "active=WP-1-ModelSession-Core-Scheduler-v1; activated from stub .GOV/task_packets/stubs/WP-1-ModelSession-Core-Scheduler-v1.md; spec v02.139; foundational dependency for session spawn/safety/observability packets"
+    },
+    {
+      "base_wp_id": "WP-1-Session-Scoped-Capabilities-Consent-Gate",
+      "active_packet_path": ".GOV/task_packets/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md",
+      "task_board_projection": "Done: WP-1-Session-Scoped-Capabilities-Consent-Gate-v1",
+      "notes": "active=WP-1-Session-Scoped-Capabilities-Consent-Gate-v1; activated from stub .GOV/task_packets/stubs/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1.md; session-scoped capability intersection + consent gate (trust boundary)"
+    },
+    {
+      "base_wp_id": "WP-1-Front-End-Memory-System",
+      "active_packet_path": ".GOV/task_packets/WP-1-Front-End-Memory-System-v1.md",
+      "task_board_projection": "Done: WP-1-Front-End-Memory-System-v1",
+      "notes": "active=WP-1-Front-End-Memory-System-v1; activated from stub .GOV/task_packets/stubs/WP-1-Front-End-Memory-System-v1.md; spec v02.138 Phase 1 FEMS v0"
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Acceptance-Replay-Eval",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-FEMS-Acceptance-Replay-Eval-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-FEMS-Acceptance-Replay-Eval-v1",
+      "notes": "stub (spec v02.138); Phase 1 acceptance closure (bounded pack, explicit approval, replay hash, FR-EVT-MEM-*, FEMS-EVAL-001)"
+    },
+    {
+      "base_wp_id": "WP-1-Layerwise-Inference-Foundations",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Layerwise-Inference-Foundations-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Layerwise-Inference-Foundations-v1",
+      "notes": "stub (spec v02.122); new Phase 1 roadmap addition"
+    },
+    {
+      "base_wp_id": "WP-1-Atelier-Collaboration-Panel",
+      "active_packet_path": ".GOV/task_packets/WP-1-Atelier-Collaboration-Panel-v1.md",
+      "task_board_projection": "Done: WP-1-Atelier-Collaboration-Panel-v1",
+      "notes": "activated from stub .GOV/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.md; active=WP-1-Atelier-Collaboration-Panel-v1"
+    },
+    {
+      "base_wp_id": "WP-1-Lens-Extraction-Tier",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Lens-Extraction-Tier-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Lens-Extraction-Tier-v1",
+      "notes": "stub (spec v02.123); new Phase 1 roadmap addition"
+    },
+    {
+      "base_wp_id": "WP-1-Lens-ViewMode",
+      "active_packet_path": ".GOV/task_packets/WP-1-Lens-ViewMode-v1.md",
+      "task_board_projection": "Done: WP-1-Lens-ViewMode-v1",
+      "notes": "active=WP-1-Lens-ViewMode-v1; activated from stub .GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.md; anchored to spec v02.137"
+    },
+    {
+      "base_wp_id": "WP-1-Role-Registry-AppendOnly",
+      "active_packet_path": ".GOV/task_packets/WP-1-Role-Registry-AppendOnly-v1.md",
+      "task_board_projection": "Done: WP-1-Role-Registry-AppendOnly-v1",
+      "notes": "activated from stub .GOV/task_packets/stubs/WP-1-Role-Registry-AppendOnly-v1.md; active=WP-1-Role-Registry-AppendOnly-v1"
+    },
+    {
+      "base_wp_id": "WP-1-Artifact-System-Foundations",
+      "active_packet_path": ".GOV/task_packets/WP-1-Artifact-System-Foundations-v1.md",
+      "task_board_projection": "Done: WP-1-Artifact-System-Foundations-v1",
+      "notes": "active=WP-1-Artifact-System-Foundations-v1; activated from stub .GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.md; Phase 1 roadmap coverage (artifact system)"
+    },
+    {
+      "base_wp_id": "WP-1-Retrieval-Trace-Bundle-Export",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Retrieval-Trace-Bundle-Export-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Retrieval-Trace-Bundle-Export-v1",
+      "notes": "stub (spec v02.123); Phase 1 roadmap coverage (retrieval evidence bundle export)"
+    },
+    {
+      "base_wp_id": "WP-1-Runtime-Governance-NoExpect",
+      "active_packet_path": ".GOV/task_packets/WP-1-Runtime-Governance-NoExpect-v1.md",
+      "task_board_projection": "Done: WP-1-Runtime-Governance-NoExpect-v1",
+      "notes": "active=WP-1-Runtime-Governance-NoExpect-v1; hygiene remediation (remove expect/unwrap in runtime_governance tests)"
+    },
+    {
+      "base_wp_id": "WP-1-Software-Delivery-Validator-Gate-Closeout-Posture",
+      "active_packet_path": ".GOV/task_packets/WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Software-Delivery-Validator-Gate-Closeout-Posture-v1",
+      "notes": "stub (spec v02.181); converges validator-gate summaries, evidence-linked gate execution, and derived closeout posture into runtime-visible records"
+    },
+    {
+      "base_wp_id": "WP-1-Software-Delivery-Projection-Surface-Discipline",
+      "active_packet_path": ".GOV/task_packets/WP-1-Software-Delivery-Projection-Surface-Discipline-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Software-Delivery-Projection-Surface-Discipline-v1",
+      "notes": "stub (spec v02.181); keeps Dev Command Center, Task Board, and Role Mailbox as projection/control surfaces over one runtime truth"
+    },
+    {
+      "base_wp_id": "WP-1-Product-Governance-Artifact-Registry",
+      "active_packet_path": ".GOV/task_packets/WP-1-Product-Governance-Artifact-Registry-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Product-Governance-Artifact-Registry-v1",
+      "notes": "stub (current focus); additive software-delivery governance overlay registry for imported repo-governance artifacts"
+    },
+    {
+      "base_wp_id": "WP-1-Product-Governance-Check-Runner",
+      "active_packet_path": ".GOV/task_packets/WP-1-Product-Governance-Check-Runner-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Product-Governance-Check-Runner-v1",
+      "notes": "stub (current focus); governed execution layer for selected imported repo-governance checks, rubrics, and scripts"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Authoring-Rubric",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Spec-Authoring-Rubric-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Spec-Authoring-Rubric-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-RAG-Retrieval-Mode-Policy",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-RAG-Retrieval-Mode-Policy-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-RAG-Retrieval-Mode-Policy-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Studio-Runtime-Visibility",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Studio-Runtime-Visibility-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Session-Spawn-Contract",
+      "active_packet_path": ".GOV/task_packets/WP-1-Session-Spawn-Contract-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Session-Spawn-Contract-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Provider-Feature-Coverage-Agentic-Ready",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Provider-Feature-Coverage-Agentic-Ready-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Provider-Feature-Coverage-Agentic-Ready-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Workspace-Safety-Parallel-Sessions",
+      "active_packet_path": ".GOV/task_packets/WP-1-Workspace-Safety-Parallel-Sessions-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Workspace-Safety-Parallel-Sessions-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Session-Crash-Recovery-Checkpointing",
+      "active_packet_path": ".GOV/task_packets/WP-1-Session-Crash-Recovery-Checkpointing-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Session-Crash-Recovery-Checkpointing-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Session-Observability-Spans-FR",
+      "active_packet_path": ".GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Session-Observability-Spans-FR-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Structured-Collaboration-Artifact-Family",
+      "active_packet_path": ".GOV/task_packets/WP-1-Structured-Collaboration-Artifact-Family-v1.md",
+      "task_board_projection": "Done: WP-1-Structured-Collaboration-Artifact-Family-v1",
+      "notes": "active=WP-1-Structured-Collaboration-Artifact-Family-v1; activated from stub .GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Structured-Collaboration-Contract-Hardening",
+      "active_packet_path": ".GOV/task_packets/WP-1-Structured-Collaboration-Contract-Hardening-v1/packet.md",
+      "task_board_projection": "Done: WP-1-Structured-Collaboration-Contract-Hardening-v1",
+      "notes": "active=WP-1-Structured-Collaboration-Contract-Hardening-v1; activated from stub .GOV/task_packets/stubs/WP-1-Structured-Collaboration-Contract-Hardening-v1.md; closes remaining Master Spec contract gaps from AUDIT-20260325-SCHEMA-REGISTRY-V4-SMOKETEST-RECOVERY-REVIEW; smoketest closeout recorded in AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW / SMOKETEST-REVIEW-20260325-CONTRACT-HARDENING-V1; merged to main at c6e8ba2bf23ff9061b20f83a31567a6e47b322fe"
+    },
+    {
+      "base_wp_id": "WP-1-Structured-Collaboration-Governed-Next-Action-Alignment",
+      "active_packet_path": ".GOV/task_packets/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1/packet.md",
+      "task_board_projection": "Done: WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1",
+      "notes": "active=WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1; activated from stub .GOV/task_packets/stubs/WP-1-Structured-Collaboration-Governed-Next-Action-Alignment-v1.md; closes governed compact-summary `next_action` alignment after AUDIT-20260325-CONTRACT-HARDENING-V1-SMOKETEST-CLOSEOUT-REVIEW; merged to main at 154445243c0b28dc910454b97b0f7df2935529c7"
+    },
+    {
+      "base_wp_id": "WP-1-Structured-Collaboration-Schema-Registry",
+      "active_packet_path": ".GOV/task_packets/WP-1-Structured-Collaboration-Schema-Registry-v4/packet.md",
+      "task_board_projection": "Done: WP-1-Structured-Collaboration-Schema-Registry-v4",
+      "notes": "active=WP-1-Structured-Collaboration-Schema-Registry-v4; historical failure/live smoketest lineage is modeled below; supersedes historical packets/stubs: WP-1-Structured-Collaboration-Schema-Registry-v3, WP-1-Structured-Collaboration-Schema-Registry-v2, WP-1-Structured-Collaboration-Schema-Registry-v1"
+    },
+    {
+      "base_wp_id": "WP-1-Project-Profile-Extension-Registry",
+      "active_packet_path": ".GOV/task_packets/WP-1-Project-Profile-Extension-Registry-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Project-Profile-Extension-Registry-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Project-Agnostic-Workflow-State-Registry",
+      "active_packet_path": ".GOV/task_packets/WP-1-Project-Agnostic-Workflow-State-Registry-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Project-Agnostic-Workflow-State-Registry-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Dev-Command-Center-Control-Plane-Backend",
+      "active_packet_path": ".GOV/task_packets/WP-1-Dev-Command-Center-Control-Plane-Backend-v1/packet.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Dev-Command-Center-Control-Plane-Backend-v1",
+      "notes": "stub (current focus); backend projection and API layer that unifies work packets, sessions, approvals, VCS, and governance overlay for DCC"
+    },
+    {
+      "base_wp_id": "WP-1-Mail-Runtime-Backfill",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Mail-Runtime-Backfill-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Mail-Runtime-Backfill-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Charts-Dashboards-Backfill",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Charts-Dashboards-Backfill-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Charts-Dashboards-Backfill-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Docs-Sheets-Runtime-Backfill",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Docs-Sheets-Runtime-Backfill-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Docs-Sheets-Runtime-Backfill-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Thinking-Pipeline-Runtime-Backfill",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Thinking-Pipeline-Runtime-Backfill-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Thinking-Pipeline-Runtime-Backfill-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Canvas-Runtime-Backfill",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Canvas-Runtime-Backfill-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Canvas-Runtime-Backfill-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Presentations-Decks-Backfill",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Presentations-Decks-Backfill-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Presentations-Decks-Backfill-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-Project-Brain-Runtime-Backfill",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Project-Brain-Runtime-Backfill-v1.md",
+      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Project-Brain-Runtime-Backfill-v1",
+      "notes": "stub (inventory sync); Task Board backlog stub carried into traceability registry for Build Order coverage"
+    },
+    {
+      "base_wp_id": "WP-1-LLM-Provider-Registry",
+      "active_packet_path": ".GOV/task_packets/WP-1-LLM-Provider-Registry-v1.md",
+      "task_board_projection": "Done: WP-1-LLM-Provider-Registry-v1",
+      "notes": "active=WP-1-LLM-Provider-Registry-v1; activated from stub .GOV/task_packets/stubs/WP-1-LLM-Provider-Registry-v1.md"
+    },
+    {
+      "base_wp_id": "WP-1-Spec-Appendices-Backfill",
+      "active_packet_path": ".GOV/task_packets/WP-1-Spec-Appendices-Backfill-v1.md",
+      "task_board_projection": "Done: WP-1-Spec-Appendices-Backfill-v1",
+      "notes": "active=WP-1-Spec-Appendices-Backfill-v1; canonical appendix and matrix backfill passes validated through v02.178"
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Hygiene-Manager-Job",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-FEMS-Hygiene-Manager-Job-v1.md",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Injection-Scoring-Graceful-Degradation",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-FEMS-Injection-Scoring-Graceful-Degradation-v1.md",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Calibration-Dashboard",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-FEMS-Calibration-Dashboard-v1.md",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Pinned-Core-Memory",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-FEMS-Pinned-Core-Memory-v1.md",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Bitemporal-Indexing",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-FEMS-Bitemporal-Indexing-v1.md",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Outcome-Feedback-Loop",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-1-FEMS-Outcome-Feedback-Loop-v1.md",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "active_packet_path": ".GOV/task_packets/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/packet.md",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-KERNEL-006-Principal-Authority-Foundation",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-006-Principal-Authority-Foundation-v1.contract.json",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.contract.json",
+      "task_board_projection": "TBD",
+      "notes": ""
+    },
+    {
+      "base_wp_id": "WP-KERNEL-008-Principal-Profile-CRM-Layer",
+      "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1.contract.json",
+      "task_board_projection": "TBD",
+      "notes": ""
+    }
+  ],
+  "superseded_activation_history": [
+    {
+      "base_wp_id": "WP-1-Postgres-Control-Plane-Shift-Bundle",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Postgres-Control-Plane-Shift-Bundle-v1",
+      "replacement_notes": "folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Postgres-Dev-Test-Container-Matrix",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Postgres-Dev-Test-Container-Matrix-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Postgres-Dev-Test-Container-Matrix-v1",
+      "replacement_notes": "folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Postgres-Control-Plane-Leases-Backpressure",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Leases-Backpressure-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Postgres-Control-Plane-Leases-Backpressure-v1",
+      "replacement_notes": "folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-ModelSession-Postgres-Queue-Workers",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-ModelSession-Postgres-Queue-Workers-v1.md",
+      "task_board": "Superseded (Archive): WP-1-ModelSession-Postgres-Queue-Workers-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Postgres-Memory-Store",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-FEMS-Postgres-Memory-Store-v1.md",
+      "task_board": "Superseded (Archive): WP-1-FEMS-Postgres-Memory-Store-v1",
+      "replacement_notes": "folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Workflow-Engine-Postgres-Durable-Execution",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Workflow-Engine-Postgres-Durable-Execution-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Workflow-Engine-Postgres-Durable-Execution-v1",
+      "replacement_notes": "folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-DCC-Postgres-Control-Plane-Projections",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-DCC-Postgres-Control-Plane-Projections-v1.md",
+      "task_board": "Superseded (Archive): WP-1-DCC-Postgres-Control-Plane-Projections-v1",
+      "replacement_notes": "folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-SQLite-Cache-Offline-Boundaries",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-SQLite-Cache-Offline-Boundaries-v1.md",
+      "task_board": "Superseded (Archive): WP-1-SQLite-Cache-Offline-Boundaries-v1",
+      "replacement_notes": "folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Governance-Pack",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Governance-Pack-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Governance-Pack-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Software-Delivery-Governance-Overlay-Boundary",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Governance-Overlay-Boundary-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Software-Delivery-Governance-Overlay-Boundary-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Software-Delivery-Runtime-Truth",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Runtime-Truth-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Software-Delivery-Runtime-Truth-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Software-Delivery-Overlay-Coordination-Records",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Overlay-Coordination-Records-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Software-Delivery-Overlay-Coordination-Records-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Software-Delivery-Overlay-Lifecycle-Recovery-Control-Plane-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Locus-Work-Tracking-System-Phase1",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Locus-Work-Tracking-System-Phase1-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Locus-Work-Tracking-System-Phase1-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-LocalFirst-Agentic-MCP-Posture",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-LocalFirst-Agentic-MCP-Posture-v1.md",
+      "task_board": "Superseded (Archive): WP-1-LocalFirst-Agentic-MCP-Posture-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Work-Profiles",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Work-Profiles-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Work-Profiles-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Memory-Poisoning-Drift-Guardrails",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1.md",
+      "task_board": "Superseded (Archive): WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Write-Time-Safeguards",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-FEMS-Write-Time-Safeguards-v1.md",
+      "task_board": "Superseded (Archive): WP-1-FEMS-Write-Time-Safeguards-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-Working-Memory-Checkpoint-Schema",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-FEMS-Working-Memory-Checkpoint-Schema-v1.md",
+      "task_board": "Superseded (Archive): WP-1-FEMS-Working-Memory-Checkpoint-Schema-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-FEMS-MT-Handoff-Memory-Context",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-FEMS-MT-Handoff-Memory-Context-v1.md",
+      "task_board": "Superseded (Archive): WP-1-FEMS-MT-Handoff-Memory-Context-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Inbox-Role-Mailbox-Alignment",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Inbox-Role-Mailbox-Alignment-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Inbox-Role-Mailbox-Alignment-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Session-Anti-Pattern-Registry",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Session-Anti-Pattern-Registry-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Session-Anti-Pattern-Registry-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Workflow-Transition-Automation-Registry",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Workflow-Transition-Automation-Registry-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Workflow-Transition-Automation-Registry-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Markdown-Mirror-Sync-Drift-Guard",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Markdown-Mirror-Sync-Drift-Guard-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Markdown-Mirror-Sync-Drift-Guard-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Dev-Command-Center-MVP",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-MVP-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Dev-Command-Center-MVP-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Dev-Command-Center-Layout-Projection-Registry",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Layout-Projection-Registry-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Dev-Command-Center-Layout-Projection-Registry-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Dev-Command-Center-Structured-Artifact-Viewer",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Dev-Command-Center-Structured-Artifact-Viewer-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Role-Turn-Isolation",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Role-Turn-Isolation-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Role-Turn-Isolation-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Git-Engine-Decision-Gate",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Git-Engine-Decision-Gate-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Git-Engine-Decision-Gate-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Role-Mailbox-Debug-Bundle-Bridge",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Debug-Bundle-Bridge-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Role-Mailbox-Debug-Bundle-Bridge-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Role-Mailbox-Message-Thread-Contract",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Message-Thread-Contract-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Role-Mailbox-Message-Thread-Contract-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Role-Mailbox-Micro-Task-Loop-Control",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Role-Mailbox-Triage-Queue-Controls",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Triage-Queue-Controls-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Role-Mailbox-Triage-Queue-Controls-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Role-Mailbox-Executor-Routing-Claim-Lease",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Role-Mailbox-Handoff-Bundle-Transcription-Announce-Back-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Product-Screenshot-Visual-Validation",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Product-Screenshot-Visual-Validation-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Product-Screenshot-Visual-Validation-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Session-Spawn-Tree-DCC-Visualization",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Session-Spawn-Tree-DCC-Visualization-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Session-Spawn-Conversation-Distillation",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Session-Spawn-Conversation-Distillation-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Session-Spawn-Conversation-Distillation-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Visual-Debugging-Loop",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Visual-Debugging-Loop-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-MTE-Resource-Caps",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-MTE-Resource-Caps-v1.md",
+      "task_board": "Superseded (Archive): WP-1-MTE-Resource-Caps-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-MTE-Blocked-Decisioning",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-MTE-Blocked-Decisioning-v1.md",
+      "task_board": "Superseded (Archive): WP-1-MTE-Blocked-Decisioning-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-MTE-Summaries",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-MTE-Summaries-v1.md",
+      "task_board": "Superseded (Archive): WP-1-MTE-Summaries-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-MTE-DropBack-Smart",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-MTE-DropBack-Smart-v1.md",
+      "task_board": "Superseded (Archive): WP-1-MTE-DropBack-Smart-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-MCP-MEX-Evidence-Export",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-MCP-MEX-Evidence-Export-v1.md",
+      "task_board": "Superseded (Archive): WP-1-MCP-MEX-Evidence-Export-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Diagnostics-Debug-Bundle-Bridge",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Diagnostics-Debug-Bundle-Bridge-v1.md",
+      "task_board": "Superseded (Archive): WP-1-Diagnostics-Debug-Bundle-Bridge-v1",
+      "replacement_notes": "folded complete into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Packet-Candidate-Range-Truth",
+      "superseded_packet_or_stub": "Task Board inventory only: WP-1-Packet-Candidate-Range-Truth-v1",
+      "task_board": "Superseded (Archive): WP-1-Packet-Candidate-Range-Truth-v1",
+      "replacement_notes": "folded board-only intent into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; no physical stub file found during fold"
+    },
+    {
+      "base_wp_id": "WP-1-Validator-Command-Surface-Preflight",
+      "superseded_packet_or_stub": "Task Board inventory only: WP-1-Validator-Command-Surface-Preflight-v1",
+      "task_board": "Superseded (Archive): WP-1-Validator-Command-Surface-Preflight-v1",
+      "replacement_notes": "folded board-only intent into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; no physical stub file found during fold"
+    },
+    {
+      "base_wp_id": "WP-1-Worktree-Path-Root-Guardrails",
+      "superseded_packet_or_stub": "Task Board inventory only: WP-1-Worktree-Path-Root-Guardrails-v1",
+      "task_board": "Superseded (Archive): WP-1-Worktree-Path-Root-Guardrails-v1",
+      "replacement_notes": "folded board-only intent into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; no physical stub file found during fold"
+    },
+    {
+      "base_wp_id": "WP-1-Bootstrap-Skeleton-Receipt-Projection",
+      "superseded_packet_or_stub": "Task Board inventory only: WP-1-Bootstrap-Skeleton-Receipt-Projection-v1",
+      "task_board": "Superseded (Archive): WP-1-Bootstrap-Skeleton-Receipt-Projection-v1",
+      "replacement_notes": "folded board-only intent into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; no physical stub file found during fold"
+    },
+    {
+      "base_wp_id": "WP-1-Canonical-Closeout-Bundle",
+      "superseded_packet_or_stub": "Task Board inventory only: WP-1-Canonical-Closeout-Bundle-v1",
+      "task_board": "Superseded (Archive): WP-1-Canonical-Closeout-Bundle-v1",
+      "replacement_notes": "folded board-only intent into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; no physical stub file found during fold"
+    },
+    {
+      "base_wp_id": "WP-1-Receipt-Driven-Lane-Wake-Settlement",
+      "superseded_packet_or_stub": "Task Board inventory only: WP-1-Receipt-Driven-Lane-Wake-Settlement-v1",
+      "task_board": "Superseded (Archive): WP-1-Receipt-Driven-Lane-Wake-Settlement-v1",
+      "replacement_notes": "folded board-only intent into WP-KERNEL-003-Sandbox-Validation-Promotion-v1; no physical stub file found during fold"
+    }
+  ],
+  "historical_lineage": [
+    {
+      "base_wp_id": "WP-1-Structured-Collaboration-Schema-Registry",
+      "historical_failed_packet": "WP-1-Structured-Collaboration-Schema-Registry-v3",
+      "historical_classification": "FAILED_HISTORICAL_CLOSURE",
+      "live_smoketest_status": "LIVE_SMOKETEST_BASELINE_RECOVERED",
+      "active_recovery_packet": "WP-1-Structured-Collaboration-Schema-Registry-v4",
+      "driver_audit": "AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT",
+      "latest_smoketest_review": "SMOKETEST-REVIEW-20260325-SCHEMA-REGISTRY-V4"
+    },
+    {
+      "base_wp_id": "WP-1-Loom-Storage-Portability",
+      "historical_failed_packet": "WP-1-Loom-Storage-Portability-v3",
+      "historical_classification": "FAILED_HISTORICAL_CLOSURE",
+      "live_smoketest_status": "LIVE_SMOKETEST_BASELINE_PENDING",
+      "active_recovery_packet": "WP-1-Loom-Storage-Portability-v4",
+      "driver_audit": "AUDIT_20260321_PARALLEL_WP1_V3_PRODUCT_SPEC_ALIGNMENT",
+      "latest_smoketest_review": "NONE"
+    }
+  ]
+}

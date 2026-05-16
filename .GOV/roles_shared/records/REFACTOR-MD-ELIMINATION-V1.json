@@ -141,14 +141,30 @@
     },
     {
       "phase_id": "MD-ELIM-PHASE-2",
-      "summary": "Migrate WP_TRACEABILITY_REGISTRY to .json authority with optional .md projection.",
+      "status": "DONE",
+      "completed_at_utc": "2026-05-17T00:00:00Z",
+      "completed_in_commit": "PENDING_COMMIT",
+      "summary": "Migrate WP_TRACEABILITY_REGISTRY to .json authority with auto-generated .md projection.",
       "scope": [
-        "Create .GOV/roles_shared/records/wp_traceability_registry.json with the same per-row data.",
-        "Update build-order-sync.mjs and other consumers to read the .json.",
-        "Migrate existing .md rows by parsing once + writing the .json + freezing the .md as legacy reference."
+        "Created .GOV/roles_shared/records/wp_traceability_registry.json with the same per-row data, plus a previously-missed third table (Superseded Activation History) discovered during migration parsing.",
+        "Strategy switched mid-flight: JSON is authority; .md is now a generated projection regenerated from .json on every write. Readers (10 consumers) continue parsing the .md unchanged — no consumer migration was needed.",
+        "Migration is lossless: 161 active entries + 51 superseded activation history rows + 2 historical lineage rows = 214 rows preserved (verified byte-count match with pre-migration .md row count).",
+        "Single writer (wp-traceability-set.mjs) refactored to write JSON + regenerate .md via persistRegistry; resolves stub paths for .md, .contract.json, or .json packet paths.",
+        "New drift check (wp-traceability-registry-projection-check.mjs) wired into packet-truth-bundle-check — asserts .md matches renderRegistryMarkdown(load(.json)) and fails the bundle if a hand-edit or external write divergence occurs."
       ],
       "estimated_effort": "medium (~2-3 days)",
-      "depends_on": ["MD-ELIM-PHASE-1"]
+      "actual_effort": "~half day",
+      "depends_on": ["MD-ELIM-PHASE-1"],
+      "implementation_notes": [
+        "Designed json schema: schema_id, schema_version, authority_surface=MACHINE_CONTRACT, rendered_md_projection_policy=GENERATED_FROM_JSON_DO_NOT_HAND_EDIT, entries[], superseded_activation_history[], historical_lineage[].",
+        "Lib at .GOV/roles_shared/scripts/lib/traceability-registry-lib.mjs: loadRegistryJson, writeRegistryJson, parseLegacyMarkdown, renderRegistryMarkdown, persistRegistry, findEntry, upsertEntry, migrateRegistryFromMarkdownIfNeeded.",
+        "10 unit tests in .GOV/roles_shared/tests/traceability-registry-lib.test.mjs cover: empty contract shape, JSON round-trip, schema_id rejection, upsert insert/update/preserve, find missing, three-table parser, no-bleed across section boundaries, persist+render round-trip.",
+        "Migration runs once via migrateRegistryFromMarkdownIfNeeded; subsequent writers go through upsertEntry + persistRegistry.",
+        "Added KERNEL-006/007/008 entries via the writer pointing at .contract.json paths.",
+        "just build-order-sync regenerated BUILD_ORDER.md with the new entries visible at priorities 185/180/60.",
+        "task-packet-stub-contract-check + new wp-traceability-registry-projection-check both PASS inside packet-truth-bundle. Same 2 pre-existing sub-check failures remain (packet-truth-check Atelier/Photo-Studio supersession drift, stale flat-packet inventory) — unrelated to this refactor.",
+        "Readers were intentionally NOT migrated; the auto-generated .md keeps them working without churn. Future phases can migrate readers incrementally without breaking the system."
+      ]
     },
     {
       "phase_id": "MD-ELIM-PHASE-3",
@@ -225,15 +241,21 @@
     },
     {
       "action_id": "NEXT-003",
-      "status": "READY",
-      "description": "Add WP-KERNEL-006/007/008 rows to WP_TRACEABILITY_REGISTRY (currently the only blocker for build-order discovery of the new stubs; can use .contract.json paths now that the script accepts them). Or wait for MD-ELIM-PHASE-2 to migrate the registry to JSON-primary, which is the cleaner long-term path.",
+      "status": "DONE",
+      "description": "Add WP-KERNEL-006/007/008 rows to WP_TRACEABILITY_REGISTRY (done via PHASE-2 writer, .contract.json paths). KERNEL-006/007/008 now visible in BUILD_ORDER snapshot.",
       "owner": "OPERATOR_OR_KERNEL_BUILDER",
       "blocked_by": ["NEXT-002"]
     },
     {
       "action_id": "NEXT-004",
+      "status": "DONE",
+      "description": "MD-ELIM-PHASE-2 (migrate WP_TRACEABILITY_REGISTRY to .json-primary) - approved and completed.",
+      "owner": "OPERATOR"
+    },
+    {
+      "action_id": "NEXT-005",
       "status": "READY",
-      "description": "Operator decision: proceed with MD-ELIM-PHASE-2 (migrate WP_TRACEABILITY_REGISTRY to .json-primary)?",
+      "description": "Operator decision: proceed with MD-ELIM-PHASE-3 (migrate TASK_BOARD.md to .json-primary)? Pattern is the same as PHASE-2: JSON authority + auto-generated .md projection + drift check + single-writer refactor. task-board-set.mjs is the single writer (already identified).",
       "owner": "OPERATOR"
     }
   ],
