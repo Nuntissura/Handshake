@@ -576,6 +576,12 @@ fn validate_sources(
     for source in &contract.source_refs {
         require_non_empty(errors, "source_refs.source_ref", &source.source_ref);
         require_non_empty(errors, "source_refs.source_hash", &source.source_hash);
+        if !is_sha256_digest(&source.source_hash) {
+            errors.push(error(
+                "source_refs.source_hash",
+                "Locus graph source hashes must be sha256 digests",
+            ));
+        }
         match source.source_kind {
             LocusGraphSourceKind::MachineContract => {}
             LocusGraphSourceKind::ProseReport | LocusGraphSourceKind::ChatMessage => {
@@ -645,6 +651,12 @@ fn source_hash(domain: &str, parts: &[&str]) -> String {
         "sha256:{}",
         sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
     )
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
 }
 
 fn require_non_empty(

@@ -401,6 +401,12 @@ fn validate_sources(
         require_non_empty(errors, "sources.source_ref", &source.source_ref);
         require_non_empty(errors, "sources.schema_id", &source.schema_id);
         require_non_empty(errors, "sources.source_hash", &source.source_hash);
+        if !is_sha256_digest(&source.source_hash) {
+            errors.push(error(
+                "sources.source_hash",
+                "status projection source hashes must be sha256 digests",
+            ));
+        }
         if !seen.insert(source.source_id.as_str()) {
             errors.push(error("sources.source_id", "source ids must be unique"));
         }
@@ -679,6 +685,12 @@ fn source_hash(domain: &str, parts: &[&str]) -> String {
         "sha256:{}",
         sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
     )
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
 }
 
 fn target(

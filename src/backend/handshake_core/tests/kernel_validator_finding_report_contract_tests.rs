@@ -106,6 +106,14 @@ fn validator_finding_reports_reject_missing_proof_and_prose_only_authority() {
     assert!(errors
         .iter()
         .any(|error| error.field == "gap_report.authority_mode"));
+
+    let mut contract = build_kernel002_validator_finding_reports();
+    contract.issue_report.core.source_refs[0].source_hash = "sha256:not-a-real-digest".to_string();
+    let errors =
+        validate_validator_finding_reports(&contract).expect_err("source hashes must be real");
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "issue_report.source_hash"));
 }
 
 #[test]

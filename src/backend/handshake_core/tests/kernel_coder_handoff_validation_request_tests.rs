@@ -109,6 +109,14 @@ fn coder_handoff_rejects_missing_identity_out_of_scope_files_and_manual_status_m
     assert!(errors
         .iter()
         .any(|error| error.field == "requested_review.status_edit_allowed"));
+
+    let mut contract = build_kernel002_coder_handoff_validation_request();
+    contract.touched_artifacts[0].source_hash = "sha256:not-a-real-digest".to_string();
+    let errors = validate_coder_handoff_validation_request(&contract)
+        .expect_err("touched artifacts must use real source digests");
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "touched_artifacts.source_hash"));
 }
 
 #[test]

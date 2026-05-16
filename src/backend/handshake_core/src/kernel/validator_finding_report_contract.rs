@@ -642,6 +642,12 @@ fn validate_source_refs(
             &format!("{prefix}.source_hash"),
             &source.source_hash,
         );
+        if !is_sha256_digest(&source.source_hash) {
+            errors.push(error(
+                &format!("{prefix}.source_hash"),
+                "validator finding source hashes must be sha256 digests",
+            ));
+        }
     }
 }
 
@@ -814,6 +820,12 @@ fn source_hash(domain: &str, parts: &[&str]) -> String {
         "sha256:{}",
         sha256_hex(format!("{domain}|{}", parts.join("|")).as_bytes())
     )
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
 }
 
 fn finding_source_kind_label(kind: FindingSourceKind) -> &'static str {

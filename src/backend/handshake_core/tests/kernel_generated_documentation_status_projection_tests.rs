@@ -135,6 +135,14 @@ fn generated_status_projection_rejects_non_authority_and_direct_manual_status_ed
     assert!(errors
         .iter()
         .any(|error| error.field == "targets.manual_edit_disposition"));
+
+    let mut contract = build_kernel002_generated_documentation_status_projection();
+    contract.sources[0].source_hash = "sha256:not-a-real-digest".to_string();
+    let errors = validate_generated_documentation_status_projection(&contract)
+        .expect_err("source hashes must be real sha256 digests");
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "sources.source_hash"));
 }
 
 #[test]

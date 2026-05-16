@@ -25,6 +25,10 @@ fn governance_overlay_boundary_preserves_gov_artifacts_as_source_or_evidence_onl
         .iter()
         .all(|artifact| artifact.role != GovernanceOverlayArtifactRole::RuntimeAuthority));
     assert!(boundary
+        .imported_overlay_artifacts
+        .iter()
+        .all(|artifact| is_sha256_digest(&artifact.provenance_hash)));
+    assert!(boundary
         .product_runtime_authority_refs
         .contains(&"hsk.kernel.software_delivery_runtime_truth_record@1".to_string()));
     assert!(boundary
@@ -36,6 +40,9 @@ fn governance_overlay_boundary_preserves_gov_artifacts_as_source_or_evidence_onl
 #[test]
 fn overlay_validation_rejects_runtime_authority_and_non_gov_paths() {
     let mut boundary = kernel002_governance_overlay_boundary();
+    let valid_hash = boundary.imported_overlay_artifacts[0]
+        .provenance_hash
+        .clone();
     boundary
         .imported_overlay_artifacts
         .push(GovernanceOverlayArtifactRefV1 {
@@ -43,7 +50,7 @@ fn overlay_validation_rejects_runtime_authority_and_non_gov_paths() {
             repo_relative_path: ".GOV/roles_shared/records/TASK_BOARD.md".to_string(),
             artifact_kind: GovernanceOverlayArtifactKind::TaskPacket,
             role: GovernanceOverlayArtifactRole::RuntimeAuthority,
-            provenance_hash: "sha256:bad".to_string(),
+            provenance_hash: valid_hash.clone(),
             source_wp_id: "WP-1-Software-Delivery-Governance-Overlay-Boundary-v1".to_string(),
         });
     boundary
@@ -53,7 +60,7 @@ fn overlay_validation_rejects_runtime_authority_and_non_gov_paths() {
             repo_relative_path: "src/backend/runtime.rs".to_string(),
             artifact_kind: GovernanceOverlayArtifactKind::GovernanceCheckReport,
             role: GovernanceOverlayArtifactRole::Evidence,
-            provenance_hash: "sha256:bad-path".to_string(),
+            provenance_hash: valid_hash,
             source_wp_id: "WP-1-Software-Delivery-Governance-Overlay-Boundary-v1".to_string(),
         });
 
@@ -67,6 +74,20 @@ fn overlay_validation_rejects_runtime_authority_and_non_gov_paths() {
     assert!(errors.iter().any(|error| matches!(
         error,
         GovernanceOverlayBoundaryValidationError::ImportedOverlayPathOutsideGov { .. }
+    )));
+}
+
+#[test]
+fn overlay_validation_rejects_fake_provenance_hashes() {
+    let mut boundary = kernel002_governance_overlay_boundary();
+    boundary.imported_overlay_artifacts[0].provenance_hash = "sha256:not-a-real-digest".to_string();
+
+    let errors = validate_governance_overlay_boundary(&boundary)
+        .expect_err("overlay provenance hashes must be real digests");
+
+    assert!(errors.iter().any(|error| matches!(
+        error,
+        GovernanceOverlayBoundaryValidationError::InvalidArtifactProvenanceHash { .. }
     )));
 }
 
@@ -148,4 +169,10 @@ fn sample_transfer_request(
         gate_refs: vec!["promotion-gate-kernel002".to_string()],
         projection_target_id: "dcc.governance-overlay".to_string(),
     }
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
 }

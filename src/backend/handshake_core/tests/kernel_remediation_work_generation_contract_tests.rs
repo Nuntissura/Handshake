@@ -127,6 +127,14 @@ fn remediation_generation_rejects_missing_parent_links_actions_or_recheck() {
     assert!(errors
         .iter()
         .any(|error| error.field == "remediation_microtask.validator_recheck"));
+
+    let mut contract = build_kernel002_remediation_work_generation();
+    contract.source_refs[0].source_hash = "sha256:not-a-real-digest".to_string();
+    let errors = validate_remediation_work_generation(&contract)
+        .expect_err("source refs must use real source digests");
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "source_refs.source_hash"));
 }
 
 #[test]

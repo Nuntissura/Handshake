@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use super::action_envelope::AuthorityEffect;
+use super::crdt::persistence::sha256_hex;
 
 const FOLDED_GOVERNANCE_OVERLAY_STUB: &str =
     "WP-1-Software-Delivery-Governance-Overlay-Boundary-v1";
@@ -101,6 +102,9 @@ pub enum GovernanceOverlayBoundaryValidationError {
     ImportedOverlayClaimsRuntimeAuthority {
         artifact_id: String,
     },
+    InvalidArtifactProvenanceHash {
+        artifact_id: String,
+    },
     MissingTransferField {
         transfer_id: String,
         field: &'static str,
@@ -134,21 +138,18 @@ pub fn kernel002_governance_overlay_boundary() -> GovernanceOverlayBoundaryV1 {
                 ".GOV/task_packets/stubs/WP-1-Software-Delivery-Governance-Overlay-Boundary-v1.md",
                 GovernanceOverlayArtifactKind::TaskPacket,
                 GovernanceOverlayArtifactRole::SourceMaterial,
-                "sha256:e7582797fe0b0b629a9a141208b0efefb68a79c451bf74f451673462feaf1ae4",
             ),
             overlay_artifact(
                 "overlay-stub-contract",
                 ".GOV/task_packets/stubs/WP-1-Software-Delivery-Governance-Overlay-Boundary-v1.contract.json",
                 GovernanceOverlayArtifactKind::GovernancePackExport,
                 GovernanceOverlayArtifactRole::Evidence,
-                "sha256:contract-source",
             ),
             overlay_artifact(
                 "overlay-receipt-ledger",
                 ".GOV/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-002/RECEIPTS.jsonl",
                 GovernanceOverlayArtifactKind::ReceiptLedger,
                 GovernanceOverlayArtifactRole::Evidence,
-                "sha256:receipt-ledger",
             ),
         ],
         product_runtime_authority_refs: vec![
@@ -352,16 +353,33 @@ fn overlay_artifact(
     repo_relative_path: &str,
     artifact_kind: GovernanceOverlayArtifactKind,
     role: GovernanceOverlayArtifactRole,
-    provenance_hash: &str,
 ) -> GovernanceOverlayArtifactRefV1 {
     GovernanceOverlayArtifactRefV1 {
         artifact_id: artifact_id.to_string(),
         repo_relative_path: repo_relative_path.to_string(),
         artifact_kind,
         role,
-        provenance_hash: provenance_hash.to_string(),
+        provenance_hash: overlay_provenance_hash(repo_relative_path, artifact_kind, role),
         source_wp_id: FOLDED_GOVERNANCE_OVERLAY_STUB.to_string(),
     }
+}
+
+fn overlay_provenance_hash(
+    repo_relative_path: &str,
+    artifact_kind: GovernanceOverlayArtifactKind,
+    role: GovernanceOverlayArtifactRole,
+) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(
+            format!(
+                "kernel002-governance-overlay|{repo_relative_path}|{}|{}",
+                artifact_kind_label(artifact_kind),
+                artifact_role_label(role)
+            )
+            .as_bytes()
+        )
+    )
 }
 
 fn validate_overlay_artifact(
@@ -381,6 +399,13 @@ fn validate_overlay_artifact(
         "provenance_hash",
         &artifact.provenance_hash,
     );
+    if !is_sha256_digest(&artifact.provenance_hash) {
+        errors.push(
+            GovernanceOverlayBoundaryValidationError::InvalidArtifactProvenanceHash {
+                artifact_id: artifact.artifact_id.clone(),
+            },
+        );
+    }
     require_artifact_field(errors, artifact, "source_wp_id", &artifact.source_wp_id);
 
     let normalized_path = artifact.repo_relative_path.replace('\\', "/");
@@ -451,5 +476,30 @@ fn require_transfer_field(
                 field,
             },
         );
+    }
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
+}
+
+fn artifact_kind_label(kind: GovernanceOverlayArtifactKind) -> &'static str {
+    match kind {
+        GovernanceOverlayArtifactKind::TaskPacket => "task-packet",
+        GovernanceOverlayArtifactKind::ReceiptLedger => "receipt-ledger",
+        GovernanceOverlayArtifactKind::RoleProtocol => "role-protocol",
+        GovernanceOverlayArtifactKind::GovernanceCheckReport => "governance-check-report",
+        GovernanceOverlayArtifactKind::GovernancePackExport => "governance-pack-export",
+        GovernanceOverlayArtifactKind::GovernanceScript => "governance-script",
+    }
+}
+
+fn artifact_role_label(role: GovernanceOverlayArtifactRole) -> &'static str {
+    match role {
+        GovernanceOverlayArtifactRole::SourceMaterial => "source-material",
+        GovernanceOverlayArtifactRole::Evidence => "evidence",
+        GovernanceOverlayArtifactRole::RuntimeAuthority => "runtime-authority",
     }
 }

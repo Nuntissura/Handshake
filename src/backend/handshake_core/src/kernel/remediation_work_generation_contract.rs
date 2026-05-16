@@ -298,6 +298,12 @@ fn source_hash(domain: &str, parts: &[&str]) -> String {
     )
 }
 
+fn is_sha256_digest(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
+}
+
 pub fn project_remediation_work_generation(
     contract: &RemediationWorkGenerationContractV1,
 ) -> Result<RemediationWorkGenerationProjectionV1, Vec<RemediationWorkGenerationError>> {
@@ -359,6 +365,13 @@ pub fn validate_remediation_work_generation(
             "source_refs.source_hash",
             &source_ref.source_hash,
         );
+        if !is_sha256_digest(&source_ref.source_hash) {
+            push_error(
+                &mut errors,
+                "source_refs.source_hash",
+                "remediation source hashes must be sha256 digests",
+            );
+        }
     }
 
     validate_microtask_contract(&mut errors, &contract.remediation_microtask);

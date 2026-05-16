@@ -70,13 +70,14 @@ fn locus_mt_validation_work_graph_rejects_prose_or_chat_truth_sources() {
         .source_refs
         .iter()
         .all(|source| source.source_kind == LocusGraphSourceKind::MachineContract));
+    let source_hash = contract.source_refs[0].source_hash.clone();
 
     let mut prose_source = build_kernel002_locus_mt_validation_work_graph();
     prose_source.source_refs.push(
         handshake_core::kernel::locus_mt_validation_work_graph::LocusWorkGraphSourceRefV1 {
             source_ref: "prose-report://validator-summary".to_string(),
             source_kind: LocusGraphSourceKind::ProseReport,
-            source_hash: "sha256:prose".to_string(),
+            source_hash: source_hash.clone(),
         },
     );
     let errors = validate_locus_mt_validation_work_graph(&prose_source)
@@ -90,7 +91,7 @@ fn locus_mt_validation_work_graph_rejects_prose_or_chat_truth_sources() {
         handshake_core::kernel::locus_mt_validation_work_graph::LocusWorkGraphSourceRefV1 {
             source_ref: "chat://thread/validator-message".to_string(),
             source_kind: LocusGraphSourceKind::ChatMessage,
-            source_hash: "sha256:chat".to_string(),
+            source_hash,
         },
     );
     let errors = validate_locus_mt_validation_work_graph(&chat_source)
@@ -98,6 +99,18 @@ fn locus_mt_validation_work_graph_rejects_prose_or_chat_truth_sources() {
     assert!(errors
         .iter()
         .any(|error| error.field == "source_refs.source_kind"));
+}
+
+#[test]
+fn locus_mt_validation_work_graph_rejects_fake_source_hashes() {
+    let mut contract = build_kernel002_locus_mt_validation_work_graph();
+    contract.source_refs[0].source_hash = "sha256:not-a-real-digest".to_string();
+
+    let errors = validate_locus_mt_validation_work_graph(&contract)
+        .expect_err("source refs must use real source digests");
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "source_refs.source_hash"));
 }
 
 #[test]
