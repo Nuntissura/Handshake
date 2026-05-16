@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Frontend-Build-Debug/packet.json source_hash=76936231791b34fb projection_hash=39a8c92f1f9ab5fb generated_at_utc=2026-05-06T16:33:39.190Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Frontend-Build-Debug/packet.json source_hash=136dcfd108150624 projection_hash=39a8c92f1f9ab5fb generated_at_utc=2026-05-14T21:13:39.549Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Frontend-Build-Debug
 
 ## Metadata

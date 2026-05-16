@@ -1,0 +1,58 @@
+{
+  "file_id": "ckc-atelier-lens-mt-execution-index",
+  "file_kind": "mt_execution_index",
+  "updated_at": "2026-05-16",
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1",
+  "status": "complete",
+  "tranche": {
+    "id": "MT-001-012",
+    "status": "complete",
+    "scope": [
+      "MT-001 package/runtime dependencies",
+      "MT-002 backend service files",
+      "MT-003 UI views and reusable behavior",
+      "MT-004 PoseKit files",
+      "MT-005 ComfyUI bridge files",
+      "MT-006 test suite by behavior area",
+      "MT-007 CKC spec headings and requirement sections",
+      "MT-008 CKC taskboard statuses",
+      "MT-009 existing Handshake Atelier/Lens stubs",
+      "MT-010 adjacent Photo/Studio/media/Loom/ASR/artifact stubs",
+      "MT-011 prior packets for supersession risk",
+      "MT-012 current Handshake product code anchors relevant to Atelier/Lens"
+    ]
+  },
+  "artifacts": [
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.json",
+      "owner_lane": "ckc_code",
+      "status": "complete"
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-007-008-ckc-spec-taskboard-inventory.json",
+      "owner_lane": "ckc_spec_taskboard",
+      "status": "complete"
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-009-012-handshake-anchor-inventory.json",
+      "owner_lane": "handshake_anchor",
+      "status": "complete"
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json",
+      "owner_lane": "controller",
+      "status": "complete"
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-status.json",
+      "owner_lane": "controller",
+      "status": "complete"
+    }
+  ],
+  "guardrails": [
+    "Do not create CKC rebuild stubs until consolidation and CKC research are complete.",
+    "Preserve existing Atelier/Lens and adjacent stub intent before folding CKC evidence into Handshake.",
+    "CKC is source evidence only; implementation must use Handshake language, stack, and runtime boundaries.",
+    "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths."
+  ]
+}

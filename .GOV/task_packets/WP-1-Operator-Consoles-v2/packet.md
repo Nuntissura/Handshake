@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Operator-Consoles-v2/packet.json source_hash=90f05e5c27abb7b0 projection_hash=2ac8f500ce829a45 generated_at_utc=2026-05-06T16:33:39.316Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Operator-Consoles-v2/packet.json source_hash=1c070ef431a4dc57 projection_hash=2ac8f500ce829a45 generated_at_utc=2026-05-14T21:13:39.653Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Operator-Consoles-v2
 
 ## Metadata

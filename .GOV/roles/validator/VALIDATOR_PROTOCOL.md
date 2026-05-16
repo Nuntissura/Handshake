@@ -316,9 +316,14 @@ Minimum verification for governance-only changes: `just gov-check`.
     - If this matches the assignment: continue.
     - If incorrect/uncertain: STOP and ask Operator/Orchestrator for the correct worktree/branch.
     ```
-  - If the required worktree/branch does not exist: STOP and request explicit user authorization to create it (Codex [CX-108]); only after authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
+  - If the required worktree/branch does not exist: STOP and request explicit Operator authorization to create it (Codex [CX-108]); only after Operator authorization, create it using the commands in `.GOV/roles_shared/docs/ROLE_WORKTREES.md` (role worktrees) or the repo's WP worktree helpers (WP worktrees).
+  - **Validator worktree creation rule:** Validators MUST NOT create or switch to any new worktree unless explicit Operator authorization is present in the current turn.
   - **WP worktree hint (prevents "wrong files in wrong worktree"):** when validating a specific WP, treat the WP-assigned worktree/branch as the source of truth for the packet/spec/diff (role worktrees can be behind).
     - Locate the WP worktree/branch via `../gov_runtime/roles_shared/ORCHESTRATOR_GATES.json` `PREPARE` (`branch`, `worktree_dir`) and confirm it exists in `git worktree list`.
+    - **Single-worktree rule per WP (parallel WPs allowed):** for each active WP_ID, exactly one worktree may exist. Other WPs may have their own worktrees concurrently.
+      - Resolve `WP_ID`-specific entries from `PREPARE` + `git worktree list`.
+      - If zero matches: request Operator repair before continuing.
+      - If more than one match for the same WP_ID: fail as `WP_WORKTREE_SPLIT`, report it, and stop.
     - Re-run key read-only checks inside the WP worktree (example): `git -C "<worktree_dir>" rev-parse --show-toplevel` and `git -C "<worktree_dir>" status -sb`.
     - **Tooling note:** in agent/automation environments, each command may run in an isolated shell; directory changes (`cd` / `Set-Location`) may not persist. Prefer explicit workdir or `git -C "<worktree_dir>" ...` so you cannot accidentally read/validate the wrong tree.
     - Run gates against the WP worktree (example): `just -f "<worktree_dir>/justfile" phase-check STARTUP <WP_ID> CODER`; do not trust the role worktree copy if it disagrees.
@@ -638,7 +643,8 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 2. **Validator rubric check**: Apply the governed validator report profile (SPLIT_DIFF_SCOPED_RIGOR_V3/V4). All rubric sections must be filled with concrete evidence.
 3. **Red team assessment**: Check for security failure modes, capability escalation paths, race conditions, and input validation gaps across the full diff.
 4. **Master Spec alignment (wide scope)**: Verify the implementation against the spec anchors from the refinement. Check that the implementation satisfies the spec's MUST/SHOULD clauses, not just the packet's acceptance criteria.
-5. **Artifact hygiene**: Run `just artifact-root-preflight WP-{ID}` or confirm the phase-check artifact already ran it, then use `just artifact-hygiene-check` for deeper cleanup diagnosis. Flag repo-local `target/` directories or wrongly-placed build artifacts as `ENVIRONMENT_BLOCKER` unless they prove a product boundary failure.
+5. **Artifact hygiene**: Run `just artifact-root-preflight WP-{ID}` or confirm the phase-check artifact already ran it, then use `just artifact-hygiene-check` for deeper cleanup diagnosis. Flag repo-local runtime/build artifacts as `ENVIRONMENT_BLOCKER` unless they prove a product boundary failure.
+   - WP-validating contexts must reject build, test, and tool outputs under the WP worktree root (`src/`, `app/`, `tests/`, or any WP-scoped path in that worktree) when they belong under `D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts` (repo-relative `../Handshake_Artifacts/`).
 6. **Write validation verdict**: If all checks pass, write `Verdict: PASS` in the validation report. If any check fails, write `Verdict: FAIL` with specific remediation instructions and send them to the coder via `just wp-review-response`.
 7. **If PASS**: Notify the orchestrator (via `wp-notification` with target ORCHESTRATOR) that the WP is ready for integration validation and merge.
 

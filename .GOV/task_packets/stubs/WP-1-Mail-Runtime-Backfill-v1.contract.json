@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Mail-Runtime-Backfill-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "d970cbddb19b509a8a9d76341baf867b45ef1227f692f0df2a8660e1ffbcfdb1",
+    "projection_sha256": "a03e74185d8960aaab160b8071c7cf48250e1630c0362924ad637b4e035fb42d",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -67,7 +67,7 @@
   },
   "draft_scope": {
     "intent": "- What: Backfill Mail as a real runtime feature with explicit job/workflow/tool-call surfaces and canonical ties into Calendar, Loom, AI-ready ingestion, media extraction, and Stage-adjacent capture flows.\n- Why: Mail is currently strong in spec intent but weak in code/runtime coverage, which blocks reliable local/cloud tool use and later cross-feature ROI matrix expansion.",
-    "scope_sketch": "- IN_SCOPE:\n  - Runtime embodiment:\n    - Mail job kinds / workflow nodes / tool surfaces.\n    - Mail evidence and audit expectations.\n  - Cross-feature links:\n    - Mail <-> Calendar event/invite flows.\n    - Mail <-> Loom / AI-ready ingestion.\n    - Mail <-> Stage / media extraction handoff posture.\n  - Visibility and storage:\n    - DCC/operator visibility.\n    - Flight Recorder event expectations.\n    - SQLite-now / PostgreSQL-ready persistence expectations.\n- OUT_OF_SCOPE:\n  - Full mail product implementation.\n  - Provider-specific sync integrations beyond the canonical runtime contract.\n  - Final matrix expansion for all mail-centered combinations.",
+    "scope_sketch": "- IN_SCOPE:\n  - Runtime embodiment:\n    - Mail job kinds / workflow nodes / tool surfaces.\n    - Mail evidence and audit expectations.\n  - Cross-feature links:\n    - Mail <-> Calendar event/invite flows.\n    - Mail <-> Loom / AI-ready ingestion.\n    - Mail <-> Stage / media extraction handoff posture.\n  - Visibility and storage:\n    - DCC/operator visibility.\n    - Flight Recorder event expectations.\n    - PostgreSQL-only persistence expectations. The old local-first storage posture is superseded and must not be implemented through SQLite in any form.\n- OUT_OF_SCOPE:\n  - Full mail product implementation.\n  - Provider-specific sync integrations beyond the canonical runtime contract.\n  - Final matrix expansion for all mail-centered combinations.",
     "acceptance_criteria": "- Mail has explicit runtime/job/tool-call mappings instead of appendix gaps only.\n- Mail interaction with Calendar, Loom, and ingestion is represented in a canonical runtime contract.\n- Mail activity is visible to operator surfaces and Flight Recorder.\n- Storage posture is explicit and migration-safe.",
     "risks_unknowns": "- Risk: Mail stays spec-only and forces later product work to guess job/tool boundaries.\n- Risk: calendar/invite flows and attachment ingestion diverge across features without a canonical runtime layer.\n- Risk: privacy and evidence handling become inconsistent if Mail audit surfaces are not specified upfront.",
     "governance_artifact_stance": ""

@@ -1,0 +1,80 @@
+{
+  "file_id": "ckc-atelier-lens-final-wp-stub-map",
+  "file_kind": "final_stub_map",
+  "updated_at": "2026-05-16",
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1",
+  "status": "draft_mt_suites_rebuilt_not_execution",
+  "operator_deliverable": "No product coding; create no more than three detailed CKC/Atelier-Lens fold-in WP stubs first; the poisoned 20-MT draft lists have been replaced with fresh non-executable draft MT suites; official MT expansion remains blocked until activation/refinement approval.",
+  "repair_note": "Audit findings on 2026-05-16 found the first three-stub pass directionally correct but not preservation-complete. The repaired stubs now include missing old-stub payload, CKC app coverage, media/ASR/Loom details, Pose/ComfyUI schemas, visual/debug/manual/build diagnostics, and evidence-maturity gates.",
+  "final_stub_count": 3,
+  "final_stubs": [
+    {
+      "wp_id": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1",
+      "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.md",
+      "owns": [
+        "character sheets",
+        "templates/parser/protected fields",
+        "media/DAM",
+        "intake/inbox",
+        "collections/contact sheets",
+        "docs/stories/moodboards/relationships",
+        "sidecars/versioning/recovery",
+        "search/tags/similarity",
+        "exports/backups/share-packs",
+        "media downloader/ASR/Loom archive preservation",
+        "build/reset/orphan data-root lessons"
+      ],
+      "embedded_microtask_count": 0,
+      "draft_microtask_count": 80,
+      "draft_microtask_suite_path": ".GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1/MT_SUITE.md"
+    },
+    {
+      "wp_id": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1",
+      "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1.md",
+      "owns": [
+        "PoseKit/OpenPose",
+        "identity profiles",
+        "ComfyUI workflow receipts",
+        "image-generation registration/replay",
+        "workflow registry",
+        "mechanical tool adapter boundaries",
+        "lineage",
+        "concrete Rig/OpenPose/IdentityProfile/WorkflowReceipt fields",
+        "blocked/planned PoseKit carry-forward"
+      ],
+      "embedded_microtask_count": 0,
+      "draft_microtask_count": 51,
+      "draft_microtask_suite_path": ".GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1/MT_SUITE.md"
+    },
+    {
+      "wp_id": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1",
+      "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1.md",
+      "owns": [
+        "model-facing manual",
+        "command catalog",
+        "sessions/leases/heartbeats",
+        "DCC/Locus/Flight Recorder projections",
+        "diagnostic bundles",
+        "structured state",
+        "visual evidence",
+        "non-focus automation",
+        "local LLM/AI tagging visibility",
+        "build/release/install evidence",
+        "stale-doc/spec drift detection"
+      ],
+      "embedded_microtask_count": 0,
+      "draft_microtask_count": 66,
+      "draft_microtask_suite_path": ".GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1/MT_SUITE.md"
+    }
+  ],
+  "non_negotiables": [
+    "No product code is implemented by these stubs.",
+    "CKC is source evidence, not runtime architecture.",
+    "Handshake stack translation is required: Tauri, Rust backend coordinator, Python AI orchestration where appropriate, React/TypeScript projections, PostgreSQL primary authority, Yjs/CRDT collaboration boundaries, ArtifactStore, EventLedger, Flight Recorder, Workflow Engine, AI Job, MicroTask, Locus, DCC, MCP/tool governance.",
+    "LLMs do not execute product operations directly; they propose or invoke governed jobs/tool calls while Handshake runtime executes and records evidence.",
+    "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.",
+    "Electron IPC, CKC localhost intake authority, CKC product namespace, and .GOV product outputs are rejected for runtime implementation.",
+    "The old 20-MT inline draft lists are retired and must not be reused for activation.",
+    "Official MT generation is still blocked until activation/refinement approval for the repaired three-stub family and draft MT suites."
+  ]
+}

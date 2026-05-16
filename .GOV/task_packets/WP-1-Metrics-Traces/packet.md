@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Metrics-Traces/packet.json source_hash=b61c861572d3f04e projection_hash=073d2a62ad3d378d generated_at_utc=2026-05-06T16:33:39.272Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Metrics-Traces/packet.json source_hash=34c629fe8c7d89e3 projection_hash=073d2a62ad3d378d generated_at_utc=2026-05-14T21:13:39.625Z generator=wp-contract-import.mjs -->
 # Work Packet: WP-1-Metrics-Traces
 
 **Status:** READY FOR DEV ðŸ”´  

@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Model-Swap-Protocol-v1/packet.json source_hash=43eefc050d5a4442 projection_hash=8a7189bc26a033fa generated_at_utc=2026-05-06T16:33:39.307Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Model-Swap-Protocol-v1/packet.json source_hash=5b27af55ac1becae projection_hash=8a7189bc26a033fa generated_at_utc=2026-05-14T21:13:39.644Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Model-Swap-Protocol-v1
 
 ## METADATA

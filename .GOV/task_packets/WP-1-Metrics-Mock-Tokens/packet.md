@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Metrics-Mock-Tokens/packet.json source_hash=a7d2dec23cba0085 projection_hash=06f3ec8b3f1a3740 generated_at_utc=2026-05-06T16:33:39.270Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Metrics-Mock-Tokens/packet.json source_hash=b730520b02904b87 projection_hash=06f3ec8b3f1a3740 generated_at_utc=2026-05-14T21:13:39.622Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Metrics-Mock-Tokens
 
 ## METADATA

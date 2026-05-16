@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Storage-Trait-Purity-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "95c9797a973938312aadec00ffa34eee5e0b39a45df1ba5d690ba20609c6a95d",
+    "projection_sha256": "dd7e2d06aff36cc84b629df3b48398b4a48414bb6f2adbb58da4793d15c4bac6",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -63,9 +63,9 @@
     "planned_execution_owner_range": ""
   },
   "draft_scope": {
-    "intent": "- What: Remove/contain backend-type downcasts across the Database boundary and replace them with explicit capability/feature queries.\n- Why: Downcasts undermine the boundary and create silent Postgres-vs-SQLite behavioral divergence.",
+    "intent": "- What: Remove/contain backend-type downcasts across the Database boundary and replace them with explicit capability/feature queries.\n- Why: Downcasts undermine the boundary and can preserve legacy SQLite behavior behind the PostgreSQL authority boundary.",
     "scope_sketch": "- IN_SCOPE:\n  - Add explicit backend identity/capability methods to the Database trait (e.g., backend_kind(), supports(feature)).\n  - Replace API/backend codepaths that downcast with explicit capability checks.\n  - Add a validator/static check to flag new uses of downcast escape hatches.\n- OUT_OF_SCOPE:\n  - Removing backend-specific code entirely (differences can exist, but must be explicit and audited).",
-    "acceptance_criteria": "- No production code paths depend on Database downcasts for behavior decisions.\n- Backend-specific behavior is explicit and exercised by tests (sqlite + postgres).",
+    "acceptance_criteria": "- No production code paths depend on Database downcasts for behavior decisions.\n- Backend-specific behavior is explicit and exercised by PostgreSQL tests. SQLite is not accepted as a test target, fixture, fallback, cache, compatibility path, harness, or temporary adapter.",
     "risks_unknowns": "- Refactor touches many call sites; risk of subtle behavior drift if not backed by targeted tests.",
     "governance_artifact_stance": ""
   },

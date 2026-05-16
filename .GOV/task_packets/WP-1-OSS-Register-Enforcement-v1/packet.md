@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-OSS-Register-Enforcement-v1/packet.json source_hash=acf567d5370e7915 projection_hash=47c7fbc350aace7b generated_at_utc=2026-05-06T16:33:39.322Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-OSS-Register-Enforcement-v1/packet.json source_hash=0331175e28dddcbb projection_hash=47c7fbc350aace7b generated_at_utc=2026-05-14T21:13:39.659Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-OSS-Register-Enforcement-v1
 
 ## METADATA

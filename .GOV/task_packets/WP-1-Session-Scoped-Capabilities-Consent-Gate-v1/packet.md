@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1/packet.json source_hash=4892618d1a21c977 projection_hash=c5acf81fda3f3ab8 generated_at_utc=2026-05-06T16:33:39.466Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Session-Scoped-Capabilities-Consent-Gate-v1/packet.json source_hash=843e562e5496f783 projection_hash=c5acf81fda3f3ab8 generated_at_utc=2026-05-14T21:13:39.760Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Session-Scoped-Capabilities-Consent-Gate-v1
 
 ## METADATA

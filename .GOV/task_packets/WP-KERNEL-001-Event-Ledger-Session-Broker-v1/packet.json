@@ -231,20 +231,20 @@
     "status": "Validated (PASS)",
     "user_review_status": "APPROVED",
     "user_signature": "ilja140520260015",
-    "wp_validator_of_record": "NONE",
-    "validation_verdict": "PASS",
-    "validation_verdict_recorded_at_utc": "2026-05-14T20:52:00Z",
     "validation_actor_role": "INTEGRATION_VALIDATOR",
     "validation_actor_session": "INTEGRATION_VALIDATOR-20260514-203508",
-    "validation_evidence_pointer": "main merge commit c5fa320e18ef9e1f13993811df77d30c3a25a538 plus product-code containment recheck INTEGRATION_VALIDATOR-20260514-205202"
+    "validation_evidence_pointer": "main merge commit c5fa320e18ef9e1f13993811df77d30c3a25a538 plus product-code containment recheck INTEGRATION_VALIDATOR-20260514-205202",
+    "validation_verdict": "PASS",
+    "validation_verdict_recorded_at_utc": "2026-05-14T20:52:00Z",
+    "wp_validator_of_record": "NONE"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-14T19:55:48.693Z",
+    "generated_at_utc": "2026-05-15T01:39:55.277Z",
     "generator": "wp-contract-import.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.md",
-    "projection_hash": "84462b518bf69a86",
+    "projection_hash": "1bf88f193ad7e5cd",
     "source_file": ".GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json",
-    "source_hash": "c87a0d1796984add",
+    "source_hash": "77abe4ca6857926e",
     "status": "GENERATED_IN_SYNC"
   },
   "microtasks": {
@@ -415,25 +415,25 @@
     "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/THREAD.md",
     "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
   },
-  "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
   "worktree_cleanup_status": {
+    "branch_head_ancestor_of_main": true,
+    "check_type": "PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT",
     "checked_at_utc": "2026-05-14T20:52:00Z",
     "checked_by": "INTEGRATION_VALIDATOR",
-    "check_type": "PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT",
-    "main_head": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
-    "worktree_dir": "../wtc-session-broker-v1",
-    "work_branch": "feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
-    "worktree_head": "064fa4c8177413f40d658325a34733d4050ad7a3",
-    "branch_head_ancestor_of_main": true,
-    "committed_product_diff_vs_main_count": 0,
-    "tracked_dirty_product_count": 0,
-    "untracked_product_count": 0,
     "cleanup_recommendation": "READY_FOR_OPERATOR_APPROVED_WORKTREE_DELETE",
-    "summary": "Branch product commits are contained in main through merge commit c5fa320e18ef9e1f13993811df77d30c3a25a538 and no local product drift was found.",
+    "committed_product_diff_vs_main_count": 0,
     "evidence": [
       "no_committed_product_diff_vs_main",
       "no_tracked_dirty_product_paths",
       "no_untracked_product_paths"
-    ]
-  }
+    ],
+    "main_head": "c5fa320e18ef9e1f13993811df77d30c3a25a538",
+    "summary": "Branch product commits are contained in main through merge commit c5fa320e18ef9e1f13993811df77d30c3a25a538 and no local product drift was found.",
+    "tracked_dirty_product_count": 0,
+    "untracked_product_count": 0,
+    "work_branch": "feat/WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+    "worktree_dir": "../wtc-session-broker-v1",
+    "worktree_head": "064fa4c8177413f40d658325a34733d4050ad7a3"
+  },
+  "wp_id": "WP-KERNEL-001-Event-Ledger-Session-Broker-v1"
 }

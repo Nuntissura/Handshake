@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AI-UX-Summarize-Display/packet.json source_hash=d5d93941ca3d6475 projection_hash=2639e827f391a54a generated_at_utc=2026-05-06T16:33:39.003Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-AI-UX-Summarize-Display/packet.json source_hash=e7c84d8b1a07661c projection_hash=2639e827f391a54a generated_at_utc=2026-05-14T21:13:39.386Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-AI-UX-Summarize-Display
 
 ## Metadata

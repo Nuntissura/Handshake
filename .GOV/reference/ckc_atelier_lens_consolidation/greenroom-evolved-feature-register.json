@@ -1,0 +1,193 @@
+{
+  "schema_id": "handshake.reference.ckc_greenroom_evolved_feature_register@1",
+  "file_id": "ckc-greenroom-evolved-feature-register",
+  "file_kind": "greenroom_evolved_feature_register",
+  "updated_at": "2026-05-16",
+  "status": "reference_only_not_execution_authority",
+  "wp": "WP-1-Atelier-Lens-Consolidation-v1",
+  "storage_constraint": "Handshake is PostgreSQL-only; SQLite is forbidden in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.",
+  "features": [
+    {
+      "id": "EVOL-001",
+      "feature": "Stable public character IDs separate from internal IDs",
+      "sources": ["app/backend/db.js", "app/backend/library.js", "test/backend_public_character_id.test.js"],
+      "decision": "fold",
+      "why": "Operator-facing character identity needs stable labels without leaking storage keys."
+    },
+    {
+      "id": "EVOL-002",
+      "feature": "Typed character sheet parser with union and block-list fields",
+      "sources": ["app/backend/templateParser.js", "app/backend/sheet.js", "app/backend/validation.js", "src/ui/components/BlockListEditor.tsx", "test/template_parser_unions.test.js", "test/validation_field_types.test.js", "test/block_list_validation.test.js"],
+      "decision": "fold",
+      "why": "CKC solved real sheet editing pain with typed fields, descriptor fallbacks, score normalization, and nested block editing."
+    },
+    {
+      "id": "EVOL-003",
+      "feature": "Append-only sheet versions with selective apply/revert",
+      "sources": ["app/backend/db.js", "app/backend/library.js", "src/ui/components/SheetVersionTools.tsx", "src/ui/components/SheetIngestMergeTools.tsx"],
+      "decision": "fold",
+      "why": "Prevents data loss when models or imports update sheets."
+    },
+    {
+      "id": "EVOL-004",
+      "feature": "Bulk character operations",
+      "sources": ["src/ui/views/LibraryView.tsx", "src/ui/components/BulkFieldEditDialog.tsx", "src/ui/components/BulkTagDialog.tsx", "src/ui/components/BatchExportDialog.tsx", "CKC taskboard WP-0090"],
+      "decision": "fold",
+      "why": "Daily library work requires multi-select, bulk tags/fields, batch exports, trash, and restore."
+    },
+    {
+      "id": "EVOL-005",
+      "feature": "Persistent Intake batches",
+      "sources": ["app/backend/db.js", "app/backend/library.js", "src/ui/views/IntakeSorterView.tsx", "CKC taskboard WP-0124", "CKC taskboard WP-0125", "CKC taskboard WP-0126"],
+      "decision": "fold",
+      "why": "CKC moved beyond one-off import into recoverable review work."
+    },
+    {
+      "id": "EVOL-006",
+      "feature": "Contact sheets as artifacts",
+      "sources": ["app/backend/db.js", "app/backend/library.js", "CKC taskboard WP-0129", "CKC taskboard WP-0136"],
+      "decision": "fold",
+      "why": "Contact sheets are useful for comparing generated or curated media and for handoff."
+    },
+    {
+      "id": "EVOL-007",
+      "feature": "OpenPose sidecars hidden from normal galleries",
+      "sources": ["app/backend/db.js", "app/backend/library.js", "CKC taskboard WP-0130", "CKC taskboard WP-0132"],
+      "decision": "fold",
+      "why": "Sidecars are production artifacts but clutter normal viewing unless projected intentionally."
+    },
+    {
+      "id": "EVOL-008",
+      "feature": "PoseKit blank/single/collection workbench contexts",
+      "sources": ["src/ui/App.tsx", "src/ui/views/PoseView.tsx", "app/backend/library.js", "CKC taskboard WP-0131"],
+      "decision": "fold_deferred_feature_family",
+      "why": "Operator needs PoseKit to operate on collections and individual photos, not only a single character page."
+    },
+    {
+      "id": "EVOL-009",
+      "feature": "Body-18 / face-70 / hand-21 rig contract",
+      "sources": ["src/posekit/core.mjs", "src/posekit/core.d.mts", "src/posekit/poseDetection.worker.ts", "test/posekit_core.test.js", "test/hand_openpose_export.test.js"],
+      "decision": "fold_deferred_feature_family",
+      "why": "CKC already hardened an OpenPose-compatible pose representation useful for ComfyUI and image production."
+    },
+    {
+      "id": "EVOL-010",
+      "feature": "Quaternion-backed yaw/pitch/roll head pose",
+      "sources": ["src/posekit/core.mjs", "app/backend/library.js", "CKC taskboard WP-0110"],
+      "decision": "fold",
+      "why": "Fine control over generated character pose was an evolved production need."
+    },
+    {
+      "id": "EVOL-011",
+      "feature": "Identity profiles for face-reference workflows",
+      "sources": ["app/backend/db.js", "app/backend/library.js", "CKC taskboard WP-0111"],
+      "decision": "fold",
+      "why": "Stable identity references are directly tied to character consistency and ComfyUI workflows."
+    },
+    {
+      "id": "EVOL-012",
+      "feature": "Multi-rig workspace tabs",
+      "sources": ["app/backend/library.js", "CKC taskboard WP-0115"],
+      "decision": "defer_after_kernel",
+      "why": "Real pose workflow needs multiple drafts open without deleting stored rigs."
+    },
+    {
+      "id": "EVOL-013",
+      "feature": "ComfyUI output registration and replay",
+      "sources": ["comfyui_node/castkit_codex_bridge.py", "app/backend/library.js", "app/backend/comfyuiClient.js", "CKC taskboard WP-0109"],
+      "decision": "fold_intent_adapt_runtime",
+      "why": "CKC already closed the loop from generation output back into character/media lineage."
+    },
+    {
+      "id": "EVOL-014",
+      "feature": "Workflow spec registry and image-sourcing adapter",
+      "sources": ["app/backend/workflowSpecRegistry.js", "app/backend/imageSourcingAdapter.js", "app/backend/imageSourcingHandlers/v00_19.js", "CKC taskboard WP-0100"],
+      "decision": "fold",
+      "why": "External generation/sourcing task output needs versioned ingestion and idempotency."
+    },
+    {
+      "id": "EVOL-015",
+      "feature": "Identity-decoupled media filenames",
+      "sources": ["test/backend_identity_decoupling.test.js", "app/backend/library.js"],
+      "decision": "fold",
+      "why": "Prevents character names or sensitive sheet fields from leaking into paths or events."
+    },
+    {
+      "id": "EVOL-016",
+      "feature": "Global search with snippets and jump targets",
+      "sources": ["app/backend/library.js", "src/ui/components/GlobalSearchModal.tsx", "CKC taskboard WP-0083"],
+      "decision": "fold",
+      "why": "Fast retrieval across sheets, notes, images, and moodboards is core Lens behavior."
+    },
+    {
+      "id": "EVOL-017",
+      "feature": "Tag manager, saved searches, palettes, dHash similarity",
+      "sources": ["app/backend/db.js", "app/backend/library.js", "app/backend/palette.js", "app/backend/dhash.js", "CKC taskboard WP-0059/WP-0066/WP-0067/WP-0089"],
+      "decision": "fold",
+      "why": "Convenience features became library-scale navigation requirements."
+    },
+    {
+      "id": "EVOL-018",
+      "feature": "Moodboard canvas inside character workflow",
+      "sources": ["app/backend/db.js", "src/ui/components/MoodboardCanvas.tsx", "CKC taskboard WP-0071..WP-0082"],
+      "decision": "fold",
+      "why": "Prompt diaries and visual planning need more than static notes."
+    },
+    {
+      "id": "EVOL-019",
+      "feature": "Built-in model manual and command map",
+      "sources": ["app/backend/automationManual.js", "app/backend/automationCommandMap.js", "test/automation_manual_consistency.test.js"],
+      "decision": "fold",
+      "why": "Lets no-context models operate the product."
+    },
+    {
+      "id": "EVOL-020",
+      "feature": "Sessions, leases, heartbeats, command logs",
+      "sources": ["app/backend/automationControl.js", "CKC taskboard WP-0095", "CKC taskboard WP-0099"],
+      "decision": "fold_with_stronger_durability",
+      "why": "CKC evolved toward multi-agent operation before Handshake's kernel reset."
+    },
+    {
+      "id": "EVOL-021",
+      "feature": "Non-focus-stealing automation and visual capture",
+      "sources": ["app/backend/automationStealth.js", "app/main.js", "CKC taskboard WP-0093", "CKC taskboard WP-0099", "CKC taskboard WP-0122"],
+      "decision": "fold",
+      "why": "Model-driven GUI verification must be quiet and reproducible."
+    },
+    {
+      "id": "EVOL-022",
+      "feature": "Filesystem health and recoverable deletion",
+      "sources": ["app/backend/library.js", "CKC taskboard WP-0127", "CKC taskboard WP-0135"],
+      "decision": "fold",
+      "why": "Real media libraries drift; deletion must be reversible and explainable."
+    },
+    {
+      "id": "EVOL-023",
+      "feature": "Backup version traceability and orphan adoption",
+      "sources": ["app/backend/backup.js", "app/backend/resetModes.js", "app/backend/library.js", "CKC taskboard WP-0105", "CKC taskboard WP-0106"],
+      "decision": "fold",
+      "why": "Recovery became a first-class operator need."
+    },
+    {
+      "id": "EVOL-024",
+      "feature": "Web portfolio and share pack exports",
+      "sources": ["app/templates/web-portfolio", "app/backend/library.js", "CKC taskboard WP-0087", "CKC taskboard WP-0063"],
+      "decision": "fold",
+      "why": "Operator needs portable handoff outputs."
+    },
+    {
+      "id": "EVOL-025",
+      "feature": "Hybrid CRDT/event-log policy",
+      "sources": ["app/backend/db.js", "app/backend/library.js", "app/backend/automationManual.js", "CKC taskboard WP-0134"],
+      "decision": "fold_into_kernel_boundary",
+      "why": "CKC discovered the right boundary: not everything needs CRDT, but parallel edits need receipts and revisions."
+    },
+    {
+      "id": "EVOL-026",
+      "feature": "Blocked PoseKit calibration/history debt",
+      "sources": ["CKC taskboard WP-0133"],
+      "decision": "defer_and_preserve",
+      "why": "Unfinished work is still requirement evidence: draggable calibration, missing-marker placement, 3D/live split editing, forked history."
+    }
+  ]
+}

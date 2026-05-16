@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Security-Gates/packet.json source_hash=940a63a4d2f80860 projection_hash=cc34c2c44372c6eb generated_at_utc=2026-05-06T16:33:39.442Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Security-Gates/packet.json source_hash=c1a9a3f49b268397 projection_hash=cc34c2c44372c6eb generated_at_utc=2026-05-14T21:13:39.733Z generator=wp-contract-import.mjs -->
 # Work Packet: WP-1-Security-Gates
 
 **Status:** READY FOR DEV ðŸ”´  

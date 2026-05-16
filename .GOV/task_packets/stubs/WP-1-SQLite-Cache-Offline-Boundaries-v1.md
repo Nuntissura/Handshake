@@ -22,7 +22,7 @@ Rules:
 - KERNEL002_TRANSITIVE_FOLDED_INTO: WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1
 - KERNEL002_FOLD_STATUS: FULL_STUB_FOLDED_TRANSITIVE
 - KERNEL_RESET_TRANSFERRED_TO: WP-KERNEL-001-Event-Ledger-Session-Broker-v1
-- KERNEL_RESET_TRANSFER_SCOPE: Kernel V1 no-SQLite-authority guard and leakage tripwire moved into Kernel001; broader cache/offline labeling remains residual product hardening scope.
+- KERNEL_RESET_TRANSFER_SCOPE: Kernel V1 no-SQLite guard and leakage tripwire moved into Kernel001; broader cache/offline SQLite scope is rejected by the reset and retained only as superseded evidence.
 - BUILD_ORDER_DOMAIN: BACKEND
 - BUILD_ORDER_TECH_BLOCKER: NO
 - BUILD_ORDER_VALUE_TIER: HIGH
@@ -38,19 +38,19 @@ Rules:
 - INTEGRATION_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
 - ROADMAP_POINTER: SPEC_CURRENT local-first storage and storage portability anchors
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
-  - SQLite index/cache anchors around Master Spec lines 2247-2264.
+  - Superseded SQLite index/cache anchors around Master Spec lines 2247-2264; retained only as rejected source evidence.
   - Storage portability anchors around Master Spec lines 3248-3520.
 
 ## INTENT (DRAFT)
-- What: Define and implement the boundary between PostgreSQL-primary runtime authority and SQLite as cache, search index, embedded/offline mode, or rebuildable local projection.
-- Why: Moving early to PostgreSQL-primary should not remove local-first ergonomics, but SQLite must stop being an accidental second authority for self-hosted control-plane state.
+- What: Retire the old boundary proposal and define PostgreSQL-only runtime authority with no SQLite cache, search index, embedded/offline mode, rebuildable local projection, fixture, fallback, compatibility path, harness, or temporary adapter.
+- Why: Moving to PostgreSQL-primary must not leave SQLite as an accidental second authority or accepted convenience layer for self-hosted control-plane state.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
-  - Clear storage-mode policy for Postgres-primary, SQLite-cache, SQLite-offline, and test modes.
-  - Guardrails that prevent runtime control-plane writes from silently landing in SQLite when PostgreSQL authority is required.
-  - Rebuild/invalidation semantics for SQLite indexes and local projections derived from PostgreSQL or file authorities.
-  - Tests for mode detection, missing PostgreSQL behavior, and stale cache invalidation.
+  - Clear storage-mode policy for PostgreSQL authority and non-SQLite derived projections.
+  - Guardrails that prevent runtime control-plane writes from silently landing outside PostgreSQL authority.
+  - Rebuild/invalidation semantics for non-SQLite indexes and local projections derived from PostgreSQL or file authorities.
+  - Tests for mode detection, missing PostgreSQL behavior, and stale projection invalidation without SQLite.
 - OUT_OF_SCOPE:
   - Replacing PostgreSQL runtime storage.
   - Implementing full offline sync conflict resolution.
@@ -59,16 +59,16 @@ Rules:
 ## ACCEPTANCE_CRITERIA (DRAFT)
 - The app can report which storage mode is active and which surfaces are authoritative.
 - Runtime control-plane writes fail closed when PostgreSQL is required but unavailable.
-- SQLite indexes/projections are rebuildable and carry freshness/source metadata.
-- Tests prove SQLite fallback does not hide PostgreSQL outages for control-plane operations.
+- Non-SQLite indexes/projections are rebuildable and carry freshness/source metadata.
+- Tests prove no SQLite fallback, fixture, cache, compatibility path, harness, or temporary adapter can hide PostgreSQL outages for control-plane operations.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Depends on the foundation WP and storage abstraction layer.
 - Blocks DCC projection work that needs to label runtime truth and derived/cache surfaces correctly.
 
 ## RISKS / UNKNOWNs (DRAFT)
-- Risk: "fallback" can become silent split brain; activation should define explicit operator-visible degradation states.
-- Unknown: whether embedded single-user demos should allow SQLite-primary mode behind a clear non-control-plane profile.
+- Risk: any fallback can become silent split brain; activation should define explicit operator-visible degradation states that do not use SQLite.
+- Unknown: whether embedded single-user demos need a non-PostgreSQL profile. SQLite is not an accepted answer for that profile.
 
 ## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)
 - [ ] Confirm the requirement exists in Master Spec Main Body or create/approve spec enrichment first.

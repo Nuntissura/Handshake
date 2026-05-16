@@ -47,7 +47,7 @@ Rules:
     - Flight Recorder event linkage.
     - Locus / task-board / WP linkage for Studio-originated work.
   - Storage posture:
-    - SQLite-now / PostgreSQL-ready persistence expectations for Studio runtime state and evidence.
+    - PostgreSQL-only persistence expectations for Studio runtime state and evidence. The old local-first storage posture is superseded and must not be implemented through SQLite in any form.
 - OUT_OF_SCOPE:
   - Full Photo Studio feature completion.
   - Final UI consolidation or visual polish.
@@ -57,7 +57,7 @@ Rules:
 - Studio-adjacent surfaces have explicit job/workflow/tool-call mappings.
 - Studio runtime activity is visible in Command Center / operator surfaces and Flight Recorder.
 - Locus can correlate Studio-originated work with work packets/microtasks.
-- SQLite-now / PostgreSQL-ready posture is specified for Studio runtime state and evidence.
+- PostgreSQL-only posture is specified for Studio runtime state and evidence. No SQLite runtime, fixture, fallback, compatibility path, cache, harness, or temporary adapter is allowed.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Photo Studio surface and Atelier/Lens runtime behavior must remain the source material for the mapping.

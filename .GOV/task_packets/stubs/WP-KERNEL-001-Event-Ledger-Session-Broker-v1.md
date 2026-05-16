@@ -151,7 +151,7 @@ Product gaps this WP must close:
 - No product `EventLedger` authority API/table exists yet.
 - Current `FlightRecorder` records diagnostics but is not an append-only kernel authority ledger.
 - Current model-run scheduling is process-local around queued jobs and a static dispatcher lock; it is not a durable Postgres claim/lease worker queue.
-- Storage still accepts `SqliteCache`, `SqliteOffline`, and `Test` modes; Kernel V1 must reject SQLite for authority/cache/offline/fallback/test-fixture roles.
+- Legacy storage may still expose names such as `SqliteCache`, `SqliteOffline`, or `Test`; Kernel V1 and Handshake product tests must reject SQLite for authority, cache, offline, fallback, fixture, compatibility, harness, example, temporary-adapter, and test roles.
 - Generic structured-collaboration storage paths still route through `locus_sqlite` in some code paths; kernel work must add tripwires so this cannot drive kernel authority.
 - There is no product `SessionBroker` abstraction with a durable event state machine.
 - There is no ledger-recorded `ContextBundle` contract for what a model saw.
@@ -256,7 +256,7 @@ Activation must create official microtask files under the packet folder. Each MT
 - Goal: fail closed if kernel event/session/promotion authority is attempted under SQLite modes.
 - Owned files/modules: `storage/mod.rs`, SQLite storage implementations, tests.
 - Dependencies: MT-004.
-- Implementation notes: `SqliteCache`, `SqliteOffline`, and `Test` may exist for legacy surfaces, but kernel authority APIs must return explicit authority errors.
+- Implementation notes: any legacy `SqliteCache`, `SqliteOffline`, or `Test` surface is migration/removal debt. Kernel authority APIs and tests must return explicit errors rather than accepting SQLite in any form.
 - Proof: tests proving kernel authority calls fail in SQLite-backed modes.
 - Risk if missed: split-brain kernel state survives the reset.
 - Validator focus: no hidden test fixture writes through SQLite for kernel APIs.
@@ -479,7 +479,7 @@ Activation must create official microtask files under the packet folder. Each MT
 
 ## RISKS / UNKNOWNs (DRAFT)
 - Risk: the bundle is large enough for MT bleed. Mitigation: one MT per coder turn, explicit owned files, and per-MT validator review.
-- Risk: SQLite paths are still accepted in product storage. Mitigation: land the No-SQLite kernel guard before broker/promotion work.
+- Risk: legacy SQLite paths may still exist in product storage. Mitigation: land the No-SQLite kernel guard before broker/promotion work and prove no SQLite runtime, cache, fixture, fallback, compatibility, harness, example, temporary-adapter, or test path is accepted.
 - Risk: in-process scheduler code is attractive to reuse incorrectly. Mitigation: reuse vocabulary/state only; add durable claim/lease for kernel work.
 - Risk: DCC scope creep turns first kernel WP into a UI project. Mitigation: expose only structured trace projection or minimal backend inspector.
 - Risk: Flight Recorder is mistaken for authority. Mitigation: event IDs mirror to FR, but ledger is read for replay and promotion.

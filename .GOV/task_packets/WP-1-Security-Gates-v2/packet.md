@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Security-Gates-v2/packet.json source_hash=7e74934bcbafcedc projection_hash=4f60a918fa60b8af generated_at_utc=2026-05-06T16:33:39.444Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Security-Gates-v2/packet.json source_hash=328fb36324a3f0d9 projection_hash=4f60a918fa60b8af generated_at_utc=2026-05-14T21:13:39.735Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Security-Gates-v2
 
 ## Metadata

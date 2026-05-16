@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Spec-Appendices-Backfill-v1/packet.json source_hash=537c4df4e4768785 projection_hash=073e0c6a07be8602 generated_at_utc=2026-05-06T16:33:39.505Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Spec-Appendices-Backfill-v1/packet.json source_hash=f21809a4ef1c387f projection_hash=073e0c6a07be8602 generated_at_utc=2026-05-14T21:13:39.796Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Spec-Appendices-Backfill-v1
 
 ## METADATA

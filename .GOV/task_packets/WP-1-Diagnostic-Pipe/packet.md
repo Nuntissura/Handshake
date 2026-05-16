@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Diagnostic-Pipe/packet.json source_hash=ee3a0870fa681544 projection_hash=9e5cb40c6913e6c9 generated_at_utc=2026-05-06T16:33:39.141Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Diagnostic-Pipe/packet.json source_hash=9ef9daeb0dae703f projection_hash=9e5cb40c6913e6c9 generated_at_utc=2026-05-14T21:13:39.497Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Diagnostic-Pipe
 
 ## Metadata

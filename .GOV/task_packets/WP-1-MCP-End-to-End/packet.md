@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MCP-End-to-End/packet.json source_hash=16bd3484b07596f6 projection_hash=fc295f49e9a9b3f2 generated_at_utc=2026-05-06T16:33:39.261Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-MCP-End-to-End/packet.json source_hash=4e27a1395d1056a0 projection_hash=fc295f49e9a9b3f2 generated_at_utc=2026-05-14T21:13:39.613Z generator=wp-contract-import.mjs -->
 # Work Packet: WP-1-MCP-End-to-End
 
 **Status:** READY FOR DEV ðŸ”´  

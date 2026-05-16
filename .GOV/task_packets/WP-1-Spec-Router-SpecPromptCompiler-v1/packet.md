@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Spec-Router-SpecPromptCompiler-v1/packet.json source_hash=b60a7248e0abdfdc projection_hash=918fbf661e55d72c generated_at_utc=2026-05-06T16:33:39.513Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Spec-Router-SpecPromptCompiler-v1/packet.json source_hash=9c357f147f011079 projection_hash=918fbf661e55d72c generated_at_utc=2026-05-14T21:13:39.803Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Spec-Router-SpecPromptCompiler-v1
 
 ## METADATA

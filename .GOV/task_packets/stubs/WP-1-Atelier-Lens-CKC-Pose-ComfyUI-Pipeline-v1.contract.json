@@ -1,0 +1,108 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1",
+  "base_wp_id": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline",
+  "created_at_utc": "2026-05-16T05:05:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "607c2894db29234ed5de0c333bc3844c81bd4c41bf4e0c1702028430eb66d33f",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "2026-04-06",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "ATELIER_LENS",
+    "tech_blocker": "YES",
+    "value_tier": "CRITICAL",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1",
+      "WP-1-Studio-Runtime-Visibility-v1",
+      "WP-1-Artifact-System-Foundations-v1"
+    ],
+    "blocks": [
+      "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Plan the Handshake-native PoseKit/OpenPose/identity-profile/ComfyUI lineage pipeline for Atelier/Lens. This folds CKC PoseKit, OpenPose sidecars, identity profiles, ComfyUI output registration, workflow receipts, replay, and image-sourcing registry into Handshake primitives.\n- Why: CKC evolved the production loop from character/media to pose/identity to ComfyUI output and back into media lineage. Handshake needs that loop, but implemented through governed Workflow Engine jobs, ArtifactStore receipts, EventLedger lineage, and Tauri/Rust/Python boundaries.\n- No-code stance: This stub creates only future work scope and microtasks. It does not implement PoseKit, ComfyUI bridge, model assets, Python adapters, Rust services, tests, or GUI.\n- Model/execution separation: LLMs must not directly run ComfyUI, write bridge files, mutate pose sidecars, or execute local endpoints. LLMs propose or invoke governed AI Jobs/tool calls; Handshake executes via Workflow Engine/mechanical tool adapters with Flight Recorder and DCC evidence.",
+    "scope_sketch": "- IN_SCOPE:\n  - Pose artifact contract: source image, rig, body/face/hand keypoints, head pose, calibration, sidecar visibility, provenance.\n  - Pose workbench contexts: blank, single image, character-linked, collection-linked.\n  - Identity profile contract: face/reference media, source links, versioning, provenance, privacy/path rules.\n  - OpenPose JSON/PNG sidecar manifest and projection rules.\n  - ComfyUI workflow receipt: prompt/workflow JSON, output images, identity/pose/media refs, non-fatal registration failure handling.\n  - Workflow spec registry and image-sourcing adapter translation into Handshake Workflow Engine.\n  - Replay and lineage requirements for generation outputs.\n  - Mechanical tool adapter boundary for ComfyUI.\n  - Concrete Rig, OpenPose sidecar, IdentityProfile, WorkflowReceipt, WorkflowSpec, ImageSourcingTask, and replay receipt field requirements sufficient for no-context implementation planning.\n  - Explicit evidence maturity for CKC PoseKit statuses: DONE rows seed parity fixtures, REVIEW rows need evidence review, BLOCKED rows remain unresolved, PLANNED rows remain future/deferred.\n- OUT_OF_SCOPE:\n  - Full GUI workbench or dockable shell.\n  - Full CKC parity.\n  - Direct CKC bridge namespace or CastKit product naming.\n  - CKC SQLite, Electron, localhost-intake authority, or process-local session authority.\n  - Advanced blocked PoseKit calibration/history implementation unless explicitly activated as a later packet.\n  - Treating CKC's localhost intake server, Electron IPC, JavaScript PoseKit implementation, or CKC namespace as runtime authority.",
+    "acceptance_criteria": "- Every CKC PoseKit/ComfyUI feature is assigned to implemented-now, deferred, dependency, or operator-decision-needed scope.\n- Every owned CKC EVOL row from `EVOL-008` through `EVOL-014` plus `EVOL-015` and `EVOL-026` is represented with source evidence, preserved behavior, and Handshake adaptation.\n- Every owned overlap row has an owner boundary and required handling.\n- Source dependencies on Core Data/Intake, Studio Runtime Visibility, Artifact System Foundations, Lens ViewMode, Lens Extraction Tier, and visual validation are visible without reopening the greenroom.\n- Future implementation path uses Handshake AI Job/Workflow Engine/mechanical tool adapter boundaries, not direct LLM execution.\n- Every generated or imported output has ArtifactStore and EventLedger lineage.\n- Sidecars and identity refs are preserved without cluttering normal media projections.\n- ComfyUI registration failures preserve source output and create diagnosable evidence.\n- Rig/OpenPose/identity/workflow contracts are concrete enough for a no-context model to draft tables/types and fixtures: body-18, face-70, handLeft/handRight-21, headPose YXZ/quaternion data, calibration JSON, provider/version metadata, source image refs, identity crop/profile refs, OpenPose PNG/JSON artifacts, workflow JSON, extracted prompt, replayable inputs, output artifact refs, status, errors, timestamps, and evidence refs are all named.\n- The pipeline preserves both CKC DONE and unresolved/deferred PoseKit work: `WP-0115` multi-rig semantics are represented, `WP-0133` calibration/history remains blocked/unresolved, and planned rows `WP-0112`, `WP-0114`, `WP-0116`, `WP-0117` are visible as future/deferred requirements.\n- Workflow spec registry and image-sourcing adapter behavior is preserved as versioned, idempotent, handler-routed, non-SQLite Workflow Engine requirements with accepted/pending/rejected lanes and audit evidence.\n- External tool and model-asset risks have controls: capability gates, allowlists, version discovery/pinning, timeout/cancel, no secret leakage, output-first registration, and recoverable failure records.\n- SQLite is rejected in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.\n- Electron authority, CKC namespace authority, localhost intake authority, `.GOV` product outputs, machine-local runtime paths, and direct LLM execution are explicitly rejected.",
+    "risks_unknowns": "- Risk: CKC ComfyUI localhost bridge is copied as authority. Mitigation: MT-010 and MT-011 force Workflow Engine/Tauri/Rust boundaries.\n- Risk: LLM executes ComfyUI directly. Mitigation: MT-010 requires capability-gated tool adapter and FR evidence.\n- Risk: blocked PoseKit calibration is represented as done. Mitigation: MT-006 and MT-020 preserve it as deferred/decision work.\n- Risk: generated outputs lose lineage. Mitigation: MT-013 through MT-015 require ArtifactStore/EventLedger lineage.\n- Risk: output image exists but registration fails and later models cannot recover it. Mitigation: output-first preservation plus failed-registration diagnostic record with retryable receipt payload.\n- Risk: concrete pose schema gets hand-waved as \"OpenPose-compatible\". Mitigation: activation acceptance names body-18, face-70, handLeft/handRight-21, headPose, calibration, provider metadata, source refs, and sidecar artifacts.\n- Risk: CKC DONE/REVIEW/BLOCKED/PLANNED PoseKit rows collapse into a single parity claim. Mitigation: status maturity is acceptance-critical and blocked/planned rows cannot be counted as implemented.\n- Risk: external model/tool versions drift. Mitigation: activation must decide version discovery/pinning, local model asset strategy, fallback behavior, and capability policy.\n- Risk: UI scope expands. Mitigation: visual validation requirements are projections only, full GUI out of scope.",
+    "governance_artifact_stance": ""
+  },
+  "draft_microtasks": {
+    "source": "STUB_MARKDOWN_HANDOFF",
+    "suite_path": ".GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1/MT_SUITE.md",
+    "count": 51,
+    "official_microtasks_generated": false,
+    "activation_destination_pattern": ".GOV/task_packets/<WP_ID>/MT-*.{md,json}",
+    "activation_required_before_official_generation": true,
+    "activation_rule": "convert_draft_suite_after_refinement_user_signature_and_official_packet_creation"
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "convert_draft_microtask_suite_to_official_microtask_contracts",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

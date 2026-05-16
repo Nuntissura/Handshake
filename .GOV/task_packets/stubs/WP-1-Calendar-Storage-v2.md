@@ -30,11 +30,11 @@ Rules:
 - PHASE1_SCHEDULING: Later stages of Phase 1 (calendar pillar requires broad primitive interweaving discovered through modern refinement)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - CalendarSource and CalendarEvent schema requirements
-  - Storage boundary + portable migrations (SQLite + Postgres)
+  - Storage boundary + PostgreSQL-only migrations (SQLite source language superseded by reset)
   - Provenance fields (mandatory)
   - Mutation governance (Hard Invariant)
   - Pillar 2: Portable Schema & Migrations [CX-DBP-011]
-  - Pillar 4: Dual-Backend Testing Early [CX-DBP-013]
+  - Pillar 4: PostgreSQL-only testing under the reset; older dual-backend language is superseded [CX-DBP-013]
 
 ## Why this stub exists
 This is a supersession of `WP-1-Calendar-Storage-v1`.
@@ -62,12 +62,12 @@ The v1 code on branch `feat/WP-1-Calendar-Storage-v1` can inform the v2 implemen
 - Calendar-as-substrate design (cross-cutting primitive surface) was never explored
 
 ## INTENT (DRAFT)
-- What: Add portable, dual-backend persistent storage for CalendarSource and CalendarEvent through the Database trait, with full primitive mixing to ensure calendar storage is designed as a cross-cutting substrate that integrates cleanly with Handshake's broader topology.
-- Why: Calendar is a pillar feature. Every subsystem that reasons about time, scheduling, context, or provenance will eventually touch calendar data. Getting the storage foundation right -- with proper interweaving across loom, mailbox, workflow, governance, consent, and structured collaboration -- prevents expensive rework and ensures calendar can serve as a force multiplier across the product.
+- What: Add PostgreSQL persistent storage for CalendarSource and CalendarEvent through the Database trait, with full primitive mixing to ensure calendar storage is designed as a cross-cutting substrate that integrates cleanly with Handshake's broader topology.
+- Why: Calendar is a pillar feature. Every subsystem that reasons about time, scheduling, context, or provenance will eventually touch calendar data. Getting the PostgreSQL storage foundation right -- with proper interweaving across loom, mailbox, workflow, governance, consent, and structured collaboration -- prevents expensive rework and ensures calendar can serve as a force multiplier across the product.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
-  - Portable migrations for calendar_sources and calendar_events (dual-backend)
+  - PostgreSQL migrations for calendar_sources and calendar_events
   - Database trait calendar storage methods (aligned with current trait purity patterns)
   - Idempotent upsert, time-window queries, source-scoped cleanup
   - Primitive discovery: identify all cross-cutting touchpoints where calendar data flows into or out of other subsystems
@@ -79,11 +79,11 @@ The v1 code on branch `feat/WP-1-Calendar-Storage-v1` can inform the v2 implemen
   - Direct SQL from API/UI code or runtime DDL
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
-- Calendar sources and events persist and can be queried by time window on both backends.
-- Migrations are portable, replay-safe, and undo-safe on SQLite and Postgres.
+- Calendar sources and events persist and can be queried by time window on PostgreSQL.
+- Migrations are replay-safe and undo-safe on PostgreSQL.
 - Storage API conforms to current trait purity and capability boundary patterns.
 - Primitive matrix identifies all cross-cutting calendar touchpoints and generates stubs where needed.
-- Dual-backend conformance tests cover CRUD, time-window queries, migration safety, and idempotent upsert.
+- PostgreSQL conformance tests cover CRUD, time-window queries, migration safety, and idempotent upsert. No SQLite test target, fixture, fallback, compatibility path, cache, or temporary adapter is allowed.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Storage abstraction layer, migration framework, trait purity, and capability boundary refactor are all validated and merged.

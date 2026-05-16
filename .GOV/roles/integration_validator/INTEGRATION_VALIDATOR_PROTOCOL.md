@@ -187,6 +187,7 @@ Before merge, verify no build/test/tool artifacts have leaked into the repo:
 - Run `just artifact-root-preflight WP-{ID}` or confirm the current `phase-check VERDICT/CLOSEOUT` artifact already ran it. If it fails, classify the result as `ENVIRONMENT_BLOCKER`, preserve product proof, and do not route coder revalidation unless the blocker proves an actual product boundary violation.
 - Run `just validator-git-hygiene` â€” FAIL if `target/`, `node_modules/`, `.gemini/`, or other build outputs are tracked.
 - All build/test/tool outputs MUST live at `../Handshake_Artifacts/` [CX-205F], not inside the repo tree.
+- Run a worktree-bound artifact-location check for the assigned WP worktree before merge: any runtime/build output under the WP worktree that belongs in `D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts` (repo-relative `../Handshake_Artifacts/`) is a blocking hygiene failure.
 - If artifact contamination is found: do NOT merge. Record the violation with the failure class. `PRODUCT_BLOCKER` requires product remediation/revalidation; `ENVIRONMENT_BLOCKER` routes to artifact-root repair; `GOVERNANCE_BLOCKER` routes to Orchestrator closeout repair.
 
 ### 6. Merge to Main on PASS
@@ -248,6 +249,7 @@ After verdict and merge:
 - Preferred host: `HANDSHAKE_ACP_BROKER`
 - Local branch: `main` (operates from `handshake_main`)
 - Local worktree: `../handshake_main`
+- Validators MUST NOT create or switch to a new worktree unless explicit Operator authorization for worktree creation is present in the current turn.
 - Governance authority root: `wt-gov-kernel/.GOV` (kernel, NOT `handshake_main/.GOV`)
 - Session thread: **fresh per launch** â€” no thread resume, no accumulated context
 

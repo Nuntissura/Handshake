@@ -1,0 +1,130 @@
+{
+  "schema_id": "handshake.reference.ckc_greenroom_output_index@1",
+  "file_id": "ckc-greenroom-output-index",
+  "file_kind": "greenroom_output_index",
+  "updated_at": "2026-05-16",
+  "status": "reference_only_not_execution_authority",
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1",
+  "supersedes_premature_wp": "WP-1-Atelier-Lens-CKC-Greenroom-v1",
+  "outputs": [
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-requirements-register.md",
+      "kind": "requirements_register",
+      "purpose": "No-loss source requirements register for CKC and Atelier/Lens-adjacent stubs."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-requirements-register.json",
+      "kind": "requirements_register_machine",
+      "purpose": "Machine-readable no-loss source requirements register."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-translation-matrix.md",
+      "kind": "translation_conflict_matrix",
+      "purpose": "Preserve/adapt/reject runtime decisions and Handshake-native module boundaries."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-translation-matrix.json",
+      "kind": "translation_conflict_matrix_machine",
+      "purpose": "Machine-readable preserve/adapt/reject runtime decisions."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-microtask-map.md",
+      "kind": "microtask_map",
+      "purpose": "Greenroom reference microtask buckets for WP-1-Atelier-Lens-Consolidation-v1."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-microtask-map.json",
+      "kind": "microtask_map_machine",
+      "purpose": "Machine-readable Greenroom microtask map for the consolidation packet."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-overlap-matrix.md",
+      "kind": "overlap_matrix",
+      "purpose": "Source-backed Atelier/Lens versus CKC overlap matrix."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-overlap-matrix.json",
+      "kind": "overlap_matrix_machine",
+      "purpose": "Machine-readable Atelier/Lens versus CKC overlap matrix."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-evolved-feature-register.md",
+      "kind": "evolved_feature_register",
+      "purpose": "CKC evolved and convenience-driven feature register."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-evolved-feature-register.json",
+      "kind": "evolved_feature_register_machine",
+      "purpose": "Machine-readable CKC evolved and convenience-driven feature register."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-activation-brief.md",
+      "kind": "greenroom_reference_brief",
+      "purpose": "Corrected brief: Greenroom is reference/research input for WP-1-Atelier-Lens-Consolidation-v1, not its own active WP."
+    }
+  ],
+  "agent_drafts": [
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/ckc-code-agent-draft.md",
+      "kind": "ckc_code_agent_draft",
+      "purpose": "Read/write subagent extraction over CKC_main code."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/ckc-code-agent-draft.json",
+      "kind": "ckc_code_agent_draft_machine",
+      "purpose": "Machine-readable CKC_main code extraction draft."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/ckc-spec-taskboard-agent-draft.md",
+      "kind": "ckc_spec_taskboard_agent_draft",
+      "purpose": "Read/write subagent extraction over CKC spec and taskboard."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/ckc-spec-taskboard-agent-draft.json",
+      "kind": "ckc_spec_taskboard_agent_draft_machine",
+      "purpose": "Machine-readable CKC spec/taskboard extraction draft."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/handshake-stubs-overlap-agent-draft.md",
+      "kind": "handshake_stubs_overlap_agent_draft",
+      "purpose": "Read/write subagent extraction over Handshake Atelier/Lens-adjacent stubs."
+    },
+    {
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/handshake-stubs-overlap-agent-draft.json",
+      "kind": "handshake_stubs_overlap_agent_draft_machine",
+      "purpose": "Machine-readable Handshake stub overlap extraction draft."
+    }
+  ],
+  "must_preserve": [
+    "CKC as evolved sibling expression of Atelier/Lens and prompt-diary intent",
+    "CKC convenience-driven extras created from real use",
+    "CKC media/DAM",
+    "CKC character sheets",
+    "CKC intake",
+    "CKC collections/contact sheets",
+    "CKC sidecars/versioning",
+    "CKC PoseKit/OpenPose",
+    "CKC ComfyUI lineage",
+    "CKC automation/manual/debug",
+    "CKC search/tags/similarity",
+    "CKC exports/backups",
+    "Existing Atelier/Lens and adjacent Handshake stubs"
+  ],
+  "runtime_rejections": [
+    "SQLite in any form, including runtime/tests/fixtures/mocks/examples/fallbacks/cache/compatibility adapters/temporary harnesses/imports/exports/product paths",
+    "Electron IPC as runtime authority",
+    "CKC localhost intake as authority",
+    ".GOV as product output root",
+    "CKC product namespace in Handshake runtime"
+  ],
+  "active_sequence": [
+    "WP-1-Atelier-Lens-Consolidation-v1",
+    "CKC greenroom review",
+    "CKC research basis",
+    "future CKC rebuild stubs only after consolidation and research"
+  ],
+  "deferred_downstream_wps": [
+    "WP-1-Atelier-Lens-CKC-Kernel-v1",
+    "WP-1-Atelier-Lens-CKC-Vertical-Slice-v1"
+  ]
+}

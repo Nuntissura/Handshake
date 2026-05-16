@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "39ea724bbcd151c5d14f742fb420d28b4dfcb549a778d272a0dea011423fb95f",
+    "projection_sha256": "67af9d96ddd8c754cf4be3350f3db3c780cc42ecbbae2a7023c3d369a215fa0e",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -67,7 +67,7 @@
   },
   "draft_scope": {
     "intent": "- What: Define the canonical portable backend contract for Loom block-edge records, search/view filters, source anchors, and derived asset bindings.\n- Why: Loom already behaves like a backend library substrate, but its storage/export/replay semantics cannot stay implicit if later library, retrieval, and media bridges are expected to remain stable across backend changes.",
-    "scope_sketch": "- IN_SCOPE:\n  - Unify Loom block, edge, search, view, and source-anchor semantics under portable backend contracts.\n  - Preserve stable meaning across SQLite-now / PostgreSQL-ready storage, export, replay, and bounded artifact transfer.\n  - Clarify what downstream Loom-consuming packets may assume about portable block-edge/search/view/source-anchor behavior.\n- OUT_OF_SCOPE:\n  - Full Loom product expansion.\n  - Media-to-Loom bridge feature work beyond the backend portability contract.",
+    "scope_sketch": "- IN_SCOPE:\n  - Unify Loom block, edge, search, view, and source-anchor semantics under portable backend contracts.\n  - Preserve stable meaning across PostgreSQL storage, export, replay, and bounded artifact transfer. The old local-first storage posture is superseded and must not be implemented through SQLite in any form.\n  - Clarify what downstream Loom-consuming packets may assume about portable block-edge/search/view/source-anchor behavior.\n- OUT_OF_SCOPE:\n  - Full Loom product expansion.\n  - Media-to-Loom bridge feature work beyond the backend portability contract.",
     "acceptance_criteria": "- Loom storage/export/replay semantics are explicitly linked to Storage Portability in the Main Body and Appendix matrix.\n- Loom block-edge/search/view/source-anchor contracts preserve stable meaning across backend swaps and evidence transfer.\n- Downstream Loom bridge packets can reuse one canonical portability contract instead of redefining library/export semantics.",
     "risks_unknowns": "- Risk: Loom blocks, edges, search filters, and source anchors diverge into storage-specific behavior that breaks export or replay.\n- Risk: downstream bridge packets assume stable library portability semantics that are not yet codified.",
     "governance_artifact_stance": ""

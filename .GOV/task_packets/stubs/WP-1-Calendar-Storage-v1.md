@@ -28,16 +28,16 @@ Rules:
 - ROADMAP_POINTER: Audit remediation against Handshake_Master_Spec_v02.139.md (Calendar entities + persistence)
 - SPEC_ANCHOR_CANDIDATES (Main Body, not Roadmap):
   - Handshake_Master_Spec_v02.139.md CalendarSource and CalendarEvent schema requirements
-  - Handshake_Master_Spec_v02.139.md Storage boundary + portable migrations (SQLite + Postgres)
+  - Handshake_Master_Spec_v02.139.md Storage boundary + PostgreSQL-only migrations (SQLite source language superseded by reset)
   - Handshake_Master_Spec_v02.139.md Provenance fields (mandatory)
 
 ## INTENT (DRAFT)
-- What: Add persistent storage for CalendarSource/CalendarEvent with portable migrations and a Database-trait-conformant DAL.
+- What: Add persistent PostgreSQL storage for CalendarSource/CalendarEvent with numbered migrations and a Database-trait-conformant DAL.
 - Why: Calendar lens and sync cannot be correct or auditable without durable, queryable event persistence.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
-  - Portable migrations for:
+  - PostgreSQL migrations for:
     - calendar_sources (id, kind/provider, display_name, created_at, config/provenance)
     - calendar_events (id, source_id, start_ts, end_ts, title, location, raw_ref/provenance)
     - indexes for time-range queries (source_id + start/end).
@@ -51,8 +51,8 @@ Rules:
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
 - Calendar sources and events persist and can be queried by time window efficiently.
-- Migrations run cleanly on SQLite and Postgres (no runtime DDL hacks).
-- A small conformance test suite verifies portable schema + basic CRUD.
+- Migrations run cleanly on PostgreSQL with no runtime DDL hacks.
+- A small conformance test suite verifies PostgreSQL schema + basic CRUD. No SQLite test target, fixture, fallback, compatibility path, or temporary adapter is allowed.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Storage abstraction layer and migration framework already exist.

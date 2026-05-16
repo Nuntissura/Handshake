@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json source_hash=03a234ef2c7b0932 projection_hash=1cfcce1dfdae379f generated_at_utc=2026-05-14T10:27:06.028Z generator=ensure-wp-communications.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json source_hash=59ef3c4ec3173d9d projection_hash=cb7fa80ef3468ac3 generated_at_utc=2026-05-14T23:54:42.504Z generator=wp-receipt-append.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Generated projection template for `packet.md` during the contract migration. Do not hand-copy this Markdown into future work as authority; author or update `packet.json` / `WORK_PACKET_CONTRACT_TEMPLATE.json` first, then generate a projection only when a current contract or explicit Operator request requires one.
@@ -215,8 +215,8 @@ Requirements:
 
 ## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
 Verdict: PENDING
-Blockers: Implementation is in progress; awaiting coder handoff to WP validator.
-Next: CODER completes in-scope work and records CODER_HANDOFF with proof.
+Blockers: Open review items still block governed direct-review progression; see WP communications for the authoritative pending item.
+Next: INTEGRATION_VALIDATOR resolves the pending review item and records the matching response receipt.
 ## WORKTREE_CLEANUP_STATUS (STATUS-SYNC APPENDIX; PRODUCT-CODE ONLY)
 - CHECK_TYPE: PRODUCT_CODE_ONLY_WORKTREE_CONTAINMENT
 - CHECKED_AT_UTC: 2026-05-14T20:52:00Z

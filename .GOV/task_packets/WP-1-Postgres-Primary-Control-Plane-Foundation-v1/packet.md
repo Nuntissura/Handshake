@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/packet.json source_hash=77e7d6f9f3190c55 projection_hash=b528c1698c5144cd generated_at_utc=2026-05-06T16:33:39.367Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/packet.json source_hash=62f13c5ec6914fed projection_hash=d117412d33d6accf generated_at_utc=2026-05-14T21:13:39.669Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

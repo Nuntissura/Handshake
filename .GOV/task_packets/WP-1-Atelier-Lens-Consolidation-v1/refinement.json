@@ -1,0 +1,1529 @@
+{
+  "acceptance_criteria": [
+    "Every source Atelier/Lens-adjacent stub is represented by a source-backed preservation row.",
+    "CKC is preserved as an evolved sibling of Atelier/Lens and prompt-diary intent, not treated as a competing app.",
+    "The overlap matrix maps CKC clusters to Handshake owners across Atelier/Lens, Photo Studio, Studio runtime, Loom/media/archive, artifact, and visual-debug surfaces.",
+    "Every CKC evolved or convenience feature is classified as fold, dependency, defer, conflict, or operator-decision-needed.",
+    "CKC runtime assumptions are translated to Handshake PostgreSQL/EventLedger/ArtifactStore/CRDT/promotion boundaries.",
+    "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths. PostgreSQL/EventLedger/ArtifactStore are the only accepted storage and evidence direction.",
+    "Electron IPC, CKC localhost intake authority, .GOV product outputs, and CKC product namespace authority are rejected or translated.",
+    "Future CKC rebuild stubs are deferred until this packet, CKC greenroom review, and CKC research basis are complete.",
+    "The packet is detailed enough for no-context model execution and validator review without rereading all legacy stubs.",
+    "Packet, refinement, microtask, taskboard, traceability, inventory, and projection contracts validate with the packet truth bundle."
+  ],
+  "artifact_policy": {
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
+  },
+  "base_wp_id": "WP-1-Atelier-Lens-Consolidation",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-16T03:39:00.000Z",
+  "evolved_feature_rows": [
+    {
+      "decision": "fold",
+      "feature": "Stable public character IDs separate from internal IDs",
+      "id": "EVOL-001",
+      "sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "test/backend_public_character_id.test.js"
+      ],
+      "why": "Operator-facing character identity needs stable labels without leaking storage keys."
+    },
+    {
+      "decision": "fold",
+      "feature": "Typed character sheet parser with union and block-list fields",
+      "id": "EVOL-002",
+      "sources": [
+        "app/backend/templateParser.js",
+        "app/backend/sheet.js",
+        "app/backend/validation.js",
+        "src/ui/components/BlockListEditor.tsx",
+        "test/template_parser_unions.test.js",
+        "test/validation_field_types.test.js",
+        "test/block_list_validation.test.js"
+      ],
+      "why": "CKC solved real sheet editing pain with typed fields, descriptor fallbacks, score normalization, and nested block editing."
+    },
+    {
+      "decision": "fold",
+      "feature": "Append-only sheet versions with selective apply/revert",
+      "id": "EVOL-003",
+      "sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "src/ui/components/SheetVersionTools.tsx",
+        "src/ui/components/SheetIngestMergeTools.tsx"
+      ],
+      "why": "Prevents data loss when models or imports update sheets."
+    },
+    {
+      "decision": "fold",
+      "feature": "Bulk character operations",
+      "id": "EVOL-004",
+      "sources": [
+        "src/ui/views/LibraryView.tsx",
+        "src/ui/components/BulkFieldEditDialog.tsx",
+        "src/ui/components/BulkTagDialog.tsx",
+        "src/ui/components/BatchExportDialog.tsx",
+        "CKC taskboard WP-0090"
+      ],
+      "why": "Daily library work requires multi-select, bulk tags/fields, batch exports, trash, and restore."
+    },
+    {
+      "decision": "fold",
+      "feature": "Persistent Intake batches",
+      "id": "EVOL-005",
+      "sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "src/ui/views/IntakeSorterView.tsx",
+        "CKC taskboard WP-0124",
+        "CKC taskboard WP-0125",
+        "CKC taskboard WP-0126"
+      ],
+      "why": "CKC moved beyond one-off import into recoverable review work."
+    },
+    {
+      "decision": "fold",
+      "feature": "Contact sheets as artifacts",
+      "id": "EVOL-006",
+      "sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "CKC taskboard WP-0129",
+        "CKC taskboard WP-0136"
+      ],
+      "why": "Contact sheets are useful for comparing generated or curated media and for handoff."
+    },
+    {
+      "decision": "fold",
+      "feature": "OpenPose sidecars hidden from normal galleries",
+      "id": "EVOL-007",
+      "sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "CKC taskboard WP-0130",
+        "CKC taskboard WP-0132"
+      ],
+      "why": "Sidecars are production artifacts but clutter normal viewing unless projected intentionally."
+    },
+    {
+      "decision": "fold_deferred_feature_family",
+      "feature": "PoseKit blank/single/collection workbench contexts",
+      "id": "EVOL-008",
+      "sources": [
+        "src/ui/App.tsx",
+        "src/ui/views/PoseView.tsx",
+        "app/backend/library.js",
+        "CKC taskboard WP-0131"
+      ],
+      "why": "Operator needs PoseKit to operate on collections and individual photos, not only a single character page."
+    },
+    {
+      "decision": "fold_deferred_feature_family",
+      "feature": "Body-18 / face-70 / hand-21 rig contract",
+      "id": "EVOL-009",
+      "sources": [
+        "src/posekit/core.mjs",
+        "src/posekit/core.d.mts",
+        "src/posekit/poseDetection.worker.ts",
+        "test/posekit_core.test.js",
+        "test/hand_openpose_export.test.js"
+      ],
+      "why": "CKC already hardened an OpenPose-compatible pose representation useful for ComfyUI and image production."
+    },
+    {
+      "decision": "fold",
+      "feature": "Quaternion-backed yaw/pitch/roll head pose",
+      "id": "EVOL-010",
+      "sources": [
+        "src/posekit/core.mjs",
+        "app/backend/library.js",
+        "CKC taskboard WP-0110"
+      ],
+      "why": "Fine control over generated character pose was an evolved production need."
+    },
+    {
+      "decision": "fold",
+      "feature": "Identity profiles for face-reference workflows",
+      "id": "EVOL-011",
+      "sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "CKC taskboard WP-0111"
+      ],
+      "why": "Stable identity references are directly tied to character consistency and ComfyUI workflows."
+    },
+    {
+      "decision": "defer_after_kernel",
+      "feature": "Multi-rig workspace tabs",
+      "id": "EVOL-012",
+      "sources": [
+        "app/backend/library.js",
+        "CKC taskboard WP-0115"
+      ],
+      "why": "Real pose workflow needs multiple drafts open without deleting stored rigs."
+    },
+    {
+      "decision": "fold_intent_adapt_runtime",
+      "feature": "ComfyUI output registration and replay",
+      "id": "EVOL-013",
+      "sources": [
+        "comfyui_node/castkit_codex_bridge.py",
+        "app/backend/library.js",
+        "app/backend/comfyuiClient.js",
+        "CKC taskboard WP-0109"
+      ],
+      "why": "CKC already closed the loop from generation output back into character/media lineage."
+    },
+    {
+      "decision": "fold",
+      "feature": "Workflow spec registry and image-sourcing adapter",
+      "id": "EVOL-014",
+      "sources": [
+        "app/backend/workflowSpecRegistry.js",
+        "app/backend/imageSourcingAdapter.js",
+        "app/backend/imageSourcingHandlers/v00_19.js",
+        "CKC taskboard WP-0100"
+      ],
+      "why": "External generation/sourcing task output needs versioned ingestion and idempotency."
+    },
+    {
+      "decision": "fold",
+      "feature": "Identity-decoupled media filenames",
+      "id": "EVOL-015",
+      "sources": [
+        "test/backend_identity_decoupling.test.js",
+        "app/backend/library.js"
+      ],
+      "why": "Prevents character names or sensitive sheet fields from leaking into paths or events."
+    },
+    {
+      "decision": "fold",
+      "feature": "Global search with snippets and jump targets",
+      "id": "EVOL-016",
+      "sources": [
+        "app/backend/library.js",
+        "src/ui/components/GlobalSearchModal.tsx",
+        "CKC taskboard WP-0083"
+      ],
+      "why": "Fast retrieval across sheets, notes, images, and moodboards is core Lens behavior."
+    },
+    {
+      "decision": "fold",
+      "feature": "Tag manager, saved searches, palettes, dHash similarity",
+      "id": "EVOL-017",
+      "sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "app/backend/palette.js",
+        "app/backend/dhash.js",
+        "CKC taskboard WP-0059/WP-0066/WP-0067/WP-0089"
+      ],
+      "why": "Convenience features became library-scale navigation requirements."
+    },
+    {
+      "decision": "fold",
+      "feature": "Moodboard canvas inside character workflow",
+      "id": "EVOL-018",
+      "sources": [
+        "app/backend/db.js",
+        "src/ui/components/MoodboardCanvas.tsx",
+        "CKC taskboard WP-0071..WP-0082"
+      ],
+      "why": "Prompt diaries and visual planning need more than static notes."
+    },
+    {
+      "decision": "fold",
+      "feature": "Built-in model manual and command map",
+      "id": "EVOL-019",
+      "sources": [
+        "app/backend/automationManual.js",
+        "app/backend/automationCommandMap.js",
+        "test/automation_manual_consistency.test.js"
+      ],
+      "why": "Lets no-context models operate the product."
+    },
+    {
+      "decision": "fold_with_stronger_durability",
+      "feature": "Sessions, leases, heartbeats, command logs",
+      "id": "EVOL-020",
+      "sources": [
+        "app/backend/automationControl.js",
+        "CKC taskboard WP-0095",
+        "CKC taskboard WP-0099"
+      ],
+      "why": "CKC evolved toward multi-agent operation before Handshake's kernel reset."
+    },
+    {
+      "decision": "fold",
+      "feature": "Non-focus-stealing automation and visual capture",
+      "id": "EVOL-021",
+      "sources": [
+        "app/backend/automationStealth.js",
+        "app/main.js",
+        "CKC taskboard WP-0093",
+        "CKC taskboard WP-0099",
+        "CKC taskboard WP-0122"
+      ],
+      "why": "Model-driven GUI verification must be quiet and reproducible."
+    },
+    {
+      "decision": "fold",
+      "feature": "Filesystem health and recoverable deletion",
+      "id": "EVOL-022",
+      "sources": [
+        "app/backend/library.js",
+        "CKC taskboard WP-0127",
+        "CKC taskboard WP-0135"
+      ],
+      "why": "Real media libraries drift; deletion must be reversible and explainable."
+    },
+    {
+      "decision": "fold",
+      "feature": "Backup version traceability and orphan adoption",
+      "id": "EVOL-023",
+      "sources": [
+        "app/backend/backup.js",
+        "app/backend/resetModes.js",
+        "app/backend/library.js",
+        "CKC taskboard WP-0105",
+        "CKC taskboard WP-0106"
+      ],
+      "why": "Recovery became a first-class operator need."
+    },
+    {
+      "decision": "fold",
+      "feature": "Web portfolio and share pack exports",
+      "id": "EVOL-024",
+      "sources": [
+        "app/templates/web-portfolio",
+        "app/backend/library.js",
+        "CKC taskboard WP-0087",
+        "CKC taskboard WP-0063"
+      ],
+      "why": "Operator needs portable handoff outputs."
+    },
+    {
+      "decision": "fold_into_kernel_boundary",
+      "feature": "Hybrid CRDT/event-log policy",
+      "id": "EVOL-025",
+      "sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "app/backend/automationManual.js",
+        "CKC taskboard WP-0134"
+      ],
+      "why": "CKC discovered the right boundary: not everything needs CRDT, but parallel edits need receipts and revisions."
+    },
+    {
+      "decision": "defer_and_preserve",
+      "feature": "Blocked PoseKit calibration/history debt",
+      "id": "EVOL-026",
+      "sources": [
+        "CKC taskboard WP-0133"
+      ],
+      "why": "Unfinished work is still requirement evidence: draggable calibration, missing-marker placement, 3D/live split editing, forked history."
+    }
+  ],
+  "markdown_projection": {
+    "generated_at_utc": "2026-05-16T03:39:00.000Z",
+    "generator": ".GOV/roles_shared/scripts/wp/atelier-lens-consolidation-packet-generator.mjs",
+    "path": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.md",
+    "projection_hash": "6bf648c4cf8ec555",
+    "source_file": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.json",
+    "source_hash": "14141630d1114cdb",
+    "status": "GENERATED_IN_SYNC"
+  },
+  "no_sqlite_rule": "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths. PostgreSQL/EventLedger/ArtifactStore are the only accepted storage and evidence direction.",
+  "overlap_rows": [
+    {
+      "ckc_sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "src/ui/views/CharacterView.tsx"
+      ],
+      "decision": "fold_into_atelier_lens_core",
+      "handshake_sources": [
+        "WP-1-Atelier-Lens-v2",
+        "WP-1-Photo-Studio-v2",
+        "WP-1-Atelier-Collaboration-Panel-v1",
+        "FEAT-ATELIER-LENS"
+      ],
+      "id": "OVR-001",
+      "overlap_area": "Character sheets and Atelier identity",
+      "preserve": [
+        "stable public/internal IDs",
+        "protected fields",
+        "append-only sheet versions",
+        "selective merge/apply",
+        "byte-preserved user text",
+        "role/provenance rules"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "src/ui/views/LibraryView.tsx",
+        "src/ui/components/MediaPane.tsx",
+        "src/ui/views/CharacterView.tsx"
+      ],
+      "decision": "fold_with_artifact_store_dependency",
+      "handshake_sources": [
+        "WP-1-Photo-Studio-v2",
+        "WP-1-Stage-Media-Artifact-Portability-v1",
+        "Loom/media downloader stubs"
+      ],
+      "id": "OVR-002",
+      "overlap_area": "Media viewer / DAM / Photo Studio",
+      "preserve": [
+        "image-first browsing",
+        "thumbnails",
+        "metadata",
+        "provenance",
+        "missing-file diagnostics",
+        "archive/restore",
+        "sidecar hiding"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "app/backend/library.js",
+        "src/ui/views/IntakeSorterView.tsx",
+        "CKC taskboard WP-0094",
+        "CKC taskboard WP-0124",
+        "CKC taskboard WP-0125",
+        "CKC taskboard WP-0126"
+      ],
+      "decision": "fold_as_atelier_intake_subsystem",
+      "handshake_sources": [
+        "WP-1-Stage-Media-Artifact-Portability-v1",
+        "WP-1-Media-Downloader-v2",
+        "WP-1-Media-Downloader-Loom-Bridge-v1"
+      ],
+      "id": "OVR-003",
+      "overlap_area": "Intake / Inbox / pending review",
+      "preserve": [
+        "persistent batches",
+        "accept/reject/pending",
+        "loose/linked modes",
+        "source preservation",
+        "character/sheet/collection linkage",
+        "resume after route switch/restart"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "CKC taskboard WP-0128",
+        "CKC taskboard WP-0129",
+        "CKC taskboard WP-0136"
+      ],
+      "decision": "fold_with_raster_export_deferred",
+      "handshake_sources": [
+        "WP-1-Loom-MVP-v1",
+        "WP-1-Photo-Studio-v2",
+        "WP-1-Artifact-System-Foundations-v1"
+      ],
+      "id": "OVR-004",
+      "overlap_area": "Collections and contact sheets",
+      "preserve": [
+        "notes/tags",
+        "optional character/sheet-version links",
+        "SVG/contact-sheet manifests",
+        "source IDs/hashes",
+        "layout metadata",
+        "planned PNG/JPG path"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "CKC taskboard WP-0130",
+        "CKC taskboard WP-0132",
+        "CKC taskboard WP-0134",
+        "CKC taskboard WP-0135"
+      ],
+      "decision": "fold_with_artifact_and_event_lineage",
+      "handshake_sources": [
+        "WP-1-Lens-ViewMode-v1",
+        "WP-1-Artifact-System-Foundations-v1",
+        "WP-1-Stage-Media-Artifact-Portability-v1"
+      ],
+      "id": "OVR-005",
+      "overlap_area": "Sidecars, versioning, recovery",
+      "preserve": [
+        "sidecar visibility projection",
+        "archive/restore",
+        "optimistic revision checks",
+        "append-only events",
+        "deletion preview",
+        "no silent source deletion"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "src/posekit/core.mjs",
+        "src/posekit/poseDetection.worker.ts",
+        "app/backend/library.js",
+        "CKC taskboard WP-0107..WP-0115",
+        "CKC taskboard WP-0131",
+        "CKC taskboard WP-0132",
+        "CKC taskboard WP-0133"
+      ],
+      "decision": "fold_as_deferred_ckc_atelier_feature_family",
+      "handshake_sources": [
+        "FEAT-ATELIER-LENS",
+        "FEAT-PHOTO-STUDIO",
+        "TOOL-COMFYUI"
+      ],
+      "id": "OVR-006",
+      "overlap_area": "PoseKit / OpenPose / identity",
+      "preserve": [
+        "blank/single/collection workbench modes",
+        "identity profile lineage",
+        "deterministic OpenPose sidecars",
+        "multi-rig tabs",
+        "blocked calibration/history debt"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "comfyui_node/castkit_codex_bridge.py",
+        "app/backend/intakeServer.js",
+        "app/backend/comfyuiClient.js",
+        "app/backend/library.js",
+        "CKC taskboard WP-0109"
+      ],
+      "decision": "fold_intent_reject_localhost_authority",
+      "handshake_sources": [
+        "TOOL-COMFYUI",
+        "WP-1-Photo-Studio-v2",
+        "WP-1-Studio-Runtime-Visibility-v1"
+      ],
+      "id": "OVR-007",
+      "overlap_area": "ComfyUI workflow lineage",
+      "preserve": [
+        "workflow receipts",
+        "prompt extraction",
+        "replay",
+        "stats",
+        "identity reference payloads",
+        "output image registration",
+        "non-fatal bridge failure posture"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "app/backend/library.js",
+        "app/backend/db.js",
+        "app/backend/dhash.js",
+        "app/backend/palette.js",
+        "CKC taskboard WP-0016/WP-0054/WP-0059/WP-0066/WP-0067/WP-0083/WP-0089"
+      ],
+      "decision": "fold_into_lens_projection_search_layer",
+      "handshake_sources": [
+        "WP-1-Lens-Extraction-Tier-v1",
+        "WP-1-Lens-ViewMode-v1",
+        "WP-1-Loom-MVP-v1"
+      ],
+      "id": "OVR-008",
+      "overlap_area": "Search, tags, links, similarity",
+      "preserve": [
+        "snippets",
+        "jump targets",
+        "tag manager",
+        "saved searches",
+        "backlinks",
+        "palettes",
+        "dHash similarity",
+        "AI tag suggestions"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "src/ui/components/MoodboardCanvas.tsx",
+        "CKC taskboard WP-0005/WP-0071..WP-0082"
+      ],
+      "decision": "fold_into_atelier_lens_creative_planning_layer",
+      "handshake_sources": [
+        "prompt diaries",
+        "FEAT-ATELIER-LENS",
+        "WP-1-Loom-MVP-v1",
+        "WP-1-Structured-Collaboration-Artifact-Family-v1"
+      ],
+      "id": "OVR-009",
+      "overlap_area": "Docs, stories, moodboards, prompt diary intent",
+      "preserve": [
+        "docs inside character workflow",
+        "moodboard structured JSON",
+        "layers/folders",
+        "corkboard/outliner",
+        "links/backlinks",
+        "exports",
+        "text preservation"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "app/backend/automationManual.js",
+        "app/backend/automationCommandMap.js",
+        "app/backend/automationControl.js",
+        "app/backend/automationStealth.js",
+        "CKC taskboard WP-0093/WP-0095/WP-0099/WP-0122/WP-0137"
+      ],
+      "decision": "fold_as_model_operation_requirement",
+      "handshake_sources": [
+        "GLOBAL-BUILD-MANUAL",
+        "GLOBAL-BUILD-DIAG",
+        "WP-1-Visual-Debugging-Loop-v1",
+        "WP-1-Studio-Runtime-Visibility-v1"
+      ],
+      "id": "OVR-010",
+      "overlap_area": "Automation, model manual, visual diagnostics",
+      "preserve": [
+        "command catalog",
+        "sessions/leases",
+        "heartbeats",
+        "command log",
+        "renderer state",
+        "captures",
+        "no OS-level input",
+        "no focus stealing",
+        "manual/command consistency tests"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "app/backend/library.js",
+        "app/backend/backup.js",
+        "app/templates/web-portfolio",
+        "CKC taskboard WP-0006/WP-0063/WP-0087/WP-0105/WP-0106"
+      ],
+      "decision": "fold_through_artifact_export_job_layer",
+      "handshake_sources": [
+        "WP-1-Artifact-System-Foundations-v1",
+        "WP-1-Stage-Media-Artifact-Portability-v1",
+        "WP-1-Structured-Collaboration-Artifact-Family-v1"
+      ],
+      "id": "OVR-011",
+      "overlap_area": "Exports, backups, share packs, web portfolio",
+      "preserve": [
+        "no-space names",
+        "safe subsets",
+        "LLM packs",
+        "manifests",
+        "backup version guard",
+        "orphan adoption",
+        "checksums",
+        "offline portfolio intent"
+      ]
+    },
+    {
+      "ckc_sources": [
+        "app/backend/db.js",
+        "app/backend/library.js",
+        "app/backend/automationManual.js",
+        "CKC taskboard WP-0134"
+      ],
+      "decision": "fold_into_eventledger_crdt_boundary",
+      "handshake_sources": [
+        "WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+        "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1",
+        "WP-KERNEL-003-Sandbox-Validation-Promotion-v1"
+      ],
+      "id": "OVR-012",
+      "overlap_area": "Parallel editing / event log / revisions",
+      "preserve": [
+        "PostgreSQL source of truth",
+        "sessions/leases",
+        "EventLedger events",
+        "optimistic revisions",
+        "CRDT only for safe merge shapes"
+      ]
+    }
+  ],
+  "red_team": {
+    "controls": [
+      "Preservation-first rows.",
+      "Feature classification rows.",
+      "Absolute no-SQLite clause.",
+      "Handshake runtime translation matrix."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Lost Atelier/Lens stub intent.",
+      "Lost CKC convenience feature intent.",
+      "SQLite backdoor through tests or fixtures.",
+      "CKC runtime copied instead of translated."
+    ]
+  },
+  "research_basis": [
+    {
+      "pattern": "Image pipeline receipts need explicit output file, filename prefix, subfolder, and workflow prompt context; Handshake should map this into ArtifactStore/EventLedger receipts.",
+      "source": "ComfyUI SaveImage node documentation",
+      "url": "https://docs.comfy.org/built-in-nodes/SaveImage"
+    },
+    {
+      "pattern": "ComfyUI integration must tolerate node API evolution and should use an adapter boundary instead of embedding CKC assumptions.",
+      "source": "ComfyUI V3 custom node migration documentation",
+      "url": "https://docs.comfy.org/custom-nodes/v3_migration"
+    },
+    {
+      "pattern": "Community workflows preserve generation metadata in output images; Handshake should preserve prompt/workflow metadata as explicit artifact provenance.",
+      "source": "ComfyUI-SaveImageWithMetaData GitHub project",
+      "url": "https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData"
+    },
+    {
+      "pattern": "Pose sidecars need stable schemas for body, face, and hand keypoints; CKC PoseKit should become a Handshake pose artifact contract.",
+      "source": "OpenPose output documentation",
+      "url": "https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/doc/02_output.md"
+    },
+    {
+      "pattern": "Visual/debug surfaces should be reproducible through deterministic snapshots and explicit evidence paths for model review.",
+      "source": "Playwright visual comparisons",
+      "url": "https://playwright.dev/docs/test-snapshots"
+    },
+    {
+      "pattern": "Parallel model edits should flow through CRDT-friendly document and artifact boundaries instead of single-owner desktop state.",
+      "source": "Automerge local-first CRDT overview",
+      "url": "https://automerge.org/"
+    },
+    {
+      "pattern": "Search/tag/similarity features can start PostgreSQL-first with full-text search before specialized vector or media indexes.",
+      "source": "PostgreSQL full text search documentation",
+      "url": "https://www.postgresql.org/docs/17/textsearch.html"
+    },
+    {
+      "pattern": "Window/tab/workspace behavior should translate to Handshake/Tauri-controlled surfaces rather than CKC Electron IPC authority.",
+      "source": "Tauri WebviewWindow API reference",
+      "url": "https://tauri.app/reference/javascript/api/namespacewebviewwindow/"
+    }
+  ],
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "source_agent_drafts": [
+    {
+      "kind": "ckc_code_agent_draft",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/ckc-code-agent-draft.md",
+      "purpose": "Read/write subagent extraction over CKC_main code."
+    },
+    {
+      "kind": "ckc_code_agent_draft_machine",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/ckc-code-agent-draft.json",
+      "purpose": "Machine-readable CKC_main code extraction draft."
+    },
+    {
+      "kind": "ckc_spec_taskboard_agent_draft",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/ckc-spec-taskboard-agent-draft.md",
+      "purpose": "Read/write subagent extraction over CKC spec and taskboard."
+    },
+    {
+      "kind": "ckc_spec_taskboard_agent_draft_machine",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/ckc-spec-taskboard-agent-draft.json",
+      "purpose": "Machine-readable CKC spec/taskboard extraction draft."
+    },
+    {
+      "kind": "handshake_stubs_overlap_agent_draft",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/handshake-stubs-overlap-agent-draft.md",
+      "purpose": "Read/write subagent extraction over Handshake Atelier/Lens-adjacent stubs."
+    },
+    {
+      "kind": "handshake_stubs_overlap_agent_draft_machine",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/_agent_drafts/handshake-stubs-overlap-agent-draft.json",
+      "purpose": "Machine-readable Handshake stub overlap extraction draft."
+    }
+  ],
+  "source_packet": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.json",
+  "source_references": [
+    {
+      "kind": "requirements_register",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-requirements-register.md",
+      "purpose": "No-loss source requirements register for CKC and Atelier/Lens-adjacent stubs."
+    },
+    {
+      "kind": "requirements_register_machine",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-requirements-register.json",
+      "purpose": "Machine-readable no-loss source requirements register."
+    },
+    {
+      "kind": "translation_conflict_matrix",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-translation-matrix.md",
+      "purpose": "Preserve/adapt/reject runtime decisions and Handshake-native module boundaries."
+    },
+    {
+      "kind": "translation_conflict_matrix_machine",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-translation-matrix.json",
+      "purpose": "Machine-readable preserve/adapt/reject runtime decisions."
+    },
+    {
+      "kind": "microtask_map",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-microtask-map.md",
+      "purpose": "Greenroom reference microtask buckets for WP-1-Atelier-Lens-Consolidation-v1."
+    },
+    {
+      "kind": "microtask_map_machine",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-microtask-map.json",
+      "purpose": "Machine-readable Greenroom microtask map for the consolidation packet."
+    },
+    {
+      "kind": "overlap_matrix",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-overlap-matrix.md",
+      "purpose": "Source-backed Atelier/Lens versus CKC overlap matrix."
+    },
+    {
+      "kind": "overlap_matrix_machine",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-overlap-matrix.json",
+      "purpose": "Machine-readable Atelier/Lens versus CKC overlap matrix."
+    },
+    {
+      "kind": "evolved_feature_register",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-evolved-feature-register.md",
+      "purpose": "CKC evolved and convenience-driven feature register."
+    },
+    {
+      "kind": "evolved_feature_register_machine",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-evolved-feature-register.json",
+      "purpose": "Machine-readable CKC evolved and convenience-driven feature register."
+    },
+    {
+      "kind": "greenroom_reference_brief",
+      "path": ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-activation-brief.md",
+      "purpose": "Corrected brief: Greenroom is reference/research input for WP-1-Atelier-Lens-Consolidation-v1, not its own active WP."
+    }
+  ],
+  "source_stub_preservation": [
+    {
+      "acceptance_criteria": [
+        "No contract acceptance text found; future CKC refinement must define acceptance for role claiming, SceneState, and ConflictSet."
+      ],
+      "base_wp_id": "WP-1-Atelier-Lens",
+      "board_registry_state": "stub backlog; base WP superseded",
+      "ckc_handling": "source_material_for_new_ckc_runway_stub",
+      "dependencies": [],
+      "intent": "Additive remediation for failed or gapped Atelier Lens work.",
+      "risks": [
+        "Sparse machine contract; meaningful source is the Markdown projection.",
+        "Prior packet was not read in this task."
+      ],
+      "scope": [
+        "Preserve role claiming gap",
+        "Preserve SceneState gap",
+        "Preserve ConflictSet gap"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md",
+        ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.contract.json"
+      ],
+      "wp_id": "WP-1-Atelier-Lens-v2"
+    },
+    {
+      "acceptance_criteria": [
+        "No contract acceptance text found; future CKC refinement must define acceptance for skeleton surface, thumbnails, and recipes."
+      ],
+      "base_wp_id": "WP-1-Photo-Studio",
+      "board_registry_state": "stub backlog; base WP superseded",
+      "ckc_handling": "source_material_for_new_ckc_runway_stub",
+      "dependencies": [],
+      "intent": "Additive remediation for failed or gapped Photo Studio work.",
+      "risks": [
+        "Sparse machine contract; possible overlap with Loom poster frame and preview work."
+      ],
+      "scope": [
+        "Preserve skeleton surface gap",
+        "Preserve thumbnails gap",
+        "Preserve recipes gap"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md",
+        ".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.contract.json"
+      ],
+      "wp_id": "WP-1-Photo-Studio-v2"
+    },
+    {
+      "acceptance_criteria": [
+        "Suggestions never change text outside selected span",
+        "Out-of-selection patches are rejected",
+        "Applied patches record provenance and evidence refs"
+      ],
+      "base_wp_id": "WP-1-Atelier-Collaboration-Panel",
+      "board_registry_state": "validated/done; retained as source evidence",
+      "ckc_handling": "separate_validated_baseline_to_reuse",
+      "dependencies": [],
+      "intent": "Implement a selection-scoped Atelier Collaboration Panel in editor surfaces.",
+      "risks": [
+        "Editor range off-by-one errors",
+        "Boundary normalization loopholes"
+      ],
+      "scope": [
+        "Role suggestions over current selection",
+        "Multi-suggestion review and apply",
+        "Range-bounded patching for Monaco/Docs",
+        "Provenance logging",
+        "Validator rejection outside selection"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Atelier-Collaboration-Panel-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Tier1 default when unspecified",
+        "Tier0/Tier2 override intent is trace-visible",
+        "Validator enforces default and rejects misuse"
+      ],
+      "base_wp_id": "WP-1-Lens-Extraction-Tier",
+      "board_registry_state": "stub backlog",
+      "ckc_handling": "source_material_for_new_ckc_runway_stub",
+      "dependencies": [],
+      "intent": "Implement LensExtractionTier as a first-class runtime and planning input.",
+      "risks": [
+        "Confusion with content_tier",
+        "Implicit Tier2 creep through heuristics"
+      ],
+      "scope": [
+        "Tier0/Tier1/Tier2 model",
+        "Tier1 default",
+        "Explicit Tier0/Tier2 override",
+        "Requested versus effective tier trace",
+        "Invalid tier validation"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Lens-Extraction-Tier-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Lens-Extraction-Tier-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Lens-Extraction-Tier-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "SFW ViewMode never shows non-sfw items",
+        "ViewMode switching does not mutate stored artifacts",
+        "Trace records ViewMode as a filter"
+      ],
+      "base_wp_id": "WP-1-Lens-ViewMode",
+      "board_registry_state": "validated/done; retained as source evidence",
+      "ckc_handling": "separate_validated_baseline_to_reuse",
+      "dependencies": [],
+      "intent": "Implement ViewMode UI and enforcement for Lens outputs.",
+      "risks": [
+        "Inconsistent enforcement across surfaces",
+        "Accidental stored artifact mutation"
+      ],
+      "scope": [
+        "NSFW default",
+        "Explicit SFW toggle",
+        "SFW hard-drop projection",
+        "Immutable raw and derived artifacts",
+        "Trace-visible metadata filter"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Lens-ViewMode-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Stage and Media Downloader linked through portable artifact and retention contracts",
+        "Later packets reuse one bounded manifest contract",
+        "Storage swaps do not redefine evidence semantics"
+      ],
+      "base_wp_id": "WP-1-Stage-Media-Artifact-Portability",
+      "board_registry_state": "stub backlog; high value; high risk; blocked",
+      "ckc_handling": "source_material_for_ckc_foundation_wp",
+      "dependencies": [
+        "WP-1-Handshake-Stage-MVP",
+        "WP-1-Media-Downloader",
+        "WP-1-Artifact-System-Foundations",
+        "WP-1-Storage-Trait-Purity"
+      ],
+      "intent": "Unify Stage capture/import sessions and Media Downloader outputs under portable artifact manifest, bundle-index, and retention semantics.",
+      "risks": [
+        "Incompatible Stage/media manifests",
+        "Capture-session provenance omitted from general portability rules"
+      ],
+      "scope": [
+        "Shared artifact portability contract",
+        "Stage session records",
+        "Media capture sessions",
+        "Debug bundle export",
+        "Storage portability rules",
+        "Bounded export anchors for session/auth/materialization outputs"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Stage-Media-Artifact-Portability-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Single backend lineage contract",
+        "Reusable source hash/timing/provenance contract across Stage, ASR, Loom, and archive flows",
+        "Storage swaps preserve transcript-source linkage"
+      ],
+      "base_wp_id": "WP-1-Stage-ASR-Transcript-Lineage",
+      "board_registry_state": "stub backlog; high value; high risk; blocked",
+      "ckc_handling": "source_material_for_ckc_foundation_and_media_wp",
+      "dependencies": [
+        "WP-1-Handshake-Stage-MVP",
+        "WP-1-ASR-Transcribe-Media",
+        "WP-1-Media-Downloader",
+        "WP-1-Artifact-System-Foundations"
+      ],
+      "intent": "Define backend lineage from Stage-captured/imported media to governed ASR transcript artifacts.",
+      "risks": [
+        "Separate identity fields across Stage/media/ASR",
+        "Timing anchors or provenance lost while text survives"
+      ],
+      "scope": [
+        "Source media artifact to ASR input",
+        "ASR input to transcript artifact",
+        "Transcript artifact to searchable consumer",
+        "Stable source hash",
+        "Media probe facts",
+        "Capture/session provenance",
+        "Timing anchors",
+        "Recorder-visible events"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Stage-ASR-Transcript-Lineage-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Explicit job/workflow/tool mappings",
+        "Studio activity visible in Command Center and Flight Recorder",
+        "Locus correlates Studio work",
+        "Storage posture specified"
+      ],
+      "base_wp_id": "WP-1-Studio-Runtime-Visibility",
+      "board_registry_state": "stub backlog; high value; medium risk; blocked",
+      "ckc_handling": "source_material_for_ckc_atelier_lens_studio_wp",
+      "dependencies": [
+        "WP-1-Photo-Studio",
+        "WP-1-Atelier-Lens",
+        "WP-1-Dev-Command-Center-MVP",
+        "WP-1-Locus-Work-Tracking-System-Phase1"
+      ],
+      "intent": "Make Studio and Design Studio surfaces explicit runtime citizens.",
+      "risks": [
+        "Fragmented UI panels",
+        "Hidden side effects",
+        "Accidental SQLite reintroduction"
+      ],
+      "scope": [
+        "Canvas/Excalidraw runtime mapping",
+        "Lens/Atelier runtime mapping",
+        "Studio jobs",
+        "Workflow nodes",
+        "Tool surfaces",
+        "DCC/operator projection",
+        "Flight Recorder linkage",
+        "Locus/task-board/WP linkage",
+        "PostgreSQL-only state"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Studio-Runtime-Visibility-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Uncaptioned video produces searchable timestamped transcript",
+        "Captioned video can skip ASR and ingest captions",
+        "Jobs are cancellable, resumable where feasible, capability-gated, and leak-safe"
+      ],
+      "base_wp_id": "WP-1-ASR-Transcribe-Media",
+      "board_registry_state": "stub backlog; medium value; medium risk",
+      "ckc_handling": "source_material_for_ckc_media_intelligence_wp",
+      "dependencies": [
+        "WP-1-Workflow-Engine",
+        "WP-1-MEX-v1.2-Runtime",
+        "WP-1-Artifact-System-Foundations"
+      ],
+      "intent": "Implement local-first ASR transcription for audio/video media.",
+      "risks": [
+        "Long-video performance and memory",
+        "Transcript size and indexing cost"
+      ],
+      "scope": [
+        "asr_transcribe Workflow Engine job",
+        "Deterministic ffmpeg audio extraction",
+        "Transcript artifacts with timing metadata",
+        "Attachment to LoomBlocks or full-text index",
+        "Capability gating",
+        "No cloud transcription by default",
+        "Flight Recorder progress events"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.md",
+        ".GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.contract.json"
+      ],
+      "wp_id": "WP-1-ASR-Transcribe-Media-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Video folders create stable LoomBlocks with thumbnails and transcripts",
+        "Transcripts are searchable and time-offset linked",
+        "Tags/mentions use LoomEdges",
+        "Large libraries remain usable with batch progress and resume"
+      ],
+      "base_wp_id": "WP-1-Video-Archive-Loom-Integration",
+      "board_registry_state": "stub backlog; high value; high risk; blocked",
+      "ckc_handling": "source_material_for_ckc_media_intelligence_wp",
+      "dependencies": [
+        "WP-1-Media-Downloader",
+        "WP-1-Loom-MVP",
+        "WP-1-Media-Downloader-Loom-Bridge",
+        "WP-1-Loom-Preview-VideoPosterFrames",
+        "WP-1-ASR-Transcribe-Media"
+      ],
+      "intent": "Turn archived/imported video files into Loom library objects with searchable transcripts, captions sidecars, and tags/mentions that compose with Lens/Atelier.",
+      "risks": [
+        "Transcript indexing cost",
+        "Captions versus ASR duplicates",
+        "Privacy and cloud-send confusion"
+      ],
+      "scope": [
+        "LoomBlock wrappers",
+        "Captions and transcript documents as references",
+        "Caption ingest fast path",
+        "Local-first ASR fallback",
+        "Manual RawContent tags",
+        "AI-suggested DerivedContent tags pending confirmation",
+        "Loom views with thumbnails/proxies",
+        "Transcript and caption Lens retrieval",
+        "Flight Recorder events"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Video-Archive-Loom-Integration-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Imports create LoomBlocks",
+        "Dedup prevents duplicates",
+        "Mentions/tags create stable LoomEdges",
+        "Backlinks update",
+        "Tier-1 search works",
+        "FR-EVT-LOOM events surface in operator history"
+      ],
+      "base_wp_id": "WP-1-Loom-MVP",
+      "board_registry_state": "validated/done; retained as origin evidence",
+      "ckc_handling": "separate_validated_baseline_to_reuse",
+      "dependencies": [],
+      "intent": "Deliver the Phase 1 Loom MVP local-first library surface.",
+      "risks": [
+        "Anchor drift",
+        "Dedup identity errors",
+        "Preview jobs degrade UI responsiveness"
+      ],
+      "scope": [
+        "LoomBlocks",
+        "LoomEdges",
+        "Stable UUID identity",
+        "Mentions and tags",
+        "All/Unlinked/Sorted/Pins views",
+        "Backlinks panel",
+        "File import",
+        "SHA-256 dedup",
+        "Tier-1 previews",
+        "Basic search",
+        "FR-EVT-LOOM events"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Loom-MVP-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Loom-MVP-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Loom-MVP-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Remediation ties to current clauses and evidence",
+        "Concrete defects are proven by PostgreSQL-only checks",
+        "If no defect remains, refinement narrows scope"
+      ],
+      "base_wp_id": "WP-1-Loom-Storage-Portability",
+      "board_registry_state": "task board validated; registry status text mixed with Stub Backlog and active v4",
+      "ckc_handling": "separate_validated_or_proof_baseline; clarify_registry_state_later",
+      "dependencies": [
+        "WP-1-Loom-MVP",
+        "WP-1-Storage-Abstraction-Layer",
+        "WP-1-Artifact-System-Foundations"
+      ],
+      "intent": "Re-open Loom portability as a narrow remediation/proof pass separating real portability evidence from narrative closure.",
+      "risks": [
+        "v3 mixed concrete storage work with broad closure claims",
+        "Dual-backend proof can expand too far"
+      ],
+      "scope": [
+        "Revalidate current-spec Loom portability clauses",
+        "Avoid speculative churn",
+        "Dual-backend evidence for graph traversal",
+        "Directional edges",
+        "Metrics recomputation",
+        "Source-anchor durability"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v4.md",
+        ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v4.contract.json"
+      ],
+      "wp_id": "WP-1-Loom-Storage-Portability-v4"
+    },
+    {
+      "acceptance_criteria": [
+        "Video import/promotion produces retrievable thumbnail and generated preview status",
+        "Generation is non-blocking, resumable, idempotent",
+        "Invalid files fail with clear error codes"
+      ],
+      "base_wp_id": "WP-1-Loom-Preview-VideoPosterFrames",
+      "board_registry_state": "stub backlog; high value; medium risk",
+      "ckc_handling": "source_material_for_ckc_media_intelligence_wp",
+      "dependencies": [
+        "WP-1-Loom-MVP",
+        "WP-1-MEX-v1.2-Runtime"
+      ],
+      "intent": "Support Tier-1 previews for video assets by generating deterministic poster-frame thumbnails as a background mechanical job.",
+      "risks": [
+        "ffmpeg-version determinism",
+        "Large-video performance and cancellation"
+      ],
+      "scope": [
+        "Extract representative frame",
+        "Resize to ThumbnailSpec",
+        "Encode to preferred format",
+        "Store derived preview asset",
+        "Link to LoomBlock",
+        "Capability-gate ffmpeg/ffprobe",
+        "Emit Flight Recorder events"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Loom-Preview-VideoPosterFrames-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Loom-Preview-VideoPosterFrames-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Loom-Preview-VideoPosterFrames-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Archive resumes and avoids duplicates",
+        "Captions saved as VTT",
+        "Transcode deterministic when used",
+        "Network/exec actions gated",
+        "UI shows per-item and batch progress"
+      ],
+      "base_wp_id": "WP-1-Media-Downloader",
+      "board_registry_state": "v1 superseded; v2 active validated/done per board and registry",
+      "ckc_handling": "historical_source_material; use_active_v2_as_dependency",
+      "dependencies": [],
+      "intent": "Batch archive web media into local-first resumable ingest jobs with capability gating and evidence logging.",
+      "risks": [
+        "Platform policy changes",
+        "Fragile parsing",
+        "Large storage",
+        "Partial downloads",
+        "Caption variability",
+        "Forum variance"
+      ],
+      "scope": [
+        "Unified Media Downloader surface",
+        "YouTube archive",
+        "Instagram archive",
+        "Forum/blog full-resolution image archive",
+        "Generic video URLs",
+        "Unified queue/progress",
+        "Configurable output root",
+        "Public/account modes",
+        "Caption sidecars",
+        "Resumable queue",
+        "Rate limiting",
+        "Deterministic naming and metadata",
+        "Optional Director transcode",
+        "Bronze/Raw asset materialization",
+        "Flight Recorder events",
+        "Capability gating"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Media-Downloader-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Media-Downloader-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Media-Downloader-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Completed archive promotes into dedup-stable LoomBlock with media Asset",
+        "Captions sidecars linked and preserved",
+        "Loom search finds caption text",
+        "Preview queued/generated",
+        "Operations are capability-gated and leak-safe"
+      ],
+      "base_wp_id": "WP-1-Media-Downloader-Loom-Bridge",
+      "board_registry_state": "stub backlog; high value; medium risk",
+      "ckc_handling": "source_material_for_ckc_media_intelligence_wp",
+      "dependencies": [
+        "WP-1-Media-Downloader",
+        "WP-1-Loom-MVP",
+        "WP-1-Artifact-System-Foundations"
+      ],
+      "intent": "Make Media Downloader outputs promotable into Loom as LoomBlocks.",
+      "risks": [
+        "Artifact versus asset duplication",
+        "Large-file non-streaming imports",
+        "Caption language and track variability"
+      ],
+      "scope": [
+        "Bridge downloader artifacts/materialized paths into workspace Assets and LoomBlocks",
+        "Dedup by content hash",
+        "Preserve captions and metadata sidecars",
+        "Enqueue previews",
+        "Ingest captions into searchable layer",
+        "Emit Flight Recorder events"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Media-Downloader-Loom-Bridge-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Coder and validator sessions can trigger and inspect screenshots",
+        "Screenshots stored with metadata",
+        "Capture works on Tauri and React",
+        "Usable from cloud and local model sessions"
+      ],
+      "base_wp_id": "WP-1-Product-Screenshot-Visual-Validation",
+      "board_registry_state": "superseded; folded into Kernel002",
+      "ckc_handling": "superseded_platform_requirement_inherit_via_kernel",
+      "dependencies": [],
+      "intent": "Build product-integrated screenshot capture for full app window, panels, and module-level views.",
+      "risks": [
+        "Panel granularity may need DOM capture",
+        "Headless/mock UI mismatch",
+        "File size and retention",
+        "Native versus DOM capture uncertainty"
+      ],
+      "scope": [
+        "Programmatic full-window capture",
+        "Panel capture",
+        "Module capture",
+        "Governed artifact storage",
+        "CLI/API trigger",
+        "Screenshot metadata",
+        "Tauri/webview/native integration"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Product-Screenshot-Visual-Validation-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Product-Screenshot-Visual-Validation-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Product-Screenshot-Visual-Validation-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "GUI WPs trigger captures",
+        "Diffs stored with WP and commit metadata",
+        "Validators receive visual evidence",
+        "Threshold breaches create STEER feedback"
+      ],
+      "base_wp_id": "WP-1-Visual-Debugging-Loop",
+      "board_registry_state": "superseded; folded into Kernel002",
+      "ckc_handling": "superseded_platform_requirement_inherit_via_kernel",
+      "dependencies": [
+        "WP-1-Product-Screenshot-Visual-Validation"
+      ],
+      "intent": "Implement generate-capture-compare-fix visual debugging loop for GUI work packets.",
+      "risks": [
+        "Pixel false positives",
+        "Headless rendering mismatch",
+        "Threshold tuning noise"
+      ],
+      "scope": [
+        "Post-commit screenshot trigger",
+        "Visual comparison against baseline",
+        "Visual diff artifact",
+        "Validator evidence routing",
+        "Threshold configuration",
+        "Tauri test mode"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Visual-Debugging-Loop-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "User can open Calendar Lens",
+        "User can see events for selected window",
+        "User can add at least one CalendarSource",
+        "User can filter by source",
+        "Events reload without drift"
+      ],
+      "base_wp_id": "WP-1-Calendar-Lens",
+      "board_registry_state": "stub backlog; v2 superseded",
+      "ckc_handling": "adjacent_lens_pattern_source_keep_separate",
+      "dependencies": [
+        "WP-1-Calendar-Storage"
+      ],
+      "intent": "Implement Calendar Lens as first-class UI and API workflow.",
+      "risks": [
+        "Timezone and DST",
+        "Event privacy and accidental indexing"
+      ],
+      "scope": [
+        "Calendar Lens UI",
+        "Day/week/month or staged baseline view",
+        "Source/date filters",
+        "Title search",
+        "CalendarSource/CalendarEvent query",
+        "Stable IDs",
+        "Provenance",
+        "Optional read-only timeline/Flight Recorder overlay"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Calendar-Lens-v3.md",
+        ".GOV/task_packets/stubs/WP-1-Calendar-Lens-v3.contract.json"
+      ],
+      "wp_id": "WP-1-Calendar-Lens-v3"
+    },
+    {
+      "acceptance_criteria": [
+        "One atomic materialize implementation",
+        "Stable manifests and hashes",
+        "Retention/GC never deletes pinned items and emits report"
+      ],
+      "base_wp_id": "WP-1-Artifact-System-Foundations",
+      "board_registry_state": "supporting dependency",
+      "ckc_handling": "foundational_dependency_keep_separate",
+      "dependencies": [
+        "Debug Bundle coordination",
+        "Workspace Bundle coordination"
+      ],
+      "intent": "Ensure artifact system foundations across exports and jobs.",
+      "risks": [
+        "Competing materialize implementations",
+        "Retention/GC data-loss bugs"
+      ],
+      "scope": [
+        "Artifact store bootstrap",
+        "Manifests",
+        "SHA-256",
+        "Single atomic Materialize API",
+        "Retention/pinning/GC",
+        "No random filesystem side effects"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Artifact-System-Foundations-v1"
+    },
+    {
+      "acceptance_criteria": [
+        "Versioned structured file family",
+        "Compact summaries for local small models",
+        "Profile extension separation",
+        "Migration guidance"
+      ],
+      "base_wp_id": "WP-1-Structured-Collaboration-Artifact-Family",
+      "board_registry_state": "supporting dependency",
+      "ckc_handling": "foundational_governance_substrate_keep_separate",
+      "dependencies": [
+        "WP-1-Locus-Phase1-Integration-Occupancy",
+        "WP-1-Role-Mailbox",
+        "WP-1-Micro-Task-Executor"
+      ],
+      "intent": "Define canonical structured collaboration artifacts for work packets, microtasks, task board projections, and role mailbox exports.",
+      "risks": [
+        "Overfitting to repository-centric work",
+        "Summary drift",
+        "Premature migration complexity"
+      ],
+      "scope": [
+        "packet.json",
+        "summary.json",
+        "index.json",
+        "thread.jsonl",
+        "Versioned schemas",
+        "Project-agnostic envelope",
+        "Profile extensions",
+        "Compact summaries",
+        "Markdown migration guidance"
+      ],
+      "source_paths": [
+        ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.md",
+        ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.contract.json"
+      ],
+      "wp_id": "WP-1-Structured-Collaboration-Artifact-Family-v1"
+    }
+  ],
+  "status": "READY_FOR_DEV",
+  "translation_conflicts": [
+    {
+      "ckc_assumption": "SQLite, FTS5, runtime DDL, SQL translator, db/codex.db fixtures",
+      "handshake_resolution": "PostgreSQL/EventLedger authority only. SQLite is not accepted in Handshake in any form, including runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths.",
+      "id": "storage"
+    },
+    {
+      "ckc_assumption": "Electron main/preload, BrowserWindow, IPC bridge",
+      "handshake_resolution": "Tauri/Rust command boundary and React projection",
+      "id": "app_shell"
+    },
+    {
+      "ckc_assumption": "Localhost CKC intake endpoint as runtime authority",
+      "handshake_resolution": "Typed Handshake endpoint or artifact proposal path with EventLedger lineage",
+      "id": "intake"
+    },
+    {
+      "ckc_assumption": "CKC/CastKit product names and paths",
+      "handshake_resolution": "Handshake/Atelier/Lens namespace and portable no-space artifact names",
+      "id": "namespace"
+    },
+    {
+      "ckc_assumption": "CKC outputs under CKC_GOV/targets",
+      "handshake_resolution": "Product runtime/artifact roots, not .GOV",
+      "id": "product_artifacts"
+    },
+    {
+      "ckc_assumption": "SQLite FTS5 implementation details",
+      "handshake_resolution": "Preserve behavior and use Handshake search/index architecture",
+      "id": "search"
+    },
+    {
+      "ckc_assumption": "Process-local sessions/leases",
+      "handshake_resolution": "Postgres/EventLedger-backed leases and receipts",
+      "id": "automation"
+    },
+    {
+      "ckc_assumption": "CKC feature-rich React/Electron views",
+      "handshake_resolution": "Later React projections after kernel contracts; no GUI parity in Kernel WP",
+      "id": "ui_scope"
+    }
+  ],
+  "updated_at_utc": "2026-05-16T03:39:00.000Z",
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1"
+}

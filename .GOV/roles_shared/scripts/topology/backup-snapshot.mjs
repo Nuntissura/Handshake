@@ -24,6 +24,11 @@ import {
 } from "./git-topology-lib.mjs";
 
 const OFFLINE_GIT_BACKUP_SETUP_REPO_PATH = ".GOV/roles_shared/docs/OFFLINE_GIT_BACKUP_SETUP.md";
+const EXCLUDED_CHECKOUT_SUFFIXES = new Set(["handshake_artifacts"]);
+const FALLBACK_EXCLUDED_CHECKOUT_PATHS = [
+  path.resolve(WORKSPACE_ROOT, "Handshake_Artifacts"),
+  path.resolve(WORKSPACE_ROOT, "handshake_artifacts"),
+];
 
 function usage() {
   console.error("Usage: node .GOV/roles_shared/scripts/topology/backup-snapshot.mjs [--label <name>] [--out-root <dir>] [--nas-root <dir>] [--require-nas]");
@@ -83,8 +88,16 @@ function writeReusableGuide(destRoot) {
 
 function isSnapshotExcludedCheckout(checkout) {
   const id = String(checkout?.id || "").trim().toLowerCase();
+  const absDir = String(checkout?.abs_dir || "").trim().toLowerCase();
+  const name = String(checkout?.id || "").trim().toLowerCase();
+  const normalizedDir = absDir.replace(/\\+/g, "/");
+  if (FALLBACK_EXCLUDED_CHECKOUT_PATHS.some((root) => String(root).toLowerCase().replace(/\\+/g, "/") === normalizedDir)) {
+    return true;
+  }
   // Transient containment rebuild checkouts are cleanup scratch space, not durable recovery surfaces.
-  return id === "wt-main-containment-rebuild" || id.startsWith("wt-main-containment-");
+  if (id === "wt-main-containment-rebuild" || id.startsWith("wt-main-containment-")) return true;
+  if (EXCLUDED_CHECKOUT_SUFFIXES.has(name)) return true;
+  return false;
 }
 
 function resolveProtectedBundleRefs() {

@@ -2,47 +2,50 @@
 /**
  * Deterministic Base WP -> Active Packet mapping updater.
  *
- * Updates `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md` without manual table editing.
+ * JSON-primary authority: writes
+ * `.GOV/roles_shared/records/wp_traceability_registry.json` then regenerates
+ * the operator-readable projection at
+ * `.GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`. The .md is a
+ * generated surface — do not hand-edit; this script is the single writer.
  *
- * Behavior:
+ * Active packet resolution:
  * - Prefers the resolved official Work Packet path if present
- *   (current physical storage: `.GOV/task_packets/<ACTIVE>.md` or `.GOV/task_packets/<ACTIVE>/packet.md`)
+ *   (current physical storage: `.GOV/task_packets/<ACTIVE>.md` or
+ *   `.GOV/task_packets/<ACTIVE>/packet.md`).
  * - Otherwise falls back to the resolved stub path
- *   (current physical storage: `.GOV/task_packets/stubs/<ACTIVE>.md`)
+ *   (current physical storage: `.GOV/task_packets/stubs/<ACTIVE>.md` or
+ *   `.GOV/task_packets/stubs/<ACTIVE>.contract.json` for the new .json-primary
+ *   stub policy).
  */
 
 import fs from "node:fs";
 import path from "node:path";
-import { repoPathAbs, resolveWorkPacketPath, GOV_ROOT_REPO_REL, WORK_PACKET_STORAGE_ROOT_REPO_REL, WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL } from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
-import { registerFailCaptureHook, failWithMemory } from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+import {
+  repoPathAbs,
+  resolveWorkPacketPath,
+  GOV_ROOT_REPO_REL,
+  WORK_PACKET_STORAGE_ROOT_REPO_REL,
+  WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL,
+} from "../../../roles_shared/scripts/lib/runtime-paths.mjs";
+import {
+  registerFailCaptureHook,
+  failWithMemory,
+} from "../../../roles_shared/scripts/lib/fail-capture-lib.mjs";
+import {
+  migrateRegistryFromMarkdownIfNeeded,
+  upsertEntry,
+  persistRegistry,
+} from "../../../roles_shared/scripts/lib/traceability-registry-lib.mjs";
 registerFailCaptureHook("wp-traceability-set.mjs", { role: "ORCHESTRATOR" });
 
-const REGISTRY_PATH = `${GOV_ROOT_REPO_REL}/roles_shared/records/WP_TRACEABILITY_REGISTRY.md`;
 const OFFICIAL_DIR = WORK_PACKET_STORAGE_ROOT_REPO_REL;
 const STUB_DIR = WORK_PACKET_STUB_STORAGE_ROOT_REPO_REL;
 
 function fail(message, details = []) {
-  failWithMemory("wp-traceability-set.mjs", message, { role: "ORCHESTRATOR", details });
-}
-
-function detectEol(text) {
-  return text.includes("\r\n") ? "\r\n" : "\n";
-}
-
-function readText(p) {
-  try {
-    return fs.readFileSync(p, "utf8");
-  } catch (e) {
-    fail(`Failed to read: ${p}`, [String(e?.message || e)]);
-  }
-}
-
-function writeText(p, text) {
-  try {
-    fs.writeFileSync(p, text, "utf8");
-  } catch (e) {
-    fail(`Failed to write: ${p}`, [String(e?.message || e)]);
-  }
+  failWithMemory("wp-traceability-set.mjs", message, {
+    role: "ORCHESTRATOR",
+    details,
+  });
 }
 
 function exists(p) {
@@ -56,21 +59,17 @@ function exists(p) {
 function resolvePacketPath(activeWpId) {
   const official = resolveWorkPacketPath(activeWpId)?.packetPath || "";
   if (official && exists(repoPathAbs(official))) return official;
-  const stub = path.join(STUB_DIR, `${activeWpId}.md`).replace(/\\/g, "/");
-  if (exists(repoPathAbs(stub))) return stub;
-  fail("Active packet file not found (official or stub)", [
+  const stubMd = path.join(STUB_DIR, `${activeWpId}.md`).replace(/\\/g, "/");
+  if (exists(repoPathAbs(stubMd))) return stubMd;
+  const stubJson = path
+    .join(STUB_DIR, `${activeWpId}.contract.json`)
+    .replace(/\\/g, "/");
+  if (exists(repoPathAbs(stubJson))) return stubJson;
+  fail("Active packet file not found (official, stub .md, or stub .contract.json)", [
     `tried=${official || path.join(OFFICIAL_DIR, `${activeWpId}.md`).replace(/\\/g, "/")}`,
-    `tried=${stub}`,
+    `tried=${stubMd}`,
+    `tried=${stubJson}`,
   ]);
-}
-
-function parsePipeRow(line) {
-  if (!line.trim().startsWith("|")) return null;
-  const parts = line
-    .split("|")
-    .slice(1, -1)
-    .map((p) => p.trim());
-  return parts;
 }
 
 function main() {
@@ -78,60 +77,41 @@ function main() {
   const activeWpId = (process.argv[3] || "").trim();
 
   if (!baseWpId || !baseWpId.startsWith("WP-")) {
-    fail(`Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/wp-traceability-set.mjs <BASE_WP_ID> <ACTIVE_PACKET_WP_ID>`, [
-      `Example: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/wp-traceability-set.mjs WP-1-Workflow-Engine WP-1-Workflow-Engine-v4`,
-    ]);
+    fail(
+      `Usage: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/wp-traceability-set.mjs <BASE_WP_ID> <ACTIVE_PACKET_WP_ID>`,
+      [
+        `Example: node ${GOV_ROOT_REPO_REL}/roles/orchestrator/scripts/wp-traceability-set.mjs WP-1-Workflow-Engine WP-1-Workflow-Engine-v4`,
+      ],
+    );
   }
   if (!activeWpId || !activeWpId.startsWith("WP-")) {
     fail("Active packet WP_ID must start with WP-", [`got=${activeWpId}`]);
   }
 
-  const registryAbsPath = repoPathAbs(REGISTRY_PATH);
-  if (!exists(registryAbsPath)) fail("Missing registry", [`Expected: ${REGISTRY_PATH}`]);
-
   const activePath = resolvePacketPath(activeWpId);
 
-  const raw = readText(registryAbsPath);
-  const eol = detectEol(raw);
-  const lines = raw.split(/\r?\n/);
-
-  const headerIdx = lines.findIndex((l) => l.trim() === "| Base WP ID | Active Packet | Task Board | Notes |");
-  if (headerIdx === -1) {
-    fail("Registry header row not found (format changed?)", [
-      "Expected a table header: | Base WP ID | Active Packet | Task Board | Notes |",
+  // Migrate-if-needed is idempotent: returns the loaded registry if .json
+  // already exists. On first run after MD-ELIM-PHASE-2 lands, this parses the
+  // legacy .md once and writes the .json + projection.
+  let registry;
+  try {
+    registry = migrateRegistryFromMarkdownIfNeeded();
+  } catch (e) {
+    fail("Failed to load or migrate traceability registry", [
+      String(e?.message || e),
     ]);
   }
 
-  // Find the last contiguous table row after the header.
-  let tableEndIdx = headerIdx + 1;
-  while (tableEndIdx < lines.length) {
-    const line = lines[tableEndIdx] || "";
-    if (!line.trim().startsWith("|")) break;
-    tableEndIdx += 1;
+  upsertEntry(registry, {
+    base_wp_id: baseWpId,
+    active_packet_path: activePath,
+  });
+
+  try {
+    persistRegistry(registry);
+  } catch (e) {
+    fail("Failed to persist traceability registry", [String(e?.message || e)]);
   }
-
-  let updated = false;
-  for (let i = headerIdx + 2; i < tableEndIdx; i += 1) {
-    const parts = parsePipeRow(lines[i] || "");
-    if (!parts || parts.length < 2) continue;
-    if (parts[0] !== baseWpId) continue;
-
-    // Preserve Task Board + Notes columns.
-    const taskBoard = parts[2] || "TBD";
-    const notes = parts.slice(3).join(" | ") || "";
-    lines[i] = `| ${baseWpId} | ${activePath} | ${taskBoard} | ${notes} |`;
-    updated = true;
-    break;
-  }
-
-  if (!updated) {
-    // Append a new row at the end of the table.
-    const row = `| ${baseWpId} | ${activePath} | TBD | |`;
-    lines.splice(tableEndIdx, 0, row);
-  }
-
-  const out = lines.join(eol);
-  writeText(registryAbsPath, out.endsWith(eol) ? out : out + eol);
 
   console.log("wp-traceability-set ok");
   console.log(`- base_wp_id: ${baseWpId}`);

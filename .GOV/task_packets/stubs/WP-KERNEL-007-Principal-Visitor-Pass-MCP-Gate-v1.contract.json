@@ -1,0 +1,102 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1",
+  "base_wp_id": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate",
+  "created_at_utc": "2026-05-17T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.md",
+    "status": "PENDING_GENERATION",
+    "projection_sha256": "PENDING_GENERATION",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "2026-04-06",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-KERNEL-006-Principal-Authority-Foundation"
+    ],
+    "blocks": [
+      "WP-KERNEL-008-Principal-Profile-CRM-Layer"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "Kernel reset brief Week 6 Principal Authority + Profile Layer; Phase B — Visitor Pass + MCP Gate (external agent visitor pass with TTL + narrow caps, MCP per-tool-call scrutiny, operator admin surface for Principal management).",
+    "roadmap_add_coverage": "Kernel V1 external-agent authority: per-MCP-server Principal allocation on connect with fingerprinted server manifest, default-deny capability ceiling, per-tool-call same-turn approval default for MCP Principals, visible audit badges in the operator surface trace for every MCP action, short-lived visitor-pass Principals for non-Handshake-spawned external agents, and an operator admin surface for create/list/scope/revoke."
+  },
+  "session_policy": {
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "session_host_preference": "HANDSHAKE_ACP_BROKER",
+    "session_launch_policy": "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": "Coder-A..Coder-Z"
+  },
+  "draft_scope": {
+    "intent": "- What: Make non-Handshake-spawned principals (visitor agents, MCP clients) first-class but heavily scrutinized — distinct from the operator-owned Principals KERNEL-006 introduced, governed by the same primitive but with default-deny ceilings, visible audit badges, and per-tool-call approval defaults.\n- Why: MCP and external CLIs are the most likely vector for unintended authority escalation. The operator wants MCP at the highest scrutiny tier, while still being able to use it productively. Visitor-pass mechanics let external CLIs connect without forging operator identity.\n- Product goal: Handshake (Product) gains a per-MCP-server Principal allocated on connect, a fingerprinted server manifest, a default-deny scope, per-tool-call same-turn approval defaults that the operator can lower per-server, and a visible audit badge in every operator-surface trace row for MCP-initiated actions.\n- Operator goal: The operator can grant a narrow visitor-pass to an external Codex/Claude CLI for a single project without exposing other projects, and can see at a glance which trace rows came from an MCP client vs operator vs spawned agent.\n- No-context goal: Stub-level only; refinement before activation is required to lock the MCP fingerprinting algorithm, the visitor-pass TTL contract, the per-tool-call approval default escalation policy, and the badge UX.",
+    "scope_sketch": "- IN_SCOPE:\n  - Per-MCP-server Principal: allocated on `mcp/connect`, fingerprinted by sha256 of the server's tool manifest; a swapped server (fingerprint mismatch) triggers re-consent.\n  - Default-deny capability scope for new MCP Principals; operator must explicitly grant per-tool capabilities before the MCP client can call them.\n  - Per-tool-call same-turn approval default for `McpClient` Principals, reusing the existing `requires_same_turn_approval` + `approval_preview` machinery from KERNEL-001/002.\n  - Visitor-pass Principal: short-lived `ExternalAgent` Principal with TTL, narrow capability ceiling, no spawn rights, no carry-over across sessions.\n  - Operator admin surface (CLI or DCC panel): list Principals, view scope, narrow scope, revoke, see audit summary.\n  - Audit badge mechanic: every trace row carries a Principal-kind badge; MCP/Visitor actions are visually distinct in the operator surface.\n  - Reuse ToolGate for all per-tool decisions; do not invent a parallel approval system.\n  - Tests: MCP fingerprint swap triggers re-consent; visitor-pass TTL expiry denies further actions; per-tool approval requirement enforced; revoke takes effect immediately; cross-Principal scope isolation holds under concurrent MCP and operator activity.\n- OUT_OF_SCOPE:\n  - Profile / persona switching, preference tracking, CRM (KERNEL-008 owns these).\n  - Handshake-spawned agent inheritance (KERNEL-006 already owns this).\n  - Multi-Handshake federation across instances.\n  - Provider-specific automation of external chat UIs (rejected by reset brief §6.11).\n  - Operator-facing billing or quota; budget tracking lives in the future managed-cloud lane, not this stub.\n- KEY_OPEN_QUESTIONS (deferred to refinement):\n  - Q1: MCP server manifest fingerprint — sha256 of the canonical-serialized tool list, or include sampling/prompt/resource manifests too?\n  - Q2: Visitor-pass TTL default — minutes, hours, session-lifetime, or operator-chosen at issue time?\n  - Q3: Per-tool same-turn approval ceiling: which MCP tool classes can the operator pre-approve in bulk (`read-only` vs `mutating`), and how is the classification authored?\n  - Q4: Where does the operator admin surface live in Week 6 — DCC panel extension, separate CLI subcommand, or both?\n  - Q5: How does badge rendering survive trace projection across restart / replay (is the Principal kind a denormalized field on the trace row, or always re-resolved)?\n  - Q6: Revoke semantics — does revoke kill in-flight MCP tool calls or only deny future ones?",
+    "acceptance_criteria": "- AC-001: Stub-level only — full AC list deferred to refinement.\n- ACTIVATION-AC-001: Refinement locks the MCP fingerprint algorithm and re-consent trigger.\n- ACTIVATION-AC-002: Refinement specifies the visitor-pass TTL contract (default, ceiling, operator override).\n- ACTIVATION-AC-003: Refinement specifies the per-tool-call approval default policy with a worked example for at least one read-only tool and one mutating tool.\n- ACTIVATION-AC-004: Refinement specifies the audit badge UX contract (visible in DCC, included in trace projections, denormalization vs resolution decision recorded).\n- ACTIVATION-AC-005: Refinement records explicit answers (or scoped deferrals) to KEY_OPEN_QUESTIONS Q1–Q6.\n- ACTIVATION-AC-006: KERNEL-006 must be activated and validated before this stub can be promoted to a signed packet (build-order dependency is hard).",
+    "risks_unknowns": "- Risk: Default per-tool-call approval becomes operator-hostile (too many prompts). Mitigation: refinement must define a per-server bulk-approval ceiling for read-only tools with explicit operator control; mutating tools always confirm.\n- Risk: MCP fingerprint drift triggers re-consent constantly under normal manifest tweaks. Mitigation: fingerprint canonical-serialized tool surface only, not transient fields; include version anchor; document allowed drift.\n- Risk: Visitor-pass TTL leaks if external agent caches credentials. Mitigation: TTL is enforced server-side at every Principal scope check, not client-side.\n- Risk: Audit badge UX overload — every trace row carrying a badge becomes visual noise. Mitigation: badge only when Principal kind ≠ Operator (default Operator hidden), MCP+Visitor surface clearly.\n- Risk: ToolGate becomes a bottleneck for high-throughput MCP servers. Mitigation: cache per-(Principal, tool_id) approval decisions within session bounds; cache invalidates on scope change or revoke.\n- Risk: Revoke leaves orphan in-flight tool calls. Mitigation: refinement must specify abort vs let-finish semantics with operator visibility.\n- Risk: Adult-production workflows using MCP for prompt/asset tooling get blocked by overly strict defaults. Mitigation: operator can lower scrutiny per-server explicitly; default-deny is the floor not the ceiling; document the per-server tuning path.\n- Risk: External-agent chain attacks — Visitor-pass A spawns Visitor-pass B with wider scope. Mitigation: ExternalAgent Principals cannot spawn child Principals (no spawn capability granted by default); only HandshakeSpawnedAgent inheritance from KERNEL-006 is allowed.",
+    "governance_artifact_stance": "- Machine-readable governance contracts are primary.\n- Markdown is a synchronized projection and planning surface for operator/model inspection.\n- This stub must produce a `.contract.json` projection before it is treated as registered governance inventory.\n- This stub is not executable until it becomes an official signed packet with refinement, packet contract, microtask contracts, and activation approval.\n- KERNEL-006 must be activated, implemented, and Integration Validator-verified before this stub is activated."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "verify_kernel006_activated_and_validated",
+      "create_or_refresh_refinement",
+      "answer_or_defer_key_open_questions",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "MCP scrutiny defaults are operator-tunable but never below the default-deny floor.",
+      "Visitor-pass Principals cannot spawn children or escalate scope.",
+      "Audit badges are denormalized on trace rows for replay survival.",
+      "MCP fingerprint swap triggers re-consent and is not bypassable by client-side caching."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration.",
+      "Refinement must surface per-server bulk-approval semantics for read-only tools, revoke abort vs let-finish semantics, and TTL enforcement points."
+    ]
+  }
+}

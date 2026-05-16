@@ -1,0 +1,110 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1",
+  "base_wp_id": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics",
+  "created_at_utc": "2026-05-16T05:05:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "6f7f7f1c032c6803f485f6a0b0688fd372e2c8f633e9d180a796ba26f5cdbf79",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "2026-04-06",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "ATELIER_LENS",
+    "tech_blocker": "NO",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1",
+      "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1",
+      "WP-1-Studio-Runtime-Visibility-v1",
+      "WP-1-Dev-Command-Center-MVP-v1",
+      "WP-1-Locus-Work-Tracking-System-Phase1-v1"
+    ],
+    "blocks": [
+      "NONE"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Plan the model-facing workflow, manual, diagnostics, command catalog, DCC/Locus/Flight Recorder visibility, and no-focus automation requirements for Atelier/Lens + CKC fold-in.\n- Why: CKC proved that the product needs no-context model operation, command/manual consistency, sessions/leases, command logs, visual capture, renderer state, and quiet automation. Handshake already has stronger primitives; this stub translates CKC's model operation layer into Handshake's mechanical separation of LLM and execution.\n- No-code stance: This stub creates only future work scope and microtasks. It does not implement diagnostics, DCC UI, command handlers, browser automation, screenshots, tests, or product code.\n- Mechanical separation: LLMs are not the executor. They operate through governed prompts, AI Jobs, Workflow Engine nodes, MCP/tool policies, MicroTask/Locus state, and product commands. Runtime execution is performed by Handshake and mechanical engines, with Flight Recorder/DCC evidence.",
+    "scope_sketch": "- IN_SCOPE:\n  - No-context model manual requirements.\n  - Command/action catalog requirements for core data/intake and pose/ComfyUI surfaces.\n  - Model operation state: sessions, leases, heartbeats, command logs, receipts.\n  - Locus/MT/DCC/Flight Recorder projection requirements.\n  - Visual/debug evidence requirements.\n  - Non-focus-stealing automation rules.\n  - Structured state and diagnostic bundle requirements.\n  - Local LLM / AI tagging command visibility, job state, error taxonomy, and proposal/apply evidence.\n  - Release/build/package/install/reset evidence requirements where they affect no-context model operation and verification.\n  - Visual-debugging details: baseline versus previous screenshot, STEER feedback, pixel versus structural comparison, capture retention, native/webview/DOM capture uncertainty, and Windows 11 reliability notes.\n  - Evidence maturity for CKC operational rows: DONE, REVIEW, BLOCKED, PLANNED, and stale README/spec pointers.\n  - Validation matrix for manual/command consistency and model-safe operation.\n  - Limited future workbench projection contract: tabs/windows/state surfaces as data model/projection requirements only, not GUI design.\n- OUT_OF_SCOPE:\n  - Full GUI shell or dockable window implementation.\n  - Product command implementation.\n  - Full browser automation stack.\n  - Direct CKC automation API copy.\n  - Direct LLM execution of filesystem/runtime operations.\n  - SQLite.",
+    "acceptance_criteria": "- A no-context model can understand what Atelier/Lens/CKC surfaces do, what commands exist, what inputs/outputs are expected, what is safe, what failed, and how to recover.\n- Every owned CKC EVOL row `EVOL-019`, `EVOL-020`, `EVOL-021`, and `EVOL-025` is represented with source evidence, preserved behavior, runtime adaptation, and guardrails.\n- Every source stub in `FOLDED_SOURCE_STUBS_FULL_PAYLOAD` has preserved original intent, scope, acceptance need, lifecycle/dependency notes, and risk/handling notes.\n- Every owned overlap row has an owner boundary and required handling.\n- Every model action is observable, attributable, recoverable, and tied to Flight Recorder/EventLedger/Locus/DCC where relevant.\n- Manual and command catalog cannot drift silently.\n- Visual diagnostics can prove important UI/projection states without stealing focus.\n- Structured back-end paths are preferred over screen reading.\n- Workbench/window/tab requirements are recorded as state/projection contracts, not UI design implementation.\n- The model manual/action catalog contract is concrete enough for implementation planning: command IDs, parameter schemas, preconditions, capabilities, side effects, receipt schemas, errors, evidence refs, manual refs, DCC/Locus/FR refs, and recovery steps are required.\n- Session/lease/heartbeat logging is concrete enough for parallel model safety: stale lease release, timeouts, command start/finish/fail receipts, cancellation, attribution, and state snapshots are required.\n- Visual-debug preservation includes baseline-or-previous screenshot comparison, visual diff artifacts, threshold configuration, STEER feedback, retention policy, pixel/structural comparison choice, DOM/html2canvas/native capture uncertainty, and Windows 11 reliability risk.\n- Local LLM/AI tagging behavior is represented as governed AI Job/Workflow Engine/tool-policy work with proposal/apply evidence, not process-local hidden calls.\n- Build/release/install diagnostics preserve CKC lessons: clean-repo packaging guard, external/staged artifacts, relative packaged asset guard, dev versus release artifact separation, build id/version/tag metadata, installer/reset/orphan adoption evidence, and README/spec drift detection.\n- CKC operational taskboard statuses remain meaningful: REVIEW rows need evidence review, BLOCKED rows remain unresolved, PLANNED rows remain deferred, and DONE rows seed parity fixtures.\n- SQLite is rejected in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.\n- Electron authority, CKC namespace authority, localhost intake authority, `.GOV` product outputs, machine-local runtime paths, and direct LLM execution are explicitly rejected.",
+    "risks_unknowns": "- Risk: Model operation becomes hidden UI automation. Mitigation: structured state projection and command catalog first.\n- Risk: LLM bypasses execution boundary. Mitigation: tool policy, AI Job/Workflow Engine, and FR/DCC evidence are acceptance criteria.\n- Risk: GUI design consumes scope. Mitigation: workbench is projection/state contract only.\n- Risk: manual drifts from commands. Mitigation: manual/command consistency gate.\n- Risk: visual validation loses the actual loop and becomes generic screenshot advice. Mitigation: activation must preserve baseline/previous comparison, visual diff artifacts, threshold config, STEER feedback, pixel/structural choice, retention, and capture API uncertainty.\n- Risk: local LLM and AI tagging become hidden side effects. Mitigation: represent them as governed AI Job/Workflow Engine actions with status, errors, receipts, and proposal/apply evidence.\n- Risk: release/build/package lessons are dropped as \"not product feature\". Mitigation: build/release/install diagnostics are explicit model-operation acceptance rows and link back to Core data-root/reset/orphan behavior.\n- Risk: stale CKC README/spec pointer causes no-context models to read v00.063 instead of v00.075. Mitigation: activation must include stale-doc/spec-drift detection and updated manual pointers.\n- Risk: SQLite returns through diagnostics fixtures. Mitigation: validation matrix forbids it everywhere.",
+    "governance_artifact_stance": ""
+  },
+  "draft_microtasks": {
+    "source": "STUB_MARKDOWN_HANDOFF",
+    "suite_path": ".GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1/MT_SUITE.md",
+    "count": 66,
+    "official_microtasks_generated": false,
+    "activation_destination_pattern": ".GOV/task_packets/<WP_ID>/MT-*.{md,json}",
+    "activation_required_before_official_generation": true,
+    "activation_rule": "convert_draft_suite_after_refinement_user_signature_and_official_packet_creation"
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "convert_draft_microtask_suite_to_official_microtask_contracts",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

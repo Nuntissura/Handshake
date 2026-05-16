@@ -1,0 +1,124 @@
+{
+  "file_id": "mt-001-012-execution-status",
+  "file_kind": "microtask_execution_status_overlay",
+  "updated_at": "2026-05-16",
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1",
+  "status": "complete",
+  "completed_at_utc": "2026-05-16T04:45:00.000Z",
+  "microtasks": [
+    {
+      "mt_id": "MT-001",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "Package/runtime dependencies inventoried from CKC source evidence."
+    },
+    {
+      "mt_id": "MT-002",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "Backend service files inventoried from CKC source evidence."
+    },
+    {
+      "mt_id": "MT-003",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "UI views and reusable behavior inventoried from CKC source evidence."
+    },
+    {
+      "mt_id": "MT-004",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "PoseKit files inventoried from CKC source evidence."
+    },
+    {
+      "mt_id": "MT-005",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "ComfyUI bridge files inventoried from CKC source evidence."
+    },
+    {
+      "mt_id": "MT-006",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "CKC tests inventoried by behavior area."
+    },
+    {
+      "mt_id": "MT-007",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-007-008-ckc-spec-taskboard-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "CKC spec headings and requirement sections inventoried."
+    },
+    {
+      "mt_id": "MT-008",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-007-008-ckc-spec-taskboard-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "CKC taskboard statuses and delivery signals inventoried."
+    },
+    {
+      "mt_id": "MT-009",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-009-012-handshake-anchor-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "Existing Handshake Atelier/Lens stubs inventoried."
+    },
+    {
+      "mt_id": "MT-010",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-009-012-handshake-anchor-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "Adjacent Photo/Studio/media/Loom/ASR/artifact stubs inventoried."
+    },
+    {
+      "mt_id": "MT-011",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-009-012-handshake-anchor-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "Prior packets and supersession risks inventoried."
+    },
+    {
+      "mt_id": "MT-012",
+      "status": "COMPLETE",
+      "evidence_artifacts": [
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-009-012-handshake-anchor-inventory.json",
+        ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-012-inventory-synthesis.json"
+      ],
+      "completion_note": "Current Handshake product code anchor candidates inventoried from governance evidence; product worktree verification remains required."
+    }
+  ],
+  "guardrails": [
+    "No CKC rebuild stubs were created.",
+    "CKC remains source evidence only.",
+    "Product code anchors require product-worktree verification before implementation.",
+    "SQLite is forbidden in Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths."
+  ]
+}

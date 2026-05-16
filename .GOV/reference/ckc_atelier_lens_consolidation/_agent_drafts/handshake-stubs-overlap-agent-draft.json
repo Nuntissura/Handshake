@@ -1,0 +1,421 @@
+{
+  "file_id": "handshake-stubs-overlap-agent-draft",
+  "file_kind": "ckc_atelier_lens_overlap_agent_draft",
+  "updated_at": "2026-05-16",
+  "status": "draft_reference_only",
+  "source_artifacts": [
+    ".GOV/reference/ckc_atelier_lens_consolidation/handshake-stub-preservation-map.md",
+    ".GOV/reference/ckc_atelier_lens_consolidation/handshake-stub-preservation-map.json",
+    ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-requirements-register.md",
+    ".GOV/reference/ckc_atelier_lens_consolidation/greenroom-translation-matrix.md",
+    ".GOV/reference/ckc_atelier_lens_consolidation/consolidated-runway.md",
+    ".GOV/task_packets/stubs/WP-1-Atelier-Lens-Consolidation-v1.md"
+  ],
+  "sqlite_policy": {
+    "status": "forbidden",
+    "rule": "SQLite is forbidden in every Handshake context: runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temp harnesses, imports, exports, and product paths.",
+    "allowed_use": "None inside Handshake. CKC SQLite/FTS5/runtime-DDL material may be cited only as external source evidence that must be translated to Handshake-native architecture."
+  },
+  "source_stubs": [
+    {
+      "wp_id": "WP-1-Atelier-Lens-Consolidation-v1",
+      "classification": "baseline",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Atelier-Lens-Consolidation-v1.md"],
+      "intent": "Preservation-first consolidation gate before CKC rebuild stubs.",
+      "scope": ["No-loss source register", "Atelier/Lens versus CKC overlap matrix", "CKC evolved-feature register", "Conflict matrix", "No-SQLite acceptance gates"],
+      "dependencies": ["WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening", "WP-KERNEL-003-Sandbox-Validation-Promotion", "WP-1-Artifact-System-Foundations", "WP-1-Structured-Collaboration-Artifact-Family"],
+      "technical_requirements": ["Defer CKC rebuild stubs", "Preserve PostgreSQL/EventLedger/ArtifactStore boundaries", "Reject SQLite everywhere"],
+      "unresolved_gaps": ["Official WP activation still required"]
+    },
+    {
+      "wp_id": "WP-1-Atelier-Lens-v2",
+      "classification": "folded",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md", ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.contract.json"],
+      "intent": "Additive remediation for failed or gapped Atelier/Lens work.",
+      "scope": ["Role claiming", "SceneState", "ConflictSet"],
+      "dependencies": [],
+      "technical_requirements": ["Re-derive acceptance from Markdown source", "Fold into Atelier/Lens runtime contract"],
+      "unresolved_gaps": ["Sparse machine contract"]
+    },
+    {
+      "wp_id": "WP-1-Photo-Studio-v2",
+      "classification": "folded",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md", ".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.contract.json"],
+      "intent": "Additive remediation for failed or gapped Photo Studio work.",
+      "scope": ["Skeleton surface", "Thumbnails", "Recipes"],
+      "dependencies": [],
+      "technical_requirements": ["Boundary against Loom poster frames and CKC media viewer thumbnails"],
+      "unresolved_gaps": ["Sparse machine contract"]
+    },
+    {
+      "wp_id": "WP-1-Atelier-Collaboration-Panel-v1",
+      "classification": "baseline",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.md", ".GOV/task_packets/stubs/WP-1-Atelier-Collaboration-Panel-v1.contract.json"],
+      "intent": "Validated selection-scoped Atelier collaboration panel.",
+      "scope": ["Role suggestions", "Multi-suggestion review", "Range-bounded patching", "Provenance logging", "Out-of-selection rejection"],
+      "dependencies": [],
+      "technical_requirements": ["Reuse bounded patch law", "Do not reopen completed packet"],
+      "unresolved_gaps": ["None for CKC preservation; implementation authority remains active/validated packet"]
+    },
+    {
+      "wp_id": "WP-1-Lens-Extraction-Tier-v1",
+      "classification": "folded",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Lens-Extraction-Tier-v1.md", ".GOV/task_packets/stubs/WP-1-Lens-Extraction-Tier-v1.contract.json"],
+      "intent": "Make LensExtractionTier first-class.",
+      "scope": ["Tier0", "Tier1 default", "Tier2", "Requested/effective trace", "Invalid-tier validation"],
+      "dependencies": [],
+      "technical_requirements": ["Keep separate from content tier and ViewMode"],
+      "unresolved_gaps": ["Need CKC projection/query integration"]
+    },
+    {
+      "wp_id": "WP-1-Lens-ViewMode-v1",
+      "classification": "baseline",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.md", ".GOV/task_packets/stubs/WP-1-Lens-ViewMode-v1.contract.json"],
+      "intent": "Validated ViewMode UI and enforcement law.",
+      "scope": ["NSFW default", "SFW toggle", "SFW hard-drop projection", "Immutable raw artifacts", "Trace-visible filter"],
+      "dependencies": [],
+      "technical_requirements": ["Projection-only; never mutate raw or derived artifacts"],
+      "unresolved_gaps": ["Apply to CKC media and search projections"]
+    },
+    {
+      "wp_id": "WP-1-Studio-Runtime-Visibility-v1",
+      "classification": "partially folded",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.md", ".GOV/task_packets/stubs/WP-1-Studio-Runtime-Visibility-v1.contract.json"],
+      "intent": "Make Studio and Design Studio explicit runtime citizens.",
+      "scope": ["Studio jobs", "Workflow nodes", "Tool surfaces", "DCC projection", "Flight Recorder linkage", "Locus/WP linkage", "PostgreSQL-only state"],
+      "dependencies": ["WP-1-Photo-Studio", "WP-1-Atelier-Lens", "WP-1-Dev-Command-Center-MVP", "WP-1-Locus-Work-Tracking-System-Phase1"],
+      "technical_requirements": ["Runtime mappings", "No hidden side effects", "No SQLite reintroduction"],
+      "unresolved_gaps": ["DCC/projection responsibility boundary"]
+    },
+    {
+      "wp_id": "WP-1-Stage-Media-Artifact-Portability-v1",
+      "classification": "separate dependency",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.md", ".GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.contract.json"],
+      "intent": "Unify Stage capture/import and Media Downloader outputs under portable artifact contracts.",
+      "scope": ["Portable manifests", "Bundle indexes", "Retention semantics", "Storage portability", "Materialization anchors"],
+      "dependencies": ["WP-1-Handshake-Stage-MVP", "WP-1-Media-Downloader", "WP-1-Artifact-System-Foundations", "WP-1-Storage-Trait-Purity"],
+      "technical_requirements": ["Define foundation before bridge/archive UI work"],
+      "unresolved_gaps": ["Blocked high-risk foundation"]
+    },
+    {
+      "wp_id": "WP-1-Stage-ASR-Transcript-Lineage-v1",
+      "classification": "later CKC input",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.md", ".GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.contract.json"],
+      "intent": "Define lineage from source media to ASR transcript to searchable consumer.",
+      "scope": ["Source hash", "Media probe facts", "Session provenance", "Timing anchors", "Searchable transcript linkage"],
+      "dependencies": ["WP-1-Handshake-Stage-MVP", "WP-1-ASR-Transcribe-Media", "WP-1-Media-Downloader", "WP-1-Artifact-System-Foundations"],
+      "technical_requirements": ["Preserve transcript-source linkage across storage swaps"],
+      "unresolved_gaps": ["Later media intelligence scope"]
+    },
+    {
+      "wp_id": "WP-1-ASR-Transcribe-Media-v1",
+      "classification": "later CKC input",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.md", ".GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.contract.json"],
+      "intent": "Local-first ASR transcription for audio/video media.",
+      "scope": ["asr_transcribe job", "ffmpeg extraction", "Transcript JSON/text", "Timing metadata", "Capability gating", "Flight Recorder events"],
+      "dependencies": ["WP-1-Workflow-Engine", "WP-1-MEX-v1.2-Runtime", "WP-1-Artifact-System-Foundations"],
+      "technical_requirements": ["No cloud transcription by default", "Cancellable/resumable where feasible"],
+      "unresolved_gaps": ["Long-video performance and indexing cost"]
+    },
+    {
+      "wp_id": "WP-1-Video-Archive-Loom-Integration-v1",
+      "classification": "partially folded",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.md", ".GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.contract.json"],
+      "intent": "Turn archived/imported video into Loom library objects with searchable transcripts and sidecars.",
+      "scope": ["LoomBlock wrappers", "Captions/transcripts", "ASR fallback", "Tags/mentions", "Thumbnail/proxy views", "Transcript/caption Lens retrieval"],
+      "dependencies": ["WP-1-Media-Downloader", "WP-1-Loom-MVP", "WP-1-Media-Downloader-Loom-Bridge", "WP-1-Loom-Preview-VideoPosterFrames", "WP-1-ASR-Transcribe-Media"],
+      "technical_requirements": ["Large-library progress/resume", "Dedup and timing-linked transcript search"],
+      "unresolved_gaps": ["Caption versus ASR duplication policy"]
+    },
+    {
+      "wp_id": "WP-1-Loom-MVP-v1",
+      "classification": "baseline",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Loom-MVP-v1.md", ".GOV/task_packets/stubs/WP-1-Loom-MVP-v1.contract.json"],
+      "intent": "Validated Loom MVP local-first library baseline.",
+      "scope": ["LoomBlocks", "LoomEdges", "UUID identity", "Mentions/tags", "Backlinks", "File import", "SHA-256 dedup", "Previews", "Search"],
+      "dependencies": [],
+      "technical_requirements": ["Extend, do not replace Loom identity semantics"],
+      "unresolved_gaps": ["Preview responsiveness risk in downstream work"]
+    },
+    {
+      "wp_id": "WP-1-Loom-Storage-Portability-v4",
+      "classification": "operator-decision-needed",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v4.md", ".GOV/task_packets/stubs/WP-1-Loom-Storage-Portability-v4.contract.json", ".GOV/task_packets/WP-1-Loom-Storage-Portability-v4/packet.md", ".GOV/task_packets/WP-1-Loom-Storage-Portability-v4/packet.json"],
+      "intent": "Narrow Loom portability remediation/proof pass.",
+      "scope": ["Current-spec proof", "Graph traversal", "Directional edges", "Metrics recomputation", "Source-anchor durability"],
+      "dependencies": ["WP-1-Loom-MVP", "WP-1-Storage-Abstraction-Layer", "WP-1-Artifact-System-Foundations"],
+      "technical_requirements": ["PostgreSQL-only checks", "Avoid speculative churn"],
+      "unresolved_gaps": ["Task-board and registry state appear mixed"]
+    },
+    {
+      "wp_id": "WP-1-Loom-Preview-VideoPosterFrames-v1",
+      "classification": "partially folded",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Loom-Preview-VideoPosterFrames-v1.md", ".GOV/task_packets/stubs/WP-1-Loom-Preview-VideoPosterFrames-v1.contract.json"],
+      "intent": "Generate deterministic poster-frame thumbnails as background jobs.",
+      "scope": ["Representative frame extraction", "ThumbnailSpec resize", "Derived preview asset", "LoomBlock link", "ffmpeg/ffprobe gate"],
+      "dependencies": ["WP-1-Loom-MVP", "WP-1-MEX-v1.2-Runtime"],
+      "technical_requirements": ["Non-blocking", "Resumable", "Idempotent", "Clear error codes"],
+      "unresolved_gaps": ["Shared preview service boundary"]
+    },
+    {
+      "wp_id": "WP-1-Media-Downloader-v1",
+      "classification": "historical source",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Media-Downloader-v1.md", ".GOV/task_packets/stubs/WP-1-Media-Downloader-v1.contract.json"],
+      "intent": "Batch archive web media into local-first resumable ingest jobs.",
+      "scope": ["YouTube", "Instagram", "Forum/blog images", "Generic video URLs", "Queue/progress", "Output roots", "Caption sidecars", "Deterministic naming", "Bronze/Raw materialization"],
+      "dependencies": [],
+      "technical_requirements": ["Preserve detailed modes; use active v2 as implementation authority"],
+      "unresolved_gaps": ["Superseded by v2"]
+    },
+    {
+      "wp_id": "WP-1-Media-Downloader-v2",
+      "classification": "separate dependency",
+      "source_paths": [".GOV/task_packets/WP-1-Media-Downloader-v2.md", ".GOV/task_packets/WP-1-Media-Downloader-v2/packet.md", ".GOV/task_packets/WP-1-Media-Downloader-v2/packet.json"],
+      "intent": "Active validated downloader dependency for archive outputs.",
+      "scope": ["Downloader queue/progress", "Captions", "Capability gating", "Evidence logging", "Completed outputs for bridge/archive"],
+      "dependencies": [],
+      "technical_requirements": ["Use active packet path rather than superseded v1 stub"],
+      "unresolved_gaps": ["Need compare against v1 source-mode details before CKC archive scope"]
+    },
+    {
+      "wp_id": "WP-1-Media-Downloader-Loom-Bridge-v1",
+      "classification": "later CKC input",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.md", ".GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.contract.json"],
+      "intent": "Promote Media Downloader outputs into Loom.",
+      "scope": ["Workspace assets", "LoomBlocks", "Content-hash dedup", "Caption/metadata sidecars", "Preview enqueue", "Searchable captions"],
+      "dependencies": ["WP-1-Media-Downloader", "WP-1-Loom-MVP", "WP-1-Artifact-System-Foundations"],
+      "technical_requirements": ["Consume artifact foundation before archive UI consolidation"],
+      "unresolved_gaps": ["Asset versus artifact duplication boundary"]
+    },
+    {
+      "wp_id": "WP-1-Product-Screenshot-Visual-Validation-v1",
+      "classification": "baseline",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Product-Screenshot-Visual-Validation-v1.md", ".GOV/task_packets/stubs/WP-1-Product-Screenshot-Visual-Validation-v1.contract.json"],
+      "intent": "Product-integrated screenshot capture for validation.",
+      "scope": ["Full-window capture", "Panel capture", "Module capture", "Governed artifacts", "CLI/API trigger", "Metadata"],
+      "dependencies": [],
+      "technical_requirements": ["Inherit through Kernel visual evidence"],
+      "unresolved_gaps": ["Do not reimplement unless Kernel coverage is missing"]
+    },
+    {
+      "wp_id": "WP-1-Visual-Debugging-Loop-v1",
+      "classification": "baseline",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.md", ".GOV/task_packets/stubs/WP-1-Visual-Debugging-Loop-v1.contract.json"],
+      "intent": "Generate-capture-compare-fix visual debugging loop.",
+      "scope": ["Screenshot trigger", "Baseline comparison", "Visual diffs", "Validator routing", "Thresholds", "Tauri test mode"],
+      "dependencies": ["WP-1-Product-Screenshot-Visual-Validation"],
+      "technical_requirements": ["GUI CKC microtasks must attach visual evidence"],
+      "unresolved_gaps": ["Threshold noise and headless mismatch remain validation concerns"]
+    },
+    {
+      "wp_id": "WP-1-Artifact-System-Foundations-v1",
+      "classification": "separate dependency",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.md", ".GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.contract.json", ".GOV/task_packets/WP-1-Artifact-System-Foundations-v1/packet.md", ".GOV/task_packets/WP-1-Artifact-System-Foundations-v1/packet.json"],
+      "intent": "Artifact system foundation across exports and jobs.",
+      "scope": ["Artifact store bootstrap", "Manifests", "SHA-256", "Atomic Materialize API", "Retention", "Pinning", "GC"],
+      "dependencies": ["Debug Bundle coordination", "Workspace Bundle coordination"],
+      "technical_requirements": ["Single materialize path", "No random filesystem side effects"],
+      "unresolved_gaps": ["Retention/GC data-loss tests needed downstream"]
+    },
+    {
+      "wp_id": "WP-1-Structured-Collaboration-Artifact-Family-v1",
+      "classification": "separate dependency",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.md", ".GOV/task_packets/stubs/WP-1-Structured-Collaboration-Artifact-Family-v1.contract.json", ".GOV/task_packets/WP-1-Structured-Collaboration-Artifact-Family-v1/packet.md", ".GOV/task_packets/WP-1-Structured-Collaboration-Artifact-Family-v1/packet.json"],
+      "intent": "Canonical structured collaboration artifacts.",
+      "scope": ["packet.json", "summary.json", "index.json", "thread.jsonl", "Versioned schemas", "Compact summaries", "Migration guidance"],
+      "dependencies": ["WP-1-Locus-Phase1-Integration-Occupancy", "WP-1-Role-Mailbox", "WP-1-Micro-Task-Executor"],
+      "technical_requirements": ["No-context model usable structured governance substrate"],
+      "unresolved_gaps": ["Avoid overfitting to repository-centric work"]
+    },
+    {
+      "wp_id": "WP-1-Calendar-Lens-v3",
+      "classification": "later CKC input",
+      "source_paths": [".GOV/task_packets/stubs/WP-1-Calendar-Lens-v3.md", ".GOV/task_packets/stubs/WP-1-Calendar-Lens-v3.contract.json"],
+      "intent": "Adjacent Lens UI/API workflow pattern source.",
+      "scope": ["Source/date filters", "Title search", "Stable IDs", "Provenance", "Timeline/Flight Recorder overlay"],
+      "dependencies": ["WP-1-Calendar-Storage"],
+      "technical_requirements": ["Keep calendar implementation separate from CKC media/Atelier scope"],
+      "unresolved_gaps": ["Only query/view model ideas are reusable"]
+    }
+  ],
+  "overlap_rows": [
+    {
+      "cluster_id": "media_viewer_dam",
+      "fold_decision": "partially folded",
+      "source_wp_ids": ["WP-1-Photo-Studio-v2", "WP-1-Loom-Preview-VideoPosterFrames-v1", "WP-1-Media-Downloader-v2", "WP-1-Stage-Media-Artifact-Portability-v1", "WP-1-Artifact-System-Foundations-v1"],
+      "preserved_requirements": ["Image-first browsing", "Galleries", "Fullscreen/slideshow", "Metadata", "Missing-media diagnostics", "Ratings/favorites/tags", "Provenance", "Archive/deleted visibility", "Sidecar hiding"],
+      "unresolved_gaps": ["Shared ownership between Photo Studio, Loom, artifact store, and CKC viewer", "Shared thumbnail/preview service decision"]
+    },
+    {
+      "cluster_id": "character_sheets_templates",
+      "fold_decision": "folded",
+      "source_wp_ids": ["WP-1-Atelier-Lens-v2", "WP-1-Structured-Collaboration-Artifact-Family-v1"],
+      "preserved_requirements": ["Character profile plus sheet", "Byte-preserved user text", "Explicit/adult fields", "Public/internal ID split", "Append-only versions", "Templates", "Cloning", "Merge preview", "Selective apply"],
+      "unresolved_gaps": ["Handshake-native schema and append-only version model"]
+    },
+    {
+      "cluster_id": "intake_inbox",
+      "fold_decision": "partially folded",
+      "source_wp_ids": ["WP-1-Media-Downloader-v2", "WP-1-Media-Downloader-v1", "WP-1-Stage-Media-Artifact-Portability-v1"],
+      "preserved_requirements": ["Persistent batches", "Accept/reject/pending", "Linked/loose mode", "Character/sheet/collection linkage", "Source preservation", "No silent deletes"],
+      "unresolved_gaps": ["Reject localhost authority", "Define typed endpoint or artifact proposal path"]
+    },
+    {
+      "cluster_id": "collections_contact_sheets",
+      "fold_decision": "folded",
+      "source_wp_ids": ["WP-1-Loom-MVP-v1", "WP-1-Photo-Studio-v2", "WP-1-Artifact-System-Foundations-v1"],
+      "preserved_requirements": ["Curated sets", "Notes/tags", "Optional sheet-version links", "Slideshow", "Export", "Contact-sheet manifest", "Source IDs/hashes", "Layout metadata"],
+      "unresolved_gaps": ["Manifest authority and export boundary"]
+    },
+    {
+      "cluster_id": "sidecars_versioning_recovery",
+      "fold_decision": "folded",
+      "source_wp_ids": ["WP-1-Stage-Media-Artifact-Portability-v1", "WP-1-Loom-Storage-Portability-v4", "WP-1-Lens-ViewMode-v1", "WP-1-Artifact-System-Foundations-v1"],
+      "preserved_requirements": ["OpenPose sidecars", "Append-only versions", "Reverts as new versions", "Archive/restore", "Orphan manifests", "Event logs", "Entity revisions", "Idempotency checks"],
+      "unresolved_gaps": ["Artifact-row/ref model and recovery manifest shape"]
+    },
+    {
+      "cluster_id": "posekit_openpose_identity",
+      "fold_decision": "later CKC input",
+      "source_wp_ids": ["WP-1-Photo-Studio-v2", "WP-1-Stage-Media-Artifact-Portability-v1"],
+      "preserved_requirements": ["Body/face/hand arrays", "Zero-filled absent hands", "Yaw/pitch/roll", "Identity profiles", "Deterministic crops", "Landmarks", "Measurements", "Calibration-debt markers"],
+      "unresolved_gaps": ["Full calibration UI is deferred unless operator promotes it"]
+    },
+    {
+      "cluster_id": "comfyui_lineage",
+      "fold_decision": "partially folded",
+      "source_wp_ids": ["WP-1-Photo-Studio-v2", "WP-1-Stage-Media-Artifact-Portability-v1", "WP-1-Artifact-System-Foundations-v1"],
+      "preserved_requirements": ["Workflow/run receipts", "History", "Prompt extraction", "Replay", "Stats", "Registered outputs", "Workflow/Pose replay paths", "Identity reference payload intent"],
+      "unresolved_gaps": ["Reject localhost intake", "Define typed receipt and artifact proposal contract"]
+    },
+    {
+      "cluster_id": "automation_manual_debug",
+      "fold_decision": "folded",
+      "source_wp_ids": ["WP-1-Studio-Runtime-Visibility-v1", "WP-1-Structured-Collaboration-Artifact-Family-v1", "WP-1-Product-Screenshot-Visual-Validation-v1", "WP-1-Visual-Debugging-Loop-v1"],
+      "preserved_requirements": ["Typed command map", "Model manual", "Sessions", "Leases", "Heartbeats", "Command log", "Captures", "No-focus/no-OS-input invariants", "Command/manual consistency tests"],
+      "unresolved_gaps": ["Translate process-local sessions to PostgreSQL/EventLedger leases and receipts"]
+    },
+    {
+      "cluster_id": "search_tags_similarity",
+      "fold_decision": "folded",
+      "source_wp_ids": ["WP-1-Lens-Extraction-Tier-v1", "WP-1-Lens-ViewMode-v1", "WP-1-Loom-MVP-v1", "WP-1-ASR-Transcribe-Media-v1", "WP-1-Calendar-Lens-v3"],
+      "preserved_requirements": ["Global search", "Grouped results", "Snippets", "Jump targets", "Tag manager", "Backlinks", "AI suggestions", "Palettes", "Duplicates", "Perceptual similarity"],
+      "unresolved_gaps": ["Reject SQLite FTS5; map to Handshake search/index architecture"]
+    },
+    {
+      "cluster_id": "exports_backups_share_packs",
+      "fold_decision": "folded",
+      "source_wp_ids": ["WP-1-Artifact-System-Foundations-v1", "WP-1-Media-Downloader-v1", "WP-1-Structured-Collaboration-Artifact-Family-v1"],
+      "preserved_requirements": ["Empty templates", "LLM packs", "Filled sheets", "Image sets", "Moodboards", "Collections", "Share packs", "Backups", "Web portfolios", "Contact sheets", "Presets", "Provenance", "No-space names"],
+      "unresolved_gaps": ["Export/backup manifest checksums, retention, and recovery evidence"]
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "CONFLICT-SQLITE-ABSOLUTE",
+      "summary": "CKC SQLite/FTS5/runtime-DDL cannot enter Handshake.",
+      "affected_clusters": ["search_tags_similarity", "sidecars_versioning_recovery", "automation_manual_debug"],
+      "mitigation": "Translate behavior to PostgreSQL/EventLedger/search-index architecture; add no-SQLite tripwire acceptance."
+    },
+    {
+      "id": "CONFLICT-ELECTRON-SHELL",
+      "summary": "CKC Electron IPC/BrowserWindow shell is not Handshake runtime authority.",
+      "affected_clusters": ["media_viewer_dam", "automation_manual_debug"],
+      "mitigation": "Use Rust/Tauri command boundary and React projections after contracts stabilize."
+    },
+    {
+      "id": "CONFLICT-LOCALHOST-INTAKE",
+      "summary": "CKC localhost intake endpoint cannot become product authority.",
+      "affected_clusters": ["intake_inbox", "comfyui_lineage"],
+      "mitigation": "Use typed Handshake endpoint or artifact proposal path with EventLedger lineage."
+    },
+    {
+      "id": "CONFLICT-SPARSE-STUBS",
+      "summary": "Atelier-Lens-v2 and Photo-Studio-v2 have sparse contracts but important Markdown intent.",
+      "affected_wp_ids": ["WP-1-Atelier-Lens-v2", "WP-1-Photo-Studio-v2"],
+      "mitigation": "Keep explicit source rows and derive fresh acceptance during refinement."
+    },
+    {
+      "id": "CONFLICT-VALIDATED-STUBS",
+      "summary": "Validated/superseded stubs remain in stubs and can be misread as executable backlog.",
+      "affected_wp_ids": ["WP-1-Atelier-Collaboration-Panel-v1", "WP-1-Lens-ViewMode-v1", "WP-1-Loom-MVP-v1", "WP-1-Product-Screenshot-Visual-Validation-v1", "WP-1-Visual-Debugging-Loop-v1"],
+      "mitigation": "Classify as baseline or inherited validation requirement; CKC only adds deltas."
+    },
+    {
+      "id": "CONFLICT-THUMBNAIL-OWNERSHIP",
+      "summary": "Photo Studio thumbnails, Loom poster frames, and CKC media viewer previews overlap.",
+      "affected_wp_ids": ["WP-1-Photo-Studio-v2", "WP-1-Loom-Preview-VideoPosterFrames-v1"],
+      "mitigation": "Define shared preview service or explicit ownership boundary before runtime work."
+    },
+    {
+      "id": "CONFLICT-PRODUCT-PATHS",
+      "summary": "CKC product outputs under governance or machine-local paths would violate Handshake split and portability.",
+      "affected_clusters": ["exports_backups_share_packs", "media_viewer_dam"],
+      "mitigation": "Use artifact-root-relative or operator-configured product paths; never .GOV product outputs."
+    }
+  ],
+  "acceptance_gate_rows": [
+    {
+      "id": "GATE-SOURCE-COVERAGE",
+      "requirement": "One source-backed row exists for every listed source stub and active dependency.",
+      "evidence": "source_stubs array includes all WP IDs from the consolidation stub/source map plus active Media Downloader v2."
+    },
+    {
+      "id": "GATE-OVERLAP-COVERAGE",
+      "requirement": "One overlap row exists for every CKC capability cluster named by the operator.",
+      "evidence": "overlap_rows includes ten cluster IDs."
+    },
+    {
+      "id": "GATE-CLASSIFICATION",
+      "requirement": "Every source is classified using the allowed vocabulary.",
+      "allowed_values": ["baseline", "folded", "partially folded", "separate dependency", "historical source", "later CKC input", "operator-decision-needed"]
+    },
+    {
+      "id": "GATE-NO-LOSS",
+      "requirement": "No source intent is silently deleted, renamed away, or compressed into vague scope.",
+      "evidence": "Each source row has intent, scope, dependencies, technical_requirements, and unresolved_gaps."
+    },
+    {
+      "id": "GATE-NO-SQLITE",
+      "requirement": "SQLite is rejected in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temp harnesses, imports, exports, and product paths.",
+      "evidence": "sqlite_policy plus CONFLICT-SQLITE-ABSOLUTE."
+    },
+    {
+      "id": "GATE-ARCHITECTURE-TRANSLATION",
+      "requirement": "CKC runtime assumptions are translated into Handshake-native Rust/Tauri/PostgreSQL/EventLedger/artifact-store contracts.",
+      "evidence": "conflict mitigations for SQLite, Electron, localhost intake, and product paths."
+    },
+    {
+      "id": "GATE-VISUAL-EVIDENCE",
+      "requirement": "GUI-bearing future CKC/Atelier work inherits Kernel visual screenshot/diff evidence.",
+      "evidence": "Product Screenshot and Visual Debugging source rows classified as baselines."
+    },
+    {
+      "id": "GATE-REBUILD-DEFERRED",
+      "requirement": "CKC rebuild stubs remain deferred until consolidation, greenroom review, CKC research basis, and conflict classification are complete.",
+      "evidence": "Atelier-Lens-Consolidation source row and microtask candidates preserve the gate."
+    }
+  ],
+  "microtask_candidates": [
+    {"id": "OVERLAP-MT-001", "title": "Verify all source paths and active packet paths."},
+    {"id": "OVERLAP-MT-002", "title": "Reconcile WP-1-Loom-Storage-Portability-v4 task-board versus registry state."},
+    {"id": "OVERLAP-MT-003", "title": "Build source-hash inventory for listed stubs and active dependencies."},
+    {"id": "OVERLAP-MT-004", "title": "Derive explicit acceptance for sparse WP-1-Atelier-Lens-v2 Markdown intent."},
+    {"id": "OVERLAP-MT-005", "title": "Derive explicit acceptance for sparse WP-1-Photo-Studio-v2 Markdown intent."},
+    {"id": "OVERLAP-MT-006", "title": "Draft media/DAM ownership boundary across Photo Studio, Loom, Stage/media, and CKC viewer."},
+    {"id": "OVERLAP-MT-007", "title": "Draft character/sheet/template schema preservation register."},
+    {"id": "OVERLAP-MT-008", "title": "Draft intake/inbox state machine and reject localhost intake authority."},
+    {"id": "OVERLAP-MT-009", "title": "Draft collections/contact-sheet manifest contract."},
+    {"id": "OVERLAP-MT-010", "title": "Draft sidecar/versioning/recovery artifact-row/ref contract."},
+    {"id": "OVERLAP-MT-011", "title": "Draft PoseKit/OpenPose deferred-input boundary."},
+    {"id": "OVERLAP-MT-012", "title": "Draft ComfyUI receipt and run-lineage contract without localhost runtime dependency."},
+    {"id": "OVERLAP-MT-013", "title": "Draft automation/manual/debug command catalog and lease/receipt model."},
+    {"id": "OVERLAP-MT-014", "title": "Draft search/tags/similarity behavior map without SQLite/FTS5."},
+    {"id": "OVERLAP-MT-015", "title": "Draft export/backup/share-pack manifest and checksum contract."},
+    {"id": "OVERLAP-MT-016", "title": "Create no-SQLite tripwire acceptance rows for future packets."},
+    {"id": "OVERLAP-MT-017", "title": "Create no-silent-rewrite/no-silent-delete acceptance rows."},
+    {"id": "OVERLAP-MT-018", "title": "Create visual evidence inheritance row for GUI work."},
+    {"id": "OVERLAP-MT-019", "title": "Create artifact-root/product-path hygiene row."},
+    {"id": "OVERLAP-MT-020", "title": "Prepare future CKC rebuild-stub gate checklist."}
+  ]
+}

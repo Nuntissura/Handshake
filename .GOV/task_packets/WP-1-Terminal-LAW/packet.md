@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Terminal-LAW/packet.json source_hash=1360d597f5afb52e projection_hash=a870c584fb6f8371 generated_at_utc=2026-05-06T16:33:39.607Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Terminal-LAW/packet.json source_hash=2a3d44cc2d27ff9c projection_hash=a870c584fb6f8371 generated_at_utc=2026-05-14T21:13:39.874Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Terminal-LAW
 
 ## Metadata

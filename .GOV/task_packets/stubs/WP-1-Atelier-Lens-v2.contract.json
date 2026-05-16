@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "c950e245ab9ee1e4b098e7c714802e22350a0733caac84cfd2b2c3d7119c9f26",
+    "projection_sha256": "4f90256cd95b615f934207f190ec6c56653c4c65c477667e8464a9c6e63f2ba0",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

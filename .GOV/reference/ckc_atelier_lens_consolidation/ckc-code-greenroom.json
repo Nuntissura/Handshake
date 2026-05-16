@@ -1,0 +1,512 @@
+{
+  "schema": "handshake.reference.ckc_code_greenroom@1",
+  "updated_at": "2026-05-16T00:00:00Z",
+  "source_root": "D:/Projects/LLM projects/CastKit-Codex/CKC_main",
+  "target_context": "Handshake Kernel V1 native rebuild",
+  "source_files": [
+    {
+      "path": "package.json",
+      "kind": "package_manifest",
+      "relevance": "Electron/Vite/React app with sqlite3, pg, Three.js, MediaPipe, node test runner, and Electron packaging.",
+      "decision": "adapt"
+    },
+    {
+      "path": "app/main.js",
+      "kind": "electron_main",
+      "relevance": "Large IPC command surface, BrowserWindow lifecycle, dialogs, capture, custom protocol, backend dispatch.",
+      "decision": "reject-for-runtime"
+    },
+    {
+      "path": "app/preload.js",
+      "kind": "electron_preload",
+      "relevance": "Exposes window.ckc command bridge and automation IPC to renderer.",
+      "decision": "reject-for-runtime"
+    },
+    {
+      "path": "app/backend/db.js",
+      "kind": "storage_adapter",
+      "relevance": "SQLite default, Postgres adapter, SQL translator, runtime DDL, FTS5 triggers, domain table map; SQLite is source evidence only and is not accepted in Handshake.",
+      "decision": "adapt"
+    },
+    {
+      "path": "app/backend/library.js",
+      "kind": "domain_service",
+      "relevance": "Central CKC domain service for characters, sheets, images, docs, pose, ingestion, exports, diagnostics.",
+      "decision": "preserve"
+    },
+    {
+      "path": "app/backend/sheet.js",
+      "kind": "parser",
+      "relevance": "Canonical sheet field parser, field update applier, extraction from pasted text, canonical sheet generation.",
+      "decision": "preserve"
+    },
+    {
+      "path": "app/backend/templateParser.js",
+      "kind": "parser",
+      "relevance": "Template version/header parser, field descriptor type inference, block schema parsing, dash normalization.",
+      "decision": "preserve"
+    },
+    {
+      "path": "app/backend/validation.js",
+      "kind": "validation",
+      "relevance": "Typed field validation for enum, integer, number, score_10, descriptor, block, block_list, change classification.",
+      "decision": "preserve"
+    },
+    {
+      "path": "app/backend/workflowSpecRegistry.js",
+      "kind": "registry",
+      "relevance": "Versioned workflow spec discovery, sorting, latest lookup, parse error reporting.",
+      "decision": "adapt"
+    },
+    {
+      "path": "app/backend/imageSourcingAdapter.js",
+      "kind": "ingestion_adapter",
+      "relevance": "Image-sourcing version dispatch, v00.19 handler routing, dry-run/copy/dedup behavior.",
+      "decision": "adapt"
+    },
+    {
+      "path": "app/backend/imageSourcingHandlers/v00_19.js",
+      "kind": "ingestion_handler",
+      "relevance": "Pinned image-sourcing workflow handler for accepted/pending/rejected task artifacts.",
+      "decision": "adapt"
+    },
+    {
+      "path": "app/backend/intakeServer.js",
+      "kind": "local_server",
+      "relevance": "Localhost intake endpoint with bearer token and ComfyUI bundle dispatch.",
+      "decision": "reject-for-runtime"
+    },
+    {
+      "path": "app/backend/comfyuiClient.js",
+      "kind": "integration_client",
+      "relevance": "ComfyUI prompt post, history polling, image fetch, system stats.",
+      "decision": "adapt"
+    },
+    {
+      "path": "app/backend/automationManual.js",
+      "kind": "model_manual",
+      "relevance": "Built-in model manual with command references, feature groups, testing requirements, and gaps.",
+      "decision": "preserve"
+    },
+    {
+      "path": "app/backend/automationCommandMap.js",
+      "kind": "automation_registry",
+      "relevance": "Canonical LLM-callable command map and command classification.",
+      "decision": "preserve"
+    },
+    {
+      "path": "app/backend/automationControl.js",
+      "kind": "automation_control",
+      "relevance": "In-memory sessions, heartbeats, leases, and command log.",
+      "decision": "adapt"
+    },
+    {
+      "path": "app/backend/automationStealth.js",
+      "kind": "automation_safety",
+      "relevance": "Background mode guard and no attention-stealing behavior.",
+      "decision": "preserve"
+    },
+    {
+      "path": "app/backend/backup.js",
+      "kind": "backup_restore",
+      "relevance": "Snapshot manifests, checksums, version compatibility, safe recursive restore constraints.",
+      "decision": "adapt"
+    },
+    {
+      "path": "src/posekit/core.mjs",
+      "kind": "pose_core",
+      "relevance": "Body/face/hand mappings, fallback rig, head-pose math, OpenPose JSON/render contract.",
+      "decision": "preserve"
+    },
+    {
+      "path": "src/posekit/poseDetectionClient.ts",
+      "kind": "pose_frontend_client",
+      "relevance": "Worker client, model asset URLs, deterministic fallback on worker/image failures.",
+      "decision": "adapt"
+    },
+    {
+      "path": "src/posekit/poseDetection.worker.ts",
+      "kind": "pose_worker",
+      "relevance": "MediaPipe task creation, CPU delegate, pose/face/hand detection, fallback rig on error.",
+      "decision": "adapt"
+    },
+    {
+      "path": "src/ui/App.tsx",
+      "kind": "react_root",
+      "relevance": "Route/view state, automation dispatcher, command palette, drawer navigation, renderer state.",
+      "decision": "adapt"
+    },
+    {
+      "path": "src/ui/views/CharacterView.tsx",
+      "kind": "frontend_view",
+      "relevance": "Character sheet, docs, media, relations, exports, reset/adoption, and image operations.",
+      "decision": "adapt"
+    },
+    {
+      "path": "src/ui/views/PoseView.tsx",
+      "kind": "frontend_view",
+      "relevance": "Pose/rig UI surface tied to PoseKit and image assets.",
+      "decision": "adapt"
+    },
+    {
+      "path": "src/ui/views/WorkflowView.tsx",
+      "kind": "frontend_view",
+      "relevance": "Workflow/ComfyUI-oriented UI surface.",
+      "decision": "adapt"
+    },
+    {
+      "path": "src/ui/components/MoodboardCanvas.tsx",
+      "kind": "frontend_component",
+      "relevance": "Rich canvas with tools, layers, shapes, snapping, zoom, pan, inspector, and serialization.",
+      "decision": "adapt"
+    },
+    {
+      "path": "comfyui_node/castkit_codex_bridge.py",
+      "kind": "comfyui_custom_node",
+      "relevance": "ComfyUI bridge node that saves generated images and posts payloads to CKC intake.",
+      "decision": "adapt"
+    },
+    {
+      "path": "test/",
+      "kind": "test_suite",
+      "relevance": "Broad node tests for domain semantics, migrations, automation, PoseKit, ComfyUI, ingestion, exports, backups, and legacy fixtures; SQLite-backed tests/fixtures must not be copied into Handshake.",
+      "decision": "preserve"
+    }
+  ],
+  "capability_clusters": [
+    {
+      "id": "character_atelier",
+      "name": "Character atelier domain",
+      "source_files": ["app/backend/library.js", "app/backend/db.js", "src/ui/views/CharacterView.tsx", "test/backend_character_templates.test.js", "test/backend_relations.test.js"],
+      "preserve": ["Character profiles", "stable public IDs", "template-bound fields", "manual and derived tags", "protected fields", "relations", "bulk edits", "soft delete"],
+      "adapt_to_handshake": ["Rust domain models", "Postgres migrations", "EventLedger mutation events", "Tauri command facade"],
+      "reject_for_runtime": ["Electron IPC as authority", "libraryRoot folder as source of truth"]
+    },
+    {
+      "id": "sheet_template_validation",
+      "name": "Sheets, templates, and validation",
+      "source_files": ["app/backend/sheet.js", "app/backend/templateParser.js", "app/backend/validation.js", "test/backend_sheet.test.js", "test/template_parser_unions.test.js", "test/validation_field_types.test.js"],
+      "preserve": ["field ID grammar", "multi-line value spans", "canonical sheet export", "block schema parsing", "score_10 normalization", "descriptor bounds", "change classification"],
+      "adapt_to_handshake": ["Rust parser crate", "fixture parity tests", "typed validation errors"],
+      "reject_for_runtime": ["text file sheet copy as primary authority"]
+    },
+    {
+      "id": "media_provenance",
+      "name": "Media library and provenance",
+      "source_files": ["app/backend/library.js", "app/backend/dhash.js", "app/backend/palette.js", "test/backend_image_meta_batch.test.js", "test/backend_similarity_search.test.js", "test/backend_identity_decoupling.test.js"],
+      "preserve": ["content hashes", "source URL/path/note", "review status", "tags", "palette", "dhash", "annotations", "identity-decoupled filenames"],
+      "adapt_to_handshake": ["attachment service", "Postgres media rows", "artifact refs", "projection rebuild jobs"],
+      "reject_for_runtime": ["filesystem paths as authority", "Electron nativeImage thumbnails"]
+    },
+    {
+      "id": "posekit",
+      "name": "PoseKit, rigs, and identity profiles",
+      "source_files": ["src/posekit/core.mjs", "src/posekit/poseDetectionClient.ts", "src/posekit/poseDetection.worker.ts", "test/posekit_core.test.js", "test/hand_openpose_export.test.js", "test/identity_profile_crud.test.js"],
+      "preserve": ["body-18", "face-70", "hand-21", "OpenPose JSON", "yaw bins", "YXZ head pose", "fallback rig", "identity profile lineage"],
+      "adapt_to_handshake": ["Rust stored contracts", "frontend/WASM detection worker", "EventLedger rig and export events"],
+      "reject_for_runtime": ["untyped JSON blobs as the only contract"]
+    },
+    {
+      "id": "comfyui_ingestion",
+      "name": "ComfyUI and image-sourcing ingestion",
+      "source_files": ["comfyui_node/castkit_codex_bridge.py", "app/backend/intakeServer.js", "app/backend/comfyuiClient.js", "app/backend/imageSourcingAdapter.js", "test/comfyui_node_contract.test.js", "test/ingestion_idempotency.test.js"],
+      "preserve": ["bridge payload", "workflow metadata", "non-fatal bridge failure", "workflow spec registry", "ingestion batches", "rejections", "script capture"],
+      "adapt_to_handshake": ["typed integration endpoint", "artifact proposal", "lineage events", "Tauri/API intake"],
+      "reject_for_runtime": ["localhost intake endpoint as authority"]
+    },
+    {
+      "id": "docs_moodboard_search",
+      "name": "Docs, moodboards, links, and search",
+      "source_files": ["app/backend/library.js", "src/ui/components/MoodboardCanvas.tsx", "test/backend_docs.test.js", "test/backend_story_board.test.js", "test/backend_global_search.test.js"],
+      "preserve": ["notes", "stories", "moodboards", "corkboard", "link index", "backlinks", "saved searches"],
+      "adapt_to_handshake": ["PostgreSQL document tables", "derived search projections", "visual canvas contracts"],
+      "reject_for_runtime": ["SQLite/FTS5 virtual tables, triggers, runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths"]
+    },
+    {
+      "id": "exports_backups",
+      "name": "Exports, share packs, and backups",
+      "source_files": ["app/backend/backup.js", "app/templates/web-portfolio/", "test/backend_export_hub.test.js", "test/backend_backup_restore.test.js", "test/backup_version_traceability.test.js"],
+      "preserve": ["field packs", "safe subsets", "share packs", "image sets", "web portfolio", "backup manifest", "SHA256SUMS", "restore version guard"],
+      "adapt_to_handshake": ["artifact jobs", "EventLedger export lineage", "object/file artifact refs"],
+      "reject_for_runtime": ["ad hoc export folders as authority"]
+    },
+    {
+      "id": "automation_model_ops",
+      "name": "Automation and model-facing operation",
+      "source_files": ["app/backend/automationManual.js", "app/backend/automationCommandMap.js", "app/backend/automationControl.js", "app/backend/automationStealth.js", "test/automation_manual_consistency.test.js", "test/automation_background_stealth_invariants.test.js", "test/automation_input_injection_invariants.test.js"],
+      "preserve": ["model manual", "command map", "sessions", "leases", "command log", "capture", "no OS-level input", "background stealth"],
+      "adapt_to_handshake": ["AtelierActionCatalogV1", "Postgres-backed leases", "EventLedger command receipts", "Tauri capture APIs"],
+      "reject_for_runtime": ["process-local session authority"]
+    }
+  ],
+  "migration_decisions": [
+    {
+      "id": "md-001",
+      "subject": "CKC domain model",
+      "decision": "preserve",
+      "reason": "Character, media, pose, docs, exports, and automation concepts map directly to the desired Atelier capability in Handshake."
+    },
+    {
+      "id": "md-002",
+      "subject": "Electron IPC and BrowserWindow shell",
+      "decision": "reject-for-runtime",
+      "reason": "Handshake native stack should use Tauri/Rust commands and product-owned runtime state, not Electron main/preload authority."
+    },
+    {
+      "id": "md-003",
+      "subject": "SQLite default storage",
+      "decision": "reject-for-runtime",
+      "reason": "Handshake rejects SQLite in every form, including runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths."
+    },
+    {
+      "id": "md-004",
+      "subject": "CKC Postgres provider",
+      "decision": "adapt",
+      "reason": "It proves Postgres intent and some schema parity work, but the SQL translation layer should be replaced with native Postgres migrations and typed repositories."
+    },
+    {
+      "id": "md-005",
+      "subject": "Runtime DDL and ensureColumn upgrades",
+      "decision": "reject-for-runtime",
+      "reason": "Handshake needs explicit migrations, no startup schema drift, and validation against the Postgres authority model."
+    },
+    {
+      "id": "md-006",
+      "subject": "Parser and validation code",
+      "decision": "preserve",
+      "reason": "These encode durable CKC product semantics and have a strong fixture/test base."
+    },
+    {
+      "id": "md-007",
+      "subject": "PoseKit core math and OpenPose contract",
+      "decision": "preserve",
+      "reason": "The mappings and fallback rig are implementation-independent domain contracts."
+    },
+    {
+      "id": "md-008",
+      "subject": "ComfyUI custom node",
+      "decision": "adapt",
+      "reason": "The payload and non-fatal behavior are reusable, but the target intake should write typed events and artifacts."
+    },
+    {
+      "id": "md-009",
+      "subject": "Automation manual and command map",
+      "decision": "preserve",
+      "reason": "They are close to Handshake's model-facing operation requirement and should seed the native command catalog."
+    },
+    {
+      "id": "md-010",
+      "subject": "In-memory automation control plane",
+      "decision": "adapt",
+      "reason": "Session/lease/log concepts are useful, but the authority must move to durable Postgres/EventLedger records."
+    },
+    {
+      "id": "md-011",
+      "subject": "Filesystem library layout",
+      "decision": "adapt",
+      "reason": "Content-addressed file artifacts and exports are useful, but DB/events must own authority and files must be attachments."
+    },
+    {
+      "id": "md-012",
+      "subject": "Test suite",
+      "decision": "preserve",
+      "reason": "The CKC tests are the best migration oracle for domain parity and regression coverage."
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "conflict-001",
+      "area": "storage_authority",
+      "ckc_detail": "SQLite db at libraryRoot/db/codex.db is default, with Postgres selected by environment/config.",
+      "handshake_kernel_v1_conflict": "Handshake must use PostgreSQL/EventLedger only and must reject SQLite in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.",
+      "mitigation": "Port domain schema to native PostgreSQL migrations and add no-SQLite tripwires."
+    },
+    {
+      "id": "conflict-002",
+      "area": "schema_management",
+      "ckc_detail": "initSchema and ensureSchemaUpgrades perform runtime DDL and additive columns.",
+      "handshake_kernel_v1_conflict": "Runtime-local authority and startup DDL can create drift and unreviewed schema changes.",
+      "mitigation": "Use checked migrations, migration tests, and fail-closed startup validation."
+    },
+    {
+      "id": "conflict-003",
+      "area": "postgres_provider",
+      "ckc_detail": "translatePostgresSql rewrites SQLite-shaped SQL into Postgres syntax.",
+      "handshake_kernel_v1_conflict": "Native Handshake code should not hide storage semantics behind an SQL compatibility shim.",
+      "mitigation": "Write native Postgres repositories and keep provider parity only where explicit product portability is required."
+    },
+    {
+      "id": "conflict-004",
+      "area": "desktop_shell",
+      "ckc_detail": "Electron BrowserWindow, ipcMain, contextBridge, dialogs, nativeImage, and sendInputEvent drive runtime behavior.",
+      "handshake_kernel_v1_conflict": "Handshake native stack is Rust/Tauri with typed commands and non-Electron frontend bridges.",
+      "mitigation": "Map command names and payloads to Tauri command structs; replace Electron capture/dialog/input APIs."
+    },
+    {
+      "id": "conflict-005",
+      "area": "automation_authority",
+      "ckc_detail": "Automation sessions, leases, and command logs are process-local in AutomationControlPlane.",
+      "handshake_kernel_v1_conflict": "Kernel coordination requires durable claim/lease state and replayable events.",
+      "mitigation": "Implement Postgres-backed session/lease tables and EventLedger command receipts."
+    },
+    {
+      "id": "conflict-006",
+      "area": "file_authority",
+      "ckc_detail": "Sheets, image files, scripts, profile bundles, backups, and exports live under libraryRoot.",
+      "handshake_kernel_v1_conflict": "Kernel state must be recoverable from durable rows/events, with files as artifacts not authority.",
+      "mitigation": "Use attachment/artifact services with content hashes and EventLedger lineage."
+    },
+    {
+      "id": "conflict-007",
+      "area": "search",
+      "ckc_detail": "SQLite FTS5 virtual tables and triggers are created for character/doc/image search.",
+      "handshake_kernel_v1_conflict": "SQLite/FTS cannot be used in Handshake in any form.",
+      "mitigation": "Use Postgres search/projection tables and rebuild receipts tied to source events."
+    },
+    {
+      "id": "conflict-008",
+      "area": "integration_ingest",
+      "ckc_detail": "ComfyUI posts generated output to a localhost intake server.",
+      "handshake_kernel_v1_conflict": "Local server request success cannot be the authority for artifact registration.",
+      "mitigation": "Accept payloads through typed API/Tauri commands and append integration events before projection updates."
+    },
+    {
+      "id": "conflict-009",
+      "area": "visual_testing",
+      "ckc_detail": "Visual capture depends on Electron window capture behavior.",
+      "handshake_kernel_v1_conflict": "Handshake visual diagnostics must operate through Tauri/DCC-compatible evidence surfaces.",
+      "mitigation": "Rebuild capture as a native diagnostics command that writes screenshot artifacts and sidecar state."
+    },
+    {
+      "id": "conflict-010",
+      "area": "governance_assumptions",
+      "ckc_detail": "CKC README treats sibling CKC_GOV as the source of truth and CKC_main as product code.",
+      "handshake_kernel_v1_conflict": "Handshake has its own governance/kernel split and should not import CKC governance topology as runtime.",
+      "mitigation": "Use CKC code as source evidence only; write new Handshake WP/refinement artifacts under Handshake governance."
+    }
+  ],
+  "proposed_module_boundaries": [
+    {
+      "id": "atelier_core",
+      "stack": ["Rust", "Postgres", "Tauri"],
+      "owns": ["characters", "templates", "sheets", "field values", "tags", "relations", "validation"]
+    },
+    {
+      "id": "atelier_media",
+      "stack": ["Rust", "Postgres", "artifact attachments"],
+      "owns": ["image metadata", "hashes", "palettes", "dhash", "annotations", "review state", "media diagnostics"]
+    },
+    {
+      "id": "atelier_posekit",
+      "stack": ["Rust contracts", "frontend worker", "Tauri artifact bridge"],
+      "owns": ["rig schema", "pose detection result contracts", "OpenPose export", "identity profiles", "yaw/head-pose calibration"]
+    },
+    {
+      "id": "atelier_comfy",
+      "stack": ["Rust", "Tauri/API", "Postgres", "EventLedger"],
+      "owns": ["ComfyUI payload schema", "generated image registration", "workflow lineage", "integration sessions"]
+    },
+    {
+      "id": "atelier_docs",
+      "stack": ["Rust", "Postgres", "frontend canvas"],
+      "owns": ["notes", "stories", "moodboards", "story boards", "links", "search projections"]
+    },
+    {
+      "id": "atelier_exports",
+      "stack": ["Rust", "artifact jobs", "EventLedger"],
+      "owns": ["field packs", "safe subsets", "share packs", "image sets", "contact sheets", "web portfolio", "backups"]
+    },
+    {
+      "id": "atelier_automation",
+      "stack": ["Rust", "Tauri", "Postgres", "EventLedger"],
+      "owns": ["model manual", "command catalog", "sessions", "leases", "command receipts", "visual debugging"]
+    },
+    {
+      "id": "kernel_event_bridge",
+      "stack": ["Rust", "Postgres EventLedger"],
+      "owns": ["append-only mutation events", "promotion links", "trace projection replay", "Flight Recorder mirroring"]
+    }
+  ],
+  "proposed_microtask_buckets": [
+    {"id": "MT-001", "domain": "character_sheet_core", "title": "Define AtelierCharacter Rust type and ID policy"},
+    {"id": "MT-002", "domain": "character_sheet_core", "title": "Define AtelierTemplate Rust type and version/hash fields"},
+    {"id": "MT-003", "domain": "character_sheet_core", "title": "Port CKC template header parsing fixtures"},
+    {"id": "MT-004", "domain": "character_sheet_core", "title": "Port field descriptor type inference"},
+    {"id": "MT-005", "domain": "character_sheet_core", "title": "Port enum/sentinel/allow-other validation"},
+    {"id": "MT-006", "domain": "character_sheet_core", "title": "Port canonical sheet header generation"},
+    {"id": "MT-007", "domain": "character_sheet_core", "title": "Port multi-line field span parser"},
+    {"id": "MT-008", "domain": "character_sheet_core", "title": "Port sheet field update/apply behavior"},
+    {"id": "MT-009", "domain": "character_sheet_core", "title": "Port sheet diff preview model"},
+    {"id": "MT-010", "domain": "character_sheet_core", "title": "Add protected-field mutation guard"},
+    {"id": "MT-011", "domain": "character_sheet_core", "title": "Add public character ID sequence migration"},
+    {"id": "MT-012", "domain": "character_sheet_core", "title": "Add character relation schema and tests"},
+    {"id": "MT-013", "domain": "media_provenance", "title": "Define AtelierImageAsset Postgres schema"},
+    {"id": "MT-014", "domain": "media_provenance", "title": "Add content hash and no-character-name path invariant"},
+    {"id": "MT-015", "domain": "media_provenance", "title": "Add attachment reference service for image bytes"},
+    {"id": "MT-016", "domain": "media_provenance", "title": "Port image import provenance fields"},
+    {"id": "MT-017", "domain": "media_provenance", "title": "Port duplicate content-hash behavior"},
+    {"id": "MT-018", "domain": "media_provenance", "title": "Port review status and pending image flow"},
+    {"id": "MT-019", "domain": "media_provenance", "title": "Port tags and suggested tags fields"},
+    {"id": "MT-020", "domain": "media_provenance", "title": "Port palette extraction contract"},
+    {"id": "MT-021", "domain": "media_provenance", "title": "Port dhash similarity contract"},
+    {"id": "MT-022", "domain": "media_provenance", "title": "Port image annotations JSON contract"},
+    {"id": "MT-023", "domain": "media_provenance", "title": "Add orphan-image adoption migration path"},
+    {"id": "MT-024", "domain": "media_provenance", "title": "Add missing-image repair diagnostics"},
+    {"id": "MT-025", "domain": "pose_rig_identity", "title": "Define rig schema with body-18/face-70/hand-21"},
+    {"id": "MT-026", "domain": "pose_rig_identity", "title": "Port yaw bin constants"},
+    {"id": "MT-027", "domain": "pose_rig_identity", "title": "Port YXZ head-pose quaternion contract"},
+    {"id": "MT-028", "domain": "pose_rig_identity", "title": "Port deterministic fallback rig fixture"},
+    {"id": "MT-029", "domain": "pose_rig_identity", "title": "Port MediaPipe pose mapping fixtures"},
+    {"id": "MT-030", "domain": "pose_rig_identity", "title": "Port face-70 mapping fixture"},
+    {"id": "MT-031", "domain": "pose_rig_identity", "title": "Port hand-21 left/right confidence gating"},
+    {"id": "MT-032", "domain": "pose_rig_identity", "title": "Add OpenPose JSON export service"},
+    {"id": "MT-033", "domain": "pose_rig_identity", "title": "Add OpenPose PNG/render artifact job"},
+    {"id": "MT-034", "domain": "pose_rig_identity", "title": "Define identity profile schema"},
+    {"id": "MT-035", "domain": "pose_rig_identity", "title": "Add identity crop/manifest attachment refs"},
+    {"id": "MT-036", "domain": "pose_rig_identity", "title": "Add rig workspace persistence model"},
+    {"id": "MT-037", "domain": "comfyui_ingestion", "title": "Define ComfyUI bridge payload schema"},
+    {"id": "MT-038", "domain": "comfyui_ingestion", "title": "Add Tauri/API intake command for generated images"},
+    {"id": "MT-039", "domain": "comfyui_ingestion", "title": "Add bridge token/session validation"},
+    {"id": "MT-040", "domain": "comfyui_ingestion", "title": "Port ComfyUI workflow metadata capture"},
+    {"id": "MT-041", "domain": "comfyui_ingestion", "title": "Port prompt/history/image client contract"},
+    {"id": "MT-042", "domain": "comfyui_ingestion", "title": "Add generated-image lineage events"},
+    {"id": "MT-043", "domain": "comfyui_ingestion", "title": "Port workflow spec registry version sorting"},
+    {"id": "MT-044", "domain": "comfyui_ingestion", "title": "Port image-sourcing v00.19 handler contract"},
+    {"id": "MT-045", "domain": "comfyui_ingestion", "title": "Add ingestion batch schema"},
+    {"id": "MT-046", "domain": "comfyui_ingestion", "title": "Add ingestion rejection schema"},
+    {"id": "MT-047", "domain": "comfyui_ingestion", "title": "Add ingestion idempotency tests"},
+    {"id": "MT-048", "domain": "comfyui_ingestion", "title": "Add per-character script artifact import"},
+    {"id": "MT-049", "domain": "docs_moodboard_search", "title": "Define notes/stories/moodboards schemas"},
+    {"id": "MT-050", "domain": "docs_moodboard_search", "title": "Add story board/corkboard schema"},
+    {"id": "MT-051", "domain": "docs_moodboard_search", "title": "Add moodboard canvas JSON contract"},
+    {"id": "MT-052", "domain": "docs_moodboard_search", "title": "Add link index and backlink resolver"},
+    {"id": "MT-053", "domain": "docs_moodboard_search", "title": "Add global search projection tables"},
+    {"id": "MT-054", "domain": "docs_moodboard_search", "title": "Add search projection rebuild receipts"},
+    {"id": "MT-055", "domain": "docs_moodboard_search", "title": "Add saved search schema"},
+    {"id": "MT-056", "domain": "docs_moodboard_search", "title": "Add tag template and tag rule schemas"},
+    {"id": "MT-057", "domain": "exports_backups", "title": "Define artifact proposal model for exports"},
+    {"id": "MT-058", "domain": "exports_backups", "title": "Port field-pack export contract"},
+    {"id": "MT-059", "domain": "exports_backups", "title": "Port safe subset export contract"},
+    {"id": "MT-060", "domain": "exports_backups", "title": "Port image set export contract"},
+    {"id": "MT-061", "domain": "exports_backups", "title": "Port share pack export contract"},
+    {"id": "MT-062", "domain": "exports_backups", "title": "Port web portfolio export contract"},
+    {"id": "MT-063", "domain": "exports_backups", "title": "Port contact sheet export contract"},
+    {"id": "MT-064", "domain": "exports_backups", "title": "Port backup manifest and checksum contract"},
+    {"id": "MT-065", "domain": "exports_backups", "title": "Add restore-version compatibility guard"},
+    {"id": "MT-066", "domain": "automation_kernel_bridge", "title": "Define AtelierActionCatalogV1"},
+    {"id": "MT-067", "domain": "automation_kernel_bridge", "title": "Port automation manual as generated model manual"},
+    {"id": "MT-068", "domain": "automation_kernel_bridge", "title": "Port command map into typed Tauri command registry"},
+    {"id": "MT-069", "domain": "automation_kernel_bridge", "title": "Add Postgres-backed automation session records"},
+    {"id": "MT-070", "domain": "automation_kernel_bridge", "title": "Add claim/lease records for model agents"},
+    {"id": "MT-071", "domain": "automation_kernel_bridge", "title": "Add command receipt EventLedger events"},
+    {"id": "MT-072", "domain": "automation_kernel_bridge", "title": "Add non-focus-stealing capture command"},
+    {"id": "MT-073", "domain": "automation_kernel_bridge", "title": "Add visual debug screenshot artifact records"},
+    {"id": "MT-074", "domain": "automation_kernel_bridge", "title": "Add no OS-level input invariant tests"},
+    {"id": "MT-075", "domain": "automation_kernel_bridge", "title": "Add stable selector/renderer state contract"},
+    {"id": "MT-076", "domain": "automation_kernel_bridge", "title": "Add background stealth guard equivalent for Tauri"},
+    {"id": "MT-077", "domain": "automation_kernel_bridge", "title": "Add Flight Recorder mirror from EventLedger IDs"},
+    {"id": "MT-078", "domain": "automation_kernel_bridge", "title": "Add trace projection replay smoke test"},
+    {"id": "MT-079", "domain": "automation_kernel_bridge", "title": "Add no-SQLite kernel authority tripwire"},
+    {"id": "MT-080", "domain": "automation_kernel_bridge", "title": "Add end-to-end character image import replay proof"}
+  ]
+}

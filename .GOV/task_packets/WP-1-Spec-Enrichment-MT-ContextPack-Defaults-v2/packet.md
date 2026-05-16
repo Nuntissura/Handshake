@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/packet.json source_hash=c5a94c20ab59c6a4 projection_hash=ac829316958f66d3 generated_at_utc=2026-05-06T16:33:39.509Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2/packet.json source_hash=1b7a5bf7bd92f552 projection_hash=ac829316958f66d3 generated_at_utc=2026-05-14T21:13:39.800Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Spec-Enrichment-MT-ContextPack-Defaults-v2
 
 ## METADATA

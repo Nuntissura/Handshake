@@ -60,7 +60,7 @@ Rules:
 - Workflow execution can stop and resume from PostgreSQL state without replaying completed nodes incorrectly.
 - Parallel workflow workers cannot execute the same node claim concurrently.
 - Retry and terminal failure states are queryable for DCC/runtime truth projection.
-- SQLite use, if any, is cache/offline/index scoped and not the workflow runtime authority.
+- SQLite use is not allowed for workflow authority, cache, offline, index, fixture, fallback, compatibility, harness, example, temporary-adapter, or test roles. Workflow execution state is PostgreSQL-only.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Depends on the foundation WP, test matrix, lease/backpressure primitives, validated workflow engine, and migration framework.

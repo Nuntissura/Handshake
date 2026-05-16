@@ -1,0 +1,355 @@
+{
+  "file_id": "mt-007-008-ckc-spec-taskboard-inventory",
+  "file_kind": "ckc_spec_taskboard_inventory",
+  "updated_at": "2026-05-16",
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1",
+  "mt_ids": [
+    "MT-007",
+    "MT-008"
+  ],
+  "status": "complete",
+  "source_mode": "read_only_inventory",
+  "write_scope": [
+    ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-007-008-ckc-spec-taskboard-inventory.md",
+    ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-007-008-ckc-spec-taskboard-inventory.json"
+  ],
+  "guardrails": {
+    "ckc_is_source_evidence_only": true,
+    "create_ckc_rebuild_stubs": false,
+    "modify_ckc_files": false,
+    "sqlite_absolute_rejection": {
+      "applies_to_handshake": true,
+      "rejected_paths": [
+        "runtime",
+        "tests",
+        "fixtures",
+        "mocks",
+        "examples",
+        "fallbacks",
+        "cache",
+        "compatibility_adapters",
+        "temporary_harnesses",
+        "imports",
+        "exports",
+        "product_paths"
+      ],
+      "statement": "SQLite is absolutely rejected for Handshake; CKC SQLite references are source evidence only and must not be inherited."
+    }
+  },
+  "sources": [
+    {
+      "id": "ckc_spec_v00_075",
+      "path": "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/spec/CastKit_Codex_Spec_v00.075.md",
+      "read_only": true
+    },
+    {
+      "id": "ckc_taskboard",
+      "path": "D:/Projects/LLM projects/CastKit-Codex/CKC_GOV/taskboard/TASK_BOARD.md",
+      "read_only": true
+    }
+  ],
+  "source_anchors": [
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "11-13",
+      "signal": "Current spec entry records WP-0122..WP-0137 review-batch hardening and code-truth consistency across code, manual, WPs, taskboard, and tests."
+    },
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "15-20",
+      "signal": "Governance and verification rules require LLM visibility, parallel-operation audit, viewport captures, current value/reset visibility, and sample-corpus use."
+    },
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "21-35",
+      "signal": "Intake, Inbox, Collections, contact sheets, sidecars, PoseKit contexts, OpenPose sidecars, parallel editing, and recoverable deletion are current CKC behavior."
+    },
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "37-46",
+      "signal": "Manual/automation hardening and PostgreSQL-compatible regression tests are part of the latest hardening gate."
+    },
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "422-432",
+      "signal": "Non-negotiables include byte-for-byte user text preservation, adult/explicit fields first-class, template integrity, same-line descriptors, minimal UI, and 2-panel/3-panel layouts."
+    },
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "502-517",
+      "signal": "PostgreSQL is CKC's default/current provider; SQLite remains only as CKC legacy/test fallback."
+    },
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "519-554",
+      "signal": "CKC has automation/debugger IPC, internal manual formats, multi-agent sessions/leases, hidden background startup, renderer/backend commands, and file capture."
+    },
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "556-569",
+      "signal": "Intake Sorter supports folder-only and linked CKC profile modes, pending review, and linked metadata writeback."
+    },
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "571-579",
+      "signal": "CKC libraryRoot contains legacy/test SQLite file path only when explicitly configured; PostgreSQL lives outside libraryRoot."
+    },
+    {
+      "source": "ckc_spec_v00_075",
+      "lines": "1036-1068",
+      "signal": "Next-generation global search requirements mention SQLite FTS5; this is CKC evidence only and must translate to non-SQLite Handshake search/indexing."
+    },
+    {
+      "source": "ckc_taskboard",
+      "lines": "5-9",
+      "signal": "Taskboard is CKC authoritative work status and must be read with CKC governance surfaces; no product-doc mirror."
+    },
+    {
+      "source": "ckc_taskboard",
+      "lines": "137-155",
+      "signal": "WP-0119 through WP-0137 show PostgreSQL-first/SQLite-removal planning, review-batch work, one blocked PoseKit interaction item, and raster contact sheet planning."
+    },
+    {
+      "source": "ckc_taskboard",
+      "lines": "157-184",
+      "signal": "Current focus records WP-0137 in REVIEW, full test pass, GUI/sample-corpus review evidence still pending, plus open findings and deferred gates."
+    }
+  ],
+  "spec_heading_inventory": {
+    "summary": "CKC spec combines recent changelog entries, normative sections, roadmap requirements, and appendix session dump.",
+    "relevant_headings": [
+      "v00.075 - WP-0122..WP-0137 review-batch hardening",
+      "Governance And Verification",
+      "Intake, Inbox, Collections, Contact Sheets, And Sidecars",
+      "PoseKit Workbench And OpenPose Artifacts",
+      "Parallel Editing And Recoverable Deletion",
+      "Automation And Manual Hardening",
+      "Non-negotiables",
+      "Decisions",
+      "Implementation mapping",
+      "Data layout",
+      "LibraryRoot diagnostics",
+      "Media pane chrome",
+      "Docs mode",
+      "Sheet ingest/merge + versioning",
+      "High-ROI roadmap",
+      "Next-Generation Features",
+      "Appendix A - SESSION_DUMP_2026-02-10"
+    ]
+  },
+  "capability_clusters": [
+    {
+      "id": "governance_verification",
+      "ckc_evidence": [
+        "ckc_spec_v00_075:15-20",
+        "ckc_taskboard:5-9",
+        "ckc_taskboard:170-176"
+      ],
+      "requirement_signals": [
+        "LLM visibility",
+        "parallel-operation audit",
+        "visual captures",
+        "sample corpus",
+        "research-first WP planning",
+        "build rules"
+      ],
+      "handshake_fold_in_implication": "Fold into Handshake as governance requirements for agent-readable receipts, visual verification evidence, source-backed research summaries, and taskboard/refinement traceability."
+    },
+    {
+      "id": "automation_manual_debugger",
+      "ckc_evidence": [
+        "ckc_spec_v00_075:37-46",
+        "ckc_spec_v00_075:519-554",
+        "ckc_taskboard:155",
+        "ckc_taskboard:157-158"
+      ],
+      "requirement_signals": [
+        "manual-command-dispatch consistency",
+        "automation command map",
+        "sessions",
+        "leases",
+        "logs",
+        "captures",
+        "background-safe mode"
+      ],
+      "handshake_fold_in_implication": "Translate to Handshake diagnostics and operator/model control surfaces; preserve consistency-test concept without importing CKC API shape."
+    },
+    {
+      "id": "intake_inbox_import_gate",
+      "ckc_evidence": [
+        "ckc_spec_v00_075:21-25",
+        "ckc_spec_v00_075:556-569",
+        "ckc_taskboard:142-145",
+        "ckc_taskboard:172"
+      ],
+      "requirement_signals": [
+        "persistent batches",
+        "loose and linked classification",
+        "pending lifecycle",
+        "filesystem health",
+        "hidden sidecar and deleted rows"
+      ],
+      "handshake_fold_in_implication": "Useful for Handshake Atelier/Lens intake lanes, review queues, and recoverability; storage must use Handshake data contracts and PostgreSQL/EventLedger only."
+    },
+    {
+      "id": "collections_contact_sheets",
+      "ckc_evidence": [
+        "ckc_spec_v00_075:21-25",
+        "ckc_taskboard:146-147",
+        "ckc_taskboard:154",
+        "ckc_taskboard:173"
+      ],
+      "requirement_signals": [
+        "collections with notes, tags, and links",
+        "SVG plus manifest contact sheets",
+        "raster export planned",
+        "no-space artifact paths"
+      ],
+      "handshake_fold_in_implication": "Fold as evidence for collection artifacts and preview/export surfaces; translate storage/export to Handshake ArtifactStore."
+    },
+    {
+      "id": "posekit_openpose_workbench",
+      "ckc_evidence": [
+        "ckc_spec_v00_075:27-30",
+        "ckc_taskboard:149-151",
+        "ckc_taskboard:162",
+        "ckc_taskboard:165-167"
+      ],
+      "requirement_signals": [
+        "blank, single, and collection workbench contexts",
+        "getPoseKitState",
+        "deterministic no-space sidecars",
+        "blocked calibration/history interaction pass"
+      ],
+      "handshake_fold_in_implication": "Relevant to Atelier/Lens visual and pose workbench; create Handshake-native interaction WPs only after consolidation and research."
+    },
+    {
+      "id": "parallel_editing_recoverable_deletion",
+      "ckc_evidence": [
+        "ckc_spec_v00_075:32-35",
+        "ckc_taskboard:152-153",
+        "ckc_taskboard:174"
+      ],
+      "requirement_signals": [
+        "PostgreSQL source of truth",
+        "sessions and leases",
+        "optimistic revisions",
+        "append-only product events",
+        "limited CRDT merge shapes",
+        "archive/restore impact checks"
+      ],
+      "handshake_fold_in_implication": "Strong fit for Handshake EventLedger and CRDT/workspace contracts; reuse policy shape, not CKC table/API details."
+    },
+    {
+      "id": "storage_runtime",
+      "ckc_evidence": [
+        "ckc_spec_v00_075:502-517",
+        "ckc_spec_v00_075:571-579",
+        "ckc_taskboard:137",
+        "ckc_taskboard:169"
+      ],
+      "requirement_signals": [
+        "PostgreSQL-first default/current provider",
+        "SQLite only as CKC legacy/test fallback",
+        "SQLite removal/quarantine planned"
+      ],
+      "handshake_fold_in_implication": "Handshake must go further: SQLite is forbidden everywhere, including tests, fixtures, mocks, examples, caches, compatibility adapters, temporary harnesses, imports, exports, and product paths."
+    },
+    {
+      "id": "product_ux_baseline",
+      "ckc_evidence": [
+        "ckc_spec_v00_075:422-432",
+        "ckc_spec_v00_075:655-727"
+      ],
+      "requirement_signals": [
+        "byte-for-byte user text preservation",
+        "explicit fields first-class",
+        "no silent template drops",
+        "minimal UI",
+        "2-panel/3-panel layouts",
+        "media pane chrome",
+        "docs mode",
+        "sheet merge/versioning"
+      ],
+      "handshake_fold_in_implication": "Relevant to Atelier/Lens usability and data preservation; translate into Handshake UX acceptance criteria and source-preservation tests."
+    }
+  ],
+  "taskboard_state_signals": {
+    "work_packet_rows_parsed": 135,
+    "status_counts": [
+      {
+        "status": "DONE",
+        "count": 113,
+        "interpretation": "Historical CKC features marked complete; evidence of shipped or intended delivered behavior."
+      },
+      {
+        "status": "REVIEW",
+        "count": 14,
+        "interpretation": "WP-0122..WP-0137 review-batch items implemented but not final DONE evidence."
+      },
+      {
+        "status": "BLOCKED",
+        "count": 1,
+        "interpretation": "WP-0133 PoseKit calibration, markers, and history has unresolved interaction work."
+      },
+      {
+        "status": "CONCEPT (future; not current)",
+        "count": 1,
+        "interpretation": "WP-0118 prompt-response matrix is parked concept work."
+      },
+      {
+        "status": "PLANNED variants",
+        "count": 6,
+        "interpretation": "Planned or low-priority future work remains, including WP-0114, WP-0116, WP-0117, WP-0119, and WP-0136."
+      }
+    ],
+    "delivery_signals": [
+      "WP-0137 is in REVIEW with product/manual dispatch drift fixed, PostgreSQL-compatible backend regression, current spec v00.075, and full npm test pass of 206 passed and 1 skipped.",
+      "WP-0122..WP-0135 implementation pass is complete but review evidence remains before DONE promotion.",
+      "Raster contact sheet export is planned as WP-0136, not shipped in current CKC evidence.",
+      "PostgreSQL-first testing and SQLite removal/quarantine are planned in CKC WP-0119 and reinforced as a current rule.",
+      "Open minor findings remain for React 19 Save button click behavior and occluded operator-mode captures.",
+      "Deferred validation remains for packaged smoke, NAS mirror backup, DB-backed suite verification against live PostgreSQL, and validation pass for WP-0092 through WP-0095."
+    ]
+  },
+  "unresolved_work": [
+    "CKC review-batch GUI/sample-corpus captures still need review evidence before DONE promotion.",
+    "WP-0133 deeper PoseKit interaction model remains blocked: draggable calibration overlay, missing-marker placement flow, 3D/live split editing, and forked history.",
+    "WP-0136 raster contact sheet export is planned and not yet delivered.",
+    "WP-0119 indicates CKC still has SQLite remediation work outstanding.",
+    "Historical roadmap/spec sections still contain SQLite-centric implementation language, especially global search FTS5 and planned cache/index fields.",
+    "Older delivery gates remain deferred or pending, including packaged smoke and DB-backed verification against a live PostgreSQL container."
+  ],
+  "risks_and_mitigations": [
+    {
+      "risk": "CKC mixes delivered, review, blocked, planned, and appendix/history requirements in one spec.",
+      "mitigation": "Treat CKC as evidence; require Handshake work packets to cite taskboard status and classify evidence maturity before implementation."
+    },
+    {
+      "risk": "CKC contains SQLite language in current and historical sections.",
+      "mitigation": "Enforce the absolute SQLite rejection in Handshake packet acceptance criteria and validation grep checks."
+    },
+    {
+      "risk": "CKC automation APIs are product-specific.",
+      "mitigation": "Translate capability intent into Handshake-native diagnostics, EventLedger receipts, and governed command surfaces."
+    },
+    {
+      "risk": "Review-batch evidence is not all DONE.",
+      "mitigation": "Use review-batch items as strong but non-final evidence; require fresh Handshake verification rather than importing CKC closure state."
+    },
+    {
+      "risk": "PoseKit calibration/history is blocked in CKC.",
+      "mitigation": "Split Handshake pose/workbench interaction scope into dedicated research-backed work rather than folding blocked CKC behavior silently."
+    }
+  ],
+  "handshake_fold_in_implications": [
+    "Preserve CKC capability intent, not CKC implementation shape.",
+    "Translate storage and collaboration to PostgreSQL, EventLedger, ArtifactStore, CRDT/workspace contracts, and existing governed runtime boundaries.",
+    "SQLite rejection must be a hard gate in downstream Handshake packets and validators.",
+    "Use CKC taskboard statuses as evidence maturity signals: DONE, REVIEW, BLOCKED, PLANNED, and CONCEPT carry different weights.",
+    "Do not create CKC rebuild stubs from this inventory.",
+    "High-ROI additions: add a Handshake no-SQLite validator, add evidence-maturity fields to consolidation JSON, and require future fold-in packets to cite CKC source anchors plus Handshake ownership boundaries."
+  ],
+  "ckc_rebuild_stubs_created": false,
+  "ckc_files_modified": false
+}

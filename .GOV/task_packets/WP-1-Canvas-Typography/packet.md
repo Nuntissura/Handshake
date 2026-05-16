@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Canvas-Typography/packet.json source_hash=195f07acfb6f29ec projection_hash=cd40dc5fd5e195aa generated_at_utc=2026-05-06T16:33:39.100Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Canvas-Typography/packet.json source_hash=cc9b84b63d6f624f projection_hash=cd40dc5fd5e195aa generated_at_utc=2026-05-14T21:13:39.461Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Canvas-Typography
 
 ## Metadata

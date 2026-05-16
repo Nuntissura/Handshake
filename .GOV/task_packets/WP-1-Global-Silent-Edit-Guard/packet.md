@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Global-Silent-Edit-Guard/packet.json source_hash=168503e705a9cc35 projection_hash=34440fb3a4bbd649 generated_at_utc=2026-05-06T16:33:39.195Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Global-Silent-Edit-Guard/packet.json source_hash=c31933ceec11e996 projection_hash=34440fb3a4bbd649 generated_at_utc=2026-05-14T21:13:39.554Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Global-Silent-Edit-Guard
 
 ## METADATA

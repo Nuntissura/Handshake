@@ -1,0 +1,110 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1",
+  "base_wp_id": "WP-1-Atelier-Lens-CKC-Core-Data-Intake",
+  "created_at_utc": "2026-05-16T05:05:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "c1a403442483fe6173ea8557f0fe59de7e4e1dbfb361362441ad9dc4b9fbd72a",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "2026-04-06",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "ATELIER_LENS",
+    "tech_blocker": "YES",
+    "value_tier": "CRITICAL",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Atelier-Lens-Consolidation-v1",
+      "WP-1-Artifact-System-Foundations-v1",
+      "WP-KERNEL-001-Event-Ledger-Session-Broker-v1",
+      "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1"
+    ],
+    "blocks": [
+      "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1",
+      "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "",
+    "roadmap_add_coverage": ""
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Build the Handshake-native core Atelier/Lens + CKC data/intake foundation as a planning packet. This folds CKC character sheets, media/DAM, intake/inbox, collections/contact sheets, sidecars/versioning/recovery, search/tag/similarity, exports/backups/share-packs, and no-rewrite text preservation into existing Atelier/Lens, Photo Studio, Loom, Stage, ArtifactStore, LensExtractionTier, and LensViewMode intent.\n- Why: CKC evolved the same prompt-diary/Atelier/Lens goal outside Handshake. Its data model and operator workflows must be preserved, but implementation must be translated into Handshake primitives before any runtime work starts.\n- No-code stance: This stub creates only future work scope and microtasks. It does not implement Rust, Tauri, React, Python, migrations, tests, GUI, or product behavior.\n- Model/execution separation: The future implementation must keep LLMs as proposers/planners/operators through governed AI Jobs, Workflow Engine nodes, Locus/MT records, tool policies, receipts, and validation. Product execution happens through Handshake runtime surfaces, not direct LLM file writes or CKC-style process-local authority.",
+    "scope_sketch": "- IN_SCOPE:\n  - Character identity and sheet domain contract.\n  - Template/parser/protected-field requirements.\n  - Append-only sheet versioning, selective merge/apply/revert, and no silent rewrite.\n  - Media asset/DAM contract: images, thumbnails, metadata, provenance, missing-file diagnostics, sidecars, tags, ratings, favorites, similarity projections.\n  - Intake/inbox contract: persistent batches, loose/linked modes, pending review, accept/reject/defer, idempotency, restart/resume.\n  - Collections/contact-sheet contract: collection notes/tags/links, contact-sheet artifact manifests, source IDs/hashes, deferred raster export hook.\n  - Search/tag/link/similarity contract through Handshake retrieval primitives.\n  - Export/backup/share-pack contract through ArtifactStore and Workflow Engine.\n  - Media downloader and Loom/archive carry-forward requirements: `OutputRootDir`, Stage Sessions/cookie auth, captions, ASR, title/imported_at/source metadata, transcript/caption reference semantics, no-UI-lock batch import, and downloader schemas/events.\n  - CKC docs/stories/moodboard/relationship data graph: notes, stories, story beats, scripts, backlinks/outbound links, moodboard full toolset, relationship rows, and future relationship-map projection requirements.\n  - CKC media review details: favorites, ratings, carousel/frontpage tags, palette/color filters, dHash/similar-image projections, AI tag suggestion proposal/apply boundary, source URL/path/note provenance, clipboard/URL/inbox import, pending/rejected/accepted lifecycle.\n  - Data-root, backup, installer/reset/orphan-adoption, packaging lesson preservation as future Handshake acceptance gates where this stub owns the data side.\n  - Evidence maturity mapping for CKC taskboard statuses: DONE, REVIEW, BLOCKED, PLANNED, and stale-source rows.\n  - Product code anchor verification plan for the product worktree.\n- OUT_OF_SCOPE:\n  - Full GUI rebuild or dockable workspace shell.\n  - PoseKit/OpenPose runtime implementation; covered by `WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1`.\n  - ComfyUI bridge implementation; covered by `WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1`.\n  - Model operation diagnostics; covered by `WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1`.\n  - Any CKC direct runtime dependency, CKC namespace authority, Electron IPC, localhost CKC intake authority, or SQLite.",
+    "acceptance_criteria": "- A no-context model can identify every source stub and CKC feature folded into this packet.\n- Every source stub listed in `FOLDED_SOURCE_STUBS_FULL_PAYLOAD` has preserved original intent, scope, acceptance need, dependencies or lifecycle notes, and risk/handling notes.\n- Every owned CKC evolved feature row listed in `CKC_GREENROOM_PAYLOAD_OWNED` is represented as a future requirement, not only a range reference.\n- The prior `WP-1-Atelier-Lens` and `WP-1-Photo-Studio` packets are either inspected and their role claiming/SceneState/ConflictSet/skeleton/thumbnails/recipes payload is folded, or the activation refinement carries explicit unresolved-source rows.\n- The active `WP-1-Media-Downloader-v2` contract is preserved in enough detail that a no-context model can implement downloader-adjacent integration without reopening the active packet: output layout, Stage Sessions/cookie rules, schemas, progress/concurrency, allowlists/capabilities, sanitized telemetry, forum full-resolution crawl, avatar/emoji/profile-image skips, and secret-handling rules are all visible.\n- ASR and Video Archive/Loom preservation is concrete: ffmpeg/ffprobe provisioning, local ASR engine choice, canonical transcript format, `title`, `imported_at`, source metadata, caption/transcript reference semantics, and batch/no-UI-lock constraints are captured.\n- CKC full-app coverage gaps are explicitly represented: media review/rating/carousel/frontpage, URL/clipboard/inbox provenance, relationship rows/map projection, docs/stories/story beats/scripts, full moodboard toolset, AI tagging/local LLM proposal boundary, package/release/install/reset/orphan lessons, and README/spec drift.\n- CKC taskboard statuses remain meaningful: REVIEW rows need evidence review, BLOCKED rows remain unresolved, PLANNED rows remain deferred, and DONE rows can seed parity fixtures.\n- Every owned overlap row listed in `GREENROOM_OVERLAP_ROWS_OWNED` has an owner boundary and required handling.\n- All core data/intake requirements cite source evidence from greenroom artifacts, CKC code/spec/taskboard, or existing Handshake stubs.\n- Every overlapping CKC/Atelier responsibility has one owner boundary: core data/intake, pose/ComfyUI pipeline, or model workflow diagnostics.\n- Future implementation path is Handshake-native: Tauri/Rust/React/Python orchestration/PostgreSQL/Yjs/EventLedger/ArtifactStore/Flight Recorder/Locus/DCC.\n- LLM and execution separation is explicit: LLMs create proposals/jobs/tool calls; Handshake executes through governed runtime surfaces and records evidence.\n- SQLite is rejected in runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.\n- Electron authority, CKC namespace authority, localhost intake authority, `.GOV` product outputs, machine-local runtime paths, and direct LLM execution are explicitly rejected.\n- Product code anchor verification is required before activation because the current worktree is governance-kernel-only.",
+    "risks_unknowns": "- Risk: CKC data convenience features get treated as optional extras. Mitigation: every EVOL row is carried into MT acceptance or explicitly assigned to another stub.\n- Risk: old Atelier/Lens requirements are overwritten by CKC. Mitigation: source stub preservation is MT-001 and acceptance-critical.\n- Risk: sparse old stubs hide important prior-packet behavior. Mitigation: activation must inspect prior packets or carry unresolved-source rows for role claiming, SceneState, ConflictSet, skeleton surface, thumbnails, and recipes.\n- Risk: active Media Downloader v2 implementation knowledge is lost because only v1 history is read. Mitigation: activation must use v2 packet/refinement as active contract and preserve `OutputRootDir`, Stage Sessions, cookie jars, schemas, progress/concurrency, allowlists, sanitized telemetry, and external-tool gates.\n- Risk: REVIEW/BLOCKED/PLANNED CKC rows are treated as DONE parity. Mitigation: evidence maturity mapping is acceptance-critical; blocked/planned work cannot be represented as implemented.\n- Risk: CKC app areas outside the first greenroom EVOL rows are compressed away. Mitigation: docs/stories/moodboard/relations, URL import, AI tagging/local LLM, media review, package/release/reset, and README/spec drift are explicit acceptance rows.\n- Risk: SQLite returns through tests or compatibility. Mitigation: MT-017 tripwire and absolute rejection wording.\n- Risk: implementation starts in governance-kernel worktree. Mitigation: MT-002 requires product worktree path verification before activation.\n- Risk: future UI work expands this packet. Mitigation: UI projections only; full GUI/dockable shell remains out of scope.",
+    "governance_artifact_stance": ""
+  },
+  "draft_microtasks": {
+    "source": "STUB_MARKDOWN_HANDOFF",
+    "suite_path": ".GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1/MT_SUITE.md",
+    "count": 80,
+    "official_microtasks_generated": false,
+    "activation_destination_pattern": ".GOV/task_packets/<WP_ID>/MT-*.{md,json}",
+    "activation_required_before_official_generation": true,
+    "activation_rule": "convert_draft_suite_after_refinement_user_signature_and_official_packet_creation"
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "convert_draft_microtask_suite_to_official_microtask_contracts",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -1,0 +1,481 @@
+{
+  "file_id": "MT-001-006-ckc-code-inventory",
+  "file_kind": "ckc_source_inventory",
+  "updated_at": "2026-05-16",
+  "work_packet": "WP-1-Atelier-Lens-Consolidation-v1",
+  "source_root_observed": "D:/Projects/LLM projects/CastKit-Codex/CKC_main",
+  "scope": {
+    "mode": "read-only CKC inventory",
+    "microtasks": ["MT-001", "MT-002", "MT-003", "MT-004", "MT-005", "MT-006"],
+    "owned_write_set": [
+      ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.md",
+      ".GOV/reference/ckc_atelier_lens_consolidation/mt_execution/MT-001-006-ckc-code-inventory.json"
+    ],
+    "ckc_rebuild_stubs_allowed": false
+  },
+  "global_translation_constraints": {
+    "ckc_role": "source evidence only",
+    "sqlite_rejection": {
+      "status": "absolutely_rejected_for_handshake",
+      "rule": "No Handshake runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths may use SQLite.",
+      "ckc_sqlite_evidence": [
+        {
+          "path": "package.json",
+          "signals": ["dependency sqlite3"]
+        },
+        {
+          "path": "app/backend/db.js",
+          "signals": [
+            "require('sqlite3')",
+            "normalizeProvider fallback to sqlite",
+            "openSqliteDb(dbPath)",
+            "openDb selects sqlite when provider is not postgres",
+            "SQLite-to-Postgres compatibility translation helpers"
+          ]
+        },
+        {
+          "path": "app/main.js",
+          "signals": [
+            "normalizeConfig accepts sqlite/sqlite3",
+            "db/codex.db path reference"
+          ]
+        },
+        {
+          "path": "test/fixtures/legacy/wp-0091/db/codex.db",
+          "signals": ["legacy SQLite fixture"]
+        },
+        {
+          "path": "test/fixtures/legacy/wp-0100/db/codex.db",
+          "signals": ["legacy SQLite fixture"]
+        },
+        {
+          "path": "test/fixtures/legacy/wp-0103/db/codex.db",
+          "signals": ["legacy SQLite fixture"]
+        },
+        {
+          "path": "test/fixtures/legacy/wp-0104/db/codex.db",
+          "signals": ["legacy SQLite fixture"]
+        },
+        {
+          "path": "test/legacy_fixture_compatibility.test.js",
+          "signals": ["legacy SQLite fixture migration compatibility"]
+        }
+      ],
+      "handshake_translation_note": "Use Postgres-first or repository-approved durable storage contracts only; do not port SQLite fallback, fixtures, migration compatibility, adapters, or examples."
+    }
+  },
+  "inventories": [
+    {
+      "mt_id": "MT-001",
+      "title": "package/runtime dependencies",
+      "source_paths": [
+        {
+          "path": "package.json",
+          "observed_purpose": "npm scripts, Electron metadata, runtime/dev dependencies, electron-builder configuration",
+          "dependency_runtime_signals": [
+            "main app/main.js",
+            "scripts dev:renderer, dev:electron, electron:dev, build, test, package:win, package:mac",
+            "dependencies @mediapipe/tasks-vision, @react-three/drei, @react-three/fiber, js-yaml, pg, react, react-dom, sqlite3, three",
+            "devDependencies electron, electron-builder, vite, typescript, @vitejs/plugin-react, node test support through runtime"
+          ],
+          "handshake_translation_notes": [
+            "Use dependency choices as field evidence for Electron/Vite/React, Postgres, MediaPipe, and Three.js integration.",
+            "Remove sqlite3 entirely from Handshake dependency graph.",
+            "Do not reuse CKC app identity, package names, or CKC_GOV build paths."
+          ]
+        },
+        {
+          "path": "vite.config.ts",
+          "observed_purpose": "Vite React config and MediaPipe WASM copy/dev server middleware",
+          "dependency_runtime_signals": [
+            "copy-mediapipe-wasm plugin",
+            "serves /wasm/*.wasm and wasm JS files",
+            "worker format es",
+            "build sourcemap true"
+          ],
+          "handshake_translation_notes": [
+            "Carry forward model/WASM asset handling as a pattern only.",
+            "Make Handshake paths project-local and disk-agnostic."
+          ]
+        },
+        {
+          "path": "app/main.js",
+          "observed_purpose": "Electron main process runtime, config, IPC handlers, intake server startup",
+          "dependency_runtime_signals": [
+            "electron BrowserWindow/ipcMain/protocol",
+            "default database provider postgres",
+            "default ComfyUI host http://127.0.0.1:8188",
+            "default intake port 52319"
+          ],
+          "handshake_translation_notes": [
+            "Useful as a command-surface and runtime boundary reference.",
+            "Reject SQLite provider normalization."
+          ]
+        },
+        {
+          "path": "app/preload.js",
+          "observed_purpose": "contextBridge API catalog exposed as window.ckc",
+          "dependency_runtime_signals": [
+            "ipcRenderer.invoke command wrappers",
+            "automation, PoseKit, ComfyUI, library, export, intake APIs"
+          ],
+          "handshake_translation_notes": [
+            "Use as evidence for explicit frontend/backend command contracts."
+          ]
+        },
+        {
+          "path": "public/posekit_models/*.task",
+          "observed_purpose": "MediaPipe model assets for pose, hand, and face landmarkers",
+          "dependency_runtime_signals": [
+            "pose_landmarker_lite.task",
+            "hand_landmarker.task",
+            "face_landmarker.task"
+          ],
+          "handshake_translation_notes": [
+            "Treat as evidence for asset requirements; do not assume CKC asset paths in Handshake."
+          ]
+        }
+      ]
+    },
+    {
+      "mt_id": "MT-002",
+      "title": "backend service files",
+      "source_paths": [
+        {
+          "path": "app/backend/library.js",
+          "observed_purpose": "central CKC product service layer for characters, sheets, images, rigs, identity profiles, workflow, exports, search, diagnostics, intake, and events",
+          "dependency_runtime_signals": [
+            "imports db helpers from app/backend/db.js",
+            "CKCLibrary class",
+            "openRigWorkspaces state",
+            "PoseKit/OpenPose methods",
+            "ComfyUI workflow registration and replay methods"
+          ],
+          "handshake_translation_notes": [
+            "Do not clone monolith; split Handshake services by bounded context.",
+            "Use method groupings as behavior evidence."
+          ]
+        },
+        {
+          "path": "app/backend/db.js",
+          "observed_purpose": "database abstraction and schema initialization",
+          "dependency_runtime_signals": [
+            "Postgres provider through pg Pool",
+            "SQLite provider through sqlite3 in CKC",
+            "schema tables include Character, ImageAsset, Rig, IdentityProfile, Prompt, StoryBeat, ProductEvent"
+          ],
+          "handshake_translation_notes": [
+            "Retain Postgres-oriented schema thinking only.",
+            "Reject SQLite provider, fallback, SQL compatibility helpers, and fixtures."
+          ]
+        },
+        {
+          "path": "app/backend/automationControl.js",
+          "observed_purpose": "automation session, lease, command, and log control plane",
+          "dependency_runtime_signals": ["automation sessions", "leases", "command result recording"],
+          "handshake_translation_notes": ["High-value pattern for model-safe observable operations."]
+        },
+        {
+          "path": "app/backend/automationManual.js",
+          "observed_purpose": "model-facing runtime manual",
+          "dependency_runtime_signals": ["command descriptions", "workflow guidance"],
+          "handshake_translation_notes": ["Relevant to built-in model manual requirements."]
+        },
+        {
+          "path": "app/backend/intakeServer.js",
+          "observed_purpose": "local HTTP intake server for external generation outputs",
+          "dependency_runtime_signals": ["localhost bind", "bearer token handling", "ComfyUI output route"],
+          "handshake_translation_notes": ["Use pattern with Handshake-owned schema/auth/receipt design."]
+        },
+        {
+          "path": "app/backend/comfyuiClient.js",
+          "observed_purpose": "ComfyUI queue/history/stats client",
+          "dependency_runtime_signals": ["ComfyUI host interaction"],
+          "handshake_translation_notes": ["Use as source evidence for generation replay integration."]
+        },
+        {
+          "path": "app/backend/workflowSpecRegistry.js",
+          "observed_purpose": "workflow spec registry and ingestion routing",
+          "dependency_runtime_signals": ["pinned handler linkage"],
+          "handshake_translation_notes": ["Use registry concept, not CKC spec identifiers."]
+        }
+      ]
+    },
+    {
+      "mt_id": "MT-003",
+      "title": "UI views and reusable behavior",
+      "source_paths": [
+        {
+          "path": "src/ui/App.tsx",
+          "observed_purpose": "top-level renderer routing, command handling, PoseKit workbench state",
+          "dependency_runtime_signals": ["window.ckc usage", "page union includes library/character/exports/intake/pose/workflow/settings", "automation command handling"],
+          "handshake_translation_notes": ["Use explicit route and command-state structure as evidence."]
+        },
+        {
+          "path": "src/ui/views/PoseView.tsx",
+          "observed_purpose": "PoseKit workbench UI",
+          "dependency_runtime_signals": [
+            "data-testid pose-view",
+            "data-action pose-detect",
+            "data-action pose-export-openpose",
+            "data-action pose-replay-comfyui",
+            "ARIA tab semantics"
+          ],
+          "handshake_translation_notes": ["Strong evidence for stable model-facing selectors and pose workflow states."]
+        },
+        {
+          "path": "src/ui/views/WorkflowView.tsx",
+          "observed_purpose": "prompt, story beat, workflow replay/history UI",
+          "dependency_runtime_signals": ["data-testid workflow-view", "workflow-replay-comfyui", "prompt/story/workflow tabs"],
+          "handshake_translation_notes": ["Use as evidence for generation workflow UI, not visual copy."]
+        },
+        {
+          "path": "src/ui/views/LibraryView.tsx",
+          "observed_purpose": "library browsing and filtering",
+          "dependency_runtime_signals": ["window.ckc library APIs", "image and character selection"],
+          "handshake_translation_notes": ["Translate workflow concepts only."]
+        },
+        {
+          "path": "src/ui/views/CharacterView.tsx",
+          "observed_purpose": "character editing, templates, media, tags, versions",
+          "dependency_runtime_signals": ["sheet editor composition", "media panes", "template actions"],
+          "handshake_translation_notes": ["Use as behavior inventory for Atelier character surfaces."]
+        },
+        {
+          "path": "src/ui/components/*",
+          "observed_purpose": "reusable dialogs, command palette, drawer, media pane, moodboard canvas, sheet tools, Pose3D viewport",
+          "dependency_runtime_signals": ["React components", "CSS modules", "Three.js viewport"],
+          "handshake_translation_notes": ["Reuse component taxonomy and automation selector discipline only."]
+        }
+      ]
+    },
+    {
+      "mt_id": "MT-004",
+      "title": "PoseKit files",
+      "source_paths": [
+        {
+          "path": "src/posekit/core.mjs",
+          "observed_purpose": "PoseKit core math, rig schema, OpenPose serialization/rendering, fallback rig behavior",
+          "dependency_runtime_signals": ["createHeadPose", "rigToOpenposeJson", "renderOpenposeJsonToCanvas", "withOpenpose"],
+          "handshake_translation_notes": ["Use as evidence for data-contract needs; define Handshake-owned contracts before implementation."]
+        },
+        {
+          "path": "src/posekit/poseDetectionClient.ts",
+          "observed_purpose": "renderer wrapper for worker-based pose detection",
+          "dependency_runtime_signals": ["Web Worker", "ImageBitmap", "fallback rig on timeout/error", "default model asset URLs"],
+          "handshake_translation_notes": ["Use worker/fallback pattern carefully; no SQLite cache or fixture fallback allowed."]
+        },
+        {
+          "path": "src/posekit/poseDetection.worker.ts",
+          "observed_purpose": "MediaPipe pose, face, and hand detection worker",
+          "dependency_runtime_signals": ["@mediapipe/tasks-vision", "CPU delegate", "PoseLandmarker", "FaceLandmarker", "HandLandmarker"],
+          "handshake_translation_notes": ["Useful implementation evidence for browser/Electron MediaPipe constraints."]
+        },
+        {
+          "path": "src/ui/components/Pose3DViewport.tsx",
+          "observed_purpose": "3D visualization of PoseKit rig/head pose",
+          "dependency_runtime_signals": ["React Three Fiber/Three.js"],
+          "handshake_translation_notes": ["Evidence for diagnostic/preview surface."]
+        },
+        {
+          "path": "app/backend/library.js",
+          "observed_purpose": "backend rig CRUD, calibration, OpenPose sidecar export, identity profile, workspace state",
+          "dependency_runtime_signals": ["listRigs/createRig/updateRigPose/exportOpenposePng/listOpenposeSidecars", "ProductEvent posekit events"],
+          "handshake_translation_notes": ["Translate behavior as separate service contracts."]
+        }
+      ]
+    },
+    {
+      "mt_id": "MT-005",
+      "title": "ComfyUI bridge files",
+      "source_paths": [
+        {
+          "path": "comfyui_node/castkit_codex_bridge.py",
+          "observed_purpose": "ComfyUI custom output node that saves image then optionally registers output with CKC intake",
+          "dependency_runtime_signals": [
+            "PIL/folder_paths ComfyUI environment",
+            "CKC_INTAKE_URL",
+            "CKC_INTAKE_CHARACTER",
+            "CKC_INTAKE_TOKEN",
+            "CKC_INTAKE_RIG",
+            "CKC_INTAKE_OPENPOSE_REF",
+            "schema ckc.intake.comfyui_output@1",
+            "non-fatal POST failure"
+          ],
+          "handshake_translation_notes": [
+            "Reuse bridge pattern only with Handshake-owned node name/schema/auth/receipt model.",
+            "Do not use CKC schema IDs or CastKitCodexBridge product naming."
+          ]
+        },
+        {
+          "path": "comfyui_node/README.md",
+          "observed_purpose": "ComfyUI node install and environment variable instructions",
+          "dependency_runtime_signals": ["custom_nodes install", "http://127.0.0.1:52319/intake/comfyui_output"],
+          "handshake_translation_notes": ["Use docs shape as evidence; do not copy endpoint names."]
+        },
+        {
+          "path": "app/backend/intakeServer.js",
+          "observed_purpose": "local intake route dispatch",
+          "dependency_runtime_signals": ["intake/comfyui_output", "bearer token enforcement"],
+          "handshake_translation_notes": ["Define Handshake endpoint and durable receipts."]
+        },
+        {
+          "path": "app/backend/comfyuiClient.js",
+          "observed_purpose": "ComfyUI host API client",
+          "dependency_runtime_signals": ["host default from config", "queue/history/stats"],
+          "handshake_translation_notes": ["Translate as external generation adapter."]
+        },
+        {
+          "path": "src/ui/views/WorkflowView.tsx",
+          "observed_purpose": "workflow replay UI",
+          "dependency_runtime_signals": ["workflow-replay-comfyui", "workflow history"],
+          "handshake_translation_notes": ["Use as UI workflow evidence."]
+        }
+      ]
+    },
+    {
+      "mt_id": "MT-006",
+      "title": "tests by behavior area",
+      "test_runtime": {
+        "command": "npm test",
+        "package_script": "node --test"
+      },
+      "behavior_areas": [
+        {
+          "area": "automation/model workflow",
+          "paths": [
+            "test/automation_background_stealth_invariants.test.js",
+            "test/automation_input_injection_invariants.test.js",
+            "test/automation_manual_consistency.test.js",
+            "test/identity_profile_replay_injection.test.js"
+          ],
+          "handshake_translation_notes": ["Relevant to model-safe command, manual, and replay verification."]
+        },
+        {
+          "area": "backend library CRUD and domain services",
+          "paths": [
+            "test/backend_batch_character_operations.test.js",
+            "test/backend_character_icons.test.js",
+            "test/backend_character_scripts.test.js",
+            "test/backend_character_templates.test.js",
+            "test/backend_collections.test.js",
+            "test/backend_docs.test.js",
+            "test/backend_field_value_suggestions.test.js",
+            "test/backend_global_search.test.js",
+            "test/backend_identity_decoupling.test.js",
+            "test/backend_links_backlinks.test.js",
+            "test/backend_public_character_id.test.js",
+            "test/backend_ratings_filters.test.js",
+            "test/backend_relations.test.js",
+            "test/backend_saved_searches.test.js",
+            "test/backend_sheet.test.js",
+            "test/backend_story_board.test.js",
+            "test/backend_tag_manager.test.js",
+            "test/backend_validation.test.js"
+          ],
+          "handshake_translation_notes": ["Use behavior categories, not CKC service shape."]
+        },
+        {
+          "area": "image/media/intake",
+          "paths": [
+            "test/adopt_orphan_images.test.js",
+            "test/backend_ai_tagging_suggestions.test.js",
+            "test/backend_duplicates.test.js",
+            "test/backend_image_annotations.test.js",
+            "test/backend_image_meta_batch.test.js",
+            "test/backend_ingestion_batches.test.js",
+            "test/backend_repair_missing_images.test.js",
+            "test/backend_similarity_search.test.js",
+            "test/backend_web_import_url_capture.test.js",
+            "test/dhash.test.js",
+            "test/ingestion_handler_routing.test.js",
+            "test/ingestion_idempotency.test.js",
+            "test/palette_extraction.test.js"
+          ],
+          "handshake_translation_notes": ["Useful for Atelier media behavior coverage."]
+        },
+        {
+          "area": "backup/export/install/reset",
+          "paths": [
+            "test/backend_backup_restore.test.js",
+            "test/backend_exports.test.js",
+            "test/backend_export_hub.test.js",
+            "test/backup_version_traceability.test.js",
+            "test/full_reset_marker.test.js",
+            "test/installer_modes_invariants.test.js"
+          ],
+          "handshake_translation_notes": ["Use as evidence for recoverability and export checks."]
+        },
+        {
+          "area": "PoseKit/OpenPose/rigs",
+          "paths": [
+            "test/backend_posekit_crud.test.js",
+            "test/backend_posekit_schema.test.js",
+            "test/backend_posekit_workflow.test.js",
+            "test/hand_detection_taxonomy.test.js",
+            "test/hand_openpose_export.test.js",
+            "test/identity_profile_crud.test.js",
+            "test/pose_head_pose_math.test.js",
+            "test/posekit_core.test.js",
+            "test/posekit_ui_static.test.js",
+            "test/rig_workspace_tabs.test.js"
+          ],
+          "handshake_translation_notes": ["High-value behavior coverage for pose workbench translation."]
+        },
+        {
+          "area": "ComfyUI/workflow bridge",
+          "paths": [
+            "test/comfyui_node_contract.test.js",
+            "test/intake_server.test.js",
+            "test/backend_workflow_spec_registry.test.js",
+            "test/spec_canon_consistency.test.js"
+          ],
+          "handshake_translation_notes": ["Use for bridge contract, intake auth, and registry checks."]
+        },
+        {
+          "area": "template/parser/validation/static contracts",
+          "paths": [
+            "test/backend_templateParser.test.js",
+            "test/block_list_editor_serialize.test.js",
+            "test/block_list_validation.test.js",
+            "test/canonical_template.test.js",
+            "test/template_field_id_immutability.test.js",
+            "test/template_parser_unions.test.js",
+            "test/validation_field_types.test.js"
+          ],
+          "handshake_translation_notes": ["Use for contract-test style only."]
+        },
+        {
+          "area": "database/provider/migration invariants",
+          "paths": [
+            "test/backend_postgres_provider.test.js",
+            "test/db_index_invariants.test.js",
+            "test/migration_invariants.test.js",
+            "test/sql_alias_regression.test.js",
+            "test/legacy_fixture_compatibility.test.js"
+          ],
+          "handshake_translation_notes": [
+            "Keep Postgres provider and migration invariant thinking.",
+            "Reject legacy SQLite fixture compatibility and all .db artifacts."
+          ]
+        },
+        {
+          "area": "regression suites",
+          "paths": [
+            "test/backend_startup_guards.test.js",
+            "test/backend_wp0122_0135_regression.test.js"
+          ],
+          "handshake_translation_notes": ["Use as reminder to keep startup and prior-regression coverage."]
+        }
+      ]
+    }
+  ],
+  "key_findings": [
+    "CKC is useful source evidence for library, character, intake, PoseKit, workflow, ComfyUI, export, settings, and automation surfaces.",
+    "CKC backend is concentrated in app/backend/library.js; Handshake should split bounded services rather than copy the monolith.",
+    "CKC has stable automation selectors and command surfaces that are valuable for Handshake model-facing usability.",
+    "CKC includes both Postgres and SQLite; SQLite is a hard negative example for Handshake and must not appear anywhere.",
+    "CKC ComfyUI bridge shows a strong pattern: generation output saved in ComfyUI first, then best-effort product registration through a local intake endpoint.",
+    "CKC test behavior areas are reusable as coverage inspiration, but CKC SQLite fixtures and compatibility tests are rejected."
+  ]
+}

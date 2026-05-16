@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1/packet.json source_hash=2cd5a20ad9e9226e projection_hash=c6d40dbe684d7505 generated_at_utc=2026-05-06T16:33:39.602Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Supply-Chain-Cargo-Deny-Clean-v1/packet.json source_hash=54b3922df1b77032 projection_hash=c6d40dbe684d7505 generated_at_utc=2026-05-14T21:13:39.868Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Supply-Chain-Cargo-Deny-Clean-v1
 
 ## METADATA

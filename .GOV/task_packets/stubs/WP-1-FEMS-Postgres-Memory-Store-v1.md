@@ -43,7 +43,7 @@ Rules:
 
 ## INTENT (DRAFT)
 - What: Make PostgreSQL the authoritative store for FEMS memory records, memory packs, write-time safeguards, memory job claims, and replayable memory selection metadata.
-- Why: Parallel models need shared memory systems that survive process boundaries and can be queried, replayed, compacted, and guarded without local SQLite becoming the runtime authority.
+- Why: Parallel models need shared memory systems that survive process boundaries and can be queried, replayed, compacted, and guarded without SQLite entering Handshake as runtime authority, cache, fixture, fallback, compatibility path, or temporary adapter.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
@@ -60,7 +60,7 @@ Rules:
 - Memory records written by one model session are visible to other eligible sessions through PostgreSQL authority.
 - Concurrent writes cannot silently overwrite or duplicate canonical memory items.
 - MemoryPack compilation records enough provenance for replay and later FEMS evaluation.
-- SQLite remains explicitly cache/offline/index scoped and is not the source of truth for runtime memory state.
+- SQLite is rejected for cache, offline, index, fixture, fallback, compatibility, harness, example, temporary-adapter, and test roles. PostgreSQL remains the only accepted storage target for runtime memory state.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
 - Depends on PostgreSQL foundation, test matrix, lease/backpressure primitives, ModelSession queue workers, and validated FEMS baseline.

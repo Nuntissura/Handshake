@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/refinement.json source_hash=a20a0e9302e23f9a projection_hash=77976e983f193921 generated_at_utc=2026-05-14T10:20:22.552Z generator=kernel-builder-crash-recovery-activation.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.refinement_contract@1 source_file=.GOV/task_packets/WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1/packet.json source_hash=7ce22fe78f8cbfd3 projection_hash=77976e983f193921 generated_at_utc=2026-05-14T21:13:39.950Z generator=wp-contract-import.mjs -->
 ## TECHNICAL_REFINEMENT
 
 ### METADATA

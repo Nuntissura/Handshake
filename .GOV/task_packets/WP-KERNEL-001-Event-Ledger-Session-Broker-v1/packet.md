@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=c87a0d1796984add projection_hash=84462b518bf69a86 generated_at_utc=2026-05-14T19:55:48.693Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-KERNEL-001-Event-Ledger-Session-Broker-v1/packet.json source_hash=77abe4ca6857926e projection_hash=1bf88f193ad7e5cd generated_at_utc=2026-05-15T01:39:55.277Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 This is an official product Work Packet projection. It is blocked until the pending operator signature and spec-enrichment blocker are resolved.
@@ -360,6 +360,115 @@ Resolved. SPEC_CURRENT now resolves to `.GOV/spec/master-spec-v02.184/indexed-sp
 - Risk: Flight Recorder is mistaken for authority. Mitigation: ledger event IDs may mirror to Flight Recorder, but replay and promotion must read EventLedger.
 - Risk: DCC scope expands into UI. Mitigation: MT-020 allows a minimal structured CLI/API inspector and forbids full DCC UI work.
 - Risk: live Postgres is unavailable. Mitigation: proof commands must emit deterministic environment-blocked evidence rather than silently substituting SQLite.
+
+## VALIDATION_REPORTS
+
+### 2026-05-14T20:52:00Z | INTEGRATION_VALIDATOR | session=INTEGRATION_VALIDATOR-20260514-203508
+
+VALIDATION_CONTEXT: OK
+GOVERNANCE_VERDICT: PASS
+TEST_VERDICT: PASS
+CODE_REVIEW_VERDICT: PASS
+HEURISTIC_REVIEW_VERDICT: PASS
+SPEC_ALIGNMENT_VERDICT: PASS
+ENVIRONMENT_VERDICT: PASS
+DISPOSITION: NONE
+LEGAL_VERDICT: PASS
+SPEC_CONFIDENCE: REVIEWED_DIFF_SCOPED
+WORKFLOW_VALIDITY: VALID
+SCOPE_VALIDITY: IN_SCOPE
+PROOF_COMPLETENESS: PROVEN
+INTEGRATION_READINESS: READY
+DOMAIN_GOAL_COMPLETION: COMPLETE
+MECHANICAL_TRACK_VERDICT: PASS
+SPEC_RETENTION_TRACK_VERDICT: PASS
+VALIDATOR_RISK_TIER: HIGH
+Verdict: PASS
+
+CLAUSES_REVIEWED:
+  - Kernel V1 product authority is a Postgres EventLedger and must not use SQLite authority, cache, offline, fallback, or test authority for the first kernel slice => `src/backend/handshake_core/src/kernel/**`, `src/backend/handshake_core/src/storage/postgres.rs`, `src/backend/handshake_core/migrations/**`; live Postgres proof and no-SQLite guard evidence are recorded in the Kernel Builder remediation handoff below.
+  - SessionBroker state must be durable, replayable, claim-safe, cancellable, and restart-reconstructable from the ledger => `src/backend/handshake_core/src/kernel/**`, `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/storage/mod.rs`; live end-to-end kernel proof and restart trace evidence are recorded below.
+  - ContextBundle and replaceable ModelAdapter must record the exact context allowed to a dummy/echo local adapter without binding kernel semantics to a provider trace => `src/backend/handshake_core/src/kernel/**`, `src/backend/handshake_core/src/llm/**`, `src/backend/handshake_core/src/storage/mod.rs`; adapter replacement proof is recorded in MT-022 remediation evidence below.
+  - ToolGate, ArtifactStore, ValidationRunner, and PromotionGate decisions must be ledger-linked and operator-reviewable before authority transition => `src/backend/handshake_core/src/kernel/**`, `src/backend/handshake_core/src/mcp/gate.rs`, `src/backend/handshake_core/src/runtime_governance.rs`, `src/backend/handshake_core/src/flight_recorder/**`; ToolGate bridge and promotion trace proofs are recorded below.
+  - TraceProjection must reconstruct the complete proof run after restart from product authority, with Flight Recorder only mirroring diagnostics => `src/backend/handshake_core/src/kernel/**`, `src/backend/handshake_core/src/flight_recorder/**`, `src/backend/handshake_core/tests/**`; trace projection evidence and EventLedger IDs are recorded below.
+
+NOT_PROVEN:
+  - NONE
+
+MAIN_BODY_GAPS:
+  - NONE
+
+QUALITY_RISKS:
+  - NONE
+
+DIFF_ATTACK_SURFACES:
+  - `src/backend/handshake_core/src/kernel/**` owns EventLedger, SessionBroker, ContextBundle, ToolGate, ArtifactStore, ValidationRunner, PromotionGate, and TraceProjection semantics; a mismatch here would corrupt kernel authority rather than only diagnostics.
+  - `src/backend/handshake_core/src/storage/postgres.rs` and `src/backend/handshake_core/migrations/**` carry durable product authority; a schema or migration regression would make replay and restart reconstruction untrustworthy.
+  - `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/mcp/gate.rs`, and `src/backend/handshake_core/src/runtime_governance.rs` bridge kernel events into existing workflow, tool, and inspection surfaces; a bad bridge could create shadow authority.
+
+INDEPENDENT_CHECKS_RUN:
+  - `cargo test kernel_event_taxonomy --target-dir ..\..\..\..\Handshake_Artifacts\handshake-cargo-target-remediation` => PASS; default filtered cargo path compiled the public module surface and ran `kernel_event_taxonomy_covers_first_slice_families`.
+  - `cargo test --features runtime-full --test kernel_runtime_tests --test kernel_event_ledger_tests --test kernel_flight_recorder_tests --test kernel_promotion_trace_tests --target-dir ..\..\..\..\Handshake_Artifacts\handshake-cargo-target-remediation` => PASS; focused runtime-full non-Postgres tests passed.
+  - `POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test cargo test --features runtime-full --test kernel_end_to_end_tests -- --test-threads=1` => PASS; live Postgres end-to-end kernel tests passed.
+  - `POSTGRES_TEST_URL=postgres://postgres:postgres@127.0.0.1:5432/handshake_test cargo test --features runtime-full --test kernel_postgres_event_ledger_tests -- --test-threads=1` => PASS; live Postgres EventLedger tests passed.
+  - `cargo tree --features runtime-full -i duckdb` => expected absence evidence; `runtime-full` excludes DuckDB/libduckdb-sys.
+
+COUNTERFACTUAL_CHECKS:
+  - If `src/backend/handshake_core/src/kernel/**` stopped rejecting SQLite Kernel V1 authority, the no-SQLite tripwire and EventLedger authority checks would fail instead of silently substituting local fallback storage.
+  - If `src/backend/handshake_core/src/storage/postgres.rs` stopped storing the EventLedger chain fields, the live Postgres EventLedger and end-to-end kernel proof commands would fail restart/replay reconstruction.
+  - If `src/backend/handshake_core/src/mcp/gate.rs` or `src/backend/handshake_core/src/runtime_governance.rs` bypassed ledger-linked decisions, ToolGate and promotion trace tests would fail to cite durable event IDs.
+
+BOUNDARY_PROBES:
+  - Kernel authority to Postgres boundary => `src/backend/handshake_core/src/kernel/**`, `src/backend/handshake_core/src/storage/postgres.rs`, and `src/backend/handshake_core/migrations/**` preserve durable EventLedger authority with no SQLite fallback.
+  - Tool and promotion boundary => `src/backend/handshake_core/src/mcp/gate.rs`, `src/backend/handshake_core/src/runtime_governance.rs`, and `src/backend/handshake_core/src/kernel/**` keep approval and denial decisions ledger-linked before authority transition.
+
+NEGATIVE_PATH_CHECKS:
+  - `src/backend/handshake_core/src/kernel/**` rejects SQLite, offline, cache, fallback, and test-fixture authority for Kernel V1 paths rather than treating them as alternate product truth.
+  - `src/backend/handshake_core/src/kernel/**` rejects incomplete trace chains so TraceProjection cannot pass from Flight Recorder diagnostics or process memory alone.
+  - `src/backend/handshake_core/src/kernel/**` records denied ToolGate and rejected PromotionGate outcomes as terminal ledger evidence instead of deleting or promoting artifacts.
+
+INDEPENDENT_FINDINGS:
+  - Product code is contained in main at `c5fa320e18ef9e1f13993811df77d30c3a25a538`, and the worktree cleanup appendix records no remaining product diff against main.
+  - Kernel Builder remediation evidence explicitly distinguishes Kernel Builder proof from validator PASS; this structured report is the validator closeout record required by the computed policy gate.
+  - External artifact hygiene kept trace output under `../Handshake_Artifacts` and removed repo-local artifact roots from the candidate product worktree.
+
+SPEC_CLAUSE_MAP:
+  - Kernel V1 product authority is a Postgres EventLedger and must not use SQLite authority, cache, offline, fallback, or test authority for the first kernel slice => `src/backend/handshake_core/src/kernel/**`; `src/backend/handshake_core/src/storage/postgres.rs`; `src/backend/handshake_core/migrations/**`
+  - SessionBroker state must be durable, replayable, claim-safe, cancellable, and restart-reconstructable from the ledger => `src/backend/handshake_core/src/kernel/**`; `src/backend/handshake_core/src/workflows.rs`; `src/backend/handshake_core/src/storage/mod.rs`
+  - ContextBundle and replaceable ModelAdapter must record the exact context allowed to a dummy/echo local adapter without binding kernel semantics to a provider trace => `src/backend/handshake_core/src/kernel/**`; `src/backend/handshake_core/src/llm/**`; `src/backend/handshake_core/src/storage/mod.rs`
+  - ToolGate, ArtifactStore, ValidationRunner, and PromotionGate decisions must be ledger-linked and operator-reviewable before authority transition => `src/backend/handshake_core/src/kernel/**`; `src/backend/handshake_core/src/mcp/gate.rs`; `src/backend/handshake_core/src/runtime_governance.rs`; `src/backend/handshake_core/src/flight_recorder/**`
+  - TraceProjection must reconstruct the complete proof run after restart from product authority, with Flight Recorder only mirroring diagnostics => `src/backend/handshake_core/src/kernel/**`; `src/backend/handshake_core/src/flight_recorder/**`; `src/backend/handshake_core/tests/**`
+
+NEGATIVE_PROOF:
+  - `src/backend/handshake_core/src/kernel/**` no-SQLite authority tests reject SQLite/cache/offline/fallback/test authority for Kernel V1 rather than silently accepting a local substitute.
+  - `src/backend/handshake_core/src/kernel/**` TraceProjection tests reject incomplete event chains and require durable EventLedger records for context, adapter output, tool decision, artifact proposal, validation, and promotion.
+  - `src/backend/handshake_core/src/kernel/**` promotion tests reject authority transition without validation evidence and operator-reviewable approval evidence linked to ledger events.
+
+PRIMITIVE_RETENTION_PROOF:
+  - `src/backend/handshake_core/src/kernel/**` retains KernelTaskRun, SessionRun, ContextBundle, ModelAdapter output, ToolGate decision, ArtifactProposal, ValidationRunner result, PromotionGate decision, and TraceProjection primitives as typed EventLedger-linked records.
+  - `src/backend/handshake_core/src/storage/postgres.rs` and `src/backend/handshake_core/migrations/**` retain durable Postgres authority fields needed for replay, causation, correlation, actor/session linkage, payload hash, timestamp, and source component proof.
+  - `src/backend/handshake_core/src/flight_recorder/**` remains diagnostic mirror surface; replay authority remains in product EventLedger rows.
+
+PRIMITIVE_RETENTION_GAPS:
+  - NONE
+
+SHARED_SURFACE_INTERACTION_CHECKS:
+  - `src/backend/handshake_core/src/storage/mod.rs`, `src/backend/handshake_core/src/storage/postgres.rs`, and `src/backend/handshake_core/migrations/**` were reviewed together so the storage trait, Postgres implementation, and schema agree on EventLedger authority.
+  - `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/mcp/gate.rs`, and `src/backend/handshake_core/src/runtime_governance.rs` were reviewed as shared workflow/tool/inspection bridges to prevent duplicate authority paths.
+  - `src/backend/handshake_core/src/flight_recorder/**` was reviewed as a diagnostic mirror only, preserving the product EventLedger as replay authority.
+
+CURRENT_MAIN_INTERACTION_CHECKS:
+  - Current main containment is recorded at `c5fa320e18ef9e1f13993811df77d30c3a25a538`, and the product-code cleanup appendix records zero committed product diff, zero tracked dirty product paths, and zero untracked product paths in the candidate worktree.
+  - `src/backend/handshake_core/src/kernel/**`, `src/backend/handshake_core/src/storage/postgres.rs`, and `src/backend/handshake_core/migrations/**` are contained in main through the recorded merge commit rather than remaining only on the feature branch.
+  - `src/backend/handshake_core/src/workflows.rs`, `src/backend/handshake_core/src/mcp/gate.rs`, `src/backend/handshake_core/src/runtime_governance.rs`, and `src/backend/handshake_core/src/flight_recorder/**` compose with current main as contained shared-surface changes, with no post-merge product drift recorded.
+
+DATA_CONTRACT_PROOF:
+  - `src/backend/handshake_core/src/kernel/**` defines typed Kernel V1 authority records for EventLedger, SessionBroker, ContextBundle, ModelAdapter, ToolGate, ArtifactStore, ValidationRunner, PromotionGate, and TraceProjection.
+  - `src/backend/handshake_core/src/storage/postgres.rs` and `src/backend/handshake_core/migrations/**` persist durable EventLedger rows with stable IDs and replayable typed payloads.
+  - `src/backend/handshake_core/tests/**` contains focused kernel and live Postgres proof tests that exercise durable replay and restart reconstruction.
+
+DATA_CONTRACT_GAPS:
+  - NONE
 
 ## INTEGRATION_VALIDATOR_MT_APPENDIX_2026-05-14
 

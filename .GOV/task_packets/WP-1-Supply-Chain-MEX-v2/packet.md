@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Supply-Chain-MEX-v2/packet.json source_hash=99e016054d45e7ae projection_hash=b5e8ac002f0d0243 generated_at_utc=2026-05-06T16:33:39.604Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Supply-Chain-MEX-v2/packet.json source_hash=8abe90d8b35a04e1 projection_hash=b5e8ac002f0d0243 generated_at_utc=2026-05-14T21:13:39.871Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-Supply-Chain-MEX-v2
 
 ## METADATA

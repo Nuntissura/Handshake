@@ -121,21 +121,35 @@ The coder must stay within the signed MT scope.
 - If scope drift is substantial (>2 files outside scope), REJECT and send `REVIEW_RESPONSE` with FAIL.
 - Record scope observations in review receipts for the Orchestrator.
 
-### Job 3: Artifact Hygiene (HARD)
+### Job 3: Worktree Isolation for Parallel WPs (HARD)
+
+Before reviewing per-MT files, enforce one-worktree-per-WP containment:
+
+- The validator may only review in the **single** WP-assigned worktree from `PREPARE`.
+- In a parallel-WP environment, other WP worktrees may remain active, but the same WP-ID must map to exactly one active local worktree.
+- Mechanical pre-check:
+  - Read the WP `PREPARE` record and locate the active `worktree_dir`/branch.
+  - Run `git worktree list` from repository root.
+  - If zero matches: stop and request Operator repair of WP worktree state.
+  - If more than one match for the same WP-ID: stop and report `WP_WORKTREE_SPLIT`.
+- Do not create or switch to additional validator worktrees unless the Operator granted creation for this turn.
+
+### Job 4: Artifact Hygiene (HARD)
 
 Build, test, and tool outputs MUST NOT be committed to the repo. They belong at `../Handshake_Artifacts/` [CX-205F].
 
 **Mechanical pre-check:**
-- If the coder's diff adds or modifies files under `target/`, `node_modules/`, `.gemini/`, or any path that should live under `../Handshake_Artifacts/`: **INSTANT REJECT**.
+- If the coder's diff adds or modifies files under `target/`, `node_modules/`, `.gemini/`, `dist/`, `coverage/`, or any path that should live under `../Handshake_Artifacts/`: **INSTANT REJECT**.
 - Send `REVIEW_RESPONSE` with FAIL and artifact hygiene violation flag.
 
 **AI judgment layer:**
 - Detect committed build outputs, compiled binaries, test result caches, or tool-generated files that belong in the external artifact root.
+- Confirm the active WP worktree does not contain runtime/test/build output directories that should be emitted to `D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts` (repo-relative `../Handshake_Artifacts/`).
 - Flag any new `CARGO_TARGET_DIR` or build path configuration that points inside the repo tree.
 
 ### Job 4: Per-MT Code Review (AI Judgment)
 
-After boundary, scope, and hygiene checks pass, review the MT work for correctness.
+After boundary, scope, worktree isolation, and hygiene checks pass, review the MT work for correctness.
 
 **Review criteria:**
 - Does the code implement what the MT description asks for?
@@ -278,6 +292,7 @@ WP Validator does NOT communicate directly with the Integration Validator.
 - Same rules as VALIDATOR_PROTOCOL: no destructive commands without explicit operator authorization.
 - WP Validator operates in the coder worktree (`wtc-*`) with read access for review purposes.
 - WP Validator MUST NOT modify files in the coder worktree directly.
+- WP Validator MUST NOT create or switch to additional worktrees without explicit Operator authorization in this turn.
 
 ## Conversation Memory (MUST â€” `just repomem`)
 

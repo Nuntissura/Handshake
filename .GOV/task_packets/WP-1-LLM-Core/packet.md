@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-LLM-Core/packet.json source_hash=7ce1c2e522a8a6e0 projection_hash=7661cbddfa071190 generated_at_utc=2026-05-06T16:33:39.221Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-LLM-Core/packet.json source_hash=1c54d8d7c3a48e5a projection_hash=7661cbddfa071190 generated_at_utc=2026-05-14T21:13:39.581Z generator=wp-contract-import.mjs -->
 # Task Packet: WP-1-LLM-Core
 
 ## Metadata

@@ -32,7 +32,7 @@ Rules:
 
 ## INTENT (DRAFT)
 - What: Remove/contain backend-type downcasts across the Database boundary and replace them with explicit capability/feature queries.
-- Why: Downcasts undermine the boundary and create silent Postgres-vs-SQLite behavioral divergence.
+- Why: Downcasts undermine the boundary and can preserve legacy SQLite behavior behind the PostgreSQL authority boundary.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
@@ -44,10 +44,10 @@ Rules:
 
 ## ACCEPTANCE_CRITERIA (DRAFT)
 - No production code paths depend on Database downcasts for behavior decisions.
-- Backend-specific behavior is explicit and exercised by tests (sqlite + postgres).
+- Backend-specific behavior is explicit and exercised by PostgreSQL tests. SQLite is not accepted as a test target, fixture, fallback, cache, compatibility path, harness, or temporary adapter.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
-- Some features are currently SQLite-only (e.g., Locus); those must be explicitly gated without downcast hacks.
+- Some legacy features may still have SQLite-shaped code (e.g., Locus); those are migration/removal debt and must be explicitly rejected or moved to PostgreSQL without downcast hacks.
 
 ## RISKS / UNKNOWNs (DRAFT)
 - Refactor touches many call sites; risk of subtle behavior drift if not backed by targeted tests.

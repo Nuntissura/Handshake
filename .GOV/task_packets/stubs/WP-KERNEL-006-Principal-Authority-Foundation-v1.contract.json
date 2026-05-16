@@ -1,0 +1,106 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-006-Principal-Authority-Foundation-v1",
+  "base_wp_id": "WP-KERNEL-006-Principal-Authority-Foundation",
+  "created_at_utc": "2026-05-17T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-006-Principal-Authority-Foundation-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-KERNEL-006-Principal-Authority-Foundation-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-KERNEL-006-Principal-Authority-Foundation-v1.md",
+    "status": "PENDING_GENERATION",
+    "projection_sha256": "PENDING_GENERATION",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "2026-04-06",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-KERNEL-001-Event-Ledger-Session-Broker",
+      "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening",
+      "WP-KERNEL-003-Sandbox-Validation-Promotion",
+      "WP-1-Postgres-Primary-Control-Plane-Foundation",
+      "WP-1-Capability-SSoT",
+      "WP-1-Session-Scoped-Capabilities-Consent-Gate"
+    ],
+    "blocks": [
+      "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate",
+      "WP-KERNEL-008-Principal-Profile-CRM-Layer"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "Kernel reset brief Week 6 Principal Authority + Profile Layer; Phase A — Principal primitive (schema + Postgres RLS + KernelActor migration + spawned-agent inheritance + break-glass).",
+    "roadmap_add_coverage": "Kernel V1 authority subject model: a durable Principal table with kind enum (Operator, Collaborator, HandshakeSpawnedAgent, ExternalAgent, McpClient), capability_grants bound to Principal with session-level narrowing, Postgres RLS as the default-deny enforcement layer on every owner_principal_id column, spawned-agent capability MIN inheritance, and a RootOperator break-glass recovery path readable from local config."
+  },
+  "session_policy": {
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "session_host_preference": "HANDSHAKE_ACP_BROKER",
+    "session_launch_policy": "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": "Coder-A..Coder-Z"
+  },
+  "draft_scope": {
+    "intent": "- What: Introduce the Principal primitive as the kernel-level subject of authority for every event, write box, CRDT identity, session, sandbox, and capability grant in Handshake.\n- Why: Multi-user separation, MCP scrutiny, visitor-pass mechanics, and profile/persona layers all require a durable subject concept. Adding it after the event ledger and write-box authority grow is migration-heavy; the schema slot is cheap now and stickier later.\n- Product goal: Handshake (Product) must default to row-level deny for cross-Principal reads/writes via Postgres RLS, transparently inherit capabilities from parent Principal to Handshake-spawned agents, and expose a RootOperator break-glass recovery path that survives a botched policy without bricking the install.\n- Operator goal: A solo Operator can lock work, databases, projects, and memory scope away from other Principals while keeping Handshake-spawned agents (cloud or local) silently inheriting the operator's authority for the duration of their session, without any per-agent account management overhead.\n- No-context goal: This stub is intentionally stub-shaped. Refinement before activation is required to lock the Principal kind enum, the RLS policy template, the KernelActor migration plan, the break-glass procedure, and the capability MIN semantics.",
+    "scope_sketch": "- IN_SCOPE:\n  - Principal table + kind enum: Operator, Collaborator, HandshakeSpawnedAgent, ExternalAgent, McpClient.\n  - Capability grants move from session-bound to Principal-scoped; session-level narrowing is allowed, widening is not.\n  - Replace the current free-string KernelActor with a typed PrincipalRef across event ledger, write boxes, CRDT identity, sessions, sandboxes.\n  - Add owner_principal_id columns to every authority-bearing storage table introduced by Kernel V1 (event ledger, artifact store, write boxes, CRDT documents, sandbox runs, validation reports, promotion receipts).\n  - Postgres Row-Level Security policies on every owner_principal_id column with default-deny and explicit allow rules per Principal kind.\n  - HandshakeSpawnedAgent inheritance contract: principal_id = parent.principal_id; capabilities = MIN(parent, spawn_grant); no separate account, no separate authority.\n  - RootOperator break-glass: a recovery Principal whose existence is asserted from a local config file (outside the DB), so a botched RLS policy cannot brick the install.\n  - Migration plan for existing KERNEL-001/002/003 event rows: backfill owner_principal_id with the implicit operator Principal, validate idempotency, replay safety.\n  - Tests: RLS denial of cross-Principal reads/writes, spawned-agent inheritance, capability MIN enforcement, break-glass recovery from a deny-all policy, migration replay.\n- OUT_OF_SCOPE:\n  - MCP scrutiny mechanic, visitor-pass TTL semantics, external-agent capability ceiling (KERNEL-007 owns these).\n  - Operator surface for Principal admin, persona switching, profile/CRM layer (KERNEL-007 + KERNEL-008 own these).\n  - Multi-tenant cloud-style billing or quota.\n  - Adult-production compliance tracking; consent paperwork; performer records (operator-owned per [CX-123A]; Profile layer may carry CRM hooks but does not enforce).\n  - Cross-Handshake federation (multi-instance auth).\n- KEY_OPEN_QUESTIONS (deferred to refinement):\n  - Q1: Should Collaborator Principals share databases or get full namespace isolation by default?\n  - Q2: Where does the local break-glass config live (HANDSHAKE_OPERATOR_ROOT? a sealed config file? a recovery seed?), and how is it rotated?\n  - Q3: Capability MIN semantics — set intersection on grant ids only, or finer-grained per-grant ceiling (max budget, max time, max output)?\n  - Q4: How does Principal identity migrate when the operator clones the workspace to a new machine (does the Principal table travel with the workspace, or is it instance-local)?\n  - Q5: Spawned-agent receipts — do receipts carry both `actor_principal_id` (the agent) and `owner_principal_id` (the human), or collapse to one field?\n  - Q6: RLS policy granularity — one policy per table, or one shared policy via a SECURITY DEFINER function that reads the current Principal from a session GUC?",
+    "acceptance_criteria": "- AC-001: Stub-level only — full AC list deferred to refinement. The minimum-viable activation criteria below define when this stub can be promoted to a signed packet.\n- ACTIVATION-AC-001: A refinement document exists that locks the Principal kind enum and documents the rationale for each kind.\n- ACTIVATION-AC-002: The refinement enumerates the RLS policy template (per-table or shared SECURITY DEFINER), with at least one worked example.\n- ACTIVATION-AC-003: The refinement documents the KernelActor → PrincipalRef migration plan, including event-ledger backfill semantics and replay safety.\n- ACTIVATION-AC-004: The refinement specifies the RootOperator break-glass mechanism in concrete terms (storage location, rotation, audit visibility).\n- ACTIVATION-AC-005: The refinement records explicit answers (or scoped deferrals) to KEY_OPEN_QUESTIONS Q1–Q6.\n- ACTIVATION-AC-006: Microtask plan exists at activation time with at least the migration MTs, schema MTs, RLS MTs, inheritance MTs, and break-glass MTs broken out.",
+    "risks_unknowns": "- Risk: Operator locks themselves out via a misconfigured RLS policy. Mitigation: RootOperator break-glass is a hard activation requirement; no activation without a documented and tested recovery procedure.\n- Risk: Migration of existing event-ledger rows produces inconsistent owner_principal_id values if the implicit-operator backfill is ambiguous (e.g., multiple historical operators on the same workspace). Mitigation: refinement must explicitly classify each historical actor kind before backfill.\n- Risk: RLS policies become a performance ceiling on large event ledgers. Mitigation: index owner_principal_id, benchmark default-deny under load, document the perf budget in refinement.\n- Risk: Spawned-agent inheritance leaks operator authority to misbehaving models. Mitigation: capability MIN with explicit per-spawn narrowing; receipts log both actor and owner; audit trail must always show the chain.\n- Risk: Schema decision is sticky — getting Principal shape wrong here forces all downstream KERNEL-007/008 work to migrate. Mitigation: red-team the schema with a multi-Principal scenario before activation; review against the McpClient and ExternalAgent constraints from KERNEL-007 stub.\n- Risk: Implicit conflation of authentication (who) and authorization (what) on the Principal row, forcing later schema gymnastics. Mitigation: keep Principal as identity-only; capability_grants is a separate joined relation; profile/persona is a separate table.\n- Risk: ChatGPT/Cursor/Antigravity-style account models leak into the design. Mitigation: KERNEL-006 is local-first authority for a solo operator; no provider account integration; visitor-pass and MCP scrutiny live in KERNEL-007.\n- Risk: SQLite reappears via test fixtures or compatibility paths. Mitigation: Postgres/EventLedger only per [CX-503R]; activation must verify zero SQLite surfaces are introduced.\n- Risk: Adult-production scope creep — profiles/personas (KERNEL-008) tempt this stub to absorb consent paperwork. Mitigation: this stub is identity + access only; CRM and persona-as-feature live in KERNEL-008; consent paperwork stays operator-owned per [CX-123A], [CX-123B].",
+    "governance_artifact_stance": "- Machine-readable governance contracts are primary.\n- Markdown is a synchronized projection and planning surface for operator/model inspection.\n- This stub must produce a `.contract.json` projection before it is treated as registered governance inventory.\n- This stub is not executable until it becomes an official signed packet with refinement, packet contract, microtask contracts, and activation approval.\n- Refinement scope is intentionally larger than usual because Principal is a sticky kernel primitive; do not shortcut the open-question pass."
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "answer_or_defer_key_open_questions",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Operators can survive a misconfigured RLS policy via break-glass.",
+      "Spawned-agent inheritance correctly chains authority without authority leakage.",
+      "Principal identity and Profile/persona are intentionally separate tables and remain so."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration.",
+      "Refinement must surface RLS perf budget, break-glass procedure, and KernelActor migration backfill semantics before activation."
+    ]
+  }
+}

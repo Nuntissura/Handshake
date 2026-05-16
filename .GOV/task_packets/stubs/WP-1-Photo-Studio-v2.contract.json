@@ -28,11 +28,11 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "9e3a6f1bd74e50e321cced579fd4e91f7717a94697d70f4504d47a8836d79ad7",
+    "projection_sha256": "82e764a4da63b6bb593fb9e92c26fcbf9e861ccf580809a2664c6069fe7c910f",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
-    "status": "STUB (NOT READY FOR DEV)",
+    "status": "SUPERSEDED",
     "format_version": "",
     "activation_required": true,
     "user_signature_required": false,

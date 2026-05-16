@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.json source_hash=8d9be9ce7e613a3f projection_hash=267f0ce7cb5f56a5 generated_at_utc=2026-05-06T16:33:39.458Z generator=wp-contract-import.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Session-Observability-Spans-FR-v1/packet.json source_hash=294c530b8a5b7cd9 projection_hash=267f0ce7cb5f56a5 generated_at_utc=2026-05-14T21:13:39.752Z generator=wp-contract-import.mjs -->
 # TASK_PACKET_TEMPLATE
 
 Copy this into each new task packet and fill all fields.

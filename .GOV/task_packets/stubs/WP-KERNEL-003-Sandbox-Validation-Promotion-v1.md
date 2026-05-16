@@ -190,7 +190,7 @@ These items remain important but are not fully owned by Kernel003. Kernel003 mus
 - AC-014: DCC or equivalent projection can show sandbox run status, blocked reasons, validation reports, promotion decisions, and evidence bundle links.
 - AC-015: Visual validation evidence can be attached to a validation report when a GUI/browser check is part of the candidate.
 - AC-016: Tests prove direct-write denial, path escape denial, network denial, process allowlist denial, resource cap behavior, validation persistence, promotion accept/reject, and replay after restart.
-- AC-017: Kernel003 authority records use Postgres/EventLedger and do not introduce SQLite authority, SQLite fallback, SQLite fixtures, or SQLite compatibility paths.
+- AC-017: Kernel003 authority records use Postgres/EventLedger and do not introduce SQLite authority, fallback, cache, fixtures, compatibility paths, imports, examples, harnesses, temporary adapters, or tests.
 - AC-018: Validation and promotion evidence remains reconstructable after backend restart without provider chat history, terminal scrollback, or hidden session context.
 - AC-019: All generated artifacts, logs, and external tool outputs remain under configured artifact roots and are disk-agnostic.
 - AC-020: Activation includes an Integration Validator handoff summary and does not claim PASS/FAIL internally.
@@ -310,9 +310,9 @@ These items remain important but are not fully owned by Kernel003. Kernel003 mus
 ### MT-015 - No SQLite Authority Tripwire
 - Objective: Prevent Kernel003 authority from using SQLite in production or tests.
 - Write scope: tests and product storage guards after activation.
-- Implementation detail: add tests scanning Kernel003 modules and migrations for SQLite authority/fallback usage.
+- Implementation detail: add tests scanning Kernel003 modules and migrations for any SQLite usage, including authority, fallback, cache, fixtures, compatibility paths, imports, examples, harnesses, temporary adapters, and tests.
 - Acceptance: Kernel003 authority fails closed without Postgres/EventLedger authority.
-- Verification: targeted test fails if SQLite fixture or fallback appears in Kernel003 authority path.
+- Verification: targeted test fails if SQLite appears in any Kernel003 runtime, authority, fallback, cache, fixture, compatibility, import, example, harness, temporary-adapter, or test path.
 
 ### MT-016 - Replay Projection Storage Query
 - Objective: Implement or specify a query that reconstructs a sandbox-validation-promotion run from durable rows/events.

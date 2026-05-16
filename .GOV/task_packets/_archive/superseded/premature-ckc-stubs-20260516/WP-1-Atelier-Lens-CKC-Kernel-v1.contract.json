@@ -1,0 +1,103 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Atelier-Lens-CKC-Kernel-v1",
+  "base_wp_id": "WP-1-Atelier-Lens-CKC-Kernel",
+  "created_at_utc": "2026-05-16T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Kernel-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Kernel-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Kernel-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "1216984e9b4b3d2b6ad859d9dba20b7f5fbefc4fe1e1bb8915cee0ab533242ae",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-1-Atelier-Lens-CKC-Greenroom",
+      "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening",
+      "WP-KERNEL-003-Sandbox-Validation-Promotion",
+      "WP-1-Stage-Media-Artifact-Portability",
+      "WP-1-Artifact-System-Foundations"
+    ],
+    "blocks": [
+      "WP-1-Atelier-Lens-CKC-Vertical-Slice",
+      "WP-1-Studio-Runtime-Visibility",
+      "WP-1-Photo-Studio",
+      "WP-1-Atelier-Lens"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "FEAT-ATELIER-LENS; FEAT-PHOTO-STUDIO; TOOL-COMFYUI; PRIM-Moodboard; CKC Handshake-native kernel",
+    "roadmap_add_coverage": "SPEC=v02.185; PHASE=7.6.3; LINES=12-end-of-file-appendices:155,889,4376,5728; 10-product-surfaces:4872,5134,5391,5797"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Rebuild the CastKit Codex domain as a Handshake-native Atelier/Lens kernel using Rust/Tauri boundaries, PostgreSQL authority, EventLedger lineage, artifact store integration, and typed validation/promotion hooks.\n- Why: CKC was always a core Atelier/Lens feature path; rebuilding it natively avoids a separate-product detour while preserving character, media, ComfyUI, PoseKit, search, export, and automation goals.",
+    "scope_sketch": "- IN_SCOPE:\n  - Rust domain modules for character profiles, sheets/templates, media assets, intake, collections, sidecars, PoseKit metadata, ComfyUI receipts, search projections, exports, and automation commands.\n  - PostgreSQL migrations and repository/service boundaries.\n  - EventLedger events for imports, mutations, artifact proposals, ComfyUI lineage, validation, promotion, export, and recovery.\n  - Artifact store integration and portable manifests.\n  - Tauri command facade for thin future React projections.\n  - PostgreSQL-only CKC parity test harness adapted from greenroom source maps. No SQLite fixture, compatibility path, cache, fallback, harness, or temporary adapter is allowed.\n- OUT_OF_SCOPE:\n  - Full GUI rebuild.\n  - Direct CKC runtime dependency.\n  - Electron IPC, localhost intake as authority, and SQLite in any form. SQLite is not accepted in runtime, tests, fixtures, compatibility, imports, fallback, cache, examples, harnesses, or temporary adapters.\n  - Full PoseKit calibration UI and batch ComfyUI generation UI.",
+    "acceptance_criteria": "- Character, sheet, media, intake, collection, sidecar, ComfyUI, and export domain contracts exist in Handshake-native modules.\n- PostgreSQL is the only runtime authority path for Kernel V1 data.\n- Every significant mutation emits or can emit an EventLedger lineage event.\n- Artifact outputs use configured artifact roots and manifests, not `.GOV` or CKC app folders.\n- CKC PostgreSQL-only parity cases prove no silent rewrite, no silent delete, stable IDs, version append-only behavior, and recoverable media lineage.\n- Existing LensExtractionTier, ViewMode, Studio runtime visibility, Stage media artifact portability, and Photo Studio gap intents are explicitly carried forward or linked.",
+    "risks_unknowns": "- Risk: product domain grows too wide; control by implementing backend contracts before UI.\n- Risk: CKC code is ported instead of translated; control by using preserve/adapt/reject decisions from greenroom.\n- Risk: old SQLite paths leak into tests; control by no-SQLite tripwires and PostgreSQL-only proof.\n- Risk: ComfyUI lineage becomes opaque; control by requiring typed workflow/run receipts and artifact refs.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

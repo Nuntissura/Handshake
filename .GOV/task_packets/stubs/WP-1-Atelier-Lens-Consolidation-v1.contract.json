@@ -1,0 +1,102 @@
+{
+  "schema_id": "hsk.work_packet_stub_contract@1",
+  "schema_version": "work_packet_stub_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-1-Atelier-Lens-Consolidation-v1",
+  "base_wp_id": "WP-1-Atelier-Lens-Consolidation",
+  "created_at_utc": "2026-05-16T00:00:00Z",
+  "source_files": {
+    "stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-Consolidation-v1.contract.json",
+    "markdown_projection": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-Consolidation-v1.md"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-Consolidation-v1.md",
+    "status": "LEGACY_PROJECTION_IN_SYNC",
+    "projection_sha256": "8006ee7895aa2479891242710fdb0b33e70bf3d8ec27eebc0ef3766a8b681a26",
+    "generated_by": "task-packet-stub-contracts.mjs"
+  },
+  "lifecycle": {
+    "status": "STUB (NOT READY FOR DEV)",
+    "format_version": "",
+    "activation_required": true,
+    "user_signature_required": false,
+    "refinement_required_before_execution": true
+  },
+  "build_order": {
+    "domain": "CROSS_BOUNDARY",
+    "tech_blocker": "YES",
+    "value_tier": "HIGH",
+    "risk_tier": "HIGH",
+    "depends_on": [
+      "WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening",
+      "WP-KERNEL-003-Sandbox-Validation-Promotion",
+      "WP-1-Artifact-System-Foundations",
+      "WP-1-Structured-Collaboration-Artifact-Family"
+    ],
+    "blocks": [
+      "WP-1-Atelier-Lens",
+      "WP-1-Photo-Studio",
+      "WP-1-Studio-Runtime-Visibility",
+      "future CKC rebuild stubs"
+    ]
+  },
+  "spec_trace": {
+    "spec_target": ".GOV/spec/SPEC_CURRENT.md",
+    "roadmap_pointer": "FEAT-ATELIER-LENS; FEAT-PHOTO-STUDIO; PRIM-Moodboard; TOOL-COMFYUI; Stage/media lineage; Loom/archive media intelligence",
+    "roadmap_add_coverage": "SPEC=v02.185; PHASE=7.6.3; LINES=12-end-of-file-appendices:155,889,4376,5728; 10-product-surfaces:4872,5134,5391,5797"
+  },
+  "session_policy": {
+    "session_start_authority": "",
+    "session_host_preference": "",
+    "session_launch_policy": "",
+    "role_model_profile_policy": "",
+    "planned_execution_owner_range": ""
+  },
+  "draft_scope": {
+    "intent": "- What: Consolidate all current Atelier/Lens-adjacent Handshake stubs into one preservation-first WP before any CKC rebuild stubs are created.\n- Why: The current backlog has separate Atelier/Lens, Photo Studio, Lens, Studio runtime, media lineage, Loom/archive, artifact, and visual-debug intentions. Those must be folded without losing intent before CKC is rebuilt inside Handshake.\n- Correction: This replaces the premature CKC Greenroom/Kernel/Vertical-Slice stubs. Greenroom is today's research/consolidation work, not a WP by itself. CKC rebuild stubs are deferred until greenroom output and CKC research are complete.\n- Overlap rule: CKC is an evolved sibling expression of Atelier/Lens and prompt-diary intent, built outside Handshake because the same operator needs were urgent. Do not treat CKC as optional garnish, lower-priority inspiration, or a feature pile to cherry-pick after Atelier/Lens. Fold CKC into Atelier/Lens while preserving the existing Atelier/Lens paths.\n- Convenience rule: CKC features created from unexpected need and daily convenience are valid requirement evidence. Classify them as folded, dependency, deferred, conflict, or operator-decision-needed; do not ignore them because they were not in the original Handshake stubs.",
+    "scope_sketch": "- IN_SCOPE:\n  - Build a single no-loss source register for all Atelier/Lens-adjacent stubs listed above.\n  - Preserve every source stub's original intent, rationale, scope, constraints, unresolved work, and dependencies.\n  - Classify each source stub as baseline, fully folded, partially folded, separate dependency, historical source, or later CKC input.\n  - Build an overlap matrix between Atelier/Lens intent and CKC capability clusters so duplicate goals are merged instead of competing.\n  - Build a CKC evolved-feature register for convenience-driven or unexpected-use features and require an explicit fold/defer/separate/conflict decision for each.\n  - Produce a conflict matrix for UI-first legacy assumptions, SQLite/FTS5/source examples, Electron/localhost intake, artifact-path ownership, DCC/projection overlap, Loom/media overlap, and duplicate Photo Studio/Atelier responsibility.\n  - Produce a consolidated microtask map for one future official Atelier/Lens WP, with small enough MTs for no-context model execution.\n  - Keep CKC rebuild stubs deferred until greenroom and research are complete.\n  - Preserve the PostgreSQL-only rule: SQLite is not accepted for runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, or product paths.\n- OUT_OF_SCOPE:\n  - Product runtime implementation.\n  - Full GUI rebuild or dockable-window shell work.\n  - Creating CKC rebuild/kernel/vertical-slice stubs now.\n  - Claiming CKC parity.\n  - Dropping any existing stub intent without explicit conflict/defer/supersede classification.",
+    "acceptance_criteria": "- The official WP produced from this stub contains one source-backed row for every listed Atelier/Lens-adjacent source stub.\n- The official WP contains one source-backed overlap row for each CKC capability cluster that overlaps Atelier/Lens, Photo Studio, Studio runtime, Loom/media/archive, artifact, or visual-debugging intent.\n- Every CKC convenience feature extracted from code/spec/taskboard is classified as folded, dependency, deferred, conflict, or operator-decision-needed.\n- No listed source stub intent is silently deleted, renamed away, or compressed into vague wording.\n- Every conflict between old and new scope has one of: layered resolution, parallel/dependency split, explicit defer, or operator-decision-needed.\n- CKC material remains reference/research input until a later CKC rebuild stub is created after greenroom and research.\n- SQLite is rejected in every Handshake context: runtime, tests, fixtures, mocks, examples, fallbacks, cache, compatibility adapters, temporary harnesses, imports, exports, and product paths.\n- The WP outputs enough detail for later CKC rebuild stubs to be created without rereading every legacy Atelier/Lens stub from scratch.",
+    "risks_unknowns": "- Risk: consolidation compresses away source intent. Control: one source-backed row per source stub and explicit fold/defer/separate classification.\n- Risk: CKC gets treated as secondary because it was built outside Handshake. Control: require an overlap matrix and evolved-feature register before any CKC rebuild stub is authored.\n- Risk: CKC urgency shortcuts the Handshake-native architecture. Control: CKC rebuild stubs are gated on greenroom plus research and must inherit PostgreSQL/EventLedger/ArtifactStore boundaries.\n- Risk: UI shell desire pollutes backend/domain planning. Control: this WP records future UI needs but does not implement the dockable shell.\n- Risk: media/Loom/Photo Studio responsibilities blur. Control: produce explicit ownership boundary rows before runtime work starts.\n- Risk: old SQLite/FTS5 examples leak back into tests. Control: require no-SQLite tripwires in acceptance and future microtasks.",
+    "governance_artifact_stance": ""
+  },
+  "activation_contract": {
+    "may_start_coder": false,
+    "may_start_validator": false,
+    "required_activation_steps": [
+      "create_or_refresh_refinement",
+      "obtain_user_signature",
+      "create_official_work_packet_contract",
+      "move_task_board_entry_from_stub_to_ready_for_dev"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "assumptions_to_attack": [
+      "A stub is planning metadata, not execution authority.",
+      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
+      "Apps must not treat stub contracts as runnable work packets."
+    ],
+    "minimum_controls": [
+      "Keep execution_authority=NON_EXECUTION_STUB.",
+      "Require official packet contract before Coder or Validator launch.",
+      "Fail drift checks when stub Markdown changes without contract regeneration."
+    ]
+  }
+}

@@ -34,17 +34,17 @@ Rules:
 
 ## INTENT (DRAFT)
 - What: Implement four mechanical write-time safeguards in the FEMS validation step that run without LLM calls: novelty scoring, supersession, contradiction detection, and dedup. Ports battle-tested patterns from repo governance memory write-time guards.
-- Why: Without write-time guards, the LongTermMemory store bloats with duplicates, contradictions accumulate silently, and stale procedural items persist alongside their replacements. These checks are cheap (FTS5 + metadata comparison), fast, and prevent problems that are expensive to fix later in consolidation.
+- Why: Without write-time guards, the LongTermMemory store bloats with duplicates, contradictions accumulate silently, and stale procedural items persist alongside their replacements. These checks are cheap (PostgreSQL indexed search + metadata comparison), fast, and prevent problems that are expensive to fix later in consolidation.
 
 ## SCOPE_SKETCH (DRAFT)
 - IN_SCOPE:
-  - Novelty scoring: FTS5 near-duplicate check at MemoryWriteProposal validation time. If a proposed item closely matches an existing item (same scope_ref, high FTS5 similarity), apply a 0.3x importance penalty. Log in MemoryCommitReport warnings.
+  - Novelty scoring: PostgreSQL indexed/embedding near-duplicate check at MemoryWriteProposal validation time. If a proposed item closely matches an existing item (same scope_ref, high retrieval similarity), apply a 0.3x importance penalty. Log in MemoryCommitReport warnings.
   - Supersession: when a new procedural item targets the same scope_ref as an existing one, automatically mark the old item as superseded (status change via FR-EVT-MEM-005). The old item remains in store but is excluded from MemoryPack compilation.
   - Contradiction detection: when a new item has the same scope_ref but different content/summary than an existing item, flag both as conflicted. Route to DCC conflict queue rather than silently overwriting.
   - Dedup: exact match on (memory_class + type + scope_refs + summary hash) → skip the write entirely. Log as skipped in MemoryCommitReport.
   - All four guards run in the validate step of the FEMS write path, before any LLM-based consolidation.
   - Auto-validation against current state (VS Code Copilot pattern): at pack-build time, check that scope_refs still resolve to existing entities. If referenced file/entity is deleted or substantially changed, auto-flag the memory item. Cheap (file existence + mtime check), prevents injecting memories about deleted features.
-  - JSONL audit trail (BEADS dual-layer pattern): every memory mutation (write, supersede, flag, tombstone) emits a JSONL line alongside the SQLite write. JSONL log is includable in debug bundles and Flight Recorder evidence exports. SQLite is speed, JSONL is audit.
+  - JSONL audit trail (BEADS dual-layer pattern): every memory mutation (write, supersede, flag, tombstone) emits a JSONL line alongside the PostgreSQL authority write. JSONL log is includable in debug bundles and Flight Recorder evidence exports. PostgreSQL is authority, JSONL is audit.
 - OUT_OF_SCOPE:
   - LLM-based consolidation (that's the consolidate step, not validate).
   - Anti-poisoning trust segmentation (WP-1-FEMS-Memory-Poisoning-Drift-Guardrails-v1).
@@ -53,7 +53,7 @@ Rules:
 ## PILLAR_FORCE_MULTIPLIERS (DRAFT)
 - TOUCHED_OR_UNKNOWN_PILLARS:
   - PILLAR: Front End Memory System | STATUS: TOUCHED | NOTES: primary pillar; hardening the write path | Stub follow-up: THIS_STUB
-  - PILLAR: RAG | STATUS: TOUCHED | NOTES: FTS5 index shared with RAG hybrid retrieval infrastructure | Stub follow-up: NONE
+  - PILLAR: RAG | STATUS: TOUCHED | NOTES: PostgreSQL/vector retrieval shared with RAG hybrid retrieval infrastructure | Stub follow-up: NONE
   - PILLAR: Flight Recorder | STATUS: TOUCHED | NOTES: supersession and contradiction actions emit FR-EVT-MEM-005 | Stub follow-up: NONE
   - PILLAR: Command Center | STATUS: TOUCHED | NOTES: contradiction conflicts surface in DCC conflict queue | Stub follow-up: NONE
 
@@ -66,11 +66,11 @@ Rules:
 - Write path latency increase from guards is <10ms per proposal.
 
 ## DEPENDENCIES / BLOCKERS (DRAFT)
-- Depends on: WP-1-Front-End-Memory-System-v1 for LongTermMemory store and FTS5 index.
+- Depends on: WP-1-Front-End-Memory-System-v1 for LongTermMemory store and PostgreSQL/vector retrieval index.
 
 ## RISKS / UNKNOWNs (DRAFT)
 - Risk: over-aggressive novelty scoring suppresses legitimately similar but distinct items. Threshold needs tuning.
-- Risk: FTS5 similarity may not catch semantic duplicates that use different wording. Acceptable for Phase 1; embedding-based dedup is Phase 2.
+- Risk: keyword similarity may not catch semantic duplicates that use different wording. Acceptable for Phase 1; embedding-based dedup is Phase 2.
 
 ## ACTIVATION_CHECKLIST (REQUIRED BEFORE ANY CODING)
 - [ ] Confirm the requirement exists in Master Spec Main Body (not just Roadmap).
