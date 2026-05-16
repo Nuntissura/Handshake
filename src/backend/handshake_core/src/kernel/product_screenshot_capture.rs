@@ -1,6 +1,13 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
+use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 pub const FOLDED_PRODUCT_SCREENSHOT_VISUAL_VALIDATION_STUB_ID: &str =
     "WP-1-Product-Screenshot-Visual-Validation-v1";
@@ -87,6 +94,92 @@ pub struct ProductScreenshotExecutionProofV1 {
     pub writes_screenshot_ref: String,
     pub writes_metadata_ref: String,
     pub writes_receipt_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProductScreenshotAdapterCaptureV1 {
+    pub png_bytes: Vec<u8>,
+    pub adapter_exit_status: i32,
+    pub captured_at_utc: String,
+    pub command_or_api_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductScreenshotBrowserAdapterConfigV1 {
+    pub source_url: String,
+    pub adapter_script_path: String,
+    pub node_binary: String,
+    pub command_or_api_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductScreenshotMetadataV1 {
+    pub schema_id: String,
+    pub request_id: String,
+    pub scope: ScreenshotCaptureScope,
+    pub target_ref: String,
+    pub width: u32,
+    pub height: u32,
+    pub captured_at_utc: String,
+    pub capture_adapter_ref: String,
+    pub command_or_api_ref: String,
+    pub flight_recorder_ref: String,
+    pub workdir_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProductScreenshotExecutionReceiptV1 {
+    pub schema_id: String,
+    pub request_id: String,
+    pub scope: ScreenshotCaptureScope,
+    pub command_or_api_ref: String,
+    pub artifact_ref: String,
+    pub metadata_ref: String,
+    pub receipt_ref: String,
+    pub screenshot_path: String,
+    pub metadata_path: String,
+    pub receipt_path: String,
+    pub screenshot_sha256: String,
+    pub metadata_sha256: String,
+    pub adapter_exit_status: i32,
+    pub workdir_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProductScreenshotExecutionResultV1 {
+    pub artifact: ProductScreenshotArtifactV1,
+    pub durable_receipt: ProductScreenshotDurableReceiptV1,
+    pub proof: ProductScreenshotExecutionProofV1,
+    pub metadata: ProductScreenshotMetadataV1,
+    pub receipt: ProductScreenshotExecutionReceiptV1,
+    pub screenshot_path: PathBuf,
+    pub metadata_path: PathBuf,
+    pub receipt_path: PathBuf,
+}
+
+#[derive(Debug)]
+pub enum ProductScreenshotExecutionError {
+    InvalidRequest(&'static str),
+    InvalidPng(String),
+    AdapterFailed {
+        status_code: Option<i32>,
+        stderr: String,
+    },
+    MissingAdapterOutput(PathBuf),
+    Io(std::io::Error),
+    Serialize(serde_json::Error),
+}
+
+impl From<std::io::Error> for ProductScreenshotExecutionError {
+    fn from(value: std::io::Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+impl From<serde_json::Error> for ProductScreenshotExecutionError {
+    fn from(value: serde_json::Error) -> Self {
+        Self::Serialize(value)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -254,6 +347,216 @@ pub fn project_product_screenshot_capture(
         real_execution_required: true,
         mutates_authority: false,
     })
+}
+
+pub fn execute_product_screenshot_capture(
+    request: &ProductScreenshotRequestV1,
+    adapter_capture: ProductScreenshotAdapterCaptureV1,
+    artifact_root: impl AsRef<Path>,
+) -> Result<ProductScreenshotExecutionResultV1, ProductScreenshotExecutionError> {
+    if request.request_id.trim().is_empty() {
+        return Err(ProductScreenshotExecutionError::InvalidRequest(
+            "request_id is required",
+        ));
+    }
+    if !target_matches_scope(request.scope, &request.target_ref) {
+        return Err(ProductScreenshotExecutionError::InvalidRequest(
+            "target_ref must match screenshot scope",
+        ));
+    }
+    if !uses_governed_capture_surface(
+        request.execution_surface,
+        &adapter_capture.command_or_api_ref,
+    ) {
+        return Err(ProductScreenshotExecutionError::InvalidRequest(
+            "command_or_api_ref must use the governed capture surface",
+        ));
+    }
+
+    let decoded =
+        image::load_from_memory_with_format(&adapter_capture.png_bytes, image::ImageFormat::Png)
+            .map_err(|err| ProductScreenshotExecutionError::InvalidPng(err.to_string()))?;
+    let width = decoded.width();
+    let height = decoded.height();
+    if width == 0 || height == 0 {
+        return Err(ProductScreenshotExecutionError::InvalidPng(
+            "PNG dimensions must be positive".to_string(),
+        ));
+    }
+
+    let artifact_root = artifact_root.as_ref();
+    let metadata_dir = artifact_root.join("metadata");
+    let receipt_dir = artifact_root.join("receipts");
+    fs::create_dir_all(&metadata_dir)?;
+    fs::create_dir_all(&receipt_dir)?;
+
+    let file_stem = sanitize_artifact_segment(&request.request_id);
+    let screenshot_path = artifact_root.join(format!("{file_stem}.png"));
+    let metadata_path = metadata_dir.join(format!("{file_stem}.json"));
+    let receipt_path = receipt_dir.join(format!("{file_stem}.json"));
+    let artifact_id = format!("artifact.{file_stem}");
+    let receipt_id = format!("receipt.{file_stem}");
+
+    fs::write(&screenshot_path, &adapter_capture.png_bytes)?;
+    let screenshot_sha256 = sha256_prefixed(&adapter_capture.png_bytes);
+
+    let metadata = ProductScreenshotMetadataV1 {
+        schema_id: "hsk.product_screenshot_metadata@1".to_string(),
+        request_id: request.request_id.clone(),
+        scope: request.scope,
+        target_ref: request.target_ref.clone(),
+        width,
+        height,
+        captured_at_utc: adapter_capture.captured_at_utc.clone(),
+        capture_adapter_ref: request.capture_adapter_ref.clone(),
+        command_or_api_ref: adapter_capture.command_or_api_ref.clone(),
+        flight_recorder_ref: request.flight_recorder_ref.clone(),
+        workdir_ref: request.workdir_ref.clone(),
+    };
+    let metadata_bytes = serde_json::to_vec_pretty(&metadata)?;
+    fs::write(&metadata_path, &metadata_bytes)?;
+    let metadata_sha256 = sha256_prefixed(&metadata_bytes);
+
+    let artifact = ProductScreenshotArtifactV1 {
+        artifact_id: artifact_id.clone(),
+        request_id: request.request_id.clone(),
+        screenshot_ref: format!("artifact://screenshots/{artifact_id}.png"),
+        metadata_ref: format!("artifact://metadata/screenshots/{artifact_id}.json"),
+        content_type: "image/png".to_string(),
+        width,
+        height,
+        captured_at_utc: adapter_capture.captured_at_utc,
+        retention_class: "visual-validation".to_string(),
+        screenshot_path: screenshot_path.to_string_lossy().into_owned(),
+        metadata_path: metadata_path.to_string_lossy().into_owned(),
+        metadata_schema_id: "hsk.product_screenshot_metadata@1".to_string(),
+    };
+    let durable_receipt = ProductScreenshotDurableReceiptV1 {
+        receipt_id: receipt_id.clone(),
+        request_id: request.request_id.clone(),
+        scope: request.scope,
+        receipt_ref: format!("receipt://product-screenshot-capture/{receipt_id}"),
+        receipt_path: receipt_path.to_string_lossy().into_owned(),
+        workdir_ref: request.workdir_ref.clone(),
+        execution_surface: request.execution_surface,
+        records_screenshot_sha256: true,
+        records_metadata_sha256: true,
+        records_adapter_exit_status: true,
+    };
+    let proof = ProductScreenshotExecutionProofV1 {
+        proof_id: format!("proof.{file_stem}"),
+        request_id: request.request_id.clone(),
+        adapter_ref: request.capture_adapter_ref.clone(),
+        execution_surface: request.execution_surface,
+        execution_path: format!("kernel://product-screenshot-capture/{}", request.request_id),
+        command_or_api_ref: adapter_capture.command_or_api_ref.clone(),
+        workdir_ref: request.workdir_ref.clone(),
+        metadata_ref: artifact.metadata_ref.clone(),
+        artifact_ref: artifact.screenshot_ref.clone(),
+        receipt_ref: durable_receipt.receipt_ref.clone(),
+        writes_screenshot_ref: artifact.screenshot_ref.clone(),
+        writes_metadata_ref: artifact.metadata_ref.clone(),
+        writes_receipt_ref: durable_receipt.receipt_ref.clone(),
+    };
+    let receipt = ProductScreenshotExecutionReceiptV1 {
+        schema_id: "hsk.product_screenshot_execution_receipt@1".to_string(),
+        request_id: request.request_id.clone(),
+        scope: request.scope,
+        command_or_api_ref: adapter_capture.command_or_api_ref,
+        artifact_ref: artifact.screenshot_ref.clone(),
+        metadata_ref: artifact.metadata_ref.clone(),
+        receipt_ref: durable_receipt.receipt_ref.clone(),
+        screenshot_path: artifact.screenshot_path.clone(),
+        metadata_path: artifact.metadata_path.clone(),
+        receipt_path: durable_receipt.receipt_path.clone(),
+        screenshot_sha256,
+        metadata_sha256,
+        adapter_exit_status: adapter_capture.adapter_exit_status,
+        workdir_ref: request.workdir_ref.clone(),
+    };
+    let receipt_bytes = serde_json::to_vec_pretty(&receipt)?;
+    fs::write(&receipt_path, receipt_bytes)?;
+
+    Ok(ProductScreenshotExecutionResultV1 {
+        artifact,
+        durable_receipt,
+        proof,
+        metadata,
+        receipt,
+        screenshot_path,
+        metadata_path,
+        receipt_path,
+    })
+}
+
+pub fn capture_product_screenshot_from_browser_adapter(
+    request: &ProductScreenshotRequestV1,
+    adapter_config: ProductScreenshotBrowserAdapterConfigV1,
+    artifact_root: impl AsRef<Path>,
+) -> Result<ProductScreenshotExecutionResultV1, ProductScreenshotExecutionError> {
+    if adapter_config.source_url.trim().is_empty() {
+        return Err(ProductScreenshotExecutionError::InvalidRequest(
+            "source_url is required",
+        ));
+    }
+    if adapter_config.adapter_script_path.trim().is_empty() {
+        return Err(ProductScreenshotExecutionError::InvalidRequest(
+            "adapter_script_path is required",
+        ));
+    }
+    if adapter_config.node_binary.trim().is_empty() {
+        return Err(ProductScreenshotExecutionError::InvalidRequest(
+            "node_binary is required",
+        ));
+    }
+
+    let artifact_root = artifact_root.as_ref();
+    let adapter_output_dir = artifact_root.join("adapter-output");
+    fs::create_dir_all(&adapter_output_dir)?;
+    let adapter_output_path = adapter_output_dir.join(format!(
+        "{}.png",
+        sanitize_artifact_segment(&request.request_id)
+    ));
+
+    let output = Command::new(adapter_config.node_binary.trim())
+        .arg(adapter_config.adapter_script_path.trim())
+        .arg("--scope")
+        .arg(scope_cli_value(request.scope))
+        .arg("--target-ref")
+        .arg(request.target_ref.as_str())
+        .arg("--source-url")
+        .arg(adapter_config.source_url.as_str())
+        .arg("--output")
+        .arg(adapter_output_path.as_os_str())
+        .arg("--width")
+        .arg(request.width.to_string())
+        .arg("--height")
+        .arg(request.height.to_string())
+        .output()?;
+
+    if !output.status.success() {
+        return Err(ProductScreenshotExecutionError::AdapterFailed {
+            status_code: output.status.code(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        });
+    }
+    if !adapter_output_path.exists() {
+        return Err(ProductScreenshotExecutionError::MissingAdapterOutput(
+            adapter_output_path,
+        ));
+    }
+
+    let png_bytes = fs::read(adapter_output_path)?;
+    execute_product_screenshot_capture(
+        request,
+        ProductScreenshotAdapterCaptureV1 {
+            png_bytes,
+            adapter_exit_status: output.status.code().unwrap_or(0),
+            captured_at_utc: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
+            command_or_api_ref: adapter_config.command_or_api_ref,
+        },
+        artifact_root,
+    )
 }
 
 fn validate_supported_scopes(
@@ -758,6 +1061,14 @@ fn target_matches_scope(scope: ScreenshotCaptureScope, target_ref: &str) -> bool
     }
 }
 
+pub fn scope_cli_value(scope: ScreenshotCaptureScope) -> &'static str {
+    match scope {
+        ScreenshotCaptureScope::FullApp => "full-app",
+        ScreenshotCaptureScope::Panel => "panel",
+        ScreenshotCaptureScope::Module => "module",
+    }
+}
+
 fn scope_supported_and_requested(
     capture: &ProductScreenshotCaptureV1,
     scope: ScreenshotCaptureScope,
@@ -786,6 +1097,26 @@ fn ordered_trigger_kinds(
             .any(|request| request.trigger_kind == *trigger_kind)
     })
     .collect()
+}
+
+fn sanitize_artifact_segment(value: &str) -> String {
+    let sanitized: String = value
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '-' || character == '_' {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    sanitized.trim_matches('-').to_string()
+}
+
+fn sha256_prefixed(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("sha256:{}", hex::encode(hasher.finalize()))
 }
 
 fn require_non_empty(

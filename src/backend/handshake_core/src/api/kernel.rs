@@ -5,9 +5,18 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 
+use crate::flight_recorder::{EventFilter, FlightRecorderEventType};
+use crate::kernel::product_screenshot_capture::{
+    capture_product_screenshot_from_browser_adapter, ProductScreenshotArtifactV1,
+    ProductScreenshotBrowserAdapterConfigV1, ProductScreenshotDurableReceiptV1,
+    ProductScreenshotExecutionProofV1, ProductScreenshotExecutionReceiptV1,
+    ProductScreenshotRequestV1,
+};
 use crate::kernel::session_spawn_tree_dcc::{
-    project_session_spawn_tree_dcc, SessionSpawnTreeDccV1,
+    project_session_spawn_tree_dcc, SessionAnnounceBackBadgeV1, SessionRuntimeState,
+    SessionSpawnMode, SessionSpawnRuntimeRecordV1, SessionSpawnTreeDccV1,
 };
 use crate::kernel::{
     action_catalog::{kernel002_action_catalog, validate_kernel_action_catalog},
@@ -16,6 +25,7 @@ use crate::kernel::{
     dcc_mvp_runtime_surface::validate_dcc_mvp_runtime_surface,
     DccMvpRuntimeSurfaceV1, KernelError, KernelTraceInspector, TraceProjection,
 };
+use crate::storage::{ModelSession, ModelSessionState};
 use crate::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -54,6 +64,23 @@ pub struct DccGovernedActionTriggerResponse {
     pub receipt_ref: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ProductScreenshotCaptureExecuteRequest {
+    pub request: ProductScreenshotRequestV1,
+    pub source_url: String,
+    pub adapter_script_path: Option<String>,
+    pub node_binary: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ProductScreenshotCaptureExecuteResponse {
+    pub schema_id: &'static str,
+    pub artifact: ProductScreenshotArtifactV1,
+    pub durable_receipt: ProductScreenshotDurableReceiptV1,
+    pub proof: ProductScreenshotExecutionProofV1,
+    pub receipt: ProductScreenshotExecutionReceiptV1,
+}
+
 #[derive(Debug, Serialize)]
 pub struct SessionSpawnTreeNodeApiProjection {
     pub session_id: String,
@@ -80,6 +107,13 @@ pub struct SessionSpawnTreeDccApiProjection {
     pub announce_back_badge_count: usize,
     pub runtime_record_refs: Vec<String>,
     pub mutates_runtime_records: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct KernelDccProjectionApiSurface {
+    #[serde(flatten)]
+    pub surface: DccMvpRuntimeSurfaceV1,
+    pub session_spawn_runtime_records: Vec<SessionSpawnRuntimeRecordV1>,
 }
 
 type ApiResult<T> = Result<Json<T>, (StatusCode, Json<ErrorResponse>)>;
@@ -134,7 +168,9 @@ pub async fn inspect_trace_projection(
     Ok(Json(projection))
 }
 
-pub async fn dcc_projection() -> ApiResult<DccMvpRuntimeSurfaceV1> {
+pub async fn dcc_projection(
+    State(state): State<AppState>,
+) -> ApiResult<KernelDccProjectionApiSurface> {
     let surface = build_pre_use_dcc_mvp_runtime_surface();
     validate_dcc_mvp_runtime_surface(&surface).map_err(|errors| {
         api_error(
@@ -143,7 +179,11 @@ pub async fn dcc_projection() -> ApiResult<DccMvpRuntimeSurfaceV1> {
             format!("backend DCC projection failed validation: {errors:?}"),
         )
     })?;
-    Ok(Json(surface))
+    let session_spawn_runtime_records = session_spawn_runtime_records_from_state(&state).await;
+    Ok(Json(KernelDccProjectionApiSurface {
+        surface,
+        session_spawn_runtime_records,
+    }))
 }
 
 pub async fn trigger_dcc_governed_action(
@@ -267,6 +307,275 @@ pub async fn session_spawn_tree_dcc_projection(
     }))
 }
 
+pub async fn execute_product_screenshot_capture_api(
+    Json(request): Json<ProductScreenshotCaptureExecuteRequest>,
+) -> ApiResult<ProductScreenshotCaptureExecuteResponse> {
+    let result = capture_product_screenshot_from_browser_adapter(
+        &request.request,
+        ProductScreenshotBrowserAdapterConfigV1 {
+            source_url: request.source_url,
+            adapter_script_path: request
+                .adapter_script_path
+                .unwrap_or_else(|| "app/scripts/handshake-screenshot-capture.mjs".to_string()),
+            node_binary: request.node_binary.unwrap_or_else(|| "node".to_string()),
+            command_or_api_ref: "api://kernel.product_screenshot_capture.execute".to_string(),
+        },
+        "../Handshake_Artifacts/handshake-product/screenshots",
+    )
+    .map_err(|err| {
+        api_error(
+            StatusCode::BAD_REQUEST,
+            "kernel_product_screenshot_capture_execute_failed",
+            format!("{err:?}"),
+        )
+    })?;
+
+    Ok(Json(ProductScreenshotCaptureExecuteResponse {
+        schema_id: "hsk.kernel.product_screenshot_capture_execute_result@1",
+        artifact: result.artifact,
+        durable_receipt: result.durable_receipt,
+        proof: result.proof,
+        receipt: result.receipt,
+    }))
+}
+
+async fn session_spawn_runtime_records_from_state(
+    state: &AppState,
+) -> Vec<SessionSpawnRuntimeRecordV1> {
+    let snapshot = state.session_registry.snapshot().await;
+    let mut sessions: Vec<ModelSession> = snapshot.active_sessions.into_values().collect();
+    sessions.sort_by(|left, right| {
+        left.spawn_depth
+            .cmp(&right.spawn_depth)
+            .then_with(|| left.session_id.cmp(&right.session_id))
+    });
+
+    if !sessions
+        .iter()
+        .any(|session| session.parent_session_id.is_some())
+    {
+        return Vec::new();
+    }
+
+    let evidence = session_spawn_runtime_evidence_from_state(state, &sessions)
+        .await
+        .unwrap_or_default();
+    session_spawn_runtime_records_from_sessions(&sessions, &evidence)
+}
+
+#[derive(Debug, Default)]
+struct SessionSpawnRuntimeEvidence {
+    flight_recorder_refs: HashMap<String, String>,
+    announce_back_badges: HashMap<String, Vec<SessionAnnounceBackBadgeV1>>,
+    cascade_cancel_session_ids: HashSet<String>,
+}
+
+async fn session_spawn_runtime_evidence_from_state(
+    state: &AppState,
+    sessions: &[ModelSession],
+) -> Result<SessionSpawnRuntimeEvidence, crate::flight_recorder::RecorderError> {
+    let session_ids: HashSet<&str> = sessions
+        .iter()
+        .map(|session| session.session_id.as_str())
+        .collect();
+    let events = state
+        .flight_recorder
+        .list_events(EventFilter::default())
+        .await?;
+    let mut evidence = SessionSpawnRuntimeEvidence::default();
+    for session in sessions {
+        if session_has_explicit_cascade_cancel_capability(session) {
+            evidence
+                .cascade_cancel_session_ids
+                .insert(session.session_id.clone());
+        }
+    }
+    for event in events {
+        if let Some(session_id) = session_id_from_spawn_event(&event.event_type, &event.payload) {
+            if session_ids.contains(session_id.as_str()) {
+                evidence
+                    .flight_recorder_refs
+                    .entry(session_id)
+                    .or_insert_with(|| format!("FR-EVT-SESSION-SPAWN-{}", event.event_id));
+            }
+        }
+
+        if matches!(
+            event.event_type,
+            FlightRecorderEventType::SessionSpawnAnnounceBack
+        ) {
+            if let Some(badge) = announce_back_badge_from_event(&event.event_id, &event.payload) {
+                if session_ids.contains(badge.session_id.as_str()) {
+                    evidence
+                        .announce_back_badges
+                        .entry(badge.session_id.clone())
+                        .or_default()
+                        .push(badge);
+                }
+            }
+        }
+
+        if matches!(
+            event.event_type,
+            FlightRecorderEventType::SessionCascadeCancel
+        ) {
+            if let Some(root_session_id) = event
+                .payload
+                .get("root_session_id")
+                .and_then(serde_json::Value::as_str)
+            {
+                if session_ids.contains(root_session_id) {
+                    evidence
+                        .cascade_cancel_session_ids
+                        .insert(root_session_id.to_string());
+                }
+            }
+        }
+    }
+    Ok(evidence)
+}
+
+fn session_id_from_spawn_event(
+    event_type: &FlightRecorderEventType,
+    payload: &serde_json::Value,
+) -> Option<String> {
+    match event_type {
+        FlightRecorderEventType::SessionSpawnAccepted => payload
+            .get("child_session_id")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+        FlightRecorderEventType::SessionSpawnAnnounceBack => payload
+            .get("child_session_id")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+        FlightRecorderEventType::SessionCreated => payload
+            .get("session_id")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+        _ => None,
+    }
+}
+
+fn announce_back_badge_from_event(
+    event_id: &uuid::Uuid,
+    payload: &serde_json::Value,
+) -> Option<SessionAnnounceBackBadgeV1> {
+    let session_id = payload
+        .get("child_session_id")
+        .and_then(serde_json::Value::as_str)?;
+    let status = payload
+        .get("status")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("recorded");
+    let mailbox_message_id = payload
+        .get("mailbox_message_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("message-unavailable")
+        .replace(':', "/");
+
+    Some(SessionAnnounceBackBadgeV1 {
+        badge_id: format!("announce-back-{event_id}"),
+        session_id: session_id.to_string(),
+        label: format!("announce-back {status}"),
+        mailbox_route: format!("role-mailbox://{session_id}/announce-back/{mailbox_message_id}"),
+    })
+}
+
+fn session_has_explicit_cascade_cancel_capability(session: &ModelSession) -> bool {
+    session.capability_grants.iter().any(|grant| {
+        let normalized = grant.trim().to_ascii_lowercase();
+        matches!(
+            normalized.as_str(),
+            "session.cascade_cancel"
+                | "session.cascade-cancel"
+                | "kernel.session.cascade_cancel"
+                | "kernel.session.cascade-cancel"
+                | "cascade_cancel"
+                | "cascade-cancel"
+        )
+    })
+}
+
+fn session_spawn_runtime_records_from_sessions(
+    sessions: &[ModelSession],
+    evidence: &SessionSpawnRuntimeEvidence,
+) -> Vec<SessionSpawnRuntimeRecordV1> {
+    let runtime_record_refs: HashMap<&str, String> = sessions
+        .iter()
+        .filter_map(|session| {
+            model_session_runtime_record_ref(session)
+                .map(|runtime_ref| (session.session_id.as_str(), runtime_ref))
+        })
+        .collect();
+    let eligible_sessions: Vec<&ModelSession> = sessions
+        .iter()
+        .filter(|session| {
+            runtime_record_refs.contains_key(session.session_id.as_str())
+                && evidence
+                    .flight_recorder_refs
+                    .contains_key(session.session_id.as_str())
+                && session.parent_session_id.as_ref().map_or(true, |parent| {
+                    runtime_record_refs.contains_key(parent.as_str())
+                        && evidence.flight_recorder_refs.contains_key(parent.as_str())
+                })
+        })
+        .collect();
+
+    eligible_sessions
+        .iter()
+        .map(|session| SessionSpawnRuntimeRecordV1 {
+            session_id: session.session_id.clone(),
+            parent_session_id: session.parent_session_id.clone(),
+            role_id: session.role.clone(),
+            spawn_mode: session_spawn_mode_from_execution_mode(&session.execution_mode),
+            runtime_state: session_runtime_state(&session.state),
+            cascade_cancel_supported: evidence
+                .cascade_cancel_session_ids
+                .contains(session.session_id.as_str()),
+            announce_back_badges: evidence
+                .announce_back_badges
+                .get(session.session_id.as_str())
+                .cloned()
+                .unwrap_or_default(),
+            runtime_record_ref: runtime_record_refs[session.session_id.as_str()].clone(),
+            flight_recorder_ref: evidence.flight_recorder_refs[session.session_id.as_str()].clone(),
+        })
+        .collect()
+}
+
+fn model_session_runtime_record_ref(session: &ModelSession) -> Option<String> {
+    session
+        .job_id
+        .map(|job_id| format!("runtime://session-spawn/job/{job_id}"))
+        .or_else(|| {
+            session
+                .checkpoint_artifact_id
+                .as_ref()
+                .map(|checkpoint_id| format!("runtime://session-spawn/checkpoint/{checkpoint_id}"))
+        })
+}
+
+fn session_spawn_mode_from_execution_mode(execution_mode: &str) -> SessionSpawnMode {
+    let normalized = execution_mode.trim().to_ascii_lowercase();
+    if normalized.contains("persistent") {
+        SessionSpawnMode::SessionPersistent
+    } else {
+        SessionSpawnMode::OneShot
+    }
+}
+
+fn session_runtime_state(state: &ModelSessionState) -> SessionRuntimeState {
+    match state {
+        ModelSessionState::Completed => SessionRuntimeState::Completed,
+        ModelSessionState::Cancelled => SessionRuntimeState::Cancelled,
+        ModelSessionState::Failed => SessionRuntimeState::Failed,
+        ModelSessionState::Created
+        | ModelSessionState::Active
+        | ModelSessionState::Paused
+        | ModelSessionState::Blocked => SessionRuntimeState::Active,
+    }
+}
+
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/kernel/trace_projection", get(inspect_trace_projection))
@@ -279,12 +588,18 @@ pub fn routes(state: AppState) -> Router {
             "/kernel/session_spawn_tree_dcc_projection",
             post(session_spawn_tree_dcc_projection),
         )
+        .route(
+            "/kernel/product_screenshot_capture/execute",
+            post(execute_product_screenshot_capture_api),
+        )
         .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::{HashMap, HashSet};
+    use uuid::Uuid;
 
     fn spawn_tree_request() -> SessionSpawnTreeDccV1 {
         serde_json::from_value(serde_json::json!({
@@ -398,5 +713,146 @@ mod tests {
         assert_eq!(root.active_child_count, 1);
         assert_eq!(root.spawn_mode, "SessionPersistent");
         assert_eq!(root.announce_back_badges, vec!["announce-back-ready"]);
+    }
+
+    #[test]
+    fn derives_session_spawn_records_from_runtime_model_sessions() {
+        let sessions = vec![
+            model_session(
+                "session-child",
+                Some("session-root"),
+                1,
+                "one-shot",
+                ModelSessionState::Active,
+                "00000000-0000-0000-0000-000000000002",
+            ),
+            model_session(
+                "session-root",
+                None,
+                0,
+                "session-persistent",
+                ModelSessionState::Active,
+                "00000000-0000-0000-0000-000000000001",
+            ),
+        ];
+        let runtime_event_evidence = SessionSpawnRuntimeEvidence {
+            flight_recorder_refs: HashMap::from([
+                (
+                    "session-child".to_string(),
+                    "FR-EVT-SESSION-SPAWN-11111111-1111-1111-1111-111111111111".to_string(),
+                ),
+                (
+                    "session-root".to_string(),
+                    "FR-EVT-SESSION-SPAWN-22222222-2222-2222-2222-222222222222".to_string(),
+                ),
+            ]),
+            announce_back_badges: HashMap::new(),
+            cascade_cancel_session_ids: HashSet::new(),
+        };
+
+        let records =
+            session_spawn_runtime_records_from_sessions(&sessions, &runtime_event_evidence);
+        assert!(
+            session_spawn_runtime_records_from_sessions(
+                &sessions,
+                &SessionSpawnRuntimeEvidence::default()
+            )
+            .is_empty(),
+            "DCC records must not synthesize Flight Recorder refs when runtime events are absent"
+        );
+
+        let child = records
+            .iter()
+            .find(|record| record.session_id == "session-child")
+            .expect("child runtime record");
+        assert_eq!(child.parent_session_id.as_deref(), Some("session-root"));
+        assert_eq!(child.spawn_mode, SessionSpawnMode::OneShot);
+        assert!(!child.cascade_cancel_supported);
+        assert_eq!(
+            child.flight_recorder_ref,
+            "FR-EVT-SESSION-SPAWN-11111111-1111-1111-1111-111111111111"
+        );
+        assert_eq!(
+            child.runtime_record_ref,
+            "runtime://session-spawn/job/00000000-0000-0000-0000-000000000002"
+        );
+        assert!(
+            child.announce_back_badges.is_empty(),
+            "announce-back badges must come from explicit runtime or Flight Recorder records"
+        );
+
+        let root = records
+            .iter()
+            .find(|record| record.session_id == "session-root")
+            .expect("root runtime record");
+        assert_eq!(root.parent_session_id, None);
+        assert_eq!(root.spawn_mode, SessionSpawnMode::SessionPersistent);
+        assert!(
+            !root.cascade_cancel_supported,
+            "cascade cancel must not be inferred from active child count"
+        );
+
+        let explicit_badge = SessionAnnounceBackBadgeV1 {
+            badge_id: "announce-back-event-child".to_string(),
+            session_id: "session-child".to_string(),
+            label: "announce-back completed".to_string(),
+            mailbox_route: "role-mailbox://session-child/announce-back/mailbox/child/announce_back"
+                .to_string(),
+        };
+        let explicit_runtime_evidence = SessionSpawnRuntimeEvidence {
+            announce_back_badges: HashMap::from([(
+                "session-child".to_string(),
+                vec![explicit_badge.clone()],
+            )]),
+            cascade_cancel_session_ids: HashSet::from(["session-root".to_string()]),
+            ..runtime_event_evidence
+        };
+        let explicit_records =
+            session_spawn_runtime_records_from_sessions(&sessions, &explicit_runtime_evidence);
+        let child = explicit_records
+            .iter()
+            .find(|record| record.session_id == "session-child")
+            .expect("child runtime record");
+        assert_eq!(child.announce_back_badges, vec![explicit_badge]);
+        let root = explicit_records
+            .iter()
+            .find(|record| record.session_id == "session-root")
+            .expect("root runtime record");
+        assert!(root.cascade_cancel_supported);
+    }
+
+    fn model_session(
+        session_id: &str,
+        parent_session_id: Option<&str>,
+        spawn_depth: i32,
+        execution_mode: &str,
+        state: ModelSessionState,
+        job_id: &str,
+    ) -> ModelSession {
+        ModelSession {
+            session_id: session_id.to_string(),
+            parent_session_id: parent_session_id.map(str::to_string),
+            spawn_depth,
+            state,
+            model_id: "gpt-test".to_string(),
+            backend: "codex".to_string(),
+            parameter_class: "standard".to_string(),
+            role: "CODER".to_string(),
+            wp_id: Some("WP-KERNEL-002".to_string()),
+            mt_id: Some("MT-043".to_string()),
+            work_profile_id: None,
+            execution_mode: execution_mode.to_string(),
+            memory_policy: "SESSION_SCOPED".to_string(),
+            consent_receipt_id: None,
+            capability_grants: Vec::new(),
+            capability_token_ids: None,
+            job_id: Some(Uuid::parse_str(job_id).expect("test job uuid")),
+            checkpoint_artifact_id: None,
+            last_checkpoint_at: None,
+            checkpoint_count: 0,
+            merge_back_artifact: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        }
     }
 }

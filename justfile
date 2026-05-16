@@ -170,6 +170,9 @@ spec-debt-sync wp-id:
 build-order-sync:
 	node "{{GOV_ROOT}}/roles_shared/scripts/build-order-sync.mjs"
 
+task-packet-stub-contracts *args:
+	node "{{GOV_ROOT}}/roles_shared/scripts/wp/task-packet-stub-contracts.mjs" {{args}}
+
 build-order-check:
 	node "{{GOV_ROOT}}/roles_shared/checks/build-order-check.mjs"
 

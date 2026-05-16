@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use super::crdt::persistence::sha256_hex;
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use super::action_envelope::AuthorityEffect;
 
@@ -101,7 +105,76 @@ pub struct DurableCommandReceiptV1 {
     pub workdir_ref: String,
     pub script_resolution: String,
     pub receipt_ref: String,
+    pub current_candidate_receipt_schema_id: String,
+    pub candidate_receipt_ref: String,
+    pub candidate_sha_ref: String,
+    pub expected_exit_code: i32,
+    pub records_actual_exit_code: bool,
+    pub artifact_refs: Vec<String>,
+    pub projection_refs: Vec<String>,
+    pub failure_blocker_policy: String,
+    pub blocker_evidence_refs: Vec<String>,
     pub blocks_activation_on_failure: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CurrentCandidateCommandReceiptInputV1 {
+    pub command_line: String,
+    pub workdir: String,
+    pub candidate_sha: String,
+    pub expected_exit_code: i32,
+    pub actual_exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+    pub blocker_refs: Vec<String>,
+    pub projection_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CurrentCandidateCommandReceiptV1 {
+    pub schema_id: String,
+    pub receipt_id: String,
+    pub command_line: String,
+    pub workdir: String,
+    pub candidate_sha: String,
+    pub expected_exit_code: i32,
+    pub actual_exit_code: i32,
+    pub stdout_ref: String,
+    pub stderr_ref: String,
+    pub stdout_sha256: String,
+    pub stderr_sha256: String,
+    pub blocker_refs: Vec<String>,
+    pub projection_refs: Vec<String>,
+    pub artifact_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CurrentCandidateCommandReceiptWriteResultV1 {
+    pub receipt: CurrentCandidateCommandReceiptV1,
+    pub receipt_path: PathBuf,
+    pub stdout_path: PathBuf,
+    pub stderr_path: PathBuf,
+    pub blocker_path: Option<PathBuf>,
+}
+
+#[derive(Debug)]
+pub enum CurrentCandidateCommandReceiptError {
+    InvalidInput(&'static str),
+    MissingBlockerRefsForNonzeroExit,
+    Io(std::io::Error),
+    Serialize(serde_json::Error),
+}
+
+impl From<std::io::Error> for CurrentCandidateCommandReceiptError {
+    fn from(value: std::io::Error) -> Self {
+        Self::Io(value)
+    }
+}
+
+impl From<serde_json::Error> for CurrentCandidateCommandReceiptError {
+    fn from(value: serde_json::Error) -> Self {
+        Self::Serialize(value)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -171,6 +244,104 @@ pub fn build_kernel002_mechanical_contract_generation() -> MechanicalContractGen
         failure_states: required_failure_states().to_vec(),
         direct_mutation_allowed: false,
     }
+}
+
+pub fn write_current_candidate_command_receipt(
+    input: CurrentCandidateCommandReceiptInputV1,
+    artifact_root: impl AsRef<Path>,
+) -> Result<CurrentCandidateCommandReceiptWriteResultV1, CurrentCandidateCommandReceiptError> {
+    if input.command_line.trim().is_empty() {
+        return Err(CurrentCandidateCommandReceiptError::InvalidInput(
+            "command_line is required",
+        ));
+    }
+    if input.workdir.trim().is_empty() {
+        return Err(CurrentCandidateCommandReceiptError::InvalidInput(
+            "workdir is required",
+        ));
+    }
+    if input.candidate_sha.trim().is_empty() {
+        return Err(CurrentCandidateCommandReceiptError::InvalidInput(
+            "candidate_sha is required",
+        ));
+    }
+    if input.actual_exit_code != input.expected_exit_code && input.blocker_refs.is_empty() {
+        return Err(CurrentCandidateCommandReceiptError::MissingBlockerRefsForNonzeroExit);
+    }
+
+    let artifact_root = artifact_root.as_ref();
+    fs::create_dir_all(artifact_root)?;
+    let slug = command_receipt_slug(&input.command_line);
+    let stdout_path = artifact_root.join(format!("{slug}.stdout.txt"));
+    let stderr_path = artifact_root.join(format!("{slug}.stderr.txt"));
+    let receipt_path = artifact_root.join(format!("{slug}.json"));
+    fs::write(&stdout_path, input.stdout.as_bytes())?;
+    fs::write(&stderr_path, input.stderr.as_bytes())?;
+
+    let blocker_path = if input.actual_exit_code != input.expected_exit_code {
+        let path = artifact_root.join(format!("{slug}.blockers.json"));
+        let blockers = serde_json::json!({
+            "schema_id": "hsk.current_candidate_command_blockers@1",
+            "command_line": &input.command_line,
+            "workdir": &input.workdir,
+            "candidate_sha": &input.candidate_sha,
+            "expected_exit_code": input.expected_exit_code,
+            "actual_exit_code": input.actual_exit_code,
+            "blocker_refs": &input.blocker_refs,
+        });
+        fs::write(&path, serde_json::to_vec_pretty(&blockers)?)?;
+        Some(path)
+    } else {
+        None
+    };
+
+    let stdout_ref = format!("artifact://command-receipts/{slug}.stdout.txt");
+    let stderr_ref = format!("artifact://command-receipts/{slug}.stderr.txt");
+    let receipt_ref = format!("artifact://command-receipts/{slug}.json");
+    let mut artifact_refs = vec![receipt_ref, stdout_ref.clone(), stderr_ref.clone()];
+    if blocker_path.is_some() {
+        artifact_refs.push(format!("artifact://command-receipts/{slug}.blockers.json"));
+    }
+
+    let receipt = CurrentCandidateCommandReceiptV1 {
+        schema_id: "hsk.current_candidate_command_receipt@1".to_string(),
+        receipt_id: format!("receipt.current-candidate.{slug}"),
+        command_line: input.command_line,
+        workdir: input.workdir,
+        candidate_sha: input.candidate_sha,
+        expected_exit_code: input.expected_exit_code,
+        actual_exit_code: input.actual_exit_code,
+        stdout_ref,
+        stderr_ref,
+        stdout_sha256: format!("sha256:{}", sha256_hex(input.stdout.as_bytes())),
+        stderr_sha256: format!("sha256:{}", sha256_hex(input.stderr.as_bytes())),
+        blocker_refs: input.blocker_refs,
+        projection_refs: input.projection_refs,
+        artifact_refs,
+    };
+    fs::write(&receipt_path, serde_json::to_vec_pretty(&receipt)?)?;
+
+    Ok(CurrentCandidateCommandReceiptWriteResultV1 {
+        receipt,
+        receipt_path,
+        stdout_path,
+        stderr_path,
+        blocker_path,
+    })
+}
+
+pub fn command_receipt_slug(command_line: &str) -> String {
+    let normalized = command_line
+        .trim()
+        .trim_start_matches("just ")
+        .replace("--", "")
+        .replace([' ', '/', '\\', ':'], "-");
+    normalized
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric() || *character == '-')
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
 }
 
 pub fn validate_mechanical_contract_generation(
@@ -722,6 +893,7 @@ fn durable_command_receipt(
     command_line: &str,
     script_ref: &str,
 ) -> DurableCommandReceiptV1 {
+    let receipt_slug = receipt_id.strip_prefix("receipt-").unwrap_or(receipt_id);
     DurableCommandReceiptV1 {
         receipt_id: receipt_id.to_string(),
         command_line: command_line.to_string(),
@@ -729,6 +901,31 @@ fn durable_command_receipt(
         workdir_ref: "repo-root://".to_string(),
         script_resolution: "resolve-script-ref-from-workdir".to_string(),
         receipt_ref: format!("receipt://mechanical-contract-generation/{receipt_id}"),
+        current_candidate_receipt_schema_id: "hsk.kernel.current_candidate_command_receipt@1"
+            .to_string(),
+        candidate_receipt_ref: format!("artifact://command-receipts/{receipt_slug}.json"),
+        candidate_sha_ref: "git://candidate/HEAD".to_string(),
+        expected_exit_code: 0,
+        records_actual_exit_code: true,
+        artifact_refs: vec![
+            format!("artifact://command-receipts/{receipt_slug}.stdout.txt"),
+            format!("artifact://command-receipts/{receipt_slug}.stderr.txt"),
+            format!("artifact://command-receipts/{receipt_slug}.json"),
+        ],
+        projection_refs: vec![
+            ".GOV/task_packets/stubs".to_string(),
+            ".GOV/roles_shared/records/BUILD_ORDER.md".to_string(),
+            ".GOV/roles_shared/records/TASK_BOARD.md".to_string(),
+            ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md".to_string(),
+        ],
+        failure_blocker_policy:
+            "nonzero-exit-requires-current-candidate-blocker-summary-and-stdout-stderr-artifacts"
+                .to_string(),
+        blocker_evidence_refs: vec![
+            format!("artifact://command-receipts/{receipt_slug}.stdout.txt"),
+            format!("artifact://command-receipts/{receipt_slug}.stderr.txt"),
+            format!("artifact://command-receipts/{receipt_slug}.blockers.json"),
+        ],
         blocks_activation_on_failure: true,
     }
 }
@@ -775,6 +972,41 @@ fn validate_durable_command_receipts(
             "durable_command_receipts.receipt_ref",
             &receipt.receipt_ref,
         );
+        require_non_empty(
+            errors,
+            "durable_command_receipts.current_candidate_receipt_schema_id",
+            &receipt.current_candidate_receipt_schema_id,
+        );
+        require_non_empty(
+            errors,
+            "durable_command_receipts.candidate_receipt_ref",
+            &receipt.candidate_receipt_ref,
+        );
+        require_non_empty(
+            errors,
+            "durable_command_receipts.candidate_sha_ref",
+            &receipt.candidate_sha_ref,
+        );
+        require_vec(
+            errors,
+            "durable_command_receipts.artifact_refs",
+            &receipt.artifact_refs,
+        );
+        require_vec(
+            errors,
+            "durable_command_receipts.projection_refs",
+            &receipt.projection_refs,
+        );
+        require_non_empty(
+            errors,
+            "durable_command_receipts.failure_blocker_policy",
+            &receipt.failure_blocker_policy,
+        );
+        require_vec(
+            errors,
+            "durable_command_receipts.blocker_evidence_refs",
+            &receipt.blocker_evidence_refs,
+        );
         if !receipt
             .receipt_ref
             .starts_with("receipt://mechanical-contract-generation/")
@@ -787,7 +1019,7 @@ fn validate_durable_command_receipts(
         if receipt.workdir_ref != "repo-root://" {
             errors.push(error(
                 "durable_command_receipts.workdir_ref",
-                "durable command receipts must resolve from the repo root workdir",
+                "durable command receipts must resolve from the current candidate repo workdir",
             ));
         }
         if receipt.script_resolution != "resolve-script-ref-from-workdir" {
@@ -802,12 +1034,77 @@ fn validate_durable_command_receipts(
                 "required mechanical command receipts must block activation on failure",
             ));
         }
-        if receipt.command_line == "just task-packet-stub-contracts --all"
-            && receipt.workdir_ref != "repo-root://"
+        if receipt.current_candidate_receipt_schema_id
+            != "hsk.kernel.current_candidate_command_receipt@1"
         {
             errors.push(error(
-                "durable_command_receipts.workdir_ref",
-                "task-packet-stub-contracts exact receipt must resolve the actual repo-root workdir",
+                "durable_command_receipts.current_candidate_receipt_schema_id",
+                "durable command receipts must declare the current-candidate command receipt schema",
+            ));
+        }
+        if !receipt
+            .candidate_receipt_ref
+            .starts_with("artifact://command-receipts/")
+        {
+            errors.push(error(
+                "durable_command_receipts.candidate_receipt_ref",
+                "candidate command receipt must cite a command-receipt artifact",
+            ));
+        }
+        if !receipt
+            .candidate_sha_ref
+            .starts_with("git://candidate/HEAD")
+        {
+            errors.push(error(
+                "durable_command_receipts.candidate_sha_ref",
+                "candidate command receipt must bind to the current candidate HEAD",
+            ));
+        }
+        if receipt.expected_exit_code != 0 {
+            errors.push(error(
+                "durable_command_receipts.expected_exit_code",
+                "acceptance command receipt must record a passing exit code",
+            ));
+        }
+        if !receipt.records_actual_exit_code {
+            errors.push(error(
+                "durable_command_receipts.records_actual_exit_code",
+                "candidate command receipts must record the actual exit code",
+            ));
+        }
+        if !receipt
+            .artifact_refs
+            .iter()
+            .any(|artifact_ref| artifact_ref.starts_with("artifact://command-receipts/"))
+        {
+            errors.push(error(
+                "durable_command_receipts.artifact_refs",
+                "durable command receipt must cite stdout/stderr/json artifacts",
+            ));
+        }
+        if receipt.projection_refs.is_empty() {
+            errors.push(error(
+                "durable_command_receipts.projection_refs",
+                "durable command receipt must cite affected governance projections",
+            ));
+        }
+        if !receipt
+            .failure_blocker_policy
+            .contains("nonzero-exit-requires")
+        {
+            errors.push(error(
+                "durable_command_receipts.failure_blocker_policy",
+                "durable command receipt must define concrete blocker evidence for nonzero exits",
+            ));
+        }
+        if !receipt
+            .blocker_evidence_refs
+            .iter()
+            .any(|evidence_ref| evidence_ref.ends_with(".blockers.json"))
+        {
+            errors.push(error(
+                "durable_command_receipts.blocker_evidence_refs",
+                "durable command receipt must cite a blocker summary artifact for nonzero exits",
             ));
         }
     }

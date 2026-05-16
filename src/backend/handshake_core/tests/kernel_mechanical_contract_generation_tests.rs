@@ -3,6 +3,7 @@ use handshake_core::kernel::{
     action_envelope::AuthorityEffect,
     mechanical_contract_generation::{
         build_kernel002_mechanical_contract_generation, validate_mechanical_contract_generation,
+        write_current_candidate_command_receipt, CurrentCandidateCommandReceiptInputV1,
         GeneratedContractArtifactKind, MechanicalContractFailureState,
         MechanicalContractOperationKind, PreservedContractField,
     },
@@ -71,6 +72,14 @@ fn mechanical_generation_records_exact_durable_command_receipts_for_preuse_accep
         assert_eq!(receipt.workdir_ref, "repo-root://");
         assert_eq!(receipt.script_resolution, "resolve-script-ref-from-workdir");
         assert!(receipt.blocks_activation_on_failure);
+        assert_eq!(receipt.expected_exit_code, 0);
+        assert!(receipt.records_actual_exit_code);
+        assert!(receipt.candidate_sha_ref.starts_with("git://candidate/"));
+        assert!(!receipt.artifact_refs.is_empty());
+        assert!(!receipt.projection_refs.is_empty());
+        assert!(receipt
+            .failure_blocker_policy
+            .contains("nonzero-exit-requires"));
     }
     assert!(!generation
         .durable_command_receipts
@@ -105,6 +114,95 @@ fn mechanical_generation_receipts_resolve_workdir_and_existing_script_refs() {
         repo_root.join(&stub_receipt.script_ref),
         repo_root.join(".GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs")
     );
+    let justfile = std::fs::read_to_string(repo_root.join("justfile")).expect("repo justfile");
+    assert!(
+        justfile.contains("task-packet-stub-contracts *args:"),
+        "repo-root justfile must expose just task-packet-stub-contracts --all"
+    );
+}
+
+#[test]
+fn mechanical_generation_candidate_receipts_bind_commands_to_artifacts_and_projections() {
+    let generation = build_kernel002_mechanical_contract_generation();
+    validate_mechanical_contract_generation(&generation)
+        .expect("mechanical contract generation validates");
+
+    for receipt in &generation.durable_command_receipts {
+        assert_eq!(receipt.expected_exit_code, 0);
+        assert_eq!(
+            receipt.current_candidate_receipt_schema_id,
+            "hsk.kernel.current_candidate_command_receipt@1"
+        );
+        assert!(receipt
+            .candidate_receipt_ref
+            .starts_with("artifact://command-receipts/"));
+        assert!(receipt
+            .candidate_sha_ref
+            .starts_with("git://candidate/HEAD"));
+        assert!(receipt
+            .artifact_refs
+            .iter()
+            .any(|artifact_ref| artifact_ref.starts_with("artifact://command-receipts/")));
+        assert!(receipt
+            .blocker_evidence_refs
+            .iter()
+            .any(|artifact_ref| artifact_ref.ends_with(".blockers.json")));
+        assert!(receipt.projection_refs.iter().any(|projection_ref| {
+            projection_ref == ".GOV/roles_shared/records/TASK_BOARD.md"
+                || projection_ref == ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md"
+                || projection_ref == ".GOV/task_packets/stubs"
+        }));
+    }
+}
+
+#[test]
+fn mechanical_generation_writes_current_candidate_command_receipt_artifacts() {
+    let artifact_root = tempfile::tempdir().expect("command receipt artifact root");
+    let result = write_current_candidate_command_receipt(
+        CurrentCandidateCommandReceiptInputV1 {
+            command_line: "just gov-check".to_string(),
+            workdir: repo_root().to_string_lossy().into_owned(),
+            candidate_sha: "e09fa15200000000000000000000000000000000".to_string(),
+            expected_exit_code: 0,
+            actual_exit_code: 1,
+            stdout: "gov-check stdout".to_string(),
+            stderr: "gov-check stderr".to_string(),
+            blocker_refs: vec![
+                "blocker://current-candidate-command/gov-check/exit-code-1".to_string()
+            ],
+            projection_refs: vec![
+                ".GOV/roles_shared/records/TASK_BOARD.md".to_string(),
+                ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md".to_string(),
+            ],
+        },
+        artifact_root.path(),
+    )
+    .expect("current candidate receipt writes");
+
+    assert!(result.receipt_path.exists());
+    assert!(result.stdout_path.exists());
+    assert!(result.stderr_path.exists());
+    assert!(result.blocker_path.expect("blocker artifact").exists());
+    assert_eq!(
+        result.receipt.schema_id,
+        "hsk.current_candidate_command_receipt@1"
+    );
+    assert_eq!(result.receipt.command_line, "just gov-check");
+    assert_eq!(result.receipt.expected_exit_code, 0);
+    assert_eq!(result.receipt.actual_exit_code, 1);
+    assert_eq!(
+        result.receipt.candidate_sha,
+        "e09fa15200000000000000000000000000000000"
+    );
+    assert!(result.receipt.stdout_ref.ends_with("gov-check.stdout.txt"));
+    assert!(result.receipt.stderr_ref.ends_with("gov-check.stderr.txt"));
+    assert!(result
+        .receipt
+        .artifact_refs
+        .iter()
+        .any(|artifact_ref| artifact_ref.ends_with("gov-check.blockers.json")));
+    assert!(result.receipt.stdout_sha256.starts_with("sha256:"));
+    assert!(result.receipt.stderr_sha256.starts_with("sha256:"));
 }
 
 #[test]

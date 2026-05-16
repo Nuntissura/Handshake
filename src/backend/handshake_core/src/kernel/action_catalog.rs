@@ -113,6 +113,7 @@ pub fn kernel002_action_catalog() -> KernelActionCatalogV1 {
             session_spawn_tree_dcc_project_action(),
             session_spawn_conversation_distillation_project_action(),
             product_screenshot_capture_project_action(),
+            product_screenshot_capture_execute_action(),
             visual_debugging_loop_project_action(),
             markdown_mirror_sync_drift_guard_project_action(),
             task_contract_lifecycle_project_action(),
@@ -1856,6 +1857,57 @@ fn product_screenshot_capture_project_action() -> KernelCatalogActionV1 {
                 "dimensions",
                 "screenshot_ref",
                 "metadata_ref",
+            ],
+        ),
+    }
+}
+
+fn product_screenshot_capture_execute_action() -> KernelCatalogActionV1 {
+    KernelCatalogActionV1 {
+        action_id: "kernel.product_screenshot_capture.execute",
+        title: "Execute Product Screenshot Capture".to_string(),
+        input_schema_id: "hsk.kernel.product_screenshot_capture_execute_request@1".to_string(),
+        result_schema_id: "hsk.kernel.product_screenshot_capture_execute_result@1".to_string(),
+        role_eligibility: vec![
+            "VALIDATOR".to_string(),
+            "INTEGRATION_VALIDATOR".to_string(),
+            "KERNEL_BUILDER".to_string(),
+            "WORKFLOW_AUTOMATION".to_string(),
+        ],
+        capability_requirements: vec![capability("kernel.product_screenshot_capture.execute")],
+        expected_write_boxes: vec![expected_box(
+            "ScreenshotCaptureEvidenceBox",
+            "hsk.write_box.product_screenshot_capture_evidence@1",
+            "product_screenshot_capture_execution",
+        )],
+        authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+        approval_posture: ApprovalPosture::NoApprovalRequired,
+        promotion_path: promotion_path(
+            "product_screenshot_capture_execution_to_evidence_receipt",
+            "KernelProductScreenshotCaptureExecutedV1",
+            "STATUS",
+        ),
+        validation_hooks: vec![
+            hook("product_screenshot_capture_governed_surface"),
+            hook("product_screenshot_capture_png_artifact_written"),
+            hook("product_screenshot_capture_metadata_written"),
+            hook("product_screenshot_capture_receipt_written"),
+            hook("product_screenshot_capture_hashes_and_exit_status"),
+        ],
+        dcc_preview: dcc_preview(
+            "product-screenshot-capture-execute",
+            "Execute governed full-app, panel, and module screenshot capture through the handshake CLI or product API browser adapter, then write PNG, metadata, and receipt artifacts.",
+            &[
+                "request_id",
+                "scope",
+                "target_ref",
+                "source_url",
+                "adapter_script_path",
+                "command_or_api_ref",
+                "screenshot_sha256",
+                "metadata_sha256",
+                "adapter_exit_status",
+                "receipt_ref",
             ],
         ),
     }

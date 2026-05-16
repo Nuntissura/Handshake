@@ -384,7 +384,11 @@ export function KernelDccProjectionView({ surface, onTriggerCatalogAction }: Pro
         </section>
 
         {surface.spawn_tree_projection ? (
-          <section className="kernel-dcc__panel" aria-labelledby="kernel-dcc-spawn-tree">
+          <section
+            className="kernel-dcc__panel"
+            aria-labelledby="kernel-dcc-spawn-tree"
+            data-testid="kernel-dcc-session-spawn-tree"
+          >
             <h3 id="kernel-dcc-spawn-tree">Session Spawn Tree</h3>
             <p className="muted">
               {surface.spawn_tree_projection.schema_id} / max depth {surface.spawn_tree_projection.max_depth} /

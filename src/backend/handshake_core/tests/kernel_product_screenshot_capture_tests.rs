@@ -2,12 +2,14 @@ use handshake_core::kernel::{
     action_catalog::{kernel002_action_catalog, validate_kernel_action_catalog},
     action_envelope::AuthorityEffect,
     product_screenshot_capture::{
-        project_product_screenshot_capture, validate_product_screenshot_capture,
+        execute_product_screenshot_capture, project_product_screenshot_capture,
+        validate_product_screenshot_capture, ProductScreenshotAdapterCaptureV1,
         ProductScreenshotArtifactV1, ProductScreenshotCaptureV1, ProductScreenshotDurableReceiptV1,
         ProductScreenshotExecutionProofV1, ProductScreenshotRequestV1,
         ScreenshotCaptureExecutionSurface, ScreenshotCaptureScope, ScreenshotCaptureTriggerKind,
     },
 };
+use std::io::Cursor;
 
 #[test]
 fn kernel_product_screenshot_capture_projects_all_capture_scopes() {
@@ -163,6 +165,67 @@ fn kernel_product_screenshot_capture_requires_real_write_receipts_for_all_scopes
 }
 
 #[test]
+fn kernel_product_screenshot_capture_executes_and_writes_png_metadata_and_receipt() {
+    let artifact_root = tempfile::tempdir().expect("temp artifact root");
+    let request = request(
+        "request.execute.panel",
+        ScreenshotCaptureScope::Panel,
+        "panel://dcc/session-spawn-tree",
+        ScreenshotCaptureTriggerKind::GovernedValidatorCli,
+    );
+    let png_bytes = tiny_png_bytes();
+
+    let execution = execute_product_screenshot_capture(
+        &request,
+        ProductScreenshotAdapterCaptureV1 {
+            png_bytes: png_bytes.clone(),
+            adapter_exit_status: 0,
+            captured_at_utc: "2026-05-16T10:00:00Z".to_string(),
+            command_or_api_ref:
+                "cli://handshake screenshot capture --scope panel --target panel://dcc/session-spawn-tree --write-metadata --write-receipt"
+                    .to_string(),
+        },
+        artifact_root.path(),
+    )
+    .expect("screenshot execution should write artifacts");
+
+    assert!(execution.screenshot_path.exists());
+    assert!(execution.metadata_path.exists());
+    assert!(execution.receipt_path.exists());
+    assert_eq!(
+        std::fs::read(&execution.screenshot_path).expect("screenshot bytes"),
+        png_bytes
+    );
+    assert_eq!(execution.artifact.content_type, "image/png");
+    assert_eq!(execution.artifact.width, 1);
+    assert_eq!(execution.artifact.height, 1);
+    assert_eq!(
+        execution.durable_receipt.scope,
+        ScreenshotCaptureScope::Panel
+    );
+    assert!(execution.receipt.screenshot_sha256.starts_with("sha256:"));
+    assert!(execution.receipt.metadata_sha256.starts_with("sha256:"));
+    assert_eq!(execution.receipt.adapter_exit_status, 0);
+    assert_eq!(execution.receipt.scope, ScreenshotCaptureScope::Panel);
+    assert_eq!(
+        execution.receipt.command_or_api_ref,
+        execution.proof.command_or_api_ref
+    );
+    assert_eq!(
+        execution.receipt.artifact_ref,
+        execution.artifact.screenshot_ref
+    );
+    assert_eq!(
+        execution.receipt.metadata_ref,
+        execution.artifact.metadata_ref
+    );
+    assert_eq!(
+        execution.receipt.receipt_ref,
+        execution.durable_receipt.receipt_ref
+    );
+}
+
+#[test]
 fn kernel_product_screenshot_capture_catalogs_projection_action() {
     let catalog = kernel002_action_catalog();
     validate_kernel_action_catalog(&catalog).expect("catalog validates");
@@ -176,6 +239,39 @@ fn kernel_product_screenshot_capture_catalogs_projection_action() {
         .validation_hooks
         .iter()
         .any(|hook| hook.hook_id == "product_screenshot_artifact_refs"));
+
+    let execute_action = catalog
+        .action("kernel.product_screenshot_capture.execute")
+        .expect("product screenshot capture execute action must be cataloged");
+    assert_eq!(
+        execute_action.input_schema_id,
+        "hsk.kernel.product_screenshot_capture_execute_request@1"
+    );
+    assert_eq!(
+        execute_action.result_schema_id,
+        "hsk.kernel.product_screenshot_capture_execute_result@1"
+    );
+    assert_eq!(
+        execute_action.authority_effect,
+        AuthorityEffect::PrePromotionEvidenceOnly
+    );
+    assert!(execute_action
+        .validation_hooks
+        .iter()
+        .any(|hook| hook.hook_id == "product_screenshot_capture_png_artifact_written"));
+}
+
+fn tiny_png_bytes() -> Vec<u8> {
+    let mut bytes = Vec::new();
+    let image = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+        1,
+        1,
+        image::Rgba([0, 0, 0, 255]),
+    ));
+    image
+        .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
+        .expect("tiny png writes");
+    bytes
 }
 
 fn sample_capture() -> ProductScreenshotCaptureV1 {
