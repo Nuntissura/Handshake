@@ -99,7 +99,7 @@ The long-term edge is not just "an AI wrapper." The edge is a repeatable mechani
 - Official CLIs may be used as backend transports when allowed, but Handshake must still own the operator surface, state, logs, and promotion gates.
 - CRDT is day-one for live parallel operator/model workspace state.
 - Postgres/event state is day-one for authoritative truth.
-- SQLite is not a Kernel V1 technology. Do not use SQLite for authority, cache, offline mode, compatibility mode, tests, local fallback, or bootstrap convenience going forward.
+- SQLite is not a Handshake technology going forward. Do not use SQLite for authority, cache, offline mode, compatibility mode, tests, fixtures, imports, examples, harnesses, temporary adapters, local fallback, or bootstrap convenience.
 - Sandboxed execution is day-one for model-written code.
 - Deterministic checks run before LLM review.
 - Memory is typed product state, not loose prose logs.
@@ -116,7 +116,7 @@ The working role for this mode is `KERNEL_BUILDER`: a temporary hybrid of Orches
 
 Refinement and spec enrichment should be kept to the minimum needed for speed and clarity. Large WPs are acceptable, but each WP and microtask must contain enough detail for a capable model with no chat context to implement the work and for a validator to review it.
 
-Storage direction is non-negotiable for the reset: Handshake is a harness for parallel swarm agents and the Operator working at the same time. PostgreSQL plus CRDT are the product direction. Existing SQLite-backed code, tests, or storage helpers are migration/removal targets, not future architecture, fallback paths, or acceptable Kernel V1 scaffolding. Any SQLite usage in the current external repo-governance harness is legacy harness debt and must not be copied, defended, or carried forward as a Handshake product pattern.
+Storage direction is non-negotiable for the reset: Handshake is a harness for parallel swarm agents and the Operator working at the same time. PostgreSQL plus CRDT are the product direction. Existing SQLite-backed code, tests, fixtures, storage helpers, examples, harnesses, caches, or compatibility paths are migration/removal targets, not future architecture, fallback paths, or acceptable scaffolding. Any SQLite usage in the current external repo-governance harness is legacy harness debt and must not be copied, defended, or carried forward as a Handshake product, test, or self-governance pattern.
 
 ## 5. Corrected State Model
 
@@ -157,7 +157,7 @@ Promotion Gate
 
 This keeps collaboration fluid without making live editable state the final source of truth.
 
-There is no SQLite layer in this state model. Kernel V1 must not introduce or preserve SQLite as a local cache, offline replica, convenience database, test-only authority, or compatibility storage mode. If a future implementation step encounters SQLite in existing product code, the correct posture is to plan its removal or containment while moving the kernel toward PostgreSQL-backed authority and CRDT-backed collaboration.
+There is no SQLite layer in this state model. Kernel V1 and downstream Handshake features must not introduce or preserve SQLite as a local cache, offline replica, convenience database, fixture store, test-only authority, compatibility storage mode, import bridge, example path, harness, fallback, or temporary adapter. If a future implementation step encounters SQLite in existing product or governance code, the correct posture is removal or strict containment as legacy debt while moving the system toward PostgreSQL-backed authority and CRDT-backed collaboration.
 
 ## 6. Proposed Kernel MVP
 
@@ -224,7 +224,7 @@ Implementation proposal:
 
 - Build a product-native runtime with typed events for sessions, actors, work packets, microtasks, artifacts, receipts, validation, and memory.
 - Store authoritative state in PostgreSQL.
-- Do not add SQLite-backed runtime paths. Do not preserve SQLite as a fallback, cache, test target, local-only authority, or migration bridge for Kernel V1.
+- Do not add SQLite-backed runtime paths. Do not preserve SQLite as a fallback, cache, test target, fixture target, local-only authority, compatibility layer, import bridge, example, harness, temporary adapter, or migration bridge.
 - Treat generated Markdown and UI summaries as projections over machine state.
 - Keep a compact event schema from day one so models can consume small slices instead of huge context dumps.
 - Add a scheduler that can run parallel model sessions with leases, backpressure, cancellation, stale-session recovery, and deterministic stop conditions.
@@ -739,7 +739,7 @@ Acceptance criteria:
 
 - The entire first task can be reconstructed from the ledger after restarting the app/backend.
 - No authority state changes occur without a promotion event.
-- No SQLite database, SQLite-backed cache, SQLite offline mode, SQLite test fixture, or SQLite compatibility path is introduced or accepted for Kernel V1.
+- No SQLite database, SQLite-backed cache, SQLite offline mode, SQLite test fixture, SQLite compatibility path, SQLite import bridge, SQLite example, SQLite harness, or SQLite temporary adapter is introduced or accepted for Handshake.
 - The model adapter can be replaced without changing event authority semantics.
 - The trace projection does not depend on provider chat history, terminal scrollback, or model memory.
 - A no-context model can inspect the stored events and understand what happened.
@@ -768,13 +768,81 @@ Acceptance criteria:
 - Add validation gate.
 - Add patch promotion into authority state.
 
-### Week 4: Local Model + Memory V0
+### Week 4: Local Model + Memory V0 + Build-Rules Full Establishment
+
+Local Model + Memory V0:
 
 - Add `ModelRuntime` adapter interface.
 - Integrate one local backend.
 - Add typed memory records.
 - Add retrieval capsule for a microtask.
 - Run one self-improvement loop against a measurable check.
+
+Build-Rules Full Establishment (so Week 5 can enforce `HANDSHAKE_BUILD_RULES` from day one):
+
+- Enforcement wiring (RGF-323 follow-up): extend packet hydration tooling to read `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json` and auto-emit applicable HBR-* rows into `PACKET_ACCEPTANCE_MATRIX`; build the applicability predicate evaluator over packet metadata + touched-path globs; add `hbr-matrix-check.mjs` as a `gov-check` sub-check that blocks PASS while any required HBR row is `PENDING`, `STEER`, or `BLOCKED`.
+- Renderer console error scan (HBR-VIS-002): extend the screenshot adapter to hook `page.on('pageerror')` and renderer console errors during every capture window; uncaught errors fail the gate.
+- Capture matrix support (HBR-VIS-003): adapter accepts `[{viewport, state}]` and returns a typed manifest of captures (normal viewport + at least one constrained viewport + at least one edge state).
+- Focus audit instrumentation (HBR-QUIET-001): record foreground-window events during automated test runs; assert zero focus/Z-order change; headless or hidden-window mode required.
+- Automation-path negative-test framework (HBR-QUIET-002): harness that simulates global keyboard input and asserts no automation surface responded; every automation surface must be reachable without OS-level input injection.
+- Process ownership ledger (HBR-QUIET-003): every `Command::spawn` in the kernel registers in a `kernel_process_lifecycle` Postgres table with `owner_session`, `owner_wp`, `owner_role`, `started_at`; reclaim hook on session close, failure, staleness, or operator cancel; no orphan processes after a run.
+- ModelManual same-commit CI hook (HBR-MAN-001): detect when a wired surface (command, IPC channel, schema field, config key, CLI flag) changes without a paired ModelManual diff; `MANUAL_VERSION` bump enforced.
+- No-context model operation harness (HBR-MAN-002): test fixture that runs a stripped agent against only ModelManual content and exercises a representative workflow end-to-end.
+- Manual self-consistency check (HBR-MAN-003): for every command/schema/IPC channel/CLI flag named in the manual, grep the codebase to confirm the named surface exists at the named contract; drift fails the gate.
+- Concurrent test harness (HBR-SWARM-001/002/003): `kernel_swarm_test_harness` spawns N concurrent governed sessions against shared CRDT/EventLedger state and surfaces conflicts, lease behavior, cancellation, and loop-counter behavior; powers parallel-agent test rules.
+- Codex `CX-*` anchor: add a Codex rule in `.GOV/codex/Handshake_Codex_v1.4.md` naming `HANDSHAKE_BUILD_RULES.json` as build-time/handoff-time gate authority and pointing to the JSON registry.
+- Role protocol linkage: cite `HANDSHAKE_BUILD_RULES` in `kernel_builder`, `integration_validator`, `wp_validator`, `coder`, `orchestrator`, `classic_orchestrator`, and `validator` protocols. Do NOT link in `activation_manager` or `memory_manager` (sister phases, no build-rule obligation).
+- Templates: `TASK_PACKET_TEMPLATE.md` shows the HBR row shape inside `PACKET_ACCEPTANCE_MATRIX`; `REFINEMENT_TEMPLATE.md` and `REFINEMENT_CONTRACT_TEMPLATE.json` cross-reference the sister-phase build rules.
+- Discovery surfaces: `START_HERE.md`, `ROLE_SESSION_ORCHESTRATION.md`, and `ORCHESTRATOR_MANAGED_WORKFLOW_PLAYBOOK.md` each name the build-rules gate so a no-context model loading any of them learns the registry exists.
+
+Result at end of Week 4: `HANDSHAKE_BUILD_RULES` is fully operable. Packet hydration auto-emits HBR rows. Validators enforce them. All roles see them. Visual, QUIET, MAN, and SWARM rules have working harnesses. Week 5 Atelier-Lens-CKC packets activate with their HBR matrices already populated and a green gate path.
+
+### Week 5: Atelier-Lens-CKC First Production Feature
+
+Atelier-Lens-CKC is the first production feature track to build after the kernel reset builds prove durable session state, artifact promotion, validation, local model boundaries, and no-context model handoff. It is not a throwaway pilot or external side app. It is the first real production workload Handshake should make ready for the Operator's work.
+
+Purpose:
+
+- Fold CKC, PoseKit, media/library workflows, artifact management, model-operation diagnostics, visual debugging, and governance hardening into Handshake.
+- Stop building the desired Handshake feature outside Handshake in external repo governance or spin-off apps.
+- Keep CKC/OpenRepose/PoseKit history as source evidence and implementation reference, not as future runtime architecture.
+- Route future fixes, feature expansion, and hardening through Handshake work packets and product-native kernel primitives.
+
+Canonical Week 5 WP stubs:
+
+- `WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1`
+- `WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1`
+- `WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1`
+
+Deprecated source stubs:
+
+- `WP-1-Atelier-Lens-v2` is `SUPERSEDED` and folded into `WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1`.
+- `WP-1-Photo-Studio-v2` is `SUPERSEDED` and folded into `WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1`.
+
+Draft MT activation handoff:
+
+- Core/Data draft suite: `.GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1/MT_SUITE.md` with 80 draft MTs.
+- Pose/ComfyUI draft suite: `.GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1/MT_SUITE.md` with 51 draft MTs.
+- Model Workflow/Diagnostics draft suite: `.GOV/task_packets/stubs/draft_microtasks/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1/MT_SUITE.md` with 66 draft MTs.
+- The three stub contracts expose this handoff under `draft_microtasks`; activation must convert the suites into official `.GOV/task_packets/<WP_ID>/MT-*.md` and `.json` files only after refinement, `USER_SIGNATURE`, and official packet creation.
+
+Consolidation evidence:
+
+- Repo-relative evidence folder: `.GOV/reference/ckc_atelier_lens_consolidation`
+- Operator-local evidence folder: `D:\Projects\LLM projects\Handshake\Handshake Worktrees\wt-gov-kernel\.GOV\reference\ckc_atelier_lens_consolidation`
+- Primary handoff files: `final-wp-stub-map.md/json`, `wp-stub-coverage-audit-20260516.md/json`, `handshake-stub-preservation-map.md/json`, `ckc-spec-taskboard-map.md/json`, `ckc-code-greenroom.md/json`, `greenroom-overlap-matrix.md/json`.
+
+CKC source evidence paths:
+
+- CKC product source: `D:\Projects\LLM projects\CastKit-Codex\CKC_main`
+- CKC taskboard: `D:\Projects\LLM projects\CastKit-Codex\CKC_GOV\taskboard\TASK_BOARD.md`
+- CKC spec source: `D:\Projects\LLM projects\CastKit-Codex\CKC_GOV\spec\CastKit_Codex_Spec_v00.075.md`
+
+Guardrails:
+
+- CKC is source evidence and production intent, not Handshake runtime architecture.
+- Do not import CKC SQLite, Electron IPC, localhost authority, CKC product namespace, machine-local paths, or direct LLM execution into Handshake.
+- Do not redo the old Atelier/Lens or Photo Studio consolidation work; use the three canonical CKC stubs and their `draft_microtasks` contract handoff.
 
 ## 8. What To Freeze From Current Governance
 
@@ -859,7 +927,7 @@ A model with no chat history should be able to read this brief and correctly inf
 - The first target is a deterministic product kernel, not a creative module and not another external governance harness.
 - CRDT is required day one because the Operator and models must work inside the app in parallel.
 - Postgres/event state is required day one because live collaboration state is not final authority.
-- SQLite is explicitly rejected going forward. Future models must not propose SQLite authority, fallback, cache, offline, test-fixture, or compatibility paths for Kernel V1.
+- SQLite is explicitly rejected going forward. Future models must not propose SQLite authority, fallback, cache, offline, test-fixture, fixture, import, compatibility, example, harness, or temporary-adapter paths for Handshake.
 - The operator surface is the primary control room and audit boundary.
 - The terminal may exist as a backend transport or debug panel, but it is not the Operator's main workspace.
 - A commercial AI IDE model-subscription approach is not available to Handshake day one because it requires provider agreements, billing, quota, and abuse-control infrastructure.
