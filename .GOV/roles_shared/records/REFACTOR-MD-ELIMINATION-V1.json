@@ -113,6 +113,9 @@
   "proposed_phasing": [
     {
       "phase_id": "MD-ELIM-PHASE-1",
+      "status": "DONE",
+      "completed_at_utc": "2026-05-17T00:00:00Z",
+      "completed_in_commit": "PENDING_COMMIT",
       "summary": "Invert task-packet-stub-contracts.mjs to walk .contract.json files as source of truth; treat .md as optional legacy projection.",
       "scope": [
         "Refactor listStubMarkdownFiles to listStubContractFiles.",
@@ -122,7 +125,19 @@
         "Update readStubContractForMarkdownPath callers (build-order-sync.mjs:170 + :566) to accept either .md or .contract.json paths."
       ],
       "estimated_effort": "small (~1-2 days)",
-      "unblocks": ["WP-KERNEL-006 discovery via existing registry/board"]
+      "actual_effort": "~half day",
+      "unblocks": ["WP-KERNEL-006 discovery via existing registry/board"],
+      "implementation_notes": [
+        "Added listStubContractFiles() that walks .contract.json files in stubs/.",
+        "Added stubMarkdownPathFromContractPath() inverse helper.",
+        "Made readStubContractForMarkdownPath() path-suffix-agnostic: accepts .md or .contract.json.",
+        "writeAllStubContracts() now walks .contract.json files; if .md sibling exists, regenerates contract from .md (legacy mode); if no .md, leaves the hand-authored contract alone. Backstop picks up legacy .md without an existing contract.",
+        "checkAllStubContracts() now walks .contract.json files; if .md sibling exists, derives expected from .md and requires exact match (legacy drift check); if no .md, validates the contract against validateHandAuthoredStubContract schema. Backstop catches legacy .md with no contract.",
+        "Added validateHandAuthoredStubContract() pure function that asserts the minimum schema fields downstream tools need.",
+        "16 unit tests in .GOV/roles_shared/tests/task-packet-stub-contracts.test.mjs cover validation rules + path helpers + .md/.json path-agnostic read.",
+        "Live check: 196 stub contracts (193 legacy .md-sourced + 3 new .json-only KERNEL-006/007/008) — all OK.",
+        "task-packet-stub-contract-check still passes in packet-truth-bundle; the 2 remaining packet-truth-bundle sub-check failures are unrelated pre-existing issues (Atelier-Lens-v2 + Photo-Studio-v2 SUPERSEDED status drift, stale FLAT_PACKET_LEGACY_INVENTORY)."
+      ]
     },
     {
       "phase_id": "MD-ELIM-PHASE-2",
@@ -195,12 +210,14 @@
   "next_actions": [
     {
       "action_id": "NEXT-001",
+      "status": "DONE",
       "description": "Operator approves the phasing and Phase 1 (stub-script inversion) starts.",
       "owner": "OPERATOR",
       "blocking": true
     },
     {
       "action_id": "NEXT-002",
+      "status": "DONE",
       "description": "Kernel Builder or governance-scoped session implements MD-ELIM-PHASE-1.",
       "owner": "KERNEL_BUILDER",
       "blocking_for": ["WP-KERNEL-006 discovery"],
@@ -208,9 +225,16 @@
     },
     {
       "action_id": "NEXT-003",
-      "description": "Once Phase 1 lands, re-run build-order-sync to surface KERNEL-006/007/008 in BUILD_ORDER without creating .md siblings.",
-      "owner": "KERNEL_BUILDER",
+      "status": "READY",
+      "description": "Add WP-KERNEL-006/007/008 rows to WP_TRACEABILITY_REGISTRY (currently the only blocker for build-order discovery of the new stubs; can use .contract.json paths now that the script accepts them). Or wait for MD-ELIM-PHASE-2 to migrate the registry to JSON-primary, which is the cleaner long-term path.",
+      "owner": "OPERATOR_OR_KERNEL_BUILDER",
       "blocked_by": ["NEXT-002"]
+    },
+    {
+      "action_id": "NEXT-004",
+      "status": "READY",
+      "description": "Operator decision: proceed with MD-ELIM-PHASE-2 (migrate WP_TRACEABILITY_REGISTRY to .json-primary)?",
+      "owner": "OPERATOR"
     }
   ],
   "related_artifacts": [

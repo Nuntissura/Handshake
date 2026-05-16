@@ -12,6 +12,7 @@ const STUBS_DIR = path.join(GOV_ROOT, "task_packets", "stubs");
 const SCHEMA_ID = "hsk.work_packet_stub_contract@1";
 const SCHEMA_VERSION = "work_packet_stub_contract_v1";
 const STUB_FILE_RE = /^(WP-[A-Za-z0-9._-]+)\.md$/;
+const STUB_CONTRACT_FILE_RE = /^(WP-[A-Za-z0-9._-]+)\.contract\.json$/;
 
 function stableJson(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
@@ -42,6 +43,21 @@ function splitList(value = "") {
     .filter(Boolean);
 }
 
+function parseIntegerField(text = "", label = "") {
+  const value = parseSingleField(text, label);
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseBooleanField(text = "", label = "") {
+  const value = parseSingleField(text, label);
+  if (!value) return null;
+  if (/^(true|yes|1)$/i.test(value)) return true;
+  if (/^(false|no|0)$/i.test(value)) return false;
+  return null;
+}
+
 function parseIntentSection(text = "", heading = "") {
   const lines = String(text || "").split(/\r?\n/);
   const start = lines.findIndex((line) => line.trim().toUpperCase() === `## ${heading}`.toUpperCase());
@@ -69,12 +85,26 @@ function stubContractPathFor(stubMdAbsPath = "") {
   return stubMdAbsPath.replace(/\.md$/i, ".contract.json");
 }
 
+function stubMarkdownPathFor(stubContractAbsPath = "") {
+  return stubContractAbsPath.replace(/\.contract\.json$/i, ".md");
+}
+
 export function stubContractPathFromMarkdownPath(stubMdPath = "") {
   return String(stubMdPath || "").replace(/\.md$/i, ".contract.json");
 }
 
-export function readStubContractForMarkdownPath(stubMdPath = "") {
-  const contractPath = stubContractPathFromMarkdownPath(stubMdPath);
+export function stubMarkdownPathFromContractPath(stubContractPath = "") {
+  return String(stubContractPath || "").replace(/\.contract\.json$/i, ".md");
+}
+
+// Accepts either a stub .md path (legacy) or a stub .contract.json path
+// (JSON-primary). Caller doesn't need to know the surface kind — both resolve
+// to the same .contract.json on disk.
+export function readStubContractForMarkdownPath(stubPath = "") {
+  const inputPath = String(stubPath || "");
+  const contractPath = /\.contract\.json$/i.test(inputPath)
+    ? inputPath
+    : stubContractPathFromMarkdownPath(inputPath);
   const absPath = path.isAbsolute(contractPath) ? contractPath : path.resolve(REPO_ROOT, contractPath);
   try {
     const contract = JSON.parse(fsSync.readFileSync(absPath, "utf8"));
@@ -93,6 +123,13 @@ export function buildStubContract({ wpId = "", stubText = "", stubPath = "" } = 
   const activatedAtUtc = parseSingleField(projectionBody, "ACTIVATED_AT");
   const activationSignature = parseSingleField(projectionBody, "ACTIVATION_SIGNATURE");
   const activatedToPacket = /^ACTIVATED_TO_PACKET$/i.test(lifecycleStatus);
+  const draftMicrotaskSuitePath = parseSingleField(projectionBody, "DRAFT_MICROTASK_SUITE_PATH");
+  const draftMicrotaskCount = parseIntegerField(projectionBody, "DRAFT_MICROTASK_COUNT");
+  const officialMicrotasksGenerated = parseBooleanField(projectionBody, "OFFICIAL_MICROTASKS_GENERATED");
+  const draftMicrotaskActivationDestinationPattern =
+    parseSingleField(projectionBody, "DRAFT_MICROTASK_ACTIVATION_DESTINATION_PATTERN") ||
+    ".GOV/task_packets/<WP_ID>/MT-*.{md,json}";
+  const hasDraftMicrotaskSuite = Boolean(draftMicrotaskSuitePath || draftMicrotaskCount !== null);
   return {
     schema_id: SCHEMA_ID,
     schema_version: SCHEMA_VERSION,
@@ -150,6 +187,20 @@ export function buildStubContract({ wpId = "", stubText = "", stubPath = "" } = 
       risks_unknowns: parseIntentSection(projectionBody, "RISKS / UNKNOWNs (DRAFT)"),
       governance_artifact_stance: parseIntentSection(projectionBody, "MACHINE_READABLE_GOVERNANCE_ARTIFACT_STANCE"),
     },
+    ...(hasDraftMicrotaskSuite
+      ? {
+          draft_microtasks: {
+            source: "STUB_MARKDOWN_HANDOFF",
+            suite_path: draftMicrotaskSuitePath,
+            count: draftMicrotaskCount,
+            official_microtasks_generated: officialMicrotasksGenerated === true,
+            activation_destination_pattern: draftMicrotaskActivationDestinationPattern,
+            activation_required_before_official_generation: true,
+            activation_rule:
+              "convert_draft_suite_after_refinement_user_signature_and_official_packet_creation",
+          },
+        }
+      : {}),
     activation_contract: {
       may_start_coder: false,
       may_start_validator: false,
@@ -159,6 +210,7 @@ export function buildStubContract({ wpId = "", stubText = "", stubPath = "" } = 
         "create_or_refresh_refinement",
         "obtain_user_signature",
         "create_official_work_packet_contract",
+        ...(hasDraftMicrotaskSuite ? ["convert_draft_microtask_suite_to_official_microtask_contracts"] : []),
         "move_task_board_entry_from_stub_to_ready_for_dev",
       ],
     },
@@ -188,6 +240,71 @@ async function listStubMarkdownFiles() {
     .sort((left, right) => normalizeRepoPath(left).localeCompare(normalizeRepoPath(right), "en", { numeric: true }));
 }
 
+export async function listStubContractFiles() {
+  if (!(await exists(STUBS_DIR))) return [];
+  const entries = await fs.readdir(STUBS_DIR, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && STUB_CONTRACT_FILE_RE.test(entry.name))
+    .map((entry) => path.join(STUBS_DIR, entry.name))
+    .sort((left, right) => normalizeRepoPath(left).localeCompare(normalizeRepoPath(right), "en", { numeric: true }));
+}
+
+// Minimum schema check for hand-authored .contract.json stubs that have no
+// .md sibling. Validates the fields downstream tools (build-order-sync,
+// task-board, traceability) need to safely discover and order the stub.
+// Returns array of human-readable failure strings; empty array means OK.
+export function validateHandAuthoredStubContract(contract = {}, contractPath = "") {
+  const failures = [];
+  const ref = contractPath ? `${contractPath}: ` : "";
+  if (!contract || typeof contract !== "object") {
+    failures.push(`${ref}contract is not an object`);
+    return failures;
+  }
+  if (contract.schema_id !== SCHEMA_ID) {
+    failures.push(`${ref}schema_id must equal "${SCHEMA_ID}" (got "${contract.schema_id}")`);
+  }
+  if (contract.contract_authority !== "PRIMARY_MACHINE_READABLE_STUB") {
+    failures.push(`${ref}contract_authority must equal "PRIMARY_MACHINE_READABLE_STUB"`);
+  }
+  const policy = contract.artifact_policy || {};
+  if (policy.authority_surface !== "MACHINE_CONTRACT") {
+    failures.push(`${ref}artifact_policy.authority_surface must equal "MACHINE_CONTRACT"`);
+  }
+  if (typeof contract.wp_id !== "string" || !contract.wp_id.startsWith("WP-")) {
+    failures.push(`${ref}wp_id must be a non-empty string starting with "WP-"`);
+  }
+  if (typeof contract.base_wp_id !== "string" || !contract.base_wp_id.startsWith("WP-")) {
+    failures.push(`${ref}base_wp_id must be a non-empty string starting with "WP-"`);
+  }
+  const lifecycle = contract.lifecycle || {};
+  if (typeof lifecycle.status !== "string" || lifecycle.status.trim() === "") {
+    failures.push(`${ref}lifecycle.status must be a non-empty string`);
+  }
+  const buildOrder = contract.build_order || {};
+  for (const field of ["domain", "tech_blocker", "value_tier", "risk_tier"]) {
+    if (typeof buildOrder[field] !== "string" || buildOrder[field].trim() === "") {
+      failures.push(`${ref}build_order.${field} must be a non-empty string`);
+    }
+  }
+  for (const field of ["depends_on", "blocks"]) {
+    if (!Array.isArray(buildOrder[field])) {
+      failures.push(`${ref}build_order.${field} must be an array`);
+    }
+  }
+  const specTrace = contract.spec_trace || {};
+  if (typeof specTrace.roadmap_pointer !== "string" || specTrace.roadmap_pointer.trim() === "") {
+    failures.push(`${ref}spec_trace.roadmap_pointer must be a non-empty string`);
+  }
+  const activation = contract.activation_contract || {};
+  if (activation.may_start_coder !== false) {
+    failures.push(`${ref}activation_contract.may_start_coder must be false (stubs cannot launch coder)`);
+  }
+  if (activation.may_start_validator !== false) {
+    failures.push(`${ref}activation_contract.may_start_validator must be false (stubs cannot launch validator)`);
+  }
+  return failures;
+}
+
 export async function writeStubContractForPath(stubMdAbsPath = "") {
   const stubText = await fs.readFile(stubMdAbsPath, "utf8");
   const wpId = path.basename(stubMdAbsPath).replace(/\.md$/i, "");
@@ -198,37 +315,100 @@ export async function writeStubContractForPath(stubMdAbsPath = "") {
   return contract;
 }
 
+// Discovery walks .contract.json files (new no-.md policy). For each contract:
+// - If a .md sibling exists, it's a legacy stub: regenerate the contract from
+//   the .md source so the projection stays in sync (existing behavior).
+// - If no .md sibling exists, the contract is hand-authored authority: leave
+//   it alone. The hand-authored content survives across writeAll runs.
 export async function writeAllStubContracts() {
-  const files = await listStubMarkdownFiles();
+  const contractFiles = await listStubContractFiles();
   const contracts = [];
-  for (const file of files) {
-    contracts.push(await writeStubContractForPath(file));
+  const seenContractPaths = new Set();
+  for (const contractAbsPath of contractFiles) {
+    const mdAbsPath = stubMarkdownPathFor(contractAbsPath);
+    if (await exists(mdAbsPath)) {
+      const contract = await writeStubContractForPath(mdAbsPath);
+      contracts.push(contract);
+    } else {
+      // Hand-authored .json-only stub. Read and return as-is so callers see it
+      // in the count, but don't overwrite.
+      try {
+        const raw = await fs.readFile(contractAbsPath, "utf8");
+        contracts.push(JSON.parse(raw));
+      } catch {
+        // Unreadable .contract.json — let the check phase report it.
+      }
+    }
+    seenContractPaths.add(contractAbsPath);
+  }
+  // Backstop: pick up any legacy .md stubs whose .contract.json hasn't been
+  // generated yet (first-time materialization).
+  const mdFiles = await listStubMarkdownFiles();
+  for (const mdAbsPath of mdFiles) {
+    const contractAbsPath = stubContractPathFor(mdAbsPath);
+    if (!seenContractPaths.has(contractAbsPath)) {
+      const contract = await writeStubContractForPath(mdAbsPath);
+      contracts.push(contract);
+    }
   }
   return contracts;
 }
 
+// Check walks .contract.json files (new no-.md policy). For each contract:
+// - If a .md sibling exists, derive expected from .md and require an exact
+//   match with the on-disk contract (existing legacy drift check).
+// - If no .md sibling exists, validate the hand-authored contract has the
+//   required schema fields directly.
+// Backstop: catches legacy .md stubs that lack a generated contract.
 export async function checkAllStubContracts() {
-  const files = await listStubMarkdownFiles();
+  const contractFiles = await listStubContractFiles();
   const failures = [];
-  for (const file of files) {
-    const expected = stableJson(buildStubContract({
-      wpId: path.basename(file).replace(/\.md$/i, ""),
-      stubText: await fs.readFile(file, "utf8"),
-      stubPath: normalizeRepoPath(file),
-    }));
-    const contractPath = stubContractPathFor(file);
-    let actual = "";
-    try {
-      actual = await fs.readFile(contractPath, "utf8");
-    } catch {
-      failures.push(`${normalizeRepoPath(contractPath)} missing`);
-      continue;
-    }
-    if (actual.replace(/\r\n/g, "\n") !== expected) {
-      failures.push(`${normalizeRepoPath(contractPath)} stale`);
+  let checkedCount = 0;
+  const seenContractPaths = new Set();
+  for (const contractAbsPath of contractFiles) {
+    seenContractPaths.add(contractAbsPath);
+    const mdAbsPath = stubMarkdownPathFor(contractAbsPath);
+    if (await exists(mdAbsPath)) {
+      const expected = stableJson(buildStubContract({
+        wpId: path.basename(mdAbsPath).replace(/\.md$/i, ""),
+        stubText: await fs.readFile(mdAbsPath, "utf8"),
+        stubPath: normalizeRepoPath(mdAbsPath),
+      }));
+      let actual = "";
+      try {
+        actual = await fs.readFile(contractAbsPath, "utf8");
+      } catch {
+        failures.push(`${normalizeRepoPath(contractAbsPath)} missing`);
+        continue;
+      }
+      if (actual.replace(/\r\n/g, "\n") !== expected) {
+        failures.push(`${normalizeRepoPath(contractAbsPath)} stale`);
+      }
+      checkedCount += 1;
+    } else {
+      let contract;
+      try {
+        contract = JSON.parse(await fs.readFile(contractAbsPath, "utf8"));
+      } catch (error) {
+        failures.push(`${normalizeRepoPath(contractAbsPath)} unreadable: ${error.message}`);
+        continue;
+      }
+      const schemaFailures = validateHandAuthoredStubContract(
+        contract,
+        normalizeRepoPath(contractAbsPath),
+      );
+      for (const failure of schemaFailures) failures.push(failure);
+      checkedCount += 1;
     }
   }
-  return { ok: failures.length === 0, failures, count: files.length };
+  // Backstop: catch legacy .md stubs with no generated .contract.json.
+  const mdFiles = await listStubMarkdownFiles();
+  for (const mdAbsPath of mdFiles) {
+    const contractAbsPath = stubContractPathFor(mdAbsPath);
+    if (seenContractPaths.has(contractAbsPath)) continue;
+    failures.push(`${normalizeRepoPath(contractAbsPath)} missing`);
+  }
+  return { ok: failures.length === 0, failures, count: checkedCount };
 }
 
 function parseArgs(argv = []) {
