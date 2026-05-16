@@ -8,7 +8,12 @@ import { DebugPanel } from "./components/DebugPanel";
 import { KernelDccProjectionView } from "./components/KernelDccProjectionView";
 import { FontManagerView } from "./components/FontManagerView";
 import { MediaDownloaderView } from "./components/MediaDownloaderView";
-import { getKernelDccProjection, type BundleScopeInput, type KernelDccProjectionSurfaceV1 } from "./lib/api";
+import {
+  getKernelDccProjection,
+  triggerKernelDccAction,
+  type BundleScopeInput,
+  type KernelDccProjectionSurfaceV1,
+} from "./lib/api";
 import { AiJobsDrawer } from "./components/AiJobsDrawer";
 import { ViewModeToggle } from "./components/ViewModeToggle";
 import type { ViewMode } from "./lib/viewMode";
@@ -221,7 +226,7 @@ function App() {
                   <p className="muted">{kernelDccError}</p>
                 </div>
               ) : kernelDccSurface ? (
-                <KernelDccProjectionView surface={kernelDccSurface} />
+                <KernelDccProjectionView surface={kernelDccSurface} onTriggerCatalogAction={triggerKernelDccAction} />
               ) : (
                 <div className="content-card">
                   <h2>Kernel DCC projection unavailable</h2>

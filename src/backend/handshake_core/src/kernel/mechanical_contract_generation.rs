@@ -94,6 +94,17 @@ pub struct GeneratedContractArtifactRefV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DurableCommandReceiptV1 {
+    pub receipt_id: String,
+    pub command_line: String,
+    pub script_ref: String,
+    pub workdir_ref: String,
+    pub script_resolution: String,
+    pub receipt_ref: String,
+    pub blocks_activation_on_failure: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MechanicalContractOperationV1 {
     pub operation_id: String,
     pub kind: MechanicalContractOperationKind,
@@ -117,6 +128,7 @@ pub struct MechanicalContractGenerationV1 {
     pub schema_id: String,
     pub wp_id: String,
     pub operations: Vec<MechanicalContractOperationV1>,
+    pub durable_command_receipts: Vec<DurableCommandReceiptV1>,
     pub provenance_fields: Vec<String>,
     pub failure_states: Vec<MechanicalContractFailureState>,
     pub direct_mutation_allowed: bool,
@@ -144,6 +156,7 @@ pub fn build_kernel002_mechanical_contract_generation() -> MechanicalContractGen
         schema_id: MECHANICAL_CONTRACT_GENERATION_SCHEMA_ID.to_string(),
         wp_id: WP_ID.to_string(),
         operations: vec![stub_promotion_operation(), microtask_extraction_operation()],
+        durable_command_receipts: durable_command_receipts(),
         provenance_fields: vec![
             "source_contract_id".to_string(),
             "source_file".to_string(),
@@ -167,6 +180,11 @@ pub fn validate_mechanical_contract_generation(
 
     require_non_empty(&mut errors, "wp_id", &generation.wp_id);
     require_vec(&mut errors, "operations", &generation.operations);
+    require_vec(
+        &mut errors,
+        "durable_command_receipts",
+        &generation.durable_command_receipts,
+    );
     require_vec(
         &mut errors,
         "provenance_fields",
@@ -211,6 +229,7 @@ pub fn validate_mechanical_contract_generation(
     for operation in &generation.operations {
         validate_operation(operation, &mut errors);
     }
+    validate_durable_command_receipts(&generation.durable_command_receipts, &mut errors);
 
     if errors.is_empty() {
         Ok(())
@@ -537,7 +556,7 @@ fn stub_promotion_operation() -> MechanicalContractOperationV1 {
         target_schema_id: WORK_PACKET_CONTRACT_SCHEMA_ID.to_string(),
         command: DeterministicContractCommandV1 {
             command_id: "task-packet-stub-contracts-check".to_string(),
-            command_line: "just task-packet-stub-contracts --check".to_string(),
+            command_line: "just task-packet-stub-contracts --all".to_string(),
             script_ref: ".GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs"
                 .to_string(),
             dry_run_supported: true,
@@ -675,6 +694,137 @@ fn microtask_extraction_operation() -> MechanicalContractOperationV1 {
         ],
         status_provenance_fields: required_status_provenance_fields().to_vec(),
         authority_effect: AuthorityEffect::PrePromotionEvidenceOnly,
+    }
+}
+
+fn durable_command_receipts() -> Vec<DurableCommandReceiptV1> {
+    vec![
+        durable_command_receipt(
+            "receipt-task-packet-stub-contracts-all",
+            "just task-packet-stub-contracts --all",
+            ".GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs",
+        ),
+        durable_command_receipt(
+            "receipt-build-order-sync",
+            "just build-order-sync",
+            ".GOV/roles_shared/scripts/build-order-sync.mjs",
+        ),
+        durable_command_receipt(
+            "receipt-gov-check",
+            "just gov-check",
+            ".GOV/roles_shared/checks/gov-check.mjs",
+        ),
+    ]
+}
+
+fn durable_command_receipt(
+    receipt_id: &str,
+    command_line: &str,
+    script_ref: &str,
+) -> DurableCommandReceiptV1 {
+    DurableCommandReceiptV1 {
+        receipt_id: receipt_id.to_string(),
+        command_line: command_line.to_string(),
+        script_ref: script_ref.to_string(),
+        workdir_ref: "repo-root://".to_string(),
+        script_resolution: "resolve-script-ref-from-workdir".to_string(),
+        receipt_ref: format!("receipt://mechanical-contract-generation/{receipt_id}"),
+        blocks_activation_on_failure: true,
+    }
+}
+
+fn validate_durable_command_receipts(
+    receipts: &[DurableCommandReceiptV1],
+    errors: &mut Vec<MechanicalContractGenerationValidationError>,
+) {
+    let mut ids = HashSet::new();
+    for receipt in receipts {
+        if !ids.insert(receipt.receipt_id.as_str()) {
+            errors.push(error(
+                "durable_command_receipts.receipt_id",
+                "durable command receipt ids must be unique",
+            ));
+        }
+        require_non_empty(
+            errors,
+            "durable_command_receipts.receipt_id",
+            &receipt.receipt_id,
+        );
+        require_non_empty(
+            errors,
+            "durable_command_receipts.command_line",
+            &receipt.command_line,
+        );
+        require_non_empty(
+            errors,
+            "durable_command_receipts.script_ref",
+            &receipt.script_ref,
+        );
+        require_non_empty(
+            errors,
+            "durable_command_receipts.workdir_ref",
+            &receipt.workdir_ref,
+        );
+        require_non_empty(
+            errors,
+            "durable_command_receipts.script_resolution",
+            &receipt.script_resolution,
+        );
+        require_non_empty(
+            errors,
+            "durable_command_receipts.receipt_ref",
+            &receipt.receipt_ref,
+        );
+        if !receipt
+            .receipt_ref
+            .starts_with("receipt://mechanical-contract-generation/")
+        {
+            errors.push(error(
+                "durable_command_receipts.receipt_ref",
+                "durable command receipt ref must use the mechanical contract receipt namespace",
+            ));
+        }
+        if receipt.workdir_ref != "repo-root://" {
+            errors.push(error(
+                "durable_command_receipts.workdir_ref",
+                "durable command receipts must resolve from the repo root workdir",
+            ));
+        }
+        if receipt.script_resolution != "resolve-script-ref-from-workdir" {
+            errors.push(error(
+                "durable_command_receipts.script_resolution",
+                "durable command receipts must declare workdir-relative script resolution",
+            ));
+        }
+        if !receipt.blocks_activation_on_failure {
+            errors.push(error(
+                "durable_command_receipts.blocks_activation_on_failure",
+                "required mechanical command receipts must block activation on failure",
+            ));
+        }
+        if receipt.command_line == "just task-packet-stub-contracts --all"
+            && receipt.workdir_ref != "repo-root://"
+        {
+            errors.push(error(
+                "durable_command_receipts.workdir_ref",
+                "task-packet-stub-contracts exact receipt must resolve the actual repo-root workdir",
+            ));
+        }
+    }
+    for required in [
+        "just task-packet-stub-contracts --all",
+        "just build-order-sync",
+        "just gov-check",
+    ] {
+        if !receipts
+            .iter()
+            .any(|receipt| receipt.command_line == required)
+        {
+            errors.push(error(
+                "durable_command_receipts.command_line",
+                "required exact durable command receipt is missing",
+            ));
+        }
     }
 }
 

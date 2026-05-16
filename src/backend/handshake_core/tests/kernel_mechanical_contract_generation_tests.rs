@@ -28,6 +28,10 @@ fn mechanical_generation_defines_stub_promotion_and_mt_extraction_operations() {
     );
     assert_eq!(promotion.target_schema_id, "hsk.work_packet_contract@1");
     assert_eq!(promotion.action_id, "kernel.work_packet_contract.activate");
+    assert_eq!(
+        promotion.command.command_line,
+        "just task-packet-stub-contracts --all"
+    );
     assert!(promotion
         .transition_action_ids
         .contains(&"kernel.stub_contract.prepare_promotion".to_string()));
@@ -41,6 +45,65 @@ fn mechanical_generation_defines_stub_promotion_and_mt_extraction_operations() {
     assert_eq!(
         extraction.authority_effect,
         AuthorityEffect::PrePromotionEvidenceOnly
+    );
+}
+
+#[test]
+fn mechanical_generation_records_exact_durable_command_receipts_for_preuse_acceptance() {
+    let generation = build_kernel002_mechanical_contract_generation();
+
+    validate_mechanical_contract_generation(&generation)
+        .expect("mechanical contract generation validates");
+
+    for command in [
+        "just task-packet-stub-contracts --all",
+        "just build-order-sync",
+        "just gov-check",
+    ] {
+        let receipt = generation
+            .durable_command_receipts
+            .iter()
+            .find(|receipt| receipt.command_line == command)
+            .expect("exact durable command receipt exists");
+        assert!(receipt
+            .receipt_ref
+            .starts_with("receipt://mechanical-contract-generation/"));
+        assert_eq!(receipt.workdir_ref, "repo-root://");
+        assert_eq!(receipt.script_resolution, "resolve-script-ref-from-workdir");
+        assert!(receipt.blocks_activation_on_failure);
+    }
+    assert!(!generation
+        .durable_command_receipts
+        .iter()
+        .any(|receipt| receipt.command_line.contains("--check")));
+}
+
+#[test]
+fn mechanical_generation_receipts_resolve_workdir_and_existing_script_refs() {
+    let generation = build_kernel002_mechanical_contract_generation();
+    validate_mechanical_contract_generation(&generation)
+        .expect("mechanical contract generation validates");
+    let repo_root = repo_root();
+
+    for receipt in &generation.durable_command_receipts {
+        assert_eq!(receipt.workdir_ref, "repo-root://");
+        assert_eq!(receipt.script_resolution, "resolve-script-ref-from-workdir");
+        assert!(
+            repo_root.join(&receipt.script_ref).exists(),
+            "script ref must exist or be intentionally resolved from workdir: {}",
+            receipt.script_ref
+        );
+    }
+
+    let stub_receipt = generation
+        .durable_command_receipts
+        .iter()
+        .find(|receipt| receipt.command_line == "just task-packet-stub-contracts --all")
+        .expect("task-packet-stub-contracts exact receipt exists");
+    assert_eq!(stub_receipt.workdir_ref, "repo-root://");
+    assert_eq!(
+        repo_root.join(&stub_receipt.script_ref),
+        repo_root.join(".GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs")
     );
 }
 
@@ -187,4 +250,12 @@ fn is_sha256_digest(value: &str) -> bool {
     value
         .strip_prefix("sha256:")
         .is_some_and(|digest| digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()))
+}
+
+fn repo_root() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("repo root is three levels above handshake_core")
+        .to_path_buf()
 }

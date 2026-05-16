@@ -5,7 +5,8 @@ use handshake_core::kernel::{
         kernel002_workflow_transition_registry, preview_workflow_transition,
         validate_workflow_transition_registry, ApprovalBoundary, DccTransitionPreviewPosture,
         QueueAutomationMode, QueueAutomationRuleV1, QueueAutomationSourceKind,
-        QueueAutomationTriggerKind, WorkflowTransitionRegistryValidationError,
+        QueueAutomationTriggerKind, WorkflowMutationKind,
+        WorkflowTransitionRegistryValidationError,
     },
 };
 
@@ -36,6 +37,19 @@ fn workflow_transition_registry_folds_legacy_stub_into_explicit_transition_law()
         .executor_policies
         .iter()
         .any(|policy| policy.policy_id == "kernel.executor.local_small_model"));
+
+    for mutation_kind in [
+        WorkflowMutationKind::WorkPacket,
+        WorkflowMutationKind::MicroTask,
+        WorkflowMutationKind::TaskBoardProjection,
+        WorkflowMutationKind::RoleMailboxQueue,
+        WorkflowMutationKind::DevCommandCenterAction,
+    ] {
+        assert!(registry
+            .transition_rules
+            .iter()
+            .any(|rule| rule.mutation_kind == mutation_kind));
+    }
 }
 
 #[test]
@@ -140,5 +154,18 @@ fn registry_requires_every_mutation_to_have_rule_actor_action_boundary_and_previ
         error,
         WorkflowTransitionRegistryValidationError::MissingTransitionField { field, .. }
             if *field == "dcc_preview.panel_id"
+    )));
+
+    let mut registry = kernel002_workflow_transition_registry();
+    registry
+        .transition_rules
+        .retain(|rule| rule.mutation_kind != WorkflowMutationKind::DevCommandCenterAction);
+    let errors = validate_workflow_transition_registry(&registry)
+        .expect_err("every declared mutation kind must have a registered rule");
+    assert!(errors.iter().any(|error| matches!(
+        error,
+        WorkflowTransitionRegistryValidationError::MissingMutationKindRule {
+            mutation_kind: WorkflowMutationKind::DevCommandCenterAction
+        }
     )));
 }

@@ -216,6 +216,52 @@ vi.mock("./lib/api", () => ({
     flight_recorder_event_types: ["dcc.work.selected"],
     product_authority_refs: ["kernel.write_box.queue"],
     folded_source_refs: [".GOV/task_packets/stubs/WP-1-Dev-Command-Center-MVP-v1.contract.json"],
+    spawn_tree_projection: {
+      schema_id: "hsk.kernel.session_spawn_tree_dcc_projection@1",
+      tree_id: "app-route-spawn-tree",
+      panel_id: "session-spawn-tree",
+      visible_fields: [
+        "SpawnHierarchy",
+        "ChildCounts",
+        "SpawnDepth",
+        "CascadeCancel",
+        "SpawnMode",
+        "AnnounceBackBadges",
+      ],
+      nodes: [
+        {
+          session_id: "session-app-backend",
+          parent_session_id: null,
+          role_id: "CODER",
+          depth: 0,
+          child_count: 0,
+          active_child_count: 0,
+          spawn_mode: "SessionPersistent",
+          runtime_state: "Active",
+          cascade_cancel_available: true,
+          announce_back_badges: ["announce-back-ready"],
+        },
+      ],
+      max_depth: 0,
+      cascade_cancel_session_ids: ["session-app-backend"],
+      announce_back_badge_count: 1,
+      runtime_record_refs: ["runtime://session-spawn/session-app-backend"],
+      mutates_runtime_records: false,
+    },
+  })),
+  triggerKernelDccAction: vi.fn(async () => ({
+    schema_id: "hsk.kernel.dcc_governed_action_trigger_result@1",
+    work_id: "work-app-backend-123",
+    action_id: "kernel.write_box.promote",
+    triggered: true,
+    catalog_checked: true,
+    preview_checked: true,
+    gate_enforced: true,
+    approval_preview_id: "approval-app-backend",
+    authority_effect: "EventLedgerAuthorityWrite",
+    approval_posture: "RequiresPromotionGate",
+    expected_write_box_kinds: ["PromotionBox"],
+    receipt_ref: "receipt://kernel-dcc/action-trigger/work-app-backend-123/kernel.write_box.promote",
   })),
   createDiagnostic: vi.fn(async () => ({})),
 }));
@@ -242,6 +288,9 @@ it("loads the backend Kernel DCC projection when opened", async () => {
   expect((await screen.findAllByText("work-app-backend-123")).length).toBeGreaterThan(0);
   expect(screen.getByText("panel-app-backend-test")).toBeInTheDocument();
   expect(screen.getAllByText("wb-app-backend").length).toBeGreaterThan(0);
+  expect(screen.getByText("Session Spawn Tree")).toBeInTheDocument();
+  expect(screen.getAllByText("session-app-backend").length).toBeGreaterThan(0);
+  expect(document.querySelector('[data-stable-id="dcc.session_spawn_tree.node.session-app-backend"]')).not.toBeNull();
   await waitFor(() => expect(vi.mocked(getKernelDccProjection)).toHaveBeenCalledTimes(1));
 });
 

@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { vi } from "vitest";
 import { KernelDccProjectionView } from "./KernelDccProjectionView";
 import type { KernelDccProjectionSurfaceV1 } from "../lib/api";
 
@@ -146,6 +147,53 @@ const surface: KernelDccProjectionSurfaceV1 = {
   flight_recorder_event_types: ["dcc.work.selected"],
   product_authority_refs: ["kernel.action_catalog"],
   folded_source_refs: [".GOV/task_packets/stubs/WP-1-Dev-Command-Center-MVP-v1.contract.json"],
+  spawn_tree_projection: {
+    schema_id: "hsk.kernel.session_spawn_tree_dcc_projection@1",
+    tree_id: "spawn-tree-backend-123",
+    panel_id: "session-spawn-tree",
+    visible_fields: [
+      "SpawnHierarchy",
+      "ChildCounts",
+      "SpawnDepth",
+      "CascadeCancel",
+      "SpawnMode",
+      "AnnounceBackBadges",
+    ],
+    nodes: [
+      {
+        session_id: "session-root-123",
+        parent_session_id: null,
+        role_id: "orchestrator",
+        depth: 0,
+        child_count: 1,
+        active_child_count: 1,
+        spawn_mode: "SessionPersistent",
+        runtime_state: "Active",
+        cascade_cancel_available: true,
+        announce_back_badges: ["announce-back-ready"],
+      },
+      {
+        session_id: "session-child-123",
+        parent_session_id: "session-root-123",
+        role_id: "coder",
+        depth: 1,
+        child_count: 0,
+        active_child_count: 0,
+        spawn_mode: "OneShot",
+        runtime_state: "Active",
+        cascade_cancel_available: false,
+        announce_back_badges: [],
+      },
+    ],
+    max_depth: 1,
+    cascade_cancel_session_ids: ["session-root-123"],
+    announce_back_badge_count: 1,
+    runtime_record_refs: [
+      "runtime://session-spawn/session-root-123",
+      "runtime://session-spawn/session-child-123",
+    ],
+    mutates_runtime_records: false,
+  },
 };
 
 it("projects backend DCC panels, work state, evidence, approval previews, rows, and stable ids", () => {
@@ -180,4 +228,74 @@ it("keeps the app DCC surface projection-only", () => {
   expect(screen.getByText("Projection only")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /promote/i })).toBeNull();
   expect(screen.queryByRole("button", { name: /mutate/i })).toBeNull();
+});
+
+it("triggers governed catalog actions through the provided API path", async () => {
+  const onTriggerCatalogAction = vi.fn(async () => ({
+    schema_id: "hsk.kernel.dcc_governed_action_trigger_result@1" as const,
+    work_id: "work-backend-123",
+    action_id: "kernel.crdt_workspace.propose_patch",
+    triggered: true,
+    catalog_checked: true,
+    preview_checked: true,
+    gate_enforced: true,
+    approval_preview_id: "approval-backend-123",
+    authority_effect: "PrePromotionEvidenceOnly",
+    approval_posture: "RequiresPromotionGate",
+    expected_write_box_kinds: ["CRDTWorkspaceBox", "ProposalBox"],
+    receipt_ref: "receipt://kernel-dcc/action-trigger/work-backend-123/kernel.crdt_workspace.propose_patch",
+  }));
+
+  render(<KernelDccProjectionView surface={surface} onTriggerCatalogAction={onTriggerCatalogAction} />);
+
+  fireEvent.click(screen.getByRole("button", { name: /trigger governed action/i }));
+
+  await waitFor(() =>
+    expect(onTriggerCatalogAction).toHaveBeenCalledWith({
+      work_id: "work-backend-123",
+      action_id: "kernel.crdt_workspace.propose_patch",
+      approval_preview_id: "approval-backend-123",
+      same_turn_approval: true,
+    }),
+  );
+  expect(await screen.findByText(/Governed trigger accepted/i)).toBeInTheDocument();
+  expect(screen.getByText(/gate enforced:\s*yes/i)).toBeInTheDocument();
+});
+
+it("does not fallback to the first work item for unallowed catalog actions", async () => {
+  const onTriggerCatalogAction = vi.fn();
+  const disallowedSurface: KernelDccProjectionSurfaceV1 = {
+    ...surface,
+    catalog_action_refs: ["kernel.unallowed.catalog_action"],
+    work_items: [
+      {
+        ...surface.work_items[0],
+        allowed_action_ids: ["kernel.crdt_workspace.propose_patch"],
+      },
+    ],
+    approval_previews: [],
+  };
+
+  render(<KernelDccProjectionView surface={disallowedSurface} onTriggerCatalogAction={onTriggerCatalogAction} />);
+
+  fireEvent.click(screen.getByRole("button", { name: /trigger governed action/i }));
+
+  expect(onTriggerCatalogAction).not.toHaveBeenCalled();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "No selected DCC work item can trigger this catalog action",
+  );
+});
+
+it("renders session spawn hierarchy fields projected from runtime records", () => {
+  render(<KernelDccProjectionView surface={surface} />);
+
+  expect(screen.getByText("Session Spawn Tree")).toBeInTheDocument();
+  expect(screen.getAllByText("session-root-123").length).toBeGreaterThan(0);
+  expect(screen.getByText("session-child-123")).toBeInTheDocument();
+  expect(screen.getByText("SessionPersistent")).toBeInTheDocument();
+  expect(screen.getByText("OneShot")).toBeInTheDocument();
+  expect(screen.getByText("announce-back-ready")).toBeInTheDocument();
+  expect(screen.getByText(/max depth 1/i)).toBeInTheDocument();
+  expect(screen.getByText(/Cascade cancel sessions: session-root-123/i)).toBeInTheDocument();
+  expect(document.querySelector('[data-stable-id="dcc.session_spawn_tree.node.session-child-123"]')).not.toBeNull();
 });

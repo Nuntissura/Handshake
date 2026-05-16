@@ -1,7 +1,17 @@
-import type { KernelDccProjectionSurfaceV1 } from "../lib/api";
+import { useState } from "react";
+import type {
+  KernelDccActionTriggerResponseV1,
+  KernelDccProjectionSurfaceV1,
+} from "../lib/api";
 
 type Props = {
   surface: KernelDccProjectionSurfaceV1;
+  onTriggerCatalogAction?: (input: {
+    work_id: string;
+    action_id: string;
+    approval_preview_id?: string | null;
+    same_turn_approval?: boolean;
+  }) => Promise<KernelDccActionTriggerResponseV1>;
 };
 
 function joinRefs(refs: string[]): string {
@@ -12,7 +22,45 @@ function optionalRef(ref: string | null): string {
   return ref ?? "pending";
 }
 
-export function KernelDccProjectionView({ surface }: Props) {
+function firstWorkForAction(surface: KernelDccProjectionSurfaceV1, actionId: string): string | null {
+  return surface.work_items.find((work) => work.allowed_action_ids.includes(actionId))?.work_id ?? null;
+}
+
+function approvalPreviewForAction(surface: KernelDccProjectionSurfaceV1, actionId: string): string | null {
+  return surface.approval_previews.find((preview) => preview.action_id === actionId)?.preview_id ?? null;
+}
+
+export function KernelDccProjectionView({ surface, onTriggerCatalogAction }: Props) {
+  const [triggerResult, setTriggerResult] = useState<KernelDccActionTriggerResponseV1 | null>(null);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
+  const [triggeringActionId, setTriggeringActionId] = useState<string | null>(null);
+
+  const triggerAction = async (actionId: string) => {
+    if (!onTriggerCatalogAction) return;
+    const workId = firstWorkForAction(surface, actionId);
+    if (!workId) {
+      setTriggerError("No selected DCC work item can trigger this catalog action");
+      return;
+    }
+    const approvalPreviewId = approvalPreviewForAction(surface, actionId);
+    setTriggeringActionId(actionId);
+    setTriggerError(null);
+    setTriggerResult(null);
+    try {
+      const result = await onTriggerCatalogAction({
+        work_id: workId,
+        action_id: actionId,
+        approval_preview_id: approvalPreviewId,
+        same_turn_approval: approvalPreviewId !== null,
+      });
+      setTriggerResult(result);
+    } catch (err) {
+      setTriggerError(err instanceof Error ? err.message : "DCC governed action trigger failed");
+    } finally {
+      setTriggeringActionId(null);
+    }
+  };
+
   return (
     <section className="kernel-dcc" data-testid="kernel-dcc-projection" data-surface-id={surface.surface_id}>
       <header className="kernel-dcc__header">
@@ -133,9 +181,25 @@ export function KernelDccProjectionView({ surface }: Props) {
             {surface.catalog_action_refs.map((actionId) => (
               <li key={actionId} data-stable-id={`dcc.action_catalog.row.${actionId}`}>
                 <code>{actionId}</code>
+                {onTriggerCatalogAction ? (
+                  <button
+                    type="button"
+                    onClick={() => void triggerAction(actionId)}
+                    disabled={triggeringActionId === actionId}
+                  >
+                    {triggeringActionId === actionId ? "Triggering..." : "Trigger governed action"}
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
+          {triggerResult ? (
+            <div role="status">
+              Governed trigger accepted: {triggerResult.action_id} / gate enforced:{" "}
+              {triggerResult.gate_enforced ? "yes" : "no"} / receipt: {triggerResult.receipt_ref}
+            </div>
+          ) : null}
+          {triggerError ? <div role="alert">{triggerError}</div> : null}
         </section>
 
         <section className="kernel-dcc__panel" aria-labelledby="kernel-dcc-proposals">
@@ -318,6 +382,50 @@ export function KernelDccProjectionView({ surface }: Props) {
             ))}
           </ul>
         </section>
+
+        {surface.spawn_tree_projection ? (
+          <section className="kernel-dcc__panel" aria-labelledby="kernel-dcc-spawn-tree">
+            <h3 id="kernel-dcc-spawn-tree">Session Spawn Tree</h3>
+            <p className="muted">
+              {surface.spawn_tree_projection.schema_id} / max depth {surface.spawn_tree_projection.max_depth} /
+              announce-back badges {surface.spawn_tree_projection.announce_back_badge_count}
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Session</th>
+                  <th>Parent</th>
+                  <th>Role</th>
+                  <th>Depth</th>
+                  <th>Children</th>
+                  <th>Active children</th>
+                  <th>Spawn mode</th>
+                  <th>Cascade cancel</th>
+                  <th>Announce-back</th>
+                </tr>
+              </thead>
+              <tbody>
+                {surface.spawn_tree_projection.nodes.map((node) => (
+                  <tr key={node.session_id} data-stable-id={`dcc.session_spawn_tree.node.${node.session_id}`}>
+                    <td>{node.session_id}</td>
+                    <td>{node.parent_session_id ?? "root"}</td>
+                    <td>{node.role_id}</td>
+                    <td>{node.depth}</td>
+                    <td>{node.child_count}</td>
+                    <td>{node.active_child_count}</td>
+                    <td>{node.spawn_mode}</td>
+                    <td>{node.cascade_cancel_available ? "available" : "unavailable"}</td>
+                    <td>{joinRefs(node.announce_back_badges)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted">Runtime records: {joinRefs(surface.spawn_tree_projection.runtime_record_refs)}</p>
+            <p className="muted">
+              Cascade cancel sessions: {joinRefs(surface.spawn_tree_projection.cascade_cancel_session_ids)}
+            </p>
+          </section>
+        ) : null}
       </div>
     </section>
   );

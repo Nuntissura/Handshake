@@ -54,6 +54,12 @@ pub enum ContractFailureState {
     AuthorityBoundaryViolation,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ActivationBlockerKind {
+    MissingSourceImport,
+    SourceHashMismatch,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProvenanceHashV1 {
     pub hash_kind: String,
@@ -78,6 +84,29 @@ pub struct ContractLifecycleTransitionV1 {
     pub receipt_event: String,
     pub projection_hook_id: String,
     pub validation_hook_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContractSourceVerificationV1 {
+    pub import_id: String,
+    pub observed_hash: ProvenanceHashV1,
+    pub source_available: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActivationBlockerV1 {
+    pub blocker_kind: ActivationBlockerKind,
+    pub import_id: String,
+    pub action_id: String,
+    pub failure_state: ContractFailureState,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkPacketActivationPreUseGateV1 {
+    pub action_id: String,
+    pub activation_allowed: bool,
+    pub checked_source_import_refs: Vec<String>,
+    pub blockers: Vec<ActivationBlockerV1>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -359,6 +388,53 @@ pub fn validate_task_contract_lifecycle(
         Ok(())
     } else {
         Err(errors)
+    }
+}
+
+pub fn evaluate_work_packet_activation_pre_use_gate(
+    lifecycle: &TaskContractLifecycleV1,
+    verifications: &[ContractSourceVerificationV1],
+) -> WorkPacketActivationPreUseGateV1 {
+    let mut blockers = Vec::new();
+
+    for import_ref in &lifecycle.work_packet_contract.source_import_refs {
+        let expected = lifecycle
+            .source_imports
+            .iter()
+            .find(|source_import| &source_import.import_id == import_ref);
+        let observed = verifications
+            .iter()
+            .find(|verification| &verification.import_id == import_ref);
+
+        match (expected, observed) {
+            (_, None) => blockers.push(activation_blocker(
+                ActivationBlockerKind::MissingSourceImport,
+                import_ref,
+            )),
+            (Some(_), Some(verification)) if !verification.source_available => blockers.push(
+                activation_blocker(ActivationBlockerKind::MissingSourceImport, import_ref),
+            ),
+            (Some(expected), Some(verification))
+                if verification.observed_hash != expected.provenance_hash =>
+            {
+                blockers.push(activation_blocker(
+                    ActivationBlockerKind::SourceHashMismatch,
+                    import_ref,
+                ));
+            }
+            (None, Some(_)) => blockers.push(activation_blocker(
+                ActivationBlockerKind::MissingSourceImport,
+                import_ref,
+            )),
+            _ => {}
+        }
+    }
+
+    WorkPacketActivationPreUseGateV1 {
+        action_id: "kernel.work_packet_contract.activate".to_string(),
+        activation_allowed: blockers.is_empty(),
+        checked_source_import_refs: lifecycle.work_packet_contract.source_import_refs.clone(),
+        blockers,
     }
 }
 
@@ -772,6 +848,20 @@ fn transition(
         receipt_event: receipt_event.to_string(),
         projection_hook_id: projection_hook_id.to_string(),
         validation_hook_id: validation_hook_id.to_string(),
+    }
+}
+
+fn activation_blocker(kind: ActivationBlockerKind, import_id: &str) -> ActivationBlockerV1 {
+    ActivationBlockerV1 {
+        blocker_kind: kind,
+        import_id: import_id.to_string(),
+        action_id: "kernel.work_packet_contract.activate".to_string(),
+        failure_state: match kind {
+            ActivationBlockerKind::MissingSourceImport => {
+                ContractFailureState::MissingRequiredField
+            }
+            ActivationBlockerKind::SourceHashMismatch => ContractFailureState::SourceHashMismatch,
+        },
     }
 }
 

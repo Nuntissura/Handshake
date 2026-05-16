@@ -186,6 +186,9 @@ pub enum WorkflowTransitionRegistryValidationError {
         rule_id: String,
         source_kind: QueueAutomationSourceKind,
     },
+    MissingMutationKindRule {
+        mutation_kind: WorkflowMutationKind,
+    },
 }
 
 pub fn kernel002_workflow_transition_registry() -> WorkflowTransitionRegistryV1 {
@@ -194,6 +197,21 @@ pub fn kernel002_workflow_transition_registry() -> WorkflowTransitionRegistryV1 
         registry_id: "kernel002-workflow-transition-registry-v1".to_string(),
         version: 1,
         transition_rules: vec![
+            transition_rule(
+                "kernel.wp.activate",
+                WorkflowMutationKind::WorkPacket,
+                "WP_READY_FOR_ACTIVATION",
+                "WP_ACTIVE",
+                "kernel.work_packet_contract.activate",
+                &["KERNEL_BUILDER"],
+                ApprovalBoundary::PromotionGate,
+                &[
+                    "transition_rule_registered",
+                    "actor_eligibility",
+                    "source_hash_match",
+                    "activation_pre_use_gate",
+                ],
+            ),
             transition_rule(
                 "kernel.mt.claim",
                 WorkflowMutationKind::MicroTask,
@@ -244,6 +262,34 @@ pub fn kernel002_workflow_transition_registry() -> WorkflowTransitionRegistryV1 
                     "transition_rule_registered",
                     "dependency_state_record",
                     "actor_eligibility",
+                ],
+            ),
+            transition_rule(
+                "kernel.taskboard.project",
+                WorkflowMutationKind::TaskBoardProjection,
+                "TASKBOARD_STALE",
+                "TASKBOARD_PROJECTED",
+                "kernel.taskboard.project",
+                &["SYSTEM", "ORCHESTRATOR", "KERNEL_BUILDER"],
+                ApprovalBoundary::None,
+                &[
+                    "transition_rule_registered",
+                    "actor_eligibility",
+                    "projection_source_hash_match",
+                ],
+            ),
+            transition_rule(
+                "kernel.dcc.action.project",
+                WorkflowMutationKind::DevCommandCenterAction,
+                "DCC_ACTION_PENDING",
+                "DCC_ACTION_PROJECTED",
+                "kernel.dcc_action.project",
+                &["SYSTEM", "ORCHESTRATOR", "KERNEL_BUILDER"],
+                ApprovalBoundary::None,
+                &[
+                    "transition_rule_registered",
+                    "actor_eligibility",
+                    "dcc_projection_only",
                 ],
             ),
             transition_rule(
@@ -309,10 +355,13 @@ pub fn kernel002_workflow_transition_registry() -> WorkflowTransitionRegistryV1 
                 "KERNEL_BUILDER",
                 "kernel-builder",
                 &[
+                    "kernel.wp.activate",
                     "kernel.mt.claim",
                     "kernel.mt.complete",
                     "kernel.mt.validator_verdict",
                     "kernel.mt.dependency_cleared",
+                    "kernel.taskboard.project",
+                    "kernel.dcc.action.project",
                     "kernel.mailbox.reply_ready",
                 ],
                 &["kernel.workflow.preview", "kernel.workflow.transition"],
@@ -337,6 +386,19 @@ pub fn validate_workflow_transition_registry(
             );
         }
         validate_transition_rule(rule, &mut errors);
+    }
+    for mutation_kind in required_mutation_kinds() {
+        if !registry
+            .transition_rules
+            .iter()
+            .any(|rule| rule.mutation_kind == mutation_kind)
+        {
+            errors.push(
+                WorkflowTransitionRegistryValidationError::MissingMutationKindRule {
+                    mutation_kind,
+                },
+            );
+        }
     }
 
     let mut automation_ids = HashSet::new();
@@ -699,6 +761,16 @@ fn preview_fields() -> Vec<String> {
     .iter()
     .map(|field| (*field).to_string())
     .collect()
+}
+
+fn required_mutation_kinds() -> [WorkflowMutationKind; 5] {
+    [
+        WorkflowMutationKind::WorkPacket,
+        WorkflowMutationKind::MicroTask,
+        WorkflowMutationKind::TaskBoardProjection,
+        WorkflowMutationKind::RoleMailboxQueue,
+        WorkflowMutationKind::DevCommandCenterAction,
+    ]
 }
 
 fn require_transition_field(

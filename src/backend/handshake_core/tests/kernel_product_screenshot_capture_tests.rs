@@ -3,8 +3,9 @@ use handshake_core::kernel::{
     action_envelope::AuthorityEffect,
     product_screenshot_capture::{
         project_product_screenshot_capture, validate_product_screenshot_capture,
-        ProductScreenshotArtifactV1, ProductScreenshotCaptureV1, ProductScreenshotRequestV1,
-        ScreenshotCaptureScope, ScreenshotCaptureTriggerKind,
+        ProductScreenshotArtifactV1, ProductScreenshotCaptureV1, ProductScreenshotDurableReceiptV1,
+        ProductScreenshotExecutionProofV1, ProductScreenshotRequestV1,
+        ScreenshotCaptureExecutionSurface, ScreenshotCaptureScope, ScreenshotCaptureTriggerKind,
     },
 };
 
@@ -20,7 +21,10 @@ fn kernel_product_screenshot_capture_projects_all_capture_scopes() {
     assert!(projection.module_capture_available);
     assert_eq!(projection.request_ids.len(), 3);
     assert_eq!(projection.artifact_ids.len(), 3);
+    assert_eq!(projection.durable_receipt_refs.len(), 3);
+    assert_eq!(projection.execution_proof_ids.len(), 3);
     assert!(projection.metadata_complete);
+    assert!(projection.real_execution_required);
     assert!(!projection.mutates_authority);
 }
 
@@ -54,6 +58,9 @@ fn kernel_product_screenshot_capture_rejects_missing_scope_metadata_or_artifacts
     capture.artifacts[0].metadata_ref.clear();
     capture.artifacts[1].content_type = "image/jpeg".to_string();
     capture.artifacts[2].request_id = "request.missing".to_string();
+    capture.execution_proofs[0].execution_path = "external://browser-screenshot".to_string();
+    capture.execution_proofs[1].command_or_api_ref = "cli://screenshot".to_string();
+    capture.durable_receipts[2].receipt_path = "target/screenshots/receipt.json".to_string();
 
     let errors =
         validate_product_screenshot_capture(&capture).expect_err("unsafe capture must fail");
@@ -71,6 +78,88 @@ fn kernel_product_screenshot_capture_rejects_missing_scope_metadata_or_artifacts
     assert!(errors
         .iter()
         .any(|error| error.field == "artifacts.request_id"));
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "execution_proofs.execution_path"));
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "execution_proofs.command_or_api_ref"));
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "durable_receipts.receipt_path"));
+}
+
+#[test]
+fn kernel_product_screenshot_capture_requires_governed_execution_proof_per_scope() {
+    let capture = sample_capture();
+    validate_product_screenshot_capture(&capture).expect("screenshot capture validates");
+
+    for request in &capture.requests {
+        let artifact = capture
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.request_id == request.request_id)
+            .expect("artifact for request");
+        let proof = capture
+            .execution_proofs
+            .iter()
+            .find(|proof| proof.request_id == request.request_id)
+            .expect("execution proof for request");
+        assert_eq!(proof.artifact_ref, artifact.screenshot_ref);
+        assert_eq!(proof.metadata_ref, artifact.metadata_ref);
+        assert!(proof
+            .execution_path
+            .starts_with("kernel://product-screenshot-capture/"));
+        assert!(proof
+            .receipt_ref
+            .starts_with("receipt://product-screenshot-capture/"));
+        assert_eq!(proof.workdir_ref, "repo-root://");
+        assert_eq!(proof.writes_screenshot_ref, proof.artifact_ref);
+        assert_eq!(proof.writes_metadata_ref, proof.metadata_ref);
+        assert_eq!(proof.writes_receipt_ref, proof.receipt_ref);
+    }
+}
+
+#[test]
+fn kernel_product_screenshot_capture_requires_real_write_receipts_for_all_scopes() {
+    let capture = sample_capture();
+    validate_product_screenshot_capture(&capture).expect("screenshot capture validates");
+
+    for scope in [
+        ScreenshotCaptureScope::FullApp,
+        ScreenshotCaptureScope::Panel,
+        ScreenshotCaptureScope::Module,
+    ] {
+        let request = capture
+            .requests
+            .iter()
+            .find(|request| request.scope == scope)
+            .expect("request for scope");
+        let artifact = capture
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.request_id == request.request_id)
+            .expect("artifact for scope");
+        let receipt = capture
+            .durable_receipts
+            .iter()
+            .find(|receipt| receipt.request_id == request.request_id)
+            .expect("receipt for scope");
+
+        assert!(artifact
+            .screenshot_path
+            .starts_with("../Handshake_Artifacts/handshake-product/screenshots/"));
+        assert!(artifact
+            .metadata_path
+            .starts_with("../Handshake_Artifacts/handshake-product/screenshots/metadata/"));
+        assert!(receipt
+            .receipt_path
+            .starts_with("../Handshake_Artifacts/handshake-product/screenshots/receipts/"));
+        assert!(receipt.records_screenshot_sha256);
+        assert!(receipt.records_metadata_sha256);
+        assert!(receipt.records_adapter_exit_status);
+        assert_eq!(receipt.workdir_ref, "repo-root://");
+    }
 }
 
 #[test]
@@ -120,11 +209,46 @@ fn sample_capture() -> ProductScreenshotCaptureV1 {
             ),
         ],
         artifacts: vec![
-            artifact("artifact.full", "request.full"),
-            artifact("artifact.panel", "request.panel"),
-            artifact("artifact.module", "request.module"),
+            artifact("artifact.full", "request.full", "full-app"),
+            artifact("artifact.panel", "request.panel", "panel"),
+            artifact("artifact.module", "request.module", "module"),
         ],
-        artifact_store_ref: "artifact-store://.handshake/artifacts/screenshots".to_string(),
+        durable_receipts: vec![
+            receipt("receipt.full", "request.full", ScreenshotCaptureScope::FullApp),
+            receipt("receipt.panel", "request.panel", ScreenshotCaptureScope::Panel),
+            receipt("receipt.module", "request.module", ScreenshotCaptureScope::Module),
+        ],
+        execution_proofs: vec![
+            proof(
+                "proof.full",
+                "request.full",
+                "artifact://screenshots/artifact.full.png",
+                "artifact://metadata/screenshots/artifact.full.json",
+                "receipt://product-screenshot-capture/receipt.full",
+                ScreenshotCaptureExecutionSurface::GovernedAdapterCli,
+                "cli://handshake screenshot capture --scope full-app --write-metadata --write-receipt",
+            ),
+            proof(
+                "proof.panel",
+                "request.panel",
+                "artifact://screenshots/artifact.panel.png",
+                "artifact://metadata/screenshots/artifact.panel.json",
+                "receipt://product-screenshot-capture/receipt.panel",
+                ScreenshotCaptureExecutionSurface::GovernedAdapterCli,
+                "cli://handshake screenshot capture --scope panel --target panel://dcc/session-spawn-tree --write-metadata --write-receipt",
+            ),
+            proof(
+                "proof.module",
+                "request.module",
+                "artifact://screenshots/artifact.module.png",
+                "artifact://metadata/screenshots/artifact.module.json",
+                "receipt://product-screenshot-capture/receipt.module",
+                ScreenshotCaptureExecutionSurface::GovernedAdapterApi,
+                "api://kernel.product_screenshot_capture.execute",
+            ),
+        ],
+        artifact_store_ref: "artifact-store://../Handshake_Artifacts/handshake-product/screenshots"
+            .to_string(),
         product_authority_refs: vec![
             "kernel.dcc_mvp_runtime_surface".to_string(),
             "kernel.action_catalog".to_string(),
@@ -135,6 +259,32 @@ fn sample_capture() -> ProductScreenshotCaptureV1 {
             ".GOV/task_packets/stubs/WP-1-Product-Screenshot-Visual-Validation-v1.contract.json"
                 .to_string(),
         ],
+    }
+}
+
+fn proof(
+    proof_id: &str,
+    request_id: &str,
+    artifact_ref: &str,
+    metadata_ref: &str,
+    receipt_ref: &str,
+    execution_surface: ScreenshotCaptureExecutionSurface,
+    command_or_api_ref: &str,
+) -> ProductScreenshotExecutionProofV1 {
+    ProductScreenshotExecutionProofV1 {
+        proof_id: proof_id.to_string(),
+        request_id: request_id.to_string(),
+        adapter_ref: "capture-adapter://tauri-webview-or-browser-dom".to_string(),
+        execution_surface,
+        execution_path: format!("kernel://product-screenshot-capture/{request_id}"),
+        command_or_api_ref: command_or_api_ref.to_string(),
+        workdir_ref: "repo-root://".to_string(),
+        metadata_ref: metadata_ref.to_string(),
+        artifact_ref: artifact_ref.to_string(),
+        receipt_ref: receipt_ref.to_string(),
+        writes_screenshot_ref: artifact_ref.to_string(),
+        writes_metadata_ref: metadata_ref.to_string(),
+        writes_receipt_ref: receipt_ref.to_string(),
     }
 }
 
@@ -155,10 +305,17 @@ fn request(
         height: 960,
         capture_adapter_ref: "capture-adapter://tauri-webview-or-browser-dom".to_string(),
         flight_recorder_ref: format!("FR-EVT-VISUAL-CAPTURE-{}", request_id.replace('.', "-")),
+        execution_surface: match trigger_kind {
+            ScreenshotCaptureTriggerKind::DccApi => {
+                ScreenshotCaptureExecutionSurface::GovernedAdapterApi
+            }
+            _ => ScreenshotCaptureExecutionSurface::GovernedAdapterCli,
+        },
+        workdir_ref: "repo-root://".to_string(),
     }
 }
 
-fn artifact(artifact_id: &str, request_id: &str) -> ProductScreenshotArtifactV1 {
+fn artifact(artifact_id: &str, request_id: &str, file_stem: &str) -> ProductScreenshotArtifactV1 {
     ProductScreenshotArtifactV1 {
         artifact_id: artifact_id.to_string(),
         request_id: request_id.to_string(),
@@ -169,5 +326,36 @@ fn artifact(artifact_id: &str, request_id: &str) -> ProductScreenshotArtifactV1 
         height: 960,
         captured_at_utc: "2026-05-14T20:00:00Z".to_string(),
         retention_class: "visual-validation".to_string(),
+        screenshot_path: format!(
+            "../Handshake_Artifacts/handshake-product/screenshots/{file_stem}.png"
+        ),
+        metadata_path: format!(
+            "../Handshake_Artifacts/handshake-product/screenshots/metadata/{file_stem}.json"
+        ),
+        metadata_schema_id: "hsk.product_screenshot_metadata@1".to_string(),
+    }
+}
+
+fn receipt(
+    receipt_id: &str,
+    request_id: &str,
+    scope: ScreenshotCaptureScope,
+) -> ProductScreenshotDurableReceiptV1 {
+    ProductScreenshotDurableReceiptV1 {
+        receipt_id: receipt_id.to_string(),
+        request_id: request_id.to_string(),
+        scope,
+        receipt_ref: format!("receipt://product-screenshot-capture/{receipt_id}"),
+        receipt_path: format!(
+            "../Handshake_Artifacts/handshake-product/screenshots/receipts/{receipt_id}.json"
+        ),
+        workdir_ref: "repo-root://".to_string(),
+        execution_surface: match scope {
+            ScreenshotCaptureScope::Module => ScreenshotCaptureExecutionSurface::GovernedAdapterApi,
+            _ => ScreenshotCaptureExecutionSurface::GovernedAdapterCli,
+        },
+        records_screenshot_sha256: true,
+        records_metadata_sha256: true,
+        records_adapter_exit_status: true,
     }
 }

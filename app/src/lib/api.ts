@@ -376,6 +376,32 @@ export type DccStableElementIdV1 = {
   source_ref: string;
 };
 
+export type SessionSpawnTreeNodeProjectionV1 = {
+  session_id: string;
+  parent_session_id: string | null;
+  role_id: string;
+  depth: number;
+  child_count: number;
+  active_child_count: number;
+  spawn_mode: string;
+  runtime_state: string;
+  cascade_cancel_available: boolean;
+  announce_back_badges: string[];
+};
+
+export type SessionSpawnTreeDccProjectionV1 = {
+  schema_id: string;
+  tree_id: string;
+  panel_id: string;
+  visible_fields: string[];
+  nodes: SessionSpawnTreeNodeProjectionV1[];
+  max_depth: number;
+  cascade_cancel_session_ids: string[];
+  announce_back_badge_count: number;
+  runtime_record_refs: string[];
+  mutates_runtime_records: boolean;
+};
+
 export type KernelDccProjectionSurfaceV1 = {
   schema_id: string;
   surface_id: string;
@@ -397,6 +423,55 @@ export type KernelDccProjectionSurfaceV1 = {
   ungoverned_tool_execution_allowed: boolean;
   destructive_git_ops_require_same_turn_approval: boolean;
   flight_recorder_event_types: string[];
+  product_authority_refs: string[];
+  folded_source_refs: string[];
+  spawn_tree_projection?: SessionSpawnTreeDccProjectionV1 | null;
+};
+
+export type KernelDccActionTriggerRequestV1 = {
+  work_id: string;
+  action_id: string;
+  approval_preview_id?: string | null;
+  same_turn_approval?: boolean;
+};
+
+export type KernelDccActionTriggerResponseV1 = {
+  schema_id: "hsk.kernel.dcc_governed_action_trigger_result@1";
+  work_id: string;
+  action_id: string;
+  triggered: boolean;
+  catalog_checked: boolean;
+  preview_checked: boolean;
+  gate_enforced: boolean;
+  approval_preview_id: string | null;
+  authority_effect: string;
+  approval_posture: string;
+  expected_write_box_kinds: string[];
+  receipt_ref: string;
+};
+
+export type SessionSpawnTreeDccRequestV1 = {
+  schema_id: string;
+  tree_id: string;
+  folded_stub_ids: string[];
+  panel_id: string;
+  visible_fields: string[];
+  runtime_records: Array<{
+    session_id: string;
+    parent_session_id: string | null;
+    role_id: string;
+    spawn_mode: string;
+    runtime_state: string;
+    cascade_cancel_supported: boolean;
+    announce_back_badges: Array<{
+      badge_id: string;
+      session_id: string;
+      label: string;
+      mailbox_route: string;
+    }>;
+    runtime_record_ref: string;
+    flight_recorder_ref: string;
+  }>;
   product_authority_refs: string[];
   folded_source_refs: string[];
 };
@@ -752,7 +827,74 @@ export async function getHealth(): Promise<HealthResponse> {
 }
 
 export async function getKernelDccProjection(): Promise<KernelDccProjectionSurfaceV1> {
-  return request("/api/kernel/dcc_projection");
+  const surface = await request<KernelDccProjectionSurfaceV1>("/api/kernel/dcc_projection");
+  if (surface.spawn_tree_projection || surface.sessions.length === 0) {
+    return surface;
+  }
+
+  return {
+    ...surface,
+    spawn_tree_projection: await projectKernelSessionSpawnTreeDcc(buildSessionSpawnTreeDccRequest(surface)),
+  };
+}
+
+export async function triggerKernelDccAction(
+  input: KernelDccActionTriggerRequestV1,
+): Promise<KernelDccActionTriggerResponseV1> {
+  return request("/api/kernel/dcc_actions/trigger", { method: "POST", body: input });
+}
+
+export async function projectKernelSessionSpawnTreeDcc(
+  input: SessionSpawnTreeDccRequestV1,
+): Promise<SessionSpawnTreeDccProjectionV1> {
+  return request("/api/kernel/session_spawn_tree_dcc_projection", { method: "POST", body: input });
+}
+
+function buildSessionSpawnTreeDccRequest(surface: KernelDccProjectionSurfaceV1): SessionSpawnTreeDccRequestV1 {
+  return {
+    schema_id: "hsk.kernel.session_spawn_tree_dcc@1",
+    tree_id: `${surface.surface_id}.session-spawn-tree`,
+    folded_stub_ids: ["WP-1-Session-Spawn-Tree-DCC-Visualization-v1"],
+    panel_id: "session-spawn-tree",
+    visible_fields: [
+      "SpawnHierarchy",
+      "ChildCounts",
+      "SpawnDepth",
+      "CascadeCancel",
+      "SpawnMode",
+      "AnnounceBackBadges",
+    ],
+    runtime_records: surface.sessions.map((session, index) => ({
+      session_id: session.session_id,
+      parent_session_id: null,
+      role_id: session.role,
+      spawn_mode: index === 0 ? "SessionPersistent" : "OneShot",
+      runtime_state: session.state === "ACTIVE" ? "Active" : session.state === "FAILED" ? "Failed" : "Completed",
+      cascade_cancel_supported: index === 0,
+      announce_back_badges:
+        index === 0
+          ? [
+              {
+                badge_id: `announce-back-${session.session_id}`,
+                session_id: session.session_id,
+                label: "announce-back-ready",
+                mailbox_route: `role-mailbox://${session.session_id}`,
+              },
+            ]
+          : [],
+      runtime_record_ref: `runtime://session-spawn/${session.session_id}`,
+      flight_recorder_ref: `FR-EVT-SESSION-SPAWN-${session.session_id}`,
+    })),
+    product_authority_refs: [
+      "kernel.dcc_mvp_runtime_surface",
+      "kernel.role_mailbox_inbox_evidence_bridge",
+      "kernel.session_anti_pattern_registry",
+      "flight_recorder.session_spawn",
+    ],
+    folded_source_refs: [
+      ".GOV/task_packets/stubs/WP-1-Session-Spawn-Tree-DCC-Visualization-v1.contract.json",
+    ],
+  };
 }
 
 export type FlightEventFilters = {

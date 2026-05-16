@@ -2,8 +2,10 @@ use handshake_core::kernel::{
     action_catalog::{kernel002_action_catalog, validate_kernel_action_catalog},
     action_envelope::AuthorityEffect,
     task_contract_lifecycle::{
-        build_kernel002_task_contract_lifecycle, validate_task_contract_lifecycle,
-        ContractAuthorityRule, ContractFailureState, ContractLifecycleState, ProvenanceHashV1,
+        build_kernel002_task_contract_lifecycle, evaluate_work_packet_activation_pre_use_gate,
+        validate_task_contract_lifecycle, ActivationBlockerKind, ContractAuthorityRule,
+        ContractFailureState, ContractLifecycleState, ContractSourceVerificationV1,
+        ProvenanceHashV1,
     },
 };
 
@@ -142,6 +144,49 @@ fn task_contract_lifecycle_rejects_fake_provenance_digests() {
     assert!(errors
         .iter()
         .any(|error| error.field == "stub_contract.provenance_hashes"));
+}
+
+#[test]
+fn work_packet_activation_pre_use_gate_blocks_missing_sources_and_hash_mismatches() {
+    let lifecycle = build_kernel002_task_contract_lifecycle();
+    let valid_verifications: Vec<ContractSourceVerificationV1> = lifecycle
+        .work_packet_contract
+        .source_import_refs
+        .iter()
+        .map(|import_ref| {
+            let source_import = lifecycle
+                .source_imports
+                .iter()
+                .find(|source_import| &source_import.import_id == import_ref)
+                .expect("source import exists");
+            ContractSourceVerificationV1 {
+                import_id: import_ref.clone(),
+                observed_hash: source_import.provenance_hash.clone(),
+                source_available: true,
+            }
+        })
+        .collect();
+
+    let allowed = evaluate_work_packet_activation_pre_use_gate(&lifecycle, &valid_verifications);
+    assert!(allowed.activation_allowed);
+    assert!(allowed.blockers.is_empty());
+
+    let missing = evaluate_work_packet_activation_pre_use_gate(&lifecycle, &[]);
+    assert!(!missing.activation_allowed);
+    assert!(missing.blockers.iter().any(|blocker| {
+        blocker.blocker_kind == ActivationBlockerKind::MissingSourceImport
+            && blocker.action_id == "kernel.work_packet_contract.activate"
+    }));
+
+    let mut mismatched = valid_verifications;
+    mismatched[0].observed_hash.hash_value =
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_string();
+    let blocked = evaluate_work_packet_activation_pre_use_gate(&lifecycle, &mismatched);
+    assert!(!blocked.activation_allowed);
+    assert!(blocked.blockers.iter().any(|blocker| {
+        blocker.blocker_kind == ActivationBlockerKind::SourceHashMismatch
+            && blocker.failure_state == ContractFailureState::SourceHashMismatch
+    }));
 }
 
 #[test]
