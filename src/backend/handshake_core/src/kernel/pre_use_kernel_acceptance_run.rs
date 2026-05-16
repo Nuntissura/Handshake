@@ -7,12 +7,13 @@ use super::{
         KernelActionResultV1, KernelReceiptMapping,
     },
     dcc_mvp_runtime_surface::{
-        select_dcc_work_item, validate_dcc_mvp_runtime_surface, ApprovalScope,
-        DccApprovalPreviewV1, DccDirectEditDenialRowV1, DccEvidenceItemV1, DccEvidenceKind,
-        DccFreshnessBadgeV1, DccMvpRuntimeSurfaceV1, DccPanelKind, DccPromotionPreviewRowV1,
-        DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1, DccSelectedWorkProjectionV1,
-        DccSessionRuntimeStateV1, DccStableElementIdV1, DccWorkItemV1, DccWorktreeStateV1,
-        DccWriteBoxQueueRowV1,
+        dcc_catalog_action_rows_from_catalog, select_dcc_work_item,
+        validate_dcc_mvp_runtime_surface, ApprovalScope, DccApprovalPreviewV1,
+        DccDirectEditDenialRowV1, DccEvidenceItemV1, DccEvidenceKind, DccFreshnessBadgeV1,
+        DccMvpRuntimeSurfaceV1, DccPanelKind, DccPromotionPreviewRowV1,
+        DccPromotionPreviewStaleRisk, DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1,
+        DccSelectedWorkProjectionV1, DccSessionRuntimeStateV1, DccStableElementIdV1,
+        DccWorkItemV1, DccWorktreeStateV1, DccWriteBoxQueueRowV1,
     },
     direct_edit_guard::{
         guard_direct_edit_attempt, DirectEditAttemptV1, DirectEditDecisionStatus,
@@ -930,6 +931,8 @@ fn pre_use_dcc_surface() -> DccMvpRuntimeSurfaceV1 {
                 validation_state: WriteBoxValidationState::Valid,
                 denial_receipt_refs: Vec::new(),
                 promotion_receipt_refs: vec!["receipt://kernel002/preuse-promotion-queued".to_string()],
+                event_ledger_event_refs: Vec::new(),
+                stale_state_vector: false,
                 stable_element_id: "dcc.write_box_queue.row.wb-preuse-crdt-workspace".to_string(),
             },
             DccWriteBoxQueueRowV1 {
@@ -943,6 +946,8 @@ fn pre_use_dcc_surface() -> DccMvpRuntimeSurfaceV1 {
                 validation_state: WriteBoxValidationState::Valid,
                 denial_receipt_refs: Vec::new(),
                 promotion_receipt_refs: vec!["receipt://kernel002/preuse-promotion-requested".to_string()],
+                event_ledger_event_refs: Vec::new(),
+                stale_state_vector: false,
                 stable_element_id: "dcc.write_box_queue.row.wb-preuse-promotion".to_string(),
             },
         ],
@@ -967,6 +972,20 @@ fn pre_use_dcc_surface() -> DccMvpRuntimeSurfaceV1 {
             request_event_ref: Some("eventledger://stream-preuse/promotion-requested".to_string()),
             accepted_event_ref: None,
             rejected_event_ref: None,
+            state_vector: "sv-preuse-validated".to_string(),
+            validation_check_summaries: vec![
+                "promotion_gate_input_alignment: PASS".to_string(),
+                "crdt_state_vector_match: PASS".to_string(),
+            ],
+            idempotency_key: crate::kernel::crdt::promotion_bridge::promotion_idempotency_key(
+                "bridge-preuse",
+                "requested",
+            ),
+            expected_event_kinds: vec![
+                "KernelCrdtPromotionRequestedV1".to_string(),
+                "KernelCrdtPromotionAcceptedV1".to_string(),
+            ],
+            stale_risk: DccPromotionPreviewStaleRisk::None,
             freshness_badge_id: "freshness-preuse-crdt".to_string(),
             stable_element_id: "dcc.promotion_preview.row.wb-preuse-promotion".to_string(),
         }],
@@ -1015,6 +1034,13 @@ fn pre_use_dcc_surface() -> DccMvpRuntimeSurfaceV1 {
             .iter()
             .map(|value| (*value).to_string())
             .collect(),
+        catalog_action_rows: dcc_catalog_action_rows_from_catalog(
+            &kernel002_action_catalog(),
+            &required_catalog_actions()
+                .iter()
+                .map(|value| (*value).to_string())
+                .collect::<Vec<_>>(),
+        ),
         direct_authority_mutation_allowed: false,
         ungoverned_tool_execution_allowed: false,
         destructive_git_ops_require_same_turn_approval: true,

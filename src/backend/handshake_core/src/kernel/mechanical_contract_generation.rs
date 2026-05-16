@@ -128,6 +128,13 @@ pub struct CurrentCandidateCommandReceiptInputV1 {
     pub stderr: String,
     pub blocker_refs: Vec<String>,
     pub projection_refs: Vec<String>,
+    /// Optional explicit receipt slug used to derive the receipt filename.
+    /// When `None`, the slug is derived from `command_line` via
+    /// `command_receipt_slug`. Set this to keep the on-disk filename stable
+    /// even when the wrapped command_line differs from its canonical
+    /// invocation (e.g., `just gov-check` wrapping `node ...`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slug: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -271,7 +278,10 @@ pub fn write_current_candidate_command_receipt(
 
     let artifact_root = artifact_root.as_ref();
     fs::create_dir_all(artifact_root)?;
-    let slug = command_receipt_slug(&input.command_line);
+    let slug = input
+        .slug
+        .clone()
+        .unwrap_or_else(|| command_receipt_slug(&input.command_line));
     let stdout_path = artifact_root.join(format!("{slug}.stdout.txt"));
     let stderr_path = artifact_root.join(format!("{slug}.stderr.txt"));
     let receipt_path = artifact_root.join(format!("{slug}.json"));

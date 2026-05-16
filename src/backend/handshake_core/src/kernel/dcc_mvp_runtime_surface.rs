@@ -2,8 +2,15 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use super::action_catalog::KernelActionCatalogV1;
+use super::action_catalog::{KernelActionCatalogV1, KernelCatalogActionV1};
 use super::action_envelope::{ApprovalPosture, AuthorityEffect};
+use super::crdt::promotion_bridge::{
+    promotion_idempotency_key, CrdtPromotionBridgeInputV1, CrdtPromotionBridgeLedgerResultV1,
+    CrdtPromotionBridgeStatus,
+};
+use super::crdt::validity_guard::{
+    CrdtPromotionValidationDecision, CrdtPromotionValidationReportV1, CrdtStateValidationError,
+};
 use super::write_boxes::{WriteBoxKind, WriteBoxLifecycleState, WriteBoxValidationState};
 
 pub const FOLDED_DCC_MVP_STUB_ID: &str = "WP-1-Dev-Command-Center-MVP-v1";
@@ -136,6 +143,19 @@ pub struct DccApprovalPreviewV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DccCatalogActionRowV1 {
+    pub action_id: String,
+    pub target_authority_class: String,
+    pub input_schema_id: String,
+    pub result_schema_id: String,
+    pub role_eligibility: Vec<String>,
+    pub capability_requirements: Vec<String>,
+    pub approval_posture: String,
+    pub preview_behavior_summary: String,
+    pub preview_panel_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DccWriteBoxQueueRowV1 {
     pub row_id: String,
     pub write_box_id: String,
@@ -147,6 +167,8 @@ pub struct DccWriteBoxQueueRowV1 {
     pub validation_state: WriteBoxValidationState,
     pub denial_receipt_refs: Vec<String>,
     pub promotion_receipt_refs: Vec<String>,
+    pub event_ledger_event_refs: Vec<String>,
+    pub stale_state_vector: bool,
     pub stable_element_id: String,
 }
 
@@ -165,6 +187,14 @@ pub struct DccDirectEditDenialRowV1 {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DccPromotionPreviewStaleRisk {
+    None,
+    StaleStateVector,
+    DuplicateIdempotency,
+    Both,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DccPromotionPreviewRowV1 {
     pub row_id: String,
     pub preview_id: String,
@@ -174,6 +204,11 @@ pub struct DccPromotionPreviewRowV1 {
     pub request_event_ref: Option<String>,
     pub accepted_event_ref: Option<String>,
     pub rejected_event_ref: Option<String>,
+    pub state_vector: String,
+    pub validation_check_summaries: Vec<String>,
+    pub idempotency_key: String,
+    pub expected_event_kinds: Vec<String>,
+    pub stale_risk: DccPromotionPreviewStaleRisk,
     pub freshness_badge_id: String,
     pub stable_element_id: String,
 }
@@ -215,6 +250,7 @@ pub struct DccMvpRuntimeSurfaceV1 {
     pub freshness_badges: Vec<DccFreshnessBadgeV1>,
     pub stable_element_ids: Vec<DccStableElementIdV1>,
     pub catalog_action_refs: Vec<String>,
+    pub catalog_action_rows: Vec<DccCatalogActionRowV1>,
     pub direct_authority_mutation_allowed: bool,
     pub ungoverned_tool_execution_allowed: bool,
     pub destructive_git_ops_require_same_turn_approval: bool,
@@ -273,6 +309,11 @@ pub fn validate_dcc_mvp_runtime_surface(
         &mut errors,
         "catalog_action_refs",
         &surface.catalog_action_refs,
+    );
+    require_vec(
+        &mut errors,
+        "catalog_action_rows",
+        &surface.catalog_action_rows,
     );
     require_vec(
         &mut errors,
@@ -575,6 +616,175 @@ pub fn preview_dcc_governed_action(
     })
 }
 
+/// Extract the EventLedger event refs surfaced by a promoted write box. The
+/// projection points at the promotion-bridge ledger result: each appended
+/// kernel event is exposed by its event id so the DCC viewer can deep-link to
+/// the durable EventLedger row.
+pub fn write_box_event_ledger_refs_from_bridge(
+    ledger_result: &CrdtPromotionBridgeLedgerResultV1,
+) -> Vec<String> {
+    ledger_result
+        .appended_events
+        .iter()
+        .map(|event| {
+            format!(
+                "eventledger://{}/{}",
+                event.event_type.as_str(),
+                event.event_id
+            )
+        })
+        .collect()
+}
+
+/// Compare a write box's base state vector against the latest CRDT update for
+/// the same `(workspace_id, document_id, crdt_document_id)` tuple. The base
+/// state vector is considered stale when the input differs from the latest
+/// state-vector-after value recorded for the same document identity.
+pub fn write_box_state_vector_is_stale(
+    base_state_vector: &str,
+    latest_state_vector_after: &str,
+) -> bool {
+    !base_state_vector.is_empty()
+        && !latest_state_vector_after.is_empty()
+        && base_state_vector != latest_state_vector_after
+}
+
+/// Promotion preview field projection derived from a bridge input + ambient
+/// state. The promotion-bridge contract owns idempotency-key shape and the
+/// requested/accepted/rejected event-kind sequence; this struct projects those
+/// fields plus stale-risk evidence into a DCC-viewer-friendly shape.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DccPromotionPreviewFieldsV1 {
+    pub state_vector: String,
+    pub validation_check_summaries: Vec<String>,
+    pub idempotency_key: String,
+    pub expected_event_kinds: Vec<String>,
+    pub stale_risk: DccPromotionPreviewStaleRisk,
+}
+
+/// Project the new promotion-preview fields for a single bridge input.
+///
+/// - `state_vector` comes from `input.state.state_vector`.
+/// - `validation_check_summaries` is derived from the validation report
+///   (overall decision, document-schema/state-vector alignment, and one entry
+///   per recorded validation error).
+/// - `idempotency_key` is the promotion bridge's `requested`-suffixed key.
+/// - `expected_event_kinds` enumerates the events the bridge will append for
+///   the projected status path: `Accepted` -> Requested+Accepted, `Rejected`
+///   -> Requested+Rejected.
+/// - `stale_risk` combines a state-vector mismatch and an idempotency-key
+///   duplicate against `existing_idempotency_keys` (e.g., the
+///   `kernel_event_ledger.idempotency_key` set).
+pub fn derive_promotion_preview_fields(
+    input: &CrdtPromotionBridgeInputV1,
+    projected_status: CrdtPromotionBridgeStatus,
+    latest_state_vector_after: &str,
+    existing_idempotency_keys: &[String],
+) -> DccPromotionPreviewFieldsV1 {
+    let idempotency_key = promotion_idempotency_key(&input.bridge_id, "requested");
+    let expected_event_kinds = match projected_status {
+        CrdtPromotionBridgeStatus::Accepted => vec![
+            "KernelCrdtPromotionRequestedV1".to_string(),
+            "KernelCrdtPromotionAcceptedV1".to_string(),
+        ],
+        CrdtPromotionBridgeStatus::Rejected => vec![
+            "KernelCrdtPromotionRequestedV1".to_string(),
+            "KernelCrdtPromotionRejectedV1".to_string(),
+        ],
+    };
+    let stale_state_vector = !input.state.state_vector.is_empty()
+        && !latest_state_vector_after.is_empty()
+        && input.state.state_vector != latest_state_vector_after;
+    let duplicate_idempotency = existing_idempotency_keys
+        .iter()
+        .any(|existing| existing == &idempotency_key);
+    let stale_risk = match (stale_state_vector, duplicate_idempotency) {
+        (false, false) => DccPromotionPreviewStaleRisk::None,
+        (true, false) => DccPromotionPreviewStaleRisk::StaleStateVector,
+        (false, true) => DccPromotionPreviewStaleRisk::DuplicateIdempotency,
+        (true, true) => DccPromotionPreviewStaleRisk::Both,
+    };
+
+    DccPromotionPreviewFieldsV1 {
+        state_vector: input.state.state_vector.clone(),
+        validation_check_summaries: validation_check_summaries_from_report(
+            &input.validation_report,
+        ),
+        idempotency_key,
+        expected_event_kinds,
+        stale_risk,
+    }
+}
+
+fn validation_check_summaries_from_report(
+    report: &CrdtPromotionValidationReportV1,
+) -> Vec<String> {
+    let mut summaries = Vec::new();
+    summaries.push(format!(
+        "promotion_decision: {}",
+        match report.decision {
+            CrdtPromotionValidationDecision::Allowed => "ALLOWED",
+            CrdtPromotionValidationDecision::Denied => "DENIED",
+        }
+    ));
+    summaries.push(format!(
+        "document_schema_id: {}",
+        report.document_schema_id
+    ));
+    summaries.push(format!(
+        "state_vector: {} / latest_update_seq: {}",
+        report.state_vector, report.latest_update_seq
+    ));
+    if report.validation_errors.is_empty() {
+        summaries.push("validation_errors: none".to_string());
+    } else {
+        for CrdtStateValidationError {
+            code,
+            field,
+            message,
+        } in &report.validation_errors
+        {
+            summaries.push(format!("validation_error[{field}] {code:?}: {message}"));
+        }
+    }
+    summaries
+}
+
+/// Build the DCC action catalog viewer rows from a kernel action catalog.
+///
+/// Returns one row per requested action id, preserving the input order. Unknown
+/// action ids are skipped silently — the surface validator enforces that every
+/// `catalog_action_refs` entry maps to a row, so a missing row will surface as a
+/// validation error during `validate_dcc_mvp_runtime_surface`.
+pub fn dcc_catalog_action_rows_from_catalog(
+    catalog: &KernelActionCatalogV1,
+    action_ids: &[String],
+) -> Vec<DccCatalogActionRowV1> {
+    action_ids
+        .iter()
+        .filter_map(|action_id| catalog.action(action_id))
+        .map(dcc_catalog_action_row_from_action)
+        .collect()
+}
+
+fn dcc_catalog_action_row_from_action(action: &KernelCatalogActionV1) -> DccCatalogActionRowV1 {
+    DccCatalogActionRowV1 {
+        action_id: action.action_id.to_string(),
+        target_authority_class: format!("{:?}", action.authority_effect),
+        input_schema_id: action.input_schema_id.clone(),
+        result_schema_id: action.result_schema_id.clone(),
+        role_eligibility: action.role_eligibility.clone(),
+        capability_requirements: action
+            .capability_requirements
+            .iter()
+            .map(|requirement| requirement.capability_id.clone())
+            .collect(),
+        approval_posture: format!("{:?}", action.approval_posture),
+        preview_behavior_summary: action.dcc_preview.summary.clone(),
+        preview_panel_id: action.dcc_preview.panel_id.clone(),
+    }
+}
+
 fn validate_panels(
     errors: &mut Vec<DccMvpRuntimeSurfaceValidationError>,
     panels: &[DccRuntimePanelV1],
@@ -842,6 +1052,14 @@ fn validate_state_refs(
                 message: "write-box queue row must have stable element id",
             });
         }
+        if matches!(row.lifecycle_state, WriteBoxLifecycleState::Promoted)
+            && row.event_ledger_event_refs.is_empty()
+        {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "write_box_queue_rows.event_ledger_event_refs",
+                message: "promoted write box must surface event ledger event refs",
+            });
+        }
     }
 
     for row in &surface.direct_edit_denials {
@@ -917,6 +1135,26 @@ fn validate_state_refs(
                 message: "promotion preview must have stable element id",
             });
         }
+        require_non_empty(
+            errors,
+            "promotion_previews.state_vector",
+            &row.state_vector,
+        );
+        require_non_empty(
+            errors,
+            "promotion_previews.idempotency_key",
+            &row.idempotency_key,
+        );
+        require_vec(
+            errors,
+            "promotion_previews.validation_check_summaries",
+            &row.validation_check_summaries,
+        );
+        require_vec(
+            errors,
+            "promotion_previews.expected_event_kinds",
+            &row.expected_event_kinds,
+        );
     }
 
     for badge in &surface.freshness_badges {
@@ -937,6 +1175,71 @@ fn validate_state_refs(
             errors.push(DccMvpRuntimeSurfaceValidationError {
                 field: "freshness_badges.stable_element_id",
                 message: "freshness badge must have stable element id",
+            });
+        }
+    }
+
+    let mut catalog_row_action_ids: HashSet<&str> = HashSet::new();
+    for row in &surface.catalog_action_rows {
+        require_non_empty(errors, "catalog_action_rows.action_id", &row.action_id);
+        require_non_empty(
+            errors,
+            "catalog_action_rows.target_authority_class",
+            &row.target_authority_class,
+        );
+        require_non_empty(
+            errors,
+            "catalog_action_rows.input_schema_id",
+            &row.input_schema_id,
+        );
+        require_non_empty(
+            errors,
+            "catalog_action_rows.result_schema_id",
+            &row.result_schema_id,
+        );
+        require_vec(
+            errors,
+            "catalog_action_rows.role_eligibility",
+            &row.role_eligibility,
+        );
+        require_vec(
+            errors,
+            "catalog_action_rows.capability_requirements",
+            &row.capability_requirements,
+        );
+        require_non_empty(
+            errors,
+            "catalog_action_rows.approval_posture",
+            &row.approval_posture,
+        );
+        require_non_empty(
+            errors,
+            "catalog_action_rows.preview_behavior_summary",
+            &row.preview_behavior_summary,
+        );
+        require_non_empty(
+            errors,
+            "catalog_action_rows.preview_panel_id",
+            &row.preview_panel_id,
+        );
+        if !catalog_row_action_ids.insert(row.action_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "catalog_action_rows.action_id",
+                message: "catalog action row ids must be unique",
+            });
+        }
+        if !contains_exact(&surface.catalog_action_refs, &row.action_id) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "catalog_action_rows.action_id",
+                message: "catalog action row must align with catalog_action_refs",
+            });
+        }
+    }
+    for action_id in &surface.catalog_action_refs {
+        if !catalog_row_action_ids.contains(action_id.as_str()) {
+            errors.push(DccMvpRuntimeSurfaceValidationError {
+                field: "catalog_action_rows",
+                message: "every catalog_action_refs entry must have a catalog_action_rows entry",
             });
         }
     }

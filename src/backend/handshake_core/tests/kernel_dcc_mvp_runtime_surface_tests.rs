@@ -1,15 +1,33 @@
 use handshake_core::kernel::{
     action_catalog::{kernel002_action_catalog, validate_kernel_action_catalog},
     action_envelope::{ApprovalPosture, AuthorityEffect},
+    crdt::{
+        context_slice::CrdtMaterializedFieldV1,
+        identity::{CrdtAuthorityLinksV1, CrdtWorkspaceIdentityV1},
+        promotion_bridge::{
+            promotion_idempotency_key, CrdtPromotionBridgeInputV1,
+            CrdtPromotionBridgeLedgerResultV1, CrdtPromotionBridgeResultV1,
+            CrdtPromotionBridgeStatus,
+        },
+        validity_guard::{
+            CrdtMaterializedStateV1, CrdtPromotionValidationDecision,
+            CrdtPromotionValidationReportV1,
+        },
+    },
     dcc_mvp_runtime_surface::{
+        dcc_catalog_action_rows_from_catalog, derive_promotion_preview_fields,
         preview_dcc_governed_action, select_dcc_work_item, validate_dcc_mvp_runtime_surface,
-        ApprovalScope, DccApprovalPreviewV1, DccDirectEditDenialRowV1, DccEvidenceItemV1,
-        DccEvidenceKind, DccFreshnessBadgeV1, DccMvpRuntimeSurfaceV1, DccPanelKind,
-        DccPromotionPreviewRowV1, DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1,
+        write_box_event_ledger_refs_from_bridge, write_box_state_vector_is_stale, ApprovalScope,
+        DccApprovalPreviewV1, DccDirectEditDenialRowV1, DccEvidenceItemV1, DccEvidenceKind,
+        DccFreshnessBadgeV1, DccMvpRuntimeSurfaceV1, DccPanelKind, DccPromotionPreviewRowV1,
+        DccPromotionPreviewStaleRisk, DccProposalStateV1, DccProposalStatus, DccRuntimePanelV1,
         DccSessionRuntimeStateV1, DccStableElementIdV1, DccWorkItemV1, DccWorktreeStateV1,
         DccWriteBoxQueueRowV1,
     },
-    write_boxes::{WriteBoxKind, WriteBoxLifecycleState, WriteBoxValidationState},
+    KernelActor, KernelEvent, KernelEventType, NewKernelEvent,
+};
+use handshake_core::kernel::write_boxes::{
+    WriteBoxKind, WriteBoxLifecycleState, WriteBoxValidationState,
 };
 
 #[test]
@@ -239,6 +257,8 @@ fn sample_surface() -> DccMvpRuntimeSurfaceV1 {
             promotion_receipt_refs: vec![
                 "receipt://promotion/requested/wb-crdt-patch-1".to_string()
             ],
+            event_ledger_event_refs: Vec::new(),
+            stale_state_vector: false,
             stable_element_id: "dcc.write_box_queue.row.wb-crdt-patch-1".to_string(),
         }],
         direct_edit_denials: vec![DccDirectEditDenialRowV1 {
@@ -262,6 +282,17 @@ fn sample_surface() -> DccMvpRuntimeSurfaceV1 {
             request_event_ref: Some("eventledger://event-ledger-stream-crdt/requested".to_string()),
             accepted_event_ref: None,
             rejected_event_ref: None,
+            state_vector: "sv-3".to_string(),
+            validation_check_summaries: vec![
+                "promotion_gate_input_alignment: PASS".to_string(),
+                "crdt_state_vector_match: PASS".to_string(),
+            ],
+            idempotency_key: promotion_idempotency_key("bridge-crdt-patch-1", "requested"),
+            expected_event_kinds: vec![
+                "KernelCrdtPromotionRequestedV1".to_string(),
+                "KernelCrdtPromotionAcceptedV1".to_string(),
+            ],
+            stale_risk: DccPromotionPreviewStaleRisk::None,
             freshness_badge_id: "freshness-crdt-patch-1".to_string(),
             stable_element_id: "dcc.promotion_preview.row.wb-crdt-patch-1".to_string(),
         }],
@@ -305,6 +336,14 @@ fn sample_surface() -> DccMvpRuntimeSurfaceV1 {
             "kernel.write_box.promote".to_string(),
             "kernel.direct_edit.deny".to_string(),
         ],
+        catalog_action_rows: dcc_catalog_action_rows_from_catalog(
+            &kernel002_action_catalog(),
+            &[
+                "kernel.crdt_workspace.propose_patch".to_string(),
+                "kernel.write_box.promote".to_string(),
+                "kernel.direct_edit.deny".to_string(),
+            ],
+        ),
         direct_authority_mutation_allowed: false,
         ungoverned_tool_execution_allowed: false,
         destructive_git_ops_require_same_turn_approval: true,
@@ -341,4 +380,255 @@ fn required_panel_kinds() -> Vec<DccPanelKind> {
         DccPanelKind::ApprovalPreview,
         DccPanelKind::Timeline,
     ]
+}
+
+#[test]
+fn kernel_dcc_catalog_action_rows_carry_required_field_depth_for_every_ref() {
+    let surface = sample_surface();
+
+    assert_eq!(
+        surface.catalog_action_rows.len(),
+        surface.catalog_action_refs.len(),
+        "every catalog_action_refs entry needs a row"
+    );
+
+    let catalog = kernel002_action_catalog();
+    for action_id in &surface.catalog_action_refs {
+        let row = surface
+            .catalog_action_rows
+            .iter()
+            .find(|row| &row.action_id == action_id)
+            .unwrap_or_else(|| panic!("missing row for action {action_id}"));
+        let catalog_action = catalog
+            .action(action_id)
+            .unwrap_or_else(|| panic!("unknown catalog action {action_id}"));
+
+        assert!(!row.action_id.is_empty());
+        assert!(!row.target_authority_class.is_empty());
+        assert_eq!(row.input_schema_id, catalog_action.input_schema_id);
+        assert_eq!(row.result_schema_id, catalog_action.result_schema_id);
+        assert!(!row.role_eligibility.is_empty());
+        assert!(!row.capability_requirements.is_empty());
+        assert!(!row.approval_posture.is_empty());
+        assert_eq!(
+            row.preview_behavior_summary,
+            catalog_action.dcc_preview.summary
+        );
+        assert_eq!(row.preview_panel_id, catalog_action.dcc_preview.panel_id);
+    }
+}
+
+#[test]
+fn kernel_dcc_runtime_surface_rejects_catalog_rows_misaligned_with_catalog_action_refs() {
+    let mut surface = sample_surface();
+    surface.catalog_action_rows.pop();
+
+    let errors = validate_dcc_mvp_runtime_surface(&surface)
+        .expect_err("missing catalog_action_rows row must be rejected");
+    assert!(errors
+        .iter()
+        .any(|error| error.field == "catalog_action_rows"));
+}
+
+#[test]
+fn kernel_dcc_write_box_event_ledger_refs_match_appended_promotion_events() {
+    let promoted_events = vec![
+        synthetic_kernel_event(KernelEventType::PromotionRequested, "bridge-test-1"),
+        synthetic_kernel_event(KernelEventType::PromotionAccepted, "bridge-test-1"),
+    ];
+    let ledger_result = synthetic_bridge_ledger_result(
+        "bridge-test-1",
+        CrdtPromotionBridgeStatus::Accepted,
+        promoted_events.clone(),
+    );
+
+    let refs = write_box_event_ledger_refs_from_bridge(&ledger_result);
+
+    assert_eq!(refs.len(), 2);
+    assert!(refs[0].starts_with("eventledger://"));
+    assert!(refs[0].contains(promoted_events[0].event_type.as_str()));
+    assert!(refs[0].ends_with(&promoted_events[0].event_id));
+    assert!(refs[1].contains(promoted_events[1].event_type.as_str()));
+    assert!(refs[1].ends_with(&promoted_events[1].event_id));
+
+    let empty_ledger_result = synthetic_bridge_ledger_result(
+        "bridge-test-1",
+        CrdtPromotionBridgeStatus::Accepted,
+        Vec::new(),
+    );
+    assert!(write_box_event_ledger_refs_from_bridge(&empty_ledger_result).is_empty());
+}
+
+#[test]
+fn kernel_dcc_write_box_stale_state_vector_flips_when_newer_crdt_update_lands() {
+    assert!(!write_box_state_vector_is_stale("sv-1", "sv-1"));
+    assert!(write_box_state_vector_is_stale("sv-1", "sv-2"));
+    // Treat unknown freshness as "not stale" so untracked write boxes default to fresh.
+    assert!(!write_box_state_vector_is_stale("", "sv-2"));
+    assert!(!write_box_state_vector_is_stale("sv-1", ""));
+}
+
+#[test]
+fn kernel_dcc_promotion_preview_fields_populate_state_vector_idempotency_and_event_kinds() {
+    let input = synthetic_bridge_input("bridge-preview-1", "sv-fresh-1");
+
+    let fields = derive_promotion_preview_fields(
+        &input,
+        CrdtPromotionBridgeStatus::Accepted,
+        "sv-fresh-1",
+        &[],
+    );
+
+    assert_eq!(fields.state_vector, "sv-fresh-1");
+    assert_eq!(
+        fields.idempotency_key,
+        promotion_idempotency_key("bridge-preview-1", "requested")
+    );
+    assert!(fields
+        .expected_event_kinds
+        .contains(&"KernelCrdtPromotionRequestedV1".to_string()));
+    assert!(fields
+        .expected_event_kinds
+        .contains(&"KernelCrdtPromotionAcceptedV1".to_string()));
+    assert!(fields
+        .validation_check_summaries
+        .iter()
+        .any(|summary| summary.contains("promotion_decision: ALLOWED")));
+    assert!(fields
+        .validation_check_summaries
+        .iter()
+        .any(|summary| summary.contains("state_vector: sv-fresh-1")));
+    assert!(matches!(fields.stale_risk, DccPromotionPreviewStaleRisk::None));
+}
+
+#[test]
+fn kernel_dcc_promotion_preview_stale_risk_reflects_idempotency_duplicate_and_state_vector_drift() {
+    let input = synthetic_bridge_input("bridge-preview-2", "sv-stale-base");
+
+    let duplicate = derive_promotion_preview_fields(
+        &input,
+        CrdtPromotionBridgeStatus::Accepted,
+        "sv-stale-base",
+        &[promotion_idempotency_key("bridge-preview-2", "requested")],
+    );
+    assert!(matches!(
+        duplicate.stale_risk,
+        DccPromotionPreviewStaleRisk::DuplicateIdempotency
+    ));
+
+    let drift = derive_promotion_preview_fields(
+        &input,
+        CrdtPromotionBridgeStatus::Accepted,
+        "sv-newer",
+        &[],
+    );
+    assert!(matches!(
+        drift.stale_risk,
+        DccPromotionPreviewStaleRisk::StaleStateVector
+    ));
+
+    let both = derive_promotion_preview_fields(
+        &input,
+        CrdtPromotionBridgeStatus::Rejected,
+        "sv-newer",
+        &[promotion_idempotency_key("bridge-preview-2", "requested")],
+    );
+    assert!(matches!(both.stale_risk, DccPromotionPreviewStaleRisk::Both));
+    assert!(both
+        .expected_event_kinds
+        .contains(&"KernelCrdtPromotionRejectedV1".to_string()));
+}
+
+fn synthetic_kernel_event(event_type: KernelEventType, bridge_id: &str) -> KernelEvent {
+    let idempotency_suffix = match event_type {
+        KernelEventType::PromotionAccepted => "accepted",
+        KernelEventType::PromotionRejected => "rejected",
+        _ => "requested",
+    };
+    let new_event = NewKernelEvent::builder(
+        format!("KTR-{bridge_id}"),
+        format!("SR-{bridge_id}"),
+        event_type,
+        KernelActor::PromotionGate(format!("gate-{bridge_id}")),
+    )
+    .aggregate("crdt_promotion", bridge_id.to_string())
+    .idempotency_key(promotion_idempotency_key(bridge_id, idempotency_suffix))
+    .correlation_id(format!("trace-{bridge_id}"))
+    .source_component("kernel_crdt_promotion_bridge")
+    .payload(serde_json::json!({"bridge_id": bridge_id}))
+    .build()
+    .expect("synthetic kernel event builds");
+    KernelEvent::from_new(new_event)
+}
+
+fn synthetic_bridge_ledger_result(
+    bridge_id: &str,
+    status: CrdtPromotionBridgeStatus,
+    appended_events: Vec<KernelEvent>,
+) -> CrdtPromotionBridgeLedgerResultV1 {
+    CrdtPromotionBridgeLedgerResultV1 {
+        schema_id: "hsk.kernel.crdt_promotion_bridge_result@1".to_string(),
+        bridge_result: CrdtPromotionBridgeResultV1 {
+            schema_id: "hsk.kernel.crdt_promotion_bridge_result@1".to_string(),
+            bridge_id: bridge_id.to_string(),
+            status,
+            artifact_proposal: None,
+            promotion_gate_input: None,
+            event_mapping: None,
+            event_mappings: Vec::new(),
+            rejection_evidence: None,
+        },
+        appended_events,
+    }
+}
+
+fn synthetic_bridge_input(bridge_id: &str, state_vector: &str) -> CrdtPromotionBridgeInputV1 {
+    let identity = CrdtWorkspaceIdentityV1 {
+        schema_id: "hsk.kernel.crdt_workspace_identity@1".to_string(),
+        workspace_id: format!("workspace-{bridge_id}"),
+        document_id: format!("document-{bridge_id}"),
+        crdt_document_id: format!("crdt-{bridge_id}"),
+        actor_id: "actor-test".to_string(),
+        actor_kind: "kernel_builder".to_string(),
+        crdt_site_id: "site-1".to_string(),
+        crdt_client_id: "client-1".to_string(),
+        document_schema_id: "hsk.test.document@1".to_string(),
+        authority_links: CrdtAuthorityLinksV1 {
+            work_item_id: format!("work-{bridge_id}"),
+            action_trace_id: format!("trace-{bridge_id}"),
+            artifact_proposal_id: format!("proposal-{bridge_id}"),
+            role_mailbox_thread_id: format!("thread-{bridge_id}"),
+            dcc_projection_id: format!("dcc-{bridge_id}"),
+            event_ledger_stream_id: format!("stream-{bridge_id}"),
+        },
+    };
+    let state = CrdtMaterializedStateV1 {
+        identity,
+        document_schema_id: "hsk.test.document@1".to_string(),
+        state_vector: state_vector.to_string(),
+        latest_update_seq: 7,
+        fields: vec![CrdtMaterializedFieldV1 {
+            field_id: "field-1".to_string(),
+            field_path: "$.title".to_string(),
+            text: "Title".to_string(),
+            source_update_ids: vec!["update-1".to_string()],
+        }],
+    };
+    let validation_report = CrdtPromotionValidationReportV1 {
+        schema_id: "hsk.kernel.crdt_promotion_validation_report@1".to_string(),
+        document_schema_id: "hsk.test.document@1".to_string(),
+        state_vector: state_vector.to_string(),
+        latest_update_seq: 7,
+        decision: CrdtPromotionValidationDecision::Allowed,
+        promotion_allowed: true,
+        validation_errors: Vec::new(),
+    };
+    CrdtPromotionBridgeInputV1 {
+        bridge_id: bridge_id.to_string(),
+        artifact_proposal_id: format!("proposal-{bridge_id}"),
+        promotion_gate_id: format!("gate-{bridge_id}"),
+        promotion_target_ref: format!("authority://kernel/document/{bridge_id}"),
+        state,
+        validation_report,
+    }
 }

@@ -79,6 +79,20 @@ const surface: KernelDccProjectionSurfaceV1 = {
     },
   ],
   catalog_action_refs: ["kernel.crdt_workspace.propose_patch"],
+  catalog_action_rows: [
+    {
+      action_id: "kernel.crdt_workspace.propose_patch",
+      target_authority_class: "PrePromotionEvidenceOnly",
+      input_schema_id: "hsk.kernel.crdt_workspace_propose_patch_input@1",
+      result_schema_id: "hsk.kernel.crdt_workspace_propose_patch_result@1",
+      role_eligibility: ["CODER", "KERNEL_BUILDER"],
+      capability_requirements: ["crdt_workspace.write"],
+      approval_posture: "RequiresPromotionGate",
+      preview_behavior_summary:
+        "Stage a CRDT workspace patch for promotion-gate review without authority mutation.",
+      preview_panel_id: "dcc-crdt-workspace-preview",
+    },
+  ],
   write_box_queue_rows: [
     {
       row_id: "write-box-row-backend-123",
@@ -91,7 +105,27 @@ const surface: KernelDccProjectionSurfaceV1 = {
       validation_state: "Pending",
       denial_receipt_refs: [],
       promotion_receipt_refs: ["receipt://backend-test"],
+      event_ledger_event_refs: [],
+      stale_state_vector: false,
       stable_element_id: "dcc.write_box_queue.row.wb-backend-123",
+    },
+    {
+      row_id: "write-box-row-backend-promoted",
+      write_box_id: "wb-backend-promoted",
+      work_id: "work-backend-123",
+      kind: "Promotion",
+      lifecycle_state: "Promoted",
+      actor_id: "actor-backend",
+      target_refs: ["authority://backend-test/promoted"],
+      validation_state: "Valid",
+      denial_receipt_refs: [],
+      promotion_receipt_refs: ["receipt://backend-test/promoted"],
+      event_ledger_event_refs: [
+        "eventledger://backend/promotion-requested",
+        "eventledger://backend/promotion-accepted",
+      ],
+      stale_state_vector: true,
+      stable_element_id: "dcc.write_box_queue.row.wb-backend-promoted",
     },
   ],
   direct_edit_denials: [
@@ -116,8 +150,19 @@ const surface: KernelDccProjectionSurfaceV1 = {
       write_box_id: "wb-backend-123",
       promotion_target_ref: "authority://backend-test",
       request_event_ref: "eventledger://backend/requested",
-      accepted_event_ref: null,
+      accepted_event_ref: "eventledger://backend/accepted",
       rejected_event_ref: null,
+      state_vector: "sv-promotion-backend",
+      validation_check_summaries: [
+        "promotion_gate_input_alignment: PASS",
+        "crdt_state_vector_match: PASS",
+      ],
+      idempotency_key: "promotion:bridge-backend-123:requested",
+      expected_event_kinds: [
+        "KernelCrdtPromotionRequestedV1",
+        "KernelCrdtPromotionAcceptedV1",
+      ],
+      stale_risk: "DuplicateIdempotency",
       freshness_badge_id: "freshness-backend-123",
       stable_element_id: "dcc.promotion_preview.row.wb-backend-123",
     },
@@ -248,7 +293,7 @@ it("triggers governed catalog actions through the provided API path", async () =
 
   render(<KernelDccProjectionView surface={surface} onTriggerCatalogAction={onTriggerCatalogAction} />);
 
-  fireEvent.click(screen.getByRole("button", { name: /trigger governed action/i }));
+  fireEvent.click(screen.getByRole("button", { name: /^trigger$/i }));
 
   await waitFor(() =>
     expect(onTriggerCatalogAction).toHaveBeenCalledWith({
@@ -267,6 +312,19 @@ it("does not fallback to the first work item for unallowed catalog actions", asy
   const disallowedSurface: KernelDccProjectionSurfaceV1 = {
     ...surface,
     catalog_action_refs: ["kernel.unallowed.catalog_action"],
+    catalog_action_rows: [
+      {
+        action_id: "kernel.unallowed.catalog_action",
+        target_authority_class: "ProjectionOnly",
+        input_schema_id: "hsk.kernel.unallowed_input@1",
+        result_schema_id: "hsk.kernel.unallowed_result@1",
+        role_eligibility: ["OPERATOR"],
+        capability_requirements: ["operator.unallowed"],
+        approval_posture: "Denied",
+        preview_behavior_summary: "Denied action — should not be triggered by ordinary work items.",
+        preview_panel_id: "dcc-unallowed-preview",
+      },
+    ],
     work_items: [
       {
         ...surface.work_items[0],
@@ -278,12 +336,96 @@ it("does not fallback to the first work item for unallowed catalog actions", asy
 
   render(<KernelDccProjectionView surface={disallowedSurface} onTriggerCatalogAction={onTriggerCatalogAction} />);
 
-  fireEvent.click(screen.getByRole("button", { name: /trigger governed action/i }));
+  fireEvent.click(screen.getByRole("button", { name: /^trigger$/i }));
 
   expect(onTriggerCatalogAction).not.toHaveBeenCalled();
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "No selected DCC work item can trigger this catalog action",
   );
+});
+
+it("renders the action catalog viewer with authority class, approval posture, schemas, and preview metadata", () => {
+  render(<KernelDccProjectionView surface={surface} />);
+
+  expect(
+    screen.getByTestId("dcc.action_catalog.row.kernel.crdt_workspace.propose_patch.target_authority_class"),
+  ).toHaveTextContent("PrePromotionEvidenceOnly");
+  expect(
+    screen.getByTestId("dcc.action_catalog.row.kernel.crdt_workspace.propose_patch.approval_posture"),
+  ).toHaveTextContent("RequiresPromotionGate");
+  expect(
+    screen.getByTestId("dcc.action_catalog.row.kernel.crdt_workspace.propose_patch.role_eligibility"),
+  ).toHaveTextContent("CODER, KERNEL_BUILDER");
+  expect(
+    screen.getByTestId("dcc.action_catalog.row.kernel.crdt_workspace.propose_patch.capability_requirements"),
+  ).toHaveTextContent("crdt_workspace.write");
+  expect(
+    screen.getByTestId("dcc.action_catalog.row.kernel.crdt_workspace.propose_patch.input_schema_id"),
+  ).toHaveTextContent("hsk.kernel.crdt_workspace_propose_patch_input@1");
+  expect(
+    screen.getByTestId("dcc.action_catalog.row.kernel.crdt_workspace.propose_patch.result_schema_id"),
+  ).toHaveTextContent("hsk.kernel.crdt_workspace_propose_patch_result@1");
+  expect(
+    screen.getByTestId("dcc.action_catalog.row.kernel.crdt_workspace.propose_patch.preview_panel_id"),
+  ).toHaveTextContent("dcc-crdt-workspace-preview");
+  expect(
+    screen.getByTestId("dcc.action_catalog.row.kernel.crdt_workspace.propose_patch.preview_behavior_summary"),
+  ).toHaveTextContent(/Stage a CRDT workspace patch/);
+});
+
+it("renders write box queue rows with EventLedger events and a stale state-vector badge for Promoted boxes", () => {
+  render(<KernelDccProjectionView surface={surface} />);
+
+  const eventLedgerCell = screen.getByTestId(
+    "dcc.write_box_queue.row.wb-backend-promoted.event_ledger_event_refs",
+  );
+  expect(eventLedgerCell).toHaveTextContent("2");
+  expect(eventLedgerCell).toHaveAttribute(
+    "title",
+    expect.stringContaining("eventledger://backend/promotion-accepted"),
+  );
+
+  const staleCell = screen.getByTestId(
+    "dcc.write_box_queue.row.wb-backend-promoted.stale_state_vector",
+  );
+  expect(staleCell).toHaveTextContent("stale");
+  expect(staleCell.className).toContain("stale");
+
+  const freshCell = screen.getByTestId(
+    "dcc.write_box_queue.row.wb-backend-123.stale_state_vector",
+  );
+  expect(freshCell).toHaveTextContent("fresh");
+  expect(freshCell.className).not.toContain("stale");
+});
+
+it("renders promotion preview rows with state vector, idempotency key, expected events, and stale-risk class", () => {
+  render(<KernelDccProjectionView surface={surface} />);
+
+  expect(
+    screen.getByTestId("dcc.promotion_preview.row.wb-backend-123.state_vector"),
+  ).toHaveTextContent("sv-promotion-backend");
+  expect(
+    screen.getByTestId("dcc.promotion_preview.row.wb-backend-123.idempotency_key"),
+  ).toHaveTextContent("promotion:bridge-backend-123:requested");
+  expect(
+    screen.getByTestId(
+      "dcc.promotion_preview.row.wb-backend-123.validation_check_summaries",
+    ),
+  ).toHaveTextContent(/promotion_gate_input_alignment: PASS/);
+  expect(
+    screen.getByTestId("dcc.promotion_preview.row.wb-backend-123.expected_event_kinds"),
+  ).toHaveTextContent("KernelCrdtPromotionRequestedV1, KernelCrdtPromotionAcceptedV1");
+  expect(
+    screen.getByTestId("dcc.promotion_preview.row.wb-backend-123.accepted_event_ref"),
+  ).toHaveTextContent("eventledger://backend/accepted");
+  expect(
+    screen.getByTestId("dcc.promotion_preview.row.wb-backend-123.rejected_event_ref"),
+  ).toHaveTextContent("pending");
+  const staleRisk = screen.getByTestId(
+    "dcc.promotion_preview.row.wb-backend-123.stale_risk",
+  );
+  expect(staleRisk).toHaveTextContent("DuplicateIdempotency");
+  expect(staleRisk.className).toContain("stale");
 });
 
 it("renders session spawn hierarchy fields projected from runtime records", () => {

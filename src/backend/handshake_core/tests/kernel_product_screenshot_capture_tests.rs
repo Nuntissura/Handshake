@@ -2,9 +2,11 @@ use handshake_core::kernel::{
     action_catalog::{kernel002_action_catalog, validate_kernel_action_catalog},
     action_envelope::AuthorityEffect,
     product_screenshot_capture::{
-        execute_product_screenshot_capture, project_product_screenshot_capture,
-        validate_product_screenshot_capture, ProductScreenshotAdapterCaptureV1,
-        ProductScreenshotArtifactV1, ProductScreenshotCaptureV1, ProductScreenshotDurableReceiptV1,
+        capture_product_screenshot_from_browser_adapter, execute_product_screenshot_capture,
+        project_product_screenshot_capture, validate_product_screenshot_capture,
+        ProductScreenshotAdapterCaptureV1, ProductScreenshotArtifactV1,
+        ProductScreenshotBrowserAdapterConfigV1, ProductScreenshotCaptureV1,
+        ProductScreenshotDurableReceiptV1, ProductScreenshotExecutionError,
         ProductScreenshotExecutionProofV1, ProductScreenshotRequestV1,
         ScreenshotCaptureExecutionSurface, ScreenshotCaptureScope, ScreenshotCaptureTriggerKind,
     },
@@ -429,6 +431,133 @@ fn artifact(artifact_id: &str, request_id: &str, file_stem: &str) -> ProductScre
             "../Handshake_Artifacts/handshake-product/screenshots/metadata/{file_stem}.json"
         ),
         metadata_schema_id: "hsk.product_screenshot_metadata@1".to_string(),
+    }
+}
+
+// --- MT-045 capture E2E + dep checks -----------------------------------------
+
+#[test]
+fn kernel_product_screenshot_capture_browser_adapter_returns_typed_dependency_missing_for_unavailable_node() {
+    let artifact_root = tempfile::tempdir().expect("temp artifact root");
+    let request = request(
+        "request.dep.missing.node",
+        ScreenshotCaptureScope::Module,
+        "module://kernel-dcc-module",
+        ScreenshotCaptureTriggerKind::GovernedCoderCli,
+    );
+
+    let result = capture_product_screenshot_from_browser_adapter(
+        &request,
+        ProductScreenshotBrowserAdapterConfigV1 {
+            source_url: "http://127.0.0.1:65535/".to_string(),
+            adapter_script_path: "app/scripts/handshake-screenshot-capture.mjs".to_string(),
+            // Deliberately unresolvable binary so the pre-flight node check
+            // fails before we ever try to spawn the adapter.
+            node_binary: "definitely-not-node-handshake-test-xyz".to_string(),
+            command_or_api_ref: "test://node-missing".to_string(),
+        },
+        artifact_root.path(),
+    );
+
+    match result {
+        Err(ProductScreenshotExecutionError::AdapterDependencyMissing { dep, hint }) => {
+            assert_eq!(dep, "node");
+            assert!(
+                hint.contains("Node 20+"),
+                "node hint should mention Node 20+, got {hint:?}"
+            );
+        }
+        other => panic!("expected AdapterDependencyMissing(node), got {other:?}"),
+    }
+}
+
+// E2E smoke: boot a tiny axum server, point the capture adapter at it, and
+// verify the produced PNG decodes successfully at the requested dimensions for
+// each capture scope (FullApp, Panel, Module). Gated with #[ignore] so test
+// runners without Node + Playwright skip it cleanly; opt in with
+// `cargo test --test kernel_product_screenshot_capture_tests -- --ignored
+// capture_browser_adapter_e2e`.
+#[test]
+#[ignore = "requires Node + Playwright; opt in with --ignored"]
+fn kernel_product_screenshot_capture_browser_adapter_e2e_produces_decodable_pngs_for_every_scope() {
+    use axum::{
+        routing::get,
+        Router,
+    };
+    use std::net::SocketAddr;
+    use tokio::net::TcpListener;
+    use tokio::runtime::Builder;
+
+    let artifact_root = tempfile::tempdir().expect("temp artifact root");
+    let runtime = Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+
+    let listener = runtime
+        .block_on(async {
+            TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0))).await
+        })
+        .expect("bind ephemeral port");
+    let local_addr = listener.local_addr().expect("local addr");
+    let app: Router = Router::new().route(
+        "/",
+        get(|| async {
+            axum::response::Html(
+                r#"<!doctype html><html><body>
+                    <div data-testid="kernel-dcc-module" style="width:200px;height:200px;background:#abcdef;">DCC Module</div>
+                    <div id="kernel-dcc-panel" aria-labelledby="kernel-dcc-panel" style="width:200px;height:200px;background:#fedcba;">DCC Panel</div>
+                </body></html>"#,
+            )
+        }),
+    );
+    let server_handle = runtime.spawn(async move {
+        axum::serve(listener, app).await.expect("server runs");
+    });
+
+    let source_url = format!("http://{}/", local_addr);
+    for (scope, target_ref) in [
+        (ScreenshotCaptureScope::FullApp, "app://handshake".to_string()),
+        (
+            ScreenshotCaptureScope::Panel,
+            "panel://kernel-dcc-panel".to_string(),
+        ),
+        (
+            ScreenshotCaptureScope::Module,
+            "module://kernel-dcc-module".to_string(),
+        ),
+    ] {
+        let request = request(
+            &format!("request.e2e.{}", scope_label(scope)),
+            scope,
+            &target_ref,
+            ScreenshotCaptureTriggerKind::GovernedCoderCli,
+        );
+        let result = capture_product_screenshot_from_browser_adapter(
+            &request,
+            ProductScreenshotBrowserAdapterConfigV1 {
+                source_url: source_url.clone(),
+                adapter_script_path: "app/scripts/handshake-screenshot-capture.mjs".to_string(),
+                node_binary: "node".to_string(),
+                command_or_api_ref: format!("e2e://capture-{:?}", scope),
+            },
+            artifact_root.path(),
+        )
+        .unwrap_or_else(|err| panic!("capture for {:?} failed: {err:?}", scope));
+
+        let png_bytes = std::fs::read(&result.screenshot_path).expect("png bytes on disk");
+        let decoded = image::load_from_memory(&png_bytes).expect("png decodes");
+        assert!(decoded.width() > 0 && decoded.height() > 0);
+    }
+
+    server_handle.abort();
+}
+
+fn scope_label(scope: ScreenshotCaptureScope) -> &'static str {
+    match scope {
+        ScreenshotCaptureScope::FullApp => "full-app",
+        ScreenshotCaptureScope::Panel => "panel",
+        ScreenshotCaptureScope::Module => "module",
     }
 }
 

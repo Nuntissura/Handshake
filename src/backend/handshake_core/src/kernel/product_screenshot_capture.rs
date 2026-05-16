@@ -165,6 +165,10 @@ pub enum ProductScreenshotExecutionError {
         status_code: Option<i32>,
         stderr: String,
     },
+    AdapterDependencyMissing {
+        dep: &'static str,
+        hint: &'static str,
+    },
     MissingAdapterOutput(PathBuf),
     Io(std::io::Error),
     Serialize(serde_json::Error),
@@ -508,6 +512,28 @@ pub fn capture_product_screenshot_from_browser_adapter(
         return Err(ProductScreenshotExecutionError::InvalidRequest(
             "node_binary is required",
         ));
+    }
+
+    // Pre-flight dep checks: surface actionable AdapterDependencyMissing errors
+    // before spawning the adapter, so the operator never sees a generic ENOENT
+    // or a successful spawn followed by a "playwright not found" stack trace.
+    let node_version_status = Command::new(adapter_config.node_binary.trim())
+        .arg("--version")
+        .output()
+        .ok()
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+    if !node_version_status {
+        return Err(ProductScreenshotExecutionError::AdapterDependencyMissing {
+            dep: "node",
+            hint: "install Node 20+ and ensure 'node' is on PATH",
+        });
+    }
+    if !Path::new("app/node_modules/playwright/package.json").is_file() {
+        return Err(ProductScreenshotExecutionError::AdapterDependencyMissing {
+            dep: "playwright",
+            hint: "run 'pnpm install' in app/",
+        });
     }
 
     let artifact_root = artifact_root.as_ref();

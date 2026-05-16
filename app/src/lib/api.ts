@@ -319,6 +319,18 @@ export type WriteBoxLifecycleState =
   | "Archived";
 export type WriteBoxValidationState = "Pending" | "Valid" | "Invalid" | "Denied";
 
+export type DccCatalogActionRowV1 = {
+  action_id: string;
+  target_authority_class: string;
+  input_schema_id: string;
+  result_schema_id: string;
+  role_eligibility: string[];
+  capability_requirements: string[];
+  approval_posture: string;
+  preview_behavior_summary: string;
+  preview_panel_id: string;
+};
+
 export type DccWriteBoxQueueRowV1 = {
   row_id: string;
   write_box_id: string;
@@ -330,6 +342,8 @@ export type DccWriteBoxQueueRowV1 = {
   validation_state: WriteBoxValidationState;
   denial_receipt_refs: string[];
   promotion_receipt_refs: string[];
+  event_ledger_event_refs: string[];
+  stale_state_vector: boolean;
   stable_element_id: string;
 };
 
@@ -346,6 +360,12 @@ export type DccDirectEditDenialRowV1 = {
   stable_element_id: string;
 };
 
+export type DccPromotionPreviewStaleRisk =
+  | "None"
+  | "StaleStateVector"
+  | "DuplicateIdempotency"
+  | "Both";
+
 export type DccPromotionPreviewRowV1 = {
   row_id: string;
   preview_id: string;
@@ -355,6 +375,11 @@ export type DccPromotionPreviewRowV1 = {
   request_event_ref: string | null;
   accepted_event_ref: string | null;
   rejected_event_ref: string | null;
+  state_vector: string;
+  validation_check_summaries: string[];
+  idempotency_key: string;
+  expected_event_kinds: string[];
+  stale_risk: DccPromotionPreviewStaleRisk;
   freshness_badge_id: string;
   stable_element_id: string;
 };
@@ -438,6 +463,7 @@ export type KernelDccProjectionSurfaceV1 = {
   freshness_badges: DccFreshnessBadgeV1[];
   stable_element_ids: DccStableElementIdV1[];
   catalog_action_refs: string[];
+  catalog_action_rows: DccCatalogActionRowV1[];
   direct_authority_mutation_allowed: boolean;
   ungoverned_tool_execution_allowed: boolean;
   destructive_git_ops_require_same_turn_approval: boolean;

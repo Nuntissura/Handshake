@@ -344,7 +344,7 @@ fn promotion_event_mapping(
     }
 }
 
-fn promotion_idempotency_key(bridge_id: &str, suffix: &str) -> String {
+pub fn promotion_idempotency_key(bridge_id: &str, suffix: &str) -> String {
     format!("promotion:{bridge_id}:{suffix}")
 }
 

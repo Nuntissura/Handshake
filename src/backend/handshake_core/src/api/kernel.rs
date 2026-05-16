@@ -7,7 +7,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-use crate::flight_recorder::{EventFilter, FlightRecorderEventType};
+use crate::flight_recorder::{EventFilter, FlightRecorderEvent, FlightRecorderEventType};
 use crate::kernel::product_screenshot_capture::{
     capture_product_screenshot_from_browser_adapter, ProductScreenshotArtifactV1,
     ProductScreenshotBrowserAdapterConfigV1, ProductScreenshotDurableReceiptV1,
@@ -364,24 +364,39 @@ async fn session_spawn_runtime_records_from_state(
 }
 
 #[derive(Debug, Default)]
-struct SessionSpawnRuntimeEvidence {
-    flight_recorder_refs: HashMap<String, String>,
-    announce_back_badges: HashMap<String, Vec<SessionAnnounceBackBadgeV1>>,
-    cascade_cancel_session_ids: HashSet<String>,
+pub struct SessionSpawnRuntimeEvidence {
+    pub flight_recorder_refs: HashMap<String, String>,
+    pub announce_back_badges: HashMap<String, Vec<SessionAnnounceBackBadgeV1>>,
+    pub cascade_cancel_session_ids: HashSet<String>,
 }
 
 async fn session_spawn_runtime_evidence_from_state(
     state: &AppState,
     sessions: &[ModelSession],
 ) -> Result<SessionSpawnRuntimeEvidence, crate::flight_recorder::RecorderError> {
-    let session_ids: HashSet<&str> = sessions
-        .iter()
-        .map(|session| session.session_id.as_str())
-        .collect();
     let events = state
         .flight_recorder
         .list_events(EventFilter::default())
         .await?;
+    Ok(derive_session_spawn_runtime_evidence(sessions, &events))
+}
+
+/// Derive the spawn-runtime evidence used by the DCC session-spawn-tree
+/// projection from in-scope `ModelSession`s plus Flight Recorder events.
+///
+/// This is the pure path used by `session_spawn_runtime_evidence_from_state`
+/// after it pulls the recorder events from the active state. It is exposed so
+/// tests can drive announce-back, cascade-cancel, and flight-recorder pairing
+/// behavior without standing up a Postgres-backed AppState — the test surface
+/// must fail closed if a future change reverts to hardcoded synthesis.
+pub fn derive_session_spawn_runtime_evidence(
+    sessions: &[ModelSession],
+    events: &[FlightRecorderEvent],
+) -> SessionSpawnRuntimeEvidence {
+    let session_ids: HashSet<&str> = sessions
+        .iter()
+        .map(|session| session.session_id.as_str())
+        .collect();
     let mut evidence = SessionSpawnRuntimeEvidence::default();
     for session in sessions {
         if session_has_explicit_cascade_cancel_capability(session) {
@@ -432,7 +447,7 @@ async fn session_spawn_runtime_evidence_from_state(
             }
         }
     }
-    Ok(evidence)
+    evidence
 }
 
 fn session_id_from_spawn_event(

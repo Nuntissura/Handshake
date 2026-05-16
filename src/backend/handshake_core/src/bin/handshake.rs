@@ -105,7 +105,10 @@ fn run_command_receipt(args: &[String]) -> Result<(), String> {
         .unwrap_or_else(|| git_head_sha(&options.workdir).unwrap_or_else(|| "unknown".to_string()));
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    let slug = command_receipt_slug(&options.command_line);
+    let slug = options
+        .slug
+        .clone()
+        .unwrap_or_else(|| command_receipt_slug(&options.command_line));
     let blocker_refs = if actual_exit_code == options.expected_exit_code {
         Vec::new()
     } else {
@@ -125,6 +128,7 @@ fn run_command_receipt(args: &[String]) -> Result<(), String> {
             stderr,
             blocker_refs,
             projection_refs: options.projection_refs,
+            slug: options.slug,
         },
         options.artifact_root,
     )
@@ -134,6 +138,12 @@ fn run_command_receipt(args: &[String]) -> Result<(), String> {
         "{}",
         serde_json::to_string_pretty(&result.receipt).map_err(|error| error.to_string())?
     );
+    // Propagate the wrapped command's actual exit code so just recipes and CI
+    // do not silently treat a failing wrapped command as success. The receipt
+    // and blocker artifacts are already on disk above.
+    if actual_exit_code != options.expected_exit_code {
+        std::process::exit(actual_exit_code);
+    }
     Ok(())
 }
 
@@ -225,6 +235,7 @@ struct CommandReceiptOptions {
     expected_exit_code: i32,
     artifact_root: PathBuf,
     projection_refs: Vec<String>,
+    slug: Option<String>,
 }
 
 impl CommandReceiptOptions {
@@ -236,6 +247,7 @@ impl CommandReceiptOptions {
         let mut artifact_root =
             PathBuf::from("../Handshake_Artifacts/handshake-product/command-receipts");
         let mut projection_refs = Vec::new();
+        let mut slug: Option<String> = None;
 
         let mut index = 0;
         while index < args.len() {
@@ -254,6 +266,7 @@ impl CommandReceiptOptions {
                 }
                 "--artifact-root" => artifact_root = PathBuf::from(value),
                 "--projection-ref" => projection_refs.push(value.clone()),
+                "--slug" => slug = Some(value.clone()),
                 _ => return Err(format!("unknown option {key}\n{}", usage())),
             }
             index += 2;
@@ -262,9 +275,11 @@ impl CommandReceiptOptions {
         let command_line = command_line
             .ok_or_else(|| "missing --command-line for command receipt run".to_string())?;
         if projection_refs.is_empty() {
+            let projection_slug = slug
+                .clone()
+                .unwrap_or_else(|| command_receipt_slug(&command_line));
             projection_refs.push(format!(
-                "projection://current-candidate-command/{}",
-                command_receipt_slug(&command_line)
+                "projection://current-candidate-command/{projection_slug}"
             ));
         }
 
@@ -275,6 +290,7 @@ impl CommandReceiptOptions {
             expected_exit_code,
             artifact_root,
             projection_refs,
+            slug,
         })
     }
 }
@@ -345,5 +361,5 @@ fn git_head_sha(workdir: &PathBuf) -> Option<String> {
 }
 
 fn usage() -> String {
-    "usage: handshake screenshot capture --scope full-app|panel|module --source-url URL [--target-ref REF] [--request-id ID] [--artifact-root PATH]\n       handshake command receipt run --command-line COMMAND [--workdir PATH] [--expected-exit-code N] [--artifact-root PATH]".to_string()
+    "usage: handshake screenshot capture --scope full-app|panel|module --source-url URL [--target-ref REF] [--request-id ID] [--artifact-root PATH]\n       handshake command receipt run --command-line COMMAND [--workdir PATH] [--expected-exit-code N] [--artifact-root PATH] [--slug SLUG]".to_string()
 }

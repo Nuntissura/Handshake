@@ -174,6 +174,7 @@ fn mechanical_generation_writes_current_candidate_command_receipt_artifacts() {
                 ".GOV/roles_shared/records/TASK_BOARD.md".to_string(),
                 ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md".to_string(),
             ],
+            slug: None,
         },
         artifact_root.path(),
     )
@@ -342,6 +343,88 @@ fn kernel_action_catalog_exposes_mechanical_promotion_and_extraction_actions() {
         .validation_hooks
         .iter()
         .any(|hook| hook.hook_id == "microtask_extraction_preserves_source_hashes"));
+}
+
+// Integration test for MT-049 receipt wrapper: shells out `just gov-check`,
+// then asserts the wrapped recipe produced a durable receipt at the conventional
+// command-receipt artifact path with a candidate_sha that matches the current
+// git HEAD. Gated with #[ignore] so default test runs do not pay the full
+// gov-check + cargo-build cost; opt in with
+// `cargo test --test kernel_mechanical_contract_generation_tests -- --ignored
+// just_gov_check_produces_command_receipt`.
+#[test]
+#[ignore = "shells out just; runs the full gov-check pipeline; opt in with --ignored"]
+fn kernel_mechanical_contract_just_gov_check_produces_command_receipt_with_candidate_sha() {
+    use std::path::PathBuf;
+    use std::process::Command;
+    use std::time::{Duration, SystemTime};
+
+    let just_version = Command::new("just").arg("--version").output();
+    if just_version.map(|out| !out.status.success()).unwrap_or(true) {
+        eprintln!("SKIP: `just` is not on PATH; skipping wrapped-receipt integration test");
+        return;
+    }
+
+    let head_sha = Command::new("git")
+        .arg("-C")
+        .arg(repo_root())
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .expect("git rev-parse HEAD runs")
+        .stdout;
+    let head_sha = String::from_utf8(head_sha)
+        .expect("HEAD sha is utf-8")
+        .trim()
+        .to_string();
+    assert!(!head_sha.is_empty(), "git HEAD sha must be discoverable");
+
+    let status = Command::new("just")
+        .arg("gov-check")
+        .current_dir(repo_root())
+        .status()
+        .expect("just gov-check runs");
+
+    let receipt_path: PathBuf = repo_root()
+        .join("..")
+        .join("Handshake_Artifacts")
+        .join("handshake-product")
+        .join("command-receipts")
+        .join("gov-check.json");
+    assert!(
+        receipt_path.exists(),
+        "expected wrapped gov-check receipt at {receipt_path:?} (just gov-check exited {status})"
+    );
+
+    let modified = std::fs::metadata(&receipt_path)
+        .and_then(|metadata| metadata.modified())
+        .expect("receipt file metadata readable");
+    let age = SystemTime::now()
+        .duration_since(modified)
+        .unwrap_or_else(|_| Duration::from_secs(0));
+    assert!(
+        age <= Duration::from_secs(60),
+        "receipt {receipt_path:?} should be fresh (<60s), got age {age:?}"
+    );
+
+    let receipt_bytes = std::fs::read(&receipt_path).expect("read receipt bytes");
+    let receipt: serde_json::Value =
+        serde_json::from_slice(&receipt_bytes).expect("receipt is JSON");
+    assert_eq!(
+        receipt
+            .get("candidate_sha")
+            .and_then(|value| value.as_str())
+            .map(str::to_string)
+            .unwrap_or_default(),
+        head_sha,
+        "wrapped receipt candidate_sha must match current git HEAD"
+    );
+    assert_eq!(
+        receipt
+            .get("schema_id")
+            .and_then(|value| value.as_str())
+            .unwrap_or_default(),
+        "hsk.current_candidate_command_receipt@1"
+    );
 }
 
 fn is_sha256_digest(value: &str) -> bool {
