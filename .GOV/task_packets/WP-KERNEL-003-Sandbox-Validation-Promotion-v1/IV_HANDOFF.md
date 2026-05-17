@@ -462,10 +462,49 @@ Round 3 re-audited round 1+2 patches and caught:
 
 12 new regression tests added across rounds 1-3.
 
+## IV remediation (patch SHA `662f9414`)
+
+Per-MT review returned **78/80 PASS, 2 FAIL** (MT-042, MT-049). Both
+remediations landed as surgical edits in
+`src/backend/handshake_core/src/kernel/validation/`.
+
+### MT-042 — Check-Runner Reuse (Option A: adapter)
+
+**Acceptance:** "no reuse of Product GovernanceCheckRunner — validation
+introduces its own DescriptorAllowlist abstraction instead." Restated by
+IV reviewer: the AC forbids the parallel runner; this remediation routes
+KB003 through the shared product runner.
+
+- New file `kernel/validation/check_runner_adapter.rs` (~340 LOC including tests).
+- `ValidationCheckRunner { inner: Arc<CheckRunner>, allowlist: DescriptorAllowlist }`.
+- Single `execute(descriptor, ctx)` entry: admit → wrap in product `CheckDescriptor` → dispatch via `inner.run_check(...).await` → project `CheckResult` into `ValidationStatus` via `status.rs` constructors.
+- `ValidationContext { session_id, granted_capabilities, check_kind }`.
+- `ValidationCheckRunnerError::{Admission, Dispatch, StatusProjection}` tags failure source.
+- `kernel/validation/mod.rs` `pub use ValidationCheckRunner, ValidationCheckRunnerError, ValidationContext`.
+- DescriptorAllowlist is held as an *internal* admission gate; no parallel public runner remains.
+- 4 inline `#[cfg(test)]` cases — including a `NamedDescriptor` whose `evaluate()` panics, proving dispatch goes through `CheckRunner` and not via the descriptor's own evaluate path.
+
+### MT-049 — Validation Replay Linkage
+
+**Acceptance:** "replay records new run ID linked to original."
+
+- `kernel/validation/run.rs` — `ValidationRun` gains `pub original_run_id: Option<Uuid>` (serde `default` + `skip_serializing_if = Option::is_none`) plus:
+  - `ValidationRun::replay_of(original, session_id, task_id)` constructor.
+  - `ValidationRun::is_replay()` helper.
+- `kernel/validation/report.rs` — `ValidationReport` mirrors with `original_run_id: Option<Uuid>` plus:
+  - `ValidationReport::for_run(run)` propagates `run.original_run_id` into the report so `EVENT_KB003_VALIDATION_RUN_COMPLETED` carries the linkage.
+  - `ValidationReport::with_original_run_id(orig)` builder for callers using `::new(run_id)`.
+- 7 inline tests (5 on run.rs + 2 on report.rs) covering replay-linkage population, fresh-run absence, serde round-trip in both directions, and replay-report propagation.
+
+### Out of scope (per remediation plan)
+
+- Proof-target test-name mismatches (`kernel_validation_*` cargo filters not resolving to integration test shells). Inline `#[cfg(test)]` modules already cover acceptance content.
+- `mte_resource_caps::to_sandbox_caps()` `child_processes` drop (M-C3). Already documented as advisory-only in scrutiny round 2.
+- Doc-comment MT-id labels in `kb003_promotion/mod.rs` that drift from JSON-declared validation MT IDs. Cosmetic.
+
 ## NEXT_ACTOR
 
-**`INTEGRATION_VALIDATOR`** — perform batch MT review of MT-001..MT-079,
-then scoped Master Spec review against the six declared spec anchors,
-then issue the verdict on the packet. **Round-3 patch SHA `ad5feff6`** is
-the recommended review tip. Wave 4 head was `eac773ab`; rounds 1-3 add
-3 fix commits on top.
+**`INTEGRATION_VALIDATOR`** — re-run per-MT review on **MT-042** and
+**MT-049** against tip **`662f9414`**. Other 78 MTs already PASSed at
+tip `ad5feff6`; if IV's MT-042 and MT-049 verdicts flip to PASS, proceed
+to the whole-WP Master Spec validation pass that was deferred.
