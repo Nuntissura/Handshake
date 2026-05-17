@@ -1206,7 +1206,7 @@ Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRE
 
 
 ## Blocked
-- **[WP-1-Atelier-Lens-Consolidation-v1]** - [BLOCKED] - The governed direct-review communication contract is misconfigured and must be repaired before work can continue.
+- **[WP-1-Atelier-Lens-Consolidation-v1]** - [READY_FOR_DEV]
 ---
 
 

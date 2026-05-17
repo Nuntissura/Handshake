@@ -476,8 +476,8 @@
       "wp_id": "WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1",
       "artifact_kind": "FLAT_PACKET_STUB",
       "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.md",
-      "sha256": "c1a403442483fe6173ea8557f0fe59de7e4e1dbfb361362441ad9dc4b9fbd72a",
-      "bytes": 43873,
+      "sha256": "61ed15fa5ae454942a8864a5805bd4c1ab4b12c80e39c21cbe68ca51cf0ade15",
+      "bytes": 45753,
       "paired_folder_contract": null,
       "paired_stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.contract.json",
       "authority_status": "TYPED_NON_EXECUTION_STUB_CONTRACT",
@@ -488,8 +488,8 @@
       "wp_id": "WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1",
       "artifact_kind": "FLAT_PACKET_STUB",
       "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1.md",
-      "sha256": "6f7f7f1c032c6803f485f6a0b0688fd372e2c8f633e9d180a796ba26f5cdbf79",
-      "bytes": 24751,
+      "sha256": "dc20b2d84e36ba1abf1df9498b8dfb72c7a02364abeb7e167650a3601cb50e76",
+      "bytes": 26631,
       "paired_folder_contract": null,
       "paired_stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1.contract.json",
       "authority_status": "TYPED_NON_EXECUTION_STUB_CONTRACT",
@@ -500,8 +500,8 @@
       "wp_id": "WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1",
       "artifact_kind": "FLAT_PACKET_STUB",
       "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1.md",
-      "sha256": "607c2894db29234ed5de0c333bc3844c81bd4c41bf4e0c1702028430eb66d33f",
-      "bytes": 23763,
+      "sha256": "a05d2f8d0c852c19a549b7c8a2d3503005480369be8d76039cbcbca077cfe26b",
+      "bytes": 25643,
       "paired_folder_contract": null,
       "paired_stub_contract": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1.contract.json",
       "authority_status": "TYPED_NON_EXECUTION_STUB_CONTRACT",
@@ -4157,5 +4157,5 @@
       "migration_refactor_id": "RGF-289"
     }
   ],
-  "artifacts_sha256": "9146d9d4de73634c2e807c37f24647f0e8728d6fe9017457949803cbae53b8e6"
+  "artifacts_sha256": "e0847c74df9961078d70c4ee3e14ebf7bfcd2201505c3e8da7b5c555372c3123"
 }

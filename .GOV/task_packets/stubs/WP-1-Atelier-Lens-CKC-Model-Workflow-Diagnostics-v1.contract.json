@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Model-Workflow-Diagnostics-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "6f7f7f1c032c6803f485f6a0b0688fd372e2c8f633e9d180a796ba26f5cdbf79",
+    "projection_sha256": "dc20b2d84e36ba1abf1df9498b8dfb72c7a02364abeb7e167650a3601cb50e76",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -60,11 +60,11 @@
     "roadmap_add_coverage": ""
   },
   "session_policy": {
-    "session_start_authority": "",
-    "session_host_preference": "",
-    "session_launch_policy": "",
-    "role_model_profile_policy": "",
-    "planned_execution_owner_range": ""
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "session_host_preference": "HANDSHAKE_ACP_BROKER",
+    "session_launch_policy": "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": "Coder-A..Coder-Z"
   },
   "draft_scope": {
     "intent": "- What: Plan the model-facing workflow, manual, diagnostics, command catalog, DCC/Locus/Flight Recorder visibility, and no-focus automation requirements for Atelier/Lens + CKC fold-in.\n- Why: CKC proved that the product needs no-context model operation, command/manual consistency, sessions/leases, command logs, visual capture, renderer state, and quiet automation. Handshake already has stronger primitives; this stub translates CKC's model operation layer into Handshake's mechanical separation of LLM and execution.\n- No-code stance: This stub creates only future work scope and microtasks. It does not implement diagnostics, DCC UI, command handlers, browser automation, screenshots, tests, or product code.\n- Mechanical separation: LLMs are not the executor. They operate through governed prompts, AI Jobs, Workflow Engine nodes, MCP/tool policies, MicroTask/Locus state, and product commands. Runtime execution is performed by Handshake and mechanical engines, with Flight Recorder/DCC evidence.",
