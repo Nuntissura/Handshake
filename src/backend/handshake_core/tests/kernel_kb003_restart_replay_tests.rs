@@ -45,6 +45,7 @@ use handshake_core::kernel::sandbox::replay_projection::{
 };
 use handshake_core::kernel::sandbox::run::{SandboxRunId, SandboxRunStatus, SandboxRunV1};
 use handshake_core::kernel::sandbox::workspace::SandboxWorkspaceV1;
+use handshake_core::kernel::mte_authority_mutation_boundary::AuthorityMutationActor;
 use handshake_core::storage::kb003_storage::{
     InMemoryKb003Storage, Kb003Storage, PromotionDecisionRowV1, PromotionReceiptRowV1,
     ValidationRunRowV1,
@@ -78,6 +79,8 @@ fn build_chain_in_storage(
         finished_at_utc: None,
         denial_id: None,
         artifact_refs: vec!["kb003://sandbox_log/h1aaaaaaaaaaaaaa".into()],
+        terminal_cause: None,
+        requested_capabilities: vec![],
     };
     let run_id = run.run_id.0.clone();
     store.insert_sandbox_run(&run).unwrap();
@@ -111,7 +114,9 @@ fn build_chain_in_storage(
         rationale_short: "checks green".into(),
         decided_at_utc: "2026-05-17T00:00:02Z".into(),
     };
-    store.insert_promotion_decision(&dec).unwrap();
+    store
+        .insert_promotion_decision(&dec, AuthorityMutationActor::PromotionGate)
+        .unwrap();
 
     // 5. Promotion receipt.
     let receipt = PromotionReceiptRowV1 {
@@ -122,7 +127,9 @@ fn build_chain_in_storage(
         artifact_ref: Some("kb003://promotion_receipt/h3ccccccccccccc".into()),
         issued_at_utc: "2026-05-17T00:00:03Z".into(),
     };
-    let stored = store.insert_promotion_receipt(&receipt).unwrap();
+    let stored = store
+        .insert_promotion_receipt(&receipt, AuthorityMutationActor::PromotionGate)
+        .unwrap();
     assert_eq!(stored, receipt.receipt_id);
 
     // Re-fetch run with terminal status for the projection.

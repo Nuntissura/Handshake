@@ -103,13 +103,25 @@ pub struct SandboxPolicyBundleV1 {
 }
 
 impl SandboxPolicyBundleV1 {
-    /// Construct a fully default-deny bundle. Every omitted field is the deny
-    /// state: empty FS roots, empty network grants, empty exec allowlist,
-    /// redaction enabled, caps unset.
+    /// Construct a fully default-deny bundle.
+    ///
+    /// M6 fix: `resource_caps` is now populated with
+    /// `SAFE_DEFAULT_RESOURCE_CAPS` instead of left at the all-`None`
+    /// `Default::default()` value. Explicit `None` on a per-field basis is
+    /// still the documented "unbounded by design" signal, but production
+    /// callers should never default-construct caps and inherit unbounded
+    /// behavior; the safe defaults make that intent explicit at the
+    /// `default_deny` entry point.
+    ///
+    /// Every other extension field remains in its deny-by-default state:
+    /// empty FS roots, empty network grants, empty exec allowlist, redaction
+    /// enabled.
     pub fn default_deny(name: impl Into<String>) -> Self {
+        let mut extensions = SandboxPolicyExtensionsV1::default();
+        extensions.resource_caps = super::resource_caps::SAFE_DEFAULT_RESOURCE_CAPS;
         Self {
             core: SandboxPolicyV1::default_deny(name),
-            extensions: SandboxPolicyExtensionsV1::default(),
+            extensions,
         }
     }
 }
@@ -196,11 +208,13 @@ mod tests {
         assert!(b.extensions.network.grants.is_empty());
         assert!(b.extensions.process_exec.commands.is_empty());
         assert!(b.extensions.redaction.enabled);
-        assert!(b.extensions.resource_caps.wall_ms.is_none());
-        assert!(b.extensions.resource_caps.cpu_ms.is_none());
-        assert!(b.extensions.resource_caps.memory_bytes.is_none());
-        assert!(b.extensions.resource_caps.file_descriptors.is_none());
-        assert!(b.extensions.resource_caps.output_bytes.is_none());
+        // M6: resource_caps is now populated with SAFE_DEFAULT_RESOURCE_CAPS
+        // instead of all-None. Every dimension must be bounded.
+        assert!(b.extensions.resource_caps.wall_ms.is_some());
+        assert!(b.extensions.resource_caps.cpu_ms.is_some());
+        assert!(b.extensions.resource_caps.memory_bytes.is_some());
+        assert!(b.extensions.resource_caps.file_descriptors.is_some());
+        assert!(b.extensions.resource_caps.output_bytes.is_some());
     }
 
     #[test]
@@ -240,10 +254,18 @@ mod tests {
 
     #[test]
     fn nonempty_overrides_fail_audit() {
+        use crate::kernel::sandbox::policy::{
+            CapabilityEvidenceRef, CapabilityGrant, OperatorApprovalRef,
+        };
         let mut b = SandboxPolicyBundleV1::default_deny("baseline");
-        b.core
-            .overrides
-            .push((SandboxCapability::Network, CapabilityDecision::Allow));
+        b.core.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: CapabilityEvidenceRef::new("ART-eviv"),
+                approval_ref: Some(OperatorApprovalRef::new("APR-1")),
+            }),
+        ));
         assert!(matches!(
             audit_default_deny(&b),
             DefaultDenyAudit::Violation {

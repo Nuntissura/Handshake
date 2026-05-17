@@ -37,13 +37,17 @@ pub mod dcc_promotion_overlay;
 pub mod decision;
 pub mod event_emission;
 pub mod gate;
+pub mod gate_error_kind;
 pub mod receipt;
 
 pub use artifact_bundle::{
     ArtifactBundleError, Kb003ArtifactBundleV1, Kb003ArtifactHandleV1, KbArtifactBundleAssembler,
 };
 pub use dcc_promotion_overlay::DccPromotionOverlay;
-pub use decision::{PromotionDecisionV1, PromotionOutcome, PromotionRejectionReason};
+pub use decision::{
+    CanonicalRejectionPayload, PromotionDecisionV1, PromotionOutcome, PromotionRejectionReason,
+};
+pub use gate_error_kind::{classify_storage_error, NormalisedStorageErrorKind};
 pub use event_emission::{
     build_promotion_decided_event, build_promotion_receipt_issued_event,
     build_promotion_rejected_event,

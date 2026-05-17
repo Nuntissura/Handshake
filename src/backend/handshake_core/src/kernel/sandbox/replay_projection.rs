@@ -88,7 +88,7 @@ pub fn reconstruct_projection(inputs: ReplayInputsV1<'_>) -> DccSandboxProjectio
         session_run_id: inputs.run.session_run_id.clone(),
         adapter_kind: inputs.run.adapter_kind.clone(),
         policy_version_id: inputs.policy.version_id(),
-        policy_default_decision: inputs.policy.default_decision,
+        policy_default_decision: inputs.policy.default_decision.clone(),
         capability_rows,
         workspace_id: inputs.workspace.workspace_id.clone(),
         workspace_root_relative: inputs.workspace.root_relative_path.clone(),
@@ -162,6 +162,8 @@ mod tests {
             finished_at_utc: None,
             denial_id: Some("DEN-1".into()),
             artifact_refs: vec!["ART-log-1".into()],
+            terminal_cause: None,
+            requested_capabilities: vec![],
         };
         let policy = SandboxPolicyV1::default_deny("baseline");
         let workspace = SandboxWorkspaceV1::new_default("k", "handshake-product/kb003/work/r1");
@@ -301,6 +303,8 @@ mod tests {
             finished_at_utc: None,
             denial_id: None,
             artifact_refs: vec![],
+            terminal_cause: None,
+            requested_capabilities: vec![],
         }
     }
 }

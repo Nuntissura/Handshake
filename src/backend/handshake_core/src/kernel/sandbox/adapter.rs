@@ -95,9 +95,10 @@ pub trait SandboxAdapter: Send + Sync {
         requested: &[SandboxCapability],
     ) -> Result<(), SandboxDenialRecordV1> {
         use super::denial::DenialKind;
+        use super::policy::CapabilityDecision;
         for cap in requested {
             match policy.decide(*cap) {
-                super::policy::CapabilityDecision::Deny => {
+                CapabilityDecision::Deny => {
                     return Err(SandboxDenialRecordV1::new(
                         run.run_id.0.clone(),
                         policy.version_id(),
@@ -112,7 +113,30 @@ pub trait SandboxAdapter: Send + Sync {
                         ),
                     ));
                 }
-                _ => continue,
+                CapabilityDecision::Allow(grant) => {
+                    // H5 fix: a grant authorising a sensitive capability MUST
+                    // carry a non-empty evidence_ref. An empty evidence_ref is
+                    // refused here so adapters cannot silently run a sensitive
+                    // capability that lacks audit provenance.
+                    if !grant.evidence_ref.is_present() {
+                        return Err(SandboxDenialRecordV1::new(
+                            run.run_id.0.clone(),
+                            policy.version_id(),
+                            DenialKind::PolicyDenied,
+                            Some(grant.capability),
+                            format!(
+                                "adapter `{}` requested {}",
+                                self.kind().id,
+                                grant.capability.as_str()
+                            ),
+                            format!(
+                                "EvidenceRefInvalid: capability {} granted by policy `{}` lacks a non-empty evidence_ref",
+                                grant.capability.as_str(),
+                                policy.version_id()
+                            ),
+                        ));
+                    }
+                }
             }
         }
         Ok(())
@@ -175,6 +199,62 @@ mod tests {
             .expect_err("default-deny must reject NETWORK");
         assert_eq!(denial.kind, DenialKind::PolicyDenied);
         assert_eq!(denial.capability, Some(SandboxCapability::Network));
+    }
+
+    #[test]
+    fn default_pre_check_refuses_allow_without_valid_evidence_ref() {
+        // H5: the default `pre_check` impl on `SandboxAdapter` must refuse
+        // any `Allow(grant)` whose `evidence_ref` is empty. Such a grant
+        // could otherwise authorise a sensitive capability without any audit
+        // handle at all.
+        use crate::kernel::sandbox::policy::{
+            CapabilityDecision, CapabilityEvidenceRef, CapabilityGrant, OperatorApprovalRef,
+        };
+        let adapter = NullAdapter;
+        let run = fixture_run();
+        let mut policy = SandboxPolicyV1::default_deny("baseline");
+        // Override Network with a grant whose evidence_ref is empty.
+        policy.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: CapabilityEvidenceRef::new(""),
+                approval_ref: Some(OperatorApprovalRef::new("APR-1")),
+            }),
+        ));
+        let denial = adapter
+            .pre_check(&run, &policy, &[SandboxCapability::Network])
+            .expect_err("empty evidence_ref must be refused at pre_check");
+        assert_eq!(denial.kind, DenialKind::PolicyDenied);
+        assert_eq!(denial.capability, Some(SandboxCapability::Network));
+        assert!(
+            denial.reason.contains("EvidenceRefInvalid"),
+            "denial reason must mark this as EvidenceRefInvalid; got {:?}",
+            denial.reason
+        );
+    }
+
+    #[test]
+    fn default_pre_check_passes_allow_with_valid_evidence_ref() {
+        // H5 positive: a grant with a non-empty evidence_ref must pass the
+        // default pre_check.
+        use crate::kernel::sandbox::policy::{
+            CapabilityDecision, CapabilityEvidenceRef, CapabilityGrant, OperatorApprovalRef,
+        };
+        let adapter = NullAdapter;
+        let run = fixture_run();
+        let mut policy = SandboxPolicyV1::default_deny("baseline");
+        policy.overrides.push((
+            SandboxCapability::Network,
+            CapabilityDecision::Allow(CapabilityGrant {
+                capability: SandboxCapability::Network,
+                evidence_ref: CapabilityEvidenceRef::new("ART-net-grant"),
+                approval_ref: Some(OperatorApprovalRef::new("APR-1")),
+            }),
+        ));
+        adapter
+            .pre_check(&run, &policy, &[SandboxCapability::Network])
+            .expect("valid grant must pass pre_check");
     }
 
     #[test]

@@ -139,7 +139,7 @@ impl ValidationCheckRunner {
         let status = check_result_to_validation_status(&result)
             .map_err(ValidationCheckRunnerError::StatusProjection)?;
 
-        Ok(DescriptorOutcome::new(descriptor.name(), status))
+        Ok(DescriptorOutcome::from_descriptor(descriptor, status))
     }
 }
 
@@ -265,33 +265,47 @@ mod tests {
 
     #[tokio::test]
     async fn allowed_descriptor_dispatches_through_inner_runner() {
-        // The adapter routes admission -> CheckRunner. With empty
-        // supported_kinds the runner returns Unsupported, which the adapter
-        // projects into ValidationStatus::Unsupported. This proves the
-        // dispatch reached the inner runner (the descriptor's own evaluate()
-        // panics if called, ruling out the parallel-runner regression).
-        let runner = make_runner();
+        // Fixture: CheckRunner with empty supported_kinds and granted capabilities
+        // that DO cover the gate, so the kind-probe (not capability-gate) fires
+        // first and surfaces Unsupported.
+        let recorder: Arc<dyn FlightRecorder> = Arc::new(NoopRecorder::default());
+        let inner = Arc::new(
+            CheckRunner::new(recorder, PathBuf::from(".")).with_supported_kinds(Vec::new()),
+        );
+        let allow = DescriptorAllowlist::new(["allowed_check"]);
+        let runner = ValidationCheckRunner::new(inner, allow);
         let descriptor = NamedDescriptor("allowed_check");
-        let ctx = ValidationContext::new(Uuid::now_v7(), "validation.descriptor");
-
-        let outcome = runner
-            .execute(&descriptor, &ctx)
-            .await
+        let ctx = ValidationContext::new(Uuid::now_v7(), "validation.descriptor")
+            .with_capabilities(vec!["governance.check.run".into()]);
+        let outcome = runner.execute(&descriptor, &ctx).await
             .expect("allowed descriptor must dispatch");
         assert_eq!(outcome.descriptor_name, "allowed_check");
-        // CheckRunner's empty supported_kinds + empty capability grants can
-        // surface as either Blocked (capability gate fired first) OR
-        // Unsupported (check_kind probe). What matters is that dispatch
-        // REACHED the runner — the descriptor's own evaluate() panics if
-        // called, so any non-panic outcome here proves the
-        // no-parallel-runner contract.
         assert!(
-            matches!(
-                outcome.status,
-                ValidationStatus::Unsupported { .. } | ValidationStatus::Blocked { .. }
-            ),
-            "expected projection to Unsupported or Blocked, got {:?}",
-            outcome.status
+            matches!(outcome.status, ValidationStatus::Unsupported { .. }),
+            "expected Unsupported (kind-probe), got {:?}", outcome.status
+        );
+    }
+
+    #[tokio::test]
+    async fn allowed_descriptor_dispatches_when_capability_gate_blocks() {
+        // Fixture: CheckRunner with a supported_kind that matches but EMPTY granted
+        // capabilities — capability-gate fires first and surfaces Blocked.
+        let recorder: Arc<dyn FlightRecorder> = Arc::new(NoopRecorder::default());
+        let inner = Arc::new(
+            CheckRunner::new(recorder, PathBuf::from("."))
+                .with_supported_kinds(vec!["validation.descriptor".to_string()]),
+        );
+        let allow = DescriptorAllowlist::new(["allowed_check"]);
+        let runner = ValidationCheckRunner::new(inner, allow);
+        let descriptor = NamedDescriptor("allowed_check");
+        let ctx = ValidationContext::new(Uuid::now_v7(), "validation.descriptor");
+        // granted_capabilities deliberately empty so the capability gate denies.
+        let outcome = runner.execute(&descriptor, &ctx).await
+            .expect("allowed descriptor must dispatch");
+        assert_eq!(outcome.descriptor_name, "allowed_check");
+        assert!(
+            matches!(outcome.status, ValidationStatus::Blocked { .. }),
+            "expected Blocked (capability-gate), got {:?}", outcome.status
         );
     }
 

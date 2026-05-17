@@ -42,6 +42,9 @@ impl SandboxWorkspaceV1 {
     /// shared prefix matched without a path-segment boundary. We now also
     /// normalise the root and require either an exact match or a `/`
     /// separator at the boundary.
+    /// The workspace root itself is considered contained (apex inclusive).
+    /// Callers wanting "strictly inside" semantics should additionally assert
+    /// the relative path is non-empty.
     pub fn contains_relative(&self, candidate_relative: &str) -> bool {
         if candidate_relative.contains("..") {
             // Pre-normalisation guard: `lexical_normalise` collapses `..` so we

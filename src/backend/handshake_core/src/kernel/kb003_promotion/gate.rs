@@ -34,9 +34,8 @@ use crate::kernel::kb003_promotion::decision::{
     PromotionDecisionV1, PromotionOutcome, PromotionRejectionReason,
 };
 use crate::kernel::kb003_promotion::receipt::PromotionReceiptV1;
+use crate::kernel::mte_authority_mutation_boundary::AuthorityMutationActor;
 use crate::kernel::sandbox::denial::SandboxDenialRecordV1;
-// H-B1 fix: `SandboxCapability` is only referenced inside #[cfg(test)] mod tests
-// (which has its own `use`). Top-level import would warn under -D warnings.
 use crate::kernel::sandbox::run::{SandboxRunStatus, SandboxRunV1};
 use crate::kernel::validation::report::ValidationReport;
 use crate::kernel::validation::status::ValidationStatus;
@@ -123,6 +122,11 @@ pub struct PromotionGateInputs<'a> {
     pub policy_version_id: String,
     pub report_artifact_ref: Option<String>,
     pub treat_advisory_as_blocking: bool,
+    /// KB003 remediation H3: when true, the aggregator ALSO blocks on
+    /// Advisory descriptors returning `Unsupported`. Default false — gating
+    /// descriptors returning `Unsupported` are always blocked via
+    /// `aggregate_blocks_promotion_for_kind`.
+    pub treat_unsupported_as_blocking_for_advisory: bool,
 }
 
 /// Persisted output of `PromotionGate::evaluate`.
@@ -177,22 +181,33 @@ impl PromotionGate {
             },
             decided_at_utc: decision.decided_at_utc.to_rfc3339(),
         };
-        if let Err(e) = storage.insert_promotion_decision(&decision_row) {
+        if let Err(e) = storage.insert_promotion_decision(&decision_row, AuthorityMutationActor::PromotionGate) {
             // Storage failure folds into a typed rejection so callers still get
-            // a receipt explaining what happened.
+            // a receipt explaining what happened. H4 fix: the rejection-reason
+            // body still carries the raw error string (for rationale_short and
+            // any on-disk surface that reads the body), but the receipt's
+            // `payload_hash` is computed from a bucketed
+            // `NormalisedStorageErrorKind` via
+            // `PromotionRejectionReason::canonical_hash_projection`, so two
+            // retries of the same logical Postgres failure (worded differently)
+            // produce IDENTICAL payload_hash values and the idempotency dedup
+            // fires correctly. The raw string is preserved on the receipt's
+            // `storage_error_detail` for observability.
+            let raw_error = e.to_string();
             let fallback = PromotionDecisionV1::rejected(
                 decision.sandbox_run_id.clone(),
                 inputs.validation_run_id.clone(),
                 PromotionRejectionReason::PostgresFailure {
-                    storage_error: e.to_string(),
+                    storage_error: raw_error.clone(),
                 },
             );
-            let fallback_receipt = PromotionReceiptV1::new(
+            let fallback_receipt = PromotionReceiptV1::new_with_storage_error_detail(
                 fallback.clone(),
                 inputs.idempotency_key.clone(),
                 Some(inputs.artifact_bundle.bundle_id),
                 Some(inputs.artifact_bundle.bundle_sha256.clone()),
                 Self::receipt_artifact_refs(&inputs),
+                Some(raw_error),
             );
             // H-B2 fix: try to persist the rejection receipt anyway. The
             // decision-row insert failed, but the receipt row table may still
@@ -209,7 +224,7 @@ impl PromotionGate {
                 issued_at_utc: fallback_receipt.issued_at_utc.to_rfc3339(),
             };
             let stored_receipt_id = storage
-                .insert_promotion_receipt(&fallback_row)
+                .insert_promotion_receipt(&fallback_row, AuthorityMutationActor::PromotionGate)
                 .ok();
             return Ok(PromotionGateOutput {
                 decision: fallback,
@@ -227,7 +242,7 @@ impl PromotionGate {
             issued_at_utc: receipt.issued_at_utc.to_rfc3339(),
         };
 
-        match storage.insert_promotion_receipt(&row) {
+        match storage.insert_promotion_receipt(&row, AuthorityMutationActor::PromotionGate) {
             Ok(stored_receipt_id) => Ok(PromotionGateOutput {
                 decision,
                 receipt,
@@ -312,9 +327,14 @@ impl PromotionGate {
             );
         }
 
-        // 4. Validation gate: aggregate first, then promote advisory if strict
-        // mode opted in.
-        let blocking = inputs.validation_report.aggregate_blocks_promotion()
+        // 4. Validation gate: aggregate first (KB003 H3 kind-aware: gating +
+        // Unsupported blocks; optionally advisory + Unsupported under strict
+        // flag), then promote advisory-only if strict mode opted in.
+        let blocking = inputs
+            .validation_report
+            .aggregate_blocks_promotion_for_kind_with_flag(
+                inputs.treat_unsupported_as_blocking_for_advisory,
+            )
             || (inputs.treat_advisory_as_blocking
                 && inputs
                     .validation_report
@@ -328,6 +348,10 @@ impl PromotionGate {
                 .iter()
                 .filter(|o| {
                     o.status.blocks_promotion()
+                        || (matches!(o.status, ValidationStatus::Unsupported { .. })
+                            && (o.descriptor_kind
+                                == crate::kernel::validation::descriptor::DescriptorKind::Gating
+                                || inputs.treat_unsupported_as_blocking_for_advisory))
                         || (inputs.treat_advisory_as_blocking
                             && matches!(o.status, ValidationStatus::AdvisoryOnly { .. }))
                 })
@@ -472,6 +496,7 @@ mod tests {
             policy_version_id: "POL-1@1".into(),
             report_artifact_ref: Some("kb003://validation_report/h2bbbbbbbbbbbbbb".into()),
             treat_advisory_as_blocking: false,
+            treat_unsupported_as_blocking_for_advisory: false,
         }
     }
 

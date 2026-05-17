@@ -1,3 +1,7 @@
+//! NOTE: do_insert_promotion_receipt enforces two-layer idempotency.
+//! Historical revisions M-A5 et al. narrowed the conflict-vs-match
+//! distinction; see commit history for full rationale.
+//!
 //! KB003 storage glue.
 //!
 //! MT-011..MT-014 acceptance: provide durable Postgres rows + migration SQL
@@ -25,6 +29,10 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::kernel::mte_authority_mutation_boundary::{
+    AuthorityBoundaryCheck, AuthorityBoundaryDenialV1, AuthorityBoundaryVerdict,
+    AuthorityMutationActor, AuthorityRowClass,
+};
 use crate::kernel::sandbox::no_sqlite_tripwire::{
     guard_authority_write, AuthorityMode, NoSqliteTripwireError,
 };
@@ -183,6 +191,16 @@ pub enum Kb003StorageError {
     NotFound(String),
     #[error("backend error: {0}")]
     Backend(String),
+    /// H2 fix (KB003 remediation): an actor other than `PromotionGate`
+    /// attempted to write a gate-only authority row (PromotionDecision or
+    /// PromotionReceipt). The typed denial record is preserved on the
+    /// variant so the boundary breach can be replayed.
+    #[error(
+        "authority boundary denied: actor {} cannot mutate {}",
+        .0.actor.as_str(),
+        .0.row_class.as_str()
+    )]
+    AuthorityBoundaryDenied(AuthorityBoundaryDenialV1),
 }
 
 pub type Kb003StorageResult<T> = Result<T, Kb003StorageError>;
@@ -212,11 +230,39 @@ pub trait Kb003Storage {
         guard_authority_write(self.authority_mode())?;
         self.do_insert_validation_run(row)
     }
-    fn insert_promotion_decision(&mut self, row: &PromotionDecisionRowV1) -> Kb003StorageResult<()> {
+    /// H2 fix (KB003 remediation): the actor must be `PromotionGate`.
+    /// Any other actor is refused at the authority boundary BEFORE the
+    /// no-sqlite tripwire guard runs, so the boundary breach is recorded
+    /// as a typed `AuthorityBoundaryDenialV1` rather than collapsing into
+    /// a generic authority-guard error.
+    fn insert_promotion_decision(
+        &mut self,
+        row: &PromotionDecisionRowV1,
+        actor: AuthorityMutationActor,
+    ) -> Kb003StorageResult<()> {
+        if let AuthorityBoundaryVerdict::Deny { denial } = AuthorityBoundaryCheck::evaluate(
+            actor,
+            AuthorityRowClass::PromotionDecision,
+            "insert_promotion_decision",
+        ) {
+            return Err(Kb003StorageError::AuthorityBoundaryDenied(denial));
+        }
         guard_authority_write(self.authority_mode())?;
         self.do_insert_promotion_decision(row)
     }
-    fn insert_promotion_receipt(&mut self, row: &PromotionReceiptRowV1) -> Kb003StorageResult<String> {
+    /// H2 fix (KB003 remediation): see `insert_promotion_decision`.
+    fn insert_promotion_receipt(
+        &mut self,
+        row: &PromotionReceiptRowV1,
+        actor: AuthorityMutationActor,
+    ) -> Kb003StorageResult<String> {
+        if let AuthorityBoundaryVerdict::Deny { denial } = AuthorityBoundaryCheck::evaluate(
+            actor,
+            AuthorityRowClass::PromotionReceipt,
+            "insert_promotion_receipt",
+        ) {
+            return Err(Kb003StorageError::AuthorityBoundaryDenied(denial));
+        }
         guard_authority_write(self.authority_mode())?;
         self.do_insert_promotion_receipt(row)
     }
@@ -343,18 +389,7 @@ impl Kb003Storage for InMemoryKb003Storage {
             .find(|r| r.idempotency_key == row.idempotency_key)
         {
             if existing.payload_hash == row.payload_hash {
-                // M-A5 (revised round 3): `decision_id` is an ephemeral UUID
-                // generated fresh per evaluate() call (PromotionDecisionV1::
-                // accepted/rejected → uuid::new_v4) so it MUST NOT participate
-                // in the idempotency hit check — every legitimate retry would
-                // see different ids. The earlier M-A5 check (require
-                // decision_id match) inverted this and broke true idempotency.
-                //
-                // `artifact_ref` IS in `payload_hash` indirectly via
-                // `artifact_refs` (the list including the report ref), so any
-                // legitimate skew is already caught by the hash comparison.
-                // Same payload_hash → same logical receipt body → return the
-                // prior receipt id (true idempotency).
+                // MT-055 + M-A5: idempotency check; see top-of-file NOTE.
                 return Ok(existing.receipt_id.clone());
             }
             return Err(Kb003StorageError::IdempotencyConflict {
@@ -443,6 +478,8 @@ mod tests {
             finished_at_utc: None,
             denial_id: None,
             artifact_refs: vec![],
+            terminal_cause: None,
+            requested_capabilities: vec![],
         }
     }
 
@@ -526,7 +563,9 @@ mod tests {
             rationale_short: "checks green".into(),
             decided_at_utc: "2026-05-17T00:00:02Z".into(),
         };
-        store.insert_promotion_decision(&dec).unwrap();
+        store
+            .insert_promotion_decision(&dec, AuthorityMutationActor::PromotionGate)
+            .unwrap();
         let receipt = PromotionReceiptRowV1 {
             receipt_id: "PR-1".into(),
             decision_id: "PD-1".into(),
@@ -535,15 +574,21 @@ mod tests {
             artifact_ref: Some("ART-r-1".into()),
             issued_at_utc: "2026-05-17T00:00:03Z".into(),
         };
-        let first = store.insert_promotion_receipt(&receipt).unwrap();
+        let first = store
+            .insert_promotion_receipt(&receipt, AuthorityMutationActor::PromotionGate)
+            .unwrap();
         // Same key + same payload hash => idempotent returns same id.
-        let second = store.insert_promotion_receipt(&receipt).unwrap();
+        let second = store
+            .insert_promotion_receipt(&receipt, AuthorityMutationActor::PromotionGate)
+            .unwrap();
         assert_eq!(first, second);
         // Same key, different payload hash => conflict.
         let mut mutated = receipt.clone();
         mutated.receipt_id = "PR-2".into();
         mutated.payload_hash = "h-bbbb".into();
-        let err = store.insert_promotion_receipt(&mutated).unwrap_err();
+        let err = store
+            .insert_promotion_receipt(&mutated, AuthorityMutationActor::PromotionGate)
+            .unwrap_err();
         match err {
             Kb003StorageError::IdempotencyConflict { key, .. } => assert_eq!(key, "IDEMP-1"),
             other => panic!("expected IdempotencyConflict, got {:?}", other),

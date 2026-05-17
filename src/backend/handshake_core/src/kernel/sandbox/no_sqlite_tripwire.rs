@@ -78,16 +78,16 @@ mod tests {
 
     #[test]
     fn sqlite_modes_fail_closed() {
-        for mode in [
+        for mode_under_test in [
             AuthorityMode::SqliteCache,
             AuthorityMode::SqliteOffline,
             AuthorityMode::Test,
         ] {
-            let err = guard_authority_write(mode).expect_err("KB003 must refuse non-Postgres authority");
+            let err = guard_authority_write(mode_under_test).expect_err("KB003 must refuse non-Postgres authority");
             match err {
                 NoSqliteTripwireError::NonPostgresAuthority { mode: m, policy } => {
                     assert_eq!(policy, KB003_NO_SQLITE_AUTHORITY_POLICY_ID);
-                    assert_eq!(m, mode_str_round_trip(mode));
+                    assert_eq!(m, mode_str_round_trip(mode_under_test));
                 }
             }
         }

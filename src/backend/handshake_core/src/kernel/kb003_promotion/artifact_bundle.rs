@@ -185,6 +185,35 @@ mod tests {
     }
 
     #[test]
+    fn handle_carries_full_content_sha256() {
+        // 64-hex sha256 input must be retained verbatim on the handle so the
+        // promotion receipt can hash the full content hash, not the truncated
+        // 16-hex visual prefix embedded in `handle`. Without the full hash,
+        // two distinct artifact contents that happen to share a 16-hex prefix
+        // would collide on the idempotency key.
+        let full = "abcdef0123456789aabbccddeeff0011223344556677889900aabbccddeeff00";
+        assert_eq!(full.len(), 64, "test fixture must be a full sha256");
+        let h = Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, full).unwrap();
+        assert_eq!(h.content_sha256, full, "handle must retain full 64-hex hash");
+        // The visual handle still carries only the 16-hex prefix.
+        assert!(h.handle.contains(&full[..16]));
+        assert!(!h.handle.contains(&full[16..]));
+
+        // Two handles whose full hashes share a 16-hex prefix but diverge in
+        // the remaining 48 hex chars must remain distinguishable via
+        // `content_sha256` even though `handle` strings collide.
+        let collide_a = "0000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let collide_b = "0000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        let a = Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, collide_a).unwrap();
+        let b = Kb003ArtifactHandleV1::new(Kb003ArtifactClass::SandboxLog, collide_b).unwrap();
+        assert_eq!(a.handle, b.handle, "visual handles collide on 16-hex prefix");
+        assert_ne!(
+            a.content_sha256, b.content_sha256,
+            "full content_sha256 must distinguish them"
+        );
+    }
+
+    #[test]
     fn handle_refuses_empty_hash() {
         let err = Kb003ArtifactHandleV1::new(Kb003ArtifactClass::ValidationReport, "")
             .unwrap_err();

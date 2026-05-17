@@ -74,6 +74,33 @@ impl TimeoutClock for ManualClock {
     }
 }
 
+/// Production wall-clock implementation of `TimeoutClock`. Anchors at the
+/// `Instant` captured when constructed and reports monotonic elapsed time via
+/// `Instant::elapsed`.
+pub struct RealtimeClock {
+    started_at: std::time::Instant,
+}
+
+impl RealtimeClock {
+    pub fn new() -> Self {
+        Self {
+            started_at: std::time::Instant::now(),
+        }
+    }
+}
+
+impl Default for RealtimeClock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TimeoutClock for RealtimeClock {
+    fn elapsed_since_start(&self) -> Duration {
+        self.started_at.elapsed()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TerminalCause {
@@ -93,21 +120,24 @@ pub fn terminate_run(
     cpu_timeout: Option<Duration>,
     cpu_elapsed: Option<Duration>,
 ) -> TerminalCause {
+    // M3 fix: re-entry against an already-terminal run must return the
+    // ORIGINAL cause stored on the run, never a fabricated
+    // `CancelledByOperator`. Persistence of the cause happens below on the
+    // first terminal transition.
     if run.status.is_terminal() {
-        return match run.status {
-            SandboxRunStatus::Completed => TerminalCause::CompletedOk,
-            _ => TerminalCause::CancelledByOperator,
-        };
+        return run.terminal_cause.clone().unwrap_or(TerminalCause::CompletedOk);
     }
     if token.is_cancelled() {
         run.status = SandboxRunStatus::Rejected;
         run.finished_at_utc = Some(chrono::Utc::now());
+        run.terminal_cause = Some(TerminalCause::CancelledByOperator);
         return TerminalCause::CancelledByOperator;
     }
     if let Some(timeout) = wall_timeout {
         if clock.elapsed_since_start() >= timeout {
             run.status = SandboxRunStatus::Rejected;
             run.finished_at_utc = Some(chrono::Utc::now());
+            run.terminal_cause = Some(TerminalCause::WallTimeoutExpired);
             return TerminalCause::WallTimeoutExpired;
         }
     }
@@ -115,6 +145,7 @@ pub fn terminate_run(
         if elapsed >= timeout {
             run.status = SandboxRunStatus::Rejected;
             run.finished_at_utc = Some(chrono::Utc::now());
+            run.terminal_cause = Some(TerminalCause::CpuTimeoutExpired);
             return TerminalCause::CpuTimeoutExpired;
         }
     }
@@ -218,6 +249,62 @@ mod tests {
         run.status = SandboxRunStatus::Completed;
         assert!(RunPromotionGuard::is_promotable(&run));
         RunPromotionGuard::assert_promotable(&run).expect("completed run promotes");
+    }
+
+    #[test]
+    fn realtime_clock_elapsed_is_monotonic() {
+        let clock = RealtimeClock::new();
+        let first = clock.elapsed_since_start();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        let second = clock.elapsed_since_start();
+        assert!(
+            second >= first,
+            "RealtimeClock must report monotonic elapsed time (second={:?} first={:?})",
+            second,
+            first
+        );
+    }
+
+    #[test]
+    fn re_entry_preserves_original_terminal_cause() {
+        // M3 regression guard: once a run is dropped into a terminal state
+        // with a specific cause (e.g. wall-timeout), any subsequent call to
+        // `terminate_run` MUST return that same cause and MUST NOT fabricate
+        // `CancelledByOperator`.
+        let mut run = fresh_run();
+        run.status = SandboxRunStatus::Started;
+        let t = CancellationToken::new();
+
+        // First call: wall timeout fires.
+        let clock = ManualClock::new(Duration::from_secs(120));
+        let first = terminate_run(
+            &mut run,
+            &t,
+            &clock,
+            Some(Duration::from_secs(60)),
+            None,
+            None,
+        );
+        assert_eq!(first, TerminalCause::WallTimeoutExpired);
+        assert_eq!(run.status, SandboxRunStatus::Rejected);
+        assert_eq!(run.terminal_cause, Some(TerminalCause::WallTimeoutExpired));
+
+        // Second call against the now-terminal run, with a freshly-cancelled
+        // token: MUST still return the original WallTimeoutExpired cause.
+        t.cancel();
+        let second = terminate_run(
+            &mut run,
+            &t,
+            &clock,
+            Some(Duration::from_secs(60)),
+            None,
+            None,
+        );
+        assert_eq!(
+            second,
+            TerminalCause::WallTimeoutExpired,
+            "re-entry must preserve original cause, not invent CancelledByOperator"
+        );
     }
 
     #[test]

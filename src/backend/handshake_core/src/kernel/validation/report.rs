@@ -21,6 +21,7 @@ use crate::kernel::kb003_schemas::{
     EVENT_KB003_VALIDATION_RUN_COMPLETED, SCHEMA_KERNEL_VALIDATION_RUN_V1,
 };
 
+use super::descriptor::{DescriptorKind, ValidationDescriptor};
 use super::status::ValidationStatus;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,15 +42,44 @@ impl EvidenceItem {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DescriptorOutcome {
     pub descriptor_name: String,
+    /// Classification of the descriptor that produced this outcome. Defaults
+    /// to `Gating` for the `new(name, status)` constructor (conservative —
+    /// unknown descriptors are treated as gating so an `Unsupported` outcome
+    /// blocks promotion under `aggregate_blocks_promotion_for_kind`). Use
+    /// `from_descriptor` to capture the descriptor's real kind.
+    #[serde(default = "default_descriptor_kind")]
+    pub descriptor_kind: DescriptorKind,
     pub status: ValidationStatus,
     pub evidence: Vec<EvidenceItem>,
     pub artifact_refs: Vec<String>,
+}
+
+fn default_descriptor_kind() -> DescriptorKind {
+    DescriptorKind::Gating
 }
 
 impl DescriptorOutcome {
     pub fn new(descriptor_name: impl Into<String>, status: ValidationStatus) -> Self {
         Self {
             descriptor_name: descriptor_name.into(),
+            descriptor_kind: DescriptorKind::Gating,
+            status,
+            evidence: Vec::new(),
+            artifact_refs: Vec::new(),
+        }
+    }
+
+    /// Construct an outcome capturing the descriptor's real kind. Preferred
+    /// over `new` for adapter dispatch so `Unsupported` on a gating descriptor
+    /// can be aggregated as blocking (see
+    /// `ValidationReport::aggregate_blocks_promotion_for_kind`).
+    pub fn from_descriptor(
+        descriptor: &dyn ValidationDescriptor,
+        status: ValidationStatus,
+    ) -> Self {
+        Self {
+            descriptor_name: descriptor.name().to_string(),
+            descriptor_kind: descriptor.kind(),
             status,
             evidence: Vec::new(),
             artifact_refs: Vec::new(),
@@ -70,7 +100,7 @@ impl DescriptorOutcome {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidationReport {
     pub schema_version: String,
-    pub event_type: &'static str,
+    pub event_type: String,
     pub artifact_class: Kb003ArtifactClass,
     pub run_id: Uuid,
     pub created_at: DateTime<Utc>,
@@ -87,7 +117,7 @@ impl ValidationReport {
     pub fn new(run_id: Uuid) -> Self {
         Self {
             schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1.to_string(),
-            event_type: EVENT_KB003_VALIDATION_RUN_COMPLETED,
+            event_type: EVENT_KB003_VALIDATION_RUN_COMPLETED.to_string(),
             artifact_class: Kb003ArtifactClass::ValidationReport,
             run_id,
             created_at: Utc::now(),
@@ -102,7 +132,7 @@ impl ValidationReport {
     pub fn for_run(run: &crate::kernel::validation::run::ValidationRun) -> Self {
         Self {
             schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1.to_string(),
-            event_type: EVENT_KB003_VALIDATION_RUN_COMPLETED,
+            event_type: EVENT_KB003_VALIDATION_RUN_COMPLETED.to_string(),
             artifact_class: Kb003ArtifactClass::ValidationReport,
             run_id: run.run_id,
             created_at: Utc::now(),
@@ -129,6 +159,33 @@ impl ValidationReport {
         self.outcomes
             .iter()
             .any(|o| o.status.blocks_promotion())
+    }
+
+    /// Kind-aware promotion-gate projection (KB003 remediation H3):
+    /// blocks when ANY outcome satisfies:
+    ///   - `status.blocks_promotion()` (FAIL / BLOCKED / ERROR), OR
+    ///   - `descriptor_kind == Gating && status == Unsupported`
+    ///
+    /// This closes the silent-skip mode forbidden by MT-044: a gating
+    /// descriptor that returns `Unsupported` (declared adapter not available)
+    /// must NOT silently pass.
+    pub fn aggregate_blocks_promotion_for_kind(&self) -> bool {
+        self.aggregate_blocks_promotion_for_kind_with_flag(false)
+    }
+
+    /// Strict-mode variant of `aggregate_blocks_promotion_for_kind`. When
+    /// `treat_unsupported_as_blocking_for_advisory` is true, advisory
+    /// descriptors returning `Unsupported` also block.
+    pub fn aggregate_blocks_promotion_for_kind_with_flag(
+        &self,
+        treat_unsupported_as_blocking_for_advisory: bool,
+    ) -> bool {
+        self.outcomes.iter().any(|o| {
+            o.status.blocks_promotion()
+                || (matches!(o.status, ValidationStatus::Unsupported { .. })
+                    && (o.descriptor_kind == DescriptorKind::Gating
+                        || treat_unsupported_as_blocking_for_advisory))
+        })
     }
 
     /// Count by status tag for fast surface rendering.
@@ -186,25 +243,65 @@ mod tests {
     }
 
     #[test]
-    fn validation_report_serde_surfaces_original_run_id() {
-        // Serialize-side coverage only: `schema_version: &'static str` on
-        // ValidationReport blocks owned-string deserialization (same latent
-        // type-design issue). Value-equality of the linkage is covered by
-        // `replay_report_propagates_original_run_id` above; this test pins
-        // the wire form.
+    fn validation_report_serde_round_trips_original_run_id() {
         use crate::kernel::validation::run::ValidationRun;
         let first = ValidationRun::new("c", "s", "t").unwrap();
         let replay = ValidationRun::replay_of(&first, "s2", "t2").unwrap();
         let report = ValidationReport::for_run(&replay);
         let json = serde_json::to_string(&report).expect("serialize");
-        assert!(
-            json.contains("original_run_id"),
-            "replay report JSON must surface original_run_id: {json}"
-        );
-        assert!(
-            json.contains(&first.run_id.to_string()),
-            "serialized report must reference the original run_id literal: {json}"
-        );
+        let back: ValidationReport = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.original_run_id, Some(first.run_id));
+        assert_eq!(back.run_id, replay.run_id);
+    }
+
+    // KB003 remediation H3: kind-aware aggregation.
+
+    fn outcome_with_kind(
+        name: &str,
+        kind: DescriptorKind,
+        status: ValidationStatus,
+    ) -> DescriptorOutcome {
+        let mut o = DescriptorOutcome::new(name, status);
+        o.descriptor_kind = kind;
+        o
+    }
+
+    #[test]
+    fn unsupported_gating_descriptor_blocks_promotion() {
+        let mut r = ValidationReport::new(Uuid::now_v7());
+        r.push(outcome_with_kind(
+            "hard_isolation",
+            DescriptorKind::Gating,
+            ValidationStatus::unsupported("HardIsolation").unwrap(),
+        ));
+        // Default aggregator (status-only) MUST NOT block — that's the latent
+        // silent-skip defect this remediation closes.
+        assert!(!r.aggregate_blocks_promotion());
+        // Kind-aware aggregator MUST block: gating + Unsupported is a hard
+        // refusal under MT-044.
+        assert!(r.aggregate_blocks_promotion_for_kind());
+    }
+
+    #[test]
+    fn unsupported_advisory_descriptor_does_not_block_by_default() {
+        let mut r = ValidationReport::new(Uuid::now_v7());
+        r.push(outcome_with_kind(
+            "lint_advisory",
+            DescriptorKind::Advisory,
+            ValidationStatus::unsupported("LintAdapter").unwrap(),
+        ));
+        assert!(!r.aggregate_blocks_promotion_for_kind());
+    }
+
+    #[test]
+    fn unsupported_advisory_descriptor_blocks_when_strict_flag_set() {
+        let mut r = ValidationReport::new(Uuid::now_v7());
+        r.push(outcome_with_kind(
+            "lint_advisory",
+            DescriptorKind::Advisory,
+            ValidationStatus::unsupported("LintAdapter").unwrap(),
+        ));
+        assert!(r.aggregate_blocks_promotion_for_kind_with_flag(true));
     }
 
     #[test]

@@ -14,10 +14,21 @@ fn uuids_minted_via_now_v7_carry_version_7() {
 }
 
 #[test]
-fn two_sequential_now_v7_uuids_are_time_ordered() {
-    let a = Uuid::now_v7();
-    let b = Uuid::now_v7();
-    // v7 high bits are unix_ts_ms big-endian; sequential calls within the same
-    // millisecond may tie but never invert.
-    assert!(a <= b, "v7 should be time-ordered: {a} vs {b}");
+fn now_v7_uuids_are_time_ordered_across_milliseconds() {
+    let mut uuids = Vec::with_capacity(20);
+    for _ in 0..20 {
+        uuids.push(uuid::Uuid::now_v7());
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    for w in uuids.windows(2) {
+        assert!(w[0] < w[1], "v7 should be time-ordered across ms: {} vs {}", w[0], w[1]);
+    }
+}
+
+#[test]
+fn now_v7_high_bits_are_monotonic_intra_ms() {
+    let samples: Vec<u128> = (0..1000).map(|_| uuid::Uuid::now_v7().as_u128()).collect();
+    for w in samples.windows(2) {
+        assert!((w[0] >> 80) <= (w[1] >> 80), "v7 high-48 bits must be non-decreasing");
+    }
 }

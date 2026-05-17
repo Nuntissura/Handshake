@@ -18,6 +18,38 @@ use super::denial::{DenialKind, SandboxDenialRecordV1};
 use super::policy_default_deny::ResourceCapsV1;
 use super::run::SandboxRunV1;
 
+/// M6: deterministic safe defaults for `default_deny` resource caps.
+///
+/// Previously `default_deny` produced an all-`None` `ResourceCapsV1`, which
+/// the cap evaluator treats as "unbounded for that dimension". That
+/// contradicted the documented "default-deny" stance because a run could
+/// consume unlimited wall-clock, CPU, memory, FDs, and output bytes without
+/// any cap firing.
+///
+/// `SAFE_DEFAULT_RESOURCE_CAPS` populates every dimension this struct
+/// exposes with conservative defaults. Production callers that need
+/// unbounded behavior for a specific dimension must opt in by constructing
+/// `ResourceCapsV1` directly with `None` on that field; explicit `None` is
+/// the documented "unbounded by design" signal and is preserved on a
+/// per-field basis.
+///
+/// Mapping vs the H5/M6 spec values:
+/// - wall-clock 30s  -> `wall_ms = Some(30_000)`
+/// - cpu 30s         -> `cpu_ms  = Some(30_000)`
+/// - memory 4 GiB    -> `memory_bytes = Some(4 * 1024 * 1024 * 1024)`
+/// - open files 256  -> `file_descriptors = Some(256)`
+/// - disk-write 1 GiB-> `output_bytes = Some(1 * 1024 * 1024 * 1024)`
+///   (this struct does not carry a dedicated `disk_write_bytes` field; the
+///   closest existing dimension is `output_bytes`)
+/// - child processes -> not exposed by this struct; not populated here
+pub const SAFE_DEFAULT_RESOURCE_CAPS: ResourceCapsV1 = ResourceCapsV1 {
+    wall_ms: Some(30_000_u64),
+    cpu_ms: Some(30_000_u64),
+    memory_bytes: Some(4_u64 * 1024 * 1024 * 1024),
+    file_descriptors: Some(256_u32),
+    output_bytes: Some(1024_u64 * 1024 * 1024),
+};
+
 /// Observed usage at evaluation time. Any field `None` means "not measured".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ResourceUsageV1 {
@@ -163,14 +195,49 @@ mod tests {
     }
 
     #[test]
-    fn no_caps_allows_anything() {
-        let caps = ResourceCapsV1::default();
+    fn explicit_none_cap_is_unbounded_by_design() {
+        // M6: explicit `None` on a per-field basis is the documented
+        // "unbounded by design" signal and MUST keep allowing any observed
+        // usage on that dimension. Construct caps with EXPLICIT None values
+        // rather than `Default::default()` so the intent is unambiguous.
+        let caps = ResourceCapsV1 {
+            wall_ms: None,
+            cpu_ms: None,
+            memory_bytes: None,
+            file_descriptors: None,
+            output_bytes: None,
+        };
         let usage = ResourceUsageV1 {
             wall_ms: Some(9_999_999),
             ..Default::default()
         };
         let dec = ResourceCapEvaluator::new(&caps).evaluate(&run(), &usage);
         assert_eq!(dec, ResourceDecision::Allow);
+    }
+
+    #[test]
+    fn default_deny_bundle_applies_safe_caps() {
+        // M6 acceptance: `SandboxPolicyBundleV1::default_deny` must populate
+        // every cap dimension via `SAFE_DEFAULT_RESOURCE_CAPS`. The previous
+        // behavior left every field at None (unbounded), which contradicted
+        // the documented default-deny stance.
+        use crate::kernel::sandbox::policy_default_deny::SandboxPolicyBundleV1;
+        let bundle = SandboxPolicyBundleV1::default_deny("safe-caps");
+        let caps = &bundle.extensions.resource_caps;
+        assert_eq!(caps.wall_ms, SAFE_DEFAULT_RESOURCE_CAPS.wall_ms);
+        assert_eq!(caps.cpu_ms, SAFE_DEFAULT_RESOURCE_CAPS.cpu_ms);
+        assert_eq!(caps.memory_bytes, SAFE_DEFAULT_RESOURCE_CAPS.memory_bytes);
+        assert_eq!(
+            caps.file_descriptors,
+            SAFE_DEFAULT_RESOURCE_CAPS.file_descriptors
+        );
+        assert_eq!(caps.output_bytes, SAFE_DEFAULT_RESOURCE_CAPS.output_bytes);
+        // Every dimension must be Some (bounded).
+        assert!(caps.wall_ms.is_some());
+        assert!(caps.cpu_ms.is_some());
+        assert!(caps.memory_bytes.is_some());
+        assert!(caps.file_descriptors.is_some());
+        assert!(caps.output_bytes.is_some());
     }
 
     #[test]

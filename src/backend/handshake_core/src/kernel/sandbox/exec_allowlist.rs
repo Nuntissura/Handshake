@@ -15,6 +15,7 @@
 //!     allowlist and returns a typed denial if missing.
 
 use serde::{Deserialize, Serialize};
+use unicode_normalization::UnicodeNormalization;
 
 use super::denial::{DenialKind, SandboxDenialRecordV1};
 use super::policy::SandboxCapability;
@@ -36,6 +37,8 @@ pub enum DescriptorValidationError {
     EmptyProgram,
     ShellInvocation { detail: String },
     ShellMetacharacter { detail: String },
+    ShellLikeDispatcher { detail: String },
+    ArgvControlChar { arg_index: usize, char_byte: u8 },
     MissingProvenance,
     MissingPurposeTag,
 }
@@ -50,6 +53,19 @@ impl DescriptorValidationError {
             Self::ShellMetacharacter { detail } => {
                 format!("descriptor contains shell metacharacter: {}", detail)
             }
+            Self::ShellLikeDispatcher { detail } => {
+                format!(
+                    "descriptor uses shell-like dispatcher without explicit allowlist entry: {}",
+                    detail
+                )
+            }
+            Self::ArgvControlChar {
+                arg_index,
+                char_byte,
+            } => format!(
+                "argv element at index {} contains control byte 0x{:02x}",
+                arg_index, char_byte
+            ),
             Self::MissingProvenance => "descriptor has empty `provenance_ref`".to_string(),
             Self::MissingPurposeTag => "descriptor has empty `purpose_tag`".to_string(),
         }
@@ -57,11 +73,20 @@ impl DescriptorValidationError {
 }
 
 const SHELL_PROGRAMS: &[&str] = &[
-    "sh", "bash", "zsh", "dash", "ksh", "fish", "cmd", "cmd.exe", "powershell", "powershell.exe",
-    "pwsh", "pwsh.exe",
+    "sh", "bash", "zsh", "dash", "ksh", "fish", "tcsh", "csh", "xonsh", "nushell", "nu", "cmd",
+    "cmd.exe", "powershell", "powershell.exe", "pwsh", "pwsh.exe",
     // H-A2 fix: BusyBox dispatches to multiple shells; wsl.exe can launch shells inside WSL.
     "busybox", "wsl.exe",
 ];
+
+/// Programs that aren't shells themselves but are commonly chained to invoke
+/// arbitrary commands (`xargs sh -c`, `env bash`, `ssh host cmd`, …). When the
+/// descriptor program is one of these, the gate refuses unless the descriptor
+/// id is explicitly registered in the policy allowlist — which is enforced by
+/// `ExecAllowlistGate::check` independently. The shape validator surfaces them
+/// here so a missing allowlist entry produces a typed `ShellLikeDispatcher`
+/// signal rather than a generic "not in allowlist" message.
+const SHELL_LIKE_PROGRAMS: &[&str] = &["xargs", "env", "ssh", "scp", "sftp"];
 const SHELL_METACHARS: &[char] = &[';', '|', '&', '>', '<', '`', '$'];
 
 /// H-A2 fix: language interpreters that accept `-c|-e|-r`-style code payloads.
@@ -69,19 +94,34 @@ const SHELL_METACHARS: &[char] = &[';', '|', '&', '>', '<', '`', '$'];
 /// shell invocation and MUST be rejected when the descriptor mixes the two.
 /// The forbidden flag is matched case-insensitively against any arg.
 const INTERPRETER_CODE_PAYLOAD_PROGRAMS: &[(&str, &[&str])] = &[
-    ("python", &["-c"]),
-    ("python.exe", &["-c"]),
-    ("python3", &["-c"]),
-    ("python3.exe", &["-c"]),
+    ("python", &["-c", "-m"]),
+    ("python.exe", &["-c", "-m"]),
+    ("python3", &["-c", "-m"]),
+    ("python3.exe", &["-c", "-m"]),
     ("node", &["-e", "--eval"]),
     ("node.exe", &["-e", "--eval"]),
-    ("perl", &["-e"]),
-    ("perl.exe", &["-e"]),
+    ("deno", &["eval"]),
+    ("deno.exe", &["eval"]),
+    ("perl", &["-e", "-E"]),
+    ("perl.exe", &["-e", "-E"]),
     ("ruby", &["-e"]),
     ("ruby.exe", &["-e"]),
     ("php", &["-r"]),
     ("php.exe", &["-r"]),
+    ("lua", &["-e"]),
+    ("lua.exe", &["-e"]),
+    ("sed", &["-e", "--expression"]),
+    ("sed.exe", &["-e", "--expression"]),
+    ("nu", &["-c"]),
+    ("nu.exe", &["-c"]),
+    ("pwsh", &["-c", "-command", "-encodedcommand"]),
+    ("pwsh.exe", &["-c", "-command", "-encodedcommand"]),
 ];
+
+/// Programs where ANY argument is treated as a code payload (no flag gate).
+/// `awk PROGRAM file` reads `PROGRAM` directly as awk source.
+const INTERPRETER_ANY_ARG_CODE_PAYLOAD_PROGRAMS: &[&str] =
+    &["awk", "awk.exe", "gawk", "gawk.exe", "mawk", "mawk.exe"];
 
 /// Validate a single descriptor's *shape*. Does NOT check the allowlist; that
 /// is `ExecAllowlistGate::check`.
@@ -96,11 +136,39 @@ pub fn validate_descriptor(d: &CommandDescriptorV1) -> Result<(), DescriptorVali
         return Err(DescriptorValidationError::MissingProvenance);
     }
 
-    let program_lower = std::path::Path::new(&d.program)
+    // Reject control bytes anywhere in argv (including program). Embedded
+    // NUL/CR/LF have been used to smuggle commands past argv parsers.
+    for (idx, a) in std::iter::once(&d.program).chain(d.args.iter()).enumerate() {
+        if let Some(b) = a.bytes().find(|b| matches!(b, 0x00 | b'\n' | b'\r')) {
+            // arg_index: 0 = program, 1+ = args[0..]
+            return Err(DescriptorValidationError::ArgvControlChar {
+                arg_index: idx,
+                char_byte: b,
+            });
+        }
+    }
+
+    // NFKC-normalise the program name so full-width / compatibility homoglyphs
+    // of shell names (`ｂａｓｈ`, ligatures, Roman-numeral forms, …) cannot
+    // evade SHELL_PROGRAMS. NFKC alone does NOT collapse cross-script
+    // homographs (e.g. Cyrillic `а` U+0430 stays Cyrillic), so we additionally
+    // refuse program names that mix scripts: any non-ASCII character in the
+    // program basename is treated as a shell-invocation attempt, because
+    // legitimate exec descriptors target ASCII-named binaries.
+    let program_basename = std::path::Path::new(&d.program)
         .file_name()
         .and_then(|s| s.to_str())
-        .unwrap_or(&d.program)
-        .to_ascii_lowercase();
+        .unwrap_or(&d.program);
+    let program_nfkc: String = program_basename.nfkc().collect();
+    if program_nfkc.chars().any(|c| !c.is_ascii()) {
+        return Err(DescriptorValidationError::ShellInvocation {
+            detail: format!(
+                "program `{}` contains non-ASCII characters (possible homoglyph of a shell name)",
+                d.program
+            ),
+        });
+    }
+    let program_lower: String = program_nfkc.to_lowercase();
 
     if SHELL_PROGRAMS.contains(&program_lower.as_str()) {
         // Allowed only if no `-c`-style payload is present.
@@ -141,6 +209,35 @@ pub fn validate_descriptor(d: &CommandDescriptorV1) -> Result<(), DescriptorVali
                 ),
             });
         }
+    }
+
+    // `awk` and friends consume ANY non-flag arg as a program string. Treat
+    // any args at all on these tools as a code payload — descriptors that
+    // legitimately need awk should be re-modelled with a script file behind a
+    // dedicated tool wrapper.
+    if INTERPRETER_ANY_ARG_CODE_PAYLOAD_PROGRAMS.contains(&program_lower.as_str())
+        && !d.args.is_empty()
+    {
+        return Err(DescriptorValidationError::ShellInvocation {
+            detail: format!(
+                "interpreter `{}` accepts any arg as code payload",
+                d.program
+            ),
+        });
+    }
+
+    // Shell-like dispatchers (`xargs`, `env`, `ssh`, `scp`, `sftp`) routinely
+    // run arbitrary commands as a tail effect. Surface them with a typed
+    // `ShellLikeDispatcher` so policy operators see what to allowlist instead
+    // of a generic shape failure. Validator-level allowlist lookup still has
+    // final authority — this is only a shape-stage signal.
+    if SHELL_LIKE_PROGRAMS.contains(&program_lower.as_str()) {
+        return Err(DescriptorValidationError::ShellLikeDispatcher {
+            detail: format!(
+                "program `{}` is a shell-like dispatcher; require an explicit allowlist entry",
+                d.program
+            ),
+        });
     }
 
     // Reject argv segments that contain shell metacharacters; argv is supposed
@@ -366,6 +463,92 @@ mod tests {
                 DescriptorValidationError::ShellInvocation { .. } => {}
                 other => panic!("expected ShellInvocation for {}, got {:?}", prog, other),
             }
+        }
+    }
+
+    #[test]
+    fn cyrillic_homoglyph_shell_rejected() {
+        // "bаsh" — second char is Cyrillic small letter `а` (U+0430), not ASCII.
+        let prog: String = ['b', '\u{0430}', 's', 'h'].iter().collect();
+        let d = CommandDescriptorV1 {
+            descriptor_id: "homoglyph_shell".into(),
+            program: prog,
+            args: vec!["-c".into(), "id".into()],
+            purpose_tag: "x".into(),
+            provenance_ref: "y".into(),
+        };
+        let err = validate_descriptor(&d).expect_err("homoglyph shell must be rejected");
+        match err {
+            DescriptorValidationError::ShellInvocation { .. } => {}
+            other => panic!("expected ShellInvocation for homoglyph, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn python_dash_m_rejected_as_code_payload() {
+        let d = CommandDescriptorV1 {
+            descriptor_id: "py_module".into(),
+            program: "python".into(),
+            args: vec!["-m".into(), "http.server".into()],
+            purpose_tag: "x".into(),
+            provenance_ref: "y".into(),
+        };
+        let err = validate_descriptor(&d).expect_err("python -m must be rejected");
+        match err {
+            DescriptorValidationError::ShellInvocation { .. } => {}
+            other => panic!("expected ShellInvocation for python -m, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn argv_with_null_byte_rejected() {
+        let d = CommandDescriptorV1 {
+            descriptor_id: "null_arg".into(),
+            program: "cargo".into(),
+            args: vec!["check".into(), "good\0evil".into()],
+            purpose_tag: "x".into(),
+            provenance_ref: "y".into(),
+        };
+        let err = validate_descriptor(&d).expect_err("NUL byte in arg must be rejected");
+        match err {
+            DescriptorValidationError::ArgvControlChar { char_byte, .. } => {
+                assert_eq!(char_byte, 0x00);
+            }
+            other => panic!("expected ArgvControlChar, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn argv_with_newline_rejected() {
+        let d = CommandDescriptorV1 {
+            descriptor_id: "newline_arg".into(),
+            program: "cargo".into(),
+            args: vec!["check\nrm -rf /".into()],
+            purpose_tag: "x".into(),
+            provenance_ref: "y".into(),
+        };
+        let err = validate_descriptor(&d).expect_err("newline in arg must be rejected");
+        match err {
+            DescriptorValidationError::ArgvControlChar { char_byte, .. } => {
+                assert_eq!(char_byte, b'\n');
+            }
+            other => panic!("expected ArgvControlChar, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn ssh_with_command_string_rejected() {
+        let d = CommandDescriptorV1 {
+            descriptor_id: "ssh_cmd".into(),
+            program: "ssh".into(),
+            args: vec!["host.example".into(), "uname -a".into()],
+            purpose_tag: "x".into(),
+            provenance_ref: "y".into(),
+        };
+        let err = validate_descriptor(&d).expect_err("ssh must be flagged as shell-like");
+        match err {
+            DescriptorValidationError::ShellLikeDispatcher { .. } => {}
+            other => panic!("expected ShellLikeDispatcher, got {:?}", other),
         }
     }
 

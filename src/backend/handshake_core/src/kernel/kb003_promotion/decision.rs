@@ -27,6 +27,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::kernel::kb003_promotion::gate_error_kind::NormalisedStorageErrorKind;
 use crate::kernel::kb003_schemas::{
     EVENT_KB003_PROMOTION_DECIDED, EVENT_KB003_PROMOTION_REJECTED,
     SCHEMA_KERNEL_PROMOTION_DECISION_V1,
@@ -174,6 +175,112 @@ impl PromotionRejectionReason {
             } => format!("projection {projection_family_id} rebuild failed: {detail}"),
         }
     }
+
+    /// H4 fix (KB003 remediation): return a deterministic, hash-stable
+    /// projection of this rejection reason. The full `PromotionRejectionReason`
+    /// embeds ephemeral/non-deterministic fields (PolicyDenial.denial_id,
+    /// MissingArtifact.bundle_id, PostgresFailure.storage_error string) that
+    /// caused two retries of the same logical rejection to produce different
+    /// `payload_hash` values and thus false `IdempotencyConflict` reports.
+    ///
+    /// This projection KEEPS only the fields whose identity defines the
+    /// logical rejection (so attackers cannot swap reason without changing
+    /// the hash) and STRIPS the rest. For PostgresFailure the raw error
+    /// string is bucketed into a `NormalisedStorageErrorKind` so transient
+    /// message-text wobble (line numbers, timestamps) does not change the
+    /// hash but a deadlock vs unique-violation DOES.
+    pub fn canonical_hash_projection(&self) -> CanonicalRejectionPayload {
+        match self {
+            Self::StaleCandidate {
+                candidate_run_id,
+                latest_run_id,
+            } => CanonicalRejectionPayload::StaleCandidate {
+                candidate_run_id: candidate_run_id.clone(),
+                latest_run_id: latest_run_id.clone(),
+            },
+            Self::DuplicateIdempotencyKey {
+                idempotency_key, ..
+            } => CanonicalRejectionPayload::DuplicateIdempotencyKey {
+                idempotency_key: idempotency_key.clone(),
+            },
+            Self::ValidationFailure {
+                blocking_outcomes, ..
+            } => {
+                let mut sorted = blocking_outcomes.clone();
+                sorted.sort();
+                CanonicalRejectionPayload::ValidationFailure {
+                    failed_descriptor_names: sorted,
+                }
+            }
+            Self::PolicyDenial {
+                policy_version_id,
+                capability,
+                ..
+            } => CanonicalRejectionPayload::PolicyDenial {
+                policy_version_id: policy_version_id.clone(),
+                capability: capability.clone(),
+            },
+            Self::MissingApproval { missing_field } => {
+                CanonicalRejectionPayload::MissingApproval {
+                    missing_field: missing_field.clone(),
+                }
+            }
+            Self::MissingArtifact {
+                expected_artifact_ref,
+                ..
+            } => CanonicalRejectionPayload::MissingArtifact {
+                expected_artifact_ref: expected_artifact_ref.clone(),
+            },
+            Self::PostgresFailure { storage_error } => {
+                CanonicalRejectionPayload::PostgresFailure {
+                    error_kind: NormalisedStorageErrorKind::classify_message(storage_error),
+                }
+            }
+            Self::ProjectionRebuildFailure {
+                projection_family_id,
+                ..
+            } => CanonicalRejectionPayload::ProjectionRebuildFailure {
+                projection_family_id: projection_family_id.clone(),
+            },
+        }
+    }
+}
+
+/// H4 fix: deterministic projection of `PromotionRejectionReason` used solely
+/// for `payload_hash` computation. Mirrors the variant names of
+/// `PromotionRejectionReason` but keeps only the fields whose identity
+/// defines the logical rejection — every ephemeral UUID, timestamp, and
+/// raw error string is stripped.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "reason_kind", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CanonicalRejectionPayload {
+    StaleCandidate {
+        candidate_run_id: String,
+        latest_run_id: String,
+    },
+    DuplicateIdempotencyKey {
+        idempotency_key: String,
+    },
+    ValidationFailure {
+        /// Sorted ascending for deterministic hashing.
+        failed_descriptor_names: Vec<String>,
+    },
+    PolicyDenial {
+        policy_version_id: String,
+        capability: Option<String>,
+    },
+    MissingApproval {
+        missing_field: String,
+    },
+    MissingArtifact {
+        expected_artifact_ref: String,
+    },
+    PostgresFailure {
+        error_kind: NormalisedStorageErrorKind,
+    },
+    ProjectionRebuildFailure {
+        projection_family_id: String,
+    },
 }
 
 /// Durable promotion decision record. Schema id

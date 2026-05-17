@@ -37,7 +37,8 @@ use handshake_core::kernel::sandbox::no_sqlite_tripwire::{
     KB003_NO_SQLITE_AUTHORITY_POLICY_ID,
 };
 use handshake_core::kernel::sandbox::policy::{
-    CapabilityDecision, SandboxCapability, SandboxPolicyV1,
+    CapabilityDecision, CapabilityEvidenceRef, CapabilityGrant, OperatorApprovalRef,
+    SandboxCapability, SandboxPolicyV1,
 };
 use handshake_core::kernel::sandbox::policy_default_deny::{
     FilesystemScopeV1, NetworkGateV1, NetworkGrantV1, ProcessExecAllowlistV1,
@@ -145,9 +146,14 @@ fn network_gate_denials_emit_typed_evidence_for_every_failure_shape() {
 
     // Case 2: cap allowed but no grants present.
     let mut core_allow = SandboxPolicyV1::default_deny("baseline");
-    core_allow
-        .overrides
-        .push((SandboxCapability::Network, CapabilityDecision::AllowWithEvidence));
+    core_allow.overrides.push((
+        SandboxCapability::Network,
+        CapabilityDecision::Allow(CapabilityGrant {
+            capability: SandboxCapability::Network,
+            evidence_ref: CapabilityEvidenceRef::new("ART-net-evidence"),
+            approval_ref: Some(OperatorApprovalRef::new("APR-net-1")),
+        }),
+    ));
     let g2 = NetworkCapabilityGate::new(&core_allow, &empty_gate);
     let den2 = match g2.check_host(&r, "api.example.com") {
         NetworkDecision::Denied(d) => d,
@@ -449,5 +455,96 @@ fn denial_kinds_observed_in_matrix_cover_three_critical_variants() {
     );
     for d in &[policy_denied, boundary, adapter] {
         assert_typed_evidence(d);
+    }
+}
+
+// ------------------------------------------------------------------
+// H5: AllowWithEvidence removed — every sensitive capability grant
+// must carry a non-empty `evidence_ref`. The matrix below walks five
+// sensitive capabilities and asserts:
+//   1. a grant with a valid evidence_ref passes default `pre_check`
+//   2. a grant with an empty evidence_ref is refused at policy build
+//      time (`validate_grants`) AND at adapter `pre_check`.
+// ------------------------------------------------------------------
+
+#[test]
+fn h5_grant_evidence_ref_matrix_across_five_sensitive_capabilities() {
+    use handshake_core::kernel::sandbox::policy::PolicyBuildError;
+    use handshake_core::kernel::sandbox::policy_scoped_local::PolicyScopedLocalAdapter;
+    use handshake_core::kernel::sandbox::adapter::SandboxAdapter;
+
+    let capabilities = [
+        SandboxCapability::FilesystemEscape,
+        SandboxCapability::ProcessSpawn,
+        SandboxCapability::Device,
+        SandboxCapability::EnvironmentLeak,
+        SandboxCapability::SecretRead,
+    ];
+
+    for cap in capabilities {
+        // ---- positive path: valid evidence_ref ----
+        let mut good_pol = SandboxPolicyV1::default_deny("h5-good");
+        good_pol.overrides.push((
+            cap,
+            CapabilityDecision::Allow(CapabilityGrant {
+                capability: cap,
+                evidence_ref: CapabilityEvidenceRef::new("ART-grant-evidence-1"),
+                approval_ref: Some(OperatorApprovalRef::new("APR-h5")),
+            }),
+        ));
+        good_pol
+            .validate_grants()
+            .expect("valid evidence_ref must pass validate_grants");
+        let good_adapter = PolicyScopedLocalAdapter::new(good_pol.clone())
+            .expect("default-deny core stays Deny so adapter accepts the policy");
+        good_adapter
+            .pre_check(&run(), &good_pol, &[cap])
+            .unwrap_or_else(|d| panic!("valid grant for {} must pass pre_check; got {:?}", cap.as_str(), d));
+
+        // ---- negative path: empty evidence_ref ----
+        let mut bad_pol = SandboxPolicyV1::default_deny("h5-bad");
+        bad_pol.overrides.push((
+            cap,
+            CapabilityDecision::Allow(CapabilityGrant {
+                capability: cap,
+                evidence_ref: CapabilityEvidenceRef::new(""),
+                approval_ref: None,
+            }),
+        ));
+
+        // (a) validate_grants must reject at build time.
+        match bad_pol.validate_grants() {
+            Err(PolicyBuildError::CapabilityGrantMissingEvidence { capability }) => {
+                assert_eq!(
+                    capability,
+                    cap,
+                    "build-time rejection must name the offending capability"
+                );
+            }
+            Ok(()) => panic!(
+                "empty evidence_ref for {} must be refused by validate_grants",
+                cap.as_str()
+            ),
+        }
+
+        // (b) even if validate_grants is bypassed, adapter pre_check must
+        // still refuse the grant with a typed denial.
+        let bad_adapter = PolicyScopedLocalAdapter::new(bad_pol.clone())
+            .expect("default-deny core stays Deny; adapter accepts the policy shell");
+        let denial = bad_adapter
+            .pre_check(&run(), &bad_pol, &[cap])
+            .expect_err(&format!(
+                "adapter pre_check must refuse empty evidence_ref for {}",
+                cap.as_str()
+            ));
+        assert_eq!(denial.kind, DenialKind::PolicyDenied);
+        assert_eq!(denial.capability, Some(cap));
+        assert!(
+            denial.reason.contains("EvidenceRefInvalid"),
+            "denial reason must mark EvidenceRefInvalid for {}; got {:?}",
+            cap.as_str(),
+            denial.reason
+        );
+        assert_typed_evidence(&denial);
     }
 }

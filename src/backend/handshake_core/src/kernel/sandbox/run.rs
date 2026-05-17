@@ -14,6 +14,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use super::cancellation::TerminalCause;
+use super::policy::SandboxCapability;
+
+
 /// Lifecycle status for a sandbox run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -88,6 +92,19 @@ pub struct SandboxRunV1 {
     pub finished_at_utc: Option<DateTime<Utc>>,
     pub denial_id: Option<String>,
     pub artifact_refs: Vec<String>,
+    /// M3 fix: the original terminal cause recorded when the run first
+    /// transitioned to a terminal state. `None` for non-terminal runs. Set by
+    /// `cancellation::terminate_run` on first terminal transition; preserved
+    /// on re-entry so callers never see a fabricated `CancelledByOperator`
+    /// for a run that actually timed out.
+    #[serde(default)]
+    pub terminal_cause: Option<TerminalCause>,
+    /// M7 fix: the explicit set of sensitive capabilities the run actually
+    /// requests. Adapter `pre_check` iterates this list instead of the global
+    /// `SandboxCapability::ALL`, so a run that requests nothing is not denied
+    /// for capabilities it never asked for. Default empty.
+    #[serde(default)]
+    pub requested_capabilities: Vec<SandboxCapability>,
 }
 
 impl SandboxRunV1 {
@@ -118,6 +135,8 @@ impl SandboxRunV1 {
             finished_at_utc: None,
             denial_id: None,
             artifact_refs: Vec::new(),
+            terminal_cause: None,
+            requested_capabilities: Vec::new(),
         }
     }
 }

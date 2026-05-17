@@ -33,6 +33,14 @@ pub enum AuthorityMutationActor {
     ValidationRunner,
     /// `kernel::mte_*` — MTE scheduler; must not write authority directly.
     MteScheduler,
+    /// Coder role session — must not write authority directly. H2.
+    Coder,
+    /// Validator role session — must not write authority directly. H2.
+    Validator,
+    /// DCC projection-rebuild path — must not write authority directly. H2.
+    DccProjection,
+    /// External caller from outside the kernel — must not write authority. H2.
+    ExternalActor,
     /// External / unknown actor — must not write authority.
     UnknownActor,
 }
@@ -44,6 +52,10 @@ impl AuthorityMutationActor {
             Self::SandboxAdapter => "SANDBOX_ADAPTER",
             Self::ValidationRunner => "VALIDATION_RUNNER",
             Self::MteScheduler => "MTE_SCHEDULER",
+            Self::Coder => "CODER",
+            Self::Validator => "VALIDATOR",
+            Self::DccProjection => "DCC_PROJECTION",
+            Self::ExternalActor => "EXTERNAL_ACTOR",
             Self::UnknownActor => "UNKNOWN_ACTOR",
         }
     }

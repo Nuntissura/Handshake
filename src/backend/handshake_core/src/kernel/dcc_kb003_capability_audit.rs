@@ -11,10 +11,10 @@
 //! - the **provenance evidence** (artifact handle, operator id, decision id)
 //!   that justifies a non-default grant.
 //!
-//! For `CapabilityDecision::AllowWithEvidence` the audit row is required to
-//! carry at least one provenance entry; the
-//! [`CapabilityAuditRowV1::is_well_formed`] check enforces this. For DENY
-//! rows, the provenance points to the denial id.
+//! For `CapabilityDecision::Allow(grant)` the audit row is required to carry
+//! at least one provenance entry AND the grant must carry a non-empty
+//! `evidence_ref`; the [`CapabilityAuditRowV1::is_well_formed`] check enforces
+//! this. For DENY rows, the provenance points to the denial id.
 //!
 //! Frontend renders via existing dcc-* IPC surface; no app/** edits.
 
@@ -60,22 +60,25 @@ impl CapabilityAuditRowV1 {
     }
 
     /// Acceptance: every sensitive grant has provenance. A grant is
-    /// sensitive when it is `AllowWithEvidence` (which must carry at least
-    /// one provenance row) or `Deny` (which must carry a `DenialRef`).
-    /// `Allow` and the default-deny stance are not required to carry
-    /// provenance.
+    /// sensitive when it is `Allow(grant)` (which must carry at least one
+    /// provenance row AND the grant must carry a non-empty `evidence_ref`)
+    /// or `Deny` (which must carry a `DenialRef`).
     pub fn is_well_formed(&self) -> bool {
-        match self.decision {
-            CapabilityDecision::AllowWithEvidence => {
-                self.provenance
-                    .iter()
-                    .any(|p| matches!(p, CapabilityProvenanceV1::ArtifactRef { .. } | CapabilityProvenanceV1::OperatorApproval { .. }))
+        match &self.decision {
+            CapabilityDecision::Allow(grant) => {
+                grant.evidence_ref.is_present()
+                    && self.provenance.iter().any(|p| {
+                        matches!(
+                            p,
+                            CapabilityProvenanceV1::ArtifactRef { .. }
+                                | CapabilityProvenanceV1::OperatorApproval { .. }
+                        )
+                    })
             }
             CapabilityDecision::Deny => self
                 .provenance
                 .iter()
                 .any(|p| matches!(p, CapabilityProvenanceV1::DenialRef { .. })),
-            CapabilityDecision::Allow => true,
         }
     }
 }
@@ -111,19 +114,30 @@ impl DccKb003CapabilityAuditV1 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::kernel::sandbox::policy::{
+        CapabilityEvidenceRef, CapabilityGrant, OperatorApprovalRef,
+    };
+
+    fn grant(cap: SandboxCapability, evidence: &str) -> CapabilityGrant {
+        CapabilityGrant {
+            capability: cap,
+            evidence_ref: CapabilityEvidenceRef::new(evidence),
+            approval_ref: Some(OperatorApprovalRef::new("APR-test")),
+        }
+    }
 
     #[test]
     fn allow_with_evidence_requires_provenance() {
         let bad = CapabilityAuditRowV1::new(
             SandboxCapability::Network,
-            CapabilityDecision::AllowWithEvidence,
+            CapabilityDecision::Allow(grant(SandboxCapability::Network, "ART-1")),
             "POL-1@1",
             vec![],
         );
         assert!(!bad.is_well_formed());
         let good = CapabilityAuditRowV1::new(
             SandboxCapability::Network,
-            CapabilityDecision::AllowWithEvidence,
+            CapabilityDecision::Allow(grant(SandboxCapability::Network, "ART-1")),
             "POL-1@1",
             vec![CapabilityProvenanceV1::OperatorApproval {
                 operator_id: "ilja".into(),
@@ -152,14 +166,17 @@ mod tests {
     }
 
     #[test]
-    fn allow_is_always_well_formed() {
+    fn allow_with_empty_evidence_is_not_well_formed() {
+        // H5: an Allow(grant) row with an EMPTY evidence_ref must be rejected
+        // even if a provenance entry is present, because the grant itself
+        // lacks the audit handle.
         let r = CapabilityAuditRowV1::new(
             SandboxCapability::ProcessSpawn,
-            CapabilityDecision::Allow,
+            CapabilityDecision::Allow(grant(SandboxCapability::ProcessSpawn, "")),
             "POL-1@1",
-            vec![],
+            vec![CapabilityProvenanceV1::ArtifactRef { artifact_ref: "ART-1".into() }],
         );
-        assert!(r.is_well_formed());
+        assert!(!r.is_well_formed());
     }
 
     #[test]
@@ -169,7 +186,7 @@ mod tests {
             vec![
                 CapabilityAuditRowV1::new(
                     SandboxCapability::Network,
-                    CapabilityDecision::AllowWithEvidence,
+                    CapabilityDecision::Allow(grant(SandboxCapability::Network, "ART-net-grant")),
                     "POL-1@1",
                     vec![CapabilityProvenanceV1::ArtifactRef { artifact_ref: "ART-net-eval".into() }],
                 ),

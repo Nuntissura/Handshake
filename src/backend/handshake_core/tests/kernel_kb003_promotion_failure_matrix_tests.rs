@@ -30,7 +30,7 @@ use handshake_core::kernel::kb003_promotion::artifact_bundle::{
     Kb003ArtifactBundleV1, Kb003ArtifactHandleV1, KbArtifactBundleAssembler,
 };
 use handshake_core::kernel::kb003_promotion::decision::{
-    PromotionDecisionV1, PromotionOutcome, PromotionRejectionReason,
+    PromotionDecisionV1, PromotionRejectionReason,
 };
 use handshake_core::kernel::kb003_promotion::gate::{
     OperatorApprovalEvidence, PromotionGate, PromotionGateInputs,
@@ -108,6 +108,7 @@ fn good_inputs<'a>(
         policy_version_id: "POL-mt076@1".into(),
         report_artifact_ref: Some("kb003://validation_report/h2bbbbbbbbbbbbbb".into()),
         treat_advisory_as_blocking: false,
+        treat_unsupported_as_blocking_for_advisory: false,
     }
 }
 
@@ -591,5 +592,252 @@ fn matrix_covers_all_eight_promotion_rejection_variants() {
         tags.len(),
         8,
         "all 8 PromotionRejectionReason variants must produce a unique tag; matrix must cover each"
+    );
+}
+
+// ====================================================================
+// H4 (KB003 remediation) — deterministic rejection-path payload_hash.
+//
+// Each test triggers the same logical rejection TWICE and asserts the
+// receipt's `payload_hash` is byte-identical across retries. That is the
+// invariant that prevents false `IdempotencyConflict` on retry of any
+// rejection variant.
+// ====================================================================
+
+use handshake_core::kernel::kb003_promotion::receipt::PromotionReceiptV1;
+
+/// Build a fresh accepted decision -> receipt, but with a controlled
+/// idempotency key + bundle so two calls hash deterministically.
+fn make_rejection_receipt(reason: PromotionRejectionReason) -> PromotionReceiptV1 {
+    let dec = PromotionDecisionV1::rejected("SBX-h4", "VR-h4", reason);
+    PromotionReceiptV1::new(
+        dec,
+        "IK-h4",
+        Some(Uuid::now_v7()),
+        Some("bundle-sha-h4".into()),
+        vec!["kb003://art/h4".into()],
+    )
+}
+
+#[test]
+fn stale_candidate_retry_is_idempotent() {
+    let r1 = make_rejection_receipt(PromotionRejectionReason::StaleCandidate {
+        candidate_run_id: "SBX-c".into(),
+        latest_run_id: "SBX-l".into(),
+    });
+    let r2 = make_rejection_receipt(PromotionRejectionReason::StaleCandidate {
+        candidate_run_id: "SBX-c".into(),
+        latest_run_id: "SBX-l".into(),
+    });
+    assert_eq!(
+        r1.payload_hash, r2.payload_hash,
+        "two StaleCandidate retries must hash identically"
+    );
+    assert_ne!(r1.receipt_id, r2.receipt_id, "receipt id is ephemeral");
+}
+
+#[test]
+fn duplicate_idempotency_key_retry_is_idempotent() {
+    // existing_payload_hash / new_payload_hash are observability fields and
+    // can wobble between retries; the canonical projection keeps only
+    // `idempotency_key`.
+    let r1 = make_rejection_receipt(PromotionRejectionReason::DuplicateIdempotencyKey {
+        idempotency_key: "IK-collide".into(),
+        existing_payload_hash: "h-prior-aaaaa".into(),
+        new_payload_hash: "h-new-bbbbbb".into(),
+    });
+    let r2 = make_rejection_receipt(PromotionRejectionReason::DuplicateIdempotencyKey {
+        idempotency_key: "IK-collide".into(),
+        existing_payload_hash: "h-prior-DIFFERENT".into(),
+        new_payload_hash: "h-new-DIFFERENT".into(),
+    });
+    assert_eq!(
+        r1.payload_hash, r2.payload_hash,
+        "DuplicateIdempotencyKey retries with wobbly hash strings must hash identically"
+    );
+}
+
+#[test]
+fn validation_failure_retry_is_idempotent() {
+    // Different INSERTION ORDER of blocking outcomes must NOT change the
+    // hash (canonical projection sorts the list ascending).
+    let r1 = make_rejection_receipt(PromotionRejectionReason::ValidationFailure {
+        validation_run_id: "VR-h4".into(),
+        blocking_outcomes: vec!["b_check".into(), "a_check".into()],
+        report_artifact_ref: Some("kb003://r/1".into()),
+    });
+    let r2 = make_rejection_receipt(PromotionRejectionReason::ValidationFailure {
+        validation_run_id: "VR-h4".into(),
+        blocking_outcomes: vec!["a_check".into(), "b_check".into()],
+        report_artifact_ref: Some("kb003://r/1".into()),
+    });
+    assert_eq!(
+        r1.payload_hash, r2.payload_hash,
+        "ValidationFailure with same descriptor set in different order must hash identically"
+    );
+}
+
+#[test]
+fn policy_denial_retry_is_idempotent() {
+    // `denial_id` is a fresh UUID per denial record; it MUST NOT participate
+    // in the payload_hash so retries collapse correctly.
+    let r1 = make_rejection_receipt(PromotionRejectionReason::PolicyDenial {
+        denial_id: "DEN-aaaaaaaaaaaaaa".into(),
+        policy_version_id: "POL-1@1".into(),
+        capability: Some("NETWORK".into()),
+    });
+    let r2 = make_rejection_receipt(PromotionRejectionReason::PolicyDenial {
+        denial_id: "DEN-DIFFERENT-UUID".into(),
+        policy_version_id: "POL-1@1".into(),
+        capability: Some("NETWORK".into()),
+    });
+    assert_eq!(
+        r1.payload_hash, r2.payload_hash,
+        "PolicyDenial retries with different denial_id must hash identically"
+    );
+
+    // Same policy+capability but DIFFERENT policy_version_id MUST differ
+    // (the policy version is load-bearing).
+    let r3 = make_rejection_receipt(PromotionRejectionReason::PolicyDenial {
+        denial_id: "DEN-x".into(),
+        policy_version_id: "POL-1@2".into(),
+        capability: Some("NETWORK".into()),
+    });
+    assert_ne!(
+        r1.payload_hash, r3.payload_hash,
+        "different policy_version_id must change the hash"
+    );
+}
+
+#[test]
+fn missing_approval_retry_is_idempotent() {
+    let r1 = make_rejection_receipt(PromotionRejectionReason::MissingApproval {
+        missing_field: "operator_id".into(),
+    });
+    let r2 = make_rejection_receipt(PromotionRejectionReason::MissingApproval {
+        missing_field: "operator_id".into(),
+    });
+    assert_eq!(r1.payload_hash, r2.payload_hash);
+}
+
+#[test]
+fn missing_artifact_retry_is_idempotent() {
+    // `bundle_id` is a fresh UUID per bundle; it MUST NOT participate in the
+    // payload_hash so retries collapse correctly.
+    let r1 = make_rejection_receipt(PromotionRejectionReason::MissingArtifact {
+        expected_artifact_ref: "kb003://x/abc".into(),
+        bundle_id: Some(Uuid::now_v7()),
+    });
+    let r2 = make_rejection_receipt(PromotionRejectionReason::MissingArtifact {
+        expected_artifact_ref: "kb003://x/abc".into(),
+        bundle_id: Some(Uuid::now_v7()),
+    });
+    assert_eq!(
+        r1.payload_hash, r2.payload_hash,
+        "MissingArtifact retries with different bundle_id must hash identically"
+    );
+}
+
+/// H4 stub: refuses decision insert with a configurable raw error string per
+/// call. Allows asserting that two PostgresFailure retries with DIFFERENT
+/// raw error strings but the SAME normalised kind still hash identically.
+struct StorageRefusingDecisionInsertWithMessage {
+    mode: AuthorityMode,
+    next_message: String,
+}
+
+impl Kb003Storage for StorageRefusingDecisionInsertWithMessage {
+    fn authority_mode(&self) -> AuthorityMode {
+        self.mode
+    }
+    fn do_insert_sandbox_run(&mut self, _r: &SandboxRunV1) -> Result<(), Kb003StorageError> {
+        Ok(())
+    }
+    fn do_update_sandbox_run_status(
+        &mut self,
+        _r: &str,
+        _s: SandboxRunStatus,
+    ) -> Result<(), Kb003StorageError> {
+        Ok(())
+    }
+    fn do_insert_sandbox_policy_version(
+        &mut self,
+        _p: &handshake_core::kernel::sandbox::policy::SandboxPolicyV1,
+    ) -> Result<(), Kb003StorageError> {
+        Ok(())
+    }
+    fn do_insert_validation_run(
+        &mut self,
+        _r: &handshake_core::storage::kb003_storage::ValidationRunRowV1,
+    ) -> Result<(), Kb003StorageError> {
+        Ok(())
+    }
+    fn do_insert_promotion_decision(
+        &mut self,
+        _r: &PromotionDecisionRowV1,
+    ) -> Result<(), Kb003StorageError> {
+        Err(Kb003StorageError::Backend(self.next_message.clone()))
+    }
+    fn do_insert_promotion_receipt(
+        &mut self,
+        r: &PromotionReceiptRowV1,
+    ) -> Result<String, Kb003StorageError> {
+        Ok(r.receipt_id.clone())
+    }
+}
+
+#[test]
+fn postgres_failure_retry_is_idempotent() {
+    // Two retries of the same logical deadlock — different raw text wobble,
+    // SAME NormalisedStorageErrorKind::Deadlock — must produce identical
+    // `payload_hash` so the idempotency dedup fires. The non-hashed
+    // `storage_error_detail` may differ.
+    let run = completed_run();
+    let report = pass_report();
+    let bun = bundle_for(&run);
+
+    let mut store1 = StorageRefusingDecisionInsertWithMessage {
+        mode: AuthorityMode::PostgresPrimary,
+        next_message: "deadlock detected on tx 991 at line 412".into(),
+    };
+    let out1 = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store1).unwrap();
+
+    let mut store2 = StorageRefusingDecisionInsertWithMessage {
+        mode: AuthorityMode::PostgresPrimary,
+        next_message: "Deadlock Detected on tx 1004 at line 538".into(),
+    };
+    let out2 = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store2).unwrap();
+
+    assert_rejection_reason(&out1.decision, "REJECTED_POSTGRES_FAILURE");
+    assert_rejection_reason(&out2.decision, "REJECTED_POSTGRES_FAILURE");
+    assert_eq!(
+        out1.receipt.payload_hash, out2.receipt.payload_hash,
+        "PostgresFailure retries with same kind but wobbly text must hash identically"
+    );
+    // The non-hashed observability detail MAY differ.
+    assert!(out1.receipt.storage_error_detail.is_some());
+    assert!(out2.receipt.storage_error_detail.is_some());
+    assert_ne!(
+        out1.receipt.storage_error_detail,
+        out2.receipt.storage_error_detail,
+        "raw storage_error_detail should preserve the wobble for observability"
+    );
+}
+
+#[test]
+fn projection_rebuild_failure_retry_is_idempotent() {
+    // `detail` is non-deterministic operational text; only
+    // `projection_family_id` is in the canonical projection.
+    let r1 = make_rejection_receipt(PromotionRejectionReason::ProjectionRebuildFailure {
+        projection_family_id: "hsk.dcc.kb003.sandbox_promotion_lane@1".into(),
+        detail: "missing source schema at 12:01:02".into(),
+    });
+    let r2 = make_rejection_receipt(PromotionRejectionReason::ProjectionRebuildFailure {
+        projection_family_id: "hsk.dcc.kb003.sandbox_promotion_lane@1".into(),
+        detail: "missing source schema at 12:01:55".into(),
+    });
+    assert_eq!(
+        r1.payload_hash, r2.payload_hash,
+        "ProjectionRebuildFailure retries with different `detail` must hash identically"
     );
 }

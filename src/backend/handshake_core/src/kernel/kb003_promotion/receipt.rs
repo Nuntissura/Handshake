@@ -27,7 +27,7 @@ use crate::kernel::kb003_artifact_classes::{
 };
 use crate::kernel::kb003_schemas::SCHEMA_KERNEL_PROMOTION_RECEIPT_V1;
 
-use super::decision::PromotionDecisionV1;
+use super::decision::{PromotionDecisionV1, PromotionOutcome};
 
 /// Durable receipt for a promotion decision. Schema id
 /// `hsk.kernel.promotion_receipt@1`.
@@ -48,6 +48,14 @@ pub struct PromotionReceiptV1 {
     pub artifact_refs: Vec<String>,
     pub event_ledger_event_id: Option<String>,
     pub issued_at_utc: DateTime<Utc>,
+    /// H4 fix (KB003 remediation): raw `e.to_string()` for the storage error
+    /// when the rejection variant is `PostgresFailure`. NOT included in
+    /// `payload_hash` — present only for observability so operators can
+    /// inspect what Postgres actually said even though the hash is now
+    /// computed from a bucketed `NormalisedStorageErrorKind`. `None` for
+    /// every other rejection variant and for accepted decisions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub storage_error_detail: Option<String>,
 }
 
 impl PromotionReceiptV1 {
@@ -75,8 +83,27 @@ impl PromotionReceiptV1 {
             artifact_refs,
             event_ledger_event_id: None,
             issued_at_utc: Utc::now(),
+            storage_error_detail: None,
         };
         receipt.payload_hash = receipt.compute_payload_hash();
+        receipt
+    }
+
+    /// H4 fix: like `new`, but also captures the raw storage-error string
+    /// for observability (only used on the PostgresFailure rejection path
+    /// in `PromotionGate::evaluate`). The raw string does NOT participate
+    /// in `payload_hash` — the hash is computed from the canonical
+    /// projection in `decision::canonical_hash_projection`.
+    pub fn new_with_storage_error_detail(
+        decision: PromotionDecisionV1,
+        idempotency_key: impl Into<String>,
+        bundle_id: Option<Uuid>,
+        bundle_sha256: Option<String>,
+        artifact_refs: Vec<String>,
+        storage_error_detail: Option<String>,
+    ) -> Self {
+        let mut receipt = Self::new(decision, idempotency_key, bundle_id, bundle_sha256, artifact_refs);
+        receipt.storage_error_detail = storage_error_detail;
         receipt
     }
 
@@ -101,11 +128,25 @@ impl PromotionReceiptV1 {
     /// tightening (require `decision_id` match on a hash hit) compounded
     /// the symptom; both are corrected together.
     pub fn compute_payload_hash(&self) -> String {
+        // H4 fix (KB003 remediation): the outcome we hash is a DETERMINISTIC
+        // projection, not the raw `self.decision.outcome`. The raw outcome
+        // embeds ephemeral fields (PolicyDenial.denial_id, MissingArtifact
+        // .bundle_id, PostgresFailure.storage_error raw string) that caused
+        // two retries of the same logical rejection to produce different
+        // payload_hash values → false IdempotencyConflict. The full outcome
+        // is still retained on `self.decision.outcome` for observability.
+        let canonical_outcome = match &self.decision.outcome {
+            PromotionOutcome::Accepted => json!({"kind": "ACCEPTED"}),
+            PromotionOutcome::Rejected { reason } => json!({
+                "kind": "REJECTED",
+                "projection": reason.canonical_hash_projection(),
+            }),
+        };
         let body = json!({
             "schema_version": self.schema_version,
             "validation_run_id": self.decision.validation_run_id,
             "sandbox_run_id": self.decision.sandbox_run_id,
-            "outcome": self.decision.outcome,
+            "outcome": canonical_outcome,
             "idempotency_key": self.idempotency_key,
             "bundle_sha256": self.bundle_sha256,
             "artifact_refs": self.artifact_refs,

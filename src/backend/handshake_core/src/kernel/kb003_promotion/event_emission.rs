@@ -24,6 +24,16 @@ use crate::kernel::kb003_schemas::{
 use super::decision::PromotionDecisionV1;
 use super::receipt::PromotionReceiptV1;
 
+/// Typed errors returned by the promotion event builders. Replaces the prior
+/// silent `Uuid::nil()` fallback in `parse_run_id`: a malformed
+/// `sandbox_run_id` is now an upstream-visible error instead of being papered
+/// over with a zero-UUID that would still write a "valid-looking" envelope.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum EventBuildError {
+    #[error("sandbox run id `{raw}` is malformed: {parse_error}")]
+    MalformedRunId { raw: String, parse_error: String },
+}
+
 /// Build the `Kb003EventEnvelope` for an accepted decision.
 pub fn build_promotion_decided_event(
     decision: &PromotionDecisionV1,
@@ -31,8 +41,8 @@ pub fn build_promotion_decided_event(
     session: &str,
     task: &str,
     artifact_refs: Vec<String>,
-) -> Kb003EventEnvelope {
-    let run_id = parse_run_id(&decision.sandbox_run_id);
+) -> Result<Kb003EventEnvelope, EventBuildError> {
+    let run_id = parse_run_id(&decision.sandbox_run_id)?;
     let mut env = Kb003EventEnvelope::new(
         EVENT_KB003_PROMOTION_DECIDED,
         run_id,
@@ -42,7 +52,7 @@ pub fn build_promotion_decided_event(
         &decision.decided_at_utc.to_rfc3339(),
     );
     env.artifact_refs = artifact_refs;
-    env
+    Ok(env)
 }
 
 /// Build the `Kb003EventEnvelope` for a rejected decision.
@@ -52,8 +62,8 @@ pub fn build_promotion_rejected_event(
     session: &str,
     task: &str,
     artifact_refs: Vec<String>,
-) -> Kb003EventEnvelope {
-    let run_id = parse_run_id(&decision.sandbox_run_id);
+) -> Result<Kb003EventEnvelope, EventBuildError> {
+    let run_id = parse_run_id(&decision.sandbox_run_id)?;
     let mut env = Kb003EventEnvelope::new(
         EVENT_KB003_PROMOTION_REJECTED,
         run_id,
@@ -63,7 +73,7 @@ pub fn build_promotion_rejected_event(
         &decision.decided_at_utc.to_rfc3339(),
     );
     env.artifact_refs = artifact_refs;
-    env
+    Ok(env)
 }
 
 /// Build the `Kb003EventEnvelope` for a receipt issuance. The receipt id is
@@ -74,8 +84,8 @@ pub fn build_promotion_receipt_issued_event(
     actor: &str,
     session: &str,
     task: &str,
-) -> Kb003EventEnvelope {
-    let run_id = parse_run_id(&receipt.decision.sandbox_run_id);
+) -> Result<Kb003EventEnvelope, EventBuildError> {
+    let run_id = parse_run_id(&receipt.decision.sandbox_run_id)?;
     let mut env = Kb003EventEnvelope::new(
         EVENT_KB003_PROMOTION_RECEIPT_ISSUED,
         run_id,
@@ -87,15 +97,20 @@ pub fn build_promotion_receipt_issued_event(
     let mut refs = vec![format!("kb003://promotion_receipt/{}", receipt.receipt_id)];
     refs.extend(receipt.artifact_refs.clone());
     env.artifact_refs = refs;
-    env
+    Ok(env)
 }
 
 /// Sandbox run ids carry the `SBX-<uuid>` prefix; the envelope's `run_id` is a
-/// raw `Uuid`. Strip the prefix and fall back to a deterministic zero-uuid if
-/// the string is malformed so envelope construction never panics.
-fn parse_run_id(sandbox_run_id: &str) -> Uuid {
+/// raw `Uuid`. Strip the prefix and return a typed `EventBuildError` if the
+/// remainder is not a valid UUID. Callers that already hold a typed `Uuid`
+/// should construct the envelope directly without round-tripping through a
+/// string.
+fn parse_run_id(sandbox_run_id: &str) -> Result<Uuid, EventBuildError> {
     let trimmed = sandbox_run_id.trim().trim_start_matches("SBX-");
-    Uuid::parse_str(trimmed).unwrap_or(Uuid::nil())
+    Uuid::parse_str(trimmed).map_err(|e| EventBuildError::MalformedRunId {
+        raw: sandbox_run_id.to_string(),
+        parse_error: e.to_string(),
+    })
 }
 
 #[cfg(test)]
@@ -103,10 +118,15 @@ mod tests {
     use super::*;
     use crate::kernel::kb003_promotion::decision::{PromotionDecisionV1, PromotionRejectionReason};
 
+    fn well_formed_run_id() -> String {
+        format!("SBX-{}", Uuid::nil())
+    }
+
     #[test]
     fn accepted_event_uses_decided_type() {
-        let d = PromotionDecisionV1::accepted("SBX-1", "VR-1");
-        let env = build_promotion_decided_event(&d, "actor", "ses", "task", vec!["a".into()]);
+        let d = PromotionDecisionV1::accepted(well_formed_run_id(), "VR-1");
+        let env = build_promotion_decided_event(&d, "actor", "ses", "task", vec!["a".into()])
+            .expect("well-formed run id parses");
         assert_eq!(env.event_type, EVENT_KB003_PROMOTION_DECIDED);
         assert_eq!(env.artifact_refs, vec!["a"]);
         assert_eq!(env.actor_id, "actor");
@@ -119,25 +139,32 @@ mod tests {
         let r = PromotionRejectionReason::MissingApproval {
             missing_field: "operator_id".into(),
         };
-        let d = PromotionDecisionV1::rejected("SBX-1", "VR-1", r);
-        let env = build_promotion_rejected_event(&d, "actor", "ses", "task", vec![]);
+        let d = PromotionDecisionV1::rejected(well_formed_run_id(), "VR-1", r);
+        let env = build_promotion_rejected_event(&d, "actor", "ses", "task", vec![])
+            .expect("well-formed run id parses");
         assert_eq!(env.event_type, EVENT_KB003_PROMOTION_REJECTED);
     }
 
     #[test]
     fn receipt_issued_event_includes_receipt_handle() {
-        let d = PromotionDecisionV1::accepted("SBX-1", "VR-1");
+        let d = PromotionDecisionV1::accepted(well_formed_run_id(), "VR-1");
         let r = PromotionReceiptV1::new(d, "IK-1", None, None, vec!["kb003://x/1".into()]);
-        let env = build_promotion_receipt_issued_event(&r, "actor", "ses", "task");
+        let env = build_promotion_receipt_issued_event(&r, "actor", "ses", "task")
+            .expect("well-formed run id parses");
         assert_eq!(env.event_type, EVENT_KB003_PROMOTION_RECEIPT_ISSUED);
         assert!(env.artifact_refs.iter().any(|s| s.contains(&r.receipt_id)));
         assert!(env.artifact_refs.iter().any(|s| s == "kb003://x/1"));
     }
 
     #[test]
-    fn malformed_sandbox_run_id_does_not_panic() {
+    fn malformed_sandbox_run_id_returns_typed_error() {
         let d = PromotionDecisionV1::accepted("not-a-uuid", "VR-1");
-        let env = build_promotion_decided_event(&d, "a", "s", "t", vec![]);
-        assert_eq!(env.run_id, Uuid::nil());
+        let err = build_promotion_decided_event(&d, "a", "s", "t", vec![])
+            .expect_err("malformed run id must surface typed error");
+        match err {
+            EventBuildError::MalformedRunId { raw, .. } => {
+                assert_eq!(raw, "not-a-uuid");
+            }
+        }
     }
 }
