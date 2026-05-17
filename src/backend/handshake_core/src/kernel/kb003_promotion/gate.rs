@@ -91,8 +91,12 @@ impl OperatorApprovalEvidence {
     }
 
     /// Approval source must be `operator_review_receipt` and the
-    /// review_receipt_id / reason must not look fixture-like. This mirrors
-    /// the legacy `kernel::promotion::PromotionGate::decide` check.
+    /// review_receipt_id must not look fixture-like.
+    ///
+    /// H-C3 fix (same as mte_lane_settlement.rs): the free-form `reason`
+    /// field MUST NOT be scanned. A legitimate operator describing what they
+    /// validated (e.g. `reason: "kernel-proof passing"`) was being flagged
+    /// as fake evidence. Identifying fields only.
     pub fn looks_fixture(&self) -> bool {
         let needle = |s: &str| {
             let lower = s.to_ascii_lowercase();
@@ -101,7 +105,6 @@ impl OperatorApprovalEvidence {
         needle(&self.operator_id)
             || needle(&self.review_receipt_id)
             || needle(&self.approval_source)
-            || needle(&self.reason)
     }
 }
 

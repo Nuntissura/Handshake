@@ -171,6 +171,8 @@ fn build_rollup_for_store(
         validation: validation_facts.as_ref(),
         promotion: promotion_facts.as_ref(),
         artifact_refs: &arts,
+        // Round 1 H-A1 fix added this field — replay must accept it.
+        artifact_classes: &[],
     });
     let control = DccKb003PromotionControlStateV1::derive(&projection, true, Some("operator_id"));
     let hints = DccKb003ManualHintsV1::derive(&projection, &control);

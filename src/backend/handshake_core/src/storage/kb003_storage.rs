@@ -343,20 +343,18 @@ impl Kb003Storage for InMemoryKb003Storage {
             .find(|r| r.idempotency_key == row.idempotency_key)
         {
             if existing.payload_hash == row.payload_hash {
-                // M-A5 fix: don't trust payload_hash alone. Two retries with
-                // the SAME canonical-JSON payload but a regression-introduced
-                // skew in decision_id/artifact_ref/issued_at_utc are a real
-                // hazard. Surface them as IdempotencyConflict instead of a
-                // false-positive "already inserted" hit.
-                if existing.decision_id != row.decision_id
-                    || existing.artifact_ref != row.artifact_ref
-                {
-                    return Err(Kb003StorageError::IdempotencyConflict {
-                        key: row.idempotency_key.clone(),
-                        existing_hash: existing.payload_hash.clone(),
-                        new_hash: row.payload_hash.clone(),
-                    });
-                }
+                // M-A5 (revised round 3): `decision_id` is an ephemeral UUID
+                // generated fresh per evaluate() call (PromotionDecisionV1::
+                // accepted/rejected → uuid::new_v4) so it MUST NOT participate
+                // in the idempotency hit check — every legitimate retry would
+                // see different ids. The earlier M-A5 check (require
+                // decision_id match) inverted this and broke true idempotency.
+                //
+                // `artifact_ref` IS in `payload_hash` indirectly via
+                // `artifact_refs` (the list including the report ref), so any
+                // legitimate skew is already caught by the hash comparison.
+                // Same payload_hash → same logical receipt body → return the
+                // prior receipt id (true idempotency).
                 return Ok(existing.receipt_id.clone());
             }
             return Err(Kb003StorageError::IdempotencyConflict {

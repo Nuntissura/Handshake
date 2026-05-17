@@ -90,12 +90,19 @@ impl PromotionReceiptV1 {
     }
 
     /// Canonical-JSON SHA-256 over the receipt body, excluding `payload_hash`,
-    /// `receipt_id`, and `issued_at_utc` (so two logically-equivalent receipts
-    /// produced at different times hash identically).
+    /// `receipt_id`, `issued_at_utc`, AND `decision_id` (so two logically-
+    /// equivalent receipts produced at different times — therefore with
+    /// different ephemeral UUIDs in those fields — hash identically).
+    ///
+    /// Round-3 self-scrutiny fix: `decision_id` used to be in the hash. It
+    /// is a `format!("PD-{}", Uuid::new_v4())` ephemeral, so two evaluate()
+    /// calls with identical inputs produced different hashes and the
+    /// idempotency dedup never fired. The previously-committed M-A5 storage
+    /// tightening (require `decision_id` match on a hash hit) compounded
+    /// the symptom; both are corrected together.
     pub fn compute_payload_hash(&self) -> String {
         let body = json!({
             "schema_version": self.schema_version,
-            "decision_id": self.decision.decision_id,
             "validation_run_id": self.decision.validation_run_id,
             "sandbox_run_id": self.decision.sandbox_run_id,
             "outcome": self.decision.outcome,
@@ -155,6 +162,34 @@ mod tests {
         );
         assert_eq!(r1.payload_hash, r2.payload_hash);
         assert_ne!(r1.receipt_id, r2.receipt_id, "ids are fresh per call");
+    }
+
+    // Round-3 regression guard: two FRESH accepted() decisions with the same
+    // inputs (different decision_id UUIDs) MUST hash to the same payload_hash.
+    // Previously decision_id was in the hash, so idempotency dedup never fired.
+    #[test]
+    fn fresh_decisions_with_same_inputs_hash_identically() {
+        let d1 = PromotionDecisionV1::accepted("SBX-x", "VR-x");
+        let d2 = PromotionDecisionV1::accepted("SBX-x", "VR-x");
+        assert_ne!(d1.decision_id, d2.decision_id, "decision_id is ephemeral UUID");
+        let r1 = PromotionReceiptV1::new(
+            d1,
+            "IK-test",
+            None,
+            Some("bundle-sha".into()),
+            vec!["kb003://art/1".into()],
+        );
+        let r2 = PromotionReceiptV1::new(
+            d2,
+            "IK-test",
+            None,
+            Some("bundle-sha".into()),
+            vec!["kb003://art/1".into()],
+        );
+        assert_eq!(
+            r1.payload_hash, r2.payload_hash,
+            "fresh decisions with same logical inputs must hash identically (idempotency)"
+        );
     }
 
     // Different idempotency_keys => different payload_hash (the key is part
