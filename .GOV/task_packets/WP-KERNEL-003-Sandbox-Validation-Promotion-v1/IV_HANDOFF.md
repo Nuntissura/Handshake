@@ -602,17 +602,72 @@ TOTAL: 1068 passed, 0 failed, 22 ignored
 
 The 22 ignored cover postgres-required tests (15) + duckdb feature-gated tests that don't compile without the feature (effectively skipped at compile time, surface as "ignored 0 because not in the binary" but count varies by command). Both gates are environmental, not correctness gates.
 
+## IV-sourced remediation packet (patch SHA `a069d0d1`)
+
+22-item remediation packet from IV review: 5 HIGH (merge blockers) +
+10 MEDIUM + 3 strongly-recommended + 4 LOW. Operator waived
+scope-creep, public-API-change disclosure, cfg-gate enumeration, and
+governance changelog routing.
+
+Execution: 4 parallel subagents (SBX-A sandbox state+policy types,
+SBX-B independent files, PROM promotion+storage, VAL validation) +
+1 cleanup subagent (FIN). 35 files changed (+2547/-222 LOC), 3 new
+files (`clippy.toml`, `kb003_promotion/gate_error_kind.rs`,
+`tests/kernel_kb003_authority_boundary_runtime_tests.rs`).
+
+**Final cargo verification on default features: `1114 passed, 0 failed, 22 ignored`.**
+
+### HIGH (5 merge blockers)
+
+| ID | Closure |
+|---|---|
+| H1 | MT-049 serde round-trip tests restored (was weakened to substring checks). Deserialize + value-equality assertions on `original_run_id` + `run_id`. Factually-false justification comments removed. |
+| H2 | `AuthorityBoundaryCheck` wired into `Kb003Storage` write path. `insert_promotion_decision`/`insert_promotion_receipt` take `AuthorityMutationActor` (added Coder/Validator/DccProjection/ExternalActor variants). Non-PromotionGate actors → `Kb003StorageError::AuthorityBoundaryDenied`. New integration-test file `kernel_kb003_authority_boundary_runtime_tests.rs` (3 tests). |
+| H3 | `DescriptorOutcome.descriptor_kind` field + `aggregate_blocks_promotion_for_kind` + `treat_unsupported_as_blocking_for_advisory` flag. Gating descriptor returning `Unsupported` now blocks promotion (closes MT-044 silent-skip hole). `check_runner_adapter` wires `descriptor.kind()` via `from_descriptor` constructor. |
+| H4 | Deterministic rejection-path `payload_hash` via `CanonicalRejectionPayload` projection — strips fresh UUIDs (`PolicyDenial.denial_id`, `MissingArtifact.bundle_id`) and `Utc::now()` timestamps. `PostgresFailure` uses `NormalisedStorageErrorKind` (6 variants) via `classify_storage_error` instead of raw `e.to_string()`. `PromotionReceiptV1.storage_error_detail` preserves raw text for observability (non-hashed). 8 `retry_is_idempotent` tests covering every rejection variant. |
+| H5 | `AllowWithEvidence` → `CapabilityGrant` required at policy build time. `CapabilityEvidenceRef` + `OperatorApprovalRef` wrapper types; `PolicyBuildError::CapabilityGrantMissingEvidence` rejects empty `evidence_ref`. End-to-end matrix in `security_denial_matrix_tests` covers 5 sensitive capabilities × (valid grant passes / empty evidence denies). |
+
+### MEDIUM (10)
+
+| ID | Closure |
+|---|---|
+| M1 | `ValidationReport.event_type: &'static str` → `String` (unblocks H1 deserialization). |
+| M2 | `RealtimeClock` added (`Instant::elapsed`-backed `TimeoutClock` impl) + monotonic smoke test. |
+| M3 | `SandboxRunV1.terminal_cause` persists; re-entry returns original cause, not fabricated `CancelledByOperator`. |
+| M4 | `exec_allowlist` hardened: `SHELL_PROGRAMS` +8 entries, new `SHELL_LIKE_PROGRAMS` group (xargs/env/ssh/scp/sftp), `INTERPRETER_CODE_PAYLOAD_PROGRAMS` ~22 patterns (python -m, awk, sed -e, deno eval, nu -c, pwsh -c/-Command), NFKC + non-ASCII rejection, null/newline/CR argv rejection. 5 new tests including `cyrillic_homoglyph_shell_rejected`. |
+| M5 | `network_gate`: strict `NetworkGrant` builder rejects `*` without operator approval; idna + NFKC normalization; `exclude_apex` flag. 4 new tests. Dep added: `idna = "1"`. |
+| M6 | `SAFE_DEFAULT_RESOURCE_CAPS` (wall=30s, cpu=30s, mem=4GiB, fds=256, output=1GiB). `default_deny` uses safe defaults instead of all-None. |
+| M7 | `SandboxRunV1.requested_capabilities`; `PolicyScopedLocalAdapter` pre-checks only requested caps (adapter now actually executable for benign no-capability work). |
+| M8 | `log_capture.text: String` (was `Vec<u8>`); manual UTF-8 char-boundary truncation; `from_utf8_lossy` fallback; `truncated_at_chars` + `truncated_at_bytes`. New multibyte + invalid-UTF-8 tests. |
+| M9 | `Kb003ArtifactHandleV1.content_sha256` full 64-hex (already exposed; confirmed). PROM's `compute_payload_hash` hashes `content_sha256` not the truncated handle. |
+| M10 | `parse_run_id` returns `Result<Uuid, EventBuildError::MalformedRunId>`. All 3 event builders propagate. |
+
+### Strongly Recommended (3)
+
+| ID | Closure |
+|---|---|
+| SR1 | UUID v7 guard strengthened: `now_v7_uuids_are_time_ordered_across_milliseconds` (20 samples × 2ms sleep) + `now_v7_high_bits_are_monotonic_intra_ms` (1000 samples). **`v4` feature REMOVED from both Cargo.toml files.** Workspace-root `clippy.toml` disallows `uuid::Uuid::new_v4` as a compile-time anti-regression. |
+| SR2 | `check_runner_adapter` test split into 2 deterministic-fixture tests (kind-probe Unsupported vs capability-gate Blocked). |
+| SR3 | Covered by H1. |
+
+### LOW (4)
+
+| ID | Closure |
+|---|---|
+| L1 | `no_sqlite_tripwire`: `mode` → `mode_under_test` (no shadow). |
+| L2 | `kb003_storage` 13-line forensic comment block → 1-line reference + top-of-file `//!` NOTE. |
+| L3 | `gate.rs` H-B1 import-history comment removed. |
+| L4 | `workspace.rs::contains_relative` doc: apex-inclusive sentence added. |
+
 ## NEXT_ACTOR
 
-**`INTEGRATION_VALIDATOR`** — full WP review against tip **`c19aa1f6`**.
+**`INTEGRATION_VALIDATOR`** — full WP review against tip **`a069d0d1`**.
 
-- All 80 MTs PASS-eligible at this tip (MT-042 + MT-049 remediation
-  landed at `662f9414`; UUID v7 sweep at `a06db9b9`; compile-error
-  closure at `e05d7b1c`; runtime-test closure at `c19aa1f6`).
-- Cargo gate on default features is green (`1068/0/22`).
-- IntVal can also run the postgres-dependent (`-- --ignored`) and
-  duckdb-feature (`--features duckdb-flight-recorder`) suites in
-  environments where those gates are available; both surface as
-  separate verification surfaces, not WP-blocking.
+- All 80 MTs PASS-eligible (MT-042+MT-049 at `662f9414`; UUID v7 sweep
+  at `a06db9b9`; compile-error closure at `e05d7b1c`; runtime-test
+  closure at `c19aa1f6`; IV remediation packet at `a069d0d1`).
+- Cargo gate on default features: **`1114 passed, 0 failed, 22 ignored`**.
+- Optional opt-in suites: `-- --ignored` (postgres) and
+  `--features duckdb-flight-recorder` (host-dependent build).
 - Whole-WP Master Spec validation against the six declared spec
   anchors can now proceed.
