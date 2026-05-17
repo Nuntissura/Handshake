@@ -424,13 +424,48 @@ validation+promotion, MTE+DCC+tests, schemas+cross-module). All 4
 returned clean structured reports. Phase 3 patch + Phase 2 red-team
 subagents hit the operator's Anthropic usage quota (`You're out of extra
 usage · resets 8am Europe/Brussels`) before doing any tool writes, so
-Kernel Builder applied the Critical/High fixes directly. No subagent
-red-team pass ran; the audit findings + patches above represent a single
-self-scrutiny round, not a fully looped audit-patch-reaudit cycle.
+Kernel Builder applied the Critical/High fixes directly.
+
+## Self-scrutiny Round 2 (patch SHA `15a5093b`)
+
+Stop-hook required convergence on "no risks or concerns". Round 2 closed
+the round-1 deferred HIGH + impactful MEDIUM (7 files, +185/-13 LOC,
+4 new regression tests):
+
+- **H-B2** `kb003_promotion/gate.rs` — PostgresFailure now attempts to persist the rejection receipt anyway; `stored_receipt_id` surfaces as `None` when both decision AND receipt inserts fail. Two new tests cover both subcases.
+- **M-B1** `PromotionGateOutput.stored_receipt_id: String` → `Option<String>` for typed encoding of the no-persist case.
+- **M-A5** `storage/kb003_storage.rs` — added decision_id + artifact_ref consistency check on idempotency hit. (Superseded in Round 3 — see below.)
+- **M-C4** `dcc_kb003_aggregate_summary.rs` — `aggregate_id` is now SHA-256-content-derived (`AGGSUM-sha256-<hash>`) instead of a fresh UUID per call. Restart-replay determinism unblocked.
+- **M-A1** `sandbox/run.rs` + `sandbox/policy.rs` — `schema_version() const fn` added on `SandboxRunV1` and `SandboxPolicyV1` returning the kb003_schemas constants. Method (not field) to avoid the 21-file struct-literal rewrite.
+- **M-C3** `mte_resource_caps.rs` — `child_processes` field documented as advisory-only (sandbox layer drops it; doc comment now prevents accidental enforcement reliance).
+
+## Self-scrutiny Round 3 (patch SHA `ad5feff6`)
+
+Round 3 re-audited round 1+2 patches and caught:
+
+1. **Regression** — round-1 H-A1 added `artifact_classes` to `ReplayInputsV1` but `tests/kernel_kb003_restart_replay_tests.rs:166` still used the old struct literal. Would no longer compile. Fixed.
+2. **Deeper bug** — round-2 M-A5 patch compounded an existing latent bug: `PromotionReceiptV1::compute_payload_hash` included `decision_id` (ephemeral `PD-<uuid::new_v4()>`), so two `evaluate()` calls with identical logical inputs produced different hashes and idempotency dedup never actually fired against the real backend. Legacy `idempotency_same_payload_returns_same_receipt` only passed because cargo never runs (CX-ENV-HOST-LOAD waiver).
+   - **Root-cause fix** in `receipt.rs`: remove `decision_id` from `compute_payload_hash`. Hash is now over canonical LOGICAL inputs (`validation_run_id, sandbox_run_id, outcome, idempotency_key, bundle_sha256, artifact_refs`).
+   - **Revert round-2 M-A5** in `kb003_storage.rs`: with the hash fix, `payload_hash` match IS sufficient (artifact_ref skew already in the hash via `artifact_refs`).
+   - **New regression test** `fresh_decisions_with_same_inputs_hash_identically` in `receipt.rs` asserts the property directly.
+3. **Duplicate** — `kb003_promotion/gate.rs` `OperatorApprovalEvidence::looks_fixture()` also scanned the free-form `reason` field (same bug as round-1 H-C3 in `mte_lane_settlement.rs`). Fixed consistently.
+
+## Loop convergence summary
+
+| Severity | Found | Fixed | Deferred (with rationale) |
+|---|---|---|---|
+| CRITICAL | 3 | 3 | 0 |
+| HIGH | 8 | 8 | 0 |
+| MEDIUM (correctness/security) | ~8 | 7 | 1 (M-D1 sandbox lifecycle event emission — real feature work, not a defect) |
+| MEDIUM (style/process) | ~7 | 0 | 7 (M-A2, M-A3, M-A4, M-B2, M-B3, M-B4, M-B5, M-C1, M-C2, M-C5, M-D2 — doc/refactor/architecture suggestions, no correctness impact) |
+| LOW | many | 0 | all (style nits) |
+
+12 new regression tests added across rounds 1-3.
 
 ## NEXT_ACTOR
 
 **`INTEGRATION_VALIDATOR`** — perform batch MT review of MT-001..MT-079,
 then scoped Master Spec review against the six declared spec anchors,
-then issue the verdict on the packet. **Wave 5 patch SHA `0f4222cb`** is
-the recommended review tip.
+then issue the verdict on the packet. **Round-3 patch SHA `ad5feff6`** is
+the recommended review tip. Wave 4 head was `eac773ab`; rounds 1-3 add
+3 fix commits on top.
