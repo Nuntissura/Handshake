@@ -366,8 +366,71 @@ directory before merge per packet protocol.
 - This MT-080 handoff appends its own STATUS receipt after this
   bundle is authored.
 
+## Self-scrutiny pass (Wave 5 — patch SHA `0f4222cb`)
+
+After MT-080 handoff was authored, Kernel Builder ran a self-scrutiny
+pass per operator goal (4 parallel read-only audit subagents covering
+sandbox, validation+promotion, MTE+DCC+tests, and cross-module
+consistency). Audit findings: **3 CRITICAL, 8 HIGH, ~15 MEDIUM, many LOW**.
+
+### Fixed in commit `0f4222cb` (8 files, +301/-14 LOC)
+
+| Sev | ID | File | Fix |
+|---|---|---|---|
+| CRIT | C-A1 | `sandbox/workspace.rs` | `contains_relative()` boundary hole — bare `starts_with(root)` accepted `…/work/x_evil/secrets` against root `…/work/x`. Now requires path-segment boundary. |
+| CRIT | C-A2 | `sandbox/denial.rs` + `sandbox/replay_projection.rs` | DenialKind serialization mismatch — replay used `format!("{:?}").to_ascii_uppercase()` → `"POLICYDENIED"` while serde produced `"POLICY_DENIED"`. Added `DenialKind::as_str()` stable label. Broke MT-016 byte-equal rollup. |
+| CRIT | C-C1 | `mte_closeout_bundle.rs` | Typo `MteClosoutBundleV1` → `MteCloseoutBundleV1` (public surface). |
+| HIGH | H-A1 | `sandbox/replay_projection.rs` | `artifact_classes_in_view` was hard-coded `Vec::new()` — added `artifact_classes` field to `ReplayInputsV1` and threaded through. |
+| HIGH | H-A2 | `sandbox/exec_allowlist.rs` | Language interpreters with code payloads (`python -c`, `node -e/--eval`, `perl -e`, `ruby -e`, `php -r`) and dispatchers (`busybox`, `wsl.exe`) slipped the SHELL_PROGRAMS guard. Added `INTERPRETER_CODE_PAYLOAD_PROGRAMS` table. |
+| HIGH | H-A3 | `sandbox/workspace_materializer.rs` | Bare `.expect()` in production path replaced with typed `SandboxDenialRecordV1` propagation. |
+| HIGH | H-B1 | `kb003_promotion/gate.rs` | Removed top-level `use SandboxCapability` — only used inside `#[cfg(test)]` (would warn under `-D warnings`). |
+| HIGH | H-C1 | `mte_closeout_bundle.rs` | `ready_to_merge()` now also asserts `aggregate.promotion_counts.rejected == 0 && status_counts.failed == 0` (defence in depth against in-place aggregate mutation). |
+| HIGH | H-C3 | `mte_lane_settlement.rs` | `looks_fixture()` no longer scans the free-form `reason` field — was rejecting legitimate operator text. Identifying fields only. |
+
+8 new regression tests added.
+
+### Known debt deferred to IntVal (HIGH not blocking product correctness)
+
+- **H-B2** `kb003_promotion/gate.rs:171-193` — `PostgresFailure` branch constructs fallback decision+receipt but does not persist either; zero audit trail when storage refuses. **Mitigation:** the rejection IS returned to the caller. IntVal should decide whether the gate should emit an EventLedger event before returning, or whether callers own that responsibility.
+- **H-C2** `mte_aggregate_summary.rs:155` `all_terminal()` includes `Failed` as terminal. **Mitigation:** H-C1's `ready_to_merge()` fix covers the merge gate.
+
+### Known debt deferred to follow-up RGFs (MEDIUM)
+
+- M-A1: `SandboxRunV1` / `SandboxPolicyV1` don't carry `schema_version` field.
+- M-A5: `kb003_storage.rs:339` idempotency check on `(key, hash)` doesn't verify `decision_id`/`artifact_ref`/`issued_at_utc` consistency.
+- M-A2: `cancellation.rs` `ManualClock` is `pub` but test-only.
+- M-B1: `gate.rs` returns `stored_receipt_id: String::new()` for non-Accepted; should be `Option<String>`.
+- M-B2: MT attribution comments in `kb003_promotion/*` headers are off-by-one against packet contracts.
+- M-B3: `dcc_promotion_overlay.rs` header claims MT-049 but doesn't implement validation-replay.
+- M-B4: `gate.rs` MissingApproval `missing_field` misleading when real cause is fixture detection.
+- M-B5: `ValidationRun.run_id` and `ValidationReport.run_id` not type-coupled.
+- M-C2: `MteIdempotencyEnforcer` is in-process only; no trait abstraction enforces the production Postgres backing.
+- M-C3: `mte_resource_caps.rs` `child_processes` field is dead at the sandbox layer.
+- M-C4: `dcc_kb003_aggregate_summary.rs:81` mints non-deterministic `Uuid::new_v4()` per call.
+- M-D1: 3 `EVENT_KB003_SANDBOX_RUN_*` constants declared but never emitted.
+- M-D2: 2 schema-id constants (`SCHEMA_KERNEL_SANDBOX_WORKSPACE_V1`, `SCHEMA_KERNEL_SANDBOX_ARTIFACT_BUNDLE_V1`) only referenced via slice.
+
+### Cargo policy reiteration
+
+All Wave 5 patches honor `CX-ENV-HOST-LOAD-CARGO-TESTS-20260504` —
+no `cargo test|check|clippy|build` was run during the scrutiny pass.
+Per-fix evidence is `rg` + visual inspection. IntVal will run the cargo
+gate (full test suite + the 8 new regression tests added in `0f4222cb`).
+
+### Audit subagent attrition
+
+Phase 1 read-only audit dispatched 4 parallel subagents (sandbox+storage,
+validation+promotion, MTE+DCC+tests, schemas+cross-module). All 4
+returned clean structured reports. Phase 3 patch + Phase 2 red-team
+subagents hit the operator's Anthropic usage quota (`You're out of extra
+usage · resets 8am Europe/Brussels`) before doing any tool writes, so
+Kernel Builder applied the Critical/High fixes directly. No subagent
+red-team pass ran; the audit findings + patches above represent a single
+self-scrutiny round, not a fully looped audit-patch-reaudit cycle.
+
 ## NEXT_ACTOR
 
 **`INTEGRATION_VALIDATOR`** — perform batch MT review of MT-001..MT-079,
 then scoped Master Spec review against the six declared spec anchors,
-then issue the verdict on the packet.
+then issue the verdict on the packet. **Wave 5 patch SHA `0f4222cb`** is
+the recommended review tip.
