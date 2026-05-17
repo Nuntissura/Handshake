@@ -41,12 +41,12 @@
     "wp_validator_of_record": "NONE"
   },
   "markdown_projection": {
-    "generated_at_utc": "2026-05-15T00:50:23.559Z",
+    "generated_at_utc": "2026-05-17T16:19:22.497Z",
     "generator": "ensure-wp-communications.mjs",
     "path": ".GOV/task_packets/WP-KERNEL-003-Sandbox-Validation-Promotion-v1/packet.md",
-    "projection_hash": "458f2b36b5ab917b",
+    "projection_hash": "1683294690083c18",
     "source_file": ".GOV/task_packets/WP-KERNEL-003-Sandbox-Validation-Promotion-v1/packet.json",
-    "source_hash": "a05cf291fac2e174",
+    "source_hash": "bd48f15f8f96e894",
     "status": "GENERATED_IN_SYNC"
   },
   "microtasks": {
