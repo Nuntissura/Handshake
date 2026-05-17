@@ -19,6 +19,7 @@ use crate::ai_ready_data::records::{
 };
 
 pub mod calendar;
+pub mod kb003_storage;
 pub(crate) mod locus_sqlite;
 pub mod loom;
 pub mod postgres;

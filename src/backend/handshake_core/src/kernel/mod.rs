@@ -94,6 +94,7 @@ pub mod role_mailbox_inbox_evidence_bridge;
 pub mod role_mailbox_loop_control;
 pub mod role_mailbox_triage_queue;
 pub mod role_turn_isolation;
+pub mod sandbox;
 pub mod session_anti_pattern_registry;
 pub mod session_broker;
 pub mod session_spawn_conversation_distillation;
@@ -102,6 +103,7 @@ pub mod software_delivery_runtime_truth;
 pub mod task_contract_lifecycle;
 #[cfg(feature = "runtime-full")]
 pub mod trace_projection;
+pub mod validation;
 pub mod validator_finding_report_contract;
 pub mod validator_verdict_mediation_contract;
 pub mod visual_debugging_loop;
