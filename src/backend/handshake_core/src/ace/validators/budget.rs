@@ -134,7 +134,7 @@ mod tests {
 
         // Add spans that exceed budget
         trace.budgets_applied.max_total_evidence_tokens = 100;
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         trace.spans.push(SpanExtraction {
             source_ref: source.clone(),
             selector: "test".to_string(),
@@ -160,7 +160,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         trace.budgets_applied.max_snippets_per_source = 2;
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
 
         // Add 3 snippets from same source (exceeds limit of 2)
         for i in 0..3 {
@@ -190,7 +190,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         trace.budgets_applied.max_read_tokens = 100;
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
 
         // Add oversized span WITHOUT truncation flag
         trace.spans.push(SpanExtraction {
@@ -226,7 +226,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         // Add valid spans within budget
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         trace.spans.push(SpanExtraction {
             source_ref: source.clone(),
             selector: "test".to_string(),

@@ -239,7 +239,7 @@ pub fn export_governance_pack(
     // Deterministic write order: resolved rel_path lexicographic.
     rendered.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let export_id = Uuid::new_v4();
+    let export_id = Uuid::now_v7();
     let created_at = Utc::now();
 
     let artifact_id = export_id;

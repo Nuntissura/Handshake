@@ -138,13 +138,13 @@ mod tests {
         task_type: &str,
         timestamp: DateTime<Utc>,
     ) -> SkillBankLogEntry {
-        let msg_id = Uuid::new_v4();
+        let msg_id = Uuid::now_v7();
         SkillBankLogEntry {
             version: "1.0.0".to_string(),
-            log_id: Uuid::new_v4(),
+            log_id: Uuid::now_v7(),
             timestamp,
             session: SessionMeta {
-                session_id: Uuid::new_v4(),
+                session_id: Uuid::now_v7(),
                 turn_index: 0,
                 task_id: None,
                 user_id_hash: None,
@@ -219,7 +219,7 @@ mod tests {
     #[test]
     fn distill_dataset_empty_candidates_returns_empty() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let result = build_distill_dataset(job_id, ActorRole::Student, &config, &[], Utc::now());
         assert!(result.is_empty());
     }
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn distill_dataset_excludes_secrets() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let mut entry = make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now);
         entry.privacy.contains_secrets = true;
@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn distill_dataset_excludes_pii() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let mut entry = make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now);
         entry.privacy.pii_present = true;
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn distill_dataset_excludes_bad_quality() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let entry = make_entry(QualityTag::Bad, ThumbValue::Neutral, "code_generation", now);
 
@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn distill_dataset_excludes_unrated_quality() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let entry = make_entry(
             QualityTag::Unrated,
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn distill_dataset_excludes_non_code_task_type() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let entry = make_entry(QualityTag::Good, ThumbValue::Up, "chat", now);
 
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn distill_dataset_includes_needs_edit() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let entry = make_entry(
             QualityTag::NeedsEdit,
@@ -309,7 +309,7 @@ mod tests {
     fn distill_dataset_respects_min_trust_score() {
         let mut config = default_config();
         config.min_trust_score = 0.95;
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         // base_entry with Good + Up + 5/5 tests + no flags = 0.9 score
         let entry = make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now);
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn distill_dataset_splits_new_and_replay() {
         let config = default_config(); // 7-day window, 0.7 new ratio
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let recent = now - chrono::Duration::days(1);
         let old = now - chrono::Duration::days(30);
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn distill_dataset_weight_equals_trust_score() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let entry = make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now);
         let expected_score = compute_data_trust_score(&entry);
@@ -367,7 +367,7 @@ mod tests {
     fn distill_dataset_respects_max_examples() {
         let mut config = default_config();
         config.max_examples = 2;
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let entries: Vec<_> = (0..5)
             .map(|_| make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now))
@@ -385,7 +385,7 @@ mod tests {
     fn distill_dataset_all_recent_no_replay() {
         let mut config = default_config();
         config.new_ratio = 1.0;
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let entries: Vec<_> = (0..3)
             .map(|_| make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now))
@@ -401,7 +401,7 @@ mod tests {
     #[test]
     fn distill_dataset_assigns_target_role() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let entry = make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now);
 
@@ -417,7 +417,7 @@ mod tests {
     #[test]
     fn distill_dataset_assigns_job_id() {
         let config = default_config();
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
         let now = Utc::now();
         let entry = make_entry(QualityTag::Good, ThumbValue::Up, "code_generation", now);
 

@@ -429,7 +429,7 @@ mod tests {
 
     #[test]
     fn test_completion_request_builder() {
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
         let req = CompletionRequest::new(
             trace_id,
             "Hello, world!".to_string(),

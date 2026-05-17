@@ -93,7 +93,7 @@ async fn run() -> Result<(), CapabilityRegistryWorkflowError> {
 
     let repo_root = repo_root_from_manifest_dir()?;
     let flight_recorder = init_flight_recorder(&repo_root)?;
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
 
     let registry = CapabilityRegistry::new();
     let params = CapabilityRegistryWorkflowParams {

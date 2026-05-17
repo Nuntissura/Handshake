@@ -478,7 +478,7 @@ mod tests {
         );
 
         let req = CompletionRequest::new(
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "hello".to_string(),
             "local-model".to_string(),
         );
@@ -504,7 +504,7 @@ mod tests {
         );
 
         let mut req = CompletionRequest::new(
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "hello".to_string(),
             "cloud-model".to_string(),
         );
@@ -529,7 +529,7 @@ mod tests {
         );
 
         let req = CompletionRequest::new(
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "hello".to_string(),
             "cloud-model".to_string(),
         );
@@ -552,7 +552,7 @@ mod tests {
         );
 
         let mut req = CompletionRequest::new(
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "hello".to_string(),
             "cloud-model".to_string(),
         );
@@ -579,7 +579,7 @@ mod tests {
         );
 
         let mut req = CompletionRequest::new(
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "hello".to_string(),
             "cloud-model".to_string(),
         );
@@ -607,7 +607,7 @@ mod tests {
         );
 
         let mut req = CompletionRequest::new(
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "hello".to_string(),
             "cloud-model".to_string(),
         );
@@ -633,7 +633,7 @@ mod tests {
         );
 
         let mut req = CompletionRequest::new(
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "hello".to_string(),
             "cloud-model".to_string(),
         );
@@ -659,7 +659,7 @@ mod tests {
         );
 
         let mut req = CompletionRequest::new(
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "hello".to_string(),
             "cloud-model".to_string(),
         );

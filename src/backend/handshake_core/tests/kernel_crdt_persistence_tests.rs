@@ -117,9 +117,10 @@ fn kernel_crdt_postgres_update_log_contract_declares_persistence_columns_and_con
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
     let db = postgres_or_environment_blocked().await;
-    let suffix = Uuid::new_v4().simple().to_string();
+    let suffix = Uuid::now_v7().simple().to_string();
     let mut first =
         sample_record_for_workspace(&suffix, 1, "crdt-update-1", b"first-update", "sv-0", "sv-1");
     let mut second = sample_record_for_workspace(
@@ -174,9 +175,10 @@ async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_update_persistence_rejects_missing_eventledger_ref() {
     let db = postgres_or_environment_blocked().await;
-    let suffix = Uuid::new_v4().simple().to_string();
+    let suffix = Uuid::now_v7().simple().to_string();
     let missing_event = sample_record_for_workspace(
         &suffix,
         1,

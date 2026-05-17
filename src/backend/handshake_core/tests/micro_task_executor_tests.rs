@@ -232,7 +232,7 @@ async fn run_locus_job(
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::LocusOperation,
             protocol_id: protocol_id.to_string(),
             profile_id: "default".to_string(),
@@ -274,7 +274,7 @@ async fn run_locus_job_expect_validation_failure(
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::LocusOperation,
             protocol_id: protocol_id.to_string(),
             profile_id: "default".to_string(),
@@ -520,7 +520,7 @@ async fn micro_task_executor_completes_single_mt_and_emits_events(
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::MicroTaskExecution,
             protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
@@ -618,7 +618,7 @@ async fn micro_task_executor_persists_locus_lifecycle_and_session_occupancy(
         "work complete <mt_complete>yes</mt_complete>".to_string(),
     ]));
     let state = setup_state(llm_client).await?;
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
 
     let job = state
         .storage
@@ -735,20 +735,20 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
     let llm_client: Arc<dyn LlmClient> =
         Arc::new(QueuedLlmClient::new(vec!["# Spec Artifact".to_string()]));
     let state = setup_state(llm_client).await?;
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let repo_root = handshake_core::capability_registry_workflow::repo_root_from_manifest_dir()?;
     let prompt_rel = PathBuf::from("data")
         .join("spec_router_tests")
-        .join(format!("{}.md", Uuid::new_v4()));
+        .join(format!("{}.md", Uuid::now_v7()));
     let prompt_abs = repo_root.join(&prompt_rel);
     std::fs::create_dir_all(prompt_abs.parent().ok_or("prompt parent missing")?)?;
     std::fs::write(&prompt_abs, "route this prompt into a work packet")?;
 
     let prompt_ref = ArtifactHandle::new(
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         prompt_rel.to_string_lossy().replace('\\', "/"),
     );
-    let routed_wp_id = format!("WP-ROUTED-{}", Uuid::new_v4());
+    let routed_wp_id = format!("WP-ROUTED-{}", Uuid::now_v7());
 
     let job = state
         .storage
@@ -766,10 +766,10 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
             metrics: JobMetrics::zero(),
             job_inputs: Some(json!({
                 "prompt_ref": prompt_ref,
-                "spec_intent_id": format!("spec-{}", Uuid::new_v4()),
+                "spec_intent_id": format!("spec-{}", Uuid::now_v7()),
                 "mode_override": "gov_standard",
                 "spec_prompt_pack_id": "spec_router_pack@1",
-                "workspace_id": Uuid::new_v4(),
+                "workspace_id": Uuid::now_v7(),
                 "project_id": Value::Null,
                 "workflow_context": {
                     "version_control": "Git",
@@ -2291,7 +2291,7 @@ async fn micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion(
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::MicroTaskExecution,
             protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
@@ -2353,7 +2353,7 @@ EVIDENCE:
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::MicroTaskExecution,
             protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
@@ -2528,7 +2528,7 @@ async fn micro_task_executor_emits_model_swap_events_on_model_change(
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::MicroTaskExecution,
             protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
@@ -2728,7 +2728,7 @@ async fn micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::MicroTaskExecution,
             protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
@@ -2858,7 +2858,7 @@ async fn micro_task_executor_emits_model_swap_runtime_failure_and_rollback_when_
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::MicroTaskExecution,
             protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
@@ -2990,7 +2990,7 @@ async fn micro_task_executor_emits_model_swap_timeout_and_rollback_on_runtime_ti
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::MicroTaskExecution,
             protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
@@ -3122,7 +3122,7 @@ async fn micro_task_executor_resumes_from_pause_and_emits_workflow_recovery(
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::MicroTaskExecution,
             protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),
@@ -6468,7 +6468,7 @@ async fn micro_task_executor_rejects_legacy_workflow_run_job_kind_contract(
     let result = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::WorkflowRun,
             protocol_id: "micro_task_executor_v1".to_string(),
             profile_id: "micro_task_executor_v1".to_string(),

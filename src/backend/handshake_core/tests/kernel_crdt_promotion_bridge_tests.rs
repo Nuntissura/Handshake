@@ -165,9 +165,10 @@ fn kernel_crdt_promotion_bridge_requires_validation_report_alignment() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_promotion_bridge_appends_request_and_decision_events_to_postgres_ledger() {
     let db = postgres_or_environment_blocked().await;
-    let suffix = Uuid::new_v4().simple().to_string();
+    let suffix = Uuid::now_v7().simple().to_string();
     let state = sample_state_for_suffix(&suffix);
     let validation_report = validate_crdt_state_for_promotion(&state, &sample_schema_guard());
     let input = CrdtPromotionBridgeInputV1 {

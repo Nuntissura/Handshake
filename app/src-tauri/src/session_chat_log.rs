@@ -113,7 +113,7 @@ fn chat_log_path(app_data_root: &Path, session_id: &str) -> PathBuf {
 
 impl SessionChatLogState {
     pub fn new(app_data_root: PathBuf) -> Self {
-        let session_id = Uuid::new_v4().to_string();
+        let session_id = Uuid::now_v7().to_string();
         Self {
             session_id,
             next_turn_index: Mutex::new(0),
@@ -143,7 +143,7 @@ pub fn session_chat_append(
     let created_at_utc = now_rfc3339();
     let message_id = match entry.message_id {
         Some(id) => require_uuid_string_non_nil("message_id", &id)?.to_string(),
-        None => Uuid::new_v4().to_string(),
+        None => Uuid::now_v7().to_string(),
     };
 
     let (model_role, ans001, ans001_validation) = match entry.role {

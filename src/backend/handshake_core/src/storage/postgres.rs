@@ -2391,7 +2391,7 @@ impl super::Database for PostgresDatabase {
             .bind(&block_id)
             .bind(workspace_id)
             .bind(format!("Perf Block {idx}"))
-            .bind(Uuid::new_v4().to_string())
+            .bind(Uuid::now_v7().to_string())
             .bind(created_at)
             .bind(created_at)
             .bind(&derived_json)
@@ -2415,7 +2415,7 @@ impl super::Database for PostgresDatabase {
                     VALUES ($1, $2, $3, $4, 'mention', 'user', $5, $6)
                     "#,
                 )
-                .bind(Uuid::new_v4().to_string())
+                .bind(Uuid::now_v7().to_string())
                 .bind(workspace_id)
                 .bind(previous_block_id)
                 .bind(&block_id)
@@ -2487,7 +2487,7 @@ impl super::Database for PostgresDatabase {
         workspace: NewWorkspace,
     ) -> StorageResult<Workspace> {
         let now = Utc::now();
-        let id = Uuid::new_v4().to_string();
+        let id = Uuid::now_v7().to_string();
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
@@ -2589,7 +2589,7 @@ impl super::Database for PostgresDatabase {
         doc: NewDocument,
     ) -> StorageResult<Document> {
         let now = Utc::now();
-        let id = Uuid::new_v4().to_string();
+        let id = Uuid::now_v7().to_string();
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
@@ -2683,7 +2683,7 @@ impl super::Database for PostgresDatabase {
 
     async fn create_block(&self, ctx: &WriteContext, block: NewBlock) -> StorageResult<Block> {
         let now = Utc::now();
-        let id = block.id.unwrap_or_else(|| Uuid::new_v4().to_string());
+        let id = block.id.unwrap_or_else(|| Uuid::now_v7().to_string());
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
@@ -2853,7 +2853,7 @@ impl super::Database for PostgresDatabase {
         let mut inserted = Vec::with_capacity(blocks.len());
         for block in blocks {
             let now = Utc::now();
-            let id = block.id.unwrap_or_else(|| Uuid::new_v4().to_string());
+            let id = block.id.unwrap_or_else(|| Uuid::now_v7().to_string());
             let metadata = self.guard.validate_write(ctx, &id).await?;
             let actor_kind = metadata.actor_kind.as_str();
             let actor_id = metadata.actor_id.clone();
@@ -2956,7 +2956,7 @@ impl super::Database for PostgresDatabase {
 
     async fn create_asset(&self, ctx: &WriteContext, asset: NewAsset) -> StorageResult<Asset> {
         let now = Utc::now();
-        let id = Uuid::new_v4().to_string();
+        let id = Uuid::now_v7().to_string();
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
@@ -3113,7 +3113,7 @@ impl super::Database for PostgresDatabase {
         let now = Utc::now();
         let id = block
             .block_id
-            .map_or_else(|| Uuid::new_v4().to_string(), |v| v);
+            .map_or_else(|| Uuid::now_v7().to_string(), |v| v);
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
@@ -3541,7 +3541,7 @@ impl super::Database for PostgresDatabase {
         let now = Utc::now();
         let id = edge
             .edge_id
-            .map_or_else(|| Uuid::new_v4().to_string(), |v| v);
+            .map_or_else(|| Uuid::now_v7().to_string(), |v| v);
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
@@ -5253,7 +5253,7 @@ impl super::Database for PostgresDatabase {
 
     async fn create_canvas(&self, ctx: &WriteContext, canvas: NewCanvas) -> StorageResult<Canvas> {
         let now = Utc::now();
-        let id = Uuid::new_v4().to_string();
+        let id = Uuid::now_v7().to_string();
         let metadata = self.guard.validate_write(ctx, &id).await?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
@@ -5399,7 +5399,7 @@ impl super::Database for PostgresDatabase {
         let now = Utc::now();
         let mut inserted_nodes = Vec::with_capacity(nodes.len());
         for node in nodes {
-            let id = node.id.unwrap_or_else(|| Uuid::new_v4().to_string());
+            let id = node.id.unwrap_or_else(|| Uuid::now_v7().to_string());
             let metadata = self.guard.validate_write(ctx, &id).await?;
             let actor_kind = metadata.actor_kind.as_str();
             let actor_id = metadata.actor_id.clone();
@@ -5453,7 +5453,7 @@ impl super::Database for PostgresDatabase {
 
         let mut inserted_edges = Vec::with_capacity(edges.len());
         for edge in edges {
-            let id = edge.id.unwrap_or_else(|| Uuid::new_v4().to_string());
+            let id = edge.id.unwrap_or_else(|| Uuid::now_v7().to_string());
             let metadata = self.guard.validate_write(ctx, &id).await?;
             let actor_kind = metadata.actor_kind.as_str();
             let actor_id = metadata.actor_id.clone();
@@ -6432,7 +6432,7 @@ impl super::Database for PostgresDatabase {
     async fn create_ai_job(&self, job: NewAiJob) -> StorageResult<AiJob> {
         validate_job_contract(&job.job_kind, &job.profile_id, &job.protocol_id)?;
 
-        let id = Uuid::new_v4().to_string();
+        let id = Uuid::now_v7().to_string();
         let now = Utc::now();
         let job_inputs = job.job_inputs.clone().map(|value| value.to_string());
         let metrics_json = serde_json::to_string(&job.metrics)?;
@@ -6962,7 +6962,7 @@ impl super::Database for PostgresDatabase {
 
         let message_id = message
             .message_id
-            .unwrap_or_else(|| Uuid::new_v4().to_string());
+            .unwrap_or_else(|| Uuid::now_v7().to_string());
         let attachments = serde_json::to_string(&message.attachments)?;
         let row = sqlx::query(
             r#"
@@ -8044,7 +8044,7 @@ impl super::Database for PostgresDatabase {
         status: JobState,
         last_heartbeat: Option<chrono::DateTime<chrono::Utc>>,
     ) -> StorageResult<WorkflowRun> {
-        let id = Uuid::new_v4();
+        let id = Uuid::now_v7();
         let heartbeat = last_heartbeat.unwrap_or_else(Utc::now);
         let now = Utc::now();
 
@@ -8134,7 +8134,7 @@ impl super::Database for PostgresDatabase {
         &self,
         exec: NewNodeExecution,
     ) -> StorageResult<WorkflowNodeExecution> {
-        let id = Uuid::new_v4();
+        let id = Uuid::now_v7();
         let input_payload = exec.input_payload.as_ref().map(|v| v.to_string());
         let row = sqlx::query(
             r#"

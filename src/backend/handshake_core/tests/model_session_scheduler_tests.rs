@@ -87,7 +87,7 @@ async fn setup_state() -> Result<AppState, Box<dyn std::error::Error>> {
     std::env::set_var(
         "HANDSHAKE_SESSION_WORKTREE_ROOT",
         std::env::temp_dir()
-            .join(format!("hsk-session-worktrees-{}", Uuid::new_v4()))
+            .join(format!("hsk-session-worktrees-{}", Uuid::now_v7()))
             .display()
             .to_string(),
     );
@@ -178,7 +178,7 @@ async fn create_model_run_job(
     Ok(state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::ModelRun,
             protocol_id: "protocol-default".to_string(),
             profile_id: "default".to_string(),
@@ -219,7 +219,7 @@ async fn seed_active_model_session(
             consent_receipt_id: None,
             capability_grants: capability_grants.iter().map(ToString::to_string).collect(),
             capability_token_ids: None,
-            job_id: Some(Uuid::new_v4()),
+            job_id: Some(Uuid::now_v7()),
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
@@ -357,11 +357,11 @@ fn valid_cloud_bundle_for_model_run(
     model_id: &str,
     consent_receipt_id: &str,
 ) -> Result<CloudEscalationBundleV0_4, Box<dyn std::error::Error>> {
-    let request = CompletionRequest::new(Uuid::new_v4(), prompt.to_string(), model_id.to_string());
+    let request = CompletionRequest::new(Uuid::now_v7(), prompt.to_string(), model_id.to_string());
     let payload_sha256 = openai_compat_request_payload_sha256(&request, model_id);
 
-    let projection_plan_id = format!("pp-{}", Uuid::new_v4());
-    let request_id = format!("req-{}", Uuid::new_v4());
+    let projection_plan_id = format!("pp-{}", Uuid::now_v7());
+    let request_id = format!("req-{}", Uuid::now_v7());
 
     Ok(CloudEscalationBundleV0_4 {
         request: CloudEscalationRequestV0_4 {
@@ -416,7 +416,7 @@ fn valid_cloud_bundle_for_model_run(
 async fn model_run_persists_session_and_artifact_first_messages(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
 
     let job = create_model_run_job(
@@ -435,7 +435,7 @@ async fn model_run_persists_session_and_artifact_first_messages(
             "assistant_content_artifact_id": assistant_artifact,
             "session_messages": [
                 {
-                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "message_id": format!("msg-{}", Uuid::now_v7()),
                     "role": "USER",
                     "content_hash": hex64('a'),
                     "content_artifact_id": format!("artifact:{session_id}:user-1")
@@ -522,7 +522,7 @@ async fn model_run_persists_session_and_artifact_first_messages(
 async fn trust001_external_system_role_is_downgraded_to_user_with_attribution(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
 
     let job = create_model_run_job(
@@ -541,7 +541,7 @@ async fn trust001_external_system_role_is_downgraded_to_user_with_attribution(
             "assistant_content_artifact_id": assistant_artifact,
             "session_messages": [
                 {
-                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "message_id": format!("msg-{}", Uuid::now_v7()),
                     "role": "SYSTEM",
                     "content_hash": hex64('d'),
                     "content_artifact_id": format!("artifact:{session_id}:system-1")
@@ -577,9 +577,9 @@ async fn trust001_external_system_role_is_downgraded_to_user_with_attribution(
 async fn trust002_cross_session_provenance_fields_are_persisted(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
-    let source_session_id = format!("source-{}", Uuid::new_v4());
+    let source_session_id = format!("source-{}", Uuid::now_v7());
 
     let job = create_model_run_job(
         &state,
@@ -597,7 +597,7 @@ async fn trust002_cross_session_provenance_fields_are_persisted(
             "assistant_content_artifact_id": assistant_artifact,
             "session_messages": [
                 {
-                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "message_id": format!("msg-{}", Uuid::now_v7()),
                     "role": "USER",
                     "content_hash": hex64('e'),
                     "content_artifact_id": format!("artifact:{session_id}:routed-1"),
@@ -642,7 +642,7 @@ async fn trust002_cross_session_provenance_fields_are_persisted(
 #[tokio::test]
 async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
 
     let job = create_model_run_job(
         &state,
@@ -655,7 +655,7 @@ async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::er
             "backend": "local-test",
             "session_messages": [
                 {
-                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "message_id": format!("msg-{}", Uuid::now_v7()),
                     "role": "USER",
                     "content_hash": hex64('f'),
                     "content_artifact_id": format!("artifact:{session_id}:bad-1"),
@@ -681,9 +681,9 @@ async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::er
 #[tokio::test]
 async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
-    let consent_receipt_id = format!("cr-{}", Uuid::new_v4());
+    let consent_receipt_id = format!("cr-{}", Uuid::now_v7());
 
     let job = create_model_run_job(
         &state,
@@ -702,7 +702,7 @@ async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn s
             "assistant_content_artifact_id": assistant_artifact,
             "session_messages": [
                 {
-                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "message_id": format!("msg-{}", Uuid::now_v7()),
                     "role": "USER",
                     "content_hash": hex64('a'),
                     "content_artifact_id": format!("artifact:{session_id}:user-1")
@@ -752,9 +752,9 @@ async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn s
 async fn model_run_cloud_consent_allows_with_valid_bundle() -> Result<(), Box<dyn std::error::Error>>
 {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
-    let consent_receipt_id = format!("cr-{}", Uuid::new_v4());
+    let consent_receipt_id = format!("cr-{}", Uuid::now_v7());
 
     let prompt = "cloud-ok";
     let model_id = "model-session-test";
@@ -783,7 +783,7 @@ async fn model_run_cloud_consent_allows_with_valid_bundle() -> Result<(), Box<dy
             "assistant_content_artifact_id": assistant_artifact,
             "session_messages": [
                 {
-                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "message_id": format!("msg-{}", Uuid::now_v7()),
                     "role": "USER",
                     "content_hash": hex64('b'),
                     "content_artifact_id": format!("artifact:{session_id}:user-1")
@@ -844,7 +844,7 @@ async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
     let first = create_model_run_job(
         &state,
         json!({
-            "session_id": format!("sess-{}", Uuid::new_v4()),
+            "session_id": format!("sess-{}", Uuid::now_v7()),
             "lane": "PRIMARY",
             "priority": 1,
             "prompt": "first",
@@ -858,7 +858,7 @@ async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
     let second = create_model_run_job(
         &state,
         json!({
-            "session_id": format!("sess-{}", Uuid::new_v4()),
+            "session_id": format!("sess-{}", Uuid::now_v7()),
             "lane": "PRIMARY",
             "priority": 1,
             "prompt": "second",
@@ -872,7 +872,7 @@ async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
     let third = create_model_run_job(
         &state,
         json!({
-            "session_id": format!("sess-{}", Uuid::new_v4()),
+            "session_id": format!("sess-{}", Uuid::now_v7()),
             "lane": "PRIMARY",
             "priority": 1,
             "prompt": "third",
@@ -969,7 +969,7 @@ async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
 async fn model_run_cancellation_is_cooperative_and_cancelled_not_failed(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
 
     let job = create_model_run_job(
         &state,
@@ -1047,9 +1047,9 @@ async fn model_run_cancellation_is_cooperative_and_cancelled_not_failed(
 async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
-    let consent_receipt_id = format!("cr-{}", Uuid::new_v4());
+    let consent_receipt_id = format!("cr-{}", Uuid::now_v7());
 
     let prompt = "cloud-revoke";
     let model_id = "model-session-test";
@@ -1079,7 +1079,7 @@ async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
             "assistant_content_artifact_id": assistant_artifact,
             "session_messages": [
                 {
-                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "message_id": format!("msg-{}", Uuid::now_v7()),
                     "role": "USER",
                     "content_hash": hex64('c'),
                     "content_artifact_id": format!("artifact:{session_id}:user-1")
@@ -1129,7 +1129,7 @@ async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
 async fn session_observability_spans_bind_model_runs_and_tool_calls(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
     let assistant_artifact = format!("artifact:{session_id}:assistant");
 
     let job = create_model_run_job(
@@ -1151,7 +1151,7 @@ async fn session_observability_spans_bind_model_runs_and_tool_calls(
             "max_tokens_budget": 10,
             "session_messages": [
                 {
-                    "message_id": format!("msg-{}", Uuid::new_v4()),
+                    "message_id": format!("msg-{}", Uuid::now_v7()),
                     "role": "USER",
                     "content_hash": hex64('a'),
                     "content_artifact_id": format!("artifact:{session_id}:user-1"),
@@ -1455,7 +1455,7 @@ async fn session_observability_spans_bind_model_runs_and_tool_calls(
 
 #[test]
 fn session_scheduler_event_payloads_are_validated() {
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
 
     let valid_payloads = vec![
         (
@@ -1464,7 +1464,7 @@ fn session_scheduler_event_payloads_are_validated() {
                 "type": "session_scheduler.enqueue",
                 "event_id": "FR-EVT-SESS-SCHED-001",
                 "session_id": "sess-1",
-                "job_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
                 "job_kind": "model_run",
                 "lane": "PRIMARY",
                 "priority": 0,
@@ -1482,7 +1482,7 @@ fn session_scheduler_event_payloads_are_validated() {
                 "type": "session_scheduler.dispatch",
                 "event_id": "FR-EVT-SESS-SCHED-002",
                 "session_id": "sess-2",
-                "job_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
                 "job_kind": "model_run",
                 "lane": "PRIMARY",
                 "priority": 1,
@@ -1497,7 +1497,7 @@ fn session_scheduler_event_payloads_are_validated() {
                 "type": "session_scheduler.rate_limited",
                 "event_id": "FR-EVT-SESS-SCHED-003",
                 "session_id": "sess-3",
-                "job_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
                 "provider": "local-test",
                 "job_kind": "model_run",
                 "lane": "PRIMARY",
@@ -1515,7 +1515,7 @@ fn session_scheduler_event_payloads_are_validated() {
                 "type": "session_scheduler.cancelled",
                 "event_id": "FR-EVT-SESS-SCHED-004",
                 "session_id": "sess-4",
-                "job_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
                 "job_kind": "model_run",
                 "lane": "PRIMARY",
                 "priority": 3,
@@ -1596,7 +1596,7 @@ fn session_scheduler_event_payloads_are_validated() {
             "type": "session_scheduler.enqueue",
             "event_id": "FR-EVT-SESS-SCHED-001",
             "session_id": "sess-inline",
-            "job_id": Uuid::new_v4().to_string(),
+            "job_id": Uuid::now_v7().to_string(),
             "job_kind": "model_run",
             "lane": "PRIMARY",
             "priority": 0,
@@ -1632,10 +1632,10 @@ fn session_scheduler_event_payloads_are_validated() {
 async fn model_run_spawn_request_within_contracts_is_accepted(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(&state, &parent_session_id, None, &["fs.read", "net.http"]).await?;
 
-    let child_session_id = format!("child-{}", Uuid::new_v4());
+    let child_session_id = format!("child-{}", Uuid::now_v7());
     let child_job = create_model_run_job(
         &state,
         json!({
@@ -1702,7 +1702,7 @@ async fn model_run_spawn_request_within_contracts_is_accepted(
 async fn model_run_spawn_request_rejected_when_depth_exceeds_max(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(
         &state,
         &parent_session_id,
@@ -1714,7 +1714,7 @@ async fn model_run_spawn_request_rejected_when_depth_exceeds_max(
     let child_job = create_model_run_job(
         &state,
         json!({
-            "session_id": format!("child-{}", Uuid::new_v4()),
+            "session_id": format!("child-{}", Uuid::now_v7()),
             "parent_session_id": parent_session_id.as_str(),
             "spawn_depth": 4,
             "lane": "PRIMARY",
@@ -1767,7 +1767,7 @@ async fn model_run_spawn_request_rejected_when_depth_exceeds_max(
 async fn model_run_spawn_request_rejected_when_children_exceeds_limit(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(
         &state,
         &parent_session_id,
@@ -1777,7 +1777,7 @@ async fn model_run_spawn_request_rejected_when_children_exceeds_limit(
     .await?;
 
     for idx in 0..4 {
-        let child_id = format!("active-child-{idx}-{}", Uuid::new_v4());
+        let child_id = format!("active-child-{idx}-{}", Uuid::now_v7());
         seed_active_model_session(
             &state,
             &child_id,
@@ -1796,7 +1796,7 @@ async fn model_run_spawn_request_rejected_when_children_exceeds_limit(
     let rejected_child_job = create_model_run_job(
         &state,
         json!({
-            "session_id": format!("child-{}", Uuid::new_v4()),
+            "session_id": format!("child-{}", Uuid::now_v7()),
             "parent_session_id": parent_session_id.as_str(),
             "spawn_depth": 1,
             "lane": "PRIMARY",
@@ -1845,13 +1845,13 @@ async fn model_run_spawn_request_rejected_when_children_exceeds_limit(
 async fn model_run_spawn_request_rejected_when_capability_widens(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(&state, &parent_session_id, None, &["fs.read"]).await?;
 
     let child_job = create_model_run_job(
         &state,
         json!({
-            "session_id": format!("child-{}", Uuid::new_v4()),
+            "session_id": format!("child-{}", Uuid::now_v7()),
             "parent_session_id": parent_session_id.as_str(),
             "spawn_depth": 1,
             "lane": "PRIMARY",
@@ -1900,10 +1900,10 @@ async fn model_run_spawn_request_rejected_when_capability_widens(
 async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let parent_session_id = format!("parent-{}", Uuid::new_v4());
+    let parent_session_id = format!("parent-{}", Uuid::now_v7());
     seed_active_model_session(&state, &parent_session_id, None, &["fs.read", "net.http"]).await?;
 
-    let child_session_id = format!("child-{}", Uuid::new_v4());
+    let child_session_id = format!("child-{}", Uuid::now_v7());
     let child_job = create_model_run_job(
         &state,
         json!({
@@ -1977,9 +1977,9 @@ async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
 async fn model_run_cancellation_cascades_to_descendants() -> Result<(), Box<dyn std::error::Error>>
 {
     let state = setup_state().await?;
-    let parent_session_id = format!("parent-{}", Uuid::new_v4());
-    let child_session_id = format!("child-{}", Uuid::new_v4());
-    let grandchild_session_id = format!("grandchild-{}", Uuid::new_v4());
+    let parent_session_id = format!("parent-{}", Uuid::now_v7());
+    let child_session_id = format!("child-{}", Uuid::now_v7());
+    let grandchild_session_id = format!("grandchild-{}", Uuid::now_v7());
 
     let parent_job = create_model_run_job(
         &state,
@@ -2087,7 +2087,7 @@ async fn model_run_cancellation_cascades_to_descendants() -> Result<(), Box<dyn 
 #[tokio::test]
 async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::error::Error>> {
     let state = setup_state().await?;
-    let session_id = format!("sess-{}", Uuid::new_v4());
+    let session_id = format!("sess-{}", Uuid::now_v7());
 
     let created = state
         .storage
@@ -2108,7 +2108,7 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             consent_receipt_id: None,
             capability_grants: Vec::new(),
             capability_token_ids: None,
-            job_id: Some(Uuid::new_v4()),
+            job_id: Some(Uuid::now_v7()),
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,
@@ -2135,7 +2135,7 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
             consent_receipt_id: None,
             capability_grants: Vec::new(),
             capability_token_ids: None,
-            job_id: Some(Uuid::new_v4()),
+            job_id: Some(Uuid::now_v7()),
             checkpoint_artifact_id: None,
             last_checkpoint_at: None,
             checkpoint_count: 0,

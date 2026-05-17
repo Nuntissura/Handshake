@@ -26,8 +26,8 @@ fn valid_ans001_validation_payload(session_id: Uuid, message_id: Uuid) -> serde_
 
 #[tokio::test]
 async fn records_runtime_chat_ans001_validation_event() {
-    let session_id = Uuid::new_v4();
-    let message_id = Uuid::new_v4();
+    let session_id = Uuid::now_v7();
+    let message_id = Uuid::now_v7();
     let payload = valid_ans001_validation_payload(session_id, message_id);
 
     let recorder = DuckDbFlightRecorder::new_in_memory(7).expect("recorder init");
@@ -55,8 +55,8 @@ async fn records_runtime_chat_ans001_validation_event() {
 
 #[test]
 fn rejects_runtime_chat_ans001_validation_unknown_key() {
-    let session_id = Uuid::new_v4();
-    let message_id = Uuid::new_v4();
+    let session_id = Uuid::now_v7();
+    let message_id = Uuid::now_v7();
     let mut payload = valid_ans001_validation_payload(session_id, message_id);
     payload
         .as_object_mut()
@@ -75,8 +75,8 @@ fn rejects_runtime_chat_ans001_validation_unknown_key() {
 
 #[test]
 fn rejects_runtime_chat_ans001_validation_path_field() {
-    let session_id = Uuid::new_v4();
-    let message_id = Uuid::new_v4();
+    let session_id = Uuid::now_v7();
+    let message_id = Uuid::now_v7();
     let mut payload = valid_ans001_validation_payload(session_id, message_id);
     payload.as_object_mut().expect("payload object").insert(
         "chat_log_path".to_string(),
@@ -95,8 +95,8 @@ fn rejects_runtime_chat_ans001_validation_path_field() {
 
 #[test]
 fn rejects_runtime_chat_ans001_validation_invalid_sha256() {
-    let session_id = Uuid::new_v4();
-    let message_id = Uuid::new_v4();
+    let session_id = Uuid::now_v7();
+    let message_id = Uuid::now_v7();
     let mut payload = valid_ans001_validation_payload(session_id, message_id);
     payload
         .as_object_mut()

@@ -1317,7 +1317,7 @@ fn parse_model_run_metadata(job: &AiJob) -> Result<ModelRunMetadata, WorkflowErr
         string_opt(inputs, "backend").unwrap_or_else(|| "default-backend".to_string());
 
     Ok(ModelRunMetadata {
-        session_id: string_opt(inputs, "session_id").unwrap_or_else(|| Uuid::new_v4().to_string()),
+        session_id: string_opt(inputs, "session_id").unwrap_or_else(|| Uuid::now_v7().to_string()),
         parent_session_id: string_opt(inputs, "parent_session_id"),
         spawn_depth: int_opt(inputs, "spawn_depth").unwrap_or(0) as i32,
         lane,
@@ -2360,7 +2360,7 @@ async fn emit_gov_work_packet_activated_event(
         FlightRecorderEvent::new(
             FlightRecorderEventType::GovWorkPacketActivated,
             FlightRecorderActor::System,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         ),
     )
@@ -4571,7 +4571,7 @@ fn routing_policy_to_governance_mode(
 }
 
 fn workflow_runtime_artifact_handle(path: &str) -> ArtifactHandle {
-    ArtifactHandle::new(Uuid::new_v4(), path.to_string())
+    ArtifactHandle::new(Uuid::now_v7(), path.to_string())
 }
 
 fn workflow_mirror_verdict_label(verdict: Option<locus::WorkflowMirrorVerdict>) -> &'static str {
@@ -4649,7 +4649,7 @@ fn workflow_mirror_gate_transition_event(
     Ok(FlightRecorderEvent::new(
         FlightRecorderEventType::GovGateTransition,
         FlightRecorderActor::System,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         seed,
     )
     .with_actor_id("workflow:governance_workflow_mirror_sync"))
@@ -6470,7 +6470,7 @@ pub async fn build_dcc_control_plane_snapshot(
     use crate::runtime_governance::*;
 
     let generated_at = Utc::now().to_rfc3339();
-    let snapshot_id = Uuid::new_v4().to_string();
+    let snapshot_id = Uuid::now_v7().to_string();
 
     // Work state: read projected task board index from disk
     let (task_board_id, entries, freshness) = read_task_board_index_for_dcc(runtime_paths)?;
@@ -7232,8 +7232,8 @@ pub async fn create_session_checkpoint(
     let messages = state.storage.list_session_messages(session_id).await?;
 
     let now = Utc::now();
-    let checkpoint_id = Uuid::new_v4().to_string();
-    let checkpoint_artifact_id = Uuid::new_v4().to_string();
+    let checkpoint_id = Uuid::now_v7().to_string();
+    let checkpoint_artifact_id = Uuid::now_v7().to_string();
     let session_state_json =
         serde_json::to_string(&session).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let message_thread_tail_id = messages
@@ -7302,7 +7302,7 @@ pub async fn create_session_checkpoint(
         FlightRecorderEvent::new(
             FlightRecorderEventType::SessionCheckpointCreated,
             FlightRecorderActor::System,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             serde_json::to_value(&payload).unwrap_or(json!({})),
         ),
     )
@@ -7374,7 +7374,7 @@ pub async fn recover_session_from_checkpoint(
         FlightRecorderEvent::new(
             FlightRecorderEventType::SessionRecoveryAttempted,
             FlightRecorderActor::System,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload_value,
         ),
     )
@@ -7435,7 +7435,7 @@ pub async fn mark_stalled_workflows(
             FlightRecorderEvent::new(
                 FlightRecorderEventType::WorkflowRecovery,
                 FlightRecorderActor::System,
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 serde_json::to_value(&payload).unwrap_or(json!({})),
             )
             .with_job_id(run.job_id.to_string())
@@ -9955,7 +9955,7 @@ pub async fn record_cloud_escalation_consent_v0_4(
     let projection_plan_id = pending.projection_plan.projection_plan_id.clone();
     let payload_sha256 = pending.projection_plan.payload_sha256.clone();
 
-    let consent_receipt_id = Uuid::new_v4().to_string();
+    let consent_receipt_id = Uuid::now_v7().to_string();
     let approved_at = Utc::now().to_rfc3339();
     let receipt = ConsentReceiptV0_4 {
         schema_version: "hsk.consent_receipt@0.4".to_string(),
@@ -10547,7 +10547,7 @@ async fn run_job(
                 };
 
                 let suggestion = json!({
-                    "suggestion_id": Uuid::new_v4().to_string(),
+                    "suggestion_id": Uuid::now_v7().to_string(),
                     "role_id": role_id.clone(),
                     "contract_id": format!("ROLE:{role_id}:C:1"),
                     "title": "Suggested edit".to_string(),
@@ -11857,7 +11857,7 @@ pub fn distillation_candidate_to_log_entry(
         log_id: candidate.skill_log_entry_id,
         timestamp: chrono::Utc::now(),
         session: SessionMeta {
-            session_id: Uuid::new_v4(),
+            session_id: Uuid::now_v7(),
             turn_index: 0,
             task_id: Some(candidate.mt_id.clone()),
             user_id_hash: None,
@@ -11895,7 +11895,7 @@ pub fn distillation_candidate_to_log_entry(
         snapshots_input: ChatSnapshot {
             format: SnapshotFormat::Chatml,
             messages: vec![ChatMessage {
-                id: Uuid::new_v4(),
+                id: Uuid::now_v7(),
                 parent_id: None,
                 role: Role::User,
                 content: Content::Plain(teacher.prompt_snapshot_ref.canonical_id()),
@@ -11906,7 +11906,7 @@ pub fn distillation_candidate_to_log_entry(
         snapshots_output_raw: ChatSnapshot {
             format: SnapshotFormat::Chatml,
             messages: vec![ChatMessage {
-                id: Uuid::new_v4(),
+                id: Uuid::now_v7(),
                 parent_id: None,
                 role: Role::Assistant,
                 content: Content::Plain(teacher.output_snapshot_ref.canonical_id()),
@@ -11920,14 +11920,14 @@ pub fn distillation_candidate_to_log_entry(
             format: SnapshotFormat::Chatml,
             messages: vec![
                 ChatMessage {
-                    id: Uuid::new_v4(),
+                    id: Uuid::now_v7(),
                     parent_id: None,
                     role: Role::User,
                     content: Content::Plain(student.prompt_snapshot_ref.canonical_id()),
                     metadata: msg_meta(student, &student.prompt_snapshot_ref),
                 },
                 ChatMessage {
-                    id: Uuid::new_v4(),
+                    id: Uuid::now_v7(),
                     parent_id: None,
                     role: Role::Assistant,
                     content: Content::Plain(student.output_snapshot_ref.canonical_id()),
@@ -12129,7 +12129,7 @@ fn rel_path_string(rel_path: &Path) -> String {
 }
 
 fn artifact_handle_for_rel(rel_path: &Path) -> ArtifactHandle {
-    ArtifactHandle::new(Uuid::new_v4(), rel_path_string(rel_path))
+    ArtifactHandle::new(Uuid::now_v7(), rel_path_string(rel_path))
 }
 
 fn micro_task_target_ref(wp_id: &str, mt_id: &str) -> String {
@@ -12306,7 +12306,7 @@ async fn create_gov_decision_and_emit_created(
     actor_model_id: Option<String>,
     actor_user_id: Option<String>,
 ) -> Result<(GovernanceDecision, ArtifactHandle), WorkflowError> {
-    let decision_id = Uuid::new_v4().to_string();
+    let decision_id = Uuid::now_v7().to_string();
 
     let decision = GovernanceDecision {
         schema_version: GOV_DECISION_SCHEMA_VERSION.to_string(),
@@ -12374,7 +12374,7 @@ async fn create_auto_signature_and_emit_created(
 
     let auto_signature = AutoSignature {
         schema_version: GOV_AUTO_SIGNATURE_SCHEMA_VERSION.to_string(),
-        auto_signature_id: Uuid::new_v4().to_string(),
+        auto_signature_id: Uuid::now_v7().to_string(),
         decision_id: decision.decision_id.clone(),
         gate_type: decision.gate_type.clone(),
         target_ref: decision.target_ref.clone(),
@@ -13597,8 +13597,8 @@ mod context_pack_tests {
 
     #[test]
     fn context_compile_payload_includes_pack_refs_and_markers() {
-        let pack_id = Uuid::new_v4();
-        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let pack_id = Uuid::now_v7();
+        let source_ref = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let record = ContextPackRecord {
             pack_id,
             target: source_ref.clone(),
@@ -13618,9 +13618,9 @@ mod context_pack_tests {
             version: 1,
         };
 
-        let snapshot_ref = ArtifactHandle::new(Uuid::new_v4(), "data/snap.json".to_string());
-        let qp_ref = ArtifactHandle::new(Uuid::new_v4(), "data/qp.json".to_string());
-        let rt_ref = ArtifactHandle::new(Uuid::new_v4(), "data/rt.json".to_string());
+        let snapshot_ref = ArtifactHandle::new(Uuid::now_v7(), "data/snap.json".to_string());
+        let qp_ref = ArtifactHandle::new(Uuid::now_v7(), "data/qp.json".to_string());
+        let rt_ref = ArtifactHandle::new(Uuid::now_v7(), "data/rt.json".to_string());
 
         let stale_marker = format!("{}{}", STALE_PACK_WARNING_PREFIX, pack_id);
         let denied_marker = "context_pack:regen_denied:capability".to_string();
@@ -14200,7 +14200,7 @@ impl MediaDownloaderEngineAdapter {
     }
 
     fn artifact_handle_for_rel(&self, rel_path: &std::path::Path) -> ArtifactHandle {
-        ArtifactHandle::new(Uuid::new_v4(), Self::rel_path_string(rel_path))
+        ArtifactHandle::new(Uuid::now_v7(), Self::rel_path_string(rel_path))
     }
 
     fn artifact_dir_rel(op: &PlannedOperation) -> PathBuf {
@@ -14575,7 +14575,7 @@ fn calendar_event_upsert_from_sync_event(
     event: CalendarSyncEventUpsert,
 ) -> CalendarEventUpsert {
     CalendarEventUpsert {
-        id: event.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
+        id: event.id.unwrap_or_else(|| Uuid::now_v7().to_string()),
         workspace_id: workspace_id.to_string(),
         source_id: source_id.to_string(),
         external_id: event.external_id,
@@ -15105,7 +15105,7 @@ async fn run_validation_via_mex(
 
         let op = PlannedOperation {
             schema_version: POE_SCHEMA_VERSION.to_string(),
-            op_id: Uuid::new_v4(),
+            op_id: Uuid::now_v7(),
             engine_id: "engine.shell".to_string(),
             engine_version_req: None,
             operation: "exec".to_string(),
@@ -15824,7 +15824,7 @@ fn build_locus_unbind_session_params(
 
 fn init_run_ledger(wp_id: &str, job_id: Uuid) -> RunLedger {
     RunLedger {
-        ledger_id: Uuid::new_v4(),
+        ledger_id: Uuid::now_v7(),
         wp_id: wp_id.to_string(),
         job_id: job_id.to_string(),
         created_at: Utc::now(),
@@ -16100,7 +16100,7 @@ async fn run_micro_task_executor_v1(
                 FlightRecorderEvent::new(
                     FlightRecorderEventType::WorkflowRecovery,
                     FlightRecorderActor::System,
-                    Uuid::new_v4(),
+                    Uuid::now_v7(),
                     payload,
                 )
                 .with_job_id(job.job_id.to_string())
@@ -16765,7 +16765,7 @@ async fn run_micro_task_executor_v1(
                     )
                     .await;
 
-                    let denied_request_id = Uuid::new_v4().to_string();
+                    let denied_request_id = Uuid::now_v7().to_string();
                     record_event_safely(
                         state,
                         FlightRecorderEvent::new(
@@ -17053,7 +17053,7 @@ async fn run_micro_task_executor_v1(
                 )
                 .await;
 
-                let context_snapshot_id = Uuid::new_v4();
+                let context_snapshot_id = Uuid::now_v7();
 
                 // -------------------------------------------------------------------------
                 // Â§2.6.6.8.8 MT Context Compilation (ACE-integrated; PromptEnvelope + Snapshot)
@@ -17796,7 +17796,7 @@ NEED: {{what you need to unblock}}
                                         Some(p.last_error_summary.clone()),
                                     )
                                 }
-                                _ => (Uuid::new_v4().to_string(), None, None, None),
+                                _ => (Uuid::now_v7().to_string(), None, None, None),
                             };
 
                         let mut denied_payload = json!({
@@ -18045,8 +18045,8 @@ NEED: {{what you need to unblock}}
 
                     if cloud_bundle_for_call.is_none() {
                         // Create new request + ProjectionPlan, then pause for explicit consent.
-                        let request_id = Uuid::new_v4().to_string();
-                        let projection_plan_id = Uuid::new_v4().to_string();
+                        let request_id = Uuid::now_v7().to_string();
+                        let projection_plan_id = Uuid::now_v7().to_string();
                         let created_at = Utc::now().to_rfc3339();
 
                         let cloud_dir_rel = job_dir_rel
@@ -18757,7 +18757,7 @@ NEED: {{what you need to unblock}}
                     mt.mt_id,
                     from_level,
                     to_level,
-                    Uuid::new_v4()
+                    Uuid::now_v7()
                 ));
                 let escalation_record_abs = repo_root.join(&escalation_record_rel);
                 write_json_atomic(
@@ -18826,7 +18826,7 @@ NEED: {{what you need to unblock}}
                     };
 
                     let pending = PendingDistillationCandidate {
-                        skill_log_entry_id: Uuid::new_v4().to_string(),
+                        skill_log_entry_id: Uuid::now_v7().to_string(),
                         student_attempt: DistillationAttempt {
                             model_id: model_id.clone(),
                             lora_id: lora_id.clone(),
@@ -18874,7 +18874,7 @@ NEED: {{what you need to unblock}}
                     )
                     .await;
 
-                    let denied_request_id = Uuid::new_v4().to_string();
+                    let denied_request_id = Uuid::now_v7().to_string();
                     record_event_safely(
                         state,
                         FlightRecorderEvent::new(
@@ -19975,7 +19975,7 @@ async fn run_spec_router_job(
     let cap_bytes = crate::llm::canonical_json_bytes_nfc(&cap_value);
     let (cap_manifest, cap_handle) = write_bytes_artifact(
         &workspace_root,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::File,
         "application/json".to_string(),
@@ -20060,7 +20060,7 @@ async fn run_spec_router_job(
     // Local-only prompt payload artifact (sensitive)
     let (_prompt_payload_manifest, prompt_payload_handle) = write_bytes_artifact(
         &workspace_root,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::PromptPayload,
         "text/plain".to_string(),
@@ -20084,7 +20084,7 @@ async fn run_spec_router_job(
         crate::llm::ModelTier::Local => "local",
     };
 
-    let context_snapshot_id = Uuid::new_v4();
+    let context_snapshot_id = Uuid::now_v7();
     let context_snapshot = SpecRouterContextSnapshotV1 {
         context_snapshot_id,
         job_id: job.job_id.to_string(),
@@ -20271,7 +20271,7 @@ async fn run_spec_router_job(
     let spec_intent_bytes = crate::llm::canonical_json_bytes_nfc(&spec_intent);
     let (_intent_manifest, intent_handle) = write_bytes_artifact(
         &workspace_root,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::File,
         "application/json".to_string(),
@@ -20292,7 +20292,7 @@ async fn run_spec_router_job(
     let decision_bytes = crate::llm::canonical_json_bytes_nfc(&decision);
     let (_decision_manifest, decision_handle) = write_bytes_artifact(
         &workspace_root,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::File,
         "application/json".to_string(),
@@ -20312,7 +20312,7 @@ async fn run_spec_router_job(
 
     let (_spec_manifest, spec_handle) = write_bytes_artifact(
         &workspace_root,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::Report,
         "text/markdown".to_string(),
@@ -23997,7 +23997,7 @@ async fn md_emit_materialization_export_record(
     ));
 
     let record = crate::governance_pack::ExportRecord {
-        export_id: Uuid::new_v4(),
+        export_id: Uuid::now_v7(),
         created_at: Utc::now(),
         actor: crate::governance_pack::ExportActor::AiJob,
         job_id: Some(job.job_id),
@@ -24210,7 +24210,7 @@ fn md_materialize_local_file_from_path(
         fs::remove_file(&target_path).map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     }
 
-    let tmp_name = format!(".hsk_tmp_{}", Uuid::new_v4());
+    let tmp_name = format!(".hsk_tmp_{}", Uuid::now_v7());
     let tmp_path = target_path
         .parent()
         .unwrap_or(&export_root_canon)
@@ -24268,7 +24268,7 @@ fn md_write_file_artifact_from_path(
         }
     }
 
-    let artifact_id = Uuid::new_v4();
+    let artifact_id = Uuid::now_v7();
     let created_at = Utc::now();
     let artifact_root =
         crate::storage::artifacts::artifact_root_dir(workspace_root, layer, artifact_id);
@@ -24457,7 +24457,7 @@ async fn md_mex_exec(
 
     let op = PlannedOperation {
         schema_version: POE_SCHEMA_VERSION.to_string(),
-        op_id: Uuid::new_v4(),
+        op_id: Uuid::now_v7(),
         engine_id: MD_TOOL_ENGINE_ID.to_string(),
         engine_version_req: None,
         operation: operation.to_string(),
@@ -25732,7 +25732,7 @@ async fn md_crawl_forum_images_impl(
                     continue;
                 };
 
-                let part_path = tmp_dir.join(format!("{}.part", Uuid::new_v4()));
+                let part_path = tmp_dir.join(format!("{}.part", Uuid::now_v7()));
                 let mut file = tokio::fs::File::create(&part_path)
                     .await
                     .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
@@ -26091,7 +26091,7 @@ async fn md_crawl_forum_images_impl(
                     continue;
                 };
 
-                let part_path = tmp_dir.join(format!("{}.part", Uuid::new_v4()));
+                let part_path = tmp_dir.join(format!("{}.part", Uuid::now_v7()));
                 let mut file = tokio::fs::File::create(&part_path)
                     .await
                     .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
@@ -26792,7 +26792,7 @@ async fn md_crawl_forum_images(
                     continue;
                 };
 
-                let part_path = tmp_dir.join(format!("{}.part", Uuid::new_v4()));
+                let part_path = tmp_dir.join(format!("{}.part", Uuid::now_v7()));
                 let mut file = tokio::fs::File::create(&part_path)
                     .await
                     .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
@@ -27099,7 +27099,7 @@ async fn md_crawl_forum_images(
                     continue;
                 };
 
-                let part_path = tmp_dir.join(format!("{}.part", Uuid::new_v4()));
+                let part_path = tmp_dir.join(format!("{}.part", Uuid::now_v7()));
                 let mut file = tokio::fs::File::create(&part_path)
                     .await
                     .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
@@ -28138,6 +28138,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn task_board_projection_preserves_updated_at_then_wp_id_order(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28211,6 +28212,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     async fn create_test_model_session(
         state: &AppState,
         session_state: ModelSessionState,
@@ -28219,7 +28221,7 @@ mod tests {
         let session = state
             .storage
             .upsert_model_session(NewModelSession {
-                session_id: Uuid::new_v4().to_string(),
+                session_id: Uuid::now_v7().to_string(),
                 parent_session_id: None,
                 spawn_depth: 0,
                 state: session_state,
@@ -28245,6 +28247,7 @@ mod tests {
         Ok(session)
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     fn find_session_recovery_event(
         events: &[FlightRecorderEvent],
         session_id: &str,
@@ -28256,6 +28259,7 @@ mod tests {
             .find(|payload: &FrEvtSessionRecoveryAttempted| payload.session_id == session_id)
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     fn terminal_command() -> (String, Vec<String>) {
         if cfg!(target_os = "windows") {
             (
@@ -28267,6 +28271,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     async fn create_debug_bundle_job(
         state: &AppState,
         scope: serde_json::Value,
@@ -28274,7 +28279,7 @@ mod tests {
         Ok(state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::DebugBundleExport,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
@@ -28445,7 +28450,7 @@ mod tests {
     fn model_swap_state_persist_and_verify_v0_4_roundtrip() -> Result<(), Box<dyn std::error::Error>>
     {
         let tmp = tempfile::tempdir()?;
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
 
         let state_ref_rel = PathBuf::from("data").join("test_state.json");
         let state_ref_abs = tmp.path().join(&state_ref_rel);
@@ -28508,6 +28513,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn job_fails_when_missing_required_capability() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -28515,7 +28521,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::DocSummarize,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
@@ -28540,13 +28546,14 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_enforces_capability() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::TerminalExec,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
@@ -28571,6 +28578,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_runs_when_authorized() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28584,7 +28592,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::TerminalExec,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
@@ -28617,6 +28625,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn workflow_persists_node_history_and_outputs() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -28626,7 +28635,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::TerminalExec,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
@@ -28654,6 +28663,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_run_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28682,6 +28692,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28690,7 +28701,7 @@ mod tests {
             &state,
             json!({
                 "kind": "workflow_node_execution",
-                "workflow_node_execution_id": Uuid::new_v4().to_string(),
+                "workflow_node_execution_id": Uuid::now_v7().to_string(),
             }),
         )
         .await?;
@@ -28717,6 +28728,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_node_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28725,7 +28737,7 @@ mod tests {
             &state,
             json!({
                 "kind": "workflow_node_execution",
-                "workflow_run_id": Uuid::new_v4().to_string(),
+                "workflow_run_id": Uuid::now_v7().to_string(),
             }),
         )
         .await?;
@@ -28753,13 +28765,14 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_poisoning_trap() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::DocSummarize,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
@@ -28796,6 +28809,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_mark_stalled_workflows() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28804,7 +28818,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::DocSummarize,
                 protocol_id: "p1".into(),
                 profile_id: "default".into(),
@@ -28864,6 +28878,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_create_session_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28897,6 +28912,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_recover_session_from_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28934,6 +28950,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_mark_stalled_workflows_recovers_orphaned_active_session(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28941,7 +28958,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::ModelRun,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
@@ -28977,6 +28994,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_recover_session_from_checkpoint_idempotent(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -29006,6 +29024,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_startup_recovery_blocks_job_acceptance() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -29042,6 +29061,7 @@ mod tests {
     /// Integration test: run_job MUST invoke validate_trace and reject budget violations.
     /// This test creates a trace that EXCEEDS max_total_evidence_tokens budget.
     /// RetrievalBudgetGuard.validate_trace will detect this and return AceError::BudgetExceeded.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn run_job_rejects_budget_exceeded() -> Result<(), Box<dyn std::error::Error>> {
         use crate::storage::{NewBlock, NewDocument, NewWorkspace, WriteContext};
@@ -29096,7 +29116,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::DocSummarize,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
@@ -29258,6 +29278,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn fems_extract_emits_proposal_without_commit_and_without_raw_fr_content(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -29266,7 +29287,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::WorkflowRun,
                 protocol_id: FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1.to_string(),
                 profile_id: "default".to_string(),
@@ -29349,6 +29370,7 @@ mod tests {
     /// packets, gate metadata) and prove the DCC snapshot builder reads them
     /// back through the real code path, producing correct ready_queue,
     /// micro_task_summary, and gate_state fields.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_ready_query_projection_is_backend_backed() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -29565,6 +29587,7 @@ mod tests {
     /// Register model sessions with worktree bindings in the SessionRegistry
     /// and prove the DCC snapshot builder projects them into DccSessionBinding
     /// with correct model_id, backend, bound_micro_task_id, and worktree_dir.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_session_binding_projection_matches_runtime_state(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -29582,11 +29605,11 @@ mod tests {
         let runtime_paths = RuntimeGovernancePaths::resolve()?;
 
         // ── 1. Create an AiJob with a workflow_run_id ──
-        let workflow_run_id = Uuid::new_v4();
+        let workflow_run_id = Uuid::now_v7();
         let job = state
             .storage
             .create_ai_job(crate::storage::NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::WorkflowRun,
                 protocol_id: "protocol-default".into(),
                 profile_id: "default".into(),
@@ -29619,7 +29642,7 @@ mod tests {
         // ── 2. Register a model session bound to a WP + MT with the AiJob ──
         let bound_wp = "WP-BINDING-TEST";
         let bound_mt = "MT-002";
-        let session_id = Uuid::new_v4().to_string();
+        let session_id = Uuid::now_v7().to_string();
         let mut session = test_model_session(&session_id, &[]);
         session.model_id = "claude-sonnet-4-20250514".into();
         session.backend = "anthropic".into();
@@ -29760,6 +29783,7 @@ mod tests {
 
     // MT-001 validator-gate closeout posture proof tests.
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn validator_gate_runtime_summary_links_check_evidence(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -30660,6 +30684,7 @@ mod tests {
 
     // MT-003 backend-backed DCC collaboration projection tests.
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn governance_workflow_mirror_gate_transition_emits_fr_event(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -30921,6 +30946,7 @@ mod tests {
     /// JSONL) and prove the DCC snapshot builder reads them back through the
     /// real code path, producing correct active_threads, pending_wait_reasons,
     /// mailbox_summary, evidence refs, and linked work IDs.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_mailbox_projection_preserves_wait_reasons(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -31220,6 +31246,7 @@ mod tests {
     /// deterministically query entries by WorkflowStateFamily and
     /// WorkflowQueueReasonCode without lane-name heuristics — and that
     /// allowed_action_ids remain visible through the filtered results.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_task_board_filters_by_state_family_and_queue_reason(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -31458,6 +31485,7 @@ mod tests {
 
     // ── MT-005: compact summary contract (6.3) ──────────────────────────
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_compact_summary_contract_preserves_stable_ids(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -31813,7 +31841,7 @@ mod tests {
 
     fn make_candidate() -> DistillationCandidate {
         DistillationCandidate {
-            skill_log_entry_id: Uuid::new_v4(),
+            skill_log_entry_id: Uuid::now_v7(),
             mt_id: "MT-001".to_string(),
             wp_id: "WP-1".to_string(),
             student_attempt: CandidateAttempt {
@@ -31821,11 +31849,11 @@ mod tests {
                 lora_id: Some("adapter-v3".to_string()),
                 lora_version: Some("3".to_string()),
                 prompt_snapshot_ref: ArtifactHandle::new(
-                    Uuid::new_v4(),
+                    Uuid::now_v7(),
                     "student_prompt".to_string(),
                 ),
                 output_snapshot_ref: ArtifactHandle::new(
-                    Uuid::new_v4(),
+                    Uuid::now_v7(),
                     "student_output".to_string(),
                 ),
                 outcome: "VALIDATION_FAILED".to_string(),
@@ -31836,11 +31864,11 @@ mod tests {
                 lora_id: None,
                 lora_version: None,
                 prompt_snapshot_ref: ArtifactHandle::new(
-                    Uuid::new_v4(),
+                    Uuid::now_v7(),
                     "teacher_prompt".to_string(),
                 ),
                 output_snapshot_ref: ArtifactHandle::new(
-                    Uuid::new_v4(),
+                    Uuid::now_v7(),
                     "teacher_output".to_string(),
                 ),
                 outcome: "VALIDATION_PASSED".to_string(),

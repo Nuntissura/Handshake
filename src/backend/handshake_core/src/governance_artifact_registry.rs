@@ -155,7 +155,7 @@ mod tests {
 
     fn sample_entry() -> GovernanceArtifactRegistryEntry {
         GovernanceArtifactRegistryEntry {
-            artifact_id: Uuid::new_v4(),
+            artifact_id: Uuid::now_v7(),
             kind: GovernanceArtifactKind::Codex,
             provenance: sample_provenance(),
             content_hash: "sha256:0123456789abcdef".to_string(),
@@ -166,7 +166,7 @@ mod tests {
         GovernanceArtifactRegistryManifest {
             schema_id: GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_ID_V1.to_string(),
             schema_version: GOVERNANCE_ARTIFACT_REGISTRY_SCHEMA_VERSION_V1.to_string(),
-            registry_id: Uuid::new_v4(),
+            registry_id: Uuid::now_v7(),
             entries: vec![sample_entry()],
         }
     }

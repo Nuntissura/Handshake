@@ -78,12 +78,12 @@ impl ConformanceHarness {
     fn base_operation(&self, engine_id: &str) -> PlannedOperation {
         PlannedOperation {
             schema_version: POE_SCHEMA_VERSION.to_string(),
-            op_id: Uuid::new_v4(),
+            op_id: Uuid::now_v7(),
             engine_id: engine_id.to_string(),
             engine_version_req: None,
             operation: "conformance.test".to_string(),
             inputs: vec![ArtifactHandle::new(
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 "/artifact/input".to_string(),
             )],
             params: serde_json::json!({"kind": "test"}),
@@ -207,7 +207,7 @@ impl EngineAdapter for TestEngineAdapter {
             config_hash: None,
             inputs: op.inputs.clone(),
             outputs: vec![ArtifactHandle::new(
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 "/artifact/output".to_string(),
             )],
             capabilities_granted: op.capabilities_requested.clone(),
@@ -280,15 +280,22 @@ pub fn single_engine_registry(engine_id: &str) -> MexRegistry {
 mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
+    #[cfg(feature = "duckdb-flight-recorder")]
     use std::sync::Arc;
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     use serde_json::Value;
+    #[cfg(feature = "duckdb-flight-recorder")]
     use uuid::Uuid;
 
     use super::*;
+    #[cfg(feature = "duckdb-flight-recorder")]
     use crate::capabilities::CapabilityRegistry;
+    #[cfg(feature = "duckdb-flight-recorder")]
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    #[cfg(feature = "duckdb-flight-recorder")]
     use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEventType};
+    #[cfg(feature = "duckdb-flight-recorder")]
     use crate::mex::gates::{
         BudgetGate, CapabilityGate, DetGate, GatePipeline, IntegrityGate, ProvenanceGate,
         SchemaGate,
@@ -341,6 +348,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_mex_runtime_emits_tool_call_and_result_in_fr_events(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -363,12 +371,12 @@ mod tests {
 
         let op = PlannedOperation {
             schema_version: POE_SCHEMA_VERSION.to_string(),
-            op_id: Uuid::new_v4(),
+            op_id: Uuid::now_v7(),
             engine_id: "test_engine".to_string(),
             engine_version_req: None,
             operation: "conformance.test".to_string(),
             inputs: vec![ArtifactHandle::new(
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 "/artifact/input".to_string(),
             )],
             params: serde_json::json!({"kind": "test"}),

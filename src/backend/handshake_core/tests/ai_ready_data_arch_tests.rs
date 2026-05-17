@@ -184,7 +184,7 @@ async fn pipeline_emits_validation_failed_on_treesitter_parse_error_and_skips_si
         .create_workspace(
             &ctx,
             NewWorkspace {
-                name: format!("ws-{}", Uuid::new_v4()),
+                name: format!("ws-{}", Uuid::now_v7()),
             },
         )
         .await
@@ -203,7 +203,7 @@ async fn pipeline_emits_validation_failed_on_treesitter_parse_error_and_skips_si
         db.as_ref(),
         &write_ctx,
         &recorder,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         None,
         None,
     );
@@ -247,7 +247,7 @@ async fn pipeline_hashes_query_in_retrieval_events() {
         .create_workspace(
             &ctx,
             NewWorkspace {
-                name: format!("ws-{}", Uuid::new_v4()),
+                name: format!("ws-{}", Uuid::now_v7()),
             },
         )
         .await
@@ -270,7 +270,7 @@ async fn pipeline_hashes_query_in_retrieval_events() {
         db.as_ref(),
         &write_ctx,
         &recorder,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         None,
         None,
     );
@@ -360,7 +360,7 @@ fn data_retrieval_executed_rejects_null_rerank_ms() {
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::DataRetrievalExecuted,
         FlightRecorderActor::System,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         payload,
     );
     assert!(event.validate().is_err());
@@ -379,7 +379,7 @@ fn data_relationship_extracted_rejects_null_confidence() {
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::DataRelationshipExtracted,
         FlightRecorderActor::System,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         payload,
     );
     assert!(event.validate().is_err());

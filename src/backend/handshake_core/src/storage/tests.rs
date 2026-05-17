@@ -188,7 +188,7 @@ pub async fn postgres_backend_from_env() -> StorageResult<Arc<dyn super::Databas
     let url = std::env::var("POSTGRES_TEST_URL")
         .map_err(|_| StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests"))?;
     let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("storage_test_{}", Uuid::new_v4().simple());
+    let schema = format!("storage_test_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&mut conn)
         .await?;
@@ -213,7 +213,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
         .create_workspace(
             &ctx,
             NewWorkspace {
-                name: format!("ws-{}", Uuid::new_v4()),
+                name: format!("ws-{}", Uuid::now_v7()),
             },
         )
         .await?;
@@ -285,7 +285,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
             &document.id,
             vec![
                 NewBlock {
-                    id: Some(Uuid::new_v4().to_string()),
+                    id: Some(Uuid::now_v7().to_string()),
                     document_id: document.id.clone(),
                     kind: "p".into(),
                     sequence: 1,
@@ -296,7 +296,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
                     exportable: None,
                 },
                 NewBlock {
-                    id: Some(Uuid::new_v4().to_string()),
+                    id: Some(Uuid::now_v7().to_string()),
                     document_id: document.id.clone(),
                     kind: "p".into(),
                     sequence: 2,
@@ -332,8 +332,8 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
     let canvases = db.list_canvases(&workspace.id).await?;
     assert!(canvases.iter().any(|c| c.id == canvas.id));
 
-    let node_a = Uuid::new_v4().to_string();
-    let node_b = Uuid::new_v4().to_string();
+    let node_a = Uuid::now_v7().to_string();
+    let node_b = Uuid::now_v7().to_string();
     let graph = db
         .update_canvas_graph(
             &ctx,
@@ -355,7 +355,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
                 },
             ],
             vec![NewCanvasEdge {
-                id: Some(Uuid::new_v4().to_string()),
+                id: Some(Uuid::now_v7().to_string()),
                 from_node_id: node_a.clone(),
                 to_node_id: node_b.clone(),
                 kind: "link".into(),
@@ -375,7 +375,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
 
     let job = db
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::WorkflowRun,
             protocol_id: "p1".into(),
             profile_id: "profile1".into(),
@@ -432,8 +432,8 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
 
     let guard_ctx = WriteContext::ai(
         Some("tester".into()),
-        Some(Uuid::new_v4()),
-        Some(Uuid::new_v4()),
+        Some(Uuid::now_v7()),
+        Some(Uuid::now_v7()),
     );
     let guard = db
         .validate_write_with_guard(&guard_ctx, "resource-1")
@@ -445,7 +445,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
         .upsert_calendar_source(
             &ctx,
             CalendarSourceUpsert {
-                id: format!("local:{}", Uuid::new_v4()),
+                id: format!("local:{}", Uuid::now_v7()),
                 workspace_id: workspace.id.clone(),
                 display_name: "Local".into(),
                 provider_type: CalendarSourceProviderType::Local,
@@ -477,7 +477,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
         .upsert_calendar_event(
             &ctx,
             CalendarEventUpsert {
-                id: Uuid::new_v4().to_string(),
+                id: Uuid::now_v7().to_string(),
                 workspace_id: workspace.id.clone(),
                 source_id: source.id.clone(),
                 external_id: None,
@@ -1257,7 +1257,7 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
         .create_workspace(
             &ctx,
             NewWorkspace {
-                name: format!("loom-ws-{}", Uuid::new_v4()),
+                name: format!("loom-ws-{}", Uuid::now_v7()),
             },
         )
         .await?;
@@ -2111,7 +2111,7 @@ pub async fn run_loom_traversal_performance_probe(
         .create_workspace(
             &ctx,
             NewWorkspace {
-                name: format!("loom-perf-ws-{}", Uuid::new_v4()),
+                name: format!("loom-perf-ws-{}", Uuid::now_v7()),
             },
         )
         .await?;
@@ -2129,12 +2129,12 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .create_workspace(
             &ctx,
             NewWorkspace {
-                name: format!("calendar-ws-{}", Uuid::new_v4()),
+                name: format!("calendar-ws-{}", Uuid::now_v7()),
             },
         )
         .await?;
 
-    let source_id = format!("google:test:{}", Uuid::new_v4());
+    let source_id = format!("google:test:{}", Uuid::now_v7());
     let source = db
         .upsert_calendar_source(
             &ctx,
@@ -2233,7 +2233,7 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .upsert_calendar_event(
             &ctx,
             CalendarEventUpsert {
-                id: Uuid::new_v4().to_string(),
+                id: Uuid::now_v7().to_string(),
                 workspace_id: workspace.id.clone(),
                 source_id: source.id.clone(),
                 external_id: Some("provider-event-1".into()),
@@ -2270,7 +2270,7 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .upsert_calendar_event(
             &ctx,
             CalendarEventUpsert {
-                id: Uuid::new_v4().to_string(),
+                id: Uuid::now_v7().to_string(),
                 workspace_id: workspace.id.clone(),
                 source_id: source.id.clone(),
                 external_id: Some("provider-event-1".into()),
@@ -2324,7 +2324,7 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .upsert_calendar_event(
             &ctx,
             CalendarEventUpsert {
-                id: Uuid::new_v4().to_string(),
+                id: Uuid::now_v7().to_string(),
                 workspace_id: workspace.id.clone(),
                 source_id: source.id.clone(),
                 external_id: None,
@@ -2398,15 +2398,15 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
     assert!(no_events.is_empty());
 
     // ── Workflow-backed / job-backed provenance round-trip ──────────
-    let test_job_id = Uuid::new_v4();
-    let test_workflow_id = Uuid::new_v4();
+    let test_job_id = Uuid::now_v7();
+    let test_workflow_id = Uuid::now_v7();
     let ai_ctx = WriteContext::ai(
         Some("ai-sync-agent".into()),
         Some(test_job_id),
         Some(test_workflow_id),
     );
 
-    let ai_source_id = format!("google:ai-test:{}", Uuid::new_v4());
+    let ai_source_id = format!("google:ai-test:{}", Uuid::now_v7());
     let ai_source = db
         .upsert_calendar_source(
             &ai_ctx,
@@ -2486,7 +2486,7 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .upsert_calendar_event(
             &ai_ctx,
             CalendarEventUpsert {
-                id: Uuid::new_v4().to_string(),
+                id: Uuid::now_v7().to_string(),
                 workspace_id: workspace.id.clone(),
                 source_id: ai_source_id.clone(),
                 external_id: Some("ai-provider-event-1".into()),
@@ -2572,7 +2572,7 @@ async fn sqlite_rejects_ai_writes_without_context_with_hsk_403_silent_edit() -> 
         .create_workspace(
             &ctx,
             NewWorkspace {
-                name: format!("ws-{}", Uuid::new_v4()),
+                name: format!("ws-{}", Uuid::now_v7()),
             },
         )
         .await;
@@ -2593,8 +2593,8 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
         WriteContext::system(Some("system-1".into())),
         WriteContext::ai(
             Some("ai-1".into()),
-            Some(Uuid::new_v4()),
-            Some(Uuid::new_v4()),
+            Some(Uuid::now_v7()),
+            Some(Uuid::now_v7()),
         ),
     ];
 
@@ -2603,7 +2603,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
             .create_workspace(
                 &ctx,
                 NewWorkspace {
-                    name: format!("ws-{}", Uuid::new_v4()),
+                    name: format!("ws-{}", Uuid::now_v7()),
                 },
             )
             .await?;
@@ -2625,7 +2625,7 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
                 &ctx,
                 NewDocument {
                     workspace_id: workspace.id.clone(),
-                    title: format!("doc-{}", Uuid::new_v4()),
+                    title: format!("doc-{}", Uuid::now_v7()),
                 },
             )
             .await?;
@@ -2676,14 +2676,14 @@ async fn sqlite_persists_mutation_traceability_metadata_on_writes() -> StorageRe
                 &ctx,
                 NewCanvas {
                     workspace_id: workspace.id.clone(),
-                    title: format!("canvas-{}", Uuid::new_v4()),
+                    title: format!("canvas-{}", Uuid::now_v7()),
                 },
             )
             .await?;
 
-        let node_a_id = Uuid::new_v4().to_string();
-        let node_b_id = Uuid::new_v4().to_string();
-        let edge_id = Uuid::new_v4().to_string();
+        let node_a_id = Uuid::now_v7().to_string();
+        let node_b_id = Uuid::now_v7().to_string();
+        let edge_id = Uuid::now_v7().to_string();
         db.update_canvas_graph(
             &ctx,
             &canvas.id,
@@ -2760,7 +2760,7 @@ async fn postgres_rejects_ai_writes_without_context_with_hsk_403_silent_edit() -
     };
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_trace_{}", Uuid::new_v4().simple());
+    let schema = format!("wp1_trace_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&mut conn)
         .await?;
@@ -2778,7 +2778,7 @@ async fn postgres_rejects_ai_writes_without_context_with_hsk_403_silent_edit() -
         .create_workspace(
             &ctx,
             NewWorkspace {
-                name: format!("ws-{}", Uuid::new_v4()),
+                name: format!("ws-{}", Uuid::now_v7()),
             },
         )
         .await;
@@ -2802,7 +2802,7 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
     };
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_trace_{}", Uuid::new_v4().simple());
+    let schema = format!("wp1_trace_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&mut conn)
         .await?;
@@ -2820,8 +2820,8 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
         WriteContext::system(Some("system-1".into())),
         WriteContext::ai(
             Some("ai-1".into()),
-            Some(Uuid::new_v4()),
-            Some(Uuid::new_v4()),
+            Some(Uuid::now_v7()),
+            Some(Uuid::now_v7()),
         ),
     ];
 
@@ -2830,7 +2830,7 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
             .create_workspace(
                 &ctx,
                 NewWorkspace {
-                    name: format!("ws-{}", Uuid::new_v4()),
+                    name: format!("ws-{}", Uuid::now_v7()),
                 },
             )
             .await?;
@@ -2852,7 +2852,7 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
                 &ctx,
                 NewDocument {
                     workspace_id: workspace.id.clone(),
-                    title: format!("doc-{}", Uuid::new_v4()),
+                    title: format!("doc-{}", Uuid::now_v7()),
                 },
             )
             .await?;
@@ -2903,14 +2903,14 @@ async fn postgres_persists_mutation_traceability_metadata_on_writes() -> Storage
                 &ctx,
                 NewCanvas {
                     workspace_id: workspace.id.clone(),
-                    title: format!("canvas-{}", Uuid::new_v4()),
+                    title: format!("canvas-{}", Uuid::now_v7()),
                 },
             )
             .await?;
 
-        let node_a_id = Uuid::new_v4().to_string();
-        let node_b_id = Uuid::new_v4().to_string();
-        let edge_id = Uuid::new_v4().to_string();
+        let node_a_id = Uuid::now_v7().to_string();
+        let node_b_id = Uuid::now_v7().to_string();
+        let edge_id = Uuid::now_v7().to_string();
         db.update_canvas_graph(
             &ctx,
             &canvas.id,
@@ -2989,7 +2989,7 @@ async fn workflow_node_execution_persists_inputs_and_outputs() -> StorageResult<
     let db = sqlite_backend().await?;
     let job = db
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::WorkflowRun,
             protocol_id: "p1".into(),
             profile_id: "profile1".into(),
@@ -3050,7 +3050,7 @@ async fn stalled_workflows_are_detected_by_heartbeat() -> StorageResult<()> {
     let db = sqlite_backend().await?;
     let job = db
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::WorkflowRun,
             protocol_id: "p1".into(),
             profile_id: "profile1".into(),
@@ -3149,7 +3149,7 @@ async fn migrations_are_replay_safe_postgres() -> StorageResult<()> {
     };
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_mig_{}", Uuid::new_v4().simple());
+    let schema = format!("wp1_mig_{}", Uuid::now_v7().simple());
 
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&mut conn)
@@ -3189,7 +3189,7 @@ async fn assert_postgres_structured_collab_artifacts_supported() -> StorageResul
     };
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_structured_collab_{}", Uuid::new_v4().simple());
+    let schema = format!("wp1_structured_collab_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&mut conn)
         .await?;
@@ -3261,7 +3261,7 @@ async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
         .create_workspace(
             &ctx,
             NewWorkspace {
-                name: format!("loom-search-proof-{}", Uuid::new_v4()),
+                name: format!("loom-search-proof-{}", Uuid::now_v7()),
             },
         )
         .await?;
@@ -3270,7 +3270,7 @@ async fn loom_search_graph_filter_backend_support() -> StorageResult<()> {
             &ctx,
             NewDocument {
                 workspace_id: workspace.id.clone(),
-                title: format!("loom-search-proof-doc-{}", Uuid::new_v4()),
+                title: format!("loom-search-proof-doc-{}", Uuid::now_v7()),
             },
         )
         .await?;
@@ -3286,7 +3286,7 @@ async fn loom_migration_schema_is_portable_postgres() -> StorageResult<()> {
     };
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_loom_mig_{}", Uuid::new_v4().simple());
+    let schema = format!("wp1_loom_mig_{}", Uuid::now_v7().simple());
 
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&mut conn)
@@ -3324,7 +3324,7 @@ async fn migrations_can_undo_to_baseline_postgres() -> StorageResult<()> {
     };
 
     let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("wp1_mig_{}", Uuid::new_v4().simple());
+    let schema = format!("wp1_mig_{}", Uuid::now_v7().simple());
 
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&mut conn)

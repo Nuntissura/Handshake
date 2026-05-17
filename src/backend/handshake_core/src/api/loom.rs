@@ -184,7 +184,7 @@ async fn create_loom_block(
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockCreated,
         FlightRecorderActor::Human,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         json!({
             "type": "loom_block_created",
             "block_id": block_id,
@@ -241,7 +241,7 @@ async fn patch_loom_block(
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockUpdated,
         FlightRecorderActor::Human,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         json!({
             "type": "loom_block_updated",
             "block_id": block_id,
@@ -276,7 +276,7 @@ async fn delete_loom_block(
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockDeleted,
         FlightRecorderActor::Human,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         json!({
             "type": "loom_block_deleted",
             "block_id": block_id,
@@ -432,7 +432,7 @@ async fn create_loom_edge(
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomEdgeCreated,
         FlightRecorderActor::Human,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         edge_event,
     )
     .with_wsids(vec![workspace_id]);
@@ -463,7 +463,7 @@ async fn delete_loom_edge(
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomEdgeDeleted,
         FlightRecorderActor::Human,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         edge_event,
     )
     .with_wsids(vec![workspace_id]);
@@ -526,7 +526,7 @@ async fn import_loom_asset(
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::LoomDedupHit,
             FlightRecorderActor::Human,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             json!({
                 "type": "loom_dedup_hit",
                 "workspace_id": workspace_id,
@@ -621,7 +621,7 @@ async fn import_loom_asset(
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockCreated,
         FlightRecorderActor::Human,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         json!({
             "type": "loom_block_created",
             "block_id": block.block_id.clone(),
@@ -891,7 +891,7 @@ async fn query_loom_view(
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomViewQueried,
         FlightRecorderActor::Human,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         json!({
             "type": "loom_view_queried",
             "workspace_id": workspace_id,
@@ -1063,7 +1063,7 @@ async fn search_loom_blocks(
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomSearchExecuted,
         FlightRecorderActor::Human,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         json!({
             "type": "loom_search_executed",
             "workspace_id": workspace_id,
@@ -1079,7 +1079,7 @@ async fn search_loom_blocks(
     Ok(Json(results))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
@@ -1357,7 +1357,12 @@ mod tests {
 
         assert_eq!(
             tier_used,
-            u64::from(state.storage.loom_search_observability_tier()),
+            u64::from(
+                state
+                    .storage
+                    .storage_capabilities()
+                    .loom_search_observability_tier()
+            ),
             "loom search proof must assert the emitted tier_used payload contract"
         );
         assert_eq!(

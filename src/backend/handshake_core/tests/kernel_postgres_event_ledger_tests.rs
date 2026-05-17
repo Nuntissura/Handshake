@@ -20,6 +20,7 @@ async fn postgres_or_environment_blocked() -> std::sync::Arc<dyn handshake_core:
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_migration() {
     let db = postgres_or_environment_blocked().await;
 
@@ -30,10 +31,11 @@ async fn kernel_event_ledger_migration() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_replays_by_aggregate_id_in_sequence_order() {
     let db = postgres_or_environment_blocked().await;
 
-    let suffix = Uuid::new_v4();
+    let suffix = Uuid::now_v7();
     let task_id = format!("KTR-AGGREGATE-{suffix}");
     let session_id = format!("SR-AGGREGATE-{suffix}");
     let aggregate_type = "session_run";
@@ -85,10 +87,11 @@ async fn kernel_event_ledger_replays_by_aggregate_id_in_sequence_order() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_idempotency_rejects_divergent_duplicate() {
     let db = postgres_or_environment_blocked().await;
 
-    let suffix = Uuid::new_v4();
+    let suffix = Uuid::now_v7();
     let task_id = format!("KTR-IDEMPOTENCY-{suffix}");
     let session_id = format!("SR-IDEMPOTENCY-{suffix}");
     let idempotency_key = format!("idem-divergent-{suffix}");
@@ -131,10 +134,11 @@ async fn kernel_event_ledger_idempotency_rejects_divergent_duplicate() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_contract_metadata_idempotency_and_sequence() {
     let db = postgres_or_environment_blocked().await;
 
-    let suffix = Uuid::new_v4();
+    let suffix = Uuid::now_v7();
     let task_id = format!("KTR-POSTGRES-CONTRACT-{suffix}");
     let session_id = format!("SR-POSTGRES-CONTRACT-{suffix}");
     let idempotency_key = format!("idem-postgres-contract-{suffix}");
@@ -212,6 +216,7 @@ async fn kernel_event_ledger_contract_metadata_idempotency_and_sequence() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_event_ledger_api_appends_and_lists_kernel_events_for_session() {
     let db = postgres_or_environment_blocked().await;
 
@@ -292,6 +297,7 @@ async fn kernel_event_ledger_api_appends_and_lists_kernel_events_for_session() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn durable_claim_and_lease() {
     let db = postgres_or_environment_blocked().await;
 
@@ -360,6 +366,7 @@ async fn durable_claim_and_lease() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn durable_claim_matches_retry_backpressure_and_deadletter_state_table() {
     let db = postgres_or_environment_blocked().await;
 

@@ -344,7 +344,7 @@ impl CheckRunner {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovernanceCheckStarted,
             FlightRecorderActor::Agent,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         )
         .with_actor_id("governance_check_runner");
@@ -372,7 +372,7 @@ impl CheckRunner {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovernanceCheckCompleted,
             FlightRecorderActor::Agent,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         )
         .with_actor_id("governance_check_runner");
@@ -396,7 +396,7 @@ impl CheckRunner {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovernanceCheckBlocked,
             FlightRecorderActor::Agent,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         )
         .with_actor_id("governance_check_runner");
@@ -473,7 +473,7 @@ impl CheckRunner {
             return Ok(None);
         }
 
-        let artifact_id = Uuid::new_v4();
+        let artifact_id = Uuid::now_v7();
         let artifact_id_str = artifact_id.to_string();
         let payload = json!({
             "check_id": descriptor.check_id,
@@ -838,8 +838,8 @@ mod tests {
     #[test]
     fn check_runner_lifecycle_phases_roundtrip_and_serialize(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let pre_check_id = Uuid::new_v4();
-        let descriptor = CheckDescriptor::new(Uuid::new_v4(), "unit", "native");
+        let pre_check_id = Uuid::now_v7();
+        let descriptor = CheckDescriptor::new(Uuid::now_v7(), "unit", "native");
         let blocked = CheckResult::Blocked(CheckBlockedDetails {
             reason: "capability denied".to_string(),
             missing_capabilities: vec!["governance.check.run".to_string()],
@@ -890,7 +890,7 @@ mod tests {
     #[test]
     fn check_descriptor_has_reasonable_default_values() -> Result<(), Box<dyn std::error::Error>> {
         let raw = json!({
-            "check_id": Uuid::new_v4().to_string(),
+            "check_id": Uuid::now_v7().to_string(),
             "name": "unit",
             "check_kind": "native"
         })
@@ -913,7 +913,7 @@ mod tests {
     fn check_descriptor_parameters_support_wide_json_types(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let raw = json!({
-            "check_id": Uuid::new_v4().to_string(),
+            "check_id": Uuid::now_v7().to_string(),
             "name": "schema",
             "check_kind": "governance",
             "parameters": {
@@ -992,7 +992,7 @@ mod tests {
         let runner = CheckRunner::new(Arc::new(recorder.clone()), workspace.path().to_path_buf())
             .with_supported_kinds(vec!["native".to_string()]);
 
-        let mut descriptor = CheckDescriptor::new(Uuid::new_v4(), "guarded-check", "native");
+        let mut descriptor = CheckDescriptor::new(Uuid::now_v7(), "guarded-check", "native");
         descriptor
             .required_capabilities
             .push("policy.custom:access".to_string());
@@ -1000,7 +1000,7 @@ mod tests {
         let result = runner
             .run_check(
                 descriptor,
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 &[GOVERNANCE_CHECK_TOOL_CAPABILITY.to_string()],
             )
             .await?;
@@ -1027,11 +1027,11 @@ mod tests {
         let runner = CheckRunner::new(Arc::new(recorder.clone()), workspace.path().to_path_buf())
             .with_supported_kinds(vec!["native".to_string()]);
 
-        let descriptor = CheckDescriptor::new(Uuid::new_v4(), "legacy-check", "third-party");
+        let descriptor = CheckDescriptor::new(Uuid::now_v7(), "legacy-check", "third-party");
         let result = runner
             .run_check(
                 descriptor,
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 &[GOVERNANCE_CHECK_TOOL_CAPABILITY.to_string()],
             )
             .await?;
@@ -1059,7 +1059,7 @@ mod tests {
             .with_default_timeout_ms(10)
             .with_supported_kinds(vec!["native".to_string()]);
 
-        let mut descriptor = CheckDescriptor::new(Uuid::new_v4(), "slow-check", "native");
+        let mut descriptor = CheckDescriptor::new(Uuid::now_v7(), "slow-check", "native");
         descriptor.parameters = json!({
             "simulate_delay_ms": 100,
         });
@@ -1067,7 +1067,7 @@ mod tests {
         let result = runner
             .run_check(
                 descriptor,
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 &[GOVERNANCE_CHECK_TOOL_CAPABILITY.to_string()],
             )
             .await?;
@@ -1090,7 +1090,7 @@ mod tests {
         let runner = CheckRunner::new(Arc::new(recorder.clone()), workspace.path().to_path_buf())
             .with_supported_kinds(vec!["native".to_string()]);
 
-        let mut descriptor = CheckDescriptor::new(Uuid::new_v4(), "unit-pass", "native");
+        let mut descriptor = CheckDescriptor::new(Uuid::now_v7(), "unit-pass", "native");
         descriptor.parameters = json!({
             "checks_passed": 3,
         });
@@ -1098,7 +1098,7 @@ mod tests {
         let result = runner
             .run_check(
                 descriptor,
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 &[GOVERNANCE_CHECK_TOOL_CAPABILITY.to_string()],
             )
             .await?;
@@ -1128,8 +1128,8 @@ mod tests {
 
     #[test]
     fn check_governance_events_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
-        let check_id = Uuid::new_v4();
-        let session_id = Uuid::new_v4();
+        let check_id = Uuid::now_v7();
+        let session_id = Uuid::now_v7();
 
         let started = GovernanceCheckStartedEventPayload {
             check_id,

@@ -1280,7 +1280,7 @@ mod tests {
     fn test_build_retrieval_trace_computes_sha256() {
         use crate::storage::Block;
 
-        let block_id = Uuid::new_v4().to_string();
+        let block_id = Uuid::now_v7().to_string();
         let blocks = vec![Block {
             id: block_id.clone(),
             document_id: "doc-1".to_string(),

@@ -658,7 +658,7 @@ impl QueryPlan {
     /// Create a new query plan
     pub fn new(query_text: String, query_kind: QueryKind, policy_id: String) -> Self {
         Self {
-            plan_id: Uuid::new_v4(),
+            plan_id: Uuid::now_v7(),
             created_at: Utc::now(),
             query_text,
             query_kind,
@@ -873,7 +873,7 @@ impl RetrievalCandidate {
         let tiebreak = source.canonical_id();
         let base_score = scores.compute_base_score();
         Self {
-            candidate_id: Uuid::new_v4().to_string(),
+            candidate_id: Uuid::now_v7().to_string(),
             kind: CandidateKind::SourceRef,
             candidate_ref: CandidateRef::Source(source),
             content_tier: None,
@@ -889,7 +889,7 @@ impl RetrievalCandidate {
         let tiebreak = entity.canonical_id();
         let base_score = scores.compute_base_score();
         Self {
-            candidate_id: Uuid::new_v4().to_string(),
+            candidate_id: Uuid::now_v7().to_string(),
             kind: CandidateKind::EntityRef,
             candidate_ref: CandidateRef::Entity(entity),
             content_tier: None,
@@ -909,7 +909,7 @@ impl RetrievalCandidate {
         let tiebreak = artifact.canonical_id();
         let base_score = scores.compute_base_score();
         Self {
-            candidate_id: Uuid::new_v4().to_string(),
+            candidate_id: Uuid::now_v7().to_string(),
             kind: CandidateKind::ArtifactHandle,
             candidate_ref: CandidateRef::Artifact(artifact),
             content_tier: None,
@@ -1033,7 +1033,7 @@ impl RetrievalTrace {
     /// Create a new trace for a query plan
     pub fn new(query_plan: &QueryPlan) -> Self {
         Self {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             query_plan_id: query_plan.plan_id,
             normalized_query_hash: query_plan.compute_normalized_query_hash(),
             route_taken: Vec::new(),
@@ -1630,7 +1630,7 @@ mod tests {
         );
         let mut trace = RetrievalTrace::new(&plan);
 
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         trace.spans.push(SpanExtraction {
             source_ref: source.clone(),
             selector: "test".to_string(),
@@ -1656,9 +1656,9 @@ mod tests {
         let source1 = SourceRef::new(Uuid::from_u128(1), "hash1".to_string());
         let source2 = SourceRef::new(Uuid::from_u128(2), "hash2".to_string());
         let pack = ContextPackRecord {
-            pack_id: Uuid::new_v4(),
+            pack_id: Uuid::now_v7(),
             target: source1.clone(),
-            pack_artifact: ArtifactHandle::new(Uuid::new_v4(), "/path".to_string()),
+            pack_artifact: ArtifactHandle::new(Uuid::now_v7(), "/path".to_string()),
             source_hashes: vec![source1.source_hash.clone(), source2.source_hash.clone()],
             source_refs: vec![source2.clone(), source1.clone()],
             created_at: Utc::now(),
@@ -1686,7 +1686,7 @@ mod tests {
 
     #[test]
     fn test_context_pack_provenance_binding_enforcement() {
-        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source_ref = SourceRef::new(Uuid::now_v7(), "hash".to_string());
 
         let mut payload = ContextPackPayloadV1 {
             synopsis: "synopsis".to_string(),

@@ -274,7 +274,7 @@ async fn run_mcp_e2e(db: Arc<dyn Database>) -> Result<(), Box<dyn std::error::Er
 
     let baseline_jobs = db.list_ai_jobs(AiJobListFilter::default()).await?.len();
 
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let job = db
         .create_ai_job(NewAiJob {
             trace_id,
@@ -292,7 +292,7 @@ async fn run_mcp_e2e(db: Arc<dyn Database>) -> Result<(), Box<dyn std::error::Er
         })
         .await?;
 
-    let workflow_run_id = Uuid::new_v4();
+    let workflow_run_id = Uuid::now_v7();
     db.update_ai_job_status(JobStatusUpdate {
         job_id: job.job_id,
         state: JobState::Running,

@@ -25,7 +25,7 @@ serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time"] }
 tower-http = { version = "0.6", features = ["cors"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "postgres", "macros", "migrate", "chrono"] }
-uuid = { version = "1", features = ["v4", "fast-rng", "serde"] }
+uuid = { version = "1", features = ["v7", "fast-rng", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
@@ -39,6 +39,7 @@ sha2 = "0.10"
 hex = "0.4"
 base64 = "0.22"
 unicode-normalization = "0.1"
+idna = "1"
 caseless = "0.2"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 tree-sitter = "0.24"

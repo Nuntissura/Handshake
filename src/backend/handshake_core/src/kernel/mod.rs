@@ -1,3 +1,41 @@
+//! # KB003 Sandbox / Validation / Promotion (Research Basis & Module Topology)
+//!
+//! WP-KERNEL-003 sequences sandbox adapters in product-native tiers; container
+//! and microVM stacks are extension slots, never mandatory MVP infrastructure
+//! (packet forbids "production-grade VM/container stack as the only supported
+//! adapter").
+//!
+//! ## Adapter sequence (MT-004 research basis)
+//!
+//! 1. **Process tier** — day-one default. Native Rust child process under
+//!    capped permissions (Loom-style); zero external runtime dependency.
+//! 2. **HardIsolation tier** — opt-in. Container (Docker/Podman, reset brief
+//!    §6.5) or microVM (Firecracker/gVisor) behind a `HardIsolationAdapter`
+//!    trait; absence is typed `BLOCKED|UNSUPPORTED`, never silent success
+//!    (MT-020).
+//! 3. **Workflow tooling** — Dagger / SWE-ReX style harnesses sit above the
+//!    adapter trait as orchestration layers, not as the adapter itself.
+//!
+//! Rejected: container-only or microVM-only MVP (host portability + Windows
+//! constraints from reset brief §6.5); raw shell adapter without ToolGate
+//! (KB002 conflict register); non-Postgres authority backends (CX-503R).
+//!
+//! ## Module topology (MT-006 placement decision)
+//!
+//! New KB003 submodules land in:
+//! - `kernel/kb003_schemas.rs` — schema-id constants + `Kb003EventEnvelope` (MT-007/008).
+//! - `kernel/kb003_artifact_classes.rs` — artifact class taxonomy (MT-009).
+//! - `kernel/sandbox/` — `SandboxRun*`, `SandboxPolicy*`, `SandboxWorkspace*` (MT-010+).
+//! - `kernel/validation/` — `ValidationRun*`, descriptors, deterministic checks (MT-030+).
+//! - `kernel/promotion/` — `PromotionGate`, `PromotionDecision`, receipts (MT-040+).
+//!
+//! Storage extensions land in `storage/postgres.rs` (rows + migrations for
+//! SandboxRunV1, SandboxArtifactBundleV1, ValidationRunV1, PromotionDecisionV1,
+//! PromotionReceiptV1). No non-Postgres authority paths (CX-503R, reset brief §4.1).
+//!
+//! EventLedger consumption stays through the existing `KernelActor` →
+//! `EventLedger` path; KB003 adds new typed event names, not a new ledger.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -13,6 +51,24 @@ pub mod coder_handoff_validation_request;
 pub mod context_bundle;
 pub mod crdt;
 pub mod crdt_adr;
+pub mod dcc_kb003_aggregate_summary;
+pub mod dcc_kb003_blocked_reasons;
+pub mod dcc_kb003_bootstrap_skeleton;
+pub mod dcc_kb003_capability_audit;
+pub mod dcc_kb003_console_network_evidence;
+pub mod dcc_kb003_debug_bundle_bridge;
+pub mod dcc_kb003_dropback;
+pub mod dcc_kb003_evidence_portability;
+pub mod dcc_kb003_lane_wake;
+pub mod dcc_kb003_mex_evidence;
+pub mod dcc_kb003_model_manual_hints;
+pub mod dcc_kb003_mt_summary;
+pub mod dcc_kb003_promotion_control_state;
+pub mod dcc_kb003_retry_budget;
+pub mod dcc_kb003_rollup;
+pub mod dcc_kb003_run_detail;
+pub mod dcc_kb003_sandbox_run_list;
+pub mod dcc_kb003_visual_validation_gate;
 pub mod dcc_layout_projection_registry;
 pub mod dcc_mvp_runtime_surface;
 pub mod dcc_structured_artifact_viewer;
@@ -26,6 +82,9 @@ pub mod generated_documentation_status_projection;
 pub mod git_engine_decision_gate;
 pub mod governance_overlay_boundary;
 pub mod governance_pack_instantiation;
+pub mod kb003_artifact_classes;
+pub mod kb003_promotion;
+pub mod kb003_schemas;
 pub mod local_first_mcp_posture;
 pub mod local_model_microtask_loop;
 pub mod locus_mt_validation_work_graph;
@@ -36,6 +95,17 @@ pub mod mirror_advisory;
 pub mod model_adapter;
 pub mod model_manual;
 pub mod mt_loop_scheduler_contract;
+pub mod mte_aggregate_summary;
+pub mod mte_authority_mutation_boundary;
+pub mod mte_blocked_taxonomy;
+pub mod mte_closeout_bundle;
+pub mod mte_drop_back;
+pub mod mte_idempotency_enforcement;
+pub mod mte_lane_settlement;
+pub mod mte_per_mt_summary;
+pub mod mte_resource_caps;
+pub mod mte_retry_budget;
+pub mod mte_validation_report_projection;
 pub mod overlay_coordination_records;
 pub mod overlay_lifecycle_recovery;
 pub mod postgres_control_plane_residual;
@@ -54,6 +124,7 @@ pub mod role_mailbox_inbox_evidence_bridge;
 pub mod role_mailbox_loop_control;
 pub mod role_mailbox_triage_queue;
 pub mod role_turn_isolation;
+pub mod sandbox;
 pub mod session_anti_pattern_registry;
 pub mod session_broker;
 pub mod session_spawn_conversation_distillation;
@@ -62,6 +133,7 @@ pub mod software_delivery_runtime_truth;
 pub mod task_contract_lifecycle;
 #[cfg(feature = "runtime-full")]
 pub mod trace_projection;
+pub mod validation;
 pub mod validator_finding_report_contract;
 pub mod validator_verdict_mediation_contract;
 pub mod visual_debugging_loop;
@@ -406,7 +478,7 @@ impl NewKernelEventBuilder {
             .unwrap_or_else(|| self.session_run_id.clone());
         let idempotency_key = self
             .idempotency_key
-            .unwrap_or_else(|| format!("KEI-{}", Uuid::new_v4()));
+            .unwrap_or_else(|| format!("KEI-{}", Uuid::now_v7()));
         let source_component = self
             .source_component
             .unwrap_or_else(|| self.actor.actor_kind().to_string());
@@ -454,7 +526,7 @@ pub struct KernelEvent {
 impl KernelEvent {
     pub fn from_new(event: NewKernelEvent) -> Self {
         Self {
-            event_id: format!("KE-{}", Uuid::new_v4()),
+            event_id: format!("KE-{}", Uuid::now_v7()),
             event_sequence: 0,
             event_version: event.event_version,
             kernel_task_run_id: event.kernel_task_run_id,
@@ -481,7 +553,7 @@ pub fn flight_recorder_mirror_event(
     crate::flight_recorder::FlightRecorderEvent::new(
         crate::flight_recorder::FlightRecorderEventType::Diagnostic,
         crate::flight_recorder::FlightRecorderActor::System,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         json!({
             "diagnostic_id": "kernel_event_mirror",
             "authority_source": "postgres_event_ledger",

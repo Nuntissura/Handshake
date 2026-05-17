@@ -295,13 +295,13 @@ mod tests {
     use uuid::Uuid;
 
     fn entry_with_input(text: &str) -> SkillBankLogEntry {
-        let msg_id = Uuid::new_v4();
+        let msg_id = Uuid::now_v7();
         SkillBankLogEntry {
             version: "1.0.0".to_string(),
-            log_id: Uuid::new_v4(),
+            log_id: Uuid::now_v7(),
             timestamp: Utc::now(),
             session: SessionMeta {
-                session_id: Uuid::new_v4(),
+                session_id: Uuid::now_v7(),
                 turn_index: 0,
                 task_id: None,
                 user_id_hash: None,
@@ -488,7 +488,7 @@ mod tests {
     #[test]
     fn redaction_scans_output_snapshots() {
         let mut entry = entry_with_input("clean input");
-        let msg_id = Uuid::new_v4();
+        let msg_id = Uuid::now_v7();
         entry.snapshots_output_raw.messages.push(ChatMessage {
             id: msg_id,
             parent_id: None,

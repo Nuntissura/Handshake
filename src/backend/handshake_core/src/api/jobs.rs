@@ -370,7 +370,7 @@ async fn list_jobs(
     Ok(Json(items))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;

@@ -1327,6 +1327,7 @@ dependencies = [
  "chrono",
  "duckdb",
  "hex",
+ "idna",
  "image",
  "jsonschema",
  "once_cell",

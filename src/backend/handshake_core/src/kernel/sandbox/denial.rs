@@ -1,0 +1,130 @@
+//! Typed denial evidence emitted whenever a sandbox capability check fails.
+//!
+//! Every denial record carries the policy version that denied it, the
+//! capability name, the requested action description, and a short reason. The
+//! denial id (`DEN-<uuid>`) is also stored on the originating `SandboxRunV1`
+//! so the DCC projection (MT-010) can surface the denial without scraping
+//! terminal logs.
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use super::policy::SandboxCapability;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DenialKind {
+    PolicyDenied,
+    WorkspaceBoundaryViolation,
+    AdapterUnavailable,
+    AuthorityModeRefused,
+}
+
+impl DenialKind {
+    /// Stable SCREAMING_SNAKE_CASE label that matches the serde representation.
+    /// Replay projections MUST use this instead of `format!("{:?}", kind)`,
+    /// which would otherwise produce drift-prone `"POLICYDENIED"` strings and
+    /// break MT-016 byte-equal rollup against the live projection.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            DenialKind::PolicyDenied => "POLICY_DENIED",
+            DenialKind::WorkspaceBoundaryViolation => "WORKSPACE_BOUNDARY_VIOLATION",
+            DenialKind::AdapterUnavailable => "ADAPTER_UNAVAILABLE",
+            DenialKind::AuthorityModeRefused => "AUTHORITY_MODE_REFUSED",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SandboxDenialRecordV1 {
+    pub denial_id: String,
+    pub run_id: String,
+    pub policy_version_id: String,
+    pub capability: Option<SandboxCapability>,
+    pub kind: DenialKind,
+    pub action_description: String,
+    pub reason: String,
+    pub recorded_at_utc: DateTime<Utc>,
+}
+
+impl SandboxDenialRecordV1 {
+    pub fn new(
+        run_id: impl Into<String>,
+        policy_version_id: impl Into<String>,
+        kind: DenialKind,
+        capability: Option<SandboxCapability>,
+        action_description: impl Into<String>,
+        reason: impl Into<String>,
+    ) -> Self {
+        Self {
+            denial_id: format!("DEN-{}", Uuid::now_v7()),
+            run_id: run_id.into(),
+            policy_version_id: policy_version_id.into(),
+            capability,
+            kind,
+            action_description: action_description.into(),
+            reason: reason.into(),
+            recorded_at_utc: Utc::now(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn denial_record_has_required_fields() {
+        let den = SandboxDenialRecordV1::new(
+            "SBX-x",
+            "POL-y@2",
+            DenialKind::PolicyDenied,
+            Some(SandboxCapability::Network),
+            "fetch https://example.com",
+            "policy default_deny on NETWORK",
+        );
+        assert!(den.denial_id.starts_with("DEN-"));
+        assert_eq!(den.run_id, "SBX-x");
+        assert_eq!(den.policy_version_id, "POL-y@2");
+        assert_eq!(den.kind, DenialKind::PolicyDenied);
+        assert_eq!(den.capability, Some(SandboxCapability::Network));
+        assert!(!den.action_description.is_empty());
+        assert!(!den.reason.is_empty());
+    }
+
+    #[test]
+    fn as_str_matches_serde_screaming_snake_case() {
+        // Regression guard for C-A2: replay used to format `{:?}` and uppercase,
+        // producing "POLICYDENIED" instead of "POLICY_DENIED" — drift broke MT-016.
+        for (kind, expected) in [
+            (DenialKind::PolicyDenied, "POLICY_DENIED"),
+            (
+                DenialKind::WorkspaceBoundaryViolation,
+                "WORKSPACE_BOUNDARY_VIOLATION",
+            ),
+            (DenialKind::AdapterUnavailable, "ADAPTER_UNAVAILABLE"),
+            (DenialKind::AuthorityModeRefused, "AUTHORITY_MODE_REFUSED"),
+        ] {
+            assert_eq!(kind.as_str(), expected);
+            // Serde rename_all and as_str MUST agree.
+            let serde_str = serde_json::to_string(&kind).unwrap();
+            // serde_json wraps in quotes: "POLICY_DENIED"
+            assert_eq!(serde_str.trim_matches('"'), expected);
+        }
+    }
+
+    #[test]
+    fn workspace_boundary_violation_has_no_capability() {
+        let den = SandboxDenialRecordV1::new(
+            "SBX-1",
+            "POL-1@1",
+            DenialKind::WorkspaceBoundaryViolation,
+            None,
+            "write /etc/passwd",
+            "path escapes workspace root",
+        );
+        assert!(den.capability.is_none());
+        assert_eq!(den.kind, DenialKind::WorkspaceBoundaryViolation);
+    }
+}

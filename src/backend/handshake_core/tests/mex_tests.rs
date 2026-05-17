@@ -295,7 +295,7 @@ impl EngineAdapter for PassThroughAdapter {
             determinism: op.determinism,
             config_hash: None,
             inputs: op.inputs.clone(),
-            outputs: vec![ArtifactHandle::new(Uuid::new_v4(), "/out".to_string())],
+            outputs: vec![ArtifactHandle::new(Uuid::now_v7(), "/out".to_string())],
             capabilities_granted: op.capabilities_requested.clone(),
             environment: None,
         };
@@ -328,11 +328,11 @@ async fn runtime_executes_with_gates_and_adapter() {
 
     let op = PlannedOperation {
         schema_version: POE_SCHEMA_VERSION.to_string(),
-        op_id: Uuid::new_v4(),
+        op_id: Uuid::now_v7(),
         engine_id: "engine.spatial".to_string(),
         engine_version_req: None,
         operation: "spatial.build_model".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "/input".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "/input".to_string())],
         params: serde_json::json!({"script_ref": "artifact://script"}),
         capabilities_requested: vec!["fs.read".to_string(), "fs.write".to_string()],
         capability_profile_id: Some("Coder".to_string()),
@@ -380,14 +380,14 @@ async fn gate_pass_logs_outcome() {
     let runtime = MexRuntime::new(registry, flight_recorder, diagnostics, gates)
         .with_adapter("engine.spatial", Arc::new(PassThroughAdapter));
 
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op = PlannedOperation {
         schema_version: POE_SCHEMA_VERSION.to_string(),
         op_id,
         engine_id: "engine.spatial".to_string(),
         engine_version_req: None,
         operation: "spatial.build_model".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "/input".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "/input".to_string())],
         params: serde_json::json!({"script_ref": "artifact://script"}),
         capabilities_requested: vec!["fs.read".to_string(), "fs.write".to_string()],
         capability_profile_id: Some("Coder".to_string()),
@@ -473,14 +473,14 @@ async fn gate_denial_records_diagnostic_and_event() {
     let runtime = MexRuntime::new(registry, flight_recorder, diagnostics, gates)
         .with_adapter("engine.spatial", Arc::new(PassThroughAdapter));
 
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op = PlannedOperation {
         schema_version: POE_SCHEMA_VERSION.to_string(),
         op_id,
         engine_id: "engine.spatial".to_string(),
         engine_version_req: None,
         operation: "spatial.build_model".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "/input".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "/input".to_string())],
         params: serde_json::json!({"script_ref": "artifact://script"}),
         capabilities_requested: vec!["magic.wand".to_string()],
         capability_profile_id: Some("Coder".to_string()),
@@ -583,14 +583,14 @@ async fn d0_missing_evidence_records_diagnostic() {
     let runtime = MexRuntime::new(registry, flight_recorder, diagnostics, gates)
         .with_adapter("engine.spatial", Arc::new(PassThroughAdapter));
 
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op = PlannedOperation {
         schema_version: POE_SCHEMA_VERSION.to_string(),
         op_id,
         engine_id: "engine.spatial".to_string(),
         engine_version_req: None,
         operation: "spatial.build_model".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "/input".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "/input".to_string())],
         params: serde_json::json!({"script_ref": "artifact://script"}),
         capabilities_requested: vec!["fs.read".to_string(), "fs.write".to_string()],
         capability_profile_id: Some("Coder".to_string()),
@@ -716,7 +716,7 @@ async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability()
     )
     .with_adapter("calendar_sync", Arc::new(PassThroughAdapter));
 
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op = PlannedOperation {
         schema_version: POE_SCHEMA_VERSION.to_string(),
         op_id,
@@ -813,7 +813,7 @@ async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability()
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::WorkflowRun,
             protocol_id: CALENDAR_SYNC_PROTOCOL_ID.to_string(),
             profile_id: "CalendarSync".to_string(),
@@ -880,7 +880,7 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
             },
         )
         .await?;
-    let source_id = format!("google:read-only:{}", Uuid::new_v4());
+    let source_id = format!("google:read-only:{}", Uuid::now_v7());
     state
         .storage
         .upsert_calendar_source(
@@ -907,7 +907,7 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: JobKind::WorkflowRun,
             protocol_id: CALENDAR_SYNC_PROTOCOL_ID.to_string(),
             profile_id: "CalendarSync".to_string(),
@@ -1059,14 +1059,14 @@ async fn supply_chain_vuln_release_mode_high_records_diagnostic_and_events() {
         temp.path().to_path_buf(),
     );
 
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op = PlannedOperation {
         schema_version: POE_SCHEMA_VERSION.to_string(),
         op_id,
         engine_id: "engine.supply_chain.vuln".to_string(),
         engine_version_req: None,
         operation: "vuln_scan".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "repo:.".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "repo:.".to_string())],
         params: serde_json::json!({"release_mode": true}),
         capabilities_requested: vec![
             "fs.read:inputs".to_string(),
@@ -1155,14 +1155,14 @@ async fn supply_chain_license_release_mode_unknown_records_diagnostic() {
         temp.path().to_path_buf(),
     );
 
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op = PlannedOperation {
         schema_version: POE_SCHEMA_VERSION.to_string(),
         op_id,
         engine_id: "engine.supply_chain.license".to_string(),
         engine_version_req: None,
         operation: "license_scan".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "repo:.".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "repo:.".to_string())],
         params: serde_json::json!({"release_mode": true}),
         capabilities_requested: vec![
             "fs.read:inputs".to_string(),
@@ -1231,14 +1231,14 @@ async fn secret_scan_no_findings_emits_terminal_command_event() {
         temp.path().to_path_buf(),
     );
 
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op = PlannedOperation {
         schema_version: POE_SCHEMA_VERSION.to_string(),
         op_id,
         engine_id: "engine.guard.secret_scan".to_string(),
         engine_version_req: None,
         operation: "secret_scan".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "repo:.".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "repo:.".to_string())],
         params: serde_json::json!({"release_mode": false}),
         capabilities_requested: vec![
             "fs.read:inputs".to_string(),
@@ -1323,7 +1323,7 @@ fn on_disk_recorder(db_path: &std::path::Path) -> Arc<DuckDbFlightRecorder> {
 #[ignore]
 async fn ci_secret_scan_runs_via_terminal_service() {
     let root = repo_root();
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op_dir = root
         .join("data/mex_supply_chain/secret_scan")
         .join(op_id.to_string());
@@ -1355,7 +1355,7 @@ async fn ci_secret_scan_runs_via_terminal_service() {
         engine_id: "engine.guard.secret_scan".to_string(),
         engine_version_req: None,
         operation: "secret_scan".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "repo:.".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "repo:.".to_string())],
         params: serde_json::json!({ "release_mode": env_release_mode() }),
         capabilities_requested: vec![
             "fs.read:inputs".to_string(),
@@ -1406,7 +1406,7 @@ async fn ci_secret_scan_runs_via_terminal_service() {
 #[ignore]
 async fn ci_vuln_scan_runs_via_terminal_service() {
     let root = repo_root();
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op_dir = root
         .join("data/mex_supply_chain/vuln_scan")
         .join(op_id.to_string());
@@ -1438,7 +1438,7 @@ async fn ci_vuln_scan_runs_via_terminal_service() {
         engine_id: "engine.supply_chain.vuln".to_string(),
         engine_version_req: None,
         operation: "vuln_scan".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "repo:.".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "repo:.".to_string())],
         params: serde_json::json!({ "release_mode": env_release_mode() }),
         capabilities_requested: vec![
             "fs.read:inputs".to_string(),
@@ -1485,7 +1485,7 @@ async fn ci_vuln_scan_runs_via_terminal_service() {
 #[ignore]
 async fn ci_sbom_generate_runs_via_terminal_service() {
     let root = repo_root();
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op_dir = root
         .join("data/mex_supply_chain/sbom_generate")
         .join(op_id.to_string());
@@ -1517,7 +1517,7 @@ async fn ci_sbom_generate_runs_via_terminal_service() {
         engine_id: "engine.supply_chain.sbom".to_string(),
         engine_version_req: None,
         operation: "sbom_generate".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "repo:.".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "repo:.".to_string())],
         params: serde_json::json!({ "release_mode": env_release_mode() }),
         capabilities_requested: vec![
             "fs.read:inputs".to_string(),
@@ -1564,7 +1564,7 @@ async fn ci_sbom_generate_runs_via_terminal_service() {
 #[ignore]
 async fn ci_license_scan_runs_via_terminal_service() {
     let root = repo_root();
-    let op_id = Uuid::new_v4();
+    let op_id = Uuid::now_v7();
     let op_dir = root
         .join("data/mex_supply_chain/license_scan")
         .join(op_id.to_string());
@@ -1596,7 +1596,7 @@ async fn ci_license_scan_runs_via_terminal_service() {
         engine_id: "engine.supply_chain.license".to_string(),
         engine_version_req: None,
         operation: "license_scan".to_string(),
-        inputs: vec![ArtifactHandle::new(Uuid::new_v4(), "repo:.".to_string())],
+        inputs: vec![ArtifactHandle::new(Uuid::now_v7(), "repo:.".to_string())],
         params: serde_json::json!({ "release_mode": env_release_mode() }),
         capabilities_requested: vec![
             "fs.read:inputs".to_string(),

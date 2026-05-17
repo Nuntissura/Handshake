@@ -461,7 +461,7 @@ impl FlightRecorderEvent {
     ) -> Self {
         let actor_id = actor.to_string();
         Self {
-            event_id: Uuid::new_v4(),
+            event_id: Uuid::now_v7(),
             trace_id,
             timestamp: Utc::now(),
             actor,
@@ -6025,7 +6025,7 @@ mod tests {
     #[test]
     fn test_governance_pack_export_event_accepts_export_record_payload(
     ) -> Result<(), serde_json::Error> {
-        let export_id = Uuid::new_v4();
+        let export_id = Uuid::now_v7();
         let record = ExportRecord {
             export_id,
             created_at: Utc::now(),
@@ -6050,7 +6050,7 @@ mod tests {
             policy_id: "SAFE_DEFAULT".to_string(),
             redactions_applied: false,
             output_artifact_handles: vec![ArtifactHandle::new(
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 "gov_pack_template_volume".to_string(),
             )],
             materialized_paths: vec!["START_HERE.md".to_string()],
@@ -6062,7 +6062,7 @@ mod tests {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovernancePackExport,
             FlightRecorderActor::Agent,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         );
         assert!(event.validate().is_ok());
@@ -6072,7 +6072,7 @@ mod tests {
     fn valid_llm_inference_payload() -> Value {
         json!({
             "type": "llm_inference",
-            "trace_id": Uuid::new_v4().to_string(),
+            "trace_id": Uuid::now_v7().to_string(),
             "model_id": "llama3.2",
             "token_usage": {
                 "prompt_tokens": 10,
@@ -6105,7 +6105,7 @@ mod tests {
         {
             match payload.as_object_mut() {
                 Some(map) => {
-                    map.insert("trace_id".to_string(), json!(Uuid::new_v4().to_string()));
+                    map.insert("trace_id".to_string(), json!(Uuid::now_v7().to_string()));
                 }
                 None => {
                     unreachable!("payload must be object");
@@ -6313,8 +6313,8 @@ mod tests {
     fn valid_gov_check_started_payload() -> Value {
         json!({
             "type": "governance.check.started",
-            "check_id": Uuid::new_v4().to_string(),
-            "session_id": Uuid::new_v4().to_string(),
+            "check_id": Uuid::now_v7().to_string(),
+            "session_id": Uuid::now_v7().to_string(),
             "check_descriptor_hash": "0000000000000000000000000000000000000000000000000000000000000000"
         })
     }
@@ -6350,8 +6350,8 @@ mod tests {
     fn valid_gov_check_completed_payload() -> Value {
         json!({
             "type": "governance.check.completed",
-            "check_id": Uuid::new_v4().to_string(),
-            "session_id": Uuid::new_v4().to_string(),
+            "check_id": Uuid::now_v7().to_string(),
+            "session_id": Uuid::now_v7().to_string(),
             "result_status": "pass",
             "duration_ms": 1200,
             "evidence_artifact_id": "artifact-123",
@@ -6386,8 +6386,8 @@ mod tests {
     fn valid_gov_check_blocked_payload() -> Value {
         json!({
             "type": "governance.check.blocked",
-            "check_id": Uuid::new_v4().to_string(),
-            "session_id": Uuid::new_v4().to_string(),
+            "check_id": Uuid::now_v7().to_string(),
+            "session_id": Uuid::now_v7().to_string(),
             "blocked_reason": "insufficient permissions",
         })
     }
@@ -6410,7 +6410,7 @@ mod tests {
 
         let mut extra = payload.clone();
         if let Some(obj) = extra.as_object_mut() {
-            obj.insert("trace_id".to_string(), json!(Uuid::new_v4().to_string()));
+            obj.insert("trace_id".to_string(), json!(Uuid::now_v7().to_string()));
         } else {
             assert!(false, "expected payload to be a JSON object");
         }
@@ -6677,7 +6677,7 @@ mod tests {
         FlightRecorderEvent::new(
             event_type,
             FlightRecorderActor::System,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         )
     }
@@ -6688,7 +6688,7 @@ mod tests {
             FlightRecorderEventType::DistillDatasetAssembled,
             json!({
                 "type": "distill.dataset_assembled",
-                "job_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
                 "example_count": 100,
                 "new_count": 70,
                 "replay_count": 30,
@@ -6704,7 +6704,7 @@ mod tests {
             FlightRecorderEventType::DistillDatasetAssembled,
             json!({
                 "type": "distill.dataset_assembled",
-                "job_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
                 "example_count": 100
             }),
         );
@@ -6717,7 +6717,7 @@ mod tests {
             FlightRecorderEventType::DistillTeacherRun,
             json!({
                 "type": "distill.teacher_run",
-                "job_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
                 "model_name": "gpt-4o",
                 "tokenizer_id": "cl100k_base",
                 "example_count": 50
@@ -6732,11 +6732,11 @@ mod tests {
             FlightRecorderEventType::DistillStudentRun,
             json!({
                 "type": "distill.student_run",
-                "job_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
                 "model_name": "codellama-7b",
                 "tokenizer_id": "llama_tokenizer",
                 "example_count": 50,
-                "checkpoint_id": Uuid::new_v4().to_string()
+                "checkpoint_id": Uuid::now_v7().to_string()
             }),
         );
         assert!(event.validate().is_ok(), "{:?}", event.validate());
@@ -6748,7 +6748,7 @@ mod tests {
             FlightRecorderEventType::DistillScoreComputed,
             json!({
                 "type": "distill.score_computed",
-                "job_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
                 "example_count": 100,
                 "mean_score": 0.82
             }),
@@ -6762,8 +6762,8 @@ mod tests {
             FlightRecorderEventType::DistillCheckpointCreated,
             json!({
                 "type": "distill.checkpoint_created",
-                "job_id": Uuid::new_v4().to_string(),
-                "checkpoint_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
+                "checkpoint_id": Uuid::now_v7().to_string(),
                 "parent_checkpoint_id": null,
                 "adapter_type": "dora",
                 "data_signature": "sha256:abcdef0123456789"
@@ -6778,9 +6778,9 @@ mod tests {
             FlightRecorderEventType::DistillCheckpointCreated,
             json!({
                 "type": "distill.checkpoint_created",
-                "job_id": Uuid::new_v4().to_string(),
-                "checkpoint_id": Uuid::new_v4().to_string(),
-                "parent_checkpoint_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
+                "checkpoint_id": Uuid::now_v7().to_string(),
+                "parent_checkpoint_id": Uuid::now_v7().to_string(),
                 "adapter_type": "lora",
                 "data_signature": "sha256:abcdef0123456789"
             }),
@@ -6794,8 +6794,8 @@ mod tests {
             FlightRecorderEventType::DistillEvalCompleted,
             json!({
                 "type": "distill.eval_completed",
-                "job_id": Uuid::new_v4().to_string(),
-                "checkpoint_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
+                "checkpoint_id": Uuid::now_v7().to_string(),
                 "suite_name": "core_code_eval_v1",
                 "pass_at_1": 0.85,
                 "compile_success_rate": 0.98
@@ -6810,8 +6810,8 @@ mod tests {
             FlightRecorderEventType::DistillPromotionDecided,
             json!({
                 "type": "distill.promotion_decided",
-                "job_id": Uuid::new_v4().to_string(),
-                "checkpoint_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
+                "checkpoint_id": Uuid::now_v7().to_string(),
                 "approved": true,
                 "reason": "all gates passed"
             }),
@@ -6825,8 +6825,8 @@ mod tests {
             FlightRecorderEventType::DistillPromotionDecided,
             json!({
                 "type": "distill.promotion_decided",
-                "job_id": Uuid::new_v4().to_string(),
-                "checkpoint_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
+                "checkpoint_id": Uuid::now_v7().to_string(),
                 "approved": false,
                 "reason": "pass@1 regressed vs previous"
             }),
@@ -6840,8 +6840,8 @@ mod tests {
             FlightRecorderEventType::DistillPromotionDecided,
             json!({
                 "type": "distill.promotion_decided",
-                "job_id": Uuid::new_v4().to_string(),
-                "checkpoint_id": Uuid::new_v4().to_string(),
+                "job_id": Uuid::now_v7().to_string(),
+                "checkpoint_id": Uuid::now_v7().to_string(),
                 "approved": "yes",
                 "reason": "all gates passed"
             }),

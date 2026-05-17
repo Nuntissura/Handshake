@@ -77,11 +77,11 @@ struct ExportProvenance {
 
 impl ExportProvenance {
     fn standalone() -> Self {
-        let bundle_id = Uuid::new_v4().to_string();
+        let bundle_id = Uuid::now_v7().to_string();
         Self {
             bundle_id,
-            workflow_run_id: Uuid::new_v4().to_string(),
-            trace_id: Uuid::new_v4(),
+            workflow_run_id: Uuid::now_v7().to_string(),
+            trace_id: Uuid::now_v7(),
             export_job_id: None,
         }
     }
@@ -2418,7 +2418,7 @@ impl DebugBundleExporter for DefaultDebugBundleExporter {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
@@ -2499,7 +2499,7 @@ mod tests {
         Ok(state
             .storage
             .create_ai_job(NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind,
                 protocol_id: "protocol-default".to_string(),
                 profile_id: "default".to_string(),
@@ -2555,7 +2555,7 @@ mod tests {
             state,
             root_job,
             workflow_run.id,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "workflow_running",
         )
         .await?;
@@ -2565,7 +2565,7 @@ mod tests {
             state,
             child_job,
             workflow_run.id,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             "node_running",
         )
         .await?;
@@ -2632,7 +2632,7 @@ mod tests {
         let mut event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
             FlightRecorderActor::Agent,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             json!({ "label": label }),
         )
         .with_workflow_id(workflow_run_id.to_string());
@@ -2653,7 +2653,7 @@ mod tests {
         let mut event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
             FlightRecorderActor::Agent,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             json!({ "label": label }),
         )
         .with_job_id(job_id.to_string());
@@ -2682,6 +2682,7 @@ mod tests {
             .collect()
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_run_scope_exports_only_bound_jobs_and_nodes(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2771,6 +2772,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_node_execution_scope_exports_single_node_lineage(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2865,6 +2867,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn list_exportable_includes_workflow_correlation_anchors(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2914,6 +2917,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_run_scope_rejects_invalid_uuid() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -2946,6 +2950,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_node_execution_scope_rejects_invalid_node_uuid(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2958,7 +2963,7 @@ mod tests {
         let result = exporter
             .export(DebugBundleRequest {
                 scope: BundleScope::WorkflowNodeExecution {
-                    workflow_run_id: Uuid::new_v4().to_string(),
+                    workflow_run_id: Uuid::now_v7().to_string(),
                     workflow_node_execution_id: "not-a-uuid".to_string(),
                 },
                 redaction_mode: RedactionMode::SafeDefault,
