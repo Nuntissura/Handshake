@@ -75,6 +75,12 @@ pub struct ValidationReport {
     pub run_id: Uuid,
     pub created_at: DateTime<Utc>,
     pub outcomes: Vec<DescriptorOutcome>,
+    /// MT-049: present when the originating `ValidationRun` is a replay.
+    /// Mirrors `ValidationRun.original_run_id` so the event-side projection
+    /// carries the replay linkage even when the report is exchanged
+    /// out-of-band from the run record.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_run_id: Option<Uuid>,
 }
 
 impl ValidationReport {
@@ -86,7 +92,30 @@ impl ValidationReport {
             run_id,
             created_at: Utc::now(),
             outcomes: Vec::new(),
+            original_run_id: None,
         }
+    }
+
+    /// MT-049: construct a report from a `ValidationRun`, propagating the
+    /// replay linkage (`original_run_id`) when the run is a replay so the
+    /// event-side projection captures the source-run reference.
+    pub fn for_run(run: &crate::kernel::validation::run::ValidationRun) -> Self {
+        Self {
+            schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1,
+            event_type: EVENT_KB003_VALIDATION_RUN_COMPLETED,
+            artifact_class: Kb003ArtifactClass::ValidationReport,
+            run_id: run.run_id,
+            created_at: Utc::now(),
+            outcomes: Vec::new(),
+            original_run_id: run.original_run_id,
+        }
+    }
+
+    /// MT-049: explicit setter for callers constructing a report via
+    /// `ValidationReport::new(run_id)` who later resolve the source run.
+    pub fn with_original_run_id(mut self, original: Uuid) -> Self {
+        self.original_run_id = Some(original);
+        self
     }
 
     pub fn push(&mut self, outcome: DescriptorOutcome) {
@@ -138,6 +167,37 @@ mod tests {
             ValidationStatus::fail("oops").unwrap(),
         ));
         assert!(r.aggregate_blocks_promotion());
+    }
+
+    #[test]
+    fn replay_report_propagates_original_run_id() {
+        // MT-049 acceptance: when the report is built from a replay run, the
+        // event-side projection MUST carry the original_run_id linkage.
+        use crate::kernel::validation::run::ValidationRun;
+        let first = ValidationRun::new("cand-1", "sess-1", "task-1").unwrap();
+        let replay = ValidationRun::replay_of(&first, "sess-2", "task-2").unwrap();
+        let report = ValidationReport::for_run(&replay);
+        assert_eq!(report.run_id, replay.run_id);
+        assert_eq!(report.original_run_id, Some(first.run_id));
+
+        // Fresh run produces a report with no original linkage.
+        let fresh_report = ValidationReport::for_run(&first);
+        assert_eq!(fresh_report.original_run_id, None);
+    }
+
+    #[test]
+    fn validation_report_serde_round_trips_original_run_id() {
+        use crate::kernel::validation::run::ValidationRun;
+        let first = ValidationRun::new("c", "s", "t").unwrap();
+        let replay = ValidationRun::replay_of(&first, "s2", "t2").unwrap();
+        let report = ValidationReport::for_run(&replay);
+        let json = serde_json::to_string(&report).expect("serialize");
+        assert!(
+            json.contains("original_run_id"),
+            "replay report JSON must surface original_run_id: {json}"
+        );
+        let back: ValidationReport = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.original_run_id, Some(first.run_id));
     }
 
     #[test]

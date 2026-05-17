@@ -37,6 +37,7 @@
 pub mod adapter_health;
 pub mod artifact_bundle;
 pub mod candidate_range;
+pub mod check_runner_adapter;
 pub mod command_manifest;
 pub mod descriptor;
 pub mod diff_capture;
@@ -49,4 +50,7 @@ pub mod run;
 pub mod status;
 pub mod visual_evidence;
 
+pub use check_runner_adapter::{
+    ValidationCheckRunner, ValidationCheckRunnerError, ValidationContext,
+};
 pub use status::ValidationStatus;
