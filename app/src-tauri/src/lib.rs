@@ -33,9 +33,13 @@ impl OrchestratorState {
 
         // DEV-ONLY: spawns handshake_core via cargo run; later we'll replace this with a packaged binary path.
         let mut cmd = Command::new("cargo");
-        cmd.args(["run", "--bin", "handshake_core"])
+        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://postgres:postgres@localhost:65432/handshake_test".to_string()
+        });
+        cmd.args(["run", "--features", "app-runtime", "--bin", "handshake_core"])
             .current_dir(workdir)
             .env("HANDSHAKE_WORKSPACE_ROOT", workspace_root())
+            .env("DATABASE_URL", database_url)
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
 
