@@ -38,7 +38,7 @@ use super::decision::PromotionDecisionV1;
 /// detect idempotency conflicts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PromotionReceiptV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub receipt_id: String,
     pub decision: PromotionDecisionV1,
     pub idempotency_key: String,
@@ -65,7 +65,7 @@ impl PromotionReceiptV1 {
         let idempotency_key = idempotency_key.into();
         let receipt_id = format!("PR-{}", Uuid::now_v7());
         let mut receipt = Self {
-            schema_version: SCHEMA_KERNEL_PROMOTION_RECEIPT_V1,
+            schema_version: SCHEMA_KERNEL_PROMOTION_RECEIPT_V1.to_string(),
             receipt_id,
             decision,
             idempotency_key,

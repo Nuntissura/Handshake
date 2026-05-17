@@ -55,7 +55,7 @@ pub struct MtePromotionCounts {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MteAggregateSummaryV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub wp_id: String,
     pub total_mts: u32,
     pub status_counts: MteStatusCounts,
@@ -130,7 +130,7 @@ impl MteAggregateSummaryV1 {
         accepted_ids.sort();
 
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             wp_id: wp_id.into(),
             total_mts: summaries.len() as u32,
             status_counts,

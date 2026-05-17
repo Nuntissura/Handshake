@@ -36,7 +36,7 @@ impl BackoffStrategy {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MteRetryBudgetV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub max_attempts: u32,
     pub base_backoff_seconds: u32,
     pub backoff_strategy: BackoffStrategy,
@@ -51,7 +51,7 @@ impl MteRetryBudgetV1 {
         backoff_strategy: BackoffStrategy,
     ) -> Self {
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             max_attempts,
             base_backoff_seconds,
             backoff_strategy,

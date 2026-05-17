@@ -31,7 +31,7 @@ pub enum LaneWakeEvent {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LaneWakeReceiptV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub receipt_id: String,
     pub lane: BlockedLane,
     pub event: LaneWakeEvent,
@@ -56,7 +56,7 @@ impl LaneWakeReceiptV1 {
         rationale_short: impl Into<String>,
     ) -> Self {
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             receipt_id: format!("LWR-{}", Uuid::now_v7()),
             lane,
             event: LaneWakeEvent::Wake,
@@ -73,7 +73,7 @@ impl LaneWakeReceiptV1 {
         rationale_short: impl Into<String>,
     ) -> Self {
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             receipt_id: format!("LWR-{}", Uuid::now_v7()),
             lane,
             event: LaneWakeEvent::Settle,

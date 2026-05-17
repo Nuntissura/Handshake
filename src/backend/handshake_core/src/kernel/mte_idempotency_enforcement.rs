@@ -187,8 +187,8 @@ mod tests {
         let v = enf.check_and_register(key(), "h-different", "CR-2");
         match v {
             MteIdempotencyVerdict::DuplicateMismatch {
-                existing_payload_hash,
-                new_payload_hash,
+                ref existing_payload_hash,
+                ref new_payload_hash,
                 ..
             } => {
                 assert_eq!(existing_payload_hash, "h-a");

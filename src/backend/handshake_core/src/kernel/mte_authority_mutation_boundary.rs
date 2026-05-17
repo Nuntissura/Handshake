@@ -88,7 +88,7 @@ impl AuthorityRowClass {
 /// `hsk.kernel.mte.authority_boundary_denial@1`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AuthorityBoundaryDenialV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub denial_id: String,
     pub actor: AuthorityMutationActor,
     pub row_class: AuthorityRowClass,
@@ -108,7 +108,7 @@ impl AuthorityBoundaryDenialV1 {
         rationale: impl Into<String>,
     ) -> Self {
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             denial_id: format!("MTE-ABD-{}", uuid::Uuid::now_v7()),
             actor,
             row_class,

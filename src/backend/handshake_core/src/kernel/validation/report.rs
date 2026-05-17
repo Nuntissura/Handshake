@@ -69,7 +69,7 @@ impl DescriptorOutcome {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidationReport {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub event_type: &'static str,
     pub artifact_class: Kb003ArtifactClass,
     pub run_id: Uuid,
@@ -86,7 +86,7 @@ pub struct ValidationReport {
 impl ValidationReport {
     pub fn new(run_id: Uuid) -> Self {
         Self {
-            schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1,
+            schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1.to_string(),
             event_type: EVENT_KB003_VALIDATION_RUN_COMPLETED,
             artifact_class: Kb003ArtifactClass::ValidationReport,
             run_id,
@@ -101,7 +101,7 @@ impl ValidationReport {
     /// event-side projection captures the source-run reference.
     pub fn for_run(run: &crate::kernel::validation::run::ValidationRun) -> Self {
         Self {
-            schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1,
+            schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1.to_string(),
             event_type: EVENT_KB003_VALIDATION_RUN_COMPLETED,
             artifact_class: Kb003ArtifactClass::ValidationReport,
             run_id: run.run_id,

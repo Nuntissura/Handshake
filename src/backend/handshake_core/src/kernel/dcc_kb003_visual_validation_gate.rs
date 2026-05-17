@@ -29,7 +29,7 @@ pub enum VisualGatePosture {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VisualValidationGateDescriptorV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub descriptor_id: String,
     pub posture: VisualGatePosture,
     pub evidence: Vec<VisualEvidenceItem>,
@@ -46,7 +46,7 @@ impl VisualValidationGateDescriptorV1 {
         pass_criterion_short: impl Into<String>,
     ) -> Self {
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             descriptor_id: descriptor_id.into(),
             posture,
             evidence,

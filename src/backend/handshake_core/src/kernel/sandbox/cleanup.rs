@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 
 use super::workspace::SandboxWorkspaceV1;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CleanupAction {
     DeleteFile,

@@ -79,7 +79,7 @@ impl MexEvidenceItemV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Kb003MexEvidenceV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub sandbox_run_id: String,
     pub items: Vec<MexEvidenceItemV1>,
 }
@@ -89,7 +89,7 @@ impl Kb003MexEvidenceV1 {
 
     pub fn new(sandbox_run_id: impl Into<String>, items: Vec<MexEvidenceItemV1>) -> Self {
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             sandbox_run_id: sandbox_run_id.into(),
             items,
         }

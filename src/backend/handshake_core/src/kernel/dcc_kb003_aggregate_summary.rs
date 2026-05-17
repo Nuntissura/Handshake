@@ -26,7 +26,7 @@ pub struct Kb003BlockedTagCountV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Kb003AggregateRunSummaryV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub aggregate_id: String,
     pub wp_id: String,
     pub completed_count: u32,
@@ -91,7 +91,7 @@ impl Kb003AggregateRunSummaryV1 {
         }
         let digest = format!("{:x}", hasher.finalize());
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             aggregate_id: format!("AGGSUM-sha256-{}", &digest[..32]),
             wp_id: wp_owned,
             completed_count: completed,

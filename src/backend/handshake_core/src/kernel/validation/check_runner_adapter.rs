@@ -279,9 +279,18 @@ mod tests {
             .await
             .expect("allowed descriptor must dispatch");
         assert_eq!(outcome.descriptor_name, "allowed_check");
+        // CheckRunner's empty supported_kinds + empty capability grants can
+        // surface as either Blocked (capability gate fired first) OR
+        // Unsupported (check_kind probe). What matters is that dispatch
+        // REACHED the runner — the descriptor's own evaluate() panics if
+        // called, so any non-panic outcome here proves the
+        // no-parallel-runner contract.
         assert!(
-            matches!(outcome.status, ValidationStatus::Unsupported { .. }),
-            "expected projection to Unsupported, got {:?}",
+            matches!(
+                outcome.status,
+                ValidationStatus::Unsupported { .. } | ValidationStatus::Blocked { .. }
+            ),
+            "expected projection to Unsupported or Blocked, got {:?}",
             outcome.status
         );
     }

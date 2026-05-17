@@ -34,7 +34,7 @@ pub enum MteDropBackAction {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MteDropBackDecisionV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub mt_id: String,
     pub wp_id: String,
     pub action: MteDropBackAction,
@@ -89,7 +89,7 @@ impl MteDropBackDecisionV1 {
             }
         };
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             mt_id: mt_id.into(),
             wp_id: wp_id.into(),
             action,
@@ -126,7 +126,7 @@ impl MteDropBackDecisionV1 {
             None
         };
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             mt_id: mt_id.into(),
             wp_id: wp_id.into(),
             action,

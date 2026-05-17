@@ -30,7 +30,7 @@ use crate::kernel::validation::status::ValidationStatus;
 /// summaries without inflating receipt payloads.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MteValidationReportProjectionV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub validation_run_id: Uuid,
     pub total_outcomes: usize,
     pub counts_by_tag: BTreeMap<String, usize>,
@@ -78,7 +78,7 @@ impl MteValidationReportProjectionV1 {
         unsupported.sort();
 
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             validation_run_id: report.run_id,
             total_outcomes: report.outcomes.len(),
             counts_by_tag: counts,

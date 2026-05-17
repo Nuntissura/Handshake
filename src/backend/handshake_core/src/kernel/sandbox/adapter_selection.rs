@@ -219,11 +219,15 @@ mod tests {
 
     #[test]
     fn empty_registry_returns_unavailable_error() {
+        // OK arm of select_adapter is SelectionResult<'_> which holds
+        // `&dyn SandboxAdapter` (no Debug bound on trait). Pattern-match
+        // instead of `unwrap_err()` to avoid the Debug requirement.
         let registry = AdapterRegistryView::empty();
-        let err = select_adapter(&registry, AdapterIsolationTier::HardIsolation).unwrap_err();
-        match err {
-            AdapterError::Unavailable(msg) => assert!(msg.contains("HardIsolation")),
-            other => panic!("expected Unavailable, got {:?}", other),
+        let result = select_adapter(&registry, AdapterIsolationTier::HardIsolation);
+        match result {
+            Ok(_) => panic!("expected select_adapter to return Err on empty registry"),
+            Err(AdapterError::Unavailable(msg)) => assert!(msg.contains("HardIsolation")),
+            Err(other) => panic!("expected Unavailable, got {:?}", other),
         }
     }
 

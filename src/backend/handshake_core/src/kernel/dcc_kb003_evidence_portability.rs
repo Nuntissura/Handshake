@@ -23,7 +23,7 @@ pub struct PortableMemberV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DccKb003PortableExportV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub sandbox_run_id: String,
     pub exported: Vec<PortableMemberV1>,
     pub redacted_report: RedactionReport,
@@ -54,7 +54,7 @@ impl DccKb003PortableExportV1 {
             .collect();
         let redacted_report = RedactionReport::new(redacted);
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             sandbox_run_id: sandbox_run_id.into(),
             exported,
             redacted_report,

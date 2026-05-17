@@ -42,7 +42,7 @@ pub struct Kb003ArtifactHandleV1 {
     pub class: Kb003ArtifactClass,
     pub content_sha256: String,
     pub hash_policy: HashPolicy,
-    pub retention_root: &'static str,
+    pub retention_root: String,
     pub exportable_by_default: bool,
 }
 
@@ -68,7 +68,7 @@ impl Kb003ArtifactHandleV1 {
             class,
             content_sha256,
             hash_policy: meta.hash_policy,
-            retention_root: meta.retention_root,
+            retention_root: meta.retention_root.to_string(),
             exportable_by_default: meta.exportable_by_default,
         })
     }

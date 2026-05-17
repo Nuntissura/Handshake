@@ -25,6 +25,7 @@ pub const POLICY_SCOPED_LOCAL_ADAPTER_ID: &str = "policy_scoped_local";
 pub const POLICY_SCOPED_LOCAL_ADAPTER_LABEL: &str =
     "PolicyScopedLocal (process tier, NOT hard isolation)";
 
+#[derive(Debug)]
 pub struct PolicyScopedLocalAdapter {
     policy: SandboxPolicyV1,
 }
@@ -106,10 +107,13 @@ mod tests {
     fn refuses_construction_with_non_deny_policy() {
         let mut pol = SandboxPolicyV1::default_deny("baseline");
         pol.default_decision = CapabilityDecision::Allow;
-        let err = PolicyScopedLocalAdapter::new(pol).expect_err("must refuse allow-by-default policy");
-        match err {
-            AdapterError::PolicyDenied(msg) => assert!(msg.contains("default_deny")),
-            other => panic!("expected PolicyDenied, got {:?}", other),
+        // Note: PolicyScopedLocalAdapter now derives Debug so expect_err works,
+        // but we keep pattern-match form for clarity on what we're asserting.
+        let result = PolicyScopedLocalAdapter::new(pol);
+        match result {
+            Ok(_) => panic!("must refuse allow-by-default policy"),
+            Err(AdapterError::PolicyDenied(msg)) => assert!(msg.contains("default_deny")),
+            Err(other) => panic!("expected PolicyDenied, got {:?}", other),
         }
     }
 

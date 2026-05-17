@@ -65,7 +65,7 @@ impl std::error::Error for CloseoutBundleBuildError {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MteCloseoutBundleV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub wp_id: String,
     pub lane_settlement: MteLaneSettlementV1,
     pub aggregate: MteAggregateSummaryV1,
@@ -114,7 +114,7 @@ impl MteCloseoutBundleV1 {
             );
         }
         Ok(Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             wp_id,
             lane_settlement,
             aggregate,
@@ -162,7 +162,7 @@ mod tests {
 
     fn agg_pass(n: u32) -> MteAggregateSummaryV1 {
         MteAggregateSummaryV1 {
-            schema_version: MteAggregateSummaryV1::SCHEMA_VERSION,
+            schema_version: MteAggregateSummaryV1::SCHEMA_VERSION.to_string(),
             wp_id: "WP-X".into(),
             total_mts: n,
             status_counts: MteStatusCounts {

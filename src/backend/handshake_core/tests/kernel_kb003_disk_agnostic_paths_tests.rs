@@ -187,7 +187,7 @@ fn kb003_artifact_handles_are_host_path_free() {
             class,
             handle.retention_root
         );
-        if let Some(shape) = forbidden_path_shape(handle.retention_root) {
+        if let Some(shape) = forbidden_path_shape(&handle.retention_root) {
             panic!(
                 "{:?} handle retention_root contains forbidden shape {shape}: {:?}",
                 class, handle.retention_root

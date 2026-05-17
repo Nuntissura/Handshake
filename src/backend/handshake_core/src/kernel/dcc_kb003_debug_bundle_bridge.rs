@@ -75,7 +75,7 @@ impl DebugDiagnosticEntryV1 {
 /// Bounded, portable diagnostic bundle ready to fold into KB003 evidence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Kb003DebugBundleV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub sandbox_run_id: String,
     pub max_entries: usize,
     pub truncated: bool,
@@ -101,7 +101,7 @@ impl Kb003DebugBundleV1 {
             entries
         };
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             sandbox_run_id: sandbox_run_id.into(),
             max_entries,
             truncated,

@@ -37,7 +37,7 @@ pub enum MtTerminalStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Kb003PerMtSummaryV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub summary_id: String,
     pub mt_id: String,
     pub attempt_index: u32,
@@ -54,7 +54,7 @@ impl Kb003PerMtSummaryV1 {
 
     pub fn completed(mt_id: impl Into<String>, attempt_index: u32, artifact_refs: Vec<String>) -> Self {
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             summary_id: format!("MTSUM-{}", Uuid::now_v7()),
             mt_id: mt_id.into(),
             attempt_index,
@@ -76,7 +76,7 @@ impl Kb003PerMtSummaryV1 {
         artifact_refs: Vec<String>,
     ) -> Self {
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             summary_id: format!("MTSUM-{}", Uuid::now_v7()),
             mt_id: mt_id.into(),
             attempt_index,
@@ -96,7 +96,7 @@ impl Kb003PerMtSummaryV1 {
         artifact_refs: Vec<String>,
     ) -> Self {
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             summary_id: format!("MTSUM-{}", Uuid::now_v7()),
             mt_id: mt_id.into(),
             attempt_index,

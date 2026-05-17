@@ -22,7 +22,7 @@ pub enum ValidationRunStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ValidationRun {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub run_id: Uuid,
     pub candidate_id: String,
     pub session_id: String,
@@ -79,7 +79,7 @@ impl ValidationRun {
             return Err(ValidationRunError::EmptyField("task_id"));
         }
         Ok(Self {
-            schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1,
+            schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1.to_string(),
             run_id: Uuid::now_v7(),
             candidate_id,
             session_id,
@@ -114,7 +114,7 @@ impl ValidationRun {
             return Err(ValidationRunError::EmptyField("task_id"));
         }
         Ok(Self {
-            schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1,
+            schema_version: SCHEMA_KERNEL_VALIDATION_RUN_V1.to_string(),
             run_id: Uuid::now_v7(),
             candidate_id: original.candidate_id.clone(),
             session_id,

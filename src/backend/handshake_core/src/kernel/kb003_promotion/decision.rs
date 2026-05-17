@@ -181,7 +181,7 @@ impl PromotionRejectionReason {
 /// across replays.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PromotionDecisionV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub decision_id: String,
     pub validation_run_id: String,
     pub sandbox_run_id: String,
@@ -192,7 +192,7 @@ pub struct PromotionDecisionV1 {
 impl PromotionDecisionV1 {
     pub fn accepted(sandbox_run_id: impl Into<String>, validation_run_id: impl Into<String>) -> Self {
         Self {
-            schema_version: SCHEMA_KERNEL_PROMOTION_DECISION_V1,
+            schema_version: SCHEMA_KERNEL_PROMOTION_DECISION_V1.to_string(),
             decision_id: format!("PD-{}", Uuid::now_v7()),
             validation_run_id: validation_run_id.into(),
             sandbox_run_id: sandbox_run_id.into(),
@@ -207,7 +207,7 @@ impl PromotionDecisionV1 {
         reason: PromotionRejectionReason,
     ) -> Self {
         Self {
-            schema_version: SCHEMA_KERNEL_PROMOTION_DECISION_V1,
+            schema_version: SCHEMA_KERNEL_PROMOTION_DECISION_V1.to_string(),
             decision_id: format!("PD-{}", Uuid::now_v7()),
             validation_run_id: validation_run_id.into(),
             sandbox_run_id: sandbox_run_id.into(),

@@ -200,14 +200,17 @@ mod tests {
 
     #[test]
     fn outcome_derives_from_status_and_evidence() {
-        use DccSandboxOutcome::*;
-        use SandboxRunStatus::*;
-        assert_eq!(DccSandboxOutcome::derive(Requested, false, false), Pending);
-        assert_eq!(DccSandboxOutcome::derive(Started, false, false), Running);
-        assert_eq!(DccSandboxOutcome::derive(Rejected, true, false), DeniedByPolicy);
-        assert_eq!(DccSandboxOutcome::derive(Rejected, false, false), Rejected);
-        assert_eq!(DccSandboxOutcome::derive(Completed, false, false), AwaitingPromotion);
-        assert_eq!(DccSandboxOutcome::derive(Completed, false, true), Promoted);
+        // Fully-qualify both `Rejected` variants since `DccSandboxOutcome` AND
+        // `SandboxRunStatus` both have a `Rejected` variant in scope. The
+        // glob imports created an ambiguity the compiler refuses to resolve.
+        use DccSandboxOutcome as Out;
+        use SandboxRunStatus as St;
+        assert_eq!(Out::derive(St::Requested, false, false), Out::Pending);
+        assert_eq!(Out::derive(St::Started, false, false), Out::Running);
+        assert_eq!(Out::derive(St::Rejected, true, false), Out::DeniedByPolicy);
+        assert_eq!(Out::derive(St::Rejected, false, false), Out::Rejected);
+        assert_eq!(Out::derive(St::Completed, false, false), Out::AwaitingPromotion);
+        assert_eq!(Out::derive(St::Completed, false, true), Out::Promoted);
     }
 
     #[test]

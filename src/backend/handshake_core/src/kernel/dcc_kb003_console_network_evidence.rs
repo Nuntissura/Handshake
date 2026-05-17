@@ -114,7 +114,7 @@ impl NetworkExchangeV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Kb003ConsoleNetworkEvidenceV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub sandbox_run_id: String,
     pub console_truncated: bool,
     pub console_original_count: usize,
@@ -141,7 +141,7 @@ impl Kb003ConsoleNetworkEvidenceV1 {
         let console = if console_trunc { console.into_iter().take(console_cap).collect() } else { console };
         let network = if net_trunc { network.into_iter().take(network_cap).collect() } else { network };
         Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             sandbox_run_id: sandbox_run_id.into(),
             console_truncated: console_trunc,
             console_original_count: co,

@@ -109,7 +109,7 @@ impl std::error::Error for LaneSettlementBuildError {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MteLaneSettlementV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub wp_id: String,
     pub verdict: MteLaneVerdict,
     pub aggregate_summary: MteAggregateSummaryV1,
@@ -150,7 +150,7 @@ impl MteLaneSettlementV1 {
             });
         }
         Ok(Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             wp_id,
             verdict: MteLaneVerdict::Pass,
             aggregate_summary: aggregate,
@@ -178,7 +178,7 @@ impl MteLaneSettlementV1 {
             return Err(LaneSettlementBuildError::PassWithoutApproval);
         }
         Ok(Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             wp_id,
             verdict,
             aggregate_summary: aggregate,
@@ -199,7 +199,7 @@ mod tests {
 
     fn aggregate_all_accepted(n: u32) -> MteAggregateSummaryV1 {
         MteAggregateSummaryV1 {
-            schema_version: MteAggregateSummaryV1::SCHEMA_VERSION,
+            schema_version: MteAggregateSummaryV1::SCHEMA_VERSION.to_string(),
             wp_id: "WP-X".into(),
             total_mts: n,
             status_counts: MteStatusCounts {

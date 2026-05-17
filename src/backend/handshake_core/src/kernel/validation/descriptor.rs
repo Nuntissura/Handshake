@@ -172,7 +172,9 @@ mod tests {
         assert!(allow.admit(&d).is_ok());
 
         let d2 = ArtifactHashesValid;
-        let err = allow.admit(&d2).unwrap_err();
+        let result = allow.admit(&d2);
+        assert!(result.is_err());
+        let err = result.err().unwrap();
         assert_eq!(
             err,
             DescriptorAdmissionError::NotInAllowlist {

@@ -27,7 +27,7 @@ use handshake_core::kernel::sandbox::exec_allowlist::{
     DescriptorValidationError, ExecAllowlistGate,
 };
 use handshake_core::kernel::sandbox::fs_guard::{FilesystemScopeGuard, FsAccessMode};
-use handshake_core::kernel::sandbox::hard_isolation::HardIsolationAvailability;
+use handshake_core::kernel::sandbox::hard_isolation::{HardIsolationAdapter, HardIsolationAvailability};
 use handshake_core::kernel::sandbox::hard_isolation_container::ContainerAdapterStub;
 use handshake_core::kernel::sandbox::hard_isolation_microvm::MicroVmAdapterStub;
 use handshake_core::kernel::sandbox::host_platform_probe::HostKind;

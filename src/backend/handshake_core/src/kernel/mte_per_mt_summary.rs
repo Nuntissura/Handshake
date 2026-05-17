@@ -120,7 +120,7 @@ impl std::error::Error for SummaryBuildError {}
 /// Per-MT MTE summary. Schema id `hsk.kernel.mte.per_mt_summary@1`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MtePerMtSummaryV1 {
-    pub schema_version: &'static str,
+    pub schema_version: String,
     pub mt_id: String,
     pub wp_id: String,
     pub run_id: Option<String>,
@@ -177,7 +177,7 @@ impl MtePerMtSummaryV1 {
             }
         }
         Ok(Self {
-            schema_version: Self::SCHEMA_VERSION,
+            schema_version: Self::SCHEMA_VERSION.to_string(),
             mt_id,
             wp_id: wp_id.into(),
             run_id,
