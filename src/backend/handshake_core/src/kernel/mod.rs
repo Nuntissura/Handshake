@@ -65,6 +65,7 @@ pub mod git_engine_decision_gate;
 pub mod governance_overlay_boundary;
 pub mod governance_pack_instantiation;
 pub mod kb003_artifact_classes;
+pub mod kb003_promotion;
 pub mod kb003_schemas;
 pub mod local_first_mcp_posture;
 pub mod local_model_microtask_loop;
