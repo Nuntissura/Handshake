@@ -182,6 +182,16 @@ impl DccSandboxProjectionV1 {
             }
         }
     }
+
+    /// MT-067/068 helper consumed by `dcc_kb003_sandbox_run_list` and
+    /// `dcc_kb003_run_detail`: short stable summary line a no-context reader
+    /// can read at a glance.
+    pub fn summary_line(&self) -> String {
+        format!(
+            "run {} [{:?}] outcome={:?} policy={}",
+            self.run_id, self.run_status, self.outcome, self.policy_version_id
+        )
+    }
 }
 
 #[cfg(test)]
@@ -214,6 +224,14 @@ mod tests {
     fn projection_family_id_is_versioned_and_namespaced() {
         assert!(DCC_SANDBOX_PROJECTION_FAMILY_ID.starts_with("hsk.dcc.kb003."));
         assert!(DCC_SANDBOX_PROJECTION_FAMILY_ID.contains('@'));
+    }
+
+    #[test]
+    fn summary_line_includes_identity_and_outcome() {
+        let p = sample_projection(SandboxRunStatus::Completed, DccSandboxOutcome::AwaitingPromotion);
+        let line = p.summary_line();
+        assert!(line.contains("SBX-test"));
+        assert!(line.contains("AwaitingPromotion"));
     }
 
     #[test]
