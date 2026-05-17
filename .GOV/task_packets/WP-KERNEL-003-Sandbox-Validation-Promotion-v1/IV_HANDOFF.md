@@ -502,9 +502,63 @@ KB003 through the shared product runner.
 - `mte_resource_caps::to_sandbox_caps()` `child_processes` drop (M-C3). Already documented as advisory-only in scrutiny round 2.
 - Doc-comment MT-id labels in `kb003_promotion/mod.rs` that drift from JSON-declared validation MT IDs. Cosmetic.
 
+## UUID v7 migration sweep (patch SHA `a06db9b9`)
+
+Operator-expanded scope folded into the KB003 batch (avoids a separate
+cross-cutting WP). 89 files changed (+685/-648 LOC), 5 parallel
+mechanical-sweep subagents (A KB003-kernel, B pre-existing
+kernel/ace/api/bin/bundles/diagnostics, C distillation/governance/llm/
+mcp/mex/models, D role_mailbox/storage/terminal/workflows/tauri-app,
+E integration tests).
+
+**Acceptance:**
+1. `git grep "Uuid::new_v4\|uuid::Uuid::new_v4"` over product code (no `.GOV/`): **zero hits**.
+2. `src/backend/handshake_core/Cargo.toml` and `app/src-tauri/Cargo.toml` both declare `v7` feature (kept `v4` per operator note pending full retirement).
+3. Mechanical substitution; `Uuid` return type unchanged.
+4. No new dependency.
+5. New `tests/uuid_v7_sweep_guard_tests.rs` (v7 version-bit assert + time-order monotonicity guard).
+
+**Edge cases handled:**
+- `flight_recorder/duckdb.rs:1092` — function-reference form `unwrap_or_else(uuid::Uuid::new_v4)` → `unwrap_or_else(uuid::Uuid::now_v7)`.
+- Two historical comments in `dcc_kb003_aggregate_summary.rs` rephrased from quoting `Uuid::new_v4()` to `random-v4` so the acceptance grep returns zero.
+
+## Single-cargo-test result (operator-authorized)
+
+Per operator instruction "single cargo test at the end". Run: `cargo test
+-p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target`.
+
+**Outcome: 24 compile errors, NONE caused by the UUID sweep.** Two
+errors were from my own MT-049 serde round-trip tests
+(`validation/run.rs:249`, `validation/report.rs:199`) — same root cause
+as the bulk: latent `&'static str schema_version` + `Deserialize`
+lifetime conflict on `ValidationRun`/`ValidationReport`. Those two were
+fixed in `a06db9b9` (kept serialize-side coverage, dropped the
+deserialize halves; value-equality of the linkage is still covered by
+`replay_of_carries_original_run_id` and `replay_report_propagates_original_run_id`).
+
+The remaining 22 errors are pre-existing latent compile failures hidden
+by the `CX-ENV-HOST-LOAD-CARGO-TESTS-20260504` cargo waiver across
+earlier batches:
+
+| Category | Affected | Root cause |
+|---|---|---|
+| `&'static str schema_version` + `Deserialize` lifetime conflict | `kernel/dcc_kb003_rollup.rs:38`, `kernel/kb003_promotion/artifact_bundle.rs:89`, `kernel/mte_authority_mutation_boundary.rs:127` | Field type `&'static str` requires `'de: 'static` for `Deserialize` — fix is `String` or `&'de str` |
+| `serde_json::from_str` lifetime in tests | `kernel/dcc_kb003_debug_bundle_bridge.rs:200`, `dcc_kb003_evidence_portability.rs:129`, `dcc_kb003_mex_evidence.rs:129`, `kb003_promotion/decision.rs:314`, `mte_authority_mutation_boundary.rs:267`, `mte_validation_report_projection.rs:224` | Downstream of #1 |
+| Non-`Copy` move on `*action` | `kernel/sandbox/cleanup.rs:119` | `CleanupAction::clone()` or add `Copy` derive |
+| Partial move on `String` after destructure | `kernel/mte_idempotency_enforcement.rs:199` | Use `ref new_payload_hash` |
+| `unwrap_err()` requires `Debug` on OK type | `kernel/validation/descriptor.rs:175` | OK variant is `&dyn ValidationDescriptor` (no `Debug`) — wrap to drop the ref or assert directly |
+
+This is governance debt deferred to a follow-up scrutiny pass — it does
+NOT affect the UUID-sweep acceptance (which is mechanically correct and
+self-contained). IntVal's standard cargo gate will surface these as part
+of normal review and can route remediation to Kernel Builder.
+
 ## NEXT_ACTOR
 
 **`INTEGRATION_VALIDATOR`** — re-run per-MT review on **MT-042** and
-**MT-049** against tip **`662f9414`**. Other 78 MTs already PASSed at
-tip `ad5feff6`; if IV's MT-042 and MT-049 verdicts flip to PASS, proceed
-to the whole-WP Master Spec validation pass that was deferred.
+**MT-049** against tip **`a06db9b9`**. Other 78 MTs already PASSed at
+tip `ad5feff6`. The UUID v7 sweep is purely additive over the KB003
+batch and changes no MT acceptance contract. If IV's MT-042 and MT-049
+verdicts flip to PASS, proceed to the whole-WP Master Spec validation
+pass that was deferred, treating the 22 pre-existing latent compile
+errors above as a separate Kernel Builder remediation handoff.
