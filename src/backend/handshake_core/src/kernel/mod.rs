@@ -1,3 +1,41 @@
+//! # KB003 Sandbox / Validation / Promotion (Research Basis & Module Topology)
+//!
+//! WP-KERNEL-003 sequences sandbox adapters in product-native tiers; container
+//! and microVM stacks are extension slots, never mandatory MVP infrastructure
+//! (packet forbids "production-grade VM/container stack as the only supported
+//! adapter").
+//!
+//! ## Adapter sequence (MT-004 research basis)
+//!
+//! 1. **Process tier** — day-one default. Native Rust child process under
+//!    capped permissions (Loom-style); zero external runtime dependency.
+//! 2. **HardIsolation tier** — opt-in. Container (Docker/Podman, reset brief
+//!    §6.5) or microVM (Firecracker/gVisor) behind a `HardIsolationAdapter`
+//!    trait; absence is typed `BLOCKED|UNSUPPORTED`, never silent success
+//!    (MT-020).
+//! 3. **Workflow tooling** — Dagger / SWE-ReX style harnesses sit above the
+//!    adapter trait as orchestration layers, not as the adapter itself.
+//!
+//! Rejected: container-only or microVM-only MVP (host portability + Windows
+//! constraints from reset brief §6.5); raw shell adapter without ToolGate
+//! (KB002 conflict register); SQLite-backed sandbox state (CX-503R).
+//!
+//! ## Module topology (MT-006 placement decision)
+//!
+//! New KB003 submodules land in:
+//! - `kernel/kb003_schemas.rs` — schema-id constants + `Kb003EventEnvelope` (MT-007/008).
+//! - `kernel/kb003_artifact_classes.rs` — artifact class taxonomy (MT-009).
+//! - `kernel/sandbox/` — `SandboxRun*`, `SandboxPolicy*`, `SandboxWorkspace*` (MT-010+).
+//! - `kernel/validation/` — `ValidationRun*`, descriptors, deterministic checks (MT-030+).
+//! - `kernel/promotion/` — `PromotionGate`, `PromotionDecision`, receipts (MT-040+).
+//!
+//! Storage extensions land in `storage/postgres.rs` (rows + migrations for
+//! SandboxRunV1, SandboxArtifactBundleV1, ValidationRunV1, PromotionDecisionV1,
+//! PromotionReceiptV1). No SQLite authority paths (CX-503R, reset brief §4.1).
+//!
+//! EventLedger consumption stays through the existing `KernelActor` →
+//! `EventLedger` path; KB003 adds new typed event names, not a new ledger.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -26,6 +64,8 @@ pub mod generated_documentation_status_projection;
 pub mod git_engine_decision_gate;
 pub mod governance_overlay_boundary;
 pub mod governance_pack_instantiation;
+pub mod kb003_artifact_classes;
+pub mod kb003_schemas;
 pub mod local_first_mcp_posture;
 pub mod local_model_microtask_loop;
 pub mod locus_mt_validation_work_graph;
