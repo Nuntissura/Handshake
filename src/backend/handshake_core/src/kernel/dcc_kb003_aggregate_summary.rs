@@ -11,7 +11,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use sha2::{Digest, Sha256};
 
 use crate::kernel::dcc_kb003_blocked_reasons::{BlockedDisposition, BlockedLane};
 use crate::kernel::dcc_kb003_mt_summary::{Kb003PerMtSummaryV1, MtTerminalStatus};
@@ -76,10 +76,24 @@ impl Kb003AggregateRunSummaryV1 {
         // Stable order: by tag string ascending.
         tag_buckets.sort_by(|a, b| a.tag.cmp(&b.tag));
 
+        // M-C4 fix: aggregate_id is content-derived (SHA-256 over the stable
+        // input set) so two reconstructions from identical inputs produce
+        // identical ids. The previous Uuid::new_v4() per call broke any future
+        // determinism/content-hash check on the aggregate (e.g. replay tests
+        // that include aggregate_summary).
+        let wp_owned = wp_id.into();
+        let mut hasher = Sha256::new();
+        hasher.update(wp_owned.as_bytes());
+        hasher.update(b"\x00");
+        for h in &handles {
+            hasher.update(h.as_bytes());
+            hasher.update(b"\x00");
+        }
+        let digest = format!("{:x}", hasher.finalize());
         Self {
             schema_version: Self::SCHEMA_VERSION,
-            aggregate_id: format!("AGGSUM-{}", Uuid::new_v4()),
-            wp_id: wp_id.into(),
+            aggregate_id: format!("AGGSUM-sha256-{}", &digest[..32]),
+            wp_id: wp_owned,
             completed_count: completed,
             blocked_count: blocked,
             failed_count: failed,
@@ -159,5 +173,23 @@ mod tests {
         let agg = Kb003AggregateRunSummaryV1::from_per_mt("WP-X", &[]);
         assert_eq!(agg.total_attempts, 0);
         assert!(agg.is_self_describing());
+    }
+
+    #[test]
+    fn aggregate_id_is_content_derived_and_deterministic() {
+        // M-C4 regression guard: two reconstructions from identical inputs must
+        // produce identical aggregate_id. The previous implementation minted a
+        // fresh Uuid::new_v4() per call, breaking determinism + content-hash
+        // checks the restart-replay test (MT-077) needs going forward.
+        let s1 = Kb003PerMtSummaryV1::completed("MT-001", 0, vec![]);
+        let s2 = Kb003PerMtSummaryV1::completed("MT-002", 0, vec![]);
+        let a = Kb003AggregateRunSummaryV1::from_per_mt("WP-X", &[s1.clone(), s2.clone()]);
+        let b = Kb003AggregateRunSummaryV1::from_per_mt("WP-X", &[s1.clone(), s2.clone()]);
+        assert_eq!(a.aggregate_id, b.aggregate_id);
+        assert!(a.aggregate_id.starts_with("AGGSUM-sha256-"));
+        // Different inputs -> different id.
+        let s3 = Kb003PerMtSummaryV1::completed("MT-003", 0, vec![]);
+        let c = Kb003AggregateRunSummaryV1::from_per_mt("WP-X", &[s1, s2, s3]);
+        assert_ne!(a.aggregate_id, c.aggregate_id);
     }
 }

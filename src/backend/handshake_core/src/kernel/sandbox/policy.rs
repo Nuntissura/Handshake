@@ -73,6 +73,12 @@ pub struct SandboxPolicyV1 {
 }
 
 impl SandboxPolicyV1 {
+    /// M-A1 fix: stable schema id for this record. Use this instead of inlining
+    /// the literal string in callers.
+    pub const fn schema_version() -> &'static str {
+        crate::kernel::kb003_schemas::SCHEMA_KERNEL_SANDBOX_POLICY_V1
+    }
+
     /// Default-deny policy: every sensitive capability returns `Deny` unless
     /// explicitly overridden. Used by MT-019 PolicyScopedLocal and by tests
     /// asserting MT-018 adapter-trait neutrality.

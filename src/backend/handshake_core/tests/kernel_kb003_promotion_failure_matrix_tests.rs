@@ -416,11 +416,93 @@ fn postgres_failure_rejection_does_not_mutate_authority() {
         }
         other => panic!("expected PostgresFailure, got {other:?}"),
     }
-    // Authority not mutated: no receipt row written.
+    // H-B2 fix: the gate now ATTEMPTS to persist the rejection receipt even
+    // when the decision insert fails (defence in depth — receipt table may be
+    // independently writable). This stub allows receipt inserts, so the
+    // rejection IS persisted and stored_receipt_id should be Some.
+    assert_eq!(
+        store.receipts.len(),
+        1,
+        "PostgresFailure path must attempt rejection-receipt insert (H-B2)"
+    );
     assert!(
-        store.receipts.is_empty(),
-        "PostgresFailure path must not write a receipt; got {} rows",
-        store.receipts.len()
+        out.stored_receipt_id.is_some(),
+        "stored_receipt_id should be Some when receipt insert succeeded"
+    );
+    // The decision row was NOT persisted (the stub refused), so authority is
+    // still unmutated in the sense of "no ACCEPTED row was committed."
+    assert!(
+        store.decisions.is_empty(),
+        "no decision row may exist when decision insert refused"
+    );
+}
+
+// ------------------------------------------------------------------
+// 7b. PostgresFailure where BOTH decision AND receipt inserts fail
+// ------------------------------------------------------------------
+
+/// Stricter stub: refuses BOTH decision and receipt inserts. Verifies H-B2
+/// fallback path produces stored_receipt_id=None when storage is fully down.
+struct StorageRefusingAllWrites {
+    mode: AuthorityMode,
+}
+
+impl Kb003Storage for StorageRefusingAllWrites {
+    fn authority_mode(&self) -> AuthorityMode {
+        self.mode
+    }
+    fn do_insert_sandbox_run(&mut self, _r: &SandboxRunV1) -> Result<(), Kb003StorageError> {
+        Ok(())
+    }
+    fn do_update_sandbox_run_status(
+        &mut self,
+        _r: &str,
+        _s: SandboxRunStatus,
+    ) -> Result<(), Kb003StorageError> {
+        Ok(())
+    }
+    fn do_insert_sandbox_policy_version(
+        &mut self,
+        _p: &handshake_core::kernel::sandbox::policy::SandboxPolicyV1,
+    ) -> Result<(), Kb003StorageError> {
+        Ok(())
+    }
+    fn do_insert_validation_run(
+        &mut self,
+        _r: &handshake_core::storage::kb003_storage::ValidationRunRowV1,
+    ) -> Result<(), Kb003StorageError> {
+        Ok(())
+    }
+    fn do_insert_promotion_decision(
+        &mut self,
+        _r: &PromotionDecisionRowV1,
+    ) -> Result<(), Kb003StorageError> {
+        Err(Kb003StorageError::Backend("decision_table_offline".into()))
+    }
+    fn do_insert_promotion_receipt(
+        &mut self,
+        _r: &PromotionReceiptRowV1,
+    ) -> Result<String, Kb003StorageError> {
+        Err(Kb003StorageError::Backend("receipt_table_offline".into()))
+    }
+}
+
+#[test]
+fn postgres_failure_with_total_outage_yields_none_stored_receipt_id() {
+    let run = completed_run();
+    let report = pass_report();
+    let bun = bundle_for(&run);
+    let mut store = StorageRefusingAllWrites {
+        mode: AuthorityMode::PostgresPrimary,
+    };
+    let out = PromotionGate::evaluate(good_inputs(&run, &report, &bun), &mut store).unwrap();
+    // Rejection is typed and returned to the caller.
+    assert_rejection_reason(&out.decision, "REJECTED_POSTGRES_FAILURE");
+    // H-B2: when receipt insert also fails, stored_receipt_id is None so the
+    // caller knows the rejection only exists in the returned value.
+    assert!(
+        out.stored_receipt_id.is_none(),
+        "stored_receipt_id must be None when both decision AND receipt inserts refused"
     );
 }
 

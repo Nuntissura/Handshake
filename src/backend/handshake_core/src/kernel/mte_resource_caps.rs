@@ -37,6 +37,9 @@ pub struct MteResourceCapsV1 {
     pub memory_bytes: Option<u64>,
     pub output_bytes: Option<u64>,
     pub file_descriptors: Option<u32>,
+    /// M-C3: tracked but NOT honored by the sandbox layer yet.
+    /// `to_sandbox_caps()` discards this value. Future MT will route it
+    /// through a process-spawn limiter at the adapter boundary.
     pub child_processes: Option<u32>,
 }
 
@@ -68,6 +71,9 @@ impl MteResourceCapsV1 {
         self.file_descriptors = Some(fds);
         self
     }
+    /// M-C3: setter exists for forward-compat but the value is dropped by
+    /// `to_sandbox_caps()` until the sandbox adapter learns to enforce it.
+    /// Callers SHOULD treat a non-None value as advisory, not enforceable.
     pub fn with_child_processes(mut self, n: u32) -> Self {
         self.child_processes = Some(n);
         self

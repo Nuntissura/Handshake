@@ -124,10 +124,15 @@ pub struct PromotionGateInputs<'a> {
 
 /// Persisted output of `PromotionGate::evaluate`.
 #[derive(Debug, Clone)]
+// M-B1 fix: stored_receipt_id is Option<String>. `None` means the rejection
+// receipt was not persisted (e.g. PostgresFailure where storage refused
+// both the decision row AND the receipt row). Callers MUST treat `None` as
+// a signal that the rejection only exists in the returned value and they
+// own logging it elsewhere (out-of-band event ledger, monitoring, etc.).
 pub struct PromotionGateOutput {
     pub decision: PromotionDecisionV1,
     pub receipt: PromotionReceiptV1,
-    pub stored_receipt_id: String,
+    pub stored_receipt_id: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -186,10 +191,27 @@ impl PromotionGate {
                 Some(inputs.artifact_bundle.bundle_sha256.clone()),
                 Self::receipt_artifact_refs(&inputs),
             );
+            // H-B2 fix: try to persist the rejection receipt anyway. The
+            // decision-row insert failed, but the receipt row table may still
+            // be writable (e.g. partial Postgres outage scoped to one table).
+            // If the receipt insert also fails, we surface `None` for
+            // `stored_receipt_id` so the caller knows the rejection only exists
+            // in-memory and owns out-of-band logging.
+            let fallback_row = PromotionReceiptRowV1 {
+                receipt_id: fallback_receipt.receipt_id.clone(),
+                decision_id: fallback.decision_id.clone(),
+                idempotency_key: fallback_receipt.idempotency_key.clone(),
+                payload_hash: fallback_receipt.payload_hash.clone(),
+                artifact_ref: inputs.report_artifact_ref.clone(),
+                issued_at_utc: fallback_receipt.issued_at_utc.to_rfc3339(),
+            };
+            let stored_receipt_id = storage
+                .insert_promotion_receipt(&fallback_row)
+                .ok();
             return Ok(PromotionGateOutput {
                 decision: fallback,
                 receipt: fallback_receipt,
-                stored_receipt_id: String::new(),
+                stored_receipt_id,
             });
         }
 
@@ -206,7 +228,7 @@ impl PromotionGate {
             Ok(stored_receipt_id) => Ok(PromotionGateOutput {
                 decision,
                 receipt,
-                stored_receipt_id,
+                stored_receipt_id: Some(stored_receipt_id),
             }),
             Err(Kb003StorageError::IdempotencyConflict {
                 key,
@@ -233,7 +255,7 @@ impl PromotionGate {
                 Ok(PromotionGateOutput {
                     decision: dup_decision,
                     receipt: dup_receipt,
-                    stored_receipt_id: String::new(),
+                    stored_receipt_id: None,
                 })
             }
             Err(other) => Err(PromotionGateError::DecisionStorage(other)),
@@ -605,7 +627,7 @@ mod tests {
         let mut store = InMemoryKb003Storage::new_postgres_primary();
         let out = PromotionGate::evaluate(inputs, &mut store).unwrap();
         assert!(out.decision.is_accepted());
-        assert_eq!(out.stored_receipt_id, out.receipt.receipt_id);
+        assert_eq!(out.stored_receipt_id.as_deref(), Some(out.receipt.receipt_id.as_str()));
         assert_eq!(store.promotion_receipts.len(), 1);
         assert_eq!(store.promotion_decisions.len(), 1);
         assert_eq!(store.promotion_decisions[0].decision, "ACCEPTED");
@@ -630,7 +652,10 @@ mod tests {
         let out2 = PromotionGate::evaluate(inputs2, &mut store).unwrap();
         // The new decision row is added (gate does not dedup decisions), but
         // the receipt insert is idempotent and returns the original receipt id.
-        assert_eq!(out2.stored_receipt_id, out1.receipt.receipt_id);
+        assert_eq!(
+            out2.stored_receipt_id.as_deref(),
+            Some(out1.receipt.receipt_id.as_str())
+        );
         assert_eq!(store.promotion_receipts.len(), 1, "no duplicate receipt row");
     }
 

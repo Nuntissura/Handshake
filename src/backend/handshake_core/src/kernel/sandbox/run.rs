@@ -91,6 +91,13 @@ pub struct SandboxRunV1 {
 }
 
 impl SandboxRunV1 {
+    /// M-A1 fix: stable schema id for this record. Use this instead of inlining
+    /// the literal string in callers (e.g. event envelopes, projection
+    /// metadata, replay-bag validators).
+    pub const fn schema_version() -> &'static str {
+        crate::kernel::kb003_schemas::SCHEMA_KERNEL_SANDBOX_RUN_V1
+    }
+
     pub fn new_requested(
         kernel_task_run_id: impl Into<String>,
         session_run_id: impl Into<String>,

@@ -343,6 +343,20 @@ impl Kb003Storage for InMemoryKb003Storage {
             .find(|r| r.idempotency_key == row.idempotency_key)
         {
             if existing.payload_hash == row.payload_hash {
+                // M-A5 fix: don't trust payload_hash alone. Two retries with
+                // the SAME canonical-JSON payload but a regression-introduced
+                // skew in decision_id/artifact_ref/issued_at_utc are a real
+                // hazard. Surface them as IdempotencyConflict instead of a
+                // false-positive "already inserted" hit.
+                if existing.decision_id != row.decision_id
+                    || existing.artifact_ref != row.artifact_ref
+                {
+                    return Err(Kb003StorageError::IdempotencyConflict {
+                        key: row.idempotency_key.clone(),
+                        existing_hash: existing.payload_hash.clone(),
+                        new_hash: row.payload_hash.clone(),
+                    });
+                }
                 return Ok(existing.receipt_id.clone());
             }
             return Err(Kb003StorageError::IdempotencyConflict {
