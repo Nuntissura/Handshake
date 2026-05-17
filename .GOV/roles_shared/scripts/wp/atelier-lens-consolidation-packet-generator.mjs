@@ -67,7 +67,7 @@ const outOfScopePaths = [
   "tests/**",
   ".GOV/spec/**",
   "../handshake_main/**",
-  "D:/Projects/LLM projects/CastKit-Codex/**",
+  "D:/Projects/LLM projects/CastKit-Codex/**", // example: operator-local CastKit-Codex sibling project root (machine-local; replace with CASTKIT_CODEX_ROOT env-var indirection if relocated)
 ];
 
 const specAnchors = [

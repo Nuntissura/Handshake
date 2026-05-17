@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "c1a403442483fe6173ea8557f0fe59de7e4e1dbfb361362441ad9dc4b9fbd72a",
+    "projection_sha256": "61ed15fa5ae454942a8864a5805bd4c1ab4b12c80e39c21cbe68ca51cf0ade15",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -60,11 +60,11 @@
     "roadmap_add_coverage": ""
   },
   "session_policy": {
-    "session_start_authority": "",
-    "session_host_preference": "",
-    "session_launch_policy": "",
-    "role_model_profile_policy": "",
-    "planned_execution_owner_range": ""
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "session_host_preference": "HANDSHAKE_ACP_BROKER",
+    "session_launch_policy": "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": "Coder-A..Coder-Z"
   },
   "draft_scope": {
     "intent": "- What: Build the Handshake-native core Atelier/Lens + CKC data/intake foundation as a planning packet. This folds CKC character sheets, media/DAM, intake/inbox, collections/contact sheets, sidecars/versioning/recovery, search/tag/similarity, exports/backups/share-packs, and no-rewrite text preservation into existing Atelier/Lens, Photo Studio, Loom, Stage, ArtifactStore, LensExtractionTier, and LensViewMode intent.\n- Why: CKC evolved the same prompt-diary/Atelier/Lens goal outside Handshake. Its data model and operator workflows must be preserved, but implementation must be translated into Handshake primitives before any runtime work starts.\n- No-code stance: This stub creates only future work scope and microtasks. It does not implement Rust, Tauri, React, Python, migrations, tests, GUI, or product behavior.\n- Model/execution separation: The future implementation must keep LLMs as proposers/planners/operators through governed AI Jobs, Workflow Engine nodes, Locus/MT records, tool policies, receipts, and validation. Product execution happens through Handshake runtime surfaces, not direct LLM file writes or CKC-style process-local authority.",

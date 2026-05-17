@@ -644,7 +644,7 @@ After all individual MTs pass, the WP Validator MUST perform a complete WP-level
 3. **Red team assessment**: Check for security failure modes, capability escalation paths, race conditions, and input validation gaps across the full diff.
 4. **Master Spec alignment (wide scope)**: Verify the implementation against the spec anchors from the refinement. Check that the implementation satisfies the spec's MUST/SHOULD clauses, not just the packet's acceptance criteria.
 5. **Artifact hygiene**: Run `just artifact-root-preflight WP-{ID}` or confirm the phase-check artifact already ran it, then use `just artifact-hygiene-check` for deeper cleanup diagnosis. Flag repo-local runtime/build artifacts as `ENVIRONMENT_BLOCKER` unless they prove a product boundary failure.
-   - WP-validating contexts must reject build, test, and tool outputs under the WP worktree root (`src/`, `app/`, `tests/`, or any WP-scoped path in that worktree) when they belong under `D:\\Projects\\LLM projects\\Handshake\\Handshake_Artifacts` (repo-relative `../Handshake_Artifacts/`).
+   - WP-validating contexts must reject build, test, and tool outputs under the WP worktree root (`src/`, `app/`, `tests/`, or any WP-scoped path in that worktree) when they belong under the repo-relative sibling artifact root `../Handshake_Artifacts/`.
 6. **Write validation verdict**: If all checks pass, write `Verdict: PASS` in the validation report. If any check fails, write `Verdict: FAIL` with specific remediation instructions and send them to the coder via `just wp-review-response`.
 7. **If PASS**: Notify the orchestrator (via `wp-notification` with target ORCHESTRATOR) that the WP is ready for integration validation and merge.
 

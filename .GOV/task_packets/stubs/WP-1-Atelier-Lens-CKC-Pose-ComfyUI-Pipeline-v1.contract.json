@@ -28,7 +28,7 @@
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Pose-ComfyUI-Pipeline-v1.md",
     "status": "LEGACY_PROJECTION_IN_SYNC",
-    "projection_sha256": "607c2894db29234ed5de0c333bc3844c81bd4c41bf4e0c1702028430eb66d33f",
+    "projection_sha256": "a05d2f8d0c852c19a549b7c8a2d3503005480369be8d76039cbcbca077cfe26b",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
@@ -58,11 +58,11 @@
     "roadmap_add_coverage": ""
   },
   "session_policy": {
-    "session_start_authority": "",
-    "session_host_preference": "",
-    "session_launch_policy": "",
-    "role_model_profile_policy": "",
-    "planned_execution_owner_range": ""
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "session_host_preference": "HANDSHAKE_ACP_BROKER",
+    "session_launch_policy": "ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY",
+    "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
+    "planned_execution_owner_range": "Coder-A..Coder-Z"
   },
   "draft_scope": {
     "intent": "- What: Plan the Handshake-native PoseKit/OpenPose/identity-profile/ComfyUI lineage pipeline for Atelier/Lens. This folds CKC PoseKit, OpenPose sidecars, identity profiles, ComfyUI output registration, workflow receipts, replay, and image-sourcing registry into Handshake primitives.\n- Why: CKC evolved the production loop from character/media to pose/identity to ComfyUI output and back into media lineage. Handshake needs that loop, but implemented through governed Workflow Engine jobs, ArtifactStore receipts, EventLedger lineage, and Tauri/Rust/Python boundaries.\n- No-code stance: This stub creates only future work scope and microtasks. It does not implement PoseKit, ComfyUI bridge, model assets, Python adapters, Rust services, tests, or GUI.\n- Model/execution separation: LLMs must not directly run ComfyUI, write bridge files, mutate pose sidecars, or execute local endpoints. LLMs propose or invoke governed AI Jobs/tool calls; Handshake executes via Workflow Engine/mechanical tool adapters with Flight Recorder and DCC evidence.",
