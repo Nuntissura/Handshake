@@ -21,6 +21,21 @@ pub enum DenialKind {
     AuthorityModeRefused,
 }
 
+impl DenialKind {
+    /// Stable SCREAMING_SNAKE_CASE label that matches the serde representation.
+    /// Replay projections MUST use this instead of `format!("{:?}", kind)`,
+    /// which would otherwise produce drift-prone `"POLICYDENIED"` strings and
+    /// break MT-016 byte-equal rollup against the live projection.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            DenialKind::PolicyDenied => "POLICY_DENIED",
+            DenialKind::WorkspaceBoundaryViolation => "WORKSPACE_BOUNDARY_VIOLATION",
+            DenialKind::AdapterUnavailable => "ADAPTER_UNAVAILABLE",
+            DenialKind::AuthorityModeRefused => "AUTHORITY_MODE_REFUSED",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SandboxDenialRecordV1 {
     pub denial_id: String,
@@ -76,6 +91,27 @@ mod tests {
         assert_eq!(den.capability, Some(SandboxCapability::Network));
         assert!(!den.action_description.is_empty());
         assert!(!den.reason.is_empty());
+    }
+
+    #[test]
+    fn as_str_matches_serde_screaming_snake_case() {
+        // Regression guard for C-A2: replay used to format `{:?}` and uppercase,
+        // producing "POLICYDENIED" instead of "POLICY_DENIED" — drift broke MT-016.
+        for (kind, expected) in [
+            (DenialKind::PolicyDenied, "POLICY_DENIED"),
+            (
+                DenialKind::WorkspaceBoundaryViolation,
+                "WORKSPACE_BOUNDARY_VIOLATION",
+            ),
+            (DenialKind::AdapterUnavailable, "ADAPTER_UNAVAILABLE"),
+            (DenialKind::AuthorityModeRefused, "AUTHORITY_MODE_REFUSED"),
+        ] {
+            assert_eq!(kind.as_str(), expected);
+            // Serde rename_all and as_str MUST agree.
+            let serde_str = serde_json::to_string(&kind).unwrap();
+            // serde_json wraps in quotes: "POLICY_DENIED"
+            assert_eq!(serde_str.trim_matches('"'), expected);
+        }
     }
 
     #[test]

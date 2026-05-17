@@ -145,12 +145,30 @@ impl<'a> WorkspaceMaterializer<'a> {
                     format!("hasher rejected: {:?}", other),
                 ),
             })?;
-            let declared_entry = self
+            // H-A3 fix: replace `.expect()` with typed denial propagation. The
+            // invariant ("we already checked the declared set") holds today,
+            // but a logic regression should surface as a structured denial,
+            // not a sandbox-runtime panic.
+            let declared_entry = match self
                 .candidates
                 .entries
                 .iter()
                 .find(|e| e.source_relative_path == *source)
-                .expect("already checked declared set");
+            {
+                Some(e) => e,
+                None => {
+                    return Err(SandboxDenialRecordV1::new(
+                        run.run_id.0.clone(),
+                        run.policy_version_id.clone(),
+                        DenialKind::WorkspaceBoundaryViolation,
+                        None,
+                        format!("materialise `{}`", source),
+                        "internal invariant: source missing from declared set after \
+                         pre-check (regression — would have panicked before H-A3 fix)"
+                            .to_string(),
+                    ));
+                }
+            };
             entries.push(SandboxInputManifestEntryV1 {
                 sandbox_relative_path: sandbox_rel.clone(),
                 source_relative_path: source.clone(),

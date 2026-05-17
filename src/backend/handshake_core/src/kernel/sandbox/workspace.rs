@@ -35,9 +35,32 @@ impl SandboxWorkspaceV1 {
     /// Returns `true` only if `candidate_relative` is inside the workspace root
     /// (no `..` escapes after lexical normalisation). Path resolution is
     /// lexical to keep the workspace boundary deterministic across replays.
+    ///
+    /// C-A1 fix: comparison is segment-aware. Bare `starts_with(root)` used to
+    /// accept sibling roots like `handshake-product/kb003/work/x_evil/secrets`
+    /// when the workspace root was `handshake-product/kb003/work/x` — the
+    /// shared prefix matched without a path-segment boundary. We now also
+    /// normalise the root and require either an exact match or a `/`
+    /// separator at the boundary.
     pub fn contains_relative(&self, candidate_relative: &str) -> bool {
+        if candidate_relative.contains("..") {
+            // Pre-normalisation guard: `lexical_normalise` collapses `..` so we
+            // must reject before that happens to catch escape attempts.
+            // (The escape-preserving early-return in `lexical_normalise` handles
+            // the over-pop case; this catches segment-internal `..` such as
+            // `root/../sibling/...` after we've already popped to empty.)
+            if lexical_normalise(candidate_relative).contains("..") {
+                return false;
+            }
+        }
         let normalised = lexical_normalise(candidate_relative);
-        normalised.starts_with(&self.root_relative_path) && !normalised.contains("..")
+        let root = lexical_normalise(&self.root_relative_path);
+        if normalised == root {
+            return true;
+        }
+        // Require a path-segment boundary so `root_x_evil` does not match `root_x`.
+        let with_sep = format!("{}/", root);
+        normalised.starts_with(&with_sep)
     }
 }
 
@@ -76,5 +99,21 @@ mod tests {
         assert!(ws.contains_relative("handshake-product/kb003/work/abc/sub/file.txt"));
         assert!(!ws.contains_relative("handshake-product/kb003/work/abc/../../secrets"));
         assert!(!ws.contains_relative("/etc/passwd"));
+    }
+
+    #[test]
+    fn contains_relative_rejects_sibling_root_with_shared_prefix() {
+        // C-A1 regression guard: bare starts_with() used to accept any sibling
+        // root that began with the same prefix (e.g. abc_evil vs abc). Now we
+        // require a path-segment boundary.
+        let ws = SandboxWorkspaceV1::new_default("kb003", "handshake-product/kb003/work/abc");
+        // Sibling roots with shared prefix MUST be rejected.
+        assert!(!ws.contains_relative("handshake-product/kb003/work/abc_evil/secrets"));
+        assert!(!ws.contains_relative("handshake-product/kb003/work/abcd/secret"));
+        assert!(!ws.contains_relative("handshake-product/kb003/work/abc-other/data"));
+        // Exact root match is allowed (the workspace dir itself).
+        assert!(ws.contains_relative("handshake-product/kb003/work/abc"));
+        // Subdir is allowed.
+        assert!(ws.contains_relative("handshake-product/kb003/work/abc/inside"));
     }
 }

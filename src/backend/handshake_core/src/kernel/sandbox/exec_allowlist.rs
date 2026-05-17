@@ -59,8 +59,29 @@ impl DescriptorValidationError {
 const SHELL_PROGRAMS: &[&str] = &[
     "sh", "bash", "zsh", "dash", "ksh", "fish", "cmd", "cmd.exe", "powershell", "powershell.exe",
     "pwsh", "pwsh.exe",
+    // H-A2 fix: BusyBox dispatches to multiple shells; wsl.exe can launch shells inside WSL.
+    "busybox", "wsl.exe",
 ];
 const SHELL_METACHARS: &[char] = &[';', '|', '&', '>', '<', '`', '$'];
+
+/// H-A2 fix: language interpreters that accept `-c|-e|-r`-style code payloads.
+/// `python -c "import os; os.system(...)"` is functionally equivalent to a
+/// shell invocation and MUST be rejected when the descriptor mixes the two.
+/// The forbidden flag is matched case-insensitively against any arg.
+const INTERPRETER_CODE_PAYLOAD_PROGRAMS: &[(&str, &[&str])] = &[
+    ("python", &["-c"]),
+    ("python.exe", &["-c"]),
+    ("python3", &["-c"]),
+    ("python3.exe", &["-c"]),
+    ("node", &["-e", "--eval"]),
+    ("node.exe", &["-e", "--eval"]),
+    ("perl", &["-e"]),
+    ("perl.exe", &["-e"]),
+    ("ruby", &["-e"]),
+    ("ruby.exe", &["-e"]),
+    ("php", &["-r"]),
+    ("php.exe", &["-r"]),
+];
 
 /// Validate a single descriptor's *shape*. Does NOT check the allowlist; that
 /// is `ExecAllowlistGate::check`.
@@ -95,6 +116,27 @@ pub fn validate_descriptor(d: &CommandDescriptorV1) -> Result<(), DescriptorVali
             return Err(DescriptorValidationError::ShellInvocation {
                 detail: format!(
                     "shell program `{}` invoked with command-string flag",
+                    d.program
+                ),
+            });
+        }
+    }
+
+    // H-A2 fix: language interpreters with -c|-e|-r are functional shell
+    // invocations. python -c "import os; os.system('rm -rf /')" used to slip
+    // the SHELL_PROGRAMS check.
+    if let Some((_, forbidden_flags)) = INTERPRETER_CODE_PAYLOAD_PROGRAMS
+        .iter()
+        .find(|(name, _)| *name == program_lower)
+    {
+        let has_code_flag = d.args.iter().any(|a| {
+            let lower = a.to_ascii_lowercase();
+            forbidden_flags.iter().any(|f| *f == lower.as_str())
+        });
+        if has_code_flag {
+            return Err(DescriptorValidationError::ShellInvocation {
+                detail: format!(
+                    "interpreter `{}` invoked with code-payload flag",
                     d.program
                 ),
             });
@@ -277,5 +319,67 @@ mod tests {
     #[test]
     fn ok_descriptor_validates_clean() {
         validate_descriptor(&ok_descriptor()).expect("ok descriptor must validate");
+    }
+
+    #[test]
+    fn interpreter_with_code_payload_is_rejected() {
+        // H-A2 regression guard. Each entry is (program, flag) that used to
+        // slip through the SHELL_PROGRAMS-only gate.
+        let cases = [
+            ("python", "-c", "import os; os.system('id')"),
+            ("python3", "-c", "print(1)"),
+            ("node", "-e", "process.exit(1)"),
+            ("node", "--eval", "process.exit(1)"),
+            ("perl", "-e", "print 'pwn'"),
+            ("ruby", "-e", "system('id')"),
+            ("php", "-r", "system('id');"),
+        ];
+        for (prog, flag, code) in cases {
+            let d = CommandDescriptorV1 {
+                descriptor_id: "evil_interpreter".into(),
+                program: prog.into(),
+                args: vec![flag.into(), code.into()],
+                purpose_tag: "x".into(),
+                provenance_ref: "y".into(),
+            };
+            let err = validate_descriptor(&d).expect_err(prog);
+            match err {
+                DescriptorValidationError::ShellInvocation { .. } => {}
+                other => panic!("expected ShellInvocation for {}, got {:?}", prog, other),
+            }
+        }
+    }
+
+    #[test]
+    fn busybox_and_wsl_are_treated_as_shells() {
+        // H-A2 regression guard: BusyBox and wsl.exe can dispatch to shells.
+        for prog in ["busybox", "wsl.exe"] {
+            let d = CommandDescriptorV1 {
+                descriptor_id: "evil_dispatcher".into(),
+                program: prog.into(),
+                args: vec!["-c".into(), "id".into()],
+                purpose_tag: "x".into(),
+                provenance_ref: "y".into(),
+            };
+            let err = validate_descriptor(&d).expect_err(prog);
+            match err {
+                DescriptorValidationError::ShellInvocation { .. } => {}
+                other => panic!("expected ShellInvocation for {}, got {:?}", prog, other),
+            }
+        }
+    }
+
+    #[test]
+    fn interpreter_without_code_flag_is_allowed_by_shape() {
+        // `python script.py` (running a real file) is NOT a shell invocation —
+        // it's a normal program execution. The gate should only fire on -c|-e|-r.
+        let d = CommandDescriptorV1 {
+            descriptor_id: "python_script".into(),
+            program: "python".into(),
+            args: vec!["scripts/run.py".into()],
+            purpose_tag: "proof.run".into(),
+            provenance_ref: "WP-KERNEL-003".into(),
+        };
+        validate_descriptor(&d).expect("interpreter w/o code flag is fine by shape");
     }
 }

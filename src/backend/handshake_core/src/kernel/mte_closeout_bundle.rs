@@ -64,7 +64,7 @@ impl std::fmt::Display for CloseoutBundleBuildError {
 impl std::error::Error for CloseoutBundleBuildError {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MteClosoutBundleV1 {
+pub struct MteCloseoutBundleV1 {
     pub schema_version: &'static str,
     pub wp_id: String,
     pub lane_settlement: MteLaneSettlementV1,
@@ -75,7 +75,7 @@ pub struct MteClosoutBundleV1 {
     pub built_at_utc: DateTime<Utc>,
 }
 
-impl MteClosoutBundleV1 {
+impl MteCloseoutBundleV1 {
     pub const SCHEMA_VERSION: &'static str = "hsk.kernel.mte.closeout_bundle@1";
 
     #[allow(clippy::too_many_arguments)]
@@ -127,9 +127,16 @@ impl MteClosoutBundleV1 {
 
     /// Helper for the Integration Validator: returns true when the bundle is
     /// safe to merge.
+    ///
+    /// H-C1 fix: also asserts zero rejected promotions and zero failed MTs.
+    /// `build()` already enforces this for `Pass` settlement, but a bundle
+    /// whose `aggregate` field is patched in place could otherwise bypass the
+    /// invariant at read time. Defence in depth keeps the merge gate tight.
     pub fn ready_to_merge(&self) -> bool {
         matches!(self.lane_settlement.verdict, MteLaneVerdict::Pass)
             && self.aggregate.all_terminal()
+            && self.aggregate.promotion_counts.rejected == 0
+            && self.aggregate.status_counts.failed == 0
             && self.lane_settlement.approval.is_some()
     }
 }
@@ -213,7 +220,7 @@ mod tests {
         let agg = agg_pass(2);
         let s = settlement_pass(agg.clone());
         let mts = per_mt(2);
-        let b = MteClosoutBundleV1::build(
+        let b = MteCloseoutBundleV1::build(
             "WP-X",
             s,
             agg,
@@ -230,7 +237,7 @@ mod tests {
         let agg = agg_pass(1);
         let s = settlement_pass(agg.clone());
         let mts = per_mt(1);
-        let err = MteClosoutBundleV1::build(
+        let err = MteCloseoutBundleV1::build(
             "WP-OTHER",
             s,
             agg,
@@ -250,7 +257,7 @@ mod tests {
         let agg = agg_pass(2);
         let s = settlement_pass(agg.clone());
         let mts = per_mt(1); // mismatch
-        let err = MteClosoutBundleV1::build("WP-X", s, agg, mts, vec![], vec![])
+        let err = MteCloseoutBundleV1::build("WP-X", s, agg, mts, vec![], vec![])
             .unwrap_err();
         match err {
             CloseoutBundleBuildError::PerMtCountDisagreesWithAggregate {
@@ -271,7 +278,7 @@ mod tests {
         // Settlement was built before the corruption; bundle catches it.
         let s = settlement_pass(agg_pass(1));
         let mts = per_mt(1);
-        let err = MteClosoutBundleV1::build("WP-X", s, agg, mts, vec![], vec![])
+        let err = MteCloseoutBundleV1::build("WP-X", s, agg, mts, vec![], vec![])
             .unwrap_err();
         assert_eq!(
             err,
@@ -283,7 +290,7 @@ mod tests {
     fn empty_wp_id_rejected() {
         let agg = agg_pass(0);
         let s = settlement_pass(agg.clone());
-        let err = MteClosoutBundleV1::build("", s, agg, vec![], vec![], vec![])
+        let err = MteCloseoutBundleV1::build("", s, agg, vec![], vec![], vec![])
             .unwrap_err();
         assert_eq!(err, CloseoutBundleBuildError::EmptyWpId);
     }

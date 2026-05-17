@@ -11,6 +11,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::kernel::kb003_artifact_classes::Kb003ArtifactClass;
+
 use super::dcc_projection::{
     DccCapabilityRowV1, DccDenialSummaryV1, DccPromotionSummaryV1, DccSandboxOutcome,
     DccSandboxProjectionV1, DccValidationSummaryV1, DCC_SANDBOX_PROJECTION_FAMILY_ID,
@@ -33,6 +35,11 @@ pub struct ReplayInputsV1<'a> {
     pub validation: Option<&'a ReplayValidationFactsV1>,
     pub promotion: Option<&'a ReplayPromotionFactsV1>,
     pub artifact_refs: &'a [String],
+    /// Artifact classes attached to this run's projection.
+    /// H-A1 fix: must be populated from storage rows so replay reproduces the
+    /// live projection's `artifact_classes_in_view` instead of always emitting
+    /// an empty vec.
+    pub artifact_classes: &'a [Kb003ArtifactClass],
 }
 
 /// Minimum facts needed to reconstruct the validation summary at replay time.
@@ -92,7 +99,10 @@ pub fn reconstruct_projection(inputs: ReplayInputsV1<'_>) -> DccSandboxProjectio
         finished_at_utc: inputs.run.finished_at_utc.map(|t| t.to_rfc3339()),
         denial: inputs.denial.map(|d| DccDenialSummaryV1 {
             denial_id: d.denial_id.clone(),
-            kind: format!("{:?}", d.kind).to_ascii_uppercase(),
+            // Use stable as_str() (matches serde SCREAMING_SNAKE_CASE).
+            // C-A2 fix: format!("{:?}") would produce "POLICYDENIED" without
+            // the underscore, breaking MT-016 byte-equal rollup.
+            kind: d.kind.as_str().to_string(),
             capability: d.capability.map(|c| c.as_str().to_string()),
             action_description: d.action_description.clone(),
             reason: d.reason.clone(),
@@ -113,7 +123,7 @@ pub fn reconstruct_projection(inputs: ReplayInputsV1<'_>) -> DccSandboxProjectio
             rationale_short: p.rationale_short.clone(),
         }),
         artifact_refs: inputs.artifact_refs.to_vec(),
-        artifact_classes_in_view: Vec::new(),
+        artifact_classes_in_view: inputs.artifact_classes.to_vec(),
         source_schema_ids: DccSandboxProjectionV1::canonical_source_schema_ids()
             .into_iter()
             .map(String::from)
@@ -172,6 +182,7 @@ mod tests {
             validation: None,
             promotion: None,
             artifact_refs: &arts,
+            artifact_classes: &[],
         };
         let projection = reconstruct_projection(inputs);
         assert_eq!(projection.outcome, DccSandboxOutcome::DeniedByPolicy);
@@ -181,6 +192,71 @@ mod tests {
             projection.is_self_describing(),
             "replay must yield a self-describing projection (MT-010 contract)"
         );
+    }
+
+    #[test]
+    fn replay_round_trips_artifact_classes() {
+        // H-A1 regression guard: artifact_classes_in_view used to be hard-coded
+        // empty in replay, so the live projection's class hints could never
+        // round-trip through MT-077 replay (broke MT-016 byte-equal).
+        let run = sample_run(SandboxRunStatus::Completed);
+        let policy = SandboxPolicyV1::default_deny("baseline");
+        let workspace = SandboxWorkspaceV1::new_default("k", "handshake-product/kb003/w");
+        let arts = vec!["ART-log-1".to_string(), "ART-receipt-1".to_string()];
+        let classes = [
+            Kb003ArtifactClass::SandboxLog,
+            Kb003ArtifactClass::PromotionReceipt,
+        ];
+        let inputs = ReplayInputsV1 {
+            run: &run,
+            policy: &policy,
+            workspace: &workspace,
+            denial: None,
+            validation: None,
+            promotion: None,
+            artifact_refs: &arts,
+            artifact_classes: &classes,
+        };
+        let projection = reconstruct_projection(inputs);
+        assert_eq!(projection.artifact_classes_in_view.len(), 2);
+        assert!(projection
+            .artifact_classes_in_view
+            .contains(&Kb003ArtifactClass::SandboxLog));
+        assert!(projection
+            .artifact_classes_in_view
+            .contains(&Kb003ArtifactClass::PromotionReceipt));
+    }
+
+    #[test]
+    fn replay_denial_kind_matches_serde_label() {
+        // C-A2 regression guard: replay used `format!("{:?}")` which produced
+        // "POLICYDENIED" instead of the serde-canonical "POLICY_DENIED".
+        let run = sample_run(SandboxRunStatus::Rejected);
+        let policy = SandboxPolicyV1::default_deny("baseline");
+        let workspace = SandboxWorkspaceV1::new_default("k", "handshake-product/kb003/w");
+        let denial = SandboxDenialRecordV1::new(
+            "SBX-x",
+            policy.version_id(),
+            DenialKind::PolicyDenied,
+            Some(SandboxCapability::Network),
+            "fetch",
+            "default_deny",
+        );
+        let arts: Vec<String> = vec![];
+        let inputs = ReplayInputsV1 {
+            run: &run,
+            policy: &policy,
+            workspace: &workspace,
+            denial: Some(&denial),
+            validation: None,
+            promotion: None,
+            artifact_refs: &arts,
+            artifact_classes: &[],
+        };
+        let projection = reconstruct_projection(inputs);
+        let kind = projection.denial.as_ref().unwrap().kind.as_str();
+        assert_eq!(kind, "POLICY_DENIED");
+        assert!(!kind.contains("POLICYDENIED"));
     }
 
     #[test]
@@ -203,6 +279,7 @@ mod tests {
             validation: None,
             promotion: None,
             artifact_refs: &arts,
+            artifact_classes: &[],
         };
         let projection = reconstruct_projection(inputs);
         for row in &projection.capability_rows {

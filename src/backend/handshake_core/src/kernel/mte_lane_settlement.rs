@@ -47,6 +47,12 @@ impl LaneApprovalEvidenceV1 {
     }
 
     pub fn looks_fixture(&self) -> bool {
+        // H-C3 fix: only scan identifying fields, not the free-form `reason`.
+        // A legitimate operator describing what they validated (e.g.
+        // `reason: "kernel-proof passing"`) was being rejected as fake.
+        // Identifiers (operator_id, review_receipt_id, approval_source) are
+        // the load-bearing fields for "is this real evidence"; reason is
+        // narrative.
         let needle = |s: &str| {
             let lower = s.to_ascii_lowercase();
             lower.contains("fixture") || lower.contains("kernel-proof")
@@ -54,7 +60,6 @@ impl LaneApprovalEvidenceV1 {
         needle(&self.operator_id)
             || needle(&self.review_receipt_id)
             || needle(&self.approval_source)
-            || needle(&self.reason)
     }
 }
 

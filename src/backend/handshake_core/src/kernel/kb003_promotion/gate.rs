@@ -35,7 +35,8 @@ use crate::kernel::kb003_promotion::decision::{
 };
 use crate::kernel::kb003_promotion::receipt::PromotionReceiptV1;
 use crate::kernel::sandbox::denial::SandboxDenialRecordV1;
-use crate::kernel::sandbox::policy::SandboxCapability;
+// H-B1 fix: `SandboxCapability` is only referenced inside #[cfg(test)] mod tests
+// (which has its own `use`). Top-level import would warn under -D warnings.
 use crate::kernel::sandbox::run::{SandboxRunStatus, SandboxRunV1};
 use crate::kernel::validation::report::ValidationReport;
 use crate::kernel::validation::status::ValidationStatus;
