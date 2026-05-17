@@ -176,7 +176,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 ## In Progress
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
-- **[WP-KERNEL-003-Sandbox-Validation-Promotion-v1]** - [VALIDATED]
+- **[WP-KERNEL-003-Sandbox-Validation-Promotion-v1]** - [IN_PROGRESS]
 - **[WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1]** - [IN_PROGRESS]
 
 

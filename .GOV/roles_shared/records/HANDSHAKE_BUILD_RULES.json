@@ -1,10 +1,10 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-05-16T00:00:00Z",
+  "updated_at": "2026-05-17T00:00:00Z",
   "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, visual + operator-GUI verification, quiet/non-intrusive operation, and in-product ModelManual currency. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
@@ -214,6 +214,30 @@
       "not_applicable_when": [
         "WP touches no observable behavior",
         "Operator Surface TraceProjection not yet implemented"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-INT-008",
+      "pillar": "INT",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP creates or modifies any UUID generation site in product code",
+      "applicability": {
+        "predicate_text": "WP introduces, modifies, or replaces any call site that mints a new Uuid in product code under src/, app/, or tests/",
+        "tags": ["uuid", "id_minting", "time_ordered_ids", "data_hygiene"]
+      },
+      "required_action": "All new UUID mint sites MUST use time-ordered UUID v7 (`Uuid::now_v7()`), not v4. v4 is reserved for fixtures, hardcoded test literals, and third-party-driven derives. Cargo manifests touching the uuid crate must declare the `v7` feature; `v4` may remain only while legacy sites are being swept. Wire test asserts `uuid.get_version_num() == 7` on a representative mint path and that two sequential mints satisfy `a <= b` (time order).",
+      "evidence_kind": "grep_zero_v4_in_touched_files_plus_v7_version_assert_test",
+      "citations": [
+        {"kind": "build_rule", "anchor": "HBR-INT-001"},
+        {"kind": "build_rule", "anchor": "HBR-INT-007"},
+        {"kind": "external_reference", "anchor": "RFC 9562 §5.7 (UUIDv7 time-ordered, monotonic within ms)"}
+      ],
+      "not_applicable_when": [
+        "WP touches no UUID generation site",
+        "Touched site is a hardcoded fixture literal (e.g., \"00000000-...\"), a `Uuid::nil()`, or a `Uuid::parse_str` parse-only path",
+        "Touched site is inside `.GOV/`, third-party vendored code, or generated code the WP does not own"
       ],
       "deferred_until": null
     },
@@ -601,7 +625,8 @@
     "changeset_id": "GOV-CHANGE-20260516-01",
     "operator_corrections": [
       "2026-05-16: build rules must not duplicate refinement/enrichment scope; five pillars only (INT/SWARM/VIS/QUIET/MAN)",
-      "2026-05-16: no default md projection; JSON is authority"
+      "2026-05-16: no default md projection; JSON is authority",
+      "2026-05-17: add HBR-INT-008 UUID v7 default per operator direction; UUID v7 to keep being used throughout the app"
     ]
   },
   "version_log": [
@@ -611,6 +636,13 @@
       "summary": "Initial 5-pillar rule set (INT/SWARM/VIS/QUIET/MAN), 23 active rules, 3 deferred pillars (UI/SMP/COST). JSON authority only; no md projection. Enforcement mechanism = PACKET_ACCEPTANCE_MATRIX_EXTENSION, wiring deferred to follow-up RGF.",
       "rgf": "RGF-323",
       "changeset": "GOV-CHANGE-20260516-01"
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-05-17",
+      "summary": "Add HBR-INT-008 (UUID v7 default): new UUID mint sites in product code MUST use time-ordered Uuid::now_v7(); v4 reserved for fixtures and third-party derives. Recorded under INT pillar because time-ordering preserves cross-primitive correlation/replay locality (EventLedger, snapshots, ContextBundle, ArtifactStore). Operator-driven addition during WP-KERNEL-003 close-out; KB003 product code sweeps to v7 in the same lane.",
+      "rgf": null,
+      "changeset": "GOV-CHANGE-20260517-01"
     }
   ]
 }
