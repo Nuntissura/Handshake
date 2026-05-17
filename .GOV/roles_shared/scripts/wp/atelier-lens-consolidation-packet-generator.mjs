@@ -16,6 +16,7 @@ import {
   formatSharedSurfaceMonitoringSection,
   formatSpecDebtStatusSection,
 } from "../lib/packet-closure-monitor-lib.mjs";
+import { formatSemanticProofAssetsSection } from "../lib/semantic-proof-lib.mjs";
 import {
   formatDataContractDecisionSection,
   formatDataContractMonitoringSection,
@@ -247,9 +248,60 @@ function packetMarkdownBody() {
 - MERGED_MAIN_COMMIT: NONE
 - MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
 - WORKFLOW_LANE: ORCHESTRATOR_MANAGED
+- WORKFLOW_AUTHORITY: ORCHESTRATOR
+- TECHNICAL_ADVISOR: WP_VALIDATOR
+- TECHNICAL_AUTHORITY: INTEGRATION_VALIDATOR
+- MERGE_AUTHORITY: INTEGRATION_VALIDATOR
+- AGENTIC_MODE: NO
 - EXECUTION_OWNER: CODER_A
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: HANDSHAKE_ACP_BROKER
+- LOCAL_BRANCH: feat/WP-1-Atelier-Lens-Consolidation-v1
+- LOCAL_WORKTREE_DIR: ../wtc-lens-consolidation-v1
+- REMOTE_BACKUP_BRANCH: feat/WP-1-Atelier-Lens-Consolidation-v1
+- REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Atelier-Lens-Consolidation-v1
+- BACKUP_PUSH_STATUS: NOT_REQUIRED
+- SESSION_HOST_FALLBACK: SYSTEM_TERMINAL_REPAIR_ONLY
+- SESSION_LAUNCH_POLICY: ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY
+- ROLE_SESSION_RUNTIME: CLI
+- CLI_SESSION_TOOL: codex
+- SESSION_PLUGIN_BRIDGE_ID: handshake.handshake-session-bridge
+- SESSION_PLUGIN_BRIDGE_COMMAND: handshakeSessionBridge.processLaunchQueue
+- SESSION_PLUGIN_REQUESTS_FILE: ../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl
+- SESSION_REGISTRY_FILE: ../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json
+- SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION: 2
+- SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS: 20
+- SESSION_WATCH_POLICY: EVENT_WATCH_PRIMARY_HEARTBEAT_FALLBACK
+- SESSION_WAKE_CHANNEL_PRIMARY: VS_CODE_FILE_WATCH
+- SESSION_WAKE_CHANNEL_FALLBACK: WP_HEARTBEAT
+- CLI_ESCALATION_HOST_DEFAULT: SYSTEM_TERMINAL
+- MODEL_FAMILY_POLICY: ROLE_MODEL_PROFILE_CATALOG_PRIMARY_OPENAI_DECLARED_MULTI_PROVIDER_V1
+- CODEX_MODEL_ALIASES_ALLOWED: NO
+- ROLE_SESSION_REASONING_REQUIRED: EXTRA_HIGH
+- ROLE_SESSION_REASONING_CONFIG_KEY: model_reasoning_effort
+- ROLE_SESSION_REASONING_CONFIG_VALUE: xhigh
+- CODER_STARTUP_COMMAND: just coder-startup
+- CODER_RESUME_COMMAND: just coder-next ${WP_ID}
+- WP_VALIDATOR_LOCAL_BRANCH: feat/${WP_ID}
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-lens-consolidation-v1
+- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup WP_VALIDATOR
+- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP_VALIDATOR ${WP_ID}
+- WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/${WP_ID}
+- WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/${WP_ID}
+- INTEGRATION_VALIDATOR_LOCAL_BRANCH: main
+- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
+- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup INTEGRATION_VALIDATOR
+- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next INTEGRATION_VALIDATOR ${WP_ID}
+- INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/${WP_ID}
+- INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/${WP_ID}
+- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V4
+- GOVERNED_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | HEURISTIC_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE
+- ROLE_MODEL_PROFILE_POLICY: ROLE_MODEL_PROFILE_CATALOG_V1
+- ROLE_SESSION_PRIMARY_MODEL: gpt-5.5
+- ROLE_SESSION_FALLBACK_MODEL: gpt-5.4
+- ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
+- ORCHESTRATOR_MODEL: N/A
+- ORCHESTRATOR_REASONING_STRENGTH: EXTRA_HIGH
 - CODER_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
 - CODER_MODEL: gpt-5.5
 - CODER_REASONING_STRENGTH: EXTRA_HIGH
@@ -259,6 +311,14 @@ function packetMarkdownBody() {
 - INTEGRATION_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
 - INTEGRATION_VALIDATOR_MODEL: gpt-5.5
 - INTEGRATION_VALIDATOR_REASONING_STRENGTH: EXTRA_HIGH
+- SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
+- WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}
+- WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}/THREAD.md
+- WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}/RUNTIME_STATUS.json
+- WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}/RECEIPTS.jsonl
+- WP_NOTIFICATIONS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}/NOTIFICATIONS.jsonl
+- COMMUNICATION_CONTRACT: WP_COMMUNICATION_V1
+- COMMUNICATION_HEALTH_GATE: REQUIRED_BEFORE_CLAIM
 - CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
 - CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
 - CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
@@ -371,6 +431,24 @@ ${mdList([
 - NOT_PROVEN:
   - All clause rows pending coder execution and validator confirmation.
 - SPEC_ALIGNMENT_VERDICT: PENDING
+
+${formatSemanticProofAssetsSection({
+    semanticTripwireTests: tripwireTests,
+    canonicalContractExamples: [
+      `${PACKET_DIR}/packet.json (work_packet_contract schema)`,
+      `${PACKET_DIR}/refinement.json (refinement_contract schema)`,
+      `${PACKET_DIR}/MT-001.json through MT-075.json (microtask_contract schema)`,
+      `${REF_BASE}/greenroom-overlap-matrix.json (CKC/Atelier overlap rows OVR-001..OVR-012)`,
+      `${REF_BASE}/greenroom-evolved-feature-register.json (CKC evolved features EVOL-001..EVOL-026)`,
+      `${REF_BASE}/handshake-stub-preservation-map.json (Atelier/Lens stub preservation rows)`,
+      `${REF_BASE}/greenroom-translation-matrix.json (Handshake runtime translation rows)`,
+    ],
+  })}
+
+## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
+Verdict: PENDING
+Blockers: NONE
+Next: PREPARE assignment pending; WP communications will record live progress.
 `;
 }
 
@@ -469,23 +547,27 @@ function packetContract() {
     source_control: {
       merge_base_sha: "NONE",
       canonical_branch: "main",
-      work_branch: "codex/wp-1-atelier-lens-consolidation-v1",
-      worktree_dir: "Handshake Worktrees/wt-gov-kernel",
-      remote_backup_branch: "NONE",
-      remote_backup_url: "NONE",
+      work_branch: "feat/WP-1-Atelier-Lens-Consolidation-v1",
+      worktree_dir: "../wtc-lens-consolidation-v1",
+      remote_backup_branch: "feat/WP-1-Atelier-Lens-Consolidation-v1",
+      remote_backup_url: "https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Atelier-Lens-Consolidation-v1",
       backup_push_status: "NOT_REQUIRED",
     },
     workflow: {
       lane: "ORCHESTRATOR_MANAGED",
       authority: "ORCHESTRATOR",
+      technical_advisor: "WP_VALIDATOR",
+      technical_authority: "INTEGRATION_VALIDATOR",
+      merge_authority: "INTEGRATION_VALIDATOR",
+      agentic_mode: "NO",
       execution_owner: "CODER_A",
       session_start_authority: "ORCHESTRATOR_ONLY",
       host_preference: "HANDSHAKE_ACP_BROKER",
-      communication_dir: `.GOV/roles_shared/communications/${WP_ID}`,
-      thread_file: `.GOV/roles_shared/communications/${WP_ID}/THREAD.md`,
-      runtime_status_file: `.GOV/roles_shared/communications/${WP_ID}/RUNTIME_STATUS.json`,
-      receipts_file: `.GOV/roles_shared/communications/${WP_ID}/RECEIPTS.jsonl`,
-      notifications_file: `.GOV/roles_shared/communications/${WP_ID}/NOTIFICATIONS.jsonl`,
+      communication_dir: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}`,
+      thread_file: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}/THREAD.md`,
+      runtime_status_file: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}/RUNTIME_STATUS.json`,
+      receipts_file: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}/RECEIPTS.jsonl`,
+      notifications_file: `../gov_runtime/roles_shared/WP_COMMUNICATIONS/${WP_ID}/NOTIFICATIONS.jsonl`,
       communication_contract: "WP_COMMUNICATION_V1",
       communication_health_gate: "REQUIRED_BEFORE_CLAIM",
     },
@@ -506,6 +588,13 @@ function packetContract() {
       clause_closure_monitor_profile: "CLAUSE_MONITOR_V1",
       wp_validator_of_record: "UNCLAIMED",
       integration_validator_of_record: "UNCLAIMED",
+      orchestrator_model_profile: "OPENAI_GPT_5_5_XHIGH",
+      orchestrator_model: "N/A",
+      orchestrator_reasoning_strength: "EXTRA_HIGH",
+      role_model_profile_policy: "ROLE_MODEL_PROFILE_CATALOG_V1",
+      role_session_primary_model: "gpt-5.5",
+      role_session_fallback_model: "gpt-5.4",
+      semantic_proof_profile: "DIFF_SCOPED_SEMANTIC_V1",
       coder_model_profile: "OPENAI_GPT_5_5_XHIGH",
       coder_model: "gpt-5.5",
       coder_reasoning_strength: "EXTRA_HIGH",

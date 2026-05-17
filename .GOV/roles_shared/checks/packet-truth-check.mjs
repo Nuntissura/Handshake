@@ -23,7 +23,15 @@ function normalizePath(value) {
 }
 
 function packetIdFromPath(packetPath) {
-  return inferWpIdFromPacketPath(normalizePath(packetPath));
+  const normalized = normalizePath(packetPath);
+  // Hand-authored .contract.json stubs (PRIMARY_MACHINE_READABLE_STUB policy)
+  // have no .md sibling; their packet id is the basename minus ".contract.json".
+  if (/\.contract\.json$/i.test(normalized)) {
+    const base = normalized.split("/").pop() || "";
+    const stripped = base.replace(/\.contract\.json$/i, "");
+    return /^WP-/.test(stripped) ? stripped : "";
+  }
+  return inferWpIdFromPacketPath(normalized);
 }
 
 function parseSingleField(text, label) {
@@ -155,9 +163,19 @@ function readPacketInventory(dir, kind) {
   const entries = [];
   const dirAbs = repoPathAbs(dir);
   if (!fs.existsSync(dirAbs)) return entries;
-  for (const entry of fs.readdirSync(dirAbs, { withFileTypes: true })) {
+  const dirEntries = fs.readdirSync(dirAbs, { withFileTypes: true });
+  const mdStubIds = new Set();
+  if (kind === "stub") {
+    for (const entry of dirEntries) {
+      if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md") {
+        mdStubIds.add(entry.name.slice(0, -3));
+      }
+    }
+  }
+  for (const entry of dirEntries) {
     let filePath = "";
     let packetId = "";
+    let isContractOnlyStub = false;
     if (entry.isDirectory()) {
       if (kind !== "official" || !entry.name.startsWith("WP-")) continue;
       filePath = `${dir}/${entry.name}/packet.md`.replace(/\\/g, "/");
@@ -166,14 +184,29 @@ function readPacketInventory(dir, kind) {
     } else if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md") {
       filePath = `${dir}/${entry.name}`.replace(/\\/g, "/");
       packetId = entry.name.slice(0, -3);
+    } else if (
+      kind === "stub"
+      && entry.isFile()
+      && entry.name.endsWith(".contract.json")
+    ) {
+      const stubId = entry.name.slice(0, -".contract.json".length);
+      if (!stubId.startsWith("WP-")) continue;
+      // Skip if a .md sibling already loaded this stub (legacy projection pairing).
+      if (mdStubIds.has(stubId)) continue;
+      filePath = `${dir}/${entry.name}`.replace(/\\/g, "/");
+      packetId = stubId;
+      isContractOnlyStub = true;
     } else {
       continue;
     }
-    const rawText = fs.readFileSync(repoPathAbs(filePath), "utf8");
-    const text = runAbsorber(rawText, {
-      artifactKind: "packet",
-      wpId: packetId,
-    }).output;
+    let text = "";
+    if (!isContractOnlyStub) {
+      const rawText = fs.readFileSync(repoPathAbs(filePath), "utf8");
+      text = runAbsorber(rawText, {
+        artifactKind: "packet",
+        wpId: packetId,
+      }).output;
+    }
     const stubContractState = kind === "stub" ? readStubContractForMarkdownPath(filePath) : null;
     const contractState = kind === "stub" ? null : readWorkPacketContract(packetId);
     const contract = contractState?.contract && typeof contractState.contract === "object" ? contractState.contract : null;

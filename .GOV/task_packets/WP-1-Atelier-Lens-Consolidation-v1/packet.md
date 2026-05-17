@@ -1,4 +1,4 @@
-<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.json source_hash=271d92217128db5a projection_hash=fafad6e975386c0f generated_at_utc=2026-05-16T03:39:00.000Z generator=.GOV/roles_shared/scripts/wp/atelier-lens-consolidation-packet-generator.mjs -->
+<!-- HANDSHAKE_GENERATED_PROJECTION schema_id=hsk.work_packet_contract@1 source_file=.GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.json source_hash=07e45f94b7c9cf76 projection_hash=b916dd30064b9b91 generated_at_utc=2026-05-16T03:39:00.000Z generator=.GOV/roles_shared/scripts/wp/atelier-lens-consolidation-packet-generator.mjs -->
 # WP-1-Atelier-Lens-Consolidation-v1: Atelier/Lens Consolidation and CKC Fold-In
 
 ## METADATA
@@ -15,9 +15,60 @@
 - MERGED_MAIN_COMMIT: NONE
 - MAIN_CONTAINMENT_VERIFIED_AT_UTC: N/A
 - WORKFLOW_LANE: ORCHESTRATOR_MANAGED
+- WORKFLOW_AUTHORITY: ORCHESTRATOR
+- TECHNICAL_ADVISOR: WP_VALIDATOR
+- TECHNICAL_AUTHORITY: INTEGRATION_VALIDATOR
+- MERGE_AUTHORITY: INTEGRATION_VALIDATOR
+- AGENTIC_MODE: NO
 - EXECUTION_OWNER: CODER_A
 - SESSION_START_AUTHORITY: ORCHESTRATOR_ONLY
 - SESSION_HOST_PREFERENCE: HANDSHAKE_ACP_BROKER
+- LOCAL_BRANCH: feat/WP-1-Atelier-Lens-Consolidation-v1
+- LOCAL_WORKTREE_DIR: ../wtc-lens-consolidation-v1
+- REMOTE_BACKUP_BRANCH: feat/WP-1-Atelier-Lens-Consolidation-v1
+- REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Atelier-Lens-Consolidation-v1
+- BACKUP_PUSH_STATUS: NOT_REQUIRED
+- SESSION_HOST_FALLBACK: SYSTEM_TERMINAL_REPAIR_ONLY
+- SESSION_LAUNCH_POLICY: ORCHESTRATOR_ACP_DIRECT_HEADLESS_PRIMARY
+- ROLE_SESSION_RUNTIME: CLI
+- CLI_SESSION_TOOL: codex
+- SESSION_PLUGIN_BRIDGE_ID: handshake.handshake-session-bridge
+- SESSION_PLUGIN_BRIDGE_COMMAND: handshakeSessionBridge.processLaunchQueue
+- SESSION_PLUGIN_REQUESTS_FILE: ../gov_runtime/roles_shared/SESSION_LAUNCH_REQUESTS.jsonl
+- SESSION_REGISTRY_FILE: ../gov_runtime/roles_shared/ROLE_SESSION_REGISTRY.json
+- SESSION_PLUGIN_MAX_RETRIES_BEFORE_ESCALATION: 2
+- SESSION_PLUGIN_ATTEMPT_TIMEOUT_SECONDS: 20
+- SESSION_WATCH_POLICY: EVENT_WATCH_PRIMARY_HEARTBEAT_FALLBACK
+- SESSION_WAKE_CHANNEL_PRIMARY: VS_CODE_FILE_WATCH
+- SESSION_WAKE_CHANNEL_FALLBACK: WP_HEARTBEAT
+- CLI_ESCALATION_HOST_DEFAULT: SYSTEM_TERMINAL
+- MODEL_FAMILY_POLICY: ROLE_MODEL_PROFILE_CATALOG_PRIMARY_OPENAI_DECLARED_MULTI_PROVIDER_V1
+- CODEX_MODEL_ALIASES_ALLOWED: NO
+- ROLE_SESSION_REASONING_REQUIRED: EXTRA_HIGH
+- ROLE_SESSION_REASONING_CONFIG_KEY: model_reasoning_effort
+- ROLE_SESSION_REASONING_CONFIG_VALUE: xhigh
+- CODER_STARTUP_COMMAND: just coder-startup
+- CODER_RESUME_COMMAND: just coder-next WP-1-Atelier-Lens-Consolidation-v1
+- WP_VALIDATOR_LOCAL_BRANCH: feat/WP-1-Atelier-Lens-Consolidation-v1
+- WP_VALIDATOR_LOCAL_WORKTREE_DIR: ../wtc-lens-consolidation-v1
+- WP_VALIDATOR_STARTUP_COMMAND: just validator-startup WP_VALIDATOR
+- WP_VALIDATOR_RESUME_COMMAND: just validator-next WP_VALIDATOR WP-1-Atelier-Lens-Consolidation-v1
+- WP_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Atelier-Lens-Consolidation-v1
+- WP_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Atelier-Lens-Consolidation-v1
+- INTEGRATION_VALIDATOR_LOCAL_BRANCH: main
+- INTEGRATION_VALIDATOR_LOCAL_WORKTREE_DIR: ../handshake_main
+- INTEGRATION_VALIDATOR_STARTUP_COMMAND: just validator-startup INTEGRATION_VALIDATOR
+- INTEGRATION_VALIDATOR_RESUME_COMMAND: just validator-next INTEGRATION_VALIDATOR WP-1-Atelier-Lens-Consolidation-v1
+- INTEGRATION_VALIDATOR_REMOTE_BACKUP_BRANCH: feat/WP-1-Atelier-Lens-Consolidation-v1
+- INTEGRATION_VALIDATOR_REMOTE_BACKUP_URL: https://github.com/Nuntissura/Handshake/tree/feat/WP-1-Atelier-Lens-Consolidation-v1
+- GOVERNED_VALIDATOR_REPORT_PROFILE: SPLIT_DIFF_SCOPED_RIGOR_V4
+- GOVERNED_VALIDATOR_SPLIT_FIELDS: VALIDATION_CONTEXT | GOVERNANCE_VERDICT | TEST_VERDICT | CODE_REVIEW_VERDICT | HEURISTIC_REVIEW_VERDICT | SPEC_ALIGNMENT_VERDICT | ENVIRONMENT_VERDICT | DISPOSITION | LEGAL_VERDICT | SPEC_CONFIDENCE
+- ROLE_MODEL_PROFILE_POLICY: ROLE_MODEL_PROFILE_CATALOG_V1
+- ROLE_SESSION_PRIMARY_MODEL: gpt-5.5
+- ROLE_SESSION_FALLBACK_MODEL: gpt-5.4
+- ORCHESTRATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
+- ORCHESTRATOR_MODEL: N/A
+- ORCHESTRATOR_REASONING_STRENGTH: EXTRA_HIGH
 - CODER_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
 - CODER_MODEL: gpt-5.5
 - CODER_REASONING_STRENGTH: EXTRA_HIGH
@@ -27,6 +78,14 @@
 - INTEGRATION_VALIDATOR_MODEL_PROFILE: OPENAI_GPT_5_5_XHIGH
 - INTEGRATION_VALIDATOR_MODEL: gpt-5.5
 - INTEGRATION_VALIDATOR_REASONING_STRENGTH: EXTRA_HIGH
+- SEMANTIC_PROOF_PROFILE: DIFF_SCOPED_SEMANTIC_V1
+- WP_COMMUNICATION_DIR: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Atelier-Lens-Consolidation-v1
+- WP_THREAD_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Atelier-Lens-Consolidation-v1/THREAD.md
+- WP_RUNTIME_STATUS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Atelier-Lens-Consolidation-v1/RUNTIME_STATUS.json
+- WP_RECEIPTS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Atelier-Lens-Consolidation-v1/RECEIPTS.jsonl
+- WP_NOTIFICATIONS_FILE: ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Atelier-Lens-Consolidation-v1/NOTIFICATIONS.jsonl
+- COMMUNICATION_CONTRACT: WP_COMMUNICATION_V1
+- COMMUNICATION_HEALTH_GATE: REQUIRED_BEFORE_CLAIM
 - CURRENT_MAIN_COMPATIBILITY_STATUS: NOT_RUN
 - CURRENT_MAIN_COMPATIBILITY_BASELINE_SHA: NONE
 - CURRENT_MAIN_COMPATIBILITY_VERIFIED_AT_UTC: N/A
@@ -343,3 +402,23 @@ This packet promotes the greenroom output into the official Ready for Dev consol
 - NOT_PROVEN:
   - All clause rows pending coder execution and validator confirmation.
 - SPEC_ALIGNMENT_VERDICT: PENDING
+
+## SEMANTIC_PROOF_ASSETS (REFINEMENT OUTPUT; REQUIRED FOR HYDRATED PROFILE)
+- SEMANTIC_TRIPWIRE_TESTS:
+  - node .GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs --check
+  - node .GOV/roles_shared/checks/packet-truth-bundle-check.mjs
+  - node -e "const fs=require('fs'); const c=fs.readdirSync('.GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1').filter(f=>/^MT-\\d{3}\\.json$/.test(f)).length; if(c!==75) throw new Error(String(c));"
+- CANONICAL_CONTRACT_EXAMPLES:
+  - .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.json (work_packet_contract schema)
+  - .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/refinement.json (refinement_contract schema)
+  - .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/MT-001.json through MT-075.json (microtask_contract schema)
+  - .GOV/reference/ckc_atelier_lens_consolidation/greenroom-overlap-matrix.json (CKC/Atelier overlap rows OVR-001..OVR-012)
+  - .GOV/reference/ckc_atelier_lens_consolidation/greenroom-evolved-feature-register.json (CKC evolved features EVOL-001..EVOL-026)
+  - .GOV/reference/ckc_atelier_lens_consolidation/handshake-stub-preservation-map.json (Atelier/Lens stub preservation rows)
+  - .GOV/reference/ckc_atelier_lens_consolidation/greenroom-translation-matrix.json (Handshake runtime translation rows)
+- Rule: for packets using `SEMANTIC_PROOF_PROFILE=DIFF_SCOPED_SEMANTIC_V1`, each clause row must point to TESTS, EXAMPLES, or governed debt, and shared-surface packets should carry at least one concrete tripwire or canonical example.
+
+## CURRENT_STATE (AUTHORITATIVE SNAPSHOT; MUTABLE)
+Verdict: PENDING
+Blockers: NONE
+Next: PREPARE assignment pending; WP communications will record live progress.

@@ -4,7 +4,7 @@
   "authority_surface": "MACHINE_CONTRACT",
   "rendered_md_projection_path": ".GOV/roles_shared/records/WP_TRACEABILITY_REGISTRY.md",
   "rendered_md_projection_policy": "GENERATED_FROM_JSON_DO_NOT_HAND_EDIT",
-  "updated_at_utc": "2026-05-17T16:18:57.863Z",
+  "updated_at_utc": "2026-05-17T17:03:39.635Z",
   "entries": [
     {
       "base_wp_id": "WP-1-ACE-Auditability",
@@ -109,10 +109,10 @@
       "notes": "active=WP-1-AppState-Refactoring-v3; supersedes: WP-1-AppState-Refactoring, WP-1-AppState-Refactoring-v2"
     },
     {
-      "base_wp_id": "WP-1-Atelier-Lens",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Atelier-Lens-v2",
-      "notes": "stub (remediation); supersedes: WP-1-Atelier-Lens"
+      "base_wp_id": "WP-1-Atelier-Lens-Consolidation",
+      "active_packet_path": ".GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.md",
+      "task_board_projection": "Ready for Dev: WP-1-Atelier-Lens-Consolidation-v1",
+      "notes": "activated from CKC greenroom consolidation packet; preserves Atelier/Lens-adjacent stub intent and folds CKC capability clusters into Handshake runtime boundaries"
     },
     {
       "base_wp_id": "WP-1-Calendar-Lens",
@@ -407,12 +407,6 @@
       "active_packet_path": ".GOV/task_packets/stubs/WP-1-PDF-Pipeline-v2.md",
       "task_board_projection": "Stub Backlog (Not Activated): WP-1-PDF-Pipeline-v2",
       "notes": "stub (remediation); supersedes: WP-1-PDF-Pipeline"
-    },
-    {
-      "base_wp_id": "WP-1-Photo-Studio",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-1-Photo-Studio-v2",
-      "notes": "stub (remediation); supersedes: WP-1-Photo-Studio"
     },
     {
       "base_wp_id": "WP-1-Product-Governance-Snapshot",
@@ -975,23 +969,35 @@
     {
       "base_wp_id": "WP-KERNEL-006-Principal-Authority-Foundation",
       "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-006-Principal-Authority-Foundation-v1.contract.json",
-      "task_board_projection": "TBD",
-      "notes": ""
+      "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-006-Principal-Authority-Foundation-v1",
+      "notes": "PRIMARY_MACHINE_READABLE_STUB; no .md sibling (contract is authority surface)"
     },
     {
       "base_wp_id": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate",
       "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.contract.json",
-      "task_board_projection": "TBD",
-      "notes": ""
+      "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1",
+      "notes": "PRIMARY_MACHINE_READABLE_STUB; no .md sibling (contract is authority surface)"
     },
     {
       "base_wp_id": "WP-KERNEL-008-Principal-Profile-CRM-Layer",
       "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1.contract.json",
-      "task_board_projection": "TBD",
-      "notes": ""
+      "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-008-Principal-Profile-CRM-Layer-v1",
+      "notes": "PRIMARY_MACHINE_READABLE_STUB; no .md sibling (contract is authority surface)"
     }
   ],
   "superseded_activation_history": [
+    {
+      "base_wp_id": "WP-1-Atelier-Lens",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md",
+      "task_board": "Superseded (Archive): WP-1-Atelier-Lens-v2",
+      "replacement_notes": "v2 stub itself superseded; folded into WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1 and its draft MT suite; source stub retained as superseded evidence"
+    },
+    {
+      "base_wp_id": "WP-1-Photo-Studio",
+      "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md",
+      "task_board": "Superseded (Archive): WP-1-Photo-Studio-v2",
+      "replacement_notes": "v2 stub itself superseded; folded into WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1 and its draft MT suite; source stub retained as superseded evidence"
+    },
     {
       "base_wp_id": "WP-1-Postgres-Control-Plane-Shift-Bundle",
       "superseded_packet_or_stub": ".GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md",
