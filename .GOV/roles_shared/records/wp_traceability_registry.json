@@ -554,9 +554,9 @@
     },
     {
       "base_wp_id": "WP-KERNEL-003-Sandbox-Validation-Promotion",
-      "active_packet_path": ".GOV/task_packets/stubs/WP-KERNEL-003-Sandbox-Validation-Promotion-v1.md",
-      "task_board_projection": "Stub Backlog (Not Activated): WP-KERNEL-003-Sandbox-Validation-Promotion-v1",
-      "notes": "Kernel003 folded planning stub; folds sandbox/validation/promotion, bounded MTE execution controls, debug/evidence export bridges, path guardrails, validation preflight, candidate-range truth, closeout bundle, and receipt-driven lane settlement into one future packet."
+      "active_packet_path": ".GOV/task_packets/WP-KERNEL-003-Sandbox-Validation-Promotion-v1/packet.json",
+      "task_board_projection": "Validated (PASS): WP-KERNEL-003-Sandbox-Validation-Promotion-v1",
+      "notes": "Kernel003 sandbox/validation/promotion packet; 80/80 MT PASS + adversarial review 22/22 closed; merged to main at a813b7615f4e29d77ed8ee0b3ea8845ad5fd406f on 2026-05-17."
     },
     {
       "base_wp_id": "WP-1-Storage-Capability-Boundary-Refactor",
