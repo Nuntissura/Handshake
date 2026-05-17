@@ -28138,6 +28138,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn task_board_projection_preserves_updated_at_then_wp_id_order(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28211,6 +28212,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     async fn create_test_model_session(
         state: &AppState,
         session_state: ModelSessionState,
@@ -28245,6 +28247,7 @@ mod tests {
         Ok(session)
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     fn find_session_recovery_event(
         events: &[FlightRecorderEvent],
         session_id: &str,
@@ -28256,6 +28259,7 @@ mod tests {
             .find(|payload: &FrEvtSessionRecoveryAttempted| payload.session_id == session_id)
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     fn terminal_command() -> (String, Vec<String>) {
         if cfg!(target_os = "windows") {
             (
@@ -28267,6 +28271,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     async fn create_debug_bundle_job(
         state: &AppState,
         scope: serde_json::Value,
@@ -28508,6 +28513,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn job_fails_when_missing_required_capability() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -28540,6 +28546,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_enforces_capability() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28571,6 +28578,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn terminal_job_runs_when_authorized() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28617,6 +28625,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn workflow_persists_node_history_and_outputs() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -28654,6 +28663,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_run_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28682,6 +28692,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_workflow_run_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28717,6 +28728,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn debug_bundle_export_rejects_workflow_node_execution_scope_without_node_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28753,6 +28765,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_poisoning_trap() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28796,6 +28809,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_mark_stalled_workflows() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28864,6 +28878,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_create_session_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28897,6 +28912,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_recover_session_from_checkpoint() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -28934,6 +28950,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_mark_stalled_workflows_recovers_orphaned_active_session(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -28977,6 +28994,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_recover_session_from_checkpoint_idempotent(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -29006,6 +29024,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_startup_recovery_blocks_job_acceptance() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -29042,6 +29061,7 @@ mod tests {
     /// Integration test: run_job MUST invoke validate_trace and reject budget violations.
     /// This test creates a trace that EXCEEDS max_total_evidence_tokens budget.
     /// RetrievalBudgetGuard.validate_trace will detect this and return AceError::BudgetExceeded.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn run_job_rejects_budget_exceeded() -> Result<(), Box<dyn std::error::Error>> {
         use crate::storage::{NewBlock, NewDocument, NewWorkspace, WriteContext};
@@ -29258,6 +29278,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn fems_extract_emits_proposal_without_commit_and_without_raw_fr_content(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -29349,6 +29370,7 @@ mod tests {
     /// packets, gate metadata) and prove the DCC snapshot builder reads them
     /// back through the real code path, producing correct ready_queue,
     /// micro_task_summary, and gate_state fields.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_ready_query_projection_is_backend_backed() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -29565,6 +29587,7 @@ mod tests {
     /// Register model sessions with worktree bindings in the SessionRegistry
     /// and prove the DCC snapshot builder projects them into DccSessionBinding
     /// with correct model_id, backend, bound_micro_task_id, and worktree_dir.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_session_binding_projection_matches_runtime_state(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -29760,6 +29783,7 @@ mod tests {
 
     // MT-001 validator-gate closeout posture proof tests.
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn validator_gate_runtime_summary_links_check_evidence(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -30660,6 +30684,7 @@ mod tests {
 
     // MT-003 backend-backed DCC collaboration projection tests.
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn governance_workflow_mirror_gate_transition_emits_fr_event(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -30921,6 +30946,7 @@ mod tests {
     /// JSONL) and prove the DCC snapshot builder reads them back through the
     /// real code path, producing correct active_threads, pending_wait_reasons,
     /// mailbox_summary, evidence refs, and linked work IDs.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_mailbox_projection_preserves_wait_reasons(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -31220,6 +31246,7 @@ mod tests {
     /// deterministically query entries by WorkflowStateFamily and
     /// WorkflowQueueReasonCode without lane-name heuristics — and that
     /// allowed_action_ids remain visible through the filtered results.
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_task_board_filters_by_state_family_and_queue_reason(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -31458,6 +31485,7 @@ mod tests {
 
     // ── MT-005: compact summary contract (6.3) ──────────────────────────
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn dcc_compact_summary_contract_preserves_stable_ids(
     ) -> Result<(), Box<dyn std::error::Error>> {

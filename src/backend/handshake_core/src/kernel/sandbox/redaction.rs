@@ -265,6 +265,13 @@ fn redact_kv_secrets(s: &str) -> String {
                 let key = trimmed_newline[..pos].trim();
                 if !key.is_empty() && env_key_is_sensitive(key) {
                     let val = trimmed_newline[pos + 1..].trim_start();
+                    // Skip if a prior pass already redacted the value (e.g. a
+                    // bearer-token redaction left `Bearer [REDACTED:BEARER]`).
+                    // Re-redacting would clobber the more specific tag with a
+                    // generic ENV/API_KEY tag.
+                    if val.contains("[REDACTED:") {
+                        continue;
+                    }
                     if !val.is_empty() {
                         let kind = if sep == '=' {
                             SecretKind::Env

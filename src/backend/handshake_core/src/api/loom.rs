@@ -1079,7 +1079,7 @@ async fn search_loom_blocks(
     Ok(Json(results))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
@@ -1357,7 +1357,12 @@ mod tests {
 
         assert_eq!(
             tier_used,
-            u64::from(state.storage.loom_search_observability_tier()),
+            u64::from(
+                state
+                    .storage
+                    .storage_capabilities()
+                    .loom_search_observability_tier()
+            ),
             "loom search proof must assert the emitted tier_used payload contract"
         );
         assert_eq!(

@@ -280,15 +280,22 @@ pub fn single_engine_registry(engine_id: &str) -> MexRegistry {
 mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
+    #[cfg(feature = "duckdb-flight-recorder")]
     use std::sync::Arc;
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     use serde_json::Value;
+    #[cfg(feature = "duckdb-flight-recorder")]
     use uuid::Uuid;
 
     use super::*;
+    #[cfg(feature = "duckdb-flight-recorder")]
     use crate::capabilities::CapabilityRegistry;
+    #[cfg(feature = "duckdb-flight-recorder")]
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+    #[cfg(feature = "duckdb-flight-recorder")]
     use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEventType};
+    #[cfg(feature = "duckdb-flight-recorder")]
     use crate::mex::gates::{
         BudgetGate, CapabilityGate, DetGate, GatePipeline, IntegrityGate, ProvenanceGate,
         SchemaGate,
@@ -341,6 +348,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn test_mex_runtime_emits_tool_call_and_result_in_fr_events(
     ) -> Result<(), Box<dyn std::error::Error>> {

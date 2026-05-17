@@ -2223,8 +2223,10 @@ fn write_canonical_json_string(out: &mut String, value: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "duckdb-flight-recorder")]
     use crate::flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder};
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[test]
     fn governance_workflow_mirror_spec_session_log_enforces_runtime_artifact_boundary(
     ) -> Result<(), Box<dyn std::error::Error>> {

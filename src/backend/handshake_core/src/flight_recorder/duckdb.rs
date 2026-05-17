@@ -1106,7 +1106,7 @@ pub fn system_event(message: &str, component: &str) -> FlightRecorderEvent {
     )
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
     use crate::diagnostics::{

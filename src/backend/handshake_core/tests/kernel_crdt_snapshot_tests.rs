@@ -144,6 +144,7 @@ fn kernel_crdt_compaction_policy_cannot_drop_promotion_evidence() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_snapshot_persists_in_postgres_and_bounds_replay_after_restart() {
     let db = postgres_or_environment_blocked().await;
     let suffix = Uuid::now_v7().simple().to_string();
@@ -200,6 +201,7 @@ async fn kernel_crdt_snapshot_persists_in_postgres_and_bounds_replay_after_resta
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_snapshot_persistence_rejects_missing_eventledger_ref() {
     let db = postgres_or_environment_blocked().await;
     let suffix = Uuid::now_v7().simple().to_string();

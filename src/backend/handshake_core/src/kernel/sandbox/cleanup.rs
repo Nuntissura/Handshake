@@ -99,19 +99,21 @@ impl<'a> CleanupPlanner<'a> {
                 });
                 continue;
             }
+            // Must not overlap a preserved path. Checked BEFORE temp-root
+            // containment so that callers who attempt to clean an output root
+            // see a "preserved" reason rather than a generic temp-root miss.
+            if self.preserved_paths.iter().any(|p| paths_overlap(&path, p)) {
+                rejected.push(RejectedTarget {
+                    workspace_relative_path: path,
+                    reason: "target overlaps a preserved artifact path".into(),
+                });
+                continue;
+            }
             // Must sit under the declared temp root.
             if !path_is_inside(&path, &self.temp_root_relative) {
                 rejected.push(RejectedTarget {
                     workspace_relative_path: path,
                     reason: "target not under workspace temp root".into(),
-                });
-                continue;
-            }
-            // Must not overlap a preserved path.
-            if self.preserved_paths.iter().any(|p| paths_overlap(&path, p)) {
-                rejected.push(RejectedTarget {
-                    workspace_relative_path: path,
-                    reason: "target overlaps a preserved artifact path".into(),
                 });
                 continue;
             }

@@ -59,17 +59,9 @@ impl<'a> FilesystemScopeGuard<'a> {
         candidate: &str,
         mode: FsAccessMode,
     ) -> Result<(), SandboxDenialRecordV1> {
-        // 1. Reject obvious host-absolute / drive prefixes before normalisation.
-        if is_absolute_or_drive(candidate) {
-            return Err(self.denial(
-                run,
-                mode,
-                candidate,
-                "absolute or drive-prefixed path is outside any declared workspace root",
-            ));
-        }
-
-        // 2. Reject UNC / network path shapes.
+        // 1. Reject UNC / network path shapes BEFORE the generic absolute
+        //    check, since UNC paths also begin with backslashes and we want
+        //    the typed "UNC" reason rather than the generic absolute reason.
         if candidate.starts_with("\\\\") || candidate.starts_with("//") {
             return Err(self.denial(
                 run,
@@ -79,7 +71,25 @@ impl<'a> FilesystemScopeGuard<'a> {
             ));
         }
 
-        // 3. Lexical normalisation. If escape sentinel is present after
+        // 2. Reject obvious host-absolute / drive prefixes before normalisation.
+        if is_absolute_or_drive(candidate) {
+            return Err(self.denial(
+                run,
+                mode,
+                candidate,
+                "absolute or drive-prefixed path is outside any declared workspace root",
+            ));
+        }
+
+        // 3. Detect any `..` segment in the raw input. Even when intermediate
+        //    pops cancel each other out lexically, treat the use of `..` as a
+        //    traversal attempt unless the normalised result still sits cleanly
+        //    inside a declared root for this mode.
+        let has_dotdot_segment = candidate
+            .split(['/', '\\'])
+            .any(|seg| seg == "..");
+
+        // 4. Lexical normalisation. If escape sentinel is present after
         //    normalisation, the path escapes.
         let normalised = lexical_normalise(candidate);
         if normalised.starts_with("..") || normalised.contains("/..") {
@@ -111,6 +121,16 @@ impl<'a> FilesystemScopeGuard<'a> {
         // 5. Path must sit under at least one declared root.
         if roots.iter().any(|r| path_is_inside(&normalised, r)) {
             Ok(())
+        } else if has_dotdot_segment {
+            // The input used `..` segments and the resolved path no longer
+            // sits under any declared root — that is a traversal escape even
+            // when the intermediate pops cancelled out lexically.
+            Err(self.denial(
+                run,
+                mode,
+                candidate,
+                "path traversal `..` segment escapes the workspace root",
+            ))
         } else {
             Err(self.denial(
                 run,

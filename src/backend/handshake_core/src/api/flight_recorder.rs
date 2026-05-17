@@ -273,7 +273,7 @@ async fn list_events(
     Ok(Json(api_events))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;

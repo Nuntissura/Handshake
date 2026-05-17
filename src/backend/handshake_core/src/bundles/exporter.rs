@@ -2418,7 +2418,7 @@ impl DebugBundleExporter for DefaultDebugBundleExporter {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;
@@ -2682,6 +2682,7 @@ mod tests {
             .collect()
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_run_scope_exports_only_bound_jobs_and_nodes(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2771,6 +2772,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_node_execution_scope_exports_single_node_lineage(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2865,6 +2867,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn list_exportable_includes_workflow_correlation_anchors(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2914,6 +2917,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_run_scope_rejects_invalid_uuid() -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
@@ -2946,6 +2950,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test(flavor = "current_thread")]
     async fn workflow_node_execution_scope_rejects_invalid_node_uuid(
     ) -> Result<(), Box<dyn std::error::Error>> {

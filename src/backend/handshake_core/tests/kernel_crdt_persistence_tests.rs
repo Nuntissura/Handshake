@@ -117,6 +117,7 @@ fn kernel_crdt_postgres_update_log_contract_declares_persistence_columns_and_con
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
     let db = postgres_or_environment_blocked().await;
     let suffix = Uuid::now_v7().simple().to_string();
@@ -174,6 +175,7 @@ async fn kernel_crdt_updates_persist_and_replay_after_postgres_reconnect() {
 }
 
 #[tokio::test]
+#[ignore = "requires POSTGRES_TEST_URL; run with `cargo test -- --ignored`"]
 async fn kernel_crdt_update_persistence_rejects_missing_eventledger_ref() {
     let db = postgres_or_environment_blocked().await;
     let suffix = Uuid::now_v7().simple().to_string();

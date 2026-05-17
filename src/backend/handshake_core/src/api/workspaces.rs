@@ -1231,7 +1231,7 @@ async fn dcc_control_plane_snapshot(
     Ok(Json(value))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "duckdb-flight-recorder"))]
 mod tests {
     use super::*;
     use crate::capabilities::CapabilityRegistry;

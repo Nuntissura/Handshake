@@ -18,7 +18,7 @@
 //!
 //! Rejected: container-only or microVM-only MVP (host portability + Windows
 //! constraints from reset brief §6.5); raw shell adapter without ToolGate
-//! (KB002 conflict register); SQLite-backed sandbox state (CX-503R).
+//! (KB002 conflict register); non-Postgres authority backends (CX-503R).
 //!
 //! ## Module topology (MT-006 placement decision)
 //!
@@ -31,7 +31,7 @@
 //!
 //! Storage extensions land in `storage/postgres.rs` (rows + migrations for
 //! SandboxRunV1, SandboxArtifactBundleV1, ValidationRunV1, PromotionDecisionV1,
-//! PromotionReceiptV1). No SQLite authority paths (CX-503R, reset brief §4.1).
+//! PromotionReceiptV1). No non-Postgres authority paths (CX-503R, reset brief §4.1).
 //!
 //! EventLedger consumption stays through the existing `KernelActor` →
 //! `EventLedger` path; KB003 adds new typed event names, not a new ledger.
