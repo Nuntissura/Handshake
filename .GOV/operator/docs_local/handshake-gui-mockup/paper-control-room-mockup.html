@@ -1,0 +1,1595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Handshake Paper Control Room Mockup</title>
+  <style>
+    @font-face {
+      font-family: "Handshake Plex Condensed";
+      font-style: normal;
+      font-weight: 400;
+      font-display: block;
+      src: url("./fonts/ibm-plex-sans-condensed-latin-400-normal.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Handshake Plex Condensed";
+      font-style: normal;
+      font-weight: 500;
+      font-display: block;
+      src: url("./fonts/ibm-plex-sans-condensed-latin-500-normal.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Handshake Plex Condensed";
+      font-style: normal;
+      font-weight: 600;
+      font-display: block;
+      src: url("./fonts/ibm-plex-sans-condensed-latin-600-normal.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Handshake Plex Condensed";
+      font-style: normal;
+      font-weight: 700;
+      font-display: block;
+      src: url("./fonts/ibm-plex-sans-condensed-latin-700-normal.woff2") format("woff2");
+    }
+
+    :root {
+      --ink-0: #161616;
+      --ink-1: #181818;
+      --ink-2: #1b1b1b;
+      --ink-3: #202020;
+      --ink-4: #242424;
+      --paper-0: #d8d1c1;
+      --paper-1: #aaa290;
+      --paper-2: #817969;
+      --paper-shadow: rgba(0, 0, 0, 0.34);
+      --line: #262626;
+      --line-strong: #333333;
+      --text: #d6d0c3;
+      --muted: #8b8478;
+      --dim: #625d55;
+      --accent: #d66b2f;
+      --danger: #b24a36;
+      --ok: #8b9668;
+      --syntax-a: #aab4be;
+      --syntax-b: #8f9d75;
+      --syntax-c: #b9875c;
+      --syntax-d: #b66b59;
+      --focus: #e6e0d3;
+      --ui: "Handshake Plex Condensed", "Arial Narrow", Arial, sans-serif;
+      --data: var(--ui);
+      --mono: var(--data);
+      --sans: var(--ui);
+      --rail: 42px;
+      --drawer: 214px;
+      --status: 28px;
+      --top: 42px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: var(--ink-0);
+      color: var(--text);
+      font-family: var(--ui);
+      font-size: 12px;
+      line-height: 1.35;
+      font-synthesis: none;
+      font-variant-numeric: tabular-nums;
+      text-rendering: geometricPrecision;
+      overflow: hidden;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    .app {
+      height: 100vh;
+      width: 100vw;
+      display: grid;
+      grid-template-rows: var(--top) 1fr var(--status);
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255,255,255,0.01) 1px, transparent 1px),
+        var(--ink-0);
+      background-size: 48px 48px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: var(--rail) 250px 1fr 430px;
+      border-bottom: 1px solid var(--line);
+      background: #151515;
+      min-width: 0;
+    }
+
+    .hamburger,
+    .top-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--dim);
+      border-right: 1px solid var(--line);
+      letter-spacing: 0;
+      font-size: 11px;
+    }
+
+    .top-actions {
+      border-left: 1px solid var(--line);
+      border-right: 0;
+      justify-content: flex-end;
+      padding: 0 10px;
+      gap: 4px;
+      overflow: hidden;
+    }
+
+    .module-button {
+      height: 22px;
+      min-width: 48px;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      background: #151515;
+      color: var(--dim);
+      font-family: var(--ui);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0;
+      padding: 0 7px;
+      cursor: pointer;
+    }
+
+    .module-button.active {
+      color: var(--paper-0);
+      border-color: var(--paper-2);
+      background: #1b1b1b;
+      box-shadow: inset 0 -2px 0 var(--paper-1);
+    }
+
+    .module-button.hot {
+      color: var(--syntax-c);
+    }
+
+    .menu-strip {
+      display: flex;
+      align-items: center;
+      gap: 25px;
+      padding: 0 22px;
+      color: var(--dim);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0;
+      border-right: 1px solid var(--line);
+    }
+
+    .project-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0;
+      color: var(--focus);
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .project-title span {
+      color: var(--accent);
+      letter-spacing: 0;
+      opacity: 0.85;
+    }
+
+    .main {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: var(--rail) 300px 1fr;
+    }
+
+    .activity-rail {
+      background: #151515;
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 18px;
+      gap: 24px;
+    }
+
+    .rail-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--dim);
+      display: grid;
+      place-items: center;
+      position: relative;
+      font-size: 17px;
+    }
+
+    .rail-icon.active {
+      color: var(--paper-0);
+    }
+
+    .rail-icon.active::before {
+      content: "";
+      position: absolute;
+      left: -13px;
+      width: 3px;
+      height: 3px;
+      background: var(--accent);
+    }
+
+    .project-drawer {
+      min-width: 0;
+      background: #151515;
+      border-right: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: 39px 1fr;
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      color: var(--dim);
+      border-bottom: 1px solid var(--line);
+      font-size: 11px;
+      letter-spacing: 0;
+      font-family: var(--sans);
+    }
+
+    .drawer-list {
+      padding: 14px 14px 26px 10px;
+      overflow: hidden;
+    }
+
+    .folder-block {
+      margin-bottom: 13px;
+      border: 1px solid var(--line-strong);
+      padding: 9px 8px 8px;
+      background: #171717;
+      position: relative;
+    }
+
+    .folder-block.open {
+      border-color: var(--paper-1);
+      box-shadow:
+        inset 0 0 0 1px rgba(216, 209, 193, 0.12);
+    }
+
+    .folder-block.open::before {
+      content: "OPEN";
+      position: absolute;
+      right: 7px;
+      top: -8px;
+      padding: 1px 5px 2px;
+      background: var(--paper-1);
+      color: #11100e;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .folder-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      color: var(--paper-0);
+      font-size: 11px;
+      letter-spacing: 0;
+      font-weight: 600;
+      padding: 0 4px 8px 4px;
+    }
+
+    .folder-title small {
+      color: var(--dim);
+      font-size: 8px;
+      letter-spacing: 0;
+      font-weight: 500;
+    }
+
+    .file-row {
+      height: 27px;
+      display: grid;
+      grid-template-columns: 12px 1fr;
+      align-items: center;
+      column-gap: 8px;
+      border: 1px solid var(--line);
+      margin-top: 4px;
+      background: #181818;
+    }
+
+    .file-row:hover {
+      border-color: var(--paper-2);
+    }
+
+    .file-row .mark {
+      width: 4px;
+      height: 4px;
+      background: var(--line-strong);
+      margin-left: 4px;
+    }
+
+    .file-row.active .mark {
+      background: var(--accent);
+    }
+
+    .file-label-wrap {
+      display: flex;
+      justify-content: flex-end;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .paper-label {
+      display: inline-block;
+      width: fit-content;
+      max-width: 206px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 3px 7px 4px;
+      background: transparent;
+      color: #b8b1a4;
+      font-family: var(--ui);
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .tree-row {
+      min-height: 24px;
+      display: grid;
+      grid-template-columns: 12px 1fr;
+      align-items: center;
+      column-gap: 7px;
+      border: 1px solid var(--line);
+      border-top: 0;
+      background: #171717;
+      color: #b8b1a4;
+    }
+
+    .tree-row:first-of-type {
+      border-top: 1px solid var(--line);
+    }
+
+    .tree-row.branch {
+      color: var(--paper-0);
+      background: #191919;
+    }
+
+    .tree-row.active {
+      border-color: var(--paper-2);
+      background: #1b1b1b;
+    }
+
+    .tree-row .mark {
+      width: 4px;
+      height: 4px;
+      background: var(--line-strong);
+      margin-left: 4px;
+    }
+
+    .tree-row.active .mark {
+      background: var(--accent);
+    }
+
+    .tree-label {
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .tree-label.depth-1 {
+      padding-left: 14px;
+      background: linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px) 4px 0 / 1px 100% no-repeat;
+    }
+
+    .tree-label.depth-2 {
+      padding-left: 28px;
+      background:
+        linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px) 4px 0 / 1px 100% no-repeat,
+        linear-gradient(90deg, var(--line) 0 1px, transparent 1px) 18px 0 / 1px 100% no-repeat;
+    }
+
+    .window-label {
+      display: grid;
+      grid-template-columns: minmax(42px, auto) 1fr;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .window-project {
+      color: var(--dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .window-name {
+      color: #b8b1a4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .file-row.active .paper-label,
+    .file-row.hot .paper-label {
+      background: #d1c9b7;
+      color: #141414;
+    }
+
+    .file-row.locked .paper-label::after {
+      content: " [L]";
+      color: var(--danger);
+      font-size: 9px;
+    }
+
+    .workspace {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 34px 1fr var(--drawer);
+      background: #151515;
+    }
+
+    .tabline {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(132px, 168px)) 1fr 260px;
+      border-bottom: 1px solid var(--line);
+      background: #151515;
+      min-width: 0;
+    }
+
+    .tab {
+      border: 0;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 14px;
+      border-right: 1px solid var(--line);
+      color: var(--dim);
+      font-size: 11px;
+      letter-spacing: 0;
+      font-weight: 600;
+      min-width: 0;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: var(--focus);
+      background: var(--ink-2);
+      border-bottom: 2px solid var(--paper-0);
+    }
+
+    .tab small {
+      color: var(--dim);
+      font-size: 9px;
+      font-weight: 500;
+    }
+
+    .tab .state {
+      width: 5px;
+      height: 5px;
+      background: var(--line-strong);
+      flex: 0 0 auto;
+    }
+
+    .tab.active .state {
+      background: var(--accent);
+    }
+
+    .layout-flags {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      padding: 0 12px;
+      border-left: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: 0;
+    }
+
+    .flag {
+      border: 1px solid var(--line-strong);
+      padding: 3px 6px;
+      background: #151515;
+      color: var(--muted);
+    }
+
+    .flag.on {
+      border-color: var(--paper-2);
+      color: var(--paper-0);
+    }
+
+    .flag.saved {
+      color: var(--syntax-b);
+      border-color: #303628;
+    }
+
+    .canvas-grid {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(420px, 1.2fr) 3px minmax(330px, 0.8fr);
+      padding: 0;
+      background: #151515;
+    }
+
+    .splitter {
+      background: #151515;
+      border-left: 1px solid #202020;
+      border-right: 0;
+      position: relative;
+      cursor: col-resize;
+    }
+
+    .splitter::after {
+      content: "";
+      display: none;
+    }
+
+    .splitter:hover::after,
+    .splitter.grabbing::after {
+      display: none;
+    }
+
+    .splitter:hover,
+    .splitter.grabbing {
+      background: #181818;
+    }
+
+    .left-stack {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 1fr 3px 220px;
+    }
+
+    .right-stack {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 1fr 3px 1fr;
+    }
+
+    .left-stack > .splitter,
+    .right-stack > .splitter {
+      cursor: row-resize;
+      border-left: 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .pane {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 30px 25px 1fr;
+      background: #1a1a1a;
+      color: var(--text);
+      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      background: #1d1d1d;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0;
+      color: var(--paper-0);
+      min-width: 0;
+    }
+
+    .pane-tabs {
+      min-width: 0;
+      display: flex;
+      align-items: stretch;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      border-bottom: 1px solid var(--line);
+      background: #171717;
+    }
+
+    .pane-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .pane-tab {
+      border: 0;
+      border-right: 1px solid var(--line);
+      background: transparent;
+      color: var(--dim);
+      flex: 0 0 auto;
+      min-width: 86px;
+      max-width: 134px;
+      padding: 0 9px;
+      font-family: var(--ui);
+      font-size: 10px;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pane-tab.active {
+      color: var(--paper-0);
+      background: #1c1c1c;
+      box-shadow: inset 0 -2px 0 var(--paper-1);
+    }
+
+    .pane-header .meta {
+      color: var(--dim);
+      font-size: 9px;
+      letter-spacing: 0;
+    }
+
+    .pane-body {
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+      margin: 0;
+      border: 1px solid var(--line);
+      border-width: 0;
+      background: #151515;
+    }
+
+    .pane-scrollbar {
+      position: absolute;
+      top: 61px;
+      right: 0;
+      bottom: 7px;
+      width: 8px;
+      background: transparent;
+      pointer-events: auto;
+    }
+
+    .pane-scrollbar::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 1px;
+      transform: translateX(-50%);
+      background: #202020;
+    }
+
+    .pane-scrollbar::after {
+      content: "";
+      position: absolute;
+      top: 16%;
+      left: 50%;
+      width: 5px;
+      height: 44px;
+      transform: translateX(-50%);
+      background: #343434;
+      transition: background 120ms ease, width 120ms ease;
+    }
+
+    .pane:hover .pane-scrollbar::after,
+    .pane-scrollbar:hover::after,
+    .pane-scrollbar.grabbing::after {
+      width: 6px;
+      background: var(--accent);
+    }
+
+    .pane-scrollbar.short::after {
+      top: 48%;
+      height: 36px;
+    }
+
+    .pane-scrollbar.low::after {
+      top: 68%;
+      height: 42px;
+    }
+
+    .stage {
+      padding: 0;
+      background:
+        linear-gradient(90deg, rgba(216,209,193,0.022) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(216,209,193,0.018) 1px, transparent 1px),
+        var(--ink-0);
+      background-size: 40px 40px, 40px 40px, auto, auto;
+    }
+
+    .stage-shell {
+      height: 100%;
+      border: 0;
+      background: #151515;
+      display: grid;
+      grid-template-rows: 30px 1fr;
+    }
+
+    .stage-ruler {
+      border-bottom: 1px solid var(--line);
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 9px;
+      letter-spacing: 0;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .terminal {
+      padding: 16px;
+      color: #c9c2b5;
+      font-family: var(--data);
+      font-size: 13px;
+      line-height: 1.65;
+      font-weight: 400;
+      background: #151515;
+    }
+
+    .terminal .prompt {
+      color: var(--paper-0);
+    }
+
+    .terminal .danger {
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    .terminal .muted {
+      color: var(--dim);
+    }
+
+    .json-view,
+    .trace-view {
+      padding: 15px 16px;
+      font-family: var(--data);
+      font-size: 13px;
+      line-height: 1.48;
+      font-weight: 400;
+      color: #c8c1b5;
+      overflow: hidden;
+      background: #151515;
+    }
+
+    .json-view .key {
+      color: var(--syntax-a);
+    }
+
+    .json-view .string {
+      color: var(--syntax-b);
+    }
+
+    .json-view .num {
+      color: var(--syntax-c);
+    }
+
+    .json-view .bool {
+      color: var(--syntax-d);
+    }
+
+    .trace-row {
+      display: grid;
+      grid-template-columns: 58px 1fr auto;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      align-items: baseline;
+    }
+
+    .trace-row code {
+      color: var(--syntax-a);
+      font-family: var(--data);
+      font-size: 12px;
+    }
+
+    .trace-row span {
+      color: #9a9285;
+      font-family: var(--data);
+    }
+
+    .trace-row .stamp {
+      color: var(--dim);
+      font-size: 10px;
+    }
+
+    .terminal .cmd {
+      color: var(--syntax-a);
+    }
+
+    .terminal .path {
+      color: var(--syntax-b);
+    }
+
+    .terminal .warn {
+      color: var(--syntax-c);
+    }
+
+    .cui-view,
+    .website-stage,
+    .youtube-stage {
+      padding: 14px 16px;
+      color: #cfc7b8;
+      background: #151515;
+      overflow: hidden;
+    }
+
+    .workflow-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(94px, 1fr));
+      gap: 0;
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      margin-bottom: 14px;
+    }
+
+    .workflow-step {
+      min-height: 72px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      background: #171717;
+    }
+
+    .workflow-step b,
+    .site-block b,
+    .video-meta b {
+      color: var(--paper-0);
+      display: block;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .workflow-step span,
+    .site-block span,
+    .video-meta span {
+      color: var(--dim);
+      font-size: 10px;
+      line-height: 1.25;
+    }
+
+    .workflow-table {
+      display: grid;
+      grid-template-columns: 90px 1fr 70px;
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .workflow-table div {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 7px 9px;
+      min-height: 28px;
+      color: #a79f92;
+    }
+
+    .workflow-table .hot {
+      color: var(--syntax-c);
+    }
+
+    .site-frame {
+      height: 100%;
+      display: grid;
+      grid-template-rows: 26px 1fr;
+      border: 1px solid var(--line);
+      background: #111111;
+    }
+
+    .site-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--line);
+      color: var(--dim);
+      font-size: 10px;
+    }
+
+    .site-body {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      min-height: 0;
+    }
+
+    .site-hero {
+      padding: 18px;
+      background: #151515;
+    }
+
+    .site-hero h3 {
+      margin: 0 0 8px;
+      color: var(--paper-0);
+      font-size: 21px;
+      font-weight: 600;
+    }
+
+    .site-hero p {
+      margin: 0;
+      color: #8f887d;
+      line-height: 1.35;
+    }
+
+    .site-blocks {
+      display: grid;
+      grid-template-rows: repeat(3, 1fr);
+      border-left: 1px solid var(--line);
+    }
+
+    .site-block {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: #171717;
+    }
+
+    .video-frame {
+      height: 100%;
+      display: grid;
+      grid-template-columns: 1.35fr 0.65fr;
+      border: 1px solid var(--line);
+      background: #101010;
+    }
+
+    .video-screen {
+      position: relative;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+        #0b0b0b;
+      background-size: 28px 28px;
+    }
+
+    .play-mark {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 0;
+      height: 0;
+      transform: translate(-40%, -50%);
+      border-top: 24px solid transparent;
+      border-bottom: 24px solid transparent;
+      border-left: 36px solid #d8d1c1;
+      opacity: 0.9;
+    }
+
+    .timeline {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 14px;
+      height: 2px;
+      background: #333333;
+    }
+
+    .timeline::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 42%;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .video-meta {
+      display: grid;
+      grid-template-rows: repeat(4, 1fr);
+      border-left: 1px solid var(--line);
+    }
+
+    .video-meta div {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .drawer {
+      border-top: 1px solid var(--line);
+      background: #151515;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 0;
+    }
+
+    .drawer-rail {
+      border-right: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: 40px 1fr;
+    }
+
+    .drawer-title {
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      border-bottom: 1px solid var(--line);
+      color: var(--paper-0);
+      letter-spacing: 0;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .drawer-metrics {
+      padding: 18px 15px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      color: var(--dim);
+      font-size: 10px;
+      letter-spacing: 0;
+    }
+
+    .drawer-metrics div {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      padding-bottom: 5px;
+    }
+
+    .stash {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 40px 1fr;
+    }
+
+    .stash-tabs {
+      display: flex;
+      align-items: stretch;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .stash-tab {
+      border: 0;
+      border-right: 1px solid var(--line);
+      background: transparent;
+      color: var(--dim);
+      padding: 0 22px;
+      letter-spacing: 0;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .stash-tab.active {
+      background: #1d1d1d;
+      color: var(--paper-0);
+      box-shadow: inset 0 -2px 0 var(--paper-1);
+    }
+
+    .stash-items {
+      padding: 0;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(145px, 1fr));
+      gap: 0;
+      align-content: start;
+      border-top: 1px solid var(--line);
+    }
+
+    .stash-card {
+      background: #171717;
+      color: #d0c8ba;
+      min-height: 92px;
+      padding: 13px 14px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 8px;
+    }
+
+    .stash-card .type {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--dim);
+      font-size: 9px;
+      letter-spacing: 0;
+    }
+
+    .stash-card strong {
+      font-family: var(--ui);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0;
+      line-height: 1.25;
+    }
+
+    .stash-card .actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .paper-button {
+      background: #1e1e1e;
+      color: var(--paper-0);
+      border: 1px solid var(--line-strong);
+      padding: 4px 7px;
+      font-size: 9px;
+      letter-spacing: 0;
+    }
+
+    .statusbar {
+      display: grid;
+      grid-template-columns: 160px minmax(260px, 0.72fr) minmax(360px, 1fr) 300px;
+      border-top: 1px solid var(--line);
+      background: var(--ink-1);
+      color: var(--dim);
+      font-size: 10px;
+      min-width: 0;
+    }
+
+    .status-left,
+    .status-search,
+    .status-center,
+    .status-right {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 18px;
+      padding: 0 14px;
+      border-right: 1px solid var(--line);
+      letter-spacing: 0;
+    }
+
+    .status-right {
+      border-right: 0;
+      justify-content: flex-end;
+    }
+
+    .status-search {
+      gap: 8px;
+      color: var(--dim);
+      padding: 0 10px;
+    }
+
+    .status-search span {
+      color: var(--paper-2);
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .status-search input {
+      width: 100%;
+      height: 18px;
+      min-width: 0;
+      border: 1px solid #2b2b2b;
+      border-radius: 0;
+      outline: 0;
+      background: #151515;
+      color: var(--paper-0);
+      padding: 1px 7px 2px;
+      font-family: var(--ui);
+      font-size: 10px;
+    }
+
+    .status-search input:focus {
+      border-color: var(--paper-2);
+      background: #181818;
+    }
+
+    .branch {
+      color: var(--paper-0);
+    }
+
+    .bottom-toggle {
+      color: var(--paper-0);
+      background: #1d1d1d;
+      padding: 3px 8px;
+      box-shadow: inset 0 -1px 0 var(--paper-1);
+    }
+
+    @media (max-width: 980px) {
+      .topbar {
+        grid-template-columns: var(--rail) 1fr 330px;
+      }
+
+      .menu-strip {
+        display: none;
+      }
+
+      .main {
+        grid-template-columns: var(--rail) 240px 1fr;
+      }
+
+      .canvas-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .splitter,
+      .right-stack {
+        display: none;
+      }
+
+      .stash-items {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" data-mockup="paper-control-room">
+    <header class="topbar">
+      <div class="hamburger">::</div>
+      <nav class="menu-strip" aria-label="Main menu">
+        <span>File</span>
+        <span>Edit</span>
+        <span>View</span>
+      </nav>
+      <div class="project-title">Handshake <span>/</span> <b class="project-title-current">Handshake</b></div>
+      <div class="top-actions" aria-label="Handshake modules">
+        <button class="module-button active" data-module="main">MAIN</button>
+        <button class="module-button hot" data-module="ckc">CKC</button>
+        <button class="module-button" data-module="ingest">INGEST</button>
+        <button class="module-button" data-module="stage">STAGE</button>
+        <button class="module-button" data-module="lab">LAB</button>
+        <button class="module-button" data-module="studio">STUDIO</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <aside class="activity-rail" aria-label="Activity rail">
+        <div class="rail-icon active">□</div>
+        <div class="rail-icon">⌕</div>
+        <div class="rail-icon">⌘</div>
+        <div class="rail-icon">⚙</div>
+      </aside>
+
+      <aside class="project-drawer" data-pane-id="project-file-drawer">
+        <div class="drawer-header">
+          <span>Explorer</span>
+          <span>04 panes</span>
+        </div>
+        <div class="drawer-list">
+          <section class="folder-block open">
+            <div class="folder-title"><span>PROJECT</span><small>08 files</small></div>
+            <div class="tree-row branch"><span class="mark"></span><span class="tree-label project-tree-root">Handshake</span></div>
+            <div class="tree-row branch"><span class="mark"></span><span class="tree-label depth-1">castkit</span></div>
+            <div class="tree-row active"><span class="mark"></span><span class="tree-label depth-2">cui-workflow.json</span></div>
+            <div class="tree-row"><span class="mark"></span><span class="tree-label depth-2">characters.board</span></div>
+            <div class="tree-row"><span class="mark"></span><span class="tree-label depth-2">worldbuilding.md</span></div>
+            <div class="tree-row"><span class="mark"></span><span class="tree-label depth-1">stages</span></div>
+            <div class="tree-row"><span class="mark"></span><span class="tree-label depth-2">website-stage.html</span></div>
+            <div class="tree-row"><span class="mark"></span><span class="tree-label depth-2">youtube-stage.json</span></div>
+          </section>
+
+          <section class="folder-block open">
+            <div class="folder-title"><span>WINDOWS</span><small>04 panes</small></div>
+            <div class="file-row active">
+              <span class="mark"></span>
+              <span class="window-label"><span class="window-project">Handshake</span><span class="window-name">CUI</span></span>
+            </div>
+            <div class="file-row">
+              <span class="mark"></span>
+              <span class="window-label"><span class="window-project">Handshake</span><span class="window-name">terminal</span></span>
+            </div>
+            <div class="file-row">
+              <span class="mark"></span>
+              <span class="window-label"><span class="window-project">Handshake</span><span class="window-name">stage: website</span></span>
+            </div>
+            <div class="file-row">
+              <span class="mark"></span>
+              <span class="window-label"><span class="window-project">Handshake</span><span class="window-name">stage: youtube</span></span>
+            </div>
+          </section>
+
+          <section class="folder-block">
+            <div class="folder-title"><span>STASH</span><small>11 items</small></div>
+            <div class="file-row">
+              <span class="mark"></span>
+              <span class="file-label-wrap"><span class="paper-label">terminal-block</span></span>
+            </div>
+            <div class="file-row">
+              <span class="mark"></span>
+              <span class="file-label-wrap"><span class="paper-label">prompt-fragment</span></span>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+      <section class="workspace" data-workspace-id="project-handshake">
+        <div class="tabline" role="tablist" aria-label="Project window tabs">
+          <button class="tab active" data-project="handshake"><span>Handshake</span><small>layout-cui</small><span class="state"></span></button>
+          <button class="tab" data-project="fast-focus"><span>Fast Focus</span><small>layout-focus</small><span class="state"></span></button>
+          <button class="tab" data-project="buurtman"><span>Buurtman</span><small>layout-local</small><span class="state"></span></button>
+          <button class="tab" data-project="castkit"><span>CastKit</span><small>layout-studio</small><span class="state"></span></button>
+          <div></div>
+          <div class="layout-flags">
+            <span class="flag on">Layout Lock</span>
+            <span class="flag saved">Persisted</span>
+            <span class="flag">Popout Off</span>
+          </div>
+        </div>
+
+        <div class="canvas-grid" data-layout-id="layout-cui">
+          <div class="left-stack">
+            <section class="pane active-pane" data-pane-id="pane-cui-workflow" data-pane-type="cui">
+              <div class="pane-header">
+                <span>CUI Workflow</span>
+                <span class="meta">full_app_route</span>
+              </div>
+              <div class="pane-tabs" role="tablist" aria-label="CUI pane tabs">
+                <button class="pane-tab active">Workflow</button>
+                <button class="pane-tab">Characters</button>
+                <button class="pane-tab">World</button>
+                <button class="pane-tab">Stories</button>
+                <button class="pane-tab">Routes</button>
+                <button class="pane-tab">Exports</button>
+                <button class="pane-tab">Library</button>
+                <button class="pane-tab">Review</button>
+              </div>
+              <div class="pane-body cui-view">
+                <div class="workflow-strip">
+                  <div class="workflow-step"><b>1. Intake</b><span>characters, references, source files</span></div>
+                  <div class="workflow-step"><b>2. World</b><span>locations, timeline, continuity locks</span></div>
+                  <div class="workflow-step"><b>3. Story</b><span>beats, scene cards, prompt routes</span></div>
+                  <div class="workflow-step"><b>4. Stage</b><span>website, video, image, validation</span></div>
+                </div>
+                <div class="workflow-table">
+                  <div>asset</div><div>route</div><div>state</div>
+                  <div>char_ivy</div><div>character sheet -> website stage</div><div class="hot">ready</div>
+                  <div>world_piha</div><div>world bible -> video stage</div><div>draft</div>
+                  <div>story_017</div><div>scene beats -> CUI review</div><div class="hot">locked</div>
+                  <div>ref_batch_04</div><div>visual files -> castkit library</div><div>stowed</div>
+                  <div>export_pack</div><div>stages -> validation evidence</div><div>queued</div>
+                </div>
+              </div>
+              <div class="pane-scrollbar" aria-hidden="true"></div>
+            </section>
+            <div class="splitter"></div>
+            <section class="pane" data-pane-id="pane-terminal" data-pane-type="terminal">
+              <div class="pane-header">
+                <span>Terminal</span>
+                <span class="meta">stow enabled</span>
+              </div>
+              <div class="pane-tabs" role="tablist" aria-label="Terminal pane tabs">
+                <button class="pane-tab active">Build</button>
+                <button class="pane-tab">Logs</button>
+                <button class="pane-tab">Tasks</button>
+                <button class="pane-tab">Git</button>
+                <button class="pane-tab">Validation</button>
+                <button class="pane-tab">Deploy</button>
+              </div>
+              <div class="pane-body terminal">
+                <div><span class="prompt">&gt;</span> <span class="cmd">castkit route</span> --input <span class="path">visual-files</span> --target stage</div>
+                <div class="muted">loading full app workspace: CUI, library, story graph, stage queue</div>
+                <div class="muted">routing character sheet: ivy / world_piha / story_017</div>
+                <div><span class="danger">!</span> <span class="warn">stage preview requires review</span>: youtube-stage-draft</div>
+                <div class="muted">persisting project layout: layout-cui</div>
+              </div>
+              <div class="pane-scrollbar low" aria-hidden="true"></div>
+            </section>
+          </div>
+
+          <div class="splitter"></div>
+
+          <div class="right-stack">
+            <section class="pane" data-pane-id="pane-stage-website" data-pane-type="stage">
+              <div class="pane-header">
+                <span>Stage / Website</span>
+                <span class="meta">website_mock</span>
+              </div>
+              <div class="pane-tabs" role="tablist" aria-label="Website stage tabs">
+                <button class="pane-tab active">Landing</button>
+                <button class="pane-tab">Gallery</button>
+                <button class="pane-tab">Character</button>
+                <button class="pane-tab">Export</button>
+                <button class="pane-tab">QA</button>
+                <button class="pane-tab">Mobile</button>
+                <button class="pane-tab">Assets</button>
+              </div>
+              <div class="pane-body website-stage">
+                <div class="site-frame">
+                  <div class="site-top"><span>mock-site.local</span><span>desktop</span><span>route: story_017</span></div>
+                  <div class="site-body">
+                    <section class="site-hero">
+                      <h3>Piha District</h3>
+                      <p>Character-led world page preview. Story cards, visual references, and scene notes are routed through CastKit before export.</p>
+                    </section>
+                    <div class="site-blocks">
+                      <div class="site-block"><b>Character</b><span>Ivy / continuity locked</span></div>
+                      <div class="site-block"><b>World</b><span>alley, tramline, market map</span></div>
+                      <div class="site-block"><b>Output</b><span>web stage + validation shot</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="pane-scrollbar short" aria-hidden="true"></div>
+            </section>
+            <div class="splitter"></div>
+            <section class="pane" data-pane-id="pane-stage-youtube" data-pane-type="stage">
+              <div class="pane-header">
+                <span>Stage / YouTube Video</span>
+                <span class="meta">timeline_mock</span>
+              </div>
+              <div class="pane-tabs" role="tablist" aria-label="YouTube stage tabs">
+                <button class="pane-tab active">Preview</button>
+                <button class="pane-tab">Captions</button>
+                <button class="pane-tab">Shots</button>
+                <button class="pane-tab">Audio</button>
+                <button class="pane-tab">Export</button>
+                <button class="pane-tab">Review</button>
+                <button class="pane-tab">Thumb</button>
+              </div>
+              <div class="pane-body youtube-stage">
+                <div class="video-frame">
+                  <div class="video-screen">
+                    <div class="play-mark"></div>
+                    <div class="timeline"></div>
+                  </div>
+                  <div class="video-meta">
+                    <div><b>Title</b><span>Piha District: cold open</span></div>
+                    <div><b>Shots</b><span>08 queued / 03 locked</span></div>
+                    <div><b>Captions</b><span>draft captions attached</span></div>
+                    <div><b>Route</b><span>CUI -> Stage -> Export</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="pane-scrollbar" aria-hidden="true"></div>
+            </section>
+          </div>
+        </div>
+
+        <section class="drawer" data-pane-id="bottom-stash-drawer">
+          <aside class="drawer-rail">
+            <div class="drawer-title">Bottom Drawer</div>
+            <div class="drawer-metrics">
+              <div><span>Text</span><b>0005</b></div>
+              <div><span>Stage</span><b>0002</b></div>
+              <div><span>Term</span><b>0004</b></div>
+              <div><span>Json</span><b>0003</b></div>
+            </div>
+          </aside>
+          <div class="stash">
+            <div class="stash-tabs">
+              <button class="stash-tab active">Stash</button>
+              <button class="stash-tab">Terminal</button>
+              <button class="stash-tab">Stage</button>
+              <button class="stash-tab">Prompt</button>
+            </div>
+            <div class="stash-items">
+              <article class="stash-card">
+                <div class="type"><span>text</span><span>draft</span></div>
+                <strong>Pane lock states need a visible paper tag in every header.</strong>
+                <div class="actions"><button class="paper-button">Send</button><button class="paper-button">Promote</button></div>
+              </article>
+              <article class="stash-card">
+                <div class="type"><span>stage</span><span>capture</span></div>
+                <strong>Stage crop from webviewer, linked to model trace evt_2202.</strong>
+                <div class="actions"><button class="paper-button">Open</button><button class="paper-button">Pin</button></div>
+              </article>
+              <article class="stash-card">
+                <div class="type"><span>term</span><span>block</span></div>
+                <strong>Compile warning can be attached to validation evidence.</strong>
+                <div class="actions"><button class="paper-button">Copy</button><button class="paper-button">Attach</button></div>
+              </article>
+              <article class="stash-card">
+                <div class="type"><span>json</span><span>layout</span></div>
+                <strong>layout-current snapshot ready for no-context model inspection.</strong>
+                <div class="actions"><button class="paper-button">View</button><button class="paper-button">Promote</button></div>
+              </article>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="statusbar">
+      <div class="status-left"><span class="branch">gov_kernel</span><span>clean</span></div>
+      <label class="status-search"><span>search</span><input type="search" value="project: handshake app: castkit pane: cui" aria-label="Bottom search"></label>
+      <div class="status-center"><span class="bottom-toggle">Drawer Open</span><span>Layout: Project Scoped</span><span class="status-project">Project: Handshake</span></div>
+      <div class="status-right"><span>Ln 14, Col 22</span><span>Firefox Preview</span></div>
+    </footer>
+  </div>
+
+  <script>
+    const projectState = {
+      handshake: {
+        title: "Handshake",
+        workspace: "project-handshake",
+        layout: "layout-cui",
+        search: "project: handshake app: castkit pane: cui"
+      },
+      "fast-focus": {
+        title: "Fast Focus",
+        workspace: "project-fast-focus",
+        layout: "layout-focus",
+        search: "project: fast-focus pane: terminal task: current"
+      },
+      buurtman: {
+        title: "Buurtman",
+        workspace: "project-buurtman",
+        layout: "layout-local",
+        search: "project: buurtman stage: website route: local"
+      },
+      castkit: {
+        title: "CastKit",
+        workspace: "project-castkit",
+        layout: "layout-studio",
+        search: "project: castkit app: full pane: stage"
+      }
+    };
+
+    function activateProject(projectId) {
+      const state = projectState[projectId];
+      if (!state) return;
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.project === projectId);
+      });
+      document.querySelector(".workspace").dataset.workspaceId = state.workspace;
+      document.querySelector(".canvas-grid").dataset.layoutId = state.layout;
+      document.querySelector(".project-title-current").textContent = state.title;
+      document.querySelector(".project-tree-root").textContent = state.title;
+      document.querySelector(".status-project").textContent = `Project: ${state.title}`;
+      document.querySelector(".status-search input").value = state.search;
+      document.querySelectorAll(".window-project").forEach((item) => {
+        item.textContent = state.title;
+      });
+    }
+
+    document.querySelectorAll(".tab").forEach((button) => {
+      button.addEventListener("click", () => activateProject(button.dataset.project));
+    });
+
+    document.querySelectorAll(".module-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".module-button").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+      });
+    });
+
+    document.querySelectorAll(".pane-tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        const group = button.closest(".pane-tabs");
+        group.querySelectorAll(".pane-tab").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+      });
+    });
+
+    document.querySelectorAll(".splitter").forEach((splitter) => {
+      splitter.addEventListener("pointerdown", () => splitter.classList.add("grabbing"));
+      splitter.addEventListener("pointerup", () => splitter.classList.remove("grabbing"));
+      splitter.addEventListener("pointerleave", () => splitter.classList.remove("grabbing"));
+    });
+
+    document.querySelectorAll(".pane-scrollbar").forEach((scrollbar) => {
+      scrollbar.addEventListener("pointerdown", () => scrollbar.classList.add("grabbing"));
+      scrollbar.addEventListener("pointerup", () => scrollbar.classList.remove("grabbing"));
+      scrollbar.addEventListener("pointerleave", () => scrollbar.classList.remove("grabbing"));
+    });
+
+    document.querySelectorAll(".stash-tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".stash-tab").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

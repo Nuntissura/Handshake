@@ -1,0 +1,19 @@
+{
+  "name": "handshake-gui-mockup",
+  "version": "1.0.0",
+  "description": "Persistent Firefox render helper for the Handshake GUI mockup.",
+  "main": "render-paper-control-room-firefox.js",
+  "scripts": {
+    "render:firefox": "node render-paper-control-room-firefox.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "playwright": "1.60.0"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-sans-condensed": "5.2.8"
+  }
+}
