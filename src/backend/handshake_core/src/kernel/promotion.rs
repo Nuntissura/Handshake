@@ -42,7 +42,7 @@ impl ArtifactRecord {
                 "artifact record requires kernel and session run ids",
             ));
         }
-        let artifact_uuid = Uuid::new_v4();
+        let artifact_uuid = Uuid::now_v7();
         let artifact_layer = ArtifactLayer::L2;
         let artifact_root = artifact_root_rel(artifact_layer, artifact_uuid);
         Ok(Self {
@@ -198,7 +198,7 @@ impl OperatorPromotionApproval {
         let operator_id = operator_id.into();
         let reason = reason.into();
         Self {
-            review_receipt_id: format!("OPERATOR-REVIEW-{}", Uuid::new_v4()),
+            review_receipt_id: format!("OPERATOR-REVIEW-{}", Uuid::now_v7()),
             approval_source: "operator_review_receipt".to_string(),
             operator_id,
             reason,

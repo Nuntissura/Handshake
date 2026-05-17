@@ -389,10 +389,10 @@ impl Default for TelemetryMeta {
 fn golden_skill_bank_entry() -> SkillBankLogEntry {
     SkillBankLogEntry {
         version: "2.0.0-distillation-v1".to_string(),
-        log_id: Uuid::new_v4(),
+        log_id: Uuid::now_v7(),
         timestamp: Utc::now(),
         session: SessionMeta {
-            session_id: Uuid::new_v4(),
+            session_id: Uuid::now_v7(),
             turn_index: 42,
             task_id: Some("wp-distillation-task-001".to_string()),
             user_id_hash: Some("userhash-001".to_string()),
@@ -436,7 +436,7 @@ fn golden_skill_bank_entry() -> SkillBankLogEntry {
         snapshots_input: ChatSnapshot {
             format: SnapshotFormat::Chatml,
             messages: vec![ChatMessage {
-                id: Uuid::new_v4(),
+                id: Uuid::now_v7(),
                 parent_id: None,
                 role: Role::User,
                 content: Content::Plain("input".to_string()),
@@ -447,7 +447,7 @@ fn golden_skill_bank_entry() -> SkillBankLogEntry {
         snapshots_output_raw: ChatSnapshot {
             format: SnapshotFormat::Chatml,
             messages: vec![ChatMessage {
-                id: Uuid::new_v4(),
+                id: Uuid::now_v7(),
                 parent_id: None,
                 role: Role::Assistant,
                 content: Content::Plain("output".to_string()),
@@ -552,13 +552,13 @@ mod tests {
     /// Build a minimal valid SkillBankLogEntry using plain-string Content
     /// and all default nested metadata fields.
     fn minimal_entry_plain_content() -> SkillBankLogEntry {
-        let msg_id = Uuid::new_v4();
+        let msg_id = Uuid::now_v7();
         SkillBankLogEntry {
             version: "1.0.0".to_string(),
-            log_id: Uuid::new_v4(),
+            log_id: Uuid::now_v7(),
             timestamp: Utc::now(),
             session: SessionMeta {
-                session_id: Uuid::new_v4(),
+                session_id: Uuid::now_v7(),
                 turn_index: 0,
                 task_id: None,
                 user_id_hash: None,
@@ -598,7 +598,7 @@ mod tests {
             snapshots_output_raw: ChatSnapshot {
                 format: SnapshotFormat::Chatml,
                 messages: vec![ChatMessage {
-                    id: Uuid::new_v4(),
+                    id: Uuid::now_v7(),
                     parent_id: Some(msg_id),
                     role: Role::Assistant,
                     content: Content::Plain("fn hello() {}".to_string()),
@@ -723,9 +723,9 @@ mod tests {
     fn deserialize_with_missing_optional_fields() {
         // Minimal JSON with only required fields — all defaulted nested
         // metadata should fill in from Default impls.
-        let msg_id = Uuid::new_v4();
-        let log_id = Uuid::new_v4();
-        let session_id = Uuid::new_v4();
+        let msg_id = Uuid::now_v7();
+        let log_id = Uuid::now_v7();
+        let session_id = Uuid::now_v7();
         let ts = Utc::now();
         let json = serde_json::json!({
             "version": "1.0.0",

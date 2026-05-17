@@ -123,7 +123,7 @@ impl ValidationCheckRunner {
         // (2) Wrap the validation descriptor in the product's existing
         //     CheckDescriptor envelope — no new shape is invented.
         let check_descriptor =
-            CheckDescriptor::new(Uuid::new_v4(), descriptor.name(), ctx.check_kind.clone());
+            CheckDescriptor::new(Uuid::now_v7(), descriptor.name(), ctx.check_kind.clone());
 
         // (3) Dispatch through the SHARED runner so KB003 inherits its
         //     timeout, flight-recorder events, and capability-gate semantics.
@@ -247,7 +247,7 @@ mod tests {
     async fn unknown_descriptor_surfaces_typed_not_in_allowlist() {
         let runner = make_runner();
         let descriptor = NamedDescriptor("not_registered");
-        let ctx = ValidationContext::new(Uuid::new_v4(), "validation.descriptor");
+        let ctx = ValidationContext::new(Uuid::now_v7(), "validation.descriptor");
 
         let err = runner
             .execute(&descriptor, &ctx)
@@ -272,7 +272,7 @@ mod tests {
         // panics if called, ruling out the parallel-runner regression).
         let runner = make_runner();
         let descriptor = NamedDescriptor("allowed_check");
-        let ctx = ValidationContext::new(Uuid::new_v4(), "validation.descriptor");
+        let ctx = ValidationContext::new(Uuid::now_v7(), "validation.descriptor");
 
         let outcome = runner
             .execute(&descriptor, &ctx)
@@ -298,7 +298,7 @@ mod tests {
         );
         let allow = DescriptorAllowlist::new(["no_sandbox_escape"]);
         let runner = ValidationCheckRunner::new(inner, allow);
-        let ctx = ValidationContext::new(Uuid::new_v4(), "validation.descriptor");
+        let ctx = ValidationContext::new(Uuid::now_v7(), "validation.descriptor");
         let outcome = runner
             .execute(&NoSandboxEscape, &ctx)
             .await

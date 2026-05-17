@@ -84,7 +84,7 @@ impl Kb003EventEnvelope {
         Self {
             event_type: event_type.to_string(),
             schema_version: "kb003_event_envelope_v1".to_string(),
-            event_id: Uuid::new_v4(),
+            event_id: Uuid::now_v7(),
             run_id,
             actor_id: actor.to_string(),
             session_id: session.to_string(),
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn envelope_carries_required_mt008_fields() {
-        let run_id = Uuid::new_v4();
+        let run_id = Uuid::now_v7();
         let env = Kb003EventEnvelope::new(
             EVENT_KB003_SANDBOX_RUN_REQUESTED,
             run_id,

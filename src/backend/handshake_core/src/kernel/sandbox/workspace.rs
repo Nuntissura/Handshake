@@ -23,7 +23,7 @@ impl SandboxWorkspaceV1 {
     pub fn new_default(label: impl Into<String>, root_relative: impl Into<String>) -> Self {
         let root = root_relative.into();
         Self {
-            workspace_id: format!("WSP-{}", Uuid::new_v4()),
+            workspace_id: format!("WSP-{}", Uuid::now_v7()),
             root_relative_path: root.clone(),
             output_roots_relative: vec![format!("{}/out", root)],
             label: label.into(),

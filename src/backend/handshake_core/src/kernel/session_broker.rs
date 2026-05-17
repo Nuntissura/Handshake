@@ -16,7 +16,7 @@ pub struct KernelTaskRun {
 impl KernelTaskRun {
     pub fn new(source: impl Into<String>, intent_payload: Value) -> Self {
         Self {
-            kernel_task_run_id: format!("KTR-{}", Uuid::new_v4()),
+            kernel_task_run_id: format!("KTR-{}", Uuid::now_v7()),
             source: source.into(),
             intent_payload,
             created_at: Utc::now(),
@@ -38,7 +38,7 @@ impl SessionRun {
     pub fn queued(kernel_task_run_id: impl Into<String>, adapter_id: impl Into<String>) -> Self {
         let now = Utc::now();
         Self {
-            session_run_id: format!("SR-{}", Uuid::new_v4()),
+            session_run_id: format!("SR-{}", Uuid::now_v7()),
             kernel_task_run_id: kernel_task_run_id.into(),
             adapter_id: adapter_id.into(),
             state: SessionRunState::Queued,

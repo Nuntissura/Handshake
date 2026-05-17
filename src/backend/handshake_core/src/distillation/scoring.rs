@@ -94,13 +94,13 @@ mod tests {
     use uuid::Uuid;
 
     fn base_entry() -> SkillBankLogEntry {
-        let msg_id = Uuid::new_v4();
+        let msg_id = Uuid::now_v7();
         SkillBankLogEntry {
             version: "1.0.0".to_string(),
-            log_id: Uuid::new_v4(),
+            log_id: Uuid::now_v7(),
             timestamp: Utc::now(),
             session: SessionMeta {
-                session_id: Uuid::new_v4(),
+                session_id: Uuid::now_v7(),
                 turn_index: 0,
                 task_id: None,
                 user_id_hash: None,

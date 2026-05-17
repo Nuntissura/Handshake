@@ -146,7 +146,7 @@ fn kernel_crdt_compaction_policy_cannot_drop_promotion_evidence() {
 #[tokio::test]
 async fn kernel_crdt_snapshot_persists_in_postgres_and_bounds_replay_after_restart() {
     let db = postgres_or_environment_blocked().await;
-    let suffix = Uuid::new_v4().simple().to_string();
+    let suffix = Uuid::now_v7().simple().to_string();
     let mut update =
         sample_update_for_workspace(&suffix, 4, "crdt-update-4", b"update-4", "sv-3", "sv-4");
     let mut snapshot = sample_snapshot_for_workspace(&suffix, 3, &["crdt-update-2"]);
@@ -202,7 +202,7 @@ async fn kernel_crdt_snapshot_persists_in_postgres_and_bounds_replay_after_resta
 #[tokio::test]
 async fn kernel_crdt_snapshot_persistence_rejects_missing_eventledger_ref() {
     let db = postgres_or_environment_blocked().await;
-    let suffix = Uuid::new_v4().simple().to_string();
+    let suffix = Uuid::now_v7().simple().to_string();
     let missing_event = sample_snapshot_for_workspace(&suffix, 3, &["crdt-update-2"]);
 
     let error = db

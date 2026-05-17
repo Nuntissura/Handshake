@@ -33,7 +33,7 @@ async fn kernel_event_ledger_migration() {
 async fn kernel_event_ledger_replays_by_aggregate_id_in_sequence_order() {
     let db = postgres_or_environment_blocked().await;
 
-    let suffix = Uuid::new_v4();
+    let suffix = Uuid::now_v7();
     let task_id = format!("KTR-AGGREGATE-{suffix}");
     let session_id = format!("SR-AGGREGATE-{suffix}");
     let aggregate_type = "session_run";
@@ -88,7 +88,7 @@ async fn kernel_event_ledger_replays_by_aggregate_id_in_sequence_order() {
 async fn kernel_event_ledger_idempotency_rejects_divergent_duplicate() {
     let db = postgres_or_environment_blocked().await;
 
-    let suffix = Uuid::new_v4();
+    let suffix = Uuid::now_v7();
     let task_id = format!("KTR-IDEMPOTENCY-{suffix}");
     let session_id = format!("SR-IDEMPOTENCY-{suffix}");
     let idempotency_key = format!("idem-divergent-{suffix}");
@@ -134,7 +134,7 @@ async fn kernel_event_ledger_idempotency_rejects_divergent_duplicate() {
 async fn kernel_event_ledger_contract_metadata_idempotency_and_sequence() {
     let db = postgres_or_environment_blocked().await;
 
-    let suffix = Uuid::new_v4();
+    let suffix = Uuid::now_v7();
     let task_id = format!("KTR-POSTGRES-CONTRACT-{suffix}");
     let session_id = format!("SR-POSTGRES-CONTRACT-{suffix}");
     let idempotency_key = format!("idem-postgres-contract-{suffix}");

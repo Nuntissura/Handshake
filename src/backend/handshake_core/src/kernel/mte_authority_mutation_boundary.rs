@@ -109,7 +109,7 @@ impl AuthorityBoundaryDenialV1 {
     ) -> Self {
         Self {
             schema_version: Self::SCHEMA_VERSION,
-            denial_id: format!("MTE-ABD-{}", uuid::Uuid::new_v4()),
+            denial_id: format!("MTE-ABD-{}", uuid::Uuid::now_v7()),
             actor,
             row_class,
             attempted_op: attempted_op.into(),

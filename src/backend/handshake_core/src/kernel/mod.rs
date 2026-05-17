@@ -478,7 +478,7 @@ impl NewKernelEventBuilder {
             .unwrap_or_else(|| self.session_run_id.clone());
         let idempotency_key = self
             .idempotency_key
-            .unwrap_or_else(|| format!("KEI-{}", Uuid::new_v4()));
+            .unwrap_or_else(|| format!("KEI-{}", Uuid::now_v7()));
         let source_component = self
             .source_component
             .unwrap_or_else(|| self.actor.actor_kind().to_string());
@@ -526,7 +526,7 @@ pub struct KernelEvent {
 impl KernelEvent {
     pub fn from_new(event: NewKernelEvent) -> Self {
         Self {
-            event_id: format!("KE-{}", Uuid::new_v4()),
+            event_id: format!("KE-{}", Uuid::now_v7()),
             event_sequence: 0,
             event_version: event.event_version,
             kernel_task_run_id: event.kernel_task_run_id,
@@ -553,7 +553,7 @@ pub fn flight_recorder_mirror_event(
     crate::flight_recorder::FlightRecorderEvent::new(
         crate::flight_recorder::FlightRecorderEventType::Diagnostic,
         crate::flight_recorder::FlightRecorderActor::System,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         json!({
             "diagnostic_id": "kernel_event_mirror",
             "authority_source": "postgres_event_ledger",

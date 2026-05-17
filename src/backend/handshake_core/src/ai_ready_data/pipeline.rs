@@ -1322,7 +1322,7 @@ fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> Result<(), AiReadyDataError>
         .file_name()
         .ok_or(AiReadyDataError::InvalidInput("path"))?
         .to_string_lossy();
-    let tmp_path = path.with_file_name(format!("{file_name}.tmp-{}", Uuid::new_v4()));
+    let tmp_path = path.with_file_name(format!("{file_name}.tmp-{}", Uuid::now_v7()));
 
     fs::write(&tmp_path, bytes)?;
     if path.exists() {

@@ -344,7 +344,7 @@ mod tests {
     async fn list_events_preserves_model_session_id_filter_and_payload(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
 
         state
             .flight_recorder

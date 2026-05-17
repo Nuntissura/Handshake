@@ -120,7 +120,7 @@ mod tests {
     use crate::kernel::validation::report::DescriptorOutcome;
 
     fn report_with_mix() -> ValidationReport {
-        let mut r = ValidationReport::new(Uuid::new_v4());
+        let mut r = ValidationReport::new(Uuid::now_v7());
         r.push(DescriptorOutcome::new("d_pass", ValidationStatus::pass()));
         r.push(DescriptorOutcome::new(
             "d_fail",
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn empty_report_does_not_block() {
-        let r = ValidationReport::new(Uuid::new_v4());
+        let r = ValidationReport::new(Uuid::now_v7());
         let proj = MteValidationReportProjectionV1::from_report(&r, None);
         assert!(!proj.blocks_promotion());
         assert!(proj.blocking_descriptor_names.is_empty());
@@ -178,7 +178,7 @@ mod tests {
     fn projection_is_deterministic_in_blocking_order() {
         // Evaluate descriptors in two different orders; projection's blocking
         // list must be identical.
-        let mut a = ValidationReport::new(Uuid::new_v4());
+        let mut a = ValidationReport::new(Uuid::now_v7());
         a.push(DescriptorOutcome::new(
             "zzz_fail",
             ValidationStatus::fail("x").unwrap(),

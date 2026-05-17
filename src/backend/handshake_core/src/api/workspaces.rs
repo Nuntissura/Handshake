@@ -1122,7 +1122,7 @@ async fn apply_atelier_patchsets(
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::EditorEdit,
         FlightRecorderActor::Human,
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         event_payload,
     )
     .with_wsids(vec![doc.workspace_id.clone()]);
@@ -1311,7 +1311,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::DocEdit,
                 protocol_id: "atelier-doc-suggest-v1".into(),
                 profile_id: "profile1".into(),
@@ -1330,7 +1330,7 @@ mod tests {
             })
             .await?;
 
-        let suggestion_id = Uuid::new_v4().to_string();
+        let suggestion_id = Uuid::now_v7().to_string();
         let output = json!({
             "schema_version": ATELIER_ROLE_SUGGESTIONS_SCHEMA_V1,
             "doc_id": "doc-1",
@@ -1427,7 +1427,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::DocEdit,
                 protocol_id: "atelier-doc-suggest-v1".into(),
                 profile_id: "profile1".into(),
@@ -1442,7 +1442,7 @@ mod tests {
             })
             .await?;
 
-        let suggestion_id = Uuid::new_v4().to_string();
+        let suggestion_id = Uuid::now_v7().to_string();
         let output = json!({
             "schema_version": ATELIER_ROLE_SUGGESTIONS_SCHEMA_V1,
             "doc_id": "doc-1",
@@ -1532,7 +1532,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::DocEdit,
                 protocol_id: "atelier-doc-suggest-v1".into(),
                 profile_id: "profile1".into(),
@@ -1547,7 +1547,7 @@ mod tests {
             })
             .await?;
 
-        let suggestion_id = Uuid::new_v4().to_string();
+        let suggestion_id = Uuid::now_v7().to_string();
         let output = json!({
             "schema_version": ATELIER_ROLE_SUGGESTIONS_SCHEMA_V1,
             "doc_id": "doc-1",
@@ -1723,7 +1723,7 @@ mod tests {
         let job = state
             .storage
             .create_ai_job(NewAiJob {
-                trace_id: Uuid::new_v4(),
+                trace_id: Uuid::now_v7(),
                 job_kind: JobKind::WorkflowRun,
                 protocol_id: "p1".into(),
                 profile_id: "profile1".into(),

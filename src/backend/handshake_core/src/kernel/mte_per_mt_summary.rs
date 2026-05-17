@@ -209,13 +209,13 @@ mod tests {
     use uuid::Uuid;
 
     fn pass_projection() -> MteValidationReportProjectionV1 {
-        let mut r = ValidationReport::new(Uuid::new_v4());
+        let mut r = ValidationReport::new(Uuid::now_v7());
         r.push(DescriptorOutcome::new("d", ValidationStatus::pass()));
         MteValidationReportProjectionV1::from_report(&r, Some("kb003://v/h".into()))
     }
 
     fn fail_projection() -> MteValidationReportProjectionV1 {
-        let mut r = ValidationReport::new(Uuid::new_v4());
+        let mut r = ValidationReport::new(Uuid::now_v7());
         r.push(DescriptorOutcome::new(
             "d",
             ValidationStatus::fail("nope").unwrap(),

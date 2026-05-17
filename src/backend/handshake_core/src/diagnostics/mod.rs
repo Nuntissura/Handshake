@@ -434,7 +434,7 @@ impl DiagnosticInput {
         )?;
 
         Ok(Diagnostic {
-            id: Uuid::new_v4(),
+            id: Uuid::now_v7(),
             fingerprint,
             title: normalized_title,
             message: normalized_message,
@@ -1030,7 +1030,7 @@ mod tests {
     fn aggregate_sets_counts_and_timestamps() {
         let now = Utc::now();
         let d1 = Diagnostic {
-            id: Uuid::new_v4(),
+            id: Uuid::now_v7(),
             fingerprint: "f1".to_string(),
             title: "a".to_string(),
             message: "m".to_string(),

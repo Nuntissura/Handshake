@@ -126,7 +126,7 @@ async fn blocks_ai_from_human_session_without_attach_capability() {
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -154,7 +154,7 @@ async fn allows_ai_with_attach_capability_and_logged_consent(
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -183,7 +183,7 @@ async fn flight_recorder_captures_session_type_and_consent(
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -250,7 +250,7 @@ async fn cancels_inflight_command() -> Result<(), Box<dyn std::error::Error>> {
             &cfg,
             &registry,
             recorder.as_ref(),
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             &redactor,
             &guards,
         )

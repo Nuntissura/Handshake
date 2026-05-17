@@ -78,12 +78,12 @@ impl ConformanceHarness {
     fn base_operation(&self, engine_id: &str) -> PlannedOperation {
         PlannedOperation {
             schema_version: POE_SCHEMA_VERSION.to_string(),
-            op_id: Uuid::new_v4(),
+            op_id: Uuid::now_v7(),
             engine_id: engine_id.to_string(),
             engine_version_req: None,
             operation: "conformance.test".to_string(),
             inputs: vec![ArtifactHandle::new(
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 "/artifact/input".to_string(),
             )],
             params: serde_json::json!({"kind": "test"}),
@@ -207,7 +207,7 @@ impl EngineAdapter for TestEngineAdapter {
             config_hash: None,
             inputs: op.inputs.clone(),
             outputs: vec![ArtifactHandle::new(
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 "/artifact/output".to_string(),
             )],
             capabilities_granted: op.capabilities_requested.clone(),
@@ -363,12 +363,12 @@ mod tests {
 
         let op = PlannedOperation {
             schema_version: POE_SCHEMA_VERSION.to_string(),
-            op_id: Uuid::new_v4(),
+            op_id: Uuid::now_v7(),
             engine_id: "test_engine".to_string(),
             engine_version_req: None,
             operation: "conformance.test".to_string(),
             inputs: vec![ArtifactHandle::new(
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 "/artifact/input".to_string(),
             )],
             params: serde_json::json!({"kind": "test"}),

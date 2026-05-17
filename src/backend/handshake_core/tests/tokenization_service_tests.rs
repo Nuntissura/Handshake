@@ -113,7 +113,7 @@ async fn tokenization_emits_warning_on_fallback() {
     let emitter = Arc::new(TestAccuracyWarningEmitter::default());
     let tokenization = TokenizationWithTrace::new(router, emitter.clone());
 
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let count = tokenization
         .count_tokens_with_trace("fallback text", "unknown-model", trace_id)
         .expect("count tokens");
@@ -146,7 +146,7 @@ async fn tokenization_uses_ollama_tiktoken_config_without_warning() {
     let emitter = Arc::new(TestAccuracyWarningEmitter::default());
     let tokenization = TokenizationWithTrace::new(router, emitter.clone());
 
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let count = tokenization
         .count_tokens_with_trace("hello world", "llama3", trace_id)
         .expect("count tokens");

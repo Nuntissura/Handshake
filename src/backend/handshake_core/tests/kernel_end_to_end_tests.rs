@@ -53,7 +53,7 @@ async fn postgres_reopenable_backend_from_env() -> Result<(String, Arc<dyn Datab
     let url = std::env::var("POSTGRES_TEST_URL")
         .map_err(|_| StorageError::Validation("POSTGRES_TEST_URL not set for postgres tests"))?;
     let mut conn = sqlx::PgConnection::connect(&url).await?;
-    let schema = format!("kernel_restart_{}", Uuid::new_v4().simple());
+    let schema = format!("kernel_restart_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("CREATE SCHEMA {schema}"))
         .execute(&mut conn)
         .await?;

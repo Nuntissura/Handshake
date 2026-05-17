@@ -78,7 +78,7 @@ impl Kb003AggregateRunSummaryV1 {
 
         // M-C4 fix: aggregate_id is content-derived (SHA-256 over the stable
         // input set) so two reconstructions from identical inputs produce
-        // identical ids. The previous Uuid::new_v4() per call broke any future
+        // identical ids. The previous random-v4 per-call mint broke any future
         // determinism/content-hash check on the aggregate (e.g. replay tests
         // that include aggregate_summary).
         let wp_owned = wp_id.into();
@@ -179,7 +179,7 @@ mod tests {
     fn aggregate_id_is_content_derived_and_deterministic() {
         // M-C4 regression guard: two reconstructions from identical inputs must
         // produce identical aggregate_id. The previous implementation minted a
-        // fresh Uuid::new_v4() per call, breaking determinism + content-hash
+        // fresh random-v4 UUID per call, breaking determinism + content-hash
         // checks the restart-replay test (MT-077) needs going forward.
         let s1 = Kb003PerMtSummaryV1::completed("MT-001", 0, vec![]);
         let s2 = Kb003PerMtSummaryV1::completed("MT-002", 0, vec![]);

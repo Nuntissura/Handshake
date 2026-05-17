@@ -180,7 +180,7 @@ impl<'a> WorkspaceMaterializer<'a> {
         entries.sort_by(|a, b| a.sandbox_relative_path.cmp(&b.sandbox_relative_path));
 
         Ok(SandboxInputManifestV1 {
-            manifest_id: format!("MAN-{}", Uuid::new_v4()),
+            manifest_id: format!("MAN-{}", Uuid::now_v7()),
             workspace_id: self.workspace.workspace_id.clone(),
             created_at_utc: Utc::now(),
             entries,

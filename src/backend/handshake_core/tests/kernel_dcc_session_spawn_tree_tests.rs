@@ -347,5 +347,5 @@ fn flight_recorder_event(
     event_type: FlightRecorderEventType,
     payload: serde_json::Value,
 ) -> FlightRecorderEvent {
-    FlightRecorderEvent::new(event_type, FlightRecorderActor::System, Uuid::new_v4(), payload)
+    FlightRecorderEvent::new(event_type, FlightRecorderActor::System, Uuid::now_v7(), payload)
 }

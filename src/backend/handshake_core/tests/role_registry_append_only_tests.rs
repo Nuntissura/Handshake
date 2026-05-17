@@ -180,7 +180,7 @@ async fn recording_violation_creates_diagnostic_and_fr_evt_003() {
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
 
-    let job_id = Uuid::new_v4().to_string();
+    let job_id = Uuid::now_v7().to_string();
     let violation = RoleRegistryViolation::RoleIdRemoved {
         role_id: RoleId("missing_role".to_string()),
     };

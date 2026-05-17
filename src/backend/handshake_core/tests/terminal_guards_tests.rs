@@ -99,7 +99,7 @@ async fn allows_cwd_inside_workspace() -> Result<(), Box<dyn std::error::Error>>
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -123,7 +123,7 @@ async fn blocks_cwd_escape() {
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -148,7 +148,7 @@ async fn blocks_absolute_cwd() {
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -173,7 +173,7 @@ async fn allows_cwd_within_allowed_roots() -> Result<(), Box<dyn std::error::Err
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -200,7 +200,7 @@ async fn blocks_cwd_outside_allowed_roots() {
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -223,7 +223,7 @@ async fn denies_command_matching_denylist() {
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -246,7 +246,7 @@ async fn denies_command_without_allowlist_match() {
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -269,7 +269,7 @@ async fn enforces_timeout_and_kill_grace() -> Result<(), Box<dyn std::error::Err
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -312,7 +312,7 @@ async fn flags_truncation_when_output_exceeds_limit() -> Result<(), Box<dyn std:
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -336,7 +336,7 @@ async fn redacts_secrets_in_logged_command() -> Result<(), Box<dyn std::error::E
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -378,7 +378,7 @@ async fn emits_capability_audit_on_allowed() -> Result<(), Box<dyn std::error::E
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -426,7 +426,7 @@ async fn emits_capability_audit_on_denied() {
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )
@@ -476,7 +476,7 @@ async fn emits_attach_human_audit_on_denied() {
         &cfg,
         &registry,
         recorder.as_ref(),
-        Uuid::new_v4(),
+        Uuid::now_v7(),
         &redactor,
         &guards,
     )

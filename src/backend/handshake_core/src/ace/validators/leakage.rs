@@ -372,7 +372,7 @@ mod tests {
     /// T-ACE-VAL-100: check_classification blocks unknown sensitivity
     #[test]
     fn test_check_classification_unknown_blocks() {
-        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source_ref = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let classification = ContentClassification {
             sensitivity: SensitivityLevel::Unknown,
             exportable: true,
@@ -390,7 +390,7 @@ mod tests {
     /// T-ACE-VAL-100: check_classification blocks high sensitivity non-exportable
     #[test]
     fn test_check_classification_high_sensitivity_non_exportable() {
-        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source_ref = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let classification = ContentClassification {
             sensitivity: SensitivityLevel::High,
             exportable: false,
@@ -408,7 +408,7 @@ mod tests {
     /// T-ACE-VAL-100: check_classification blocks non-exportable
     #[test]
     fn test_check_classification_non_exportable() {
-        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source_ref = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let classification = ContentClassification {
             sensitivity: SensitivityLevel::Medium,
             exportable: false,
@@ -426,7 +426,7 @@ mod tests {
     /// T-ACE-VAL-100: check_classification allows low sensitivity exportable
     #[test]
     fn test_check_classification_allows_safe_content() {
-        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source_ref = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let classification = ContentClassification {
             sensitivity: SensitivityLevel::Low,
             exportable: true,
@@ -441,7 +441,7 @@ mod tests {
     /// T-ACE-VAL-100: check_classification allows medium sensitivity exportable
     #[test]
     fn test_check_classification_allows_medium_exportable() {
-        let source_ref = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source_ref = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let classification = ContentClassification {
             sensitivity: SensitivityLevel::Medium,
             exportable: true,

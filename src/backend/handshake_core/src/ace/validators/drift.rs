@@ -208,7 +208,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         // Add a source candidate
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let scores = CandidateScores::default();
         trace.candidates.push(RetrievalCandidate::from_source(
             source.clone(),
@@ -236,7 +236,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         // Add a source candidate and select it
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let scores = CandidateScores::default();
         trace.candidates.push(RetrievalCandidate::from_source(
             source.clone(),
@@ -273,7 +273,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         // Add a KG entity candidate
-        let entity = EntityRef::new(Uuid::new_v4(), "Person".to_string());
+        let entity = EntityRef::new(Uuid::now_v7(), "Person".to_string());
         let scores = CandidateScores {
             graph: Some(0.9),
             ..Default::default()

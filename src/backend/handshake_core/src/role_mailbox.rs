@@ -613,7 +613,7 @@ impl RoleMailbox {
         let thread_id = req
             .thread_id
             .clone()
-            .unwrap_or_else(|| Uuid::new_v4().to_string());
+            .unwrap_or_else(|| Uuid::now_v7().to_string());
         if !is_safe_id(&thread_id, 128) {
             return Err(RoleMailboxError::InvalidInput(
                 "thread_id must be a safe id".to_string(),
@@ -628,7 +628,7 @@ impl RoleMailbox {
         }
 
         let created_at = now_utc_seconds();
-        let message_id = Uuid::new_v4().to_string();
+        let message_id = Uuid::now_v7().to_string();
 
         enum CreateMessageDbOutcome {
             Existing {
@@ -1298,7 +1298,7 @@ impl RoleMailbox {
             fs::write(&abs_path, body_bytes)?;
         }
 
-        let artifact_id = Uuid::new_v4();
+        let artifact_id = Uuid::now_v7();
         conn.execute(
             "INSERT INTO role_mailbox_body_artifacts (body_sha256, artifact_id, path) VALUES (?, ?, ?)",
             duckdb::params![body_sha256.clone(), artifact_id.to_string(), rel_path.clone()],
@@ -1351,7 +1351,7 @@ impl RoleMailbox {
             .lock()
             .map_err(|_| RoleMailboxError::DuckDb("lock error".to_string()))?;
 
-        let entry_id = Uuid::new_v4().to_string();
+        let entry_id = Uuid::now_v7().to_string();
         let spec_id = context
             .spec_id
             .clone()
@@ -1447,7 +1447,7 @@ impl RoleMailbox {
             .map_err(|_| RoleMailboxError::DuckDb("lock error".to_string()))?;
 
         let entry = SpecSessionLogEntry {
-            entry_id: Uuid::new_v4().to_string(),
+            entry_id: Uuid::now_v7().to_string(),
             spec_id,
             task_board_id,
             work_packet_id,
@@ -1527,7 +1527,7 @@ impl RoleMailbox {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovMailboxMessageCreated,
             actor,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         )
         .with_actor_id(from_role.to_string());
@@ -1556,7 +1556,7 @@ impl RoleMailbox {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovMailboxTranscribed,
             FlightRecorderActor::Agent,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         )
         .with_actor_id("role_mailbox".to_string());
@@ -1890,7 +1890,7 @@ impl RoleMailbox {
                 256,
             ),
             vec![ArtifactHandle::new(
-                Uuid::new_v4(),
+                Uuid::now_v7(),
                 self.export_manifest_ref_path(),
             )],
         )?;
@@ -1919,7 +1919,7 @@ impl RoleMailbox {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::GovMailboxExported,
             FlightRecorderActor::Agent,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         )
         .with_actor_id("role_mailbox".to_string());
@@ -2244,7 +2244,7 @@ mod tests {
                 event_type: "workflow_gate_transition".to_string(),
                 summary: "workflow boundary rejection".to_string(),
                 linked_artifacts: vec![ArtifactHandle::new(
-                    Uuid::new_v4(),
+                    Uuid::now_v7(),
                     runtime_paths.validator_gate_display("WP-BOUNDARY-1"),
                 )],
             })
@@ -2265,7 +2265,7 @@ mod tests {
                 event_type: "workflow_gate_transition".to_string(),
                 summary: "workflow boundary rejection".to_string(),
                 linked_artifacts: vec![ArtifactHandle::new(
-                    Uuid::new_v4(),
+                    Uuid::now_v7(),
                     ".GOV/validator_gates/WP-BOUNDARY-1.json".to_string(),
                 )],
             })
@@ -2286,7 +2286,7 @@ mod tests {
                 actor: "workflow:governance_workflow_mirror_sync".to_string(),
                 event_type: "workflow_gate_transition".to_string(),
                 summary: "workflow boundary accept".to_string(),
-                linked_artifacts: vec![ArtifactHandle::new(Uuid::new_v4(), gate_ref.clone())],
+                linked_artifacts: vec![ArtifactHandle::new(Uuid::now_v7(), gate_ref.clone())],
             })?;
         assert_eq!(entry.linked_artifacts.len(), 1);
         assert_eq!(entry.linked_artifacts[0].path, gate_ref);
@@ -2299,7 +2299,7 @@ mod tests {
             actor: "workflow:governance_workflow_mirror_activation".to_string(),
             event_type: "workflow_stub_activation".to_string(),
             summary: "workflow activation accept".to_string(),
-            linked_artifacts: vec![ArtifactHandle::new(Uuid::new_v4(), activation_ref.clone())],
+            linked_artifacts: vec![ArtifactHandle::new(Uuid::now_v7(), activation_ref.clone())],
         })?;
 
         let entries =

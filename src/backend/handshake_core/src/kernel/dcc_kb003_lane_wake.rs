@@ -57,7 +57,7 @@ impl LaneWakeReceiptV1 {
     ) -> Self {
         Self {
             schema_version: Self::SCHEMA_VERSION,
-            receipt_id: format!("LWR-{}", Uuid::new_v4()),
+            receipt_id: format!("LWR-{}", Uuid::now_v7()),
             lane,
             event: LaneWakeEvent::Wake,
             receipt_refs,
@@ -74,7 +74,7 @@ impl LaneWakeReceiptV1 {
     ) -> Self {
         Self {
             schema_version: Self::SCHEMA_VERSION,
-            receipt_id: format!("LWR-{}", Uuid::new_v4()),
+            receipt_id: format!("LWR-{}", Uuid::now_v7()),
             lane,
             event: LaneWakeEvent::Settle,
             receipt_refs,

@@ -764,7 +764,7 @@ pub mod artifacts {
             })?;
         let parent_canon = fs::canonicalize(parent)?;
 
-        let tmp_name = format!(".hsk_tmp_{}", Uuid::new_v4());
+        let tmp_name = format!(".hsk_tmp_{}", Uuid::now_v7());
         let tmp_path = parent_canon.join(tmp_name);
         let mut tmp_file = fs::OpenOptions::new()
             .write(true)
@@ -1830,7 +1830,7 @@ impl StorageGuard for DefaultStorageGuard {
             actor_id: ctx.actor_id.clone(),
             job_id: ctx.job_id,
             workflow_id: ctx.workflow_id,
-            edit_event_id: Uuid::new_v4(),
+            edit_event_id: Uuid::now_v7(),
             resource_id: resource_id.to_string(),
             timestamp: Utc::now(),
         })

@@ -1089,7 +1089,7 @@ impl Clone for DuckDbFlightRecorder {
 pub fn parse_or_new_trace_id(input: Option<&str>) -> uuid::Uuid {
     input
         .and_then(|raw| uuid::Uuid::parse_str(raw).ok())
-        .unwrap_or_else(uuid::Uuid::new_v4)
+        .unwrap_or_else(uuid::Uuid::now_v7)
 }
 
 /// Convenience for system-level events.
@@ -1097,7 +1097,7 @@ pub fn system_event(message: &str, component: &str) -> FlightRecorderEvent {
     FlightRecorderEvent::new(
         FlightRecorderEventType::System,
         FlightRecorderActor::System,
-        uuid::Uuid::new_v4(),
+        uuid::Uuid::now_v7(),
         serde_json::json!({
             "component": component,
             "message": message,
@@ -1244,7 +1244,7 @@ mod tests {
     #[tokio::test]
     async fn test_record_and_list_events() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
 
         recorder
             .record_event(test_event(trace_id, Some("job-123")))
@@ -1261,7 +1261,7 @@ mod tests {
     #[tokio::test]
     async fn query_by_session() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
 
         recorder
             .record_event(test_event(trace_id, Some("job-a")).with_model_session_id("session-a"))
@@ -1287,7 +1287,7 @@ mod tests {
     async fn tripwire_session_scoped_events_require_model_session_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
         let model_session_id = "session-tripwire";
 
         let session_events = vec![
@@ -1401,8 +1401,8 @@ mod tests {
     async fn test_query_by_trace_id() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
 
-        let trace_id_a = Uuid::new_v4();
-        let trace_id_b = Uuid::new_v4();
+        let trace_id_a = Uuid::now_v7();
+        let trace_id_b = Uuid::now_v7();
 
         recorder
             .record_event(test_event(trace_id_a, Some("job-a")))
@@ -1427,7 +1427,7 @@ mod tests {
     #[tokio::test]
     async fn fr_model_session_id() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
 
         recorder
             .record_event(test_event(trace_id, Some("job-123")).with_model_session_id("session-x"))
@@ -1449,12 +1449,12 @@ mod tests {
     async fn test_query_by_job_id() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
 
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
         recorder
             .record_event(test_event(trace_id, Some("target-job")))
             .await?;
         recorder
-            .record_event(test_event(Uuid::new_v4(), Some("other-job")))
+            .record_event(test_event(Uuid::now_v7(), Some("other-job")))
             .await?;
 
         let events = recorder
@@ -1474,7 +1474,7 @@ mod tests {
         let recorder = DuckDbFlightRecorder::new_in_memory(0)?;
 
         recorder
-            .record_event(test_event(Uuid::new_v4(), None))
+            .record_event(test_event(Uuid::now_v7(), None))
             .await?;
 
         let before = recorder.list_events(EventFilter::default()).await?;
@@ -1491,7 +1491,7 @@ mod tests {
     #[tokio::test]
     async fn test_nfc_normalization_applied() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
 
         let nfd_string = "cafe\u{0301}";
         let nfc_string = "caf\u{00E9}";
@@ -1532,7 +1532,7 @@ mod tests {
     async fn test_validation_rejects_nil_uuid() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
 
-        let mut event = test_event(Uuid::new_v4(), None);
+        let mut event = test_event(Uuid::now_v7(), None);
         event.event_id = Uuid::nil();
 
         let result = recorder.record_event(event).await;
@@ -1544,7 +1544,7 @@ mod tests {
     async fn test_validation_rejects_nil_trace_id() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
 
-        let mut event = test_event(Uuid::new_v4(), None);
+        let mut event = test_event(Uuid::now_v7(), None);
         event.trace_id = Uuid::nil();
 
         let result = recorder.record_event(event).await;
@@ -1555,7 +1555,7 @@ mod tests {
     #[tokio::test]
     async fn test_fr_evt_shapes_persisted() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
 
         let system_event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
@@ -1632,7 +1632,7 @@ mod tests {
     #[tokio::test]
     async fn flight_recorder_round_trip() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
         let expected_payload = json!({
             "type": "session_scheduler.enqueue",
             "event_id": "FR-EVT-SESS-SCHED-001",
@@ -1716,7 +1716,7 @@ mod tests {
     #[tokio::test]
     async fn test_record_diagnostic_and_group() -> Result<(), Box<dyn std::error::Error>> {
         let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
-        let job_id = Uuid::new_v4();
+        let job_id = Uuid::now_v7();
 
         let diagnostic = DiagnosticInput {
             title: "Compiler error".to_string(),

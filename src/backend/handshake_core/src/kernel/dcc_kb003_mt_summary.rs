@@ -55,7 +55,7 @@ impl Kb003PerMtSummaryV1 {
     pub fn completed(mt_id: impl Into<String>, attempt_index: u32, artifact_refs: Vec<String>) -> Self {
         Self {
             schema_version: Self::SCHEMA_VERSION,
-            summary_id: format!("MTSUM-{}", Uuid::new_v4()),
+            summary_id: format!("MTSUM-{}", Uuid::now_v7()),
             mt_id: mt_id.into(),
             attempt_index,
             status: MtTerminalStatus::Completed,
@@ -77,7 +77,7 @@ impl Kb003PerMtSummaryV1 {
     ) -> Self {
         Self {
             schema_version: Self::SCHEMA_VERSION,
-            summary_id: format!("MTSUM-{}", Uuid::new_v4()),
+            summary_id: format!("MTSUM-{}", Uuid::now_v7()),
             mt_id: mt_id.into(),
             attempt_index,
             status: MtTerminalStatus::Blocked,
@@ -97,7 +97,7 @@ impl Kb003PerMtSummaryV1 {
     ) -> Self {
         Self {
             schema_version: Self::SCHEMA_VERSION,
-            summary_id: format!("MTSUM-{}", Uuid::new_v4()),
+            summary_id: format!("MTSUM-{}", Uuid::now_v7()),
             mt_id: mt_id.into(),
             attempt_index,
             status: MtTerminalStatus::Failed,

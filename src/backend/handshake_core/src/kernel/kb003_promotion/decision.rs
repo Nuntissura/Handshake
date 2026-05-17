@@ -193,7 +193,7 @@ impl PromotionDecisionV1 {
     pub fn accepted(sandbox_run_id: impl Into<String>, validation_run_id: impl Into<String>) -> Self {
         Self {
             schema_version: SCHEMA_KERNEL_PROMOTION_DECISION_V1,
-            decision_id: format!("PD-{}", Uuid::new_v4()),
+            decision_id: format!("PD-{}", Uuid::now_v7()),
             validation_run_id: validation_run_id.into(),
             sandbox_run_id: sandbox_run_id.into(),
             outcome: PromotionOutcome::Accepted,
@@ -208,7 +208,7 @@ impl PromotionDecisionV1 {
     ) -> Self {
         Self {
             schema_version: SCHEMA_KERNEL_PROMOTION_DECISION_V1,
-            decision_id: format!("PD-{}", Uuid::new_v4()),
+            decision_id: format!("PD-{}", Uuid::now_v7()),
             validation_run_id: validation_run_id.into(),
             sandbox_run_id: sandbox_run_id.into(),
             outcome: PromotionOutcome::Rejected { reason },

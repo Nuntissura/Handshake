@@ -249,7 +249,7 @@ impl Janitor {
         h.update(&payload_bytes);
         let content_hash = hex::encode(h.finalize());
 
-        let artifact_id = Uuid::new_v4();
+        let artifact_id = Uuid::now_v7();
         let manifest = ArtifactManifest {
             artifact_id,
             layer: ArtifactLayer::L3,
@@ -306,7 +306,7 @@ impl Janitor {
         let event = FlightRecorderEvent::new(
             FlightRecorderEventType::System,
             FlightRecorderActor::System,
-            Uuid::new_v4(),
+            Uuid::now_v7(),
             payload,
         )
         .with_actor_id("janitor");
@@ -553,7 +553,7 @@ mod tests {
         status: &str,
         is_pinned: bool,
     ) -> Result<String, Box<dyn Error>> {
-        let trace_id = uuid::Uuid::new_v4();
+        let trace_id = uuid::Uuid::now_v7();
         let job = db
             .create_ai_job(NewAiJob {
                 trace_id,

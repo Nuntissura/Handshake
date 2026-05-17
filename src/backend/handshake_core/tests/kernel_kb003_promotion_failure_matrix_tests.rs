@@ -60,7 +60,7 @@ fn completed_run() -> SandboxRunV1 {
 }
 
 fn pass_report() -> ValidationReport {
-    let mut r = ValidationReport::new(Uuid::new_v4());
+    let mut r = ValidationReport::new(Uuid::now_v7());
     r.push(DescriptorOutcome::new(
         "no_sandbox_escape",
         ValidationStatus::pass(),

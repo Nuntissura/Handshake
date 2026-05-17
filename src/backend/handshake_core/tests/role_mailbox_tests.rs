@@ -139,7 +139,7 @@ impl LlmClient for TestLlmClient {
 }
 
 fn dummy_artifact(path: &str) -> ArtifactHandle {
-    ArtifactHandle::new(Uuid::new_v4(), path.to_string())
+    ArtifactHandle::new(Uuid::now_v7(), path.to_string())
 }
 
 fn test_context() -> RoleMailboxContext {

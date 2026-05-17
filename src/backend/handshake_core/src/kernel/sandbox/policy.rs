@@ -84,7 +84,7 @@ impl SandboxPolicyV1 {
     /// asserting MT-018 adapter-trait neutrality.
     pub fn default_deny(name: impl Into<String>) -> Self {
         Self {
-            policy_id: format!("POL-{}", Uuid::new_v4()),
+            policy_id: format!("POL-{}", Uuid::now_v7()),
             policy_version: 1,
             name: name.into(),
             created_at_utc: Utc::now(),

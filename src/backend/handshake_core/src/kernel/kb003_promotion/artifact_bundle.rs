@@ -141,7 +141,7 @@ impl KbArtifactBundleAssembler {
                 .cmp(&(b.handle.as_str(), b.content_sha256.as_str()))
         });
         Ok(Kb003ArtifactBundleV1 {
-            bundle_id: Uuid::new_v4(),
+            bundle_id: Uuid::now_v7(),
             sandbox_run_id: run.run_id.0.clone(),
             handles: sorted_handles,
             bundle_sha256: manifest.bundle_sha256,

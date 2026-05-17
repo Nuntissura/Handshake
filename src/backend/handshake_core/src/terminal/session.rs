@@ -61,7 +61,7 @@ impl TerminalSession {
 
         let session_id = job_context
             .session_id
-            .or_else(|| Some(Uuid::new_v4().to_string()));
+            .or_else(|| Some(Uuid::now_v7().to_string()));
 
         TerminalSession {
             session_type: req.session_type,

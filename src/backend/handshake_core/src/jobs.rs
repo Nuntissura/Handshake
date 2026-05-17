@@ -31,7 +31,7 @@ pub async fn create_job(
     let job = state
         .storage
         .create_ai_job(NewAiJob {
-            trace_id: Uuid::new_v4(),
+            trace_id: Uuid::now_v7(),
             job_kind: job_kind.clone(),
             protocol_id: protocol_id.to_string(),
             profile_id: "default".to_string(),

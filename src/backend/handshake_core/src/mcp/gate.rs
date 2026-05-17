@@ -841,7 +841,7 @@ impl GatedMcpClient {
         let started_at_utc = Utc::now();
         let started_at_instant = Instant::now(); // WAIVER [CX-573E] duration/timeout bookkeeping only
 
-        let tool_call_id = Uuid::new_v4();
+        let tool_call_id = Uuid::now_v7();
 
         let (registry_entry, registry_error) =
             match self.resolve_tool_registry_entry(tool_id_or_alias) {

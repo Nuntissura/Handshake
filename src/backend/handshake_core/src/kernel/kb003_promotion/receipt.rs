@@ -63,7 +63,7 @@ impl PromotionReceiptV1 {
         artifact_refs: Vec<String>,
     ) -> Self {
         let idempotency_key = idempotency_key.into();
-        let receipt_id = format!("PR-{}", Uuid::new_v4());
+        let receipt_id = format!("PR-{}", Uuid::now_v7());
         let mut receipt = Self {
             schema_version: SCHEMA_KERNEL_PROMOTION_RECEIPT_V1,
             receipt_id,
@@ -95,7 +95,7 @@ impl PromotionReceiptV1 {
     /// different ephemeral UUIDs in those fields — hash identically).
     ///
     /// Round-3 self-scrutiny fix: `decision_id` used to be in the hash. It
-    /// is a `format!("PD-{}", Uuid::new_v4())` ephemeral, so two evaluate()
+    /// is a `format!("PD-{}", Uuid::now_v7())` ephemeral, so two evaluate()
     /// calls with identical inputs produced different hashes and the
     /// idempotency dedup never fired. The previously-committed M-A5 storage
     /// tightening (require `decision_id` match on a hash hit) compounded

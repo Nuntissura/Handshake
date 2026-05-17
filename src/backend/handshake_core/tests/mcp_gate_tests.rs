@@ -664,9 +664,9 @@ async fn mcp_tool_call_records_fr_events_and_logging() -> Result<(), Box<dyn std
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
 
-    let job_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
     let job_id_str = job_id.to_string();
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let ctx = make_ctx(
         job_id,
         trace_id,
@@ -790,8 +790,8 @@ async fn mcp_tool_call_allows_when_session_scoped_grants_satisfy_required_caps(
     sqlite.run_migrations().await?;
     let db: Arc<dyn Database> = sqlite.into_arc();
 
-    let job_id = Uuid::new_v4();
-    let trace_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
+    let trace_id = Uuid::now_v7();
     let session_id = "sess-1";
     db.upsert_model_session(NewModelSession {
         session_id: session_id.to_string(),
@@ -880,8 +880,8 @@ async fn mcp_tool_call_denies_when_session_scoped_grants_do_not_satisfy_required
     sqlite.run_migrations().await?;
     let db: Arc<dyn Database> = sqlite.into_arc();
 
-    let job_id = Uuid::new_v4();
-    let trace_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
+    let trace_id = Uuid::now_v7();
     let session_id = "sess-1";
     db.upsert_model_session(NewModelSession {
         session_id: session_id.to_string(),
@@ -972,8 +972,8 @@ async fn mcp_tool_call_denies_and_records_tool_call_when_session_scoped_grants_u
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
 
-    let job_id = Uuid::new_v4();
-    let trace_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
+    let trace_id = Uuid::now_v7();
     let session_id = "sess-1";
     let mut ctx = make_ctx_with_session(
         job_id,
@@ -1043,8 +1043,8 @@ async fn mcp_tool_call_denies_and_records_tool_call_when_child_session_widens_vs
     sqlite.run_migrations().await?;
     let db: Arc<dyn Database> = sqlite.into_arc();
 
-    let job_id = Uuid::new_v4();
-    let trace_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
+    let trace_id = Uuid::now_v7();
     let parent_session_id = "sess-parent";
     let child_session_id = "sess-child";
 
@@ -1161,9 +1161,9 @@ async fn mcp_tools_call_redacts_sensitive_output_before_return_and_recording(
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
 
-    let job_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
     let job_id_str = job_id.to_string();
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let ctx = make_ctx(
         job_id,
         trace_id,
@@ -1278,8 +1278,8 @@ async fn mcp_auto_reconnects_when_transport_severs() -> Result<(), Box<dyn std::
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
 
-    let job_id = Uuid::new_v4();
-    let trace_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
+    let trace_id = Uuid::now_v7();
     let ctx = make_ctx(
         job_id,
         trace_id,
@@ -1338,9 +1338,9 @@ async fn mcp_logging_message_custom_event_kind_creates_breadcrumb(
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
 
-    let job_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
     let job_id_str = job_id.to_string();
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let ctx = make_ctx(
         job_id,
         trace_id,
@@ -1427,9 +1427,9 @@ async fn mcp_schema_validation_failure_is_explicit() -> Result<(), Box<dyn std::
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
-    let job_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
     let job_id_str = job_id.to_string();
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let ctx = make_ctx(
         job_id,
         trace_id,
@@ -1483,9 +1483,9 @@ async fn mcp_capability_denied_blocks_tool_call() -> Result<(), Box<dyn std::err
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
-    let job_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
     let job_id_str = job_id.to_string();
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let ctx = make_ctx(job_id, trace_id, vec![], AccessMode::AnalysisOnly);
 
     let (client_stream, server_stream) = tokio::io::duplex(64 * 1024);
@@ -1534,9 +1534,9 @@ async fn mcp_consent_deny_and_timeout_are_explicit() -> Result<(), Box<dyn std::
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
-    let job_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
     let job_id_str = job_id.to_string();
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let ctx = make_ctx(
         job_id,
         trace_id,
@@ -1615,8 +1615,8 @@ async fn mcp_timeout_sends_notifications_cancelled() -> Result<(), Box<dyn std::
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
-    let job_id = Uuid::new_v4();
-    let trace_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
+    let trace_id = Uuid::now_v7();
     let ctx = make_ctx(
         job_id,
         trace_id,
@@ -1677,9 +1677,9 @@ async fn mcp_path_escape_and_symlink_are_blocked() -> Result<(), Box<dyn std::er
     let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(7)?);
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let registry = Arc::new(CapabilityRegistry::new());
-    let job_id = Uuid::new_v4();
+    let job_id = Uuid::now_v7();
     let job_id_str = job_id.to_string();
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
 
     let root = tempfile::tempdir()?;
     let root_path = root.path().to_path_buf();

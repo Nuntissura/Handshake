@@ -734,7 +734,7 @@ impl ShellEngineAdapter {
     }
 
     fn artifact_handle_for_rel(&self, rel_path: &std::path::Path) -> crate::ace::ArtifactHandle {
-        crate::ace::ArtifactHandle::new(Uuid::new_v4(), Self::rel_path_string(rel_path))
+        crate::ace::ArtifactHandle::new(Uuid::now_v7(), Self::rel_path_string(rel_path))
     }
 
     fn error_artifact_rel(op: &PlannedOperation) -> std::path::PathBuf {

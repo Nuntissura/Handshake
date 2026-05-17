@@ -263,7 +263,7 @@ impl SupplyChainEngineAdapter {
     }
 
     fn artifact_handle_for_rel(&self, rel_path: &Path) -> ArtifactHandle {
-        ArtifactHandle::new(Uuid::new_v4(), rel_path_string(rel_path))
+        ArtifactHandle::new(Uuid::now_v7(), rel_path_string(rel_path))
     }
 
     fn ensure_parent_dir(&self, abs_path: &Path) -> Result<(), String> {
@@ -1161,7 +1161,7 @@ impl EngineAdapter for SupplyChainEngineAdapter {
                     kind.tool(),
                 )
                 .await
-                .unwrap_or_else(|_| Uuid::new_v4());
+                .unwrap_or_else(|_| Uuid::now_v7());
             diagnostic_id = Some(diag_id);
         }
 

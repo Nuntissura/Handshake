@@ -422,7 +422,7 @@ mod tests {
             Arc::new(recorder.clone()),
         );
 
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
         let req = CompletionRequest::new(trace_id, "Hello".to_string(), "test-model".to_string());
         let resp = match adapter.completion(req).await {
             Ok(resp) => resp,
@@ -475,7 +475,7 @@ mod tests {
             Arc::new(recorder),
         );
 
-        let trace_id = Uuid::new_v4();
+        let trace_id = Uuid::now_v7();
         let req = CompletionRequest::new(trace_id, "Hello".to_string(), "test-model".to_string())
             .with_max_tokens(10);
 

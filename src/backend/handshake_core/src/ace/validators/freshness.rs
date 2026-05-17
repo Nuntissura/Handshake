@@ -148,7 +148,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         // Add a fresh context pack candidate (no stale warnings)
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let scores = CandidateScores {
             pack: Some(1.0),
             ..Default::default()
@@ -174,7 +174,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         // Add context pack candidate
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let scores = CandidateScores {
             pack: Some(0.0),
             ..Default::default()
@@ -204,7 +204,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         // Add context pack candidate
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let scores = CandidateScores {
             pack: Some(0.0),
             ..Default::default()
@@ -216,7 +216,7 @@ mod tests {
         ));
 
         // Both stale warning AND regen_skipped -> FAIL
-        let pack_id = Uuid::new_v4();
+        let pack_id = Uuid::now_v7();
         trace
             .warnings
             .push(format!("{}{}", STALE_PACK_WARNING_PREFIX, pack_id));
@@ -239,7 +239,7 @@ mod tests {
         let mut trace = RetrievalTrace::new(&plan);
 
         // Add context pack candidate
-        let source = SourceRef::new(Uuid::new_v4(), "hash".to_string());
+        let source = SourceRef::new(Uuid::now_v7(), "hash".to_string());
         let scores = CandidateScores {
             pack: Some(1.0),
             ..Default::default()

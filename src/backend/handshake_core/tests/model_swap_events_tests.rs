@@ -31,7 +31,7 @@ fn valid_model_swap_requested_payload() -> serde_json::Value {
 #[test]
 fn accepts_model_swap_requested_payload() {
     let payload = valid_model_swap_requested_payload();
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::ModelSwapRequested,
         FlightRecorderActor::System,
@@ -50,7 +50,7 @@ fn rejects_model_swap_requested_wrong_type() {
         .expect("payload object")
         .insert("type".to_string(), json!("model_swap_failed"));
 
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::ModelSwapRequested,
         FlightRecorderActor::System,
@@ -69,7 +69,7 @@ fn rejects_model_swap_requested_invalid_role() {
         .expect("payload object")
         .insert("role".to_string(), json!("invalid"));
 
-    let trace_id = Uuid::new_v4();
+    let trace_id = Uuid::now_v7();
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::ModelSwapRequested,
         FlightRecorderActor::System,

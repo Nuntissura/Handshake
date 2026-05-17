@@ -728,7 +728,7 @@ mod tests {
         let recorder = CapturingRecorder::default();
         let adapter = OllamaAdapter::default_local("llama3.2", Arc::new(recorder.clone()));
 
-        let trace_id = uuid::Uuid::new_v4();
+        let trace_id = uuid::Uuid::now_v7();
         let req = CompletionRequest::new(trace_id, "Hello".to_string(), "llama3.2".to_string());
         let usage = TokenUsage {
             prompt_tokens: 10,
@@ -768,7 +768,7 @@ mod tests {
     async fn test_in_memory_llm_client_emits_deterministic_usage_by_default() {
         let client = InMemoryLlmClient::new("Hello world".to_string());
 
-        let trace_id = uuid::Uuid::new_v4();
+        let trace_id = uuid::Uuid::now_v7();
         let req =
             CompletionRequest::new(trace_id, "One two three".to_string(), "ignored".to_string());
 
@@ -793,7 +793,7 @@ mod tests {
             total_tokens: 3,
         });
 
-        let trace_id = uuid::Uuid::new_v4();
+        let trace_id = uuid::Uuid::now_v7();
         let req =
             CompletionRequest::new(trace_id, "One two three".to_string(), "ignored".to_string());
 

@@ -58,7 +58,7 @@ pub struct SandboxRunId(pub String);
 
 impl SandboxRunId {
     pub fn new() -> Self {
-        Self(format!("SBX-{}", Uuid::new_v4()))
+        Self(format!("SBX-{}", Uuid::now_v7()))
     }
     pub fn as_str(&self) -> &str {
         &self.0

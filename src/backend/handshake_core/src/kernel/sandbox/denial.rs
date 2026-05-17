@@ -58,7 +58,7 @@ impl SandboxDenialRecordV1 {
         reason: impl Into<String>,
     ) -> Self {
         Self {
-            denial_id: format!("DEN-{}", Uuid::new_v4()),
+            denial_id: format!("DEN-{}", Uuid::now_v7()),
             run_id: run_id.into(),
             policy_version_id: policy_version_id.into(),
             capability,

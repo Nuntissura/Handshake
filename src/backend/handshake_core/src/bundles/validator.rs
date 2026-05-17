@@ -1137,7 +1137,7 @@ mod tests {
 
     fn bundle_job(workflow_run_id: &str) -> BundleJob {
         BundleJob {
-            job_id: Uuid::new_v4().to_string(),
+            job_id: Uuid::now_v7().to_string(),
             job_kind: "workflow_run".to_string(),
             protocol_id: "protocol-default".to_string(),
             status: BundleJobStatus::Completed,
@@ -1280,7 +1280,7 @@ mod tests {
             .collect();
         let mut manifest = BundleManifest {
             schema_version: "1.0".to_string(),
-            bundle_id: Uuid::new_v4().to_string(),
+            bundle_id: Uuid::now_v7().to_string(),
             bundle_kind: "debug_bundle".to_string(),
             created_at: Utc::now(),
             scope,
@@ -1373,8 +1373,8 @@ mod tests {
     #[test]
     fn workflow_node_execution_scope_reports_count_mismatch() -> Result<(), BundleExportError> {
         let dir = tempdir()?;
-        let workflow_run_id = Uuid::new_v4().to_string();
-        let scope_node_id = Uuid::new_v4().to_string();
+        let workflow_run_id = Uuid::now_v7().to_string();
+        let scope_node_id = Uuid::now_v7().to_string();
         write_bundle_fixture(
             dir.path(),
             ManifestScope {
@@ -1399,7 +1399,7 @@ mod tests {
                     output_sha256: None,
                 },
                 WorkflowNodeExecutionBundleRecord {
-                    workflow_node_execution_id: Uuid::new_v4().to_string(),
+                    workflow_node_execution_id: Uuid::now_v7().to_string(),
                     workflow_run_id,
                     node_id: "node-b".to_string(),
                     status: "completed".to_string(),
@@ -1430,7 +1430,7 @@ mod tests {
     #[test]
     fn workflow_node_inventory_rejects_wrong_workflow_run_id() -> Result<(), BundleExportError> {
         let dir = tempdir()?;
-        let scope_run_id = Uuid::new_v4().to_string();
+        let scope_run_id = Uuid::now_v7().to_string();
         write_bundle_fixture(
             dir.path(),
             ManifestScope {
@@ -1438,13 +1438,13 @@ mod tests {
                 problem_id: None,
                 job_id: None,
                 workflow_run_id: Some(scope_run_id.clone()),
-                workflow_node_execution_id: Some(Uuid::new_v4().to_string()),
+                workflow_node_execution_id: Some(Uuid::now_v7().to_string()),
                 time_range: None,
                 wsid: Some("ws-test".to_string()),
             },
             Some(vec![WorkflowNodeExecutionBundleRecord {
-                workflow_node_execution_id: Uuid::new_v4().to_string(),
-                workflow_run_id: Uuid::new_v4().to_string(),
+                workflow_node_execution_id: Uuid::now_v7().to_string(),
+                workflow_run_id: Uuid::now_v7().to_string(),
                 node_id: "node-a".to_string(),
                 status: "completed".to_string(),
                 started_at: Utc::now(),

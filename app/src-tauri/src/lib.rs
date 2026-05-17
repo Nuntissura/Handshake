@@ -397,7 +397,7 @@ fn md_session_create(app: AppHandle, label: String) -> Result<MdSessionRecordV0,
         label
     };
 
-    let session_id = Uuid::new_v4().to_string();
+    let session_id = Uuid::now_v7().to_string();
     let created_at = now_rfc3339()?;
 
     let record = MdSessionRecordV0 {
