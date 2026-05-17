@@ -93,7 +93,7 @@ Format:
 | WP-1-AI-UX-Rewrite | .GOV/task_packets/stubs/WP-1-AI-UX-Rewrite-v2.md | Stub Backlog (Not Activated): WP-1-AI-UX-Rewrite-v2 | stub (remediation); supersedes: WP-1-AI-UX-Rewrite |
 | WP-1-AI-UX-Summarize-Display | .GOV/task_packets/WP-1-AI-UX-Summarize-Display-v2.md | Done: WP-1-AI-UX-Summarize-Display-v2 | active=WP-1-AI-UX-Summarize-Display-v2; activated from stub .GOV/task_packets/stubs/WP-1-AI-UX-Summarize-Display-v2.md; supersedes: WP-1-AI-UX-Summarize-Display |
 | WP-1-AppState-Refactoring | .GOV/task_packets/WP-1-AppState-Refactoring-v3.md | Done: WP-1-AppState-Refactoring-v3 | active=WP-1-AppState-Refactoring-v3; supersedes: WP-1-AppState-Refactoring, WP-1-AppState-Refactoring-v2 |
-| WP-1-Atelier-Lens | .GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md | Stub Backlog (Not Activated): WP-1-Atelier-Lens-v2 | stub (remediation); supersedes: WP-1-Atelier-Lens |
+| WP-1-Atelier-Lens-Consolidation | .GOV/task_packets/WP-1-Atelier-Lens-Consolidation-v1/packet.md | Ready for Dev: WP-1-Atelier-Lens-Consolidation-v1 | activated from CKC greenroom consolidation packet; preserves Atelier/Lens-adjacent stub intent and folds CKC capability clusters into Handshake runtime boundaries |
 | WP-1-Calendar-Lens | .GOV/task_packets/stubs/WP-1-Calendar-Lens-v3.md | Stub Backlog (Not Activated): WP-1-Calendar-Lens-v3 | stub (audit remediation); supersedes stub: WP-1-Calendar-Lens-v2 |
 | WP-1-Calendar-Storage | .GOV/task_packets/WP-1-Calendar-Storage-v2/packet.md | Stub Backlog (Not Activated): WP-1-Calendar-Storage-v2 | stub (supersession); supersedes: WP-1-Calendar-Storage-v1 (implemented but never validated, spec-stale v02.141, old refinement workflow without primitive mixing); v2 scheduled for later Phase 1 stages; calendar is a pillar feature requiring cross-cutting primitive discovery |
 | WP-1-Calendar-Sync-Engine | .GOV/task_packets/WP-1-Calendar-Sync-Engine-v3/packet.md | Stub Backlog (Not Activated): WP-1-Calendar-Sync-Engine-v1 | stub (audit remediation); calendar_sync mechanical runner |
@@ -143,7 +143,6 @@ Format:
 | WP-1-OSS-Governance | .GOV/task_packets/WP-1-OSS-Governance-v2.md | Done: WP-1-OSS-Governance-v2 | active=WP-1-OSS-Governance-v2; activated from stub .GOV/task_packets/stubs/WP-1-OSS-Governance-v2.md; supersedes: WP-1-OSS-Governance |
 | WP-1-OSS-Register-Enforcement | .GOV/task_packets/WP-1-OSS-Register-Enforcement-v1.md | Done: WP-1-OSS-Register-Enforcement-v1 | active=WP-1-OSS-Register-Enforcement-v1 |
 | WP-1-PDF-Pipeline | .GOV/task_packets/stubs/WP-1-PDF-Pipeline-v2.md | Stub Backlog (Not Activated): WP-1-PDF-Pipeline-v2 | stub (remediation); supersedes: WP-1-PDF-Pipeline |
-| WP-1-Photo-Studio | .GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md | Stub Backlog (Not Activated): WP-1-Photo-Studio-v2 | stub (remediation); supersedes: WP-1-Photo-Studio |
 | WP-1-Product-Governance-Snapshot | .GOV/task_packets/WP-1-Product-Governance-Snapshot-v4.md | Done: WP-1-Product-Governance-Snapshot-v4 | active=WP-1-Product-Governance-Snapshot-v4; activated from stub .GOV/task_packets/stubs/WP-1-Product-Governance-Snapshot-v1.md; supersedes: WP-1-Product-Governance-Snapshot-v2, WP-1-Product-Governance-Snapshot-v3 |
 | WP-1-RAG-Iterative | .GOV/task_packets/stubs/WP-1-RAG-Iterative-v2.md | Stub Backlog (Not Activated): WP-1-RAG-Iterative-v2 | stub (remediation); supersedes: WP-1-RAG-Iterative |
 | WP-1-Role-Mailbox | .GOV/task_packets/WP-1-Role-Mailbox-v1.md | Done: WP-1-Role-Mailbox-v1 | active=WP-1-Role-Mailbox-v1; activated from stub .GOV/task_packets/stubs/WP-1-Role-Mailbox-v1.md |
@@ -237,9 +236,9 @@ Format:
 | WP-1-FEMS-Bitemporal-Indexing | .GOV/task_packets/stubs/WP-1-FEMS-Bitemporal-Indexing-v1.md | TBD |  |
 | WP-1-FEMS-Outcome-Feedback-Loop | .GOV/task_packets/stubs/WP-1-FEMS-Outcome-Feedback-Loop-v1.md | TBD |  |
 | WP-1-Postgres-Primary-Control-Plane-Foundation | .GOV/task_packets/WP-1-Postgres-Primary-Control-Plane-Foundation-v1/packet.md | TBD |  |
-| WP-KERNEL-006-Principal-Authority-Foundation | .GOV/task_packets/stubs/WP-KERNEL-006-Principal-Authority-Foundation-v1.contract.json | TBD |  |
-| WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate | .GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.contract.json | TBD |  |
-| WP-KERNEL-008-Principal-Profile-CRM-Layer | .GOV/task_packets/stubs/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1.contract.json | TBD |  |
+| WP-KERNEL-006-Principal-Authority-Foundation | .GOV/task_packets/stubs/WP-KERNEL-006-Principal-Authority-Foundation-v1.contract.json | Stub Backlog (Not Activated): WP-KERNEL-006-Principal-Authority-Foundation-v1 | PRIMARY_MACHINE_READABLE_STUB; no .md sibling (contract is authority surface) |
+| WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate | .GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.contract.json | Stub Backlog (Not Activated): WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1 | PRIMARY_MACHINE_READABLE_STUB; no .md sibling (contract is authority surface) |
+| WP-KERNEL-008-Principal-Profile-CRM-Layer | .GOV/task_packets/stubs/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1.contract.json | Stub Backlog (Not Activated): WP-KERNEL-008-Principal-Profile-CRM-Layer-v1 | PRIMARY_MACHINE_READABLE_STUB; no .md sibling (contract is authority surface) |
 
 ## Superseded Activation History
 
@@ -249,6 +248,8 @@ Use this section to keep older active packets / stubs visible as superseded once
 | BASE_WP_ID | SUPERSEDED_PACKET_OR_STUB | TASK_BOARD | Replacement / Notes |
 |------------|---------------------------|------------|---------------------|
 
+| WP-1-Atelier-Lens | .GOV/task_packets/stubs/WP-1-Atelier-Lens-v2.md | Superseded (Archive): WP-1-Atelier-Lens-v2 | v2 stub itself superseded; folded into WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1 and its draft MT suite; source stub retained as superseded evidence |
+| WP-1-Photo-Studio | .GOV/task_packets/stubs/WP-1-Photo-Studio-v2.md | Superseded (Archive): WP-1-Photo-Studio-v2 | v2 stub itself superseded; folded into WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1 and its draft MT suite; source stub retained as superseded evidence |
 | WP-1-Postgres-Control-Plane-Shift-Bundle | .GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Shift-Bundle-v1.md | Superseded (Archive): WP-1-Postgres-Control-Plane-Shift-Bundle-v1 | folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence |
 | WP-1-Postgres-Dev-Test-Container-Matrix | .GOV/task_packets/stubs/WP-1-Postgres-Dev-Test-Container-Matrix-v1.md | Superseded (Archive): WP-1-Postgres-Dev-Test-Container-Matrix-v1 | folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence |
 | WP-1-Postgres-Control-Plane-Leases-Backpressure | .GOV/task_packets/stubs/WP-1-Postgres-Control-Plane-Leases-Backpressure-v1.md | Superseded (Archive): WP-1-Postgres-Control-Plane-Leases-Backpressure-v1 | folded transitive/residual into WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1 via WP-1-Postgres-Control-Plane-Shift-Bundle-v1; source stub retained as superseded evidence |

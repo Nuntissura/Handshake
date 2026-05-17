@@ -526,6 +526,36 @@
       "write_call": "writeJsonFile"
     },
     {
+      "artifact_class": "GENERIC_GOVERNANCE_ARTIFACT_WRITE",
+      "authority_class": "CLASSIFIED_GENERIC_GOVERNANCE_WRITER",
+      "id": "artifact-writer:d14afa17e283aa83",
+      "line": 281,
+      "migration_status": "TRACK_FOR_FUTURE_REFINEMENT",
+      "operation": "WRITE",
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/scripts/lib/traceability-registry-lib.mjs",
+      "rationale": "The write call is tracked but target naming is too generic for a more specific automated class.",
+      "risk_class": "MEDIUM",
+      "source_hash": "7119d9744501c8d7",
+      "target_expression": "jsonPath",
+      "write_call": "fs.writeFileSync"
+    },
+    {
+      "artifact_class": "GENERIC_GOVERNANCE_ARTIFACT_WRITE",
+      "authority_class": "CLASSIFIED_GENERIC_GOVERNANCE_WRITER",
+      "id": "artifact-writer:12ec87fedf7db93a",
+      "line": 326,
+      "migration_status": "TRACK_FOR_FUTURE_REFINEMENT",
+      "operation": "WRITE",
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/scripts/lib/traceability-registry-lib.mjs",
+      "rationale": "The write call is tracked but target naming is too generic for a more specific automated class.",
+      "risk_class": "MEDIUM",
+      "source_hash": "7119d9744501c8d7",
+      "target_expression": "mdPath",
+      "write_call": "fs.writeFileSync"
+    },
+    {
       "artifact_class": "PRIMARY_CONTRACT_JSON",
       "authority_class": "PRIMARY_MACHINE_READABLE_ARTIFACT",
       "id": "artifact-writer:7dd6ed9227309147",
@@ -1141,6 +1171,36 @@
       "write_call": "fs.writeFileSync"
     },
     {
+      "artifact_class": "PRIMARY_CONTRACT_JSON",
+      "authority_class": "PRIMARY_MACHINE_READABLE_ARTIFACT",
+      "id": "artifact-writer:89d56133b95fd04d",
+      "line": 229,
+      "migration_status": "CANONICAL_CONTRACT_WRITER",
+      "operation": "WRITE",
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/scripts/wp/atelier-lens-consolidation-packet-generator.mjs",
+      "rationale": "The writer targets a primary JSON contract or contract-adjacent structured file.",
+      "risk_class": "LOW",
+      "source_hash": "01353e7d4db99004",
+      "target_expression": "contractPath",
+      "write_call": "fs.writeFileSync"
+    },
+    {
+      "artifact_class": "PRIMARY_CONTRACT_JSON",
+      "authority_class": "PRIMARY_MACHINE_READABLE_ARTIFACT",
+      "id": "artifact-writer:b02884a29aad0588",
+      "line": 230,
+      "migration_status": "CANONICAL_CONTRACT_WRITER",
+      "operation": "WRITE",
+      "owner_role": "SHARED",
+      "path": ".GOV/roles_shared/scripts/wp/atelier-lens-consolidation-packet-generator.mjs",
+      "rationale": "The writer targets a primary JSON contract or contract-adjacent structured file.",
+      "risk_class": "LOW",
+      "source_hash": "01353e7d4db99004",
+      "target_expression": "projectionPath",
+      "write_call": "fs.writeFileSync"
+    },
+    {
       "artifact_class": "GENERIC_GOVERNANCE_ARTIFACT_WRITE",
       "authority_class": "CLASSIFIED_GENERIC_GOVERNANCE_WRITER",
       "id": "artifact-writer:6dc15ade5d1179dc",
@@ -1188,15 +1248,15 @@
     {
       "artifact_class": "PRIMARY_CONTRACT_JSON",
       "authority_class": "PRIMARY_MACHINE_READABLE_ARTIFACT",
-      "id": "artifact-writer:478487b0bba9019b",
-      "line": 197,
+      "id": "artifact-writer:d3709219d3de4d58",
+      "line": 314,
       "migration_status": "CANONICAL_CONTRACT_WRITER",
       "operation": "WRITE_ASYNC",
       "owner_role": "SHARED",
       "path": ".GOV/roles_shared/scripts/wp/task-packet-stub-contracts.mjs",
       "rationale": "The writer targets a primary JSON contract or contract-adjacent structured file.",
       "risk_class": "LOW",
-      "source_hash": "187f761a4accc2d9",
+      "source_hash": "0fb88122ec1f8d9d",
       "target_expression": "contractPath",
       "write_call": "fs.writeFile"
     },
@@ -1606,21 +1666,6 @@
       "write_call": "fs.writeFileSync"
     },
     {
-      "artifact_class": "GOVERNANCE_RECORD_ARTIFACT",
-      "authority_class": "GOVERNANCE_LEDGER_OR_PROJECTION",
-      "id": "artifact-writer:ca86a00d36ddbf05",
-      "line": 42,
-      "migration_status": "TRACK_FOR_MACHINE_READABLE_MIGRATION",
-      "operation": "WRITE",
-      "owner_role": "ORCHESTRATOR",
-      "path": ".GOV/roles/orchestrator/scripts/wp-traceability-set.mjs",
-      "rationale": "Governance records remain tracked ledgers/projections and should migrate to structured authority where feasible.",
-      "risk_class": "MEDIUM",
-      "source_hash": "93d65a56844b9f79",
-      "target_expression": "p",
-      "write_call": "fs.writeFileSync"
-    },
-    {
       "artifact_class": "TEST_FIXTURE",
       "authority_class": "TEST_ONLY",
       "id": "artifact-writer:c26d698d142f24d2",
@@ -2021,7 +2066,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "targetPath",
       "write_call": "writeFile"
     },
@@ -2036,7 +2081,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "targetPath",
       "write_call": "fs.writeFileSync"
     },
@@ -2051,7 +2096,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "",
       "write_call": "writeFile"
     },
@@ -2066,7 +2111,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "",
       "write_call": "writeFile"
     },
@@ -2081,7 +2126,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "",
       "write_call": "writeFile"
     },
@@ -2096,7 +2141,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "",
       "write_call": "writeFile"
     },
@@ -2111,7 +2156,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "",
       "write_call": "writeFile"
     },
@@ -2126,7 +2171,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "",
       "write_call": "writeFile"
     },
@@ -2141,7 +2186,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "",
       "write_call": "writeFile"
     },
@@ -2156,7 +2201,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "",
       "write_call": "writeFile"
     },
@@ -2171,7 +2216,7 @@
       "path": ".GOV/roles/validator/tests/validator-report-structure-check.test.mjs",
       "rationale": "Test fixture writes are not runtime governance authority.",
       "risk_class": "LOW",
-      "source_hash": "97df9ee99e3049ae",
+      "source_hash": "ecae133e4e893084",
       "target_expression": "",
       "write_call": "writeFile"
     },
@@ -2268,7 +2313,7 @@
   ],
   "generated_at_utc": null,
   "generated_by": "residual-artifact-writer-inventory.mjs",
-  "inventory_hash": "sha256:9a73386441b2382e",
+  "inventory_hash": "sha256:9247ca145fef0bd0",
   "policy": {
     "deletion_rule": "This inventory does not authorize deleting scripts or artifacts.",
     "high_risk_rule": "Packet, refinement, and MT Markdown writes must be migrated to primary contract writers or carry an explicit contract-sync proof.",
@@ -2281,10 +2326,10 @@
     ".GOV/roles_shared/checks"
   ],
   "totals": {
-    "entries": 151,
+    "entries": 154,
     "high_risk": 0,
-    "low_risk": 87,
-    "medium_risk": 64,
+    "low_risk": 89,
+    "medium_risk": 65,
     "migration_candidates": 0,
     "unclassified": 0
   }
