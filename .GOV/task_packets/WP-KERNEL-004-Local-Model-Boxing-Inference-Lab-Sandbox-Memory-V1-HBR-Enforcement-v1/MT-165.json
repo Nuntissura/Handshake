@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-165",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:24:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-165.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Retrieval trace bundle exporter (folded WP-1-Retrieval-Trace-Bundle-Export)",
+  "goal": "Provide a dedicated exporter that takes a retrieval trace_id and emits a redacted-by-default bundle containing QueryPlan + RetrievalTrace + budgets + cache markers + selected spans + referenced artifacts. Folded from WP-1-Retrieval-Trace-Bundle-Export. Makes retrieval issues debuggable, explainable, and shareable without leaking sensitive payloads.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/trace_export.rs (RetrievalTraceExporter + TraceBundle + RedactionPolicy + ExportFormat types) + Tauri IPC `kernel.memory_trace.export`. Tests src/backend/handshake_core/tests/trace_export_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/trace_export.rs",
+    "src/backend/handshake_core/tests/trace_export_tests.rs"
+  ],
+  "depends_on_mts": ["MT-144", "MT-161", "MT-164"],
+  "unblock_conditions": "MT-144 (CapsuleInjector flight-recorder events provide the trace_id surface), MT-161 (DegradationReport included in bundle), MT-164 (RetrievalMode routing recorded in bundle).",
+  "implementation_notes": "Per WP-1-Retrieval-Trace-Bundle-Export preserved_intent. TraceBundle shape: `{ trace_id: Uuid, query_plan: QueryPlan, retrieval_trace: RetrievalTrace, budgets: MemoryPackBudgets, cache_markers: CacheMarkers, retrieval_mode: RetrievalMode, degradation_report: DegradationReport, selected_spans: Vec<SpanRef>, referenced_artifacts: Vec<ArtifactRef>, redactions_applied: Vec<RedactionRecord>, exported_at_utc, exporter_version: String }`. RedactionPolicy: `{ redact_pii: bool (default true), redact_credentials: bool (default true), redact_full_item_text: bool (default false), allowlist_artifact_kinds: Vec<String> }`. ExportFormat: `Json`, `JsonPretty`, `Tarball (includes referenced artifacts as separate files)`. RetrievalTraceExporter: `pub fn export(trace_id: Uuid, policy: &RedactionPolicy, format: ExportFormat) -> Result<ExportedBundle, ExportError>`. Redaction MUST be a pre-step: scan every text field through the same PII+credential scanner used by AC-DISTILL-CONTENT-REVIEW (regex + NER); failures redact to '[REDACTED]' and record in redactions_applied. IPC: `kernel.memory_trace.export(trace_id, policy, format) -> ExportedBundle`. Tests: bundle round-trips through serde; redaction policy default-on for PII + credentials; redactions_applied lists every redacted span; export to Tarball includes referenced artifacts as separate files; export of unknown trace_id returns typed ExportError.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target trace_export_tests"
+  ],
+  "risk_if_missed": "Without trace export retrieval issues become impossible to debug or share; the operator has no shareable evidence bundle for support cases.",
+  "validator_focus": "Redaction is default-on for PII + credentials; redaction record is non-optional; bundle round-trips deterministically.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-144", "MT-161", "MT-164"],
+    "blocks": ["MT-168"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Redaction is default-on for PII + credentials; opt-out requires explicit policy field.",
+      "redactions_applied lists every redaction so reviewers can see what was hidden.",
+      "Tarball format includes referenced artifacts as separate files so the bundle is self-contained."
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-189",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:13:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-189.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MT Executor orchestrator integrating job queue + mailbox + loop control + backpressure",
+  "goal": "Land the top-level `MicroTaskExecutor` orchestrator that ties X.1 mailbox primitives + X.2 job queue + loop control + cancellation + scheduler + outcome recording into a single executor loop. This is the entrypoint a worker session calls to execute MTs end-to-end with all preservation-slice invariants enforced.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/mt_executor.rs with `MicroTaskExecutor::run(executor_identity, config) -> impl Future`; integration tests under src/backend/handshake_core/tests/mt_executor_integration_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/mt_executor.rs",
+    "src/backend/handshake_core/tests/mt_executor_integration_tests.rs"
+  ],
+  "depends_on_mts": ["MT-176", "MT-177", "MT-179", "MT-180", "MT-181", "MT-182", "MT-183", "MT-184", "MT-185", "MT-186", "MT-187", "MT-188"],
+  "unblock_conditions": "All X.1 and X.2 primitives merged so the executor orchestrator has every dependency available.",
+  "implementation_notes": "Top-level loop: `loop { (1) check cancellation token; (2) call FairScheduler::next_for_executor (MT-187); (3) if Some(job) -> claim via MicroTaskQueue (MT-184); (4) acquire mailbox lease for job.mailbox_thread_id via LeaseManager (MT-180) with router permission check (MT-181); (5) load MT contract from job.mt_contract_path; (6) for each iteration up to MtLoopControlBudget (MT-185): (a) record_checkpoint; (b) check backpressure for outgoing mailbox messages (MT-182); (c) execute the MT body (delegates to a Coder trait — coder impl is out of scope here, MT executor receives a `MtCoderHandle: trait` provided by caller); (d) parse completion_signal; (e) if Verification needed -> post micro_task_verification_needed message to mailbox (MT-179) and await; (f) if iteration succeeds -> record outcome (MT-188) Success branch; (g) if iteration fails -> record outcome (MT-188) Failure branch which routes escalation; (h) check cancellation token between every iteration boundary (MT-186); }`. After completion, post `micro_task_completion_report` mailbox message (MT-179) and release lease (MT-180). Errors at any step: emit FR-EVT-MT-EXEC-ERROR with structured cause, record outcome=Failure, do NOT panic. The MtCoderHandle trait surface: `trait MtCoderHandle { async fn execute(&self, ctx: MtExecutionContext) -> Result<MtIterationResult, MtCoderError>; }` — keeps the coder impl pluggable so cluster C can wire LlamaCppRuntime/CandleRuntime adapters and tests can use a stub. Integration tests: (a) end-to-end Happy Path — stub coder returns Success on iteration 1, verify outcome + mailbox completion message + lease released; (b) Failure path — stub returns Failure twice, verify escalation tier moves T7B->T7BAlt, mailbox escalation message posted; (c) Cancellation path — request cancellation mid-iteration, verify Cancelled state + cleanup; (d) Backpressure path — flood mailbox to saturate, verify Deny propagated as a soft retry not a hard failure; (e) Lease lost mid-iteration (simulated expiry) — verify graceful re-acquire or Abandon outcome.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target mt_executor_integration_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without the orchestrator, all X.1/X.2 primitives are unwired libraries; no executor session can actually run an MT through the preservation-slice contracts; the cluster X fold delivers zero end-to-end behavior.",
+  "validator_focus": "Orchestrator never panics — every error path records outcome=Failure with structured cause; cancellation observed within bounded latency; lease re-acquire path proven (does not silently double-claim).",
+  "hbr_obligations": ["HBR-INT-008", "HBR-SWARM-001", "HBR-SWARM-002", "HBR-SWARM-003", "HBR-SWARM-004"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-message-contract",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Micro-Task-Executor-v1 (top-level executor orchestrator)",
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1 (executor integrates loop control)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-176", "MT-177", "MT-179", "MT-180", "MT-181", "MT-182", "MT-183", "MT-184", "MT-185", "MT-186", "MT-187", "MT-188"],
+    "blocks": ["MT-200"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "End-to-end test asserts zero panics across 5 happy/failure/cancellation paths.",
+      "Lease re-acquire after simulated expiry asserts router permission re-check (not stale token reuse).",
+      "MtCoderHandle trait is sealed or marker-trait-protected so unauthorized coders cannot be substituted at runtime."
+    ]
+  }
+}

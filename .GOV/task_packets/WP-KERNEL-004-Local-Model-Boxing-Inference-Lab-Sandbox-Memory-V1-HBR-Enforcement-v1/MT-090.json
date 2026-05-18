@@ -1,0 +1,67 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-090",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-090.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-1 LoRA hot-swap public API + Work Profile knob + observability events",
+  "goal": "Lift the per-adapter LoraStackOps (MT-076 LlamaCpp + MT-084 Candle) to a public ModelRuntime-level LoRA hot-swap surface: kernel.model_runtime.lora_mount, lora_unmount, lora_swap, lora_list. Wire the technique into the Work Profile knob (settings.exec_policy.lora_stack) and FR-EVT-LLM-INFER-LORA-* events per AC-INFER-LAB-8-TECHNIQUES.a.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/techniques/lora_hotswap.rs orchestrating mount/unmount across both adapters; Tauri commands in app/src-tauri/src/commands/lora.rs; Work Profile schema extension in settings.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/techniques/lora_hotswap.rs",
+    "src/backend/handshake_core/src/model_runtime/techniques/mod.rs",
+    "app/src-tauri/src/commands/lora.rs",
+    "app/src-tauri/src/main.rs",
+    "src/backend/handshake_core/tests/lora_hotswap_techniques_tests.rs"
+  ],
+  "depends_on_mts": ["MT-064", "MT-072", "MT-076", "MT-081", "MT-084"],
+  "unblock_conditions": "Per-adapter LoRA impls (MT-076 LlamaCpp + MT-084 Candle) merged.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.a + refinement INF-1: LoRA hot-swap is PRODUCTION on BOTH adapters; this MT lifts the per-adapter LoraStackOps into a public ModelRuntime-level technique API consumed by Inference Lab UI (MT-068 IPC sibling). The technique module: `pub async fn lora_mount(rt: &dyn ModelRuntime, model_id: ModelId, desc: LoraDescriptor, strength: LoraStrength) -> Result<(), ModelRuntimeError>` dispatches to the per-model lora_stack handle. Work Profile knob extension: settings.exec_policy adds `lora_stack: Vec<{ lora_id, strength }>`; on session start, the lora_stack policy is applied via lora_swap to set the runtime to the policy-declared stack. Per-request override path: GenerateRequest.lora_overrides Vec<LoraId> already plumbed in MT-062 trait; this MT verifies end-to-end (UI override -> request -> backend mount-if-needed -> generate). FR events: FR-EVT-LLM-INFER-LORA-MOUNT { model_id, lora_id, strength, source: WorkProfile|PerRequest|AdHoc }, FR-EVT-LLM-INFER-LORA-UNMOUNT, FR-EVT-LLM-INFER-LORA-SWAP { model_id, prev_stack_len, new_stack_len, rolled_back: bool }. Tauri commands: kernel_model_runtime_lora_mount(model_id, lora_descriptor_json, strength), kernel_model_runtime_lora_unmount(model_id, lora_id), kernel_model_runtime_lora_swap(model_id, new_stack), kernel_model_runtime_lora_list(model_id). Conservative-default opt-in: lora_stack on Work Profile defaults to empty; per-request overrides require explicit consent (frontend prompt). Tests: dispatch from technique surface reaches the right adapter (LlamaCpp vs Candle) based on registry binding; Work Profile knob application; FR event emit verified.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target lora_hotswap_techniques_tests",
+    "cargo test --manifest-path app/src-tauri/Cargo.toml --target-dir ../Handshake_Artifacts/tauri-cargo-target lora_commands"
+  ],
+  "risk_if_missed": "INF-1 PRODUCTION ships partial (per-adapter only); UI cannot drive LoRA stack uniformly; Work Profile knob not honoured.",
+  "validator_focus": "Dispatch reaches correct adapter; Work Profile knob applied at session start; FR event source field distinguishes WorkProfile vs PerRequest vs AdHoc; conservative-default opt-in honoured.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-INFER-LAB-UI-TOGGLES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-064", "MT-072", "MT-076", "MT-081", "MT-084"],
+    "blocks": ["MT-091", "MT-092"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Conservative-default opt-in (lora_stack empty by default).",
+      "FR source field present and correct in events.",
+      "Adapter dispatch tested for both Llama and Candle bindings."
+    ]
+  }
+}

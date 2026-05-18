@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-008",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-008.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ProcessOwnershipLedger reclaim hooks (session close / failure / staleness / cancel)",
+  "goal": "Implement reclaim hooks per spec §5.7.5 (AC-PROCESS-LEDGER-RECLAIM). On every session close, failure, staleness detection, and operator cancel (per CX-503D + CX-212G), the reclaim path queries kernel_process_lifecycle for the session's non-stopped rows, calls SandboxAdapter.kill on each, and writes STOP rows with exit_code = -1.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/reclaim.rs; integration with SessionBroker (KERNEL-001 primitive) hook points; tests covering all four reclaim trigger modes.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/reclaim.rs",
+    "src/backend/handshake_core/tests/process_ledger_reclaim_tests.rs"
+  ],
+  "depends_on_mts": ["MT-007"],
+  "unblock_conditions": "MT-007 ledger primitive + write path merged.",
+  "implementation_notes": "Per spec §5.7.5 reclaim covers four trigger modes: (a) session close (clean), (b) session failure (panic, broker death, abnormal exit), (c) staleness (no heartbeat within configured TTL — default 5min), (d) operator cancel (explicit kill). The reclaim primitive: `Reclaim::run(session_id: SessionId, trigger: ReclaimTrigger) -> ReclaimReport` where ReclaimTrigger is the enum {Close, Failure, Stale, OperatorCancel}. Internally: (1) SELECT process_uuid, sandbox_adapter_id, engine_kind FROM kernel_process_lifecycle WHERE parent_session_id = $1 AND stopped_at IS NULL FOR UPDATE; (2) for each row, locate the SandboxAdapter via a registry (the SandboxAdapter trait lives in cluster B; this MT defines a placeholder trait surface `trait SandboxKill { fn kill(&self, process_uuid: Uuid) -> Result<(), KillError>; }` with a TODO marker referencing cluster B for the real adapter binding); (3) call kill(); (4) write STOP row with exit_code = -1, stopped_at = now(), via the perf-safe writer from MT-007. ReclaimReport carries `{ session_id, trigger, processes_reclaimed: Vec<{process_uuid, kill_result}>, total_duration_ms }`. SessionBroker integration: this MT exposes a `reclaim_handle()` that SessionBroker can call from its session-close path (note: SessionBroker exists from KERNEL-001; if its actual API does not yet have a reclaim hook, add one in the cluster X integration pass — this MT just exposes the entry point). Staleness detection: a background tokio task scans for sessions whose last heartbeat is older than TTL every 30s; on hit, calls Reclaim::run(session_id, ReclaimTrigger::Stale). Tests use a mock SandboxKill impl: (a) clean close kills 0 hanging processes when session exited cleanly; (b) failure kills N pending processes; (c) stale detection fires after TTL; (d) operator cancel kills immediately. Per HBR-QUIET-003 evidence_kind=process_lifecycle_test_run this is exactly the test family this MT must produce.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target process_ledger_reclaim_tests"
+  ],
+  "risk_if_missed": "Without reclaim, orphan processes accumulate from crashed sessions; violates HBR-QUIET-003 'no orphan processes after a run, failure, or kill'.",
+  "validator_focus": "All four ReclaimTrigger variants have explicit tests; STOP row is always written even when kill() fails (kill_result captures the error); staleness detection runs as a background task without blocking the main event loop.",
+  "hbr_obligations": ["HBR-INT-007", "HBR-QUIET-003", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
+  ],
+  "acceptance_criteria_refs": ["AC-PROCESS-LEDGER-RECLAIM", "AC-PROCESS-LEDGER-SCOPE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-007"],
+    "blocks": ["MT-009", "MT-034"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "STOP row is written even when kill() returns an error (so post-hoc audit knows the process was attempted to be reclaimed).",
+      "Staleness TTL is configurable and the default is documented in implementation notes.",
+      "FOR UPDATE row-lock prevents two reclaim runs racing on the same session."
+    ]
+  }
+}

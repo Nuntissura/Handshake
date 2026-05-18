@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-107",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.9",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-107.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-6 Abliteration provenance + license tagging + Skill Bank gating",
+  "goal": "Wire the abliterated output through the §4.8 content-review pipeline: PII scan, license tagging validation, provenance metadata enforcement. Output cannot be referenced from the Skill Bank without passing review per AC-ABLITERATION-OFFLINE.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/distillation/abliterate_review.rs; integration with §4.8 content review (cluster D MT-120); tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/distillation/abliterate_review.rs",
+    "src/backend/handshake_core/tests/abliterate_review_tests.rs"
+  ],
+  "depends_on_mts": ["MT-106", "MT-120"],
+  "unblock_conditions": "MT-106 abliteration tool + MT-120 distillation content review merged. If MT-120 not yet authored by other agent at sequencing time, this MT may use a stub content_review_check until the real pipeline lands; document the placeholder.",
+  "implementation_notes": "Per AC-ABLITERATION-OFFLINE: \"passes through §4.8 content-review pipeline (PII scan + license tagging + provenance) before any Skill Bank reference\". Implementation: AbliterationOutputReview::check(artifact_path: &Path, provenance: &AbliterationProvenance) -> Result<ReviewResult, ReviewError>. Steps: (1) verify provenance metadata complete (base_model_sha256, refusal_direction_sha256, license_tag non-empty, operator_signature present); (2) call distillation::content_review::pii_scan on the artifact-level metadata text (not weights themselves; weights are not PII); (3) verify license_tag is in the allowed-licenses list (operator-configurable; defaults: MIT, Apache-2.0, custom_internal); (4) emit FR-EVT-DISTILL-ABLITERATE-REVIEW { artifact_path, result: Pass|Fail, reason }; (5) on pass, allow registration as a Skill Bank model entry; on fail, quarantine (move artifact to .quarantine/ subdirectory and emit warn). Skill Bank gating: kernel.skill_bank.register_abliterated_model action checks AbliterationOutputReview::check first; refuses on Fail. Tests: provenance missing field -> Fail; license_tag empty -> Fail; license_tag not in allowed list -> Fail; complete provenance + allowed license -> Pass.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target abliterate_review_tests"
+  ],
+  "risk_if_missed": "Abliterated outputs skip content review; spec §4.7.4 + AC-ABLITERATION-OFFLINE Skill-Bank gate not enforced.",
+  "validator_focus": "Provenance completeness gate; license allowlist; quarantine on fail; Skill Bank registration refuses on Fail.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.4",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8"
+  ],
+  "acceptance_criteria_refs": ["AC-ABLITERATION-OFFLINE", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-106", "MT-120"],
+    "blocks": ["MT-108"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Provenance completeness gate enforced.",
+      "License allowlist explicit (operator-configurable, not hardcoded).",
+      "Quarantine on Fail (do not delete artifact)."
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-190",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:14:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-190.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "SessionCheckpoint primitive + Postgres schema",
+  "goal": "Land the durable SessionCheckpoint primitive and Postgres schema that captures the minimum state required to resume an interrupted model_run job or session. Folds WP-1-Session-Crash-Recovery-Checkpointing-v1 stub intent: deterministic failure modes + explicit evidence + idempotent recovery.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/session_checkpoint.rs; new Postgres migration src/backend/handshake_core/migrations/NNN_session_checkpoint.sql; unit tests under src/backend/handshake_core/tests/session_checkpoint_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/session_checkpoint.rs",
+    "src/backend/handshake_core/migrations/NNN_session_checkpoint.sql",
+    "src/backend/handshake_core/tests/session_checkpoint_tests.rs"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "KERNEL-001 EventLedger + SessionBroker already in main; KERNEL-001 schemas referenced via existing crate paths.",
+  "implementation_notes": "Define `SessionCheckpoint { checkpoint_id: Uuid v7, session_id: Uuid v7 (FK to KERNEL-001 session table), model_session_id: Uuid v7, last_event_ledger_seq: i64 (watermark; ties checkpoint to KERNEL-001 EventLedger position), compact_state: serde_json::Value (bounded <= 32KB; the resume context payload), state_kind: CheckpointStateKind (Periodic|EventTriggered|PreShutdown|PostFailure), pending_artifacts: Vec<ArtifactPointer>, created_at_utc, created_by_process: i32 (pid for forensic correlation with ProcessOwnershipLedger), schema_version: u16 (forward-compat for compact_state shape evolution) }`. Postgres table `kernel_session_checkpoint` indexed on (session_id, created_at_utc DESC) for fast 'latest checkpoint' lookup and on (model_session_id) for multi-session aggregate queries (used by MT-200). Compact_state size CHECK constraint <= 32768 bytes (defense-in-depth; resume contexts must be compact per folded stub intent — checkpoints replace transcript replay). FK to KERNEL-001 session table uses ON DELETE CASCADE since checkpoints have no value after the session is purged. Append-only: no UPDATE permitted on rows; recovery proceeds by writing a NEW checkpoint, never mutating old ones. All Uuid v7. Add sqlx + uuid + serde to Cargo (already added by MT-176, no-op). Tests: (a) round-trip serialize/deserialize; (b) reject compact_state > 32KB at INSERT; (c) latest-checkpoint-for-session query returns most recent by created_at_utc; (d) append-only enforced by lack of UPDATE method on type; (e) FK cascade verified by deleting parent session.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target session_checkpoint_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without a SessionCheckpoint primitive, session crash recovery has no schema to write to; the folded WP-1-Session-Crash-Recovery-Checkpointing-v1 stub's 'session state loss on crash' anti-pattern is not mitigated.",
+  "validator_focus": "Compact state size bounded at the database level (CHECK constraint); append-only invariant enforced by API (no public update method); checkpoint binds to KERNEL-001 EventLedger via last_event_ledger_seq watermark so replay (MT-192) is deterministic.",
+  "hbr_obligations": ["HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (durable session checkpoints)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": [],
+    "blocks": ["MT-191", "MT-192", "MT-193", "MT-194", "MT-195"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "compact_state size CHECK constraint at the database level (not just app-level assertion).",
+      "Append-only proven by absence of public update method + audit-only repo trait.",
+      "schema_version field enables forward-compat checkpoint evolution without database migration."
+    ]
+  }
+}

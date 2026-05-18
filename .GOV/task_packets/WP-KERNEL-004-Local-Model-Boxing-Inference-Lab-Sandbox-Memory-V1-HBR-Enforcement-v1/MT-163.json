@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-163",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:22:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-163.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "FEMS acceptance replay eval (FEMS-EVAL-001.4) (folded WP-1-FEMS-Acceptance-Replay-Eval)",
+  "goal": "Define and enforce deterministic acceptance/validation replay for FEMS so a past MemoryPack composition can be reconstructed exactly and re-evaluated. Folded from WP-1-FEMS-Acceptance-Replay-Eval. Critical for the self-improvement loop's reproducibility story and the integration validator's audit path.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/replay_eval.rs (ReplayEvaluator + ReplayRequest + ReplayResult + ReplayDifference types). Tests src/backend/handshake_core/tests/replay_eval_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/replay_eval.rs",
+    "src/backend/handshake_core/tests/replay_eval_tests.rs"
+  ],
+  "depends_on_mts": ["MT-141", "MT-145", "MT-157"],
+  "unblock_conditions": "MT-141 (MemoryCapsule), MT-145 (CapsuleRecord persistence), MT-157 (bitemporal indexing - replay needs both temporal axes).",
+  "implementation_notes": "Per WP-1-FEMS-Acceptance-Replay-Eval preserved_intent: 'Define and enforce deterministic acceptance/validation for FEMS Phase 1 delivery'. Per refinement D.3 'acceptance replay eval'. ReplayRequest: `{ capsule_id: Uuid, replay_as_of: AsOfQuery (from MT-157), expected_source_hash: String }`. ReplayResult: `{ replayed_capsule: MemoryCapsule, replay_difference: ReplayDifference, replay_succeeded: bool }`. ReplayDifference: `{ items_present_now_absent_then: Vec<Uuid>, items_absent_now_present_then: Vec<Uuid>, items_with_different_scores: Vec<(Uuid, f64, f64)> }`. ReplayEvaluator: `pub fn replay(req: ReplayRequest, recorder: &dyn CapsuleRecordReader, bitemporal: &dyn BitemporalAccessor, builder: &CapsuleBuilder) -> Result<ReplayResult, ReplayError>`. Flow: (1) load original CapsuleRecord via recorder, (2) use bitemporal.items_visible_at(replay_as_of) to recover the world state at original build time, (3) re-run CapsuleBuilder against that frozen world state with the original RetrievalPolicy, (4) compare resulting capsule to original by source_hash (exact match) and diff item-level if mismatch. replay_succeeded = (source_hash matches). Use this to validate (a) bitemporal indexing is correct, (b) CapsuleBuilder is deterministic given fixed inputs, (c) self-improvement-loop iterations can be exactly reproduced from EventLedger. Tests: replay of just-built capsule succeeds with empty ReplayDifference; replay after a hygiene invalidation detects the diff (item absent now present then); replay with wrong expected_source_hash returns ReplayError::HashMismatch; replay is deterministic across multiple invocations.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target replay_eval_tests"
+  ],
+  "risk_if_missed": "Without replay eval the self-improvement loop cannot prove reproducibility and the integration validator cannot audit past loop iterations.",
+  "validator_focus": "Replay is deterministic; ReplayDifference surfaces every divergence; bitemporal accessor is the source of truth for as-of state.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-141", "MT-145", "MT-157"],
+    "blocks": ["MT-168", "MT-169"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Replay is deterministic given fixed AsOfQuery; non-determinism is a test failure.",
+      "ReplayDifference enumerates every divergence so diffs can be inspected.",
+      "Bitemporal accessor is the sole source of as-of state; replay cannot accidentally consume current FEMS state."
+    ]
+  }
+}

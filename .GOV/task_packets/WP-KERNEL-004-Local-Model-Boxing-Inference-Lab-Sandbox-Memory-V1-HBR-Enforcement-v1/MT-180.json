@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-180",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:04:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-180.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "RoleMailboxClaimLeaseV1 record + lease acquisition primitive",
+  "goal": "Implement the durable RoleMailboxClaimLeaseV1 record (Postgres) and the lease acquisition + extension + release primitive that keeps exactly one active executor on any exclusive or handoff-style mailbox thread. Closes the folded WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 stub's 'one lawful ownership layer' requirement.",
+  "expected_diff_shape": "New Postgres migration src/backend/handshake_core/migrations/NNN_role_mailbox_claim_lease.sql; new Rust module src/backend/handshake_core/src/role_mailbox/lease.rs with `LeaseManager::acquire / extend / release / takeover` methods + `LeaseError` enum; integration tests under src/backend/handshake_core/tests/role_mailbox_lease_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/role_mailbox/lease.rs",
+    "src/backend/handshake_core/migrations/NNN_role_mailbox_claim_lease.sql",
+    "src/backend/handshake_core/tests/role_mailbox_lease_tests.rs"
+  ],
+  "depends_on_mts": ["MT-177"],
+  "unblock_conditions": "MT-177 repo + Postgres infrastructure available so the lease table can FK to role_mailbox_thread.",
+  "implementation_notes": "Per spec v02.186 §02-system-architecture.md role mailbox subsection [ADD v02.176] lines 6151-6156: define `RoleMailboxClaimLeaseV1 { lease_id: Uuid v7, thread_id: Uuid v7 (FK), holder_executor_kind: ExecutorKind, holder_role_id: RoleId, holder_session_id: Uuid v7, acquired_at_utc, expires_at_utc, released_at_utc: Option, takeover_of: Option<Uuid v7> (FK to predecessor lease), takeover_reason: Option<String> }`. Postgres migration creates the table with a partial unique index `WHERE released_at_utc IS NULL AND expires_at_utc > now()` keyed by thread_id — this enforces 'one active unexpired lease per thread' at the database level per spec line 6156. `LeaseManager::acquire(thread_id, requesting: LeaseRequest) -> Result<RoleMailboxClaimLeaseV1, LeaseError>` runs inside a transaction: (1) SELECT thread FOR UPDATE; (2) check thread.claim_mode allows requesting.executor_kind via executor_kind_allowlist; (3) check no active lease (or, if claim_mode=Handoff, allow takeover per takeover_policy); (4) INSERT lease row. LeaseError variants: `LeaseHeldByOther { current_holder }`, `ExecutorKindNotAllowed`, `ThreadInTerminalState`, `Conflict`. `extend(lease_id, extra_secs)` is idempotent and only succeeds if lease is still unexpired and unreleased. `release(lease_id)` sets released_at_utc and is a no-op if already released. `takeover(thread_id, requesting, predecessor_lease_id, reason)` permitted only when thread.takeover_policy allows (TakeoverPolicy enum: Never|OnLeaseExpiry|AlwaysWithReason|OperatorOnly); writes new lease row with takeover_of and takeover_reason set, and force-releases the predecessor with reason recorded. Tests (use Postgres test container): (a) acquire on fresh thread succeeds; (b) second acquire returns LeaseHeldByOther; (c) acquire after lease expiry succeeds; (d) takeover with Never policy returns error; (e) parallel acquire from 8 tasks — exactly one wins; (f) extend after expiry returns error; (g) audit row chain is queryable via lease_id ancestry.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target role_mailbox_lease_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without a lease primitive, the cluster X preservation slice's central invariant (one active executor per exclusive thread, no races between local + cloud models + reviewers + validators + operators + automation) is silently violated. The folded WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 intent is lost.",
+  "validator_focus": "Partial unique index prevents two active leases on the same thread at the database level (not application level); parallel-acquire test asserts exactly-one-winner; takeover policy enforced atomically with predecessor release.",
+  "hbr_obligations": ["HBR-INT-008", "HBR-SWARM-001", "HBR-SWARM-002", "HBR-SWARM-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-claim-lease",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 (one lawful ownership layer)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-177"],
+    "blocks": ["MT-181", "MT-182", "MT-184", "MT-189"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Database-level partial unique index proven by an INSERT-conflict test bypassing the LeaseManager — must fail with a Postgres unique-violation error.",
+      "Takeover audit chain queryable via recursive CTE so an auditor can reconstruct the full ownership history of any thread.",
+      "Lease extension cannot bypass expiry (extend after expires_at_utc returns LeaseExpired)."
+    ]
+  }
+}

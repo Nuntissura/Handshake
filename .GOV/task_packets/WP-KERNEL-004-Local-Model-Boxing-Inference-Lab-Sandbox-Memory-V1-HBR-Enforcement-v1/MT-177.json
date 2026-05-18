@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-177",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:01:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-177.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Role Mailbox Postgres repository + CRUD with transactional lifecycle enforcement",
+  "goal": "Implement the Postgres-backed RoleMailboxRepository over the MT-176 schema. Provides the only authority-bearing CRUD path for threads and messages, with lifecycle transitions enforced inside the transaction and append-only message history. This is the substrate every downstream X.1/X.2 mailbox primitive uses for durable state.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/role_mailbox/repo.rs providing `RoleMailboxRepository` with create_thread / get_thread / update_thread_lifecycle / append_message / list_thread_messages / list_threads_by_state / dead_letter_message methods; integration tests under src/backend/handshake_core/tests/role_mailbox_repo_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/role_mailbox/repo.rs",
+    "src/backend/handshake_core/tests/role_mailbox_repo_tests.rs"
+  ],
+  "depends_on_mts": ["MT-176"],
+  "unblock_conditions": "MT-176 typed primitives + Postgres migration must be merged so the repo can target the schema.",
+  "implementation_notes": "Per CX-503R Postgres-only authority and spec §5.7 ProcessOwnershipLedger pattern, the repo wraps a `sqlx::PgPool` and exposes async methods. `update_thread_lifecycle(thread_id, requested_state, by_role) -> Result<RoleMailboxThread, MailboxError>` MUST execute the transition check inside a `BEGIN; SELECT ... FOR UPDATE; UPDATE ...; COMMIT` block to prevent races (cluster X spec subsection [ADD v02.176] forbids races between parallel models). `append_message(thread_id, message) -> Result<RoleMailboxMessage, MailboxError>` MUST: (a) check thread lifecycle_state is in an accepting state (not archived/expired/resolved), (b) assign Uuid v7 message_id if not provided, (c) insert with delivery_state=`queued`. `dead_letter_message(message_id, reason)` transitions delivery to `dead_lettered` and writes an audit row. `list_threads_by_state(state, limit, offset)` is the validator query surface (mirrors spec §5.7.4 pattern). No method writes outside the transaction. All errors typed via `thiserror::Error`. Integration tests use a Postgres test container (use testcontainers-rs or the KERNEL-003 fixture pattern in tests/common.rs): (a) create thread, append 3 messages, list them, expect chronological order; (b) attempt illegal lifecycle transition, expect `MailboxError::InvalidTransition`; (c) parallel update_thread_lifecycle calls — one wins, one returns `MailboxError::Conflict`; (d) append_message against archived thread rejects.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target role_mailbox_repo_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without a transactional repo, parallel executors (folded WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 intent) race on the same thread; lifecycle transitions silently become non-deterministic; the cluster X preservation slice loses its 'one lawful ownership layer' invariant.",
+  "validator_focus": "All lifecycle mutations atomic via SELECT FOR UPDATE; append_message rejects on terminal lifecycle states; concurrent transitions produce exactly-one-winner semantics; no SQLite anywhere (CX-503R).",
+  "hbr_obligations": ["HBR-INT-008", "HBR-SWARM-001", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-message-contract",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.4"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-v1 (durable repo with lifecycle enforcement)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-176"],
+    "blocks": ["MT-178", "MT-180", "MT-181", "MT-182", "MT-183", "MT-184", "MT-188"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Concurrency test launches >= 8 parallel tasks attempting the same illegal transition; exactly one succeeds, others receive Conflict or InvalidTransition.",
+      "Repo refuses to construct against a SQLite connection (CX-503R) via type bound on PgPool only.",
+      "Append-only invariant tested: no method exposes a way to delete or rewrite a message row."
+    ]
+  }
+}

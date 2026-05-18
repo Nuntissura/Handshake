@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-073",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-073.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "GGUF model loading + tokenizer cache (LlamaCppRuntime)",
+  "goal": "Implement the GGUF loader path for LlamaCppRuntime: mmap-or-direct-load via llama-cpp-2 LlamaModelParams, tokenizer extraction + caching, GPU offload params, context size declaration. Verify against a representative GGUF (a small <2 GiB Llama-3.2 or Qwen GGUF) in tests.",
+  "expected_diff_shape": "Fill gguf_loader.rs with LlamaModelParams construction, tokenizer cache map; new tests/llama_cpp_loader_tests.rs exercising load with a fixture GGUF (gated by a feature flag because the GGUF is too large for repo).",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/gguf_loader.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/tokenizer_cache.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+    "src/backend/handshake_core/tests/llama_cpp_loader_tests.rs"
+  ],
+  "depends_on_mts": ["MT-072"],
+  "unblock_conditions": "MT-072 scaffolding merged.",
+  "implementation_notes": "Per AC-LLAMACPP-ADAPTER: GGUF transformer load is the default path. LlamaModelParams: `n_gpu_layers: u32 (0 = pure CPU; -1 = offload all; operator-configurable), main_gpu: u32, vocab_only: bool, use_mmap: bool (true default; faster load on Windows + NVMe), use_mlock: bool (false default; mlock not always available on Windows)`. Loader: validate the file magic bytes (GGUF v2/v3) before passing to llama_cpp_2; if magic mismatch, return LoadError(\"not a GGUF v2/v3 artifact\"). Tokenizer extraction: GGUF carries embedded BPE/SentencePiece tokenizer in its metadata; expose `LlamaTokenizer { vocab_size, bos_id, eos_id, special_tokens }` via tokenizer_cache. TokenizerCache: `HashMap<ModelId, Arc<LlamaTokenizer>>` shared across generate calls so tokenize() isn't re-parsing GGUF metadata per request. Context creation: LlamaContextParams with `n_ctx: u32 (operator-set, default 8192), n_batch: u32 (512 default), n_threads: u32 (operator-set, default min(8, num_cpus)), embeddings: bool (true for embed() path), causal_attn: bool (true), n_seq_max: u32 (1 default; raised by self-spec MT-109)`. Per-feature gating: tests/llama_cpp_loader_tests.rs gated by env var HANDSHAKE_TEST_GGUF_PATH — if unset, skip the load test (CI without GPU/large-model fixtures still runs other tests). If env var present, point at a small <2 GiB GGUF on disk (operator provides; e.g., a Qwen2.5-1.5B-Instruct-Q4_K_M.gguf at ~1 GiB). Test: load model, assert ModelId v7, assert tokenizer vocab_size > 0, assert load_duration_ms recorded, unload and assert ledger row terminated.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target llama_cpp_loader_tests"
+  ],
+  "risk_if_missed": "GGUF load path is incomplete; LlamaCppRuntime never accepts real models; subsequent generate MT cannot proceed.",
+  "validator_focus": "GGUF magic-byte validation; tokenizer cache reuse across calls (no re-parse); GPU offload param honored; env-var-gated GGUF fixture skip path is documented.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2"
+  ],
+  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-072"],
+    "blocks": ["MT-074", "MT-075"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "GGUF magic-byte validation before llama_cpp_2 sees the file.",
+      "Tokenizer cache hit verified (counter increments).",
+      "Env-var gating documented so CI green when GGUF fixture unavailable."
+    ]
+  }
+}

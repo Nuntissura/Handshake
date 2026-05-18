@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-157",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:16:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-157.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "FEMS bitemporal indexing: valid_from/valid_until + recorded_at/invalidated_at on MemoryItem (folded WP-1-FEMS-Bitemporal-Indexing)",
+  "goal": "Add bi-temporal timestamps to FEMS V1 MemoryItem so MemoryCapsule replay can reconstruct exactly which memories existed AND were considered valid at a given instant. Ports the Graphiti/Zep temporal knowledge graph pattern. Folded from WP-1-FEMS-Bitemporal-Indexing into KERNEL-004 cluster D.3.",
+  "expected_diff_shape": "Extends src/backend/handshake_core/src/kernel/fems_mt_handoff_memory_context.rs (in main) with bi-temporal MemoryItem fields. New module src/backend/handshake_core/src/memory/bitemporal.rs (BitemporalIndex + AsOfQuery + BitemporalError types). Postgres migration adds `valid_from`, `valid_until`, `recorded_at`, `invalidated_at` columns. Tests src/backend/handshake_core/tests/bitemporal_indexing_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/bitemporal.rs",
+    "src/backend/handshake_core/tests/bitemporal_indexing_tests.rs",
+    "src/backend/handshake_core/src/kernel/fems_mt_handoff_memory_context.rs",
+    "src/backend/handshake_core/migrations/2026_05_18_fems_bitemporal.sql"
+  ],
+  "depends_on_mts": ["MT-141", "MT-143"],
+  "unblock_conditions": "MT-141 (MemoryCapsule), MT-143 (CapsuleBuilder). FEMS V1 surfaces in main.",
+  "implementation_notes": "Per WP-1-FEMS-Bitemporal-Indexing preserved_intent: 'Add bi-temporal timestamps to MemoryItem - valid_from/valid_until (when the fact was true in the world) and recorded_at/invalidated_at (when we recorded/invalidated it). Ports the Graphiti/Zep temporal knowledge graph pattern.' Surface: extends MemoryItem with `{ pub valid_from: DateTime<Utc>, pub valid_until: Option<DateTime<Utc>>, pub recorded_at: DateTime<Utc>, pub invalidated_at: Option<DateTime<Utc>> }`. New struct `pub struct AsOfQuery { as_of_world_time: DateTime<Utc>, as_of_recorded_time: DateTime<Utc> }`. BitemporalIndex provides `pub fn items_visible_at(query: &AsOfQuery) -> Result<Vec<MemoryItem>, BitemporalError>` which filters items where `valid_from <= as_of_world_time < (valid_until OR infinity) AND recorded_at <= as_of_recorded_time < (invalidated_at OR infinity)`. Postgres migration: ADD COLUMN valid_from TIMESTAMPTZ NOT NULL DEFAULT now(), valid_until TIMESTAMPTZ NULL, recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(), invalidated_at TIMESTAMPTZ NULL; CREATE INDEX ON memory_item (valid_from, valid_until); CREATE INDEX ON memory_item (recorded_at, invalidated_at). Backfill defaults existing rows so the migration is non-destructive. Tests: items_visible_at correctly filters across both dimensions; a memory invalidated at T1 is visible for queries with recorded_at < T1 but not >= T1; a memory with valid_until in the future is visible for queries within its valid window; replay reconstruction returns identical MemoryPack for two queries with same (world_time, recorded_time) pair.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target bitemporal_indexing_tests"
+  ],
+  "risk_if_missed": "Without bi-temporal indexing, replay cannot distinguish 'memory existed but was superseded' from 'memory didn't exist yet'; outcome feedback (MT-158) cannot attribute outcomes to the exact pack composition.",
+  "validator_focus": "Both temporal axes (world time + recorded time) honored independently. Migration is non-destructive. Indexes cover the common query shape.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-141", "MT-143"],
+    "blocks": ["MT-158", "MT-163"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Migration is non-destructive; existing rows backfilled with sane defaults.",
+      "Indexes added for the common (valid_from, valid_until) and (recorded_at, invalidated_at) query patterns.",
+      "AsOfQuery exposes both axes; callers cannot accidentally collapse to single-temporal queries."
+    ]
+  }
+}

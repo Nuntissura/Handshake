@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-006",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-006.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "HBR_VIOLATION typed receipt schema (CX-130 conformant)",
+  "goal": "Define and ship the canonical HBR_VIOLATION typed receipt schema per spec §5.6.3 (AC-HBR-TYPED-RECEIPT). Receipts MUST carry hbr_id, wp_id, mt_id, role, evaluation_point in {build,handoff}, evidence_pointer, violation_class; freeform prose is never the wire contract and may accompany as `notes` only. Both Rust (for runtime emission) and Node (for build-time emission) emitters land together so wire format is identical.",
+  "expected_diff_shape": "New Rust types in src/backend/handshake_core/src/hbr/violation.rs; matching Node module .GOV/roles_shared/scripts/hbr-violation-emit.mjs; JSON schema file .GOV/roles_shared/schemas/hbr-violation.schema.json; tests proving identical wire output cross-language.",
+  "owned_files": [
+    "src/backend/handshake_core/src/hbr/violation.rs",
+    "src/backend/handshake_core/tests/hbr_violation_tests.rs",
+    ".GOV/roles_shared/scripts/hbr-violation-emit.mjs",
+    ".GOV/roles_shared/schemas/hbr-violation.schema.json"
+  ],
+  "depends_on_mts": ["MT-001", "MT-003", "MT-004", "MT-005"],
+  "unblock_conditions": "MT-003 build-time emitter caller exists; MT-004 runtime emitter caller exists; MT-005 validator-scan caller exists — all three need a single canonical receipt schema.",
+  "implementation_notes": "Per spec §5.6.3 and the CX-130 typed-routing principle (HBR-SWARM-004 citation), violation receipts must be parseable wire contracts. Schema: `{ receipt_kind: \"HBR_VIOLATION\", schema_version: 1, receipt_uuid: Uuid v7, hbr_id: \"HBR-*\", wp_id: string, mt_id: string|null, role: enum(ORCHESTRATOR|KERNEL_BUILDER|CODER|WP_VALIDATOR|INTEGRATION_VALIDATOR|VALIDATOR|CLASSIC_ORCHESTRATOR), evaluation_point: enum(build|handoff), evidence_pointer: string|null (URI per MT-005), violation_class: enum(MISSING_EVIDENCE|EVIDENCE_KIND_MISMATCH|EVIDENCE_PROOF_FAILED|APPLICABILITY_MISCONFIG|DOWNGRADE_ATTEMPT|MATRIX_SCHEMA_VIOLATION), emitted_at_utc: RFC3339, source_session: string|null, notes: string|null }`. Rust impl: serde derive on HbrViolation struct; `HbrViolation::emit(self, sink: &dyn ViolationSink)` writes a JSONL row to the configured sink (EventLedger row for runtime; RECEIPTS.jsonl for build-time). Node impl: emit() function with identical field shape; both write canonical-JSON (sorted keys, UTF-8 no BOM, terminating newline) so wire output is byte-identical. JSON schema file authoritative; both Rust serde test and Node ajv test validate sample fixture against it. Per HBR-INT-008 receipt_uuid is v7. The MT-003/MT-004/MT-005 callers convert their existing internal failure structs to HbrViolation before writing. Tests: round-trip Rust HbrViolation -> JSON -> Node parse -> Node HbrViolation == original; schema validates a violation with all violation_class variants.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target hbr_violation_tests",
+    "node .GOV/roles_shared/scripts/hbr-violation-emit.mjs --self-test"
+  ],
+  "risk_if_missed": "Without typed-receipt schema, every emitter (build-time, runtime, validator-scan) invents its own field layout; downstream consumers cannot parse violations reliably; CX-130 typed-routing is violated.",
+  "validator_focus": "Schema is the wire contract: Rust and Node both validate against the same .schema.json file; canonical-JSON output is byte-identical cross-language.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-008", "HBR-SWARM-004"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6"
+  ],
+  "acceptance_criteria_refs": ["AC-HBR-TYPED-RECEIPT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-001", "MT-003", "MT-004", "MT-005"],
+    "blocks": ["MT-007", "MT-009"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "JSON schema is the wire authority; both Rust and Node validate output against it in CI before emission.",
+      "Canonical-JSON (sorted keys, UTF-8 no BOM, terminating newline) is enforced by a serializer wrapper, not relied on at call sites.",
+      "Notes field is optional and must NEVER be the only carrier of routing info."
+    ]
+  }
+}

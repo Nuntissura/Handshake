@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-029",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-029.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Inspector plane HTTP+WS server with 127.0.0.1 random-port binding (feature-gated)",
+  "goal": "Per spec §6.5.1 (AC-INSPECTOR-PLANE-BIND) implement the backend inspector plane HTTP+WS server. MUST bind to `127.0.0.1:<random>` only (never `0.0.0.0`), use a per-launch random port discovered via Diagnostics panel or `kernel.inspector.port()`, and be feature-gated behind `cfg(feature = \"inspector\")` so it is NOT compiled into release builds.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/inspector_read/server.rs implementing the HTTP+WS server (axum + tokio-tungstenite); Cargo.toml feature flag `inspector`; build-time check that release builds with feature off compile without the server code.",
+  "owned_files": [
+    "src/backend/handshake_core/src/inspector_read/server.rs",
+    "src/backend/handshake_core/tests/inspector_server_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": ["MT-028"],
+  "unblock_conditions": "MT-028 InspectorReadV1 trait exists so the server has a typed read source.",
+  "implementation_notes": "Per spec §6.5.1. Cargo.toml: add `[features] inspector = [\"axum\", \"tokio-tungstenite\"]` and gate the dependencies behind the feature. server.rs is wrapped in `#![cfg(feature = \"inspector\")]` at the module top so the entire file compiles to nothing without the feature. API: `InspectorServer::start(reader: Arc<dyn InspectorReadV1>) -> InspectorServerHandle` binds via `tokio::net::TcpListener::bind(\"127.0.0.1:0\")` (port 0 = OS-assigned random port). Server uses axum router with read-only GET endpoints: `/inspector/v1/sessions`, `/inspector/v1/sessions/{id}`, `/inspector/v1/event-ledger/tail`, `/inspector/v1/process-ledger/active`, `/inspector/v1/workspace/{ws_id}`, `/inspector/v1/trace/{session_id}`, `/inspector/v1/models`. All handlers call into reader methods. WebSocket endpoint `/inspector/v1/event-stream` for live event tail. Tauri command `#[tauri::command] kernel_inspector_port() -> u16` returns the bound port; this is the single entry point for the Diagnostics panel (cluster X) and external test harnesses (MT-036 swarm). Negative test asserts: (a) binding to 0.0.0.0 fails at compile-time via a const assert or runtime-time fail-loud (use a wrapper that explicitly checks the SocketAddr.ip() before bind), (b) release build without `inspector` feature does NOT include the server module (test via `cargo build --release` + grep symbol list for `InspectorServer`). The HTTP handlers are routed via axum's get() handlers ONLY (no post/put/delete on this path — POST goes to `/inspector/v1/replay-drive` in MT-030). Per spec §6.5.1 the feature gate enforces this is not in release builds.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features inspector inspector_server_tests",
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --release"
+  ],
+  "risk_if_missed": "Without the server, the Diagnostics panel cannot read backend state; HBR-VIS-004 trace_projection_inspection has no surface for non-UI work.",
+  "validator_focus": "Bind to 127.0.0.1 only (negative test attempts 0.0.0.0 and fails loud); release build without feature contains zero inspector symbols; per-launch random port is discoverable via Tauri command.",
+  "hbr_obligations": ["HBR-INT-007", "HBR-VIS-004", "HBR-QUIET-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
+  ],
+  "acceptance_criteria_refs": ["AC-INSPECTOR-PLANE-BIND"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-028"],
+    "blocks": ["MT-030", "MT-031", "MT-032", "MT-033"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "0.0.0.0 bind attempt fails loud (negative test).",
+      "Release build without feature compiles without server symbols (grep test on release binary).",
+      "Only GET handlers on /inspector/v1/* (POST/PUT/DELETE on read paths return 405)."
+    ]
+  }
+}

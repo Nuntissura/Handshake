@@ -55,6 +55,7 @@
       --accent: #d66b2f;
       --danger: #b24a36;
       --ok: #8b9668;
+      --pane-header-bg: #1d1d1d;
       --syntax-a: #aab4be;
       --syntax-b: #8f9d75;
       --syntax-c: #b9875c;
@@ -217,6 +218,15 @@
       place-items: center;
       position: relative;
       font-size: 17px;
+    }
+
+    .rail-icon.text {
+      width: 34px;
+      font-size: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      line-height: 1;
+      letter-spacing: 0;
     }
 
     .rail-icon.active {
@@ -597,14 +607,52 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 12px;
+      gap: 8px;
+      padding: 0 6px 0 12px;
       border-bottom: 1px solid var(--line);
-      background: #1d1d1d;
+      background: var(--pane-header-bg);
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0;
       color: var(--paper-0);
       min-width: 0;
+    }
+
+    .pane-title {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pane-actions {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .pane-action {
+      min-width: 16px;
+      height: 17px;
+      padding: 0 5px;
+      border: 1px solid rgba(216, 209, 193, 0.16);
+      background: #181818;
+      color: var(--dim);
+      font-family: var(--ui);
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      cursor: default;
+    }
+
+    .pane-action:hover,
+    .pane-action:focus-visible {
+      color: var(--paper-0);
+      border-color: rgba(216, 209, 193, 0.34);
+      background: #222222;
+      outline: 0;
     }
 
     .pane-tabs {
@@ -641,7 +689,7 @@
 
     .pane-tab.active {
       color: var(--paper-0);
-      background: #1c1c1c;
+      background: var(--pane-header-bg);
       box-shadow: inset 0 -2px 0 var(--paper-1);
     }
 
@@ -1026,12 +1074,34 @@
     .drawer-title {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 8px;
       padding: 0 15px;
       border-bottom: 1px solid var(--line);
       color: var(--paper-0);
       letter-spacing: 0;
       font-size: 11px;
       font-weight: 600;
+    }
+
+    .drawer-add {
+      width: 18px;
+      height: 18px;
+      border: 1px solid rgba(216, 209, 193, 0.18);
+      background: #1b1b1b;
+      color: var(--paper-1);
+      font-family: var(--ui);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: default;
+    }
+
+    .drawer-add:hover,
+    .drawer-add:focus-visible {
+      color: var(--paper-0);
+      border-color: rgba(216, 209, 193, 0.38);
+      outline: 0;
     }
 
     .drawer-metrics {
@@ -1257,6 +1327,9 @@
       <aside class="activity-rail" aria-label="Activity rail">
         <div class="rail-icon active">□</div>
         <div class="rail-icon">⌕</div>
+        <div class="rail-icon text" title="Agenda">agenda</div>
+        <div class="rail-icon text" title="Mail">mail</div>
+        <div class="rail-icon text" title="Notes">notes</div>
         <div class="rail-icon">⌘</div>
         <div class="rail-icon">⚙</div>
       </aside>
@@ -1331,18 +1404,25 @@
           <div class="left-stack">
             <section class="pane active-pane" data-pane-id="pane-cui-workflow" data-pane-type="cui">
               <div class="pane-header">
-                <span>CUI Workflow</span>
-                <span class="meta">full_app_route</span>
+                <span class="pane-title">cui-workflow.json</span>
+                <div class="pane-actions" aria-label="Window controls">
+                  <button class="pane-action" title="New tab">+</button>
+                  <button class="pane-action" title="Drawer">drawer</button>
+                  <button class="pane-action" title="Pop out">pop out</button>
+                  <button class="pane-action" title="Options">options</button>
+                  <button class="pane-action" title="Search">search</button>
+                  <button class="pane-action" title="Close">close</button>
+                </div>
               </div>
               <div class="pane-tabs" role="tablist" aria-label="CUI pane tabs">
-                <button class="pane-tab active">Workflow</button>
-                <button class="pane-tab">Characters</button>
-                <button class="pane-tab">World</button>
-                <button class="pane-tab">Stories</button>
-                <button class="pane-tab">Routes</button>
-                <button class="pane-tab">Exports</button>
-                <button class="pane-tab">Library</button>
-                <button class="pane-tab">Review</button>
+                <button class="pane-tab active" data-title="cui-workflow.json">CKC / Workflow</button>
+                <button class="pane-tab" data-title="characters.board">CKC / Characters</button>
+                <button class="pane-tab" data-title="worldbuilding.md">CKC / World</button>
+                <button class="pane-tab" data-title="story-beats.md">CKC / Stories</button>
+                <button class="pane-tab" data-title="route-map.json">CKC / Routes</button>
+                <button class="pane-tab" data-title="exports.queue">CKC / Exports</button>
+                <button class="pane-tab" data-title="visual-library">CKC / Library</button>
+                <button class="pane-tab" data-title="review-notes">CKC / Review</button>
               </div>
               <div class="pane-body cui-view">
                 <div class="workflow-strip">
@@ -1365,16 +1445,23 @@
             <div class="splitter"></div>
             <section class="pane" data-pane-id="pane-terminal" data-pane-type="terminal">
               <div class="pane-header">
-                <span>Terminal</span>
-                <span class="meta">stow enabled</span>
+                <span class="pane-title">castkit-route.term</span>
+                <div class="pane-actions" aria-label="Window controls">
+                  <button class="pane-action" title="New tab">+</button>
+                  <button class="pane-action" title="Drawer">drawer</button>
+                  <button class="pane-action" title="Pop out">pop out</button>
+                  <button class="pane-action" title="Options">options</button>
+                  <button class="pane-action" title="Search">search</button>
+                  <button class="pane-action" title="Close">close</button>
+                </div>
               </div>
               <div class="pane-tabs" role="tablist" aria-label="Terminal pane tabs">
-                <button class="pane-tab active">Build</button>
-                <button class="pane-tab">Logs</button>
-                <button class="pane-tab">Tasks</button>
-                <button class="pane-tab">Git</button>
-                <button class="pane-tab">Validation</button>
-                <button class="pane-tab">Deploy</button>
+                <button class="pane-tab active" data-title="castkit-route.term">TERM / Build</button>
+                <button class="pane-tab" data-title="route-log.txt">TERM / Logs</button>
+                <button class="pane-tab" data-title="task-runner">TERM / Tasks</button>
+                <button class="pane-tab" data-title="git-status">TERM / Git</button>
+                <button class="pane-tab" data-title="validation-output">TERM / Validation</button>
+                <button class="pane-tab" data-title="deploy-log">TERM / Deploy</button>
               </div>
               <div class="pane-body terminal">
                 <div><span class="prompt">&gt;</span> <span class="cmd">castkit route</span> --input <span class="path">visual-files</span> --target stage</div>
@@ -1392,17 +1479,24 @@
           <div class="right-stack">
             <section class="pane" data-pane-id="pane-stage-website" data-pane-type="stage">
               <div class="pane-header">
-                <span>Stage / Website</span>
-                <span class="meta">website_mock</span>
+                <span class="pane-title">website-stage.html</span>
+                <div class="pane-actions" aria-label="Window controls">
+                  <button class="pane-action" title="New tab">+</button>
+                  <button class="pane-action" title="Drawer">drawer</button>
+                  <button class="pane-action" title="Pop out">pop out</button>
+                  <button class="pane-action" title="Options">options</button>
+                  <button class="pane-action" title="Search">search</button>
+                  <button class="pane-action" title="Close">close</button>
+                </div>
               </div>
               <div class="pane-tabs" role="tablist" aria-label="Website stage tabs">
-                <button class="pane-tab active">Landing</button>
-                <button class="pane-tab">Gallery</button>
-                <button class="pane-tab">Character</button>
-                <button class="pane-tab">Export</button>
-                <button class="pane-tab">QA</button>
-                <button class="pane-tab">Mobile</button>
-                <button class="pane-tab">Assets</button>
+                <button class="pane-tab active" data-title="website-stage.html">STAGE / Landing</button>
+                <button class="pane-tab" data-title="gallery-stage.html">STAGE / Gallery</button>
+                <button class="pane-tab" data-title="character-page.html">STAGE / Character</button>
+                <button class="pane-tab" data-title="website-export">STAGE / Export</button>
+                <button class="pane-tab" data-title="website-qa">STAGE / QA</button>
+                <button class="pane-tab" data-title="mobile-preview">STAGE / Mobile</button>
+                <button class="pane-tab" data-title="web-assets">STAGE / Assets</button>
               </div>
               <div class="pane-body website-stage">
                 <div class="site-frame">
@@ -1425,17 +1519,24 @@
             <div class="splitter"></div>
             <section class="pane" data-pane-id="pane-stage-youtube" data-pane-type="stage">
               <div class="pane-header">
-                <span>Stage / YouTube Video</span>
-                <span class="meta">timeline_mock</span>
+                <span class="pane-title">youtube-stage.json</span>
+                <div class="pane-actions" aria-label="Window controls">
+                  <button class="pane-action" title="New tab">+</button>
+                  <button class="pane-action" title="Drawer">drawer</button>
+                  <button class="pane-action" title="Pop out">pop out</button>
+                  <button class="pane-action" title="Options">options</button>
+                  <button class="pane-action" title="Search">search</button>
+                  <button class="pane-action" title="Close">close</button>
+                </div>
               </div>
               <div class="pane-tabs" role="tablist" aria-label="YouTube stage tabs">
-                <button class="pane-tab active">Preview</button>
-                <button class="pane-tab">Captions</button>
-                <button class="pane-tab">Shots</button>
-                <button class="pane-tab">Audio</button>
-                <button class="pane-tab">Export</button>
-                <button class="pane-tab">Review</button>
-                <button class="pane-tab">Thumb</button>
+                <button class="pane-tab active" data-title="youtube-stage.json">STAGE / Preview</button>
+                <button class="pane-tab" data-title="captions.vtt">STAGE / Captions</button>
+                <button class="pane-tab" data-title="shot-list.json">STAGE / Shots</button>
+                <button class="pane-tab" data-title="audio-mix">STAGE / Audio</button>
+                <button class="pane-tab" data-title="youtube-export">STAGE / Export</button>
+                <button class="pane-tab" data-title="review-timeline">STAGE / Review</button>
+                <button class="pane-tab" data-title="thumbnail-board">STAGE / Thumb</button>
               </div>
               <div class="pane-body youtube-stage">
                 <div class="video-frame">
@@ -1458,12 +1559,12 @@
 
         <section class="drawer" data-pane-id="bottom-stash-drawer">
           <aside class="drawer-rail">
-            <div class="drawer-title">Bottom Drawer</div>
+            <div class="drawer-title"><span>Bottom Drawer</span><button class="drawer-add" title="Add drawer item">+</button></div>
             <div class="drawer-metrics">
-              <div><span>Text</span><b>0005</b></div>
-              <div><span>Stage</span><b>0002</b></div>
-              <div><span>Term</span><b>0004</b></div>
-              <div><span>Json</span><b>0003</b></div>
+              <div><span>Agenda</span><b>0005</b></div>
+              <div><span>Mail</span><b>0002</b></div>
+              <div><span>Lists</span><b>0004</b></div>
+              <div><span>Notes</span><b>0003</b></div>
             </div>
           </aside>
           <div class="stash">
@@ -1569,6 +1670,11 @@
         const group = button.closest(".pane-tabs");
         group.querySelectorAll(".pane-tab").forEach((item) => item.classList.remove("active"));
         button.classList.add("active");
+        const pane = button.closest(".pane");
+        const title = pane.querySelector(".pane-title");
+        if (title && button.dataset.title) {
+          title.textContent = button.dataset.title;
+        }
       });
     });
 

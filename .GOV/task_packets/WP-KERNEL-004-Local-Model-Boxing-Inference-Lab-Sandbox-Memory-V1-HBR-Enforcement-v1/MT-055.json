@@ -1,0 +1,67 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-055",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-055.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Migration tests: prove KERNEL-003 sandbox consumers still work through the new SandboxAdapter trait",
+  "goal": "Land end-to-end migration tests that exercise every refactored KERNEL-003 call site through the DockerAdapter (preserving the original execution path) AND through WSL2PodmanAdapter (proving the call sites now work with the new default). Two-adapter sweep proves R-3 ('Sandbox-architecture-flip-orphans-KERNEL-003') is fully mitigated.",
+  "expected_diff_shape": "New tests under src/backend/handshake_core/tests/kernel_003_migration_tests.rs running the recorded KERNEL-003 validation jobs against both Docker and WSL2Podman adapters; fixtures under tests/fixtures/kernel_003_migration/ that snapshot the KERNEL-003 ValidationJob inputs. No production-code edits.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/kernel_003_migration_tests.rs",
+    "src/backend/handshake_core/tests/fixtures/kernel_003_migration/README.txt",
+    "src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_001.json",
+    "src/backend/handshake_core/tests/fixtures/kernel_003_migration/validation_job_002.json"
+  ],
+  "depends_on_mts": ["MT-050", "MT-051", "MT-052", "MT-054"],
+  "unblock_conditions": "ValidationRunner binding + PromotionGate binding + WorkPacketScopeBinder + KERNEL-003 refactor all merged.",
+  "implementation_notes": "Capture step: at MT-054 close, the kernel_builder records 3-5 representative KERNEL-003 ValidationJobs from real packet runs (rg `ValidationJob::new` across recently-merged packets; pick the diverse-shape ones — at least one with binds, one with NetPolicy::DenyAll, one with custom env). Serialize each to JSON under tests/fixtures/kernel_003_migration/. The test suite iterates each fixture across the matrix [(DockerAdapter, real docker daemon when feature=docker-integration), (WSL2PodmanAdapter, real WSL2 when feature=wsl2-integration), (NoopAdapter, always)] and asserts: (1) ValidationRunner constructs successfully with each adapter; (2) the ValidationJob -> ProcessSpec translation produces the recorded shape (golden fixture comparison); (3) when an integration backend is wired, the validation actually runs and produces a successful exit code on the trivial test jobs OR fails for the expected-fail jobs; (4) PromotionGate accepts the resulting SandboxValidationEvidence and writes the FR-EVT-PROMOTION-SANDBOX-VALIDATED EventLedger row. NoopAdapter always-on coverage proves the structural refactor (MT-054) didn't accidentally bind any KERNEL-003 caller to a concrete adapter type. Replay-equivalence check: run the same fixture twice through the same adapter; assert the EventLedger row sequence is identical except for ProcessHandle UUID v7 values + spawned/stopped timestamps (HBR-INT-001).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target kernel_003_migration_tests",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features docker-integration kernel_003_migration_tests",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features wsl2-integration kernel_003_migration_tests"
+  ],
+  "risk_if_missed": "Without the cross-adapter migration test, MT-054's refactor passes in isolation but silently breaks an obscure KERNEL-003 call site when WSL2 is the runtime; this is the most likely deferred-bug class for the cluster B refactor.",
+  "validator_focus": "(a) All 3-5 fixtures pass against DockerAdapter; (b) all 3-5 fixtures pass against WSL2PodmanAdapter; (c) NoopAdapter coverage proves no concrete-type leak; (d) HBR-INT-001 replay equivalence holds for both adapters.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-SWARM-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
+  ],
+  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-050", "MT-051", "MT-052", "MT-054"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Two-adapter sweep: tests MUST run against both DockerAdapter and WSL2PodmanAdapter (not just the one the developer happens to have installed).",
+      "Replay-equivalence: HBR-INT-001 invariant verified per-adapter to prevent adapter-specific EventLedger projection drift.",
+      "NoopAdapter coverage prevents a hidden `Arc<DockerAdapter>` downcast in a forgotten KERNEL-003 caller."
+    ]
+  }
+}

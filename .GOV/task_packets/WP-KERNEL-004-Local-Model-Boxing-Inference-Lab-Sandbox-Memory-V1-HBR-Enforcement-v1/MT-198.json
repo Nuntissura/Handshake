@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-198",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:22:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-198.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "FR-EVT-* event ID registry + standardization (typed event taxonomy)",
+  "goal": "Land the canonical FR-EVT-* event ID registry as a typed Rust enum + JSON manifest so every cluster X emission (mailbox backpressure, MT cancellation, checkpoint overflow, span lifecycle, replay phases, escalation, starvation) uses a registered ID instead of a free-form string. Eliminates the silent typo / drift risk that plagues string-based event taxonomies.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/observability/fr_events.rs with `FrEventId` enum + `FrEventRegistry`; new JSON manifest .GOV/roles_shared/records/FR_EVENT_REGISTRY.json; unit tests under src/backend/handshake_core/tests/fr_event_registry_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/observability/fr_events.rs",
+    "src/backend/handshake_core/tests/fr_event_registry_tests.rs",
+    ".GOV/roles_shared/records/FR_EVENT_REGISTRY.json"
+  ],
+  "depends_on_mts": ["MT-196"],
+  "unblock_conditions": "MT-196 span primitives merged so FR-EVT-SPAN-* events can be bound to span types.",
+  "implementation_notes": "Define `FrEventId` enum with one variant per registered ID. Initial taxonomy covers cluster X emissions: `MailboxBackpressure`, `MailboxRoutingDenied`, `MailboxLeaseAcquired`, `MailboxLeaseExpired`, `MailboxLeaseTakeover`, `MtCancelRequested`, `MtCancelForced`, `MtCancelCleanupFailed`, `MtStarved`, `MtExecError`, `Mt015DistillationCandidate` (alias for FR-EVT-MT-015 from folded stub), `CheckpointOverflow`, `CheckpointShutdownForced`, `ReplayStarted`, `ReplayProgress`, `ReplayCompleted`, `ReplayFailed`, `RestartResumeStarted`, `RestartResumeSessionResumed`, `RestartResumeSessionRecoveryFailed`, `RestartResumeDbUnavailable`, `RestartResumeCompleted`, `SpanStarted`, `SpanEnded`, `SpanFailed`. Each variant maps to a canonical string ID like `FR-EVT-MAILBOX-BACKPRESSURE`, retrievable via `FrEventId::as_str() -> &'static str` and `FrEventId::from_str(s) -> Result<FrEventId, UnknownEventId>`. JSON manifest at .GOV/roles_shared/records/FR_EVENT_REGISTRY.json mirrors the enum: `{ schema: \"handshake.fr_event_registry@1\", version: \"1.0.0\", events: [ { id: \"FR-EVT-MAILBOX-BACKPRESSURE\", kind: \"emission\", subsystem: \"role_mailbox\", added_in_wp: \"WP-KERNEL-004\", schema_fields: [{ name: \"role_id\", kind: \"string\" }, ...] }, ... ] }`. A unit test asserts Rust enum + JSON manifest are byte-byte aligned (every enum variant has a JSON entry and vice versa). Every cluster X site that previously had a string literal for an FR event ID MUST switch to `FrEventId::MtCancelRequested.as_str()` (this is a refactor obligation propagated to MT-182/186/188/189/191/192/193/195 — the registry MT lands the type and the others adopt it on their own MT). Tests: (a) round-trip enum<->string for every variant; (b) JSON manifest parse + schema check; (c) Rust + JSON alignment test enumerates both sides and asserts equality; (d) unknown event ID round-trip returns UnknownEventId error.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target fr_event_registry_tests",
+    "node -e \"const r = JSON.parse(require('fs').readFileSync('.GOV/roles_shared/records/FR_EVENT_REGISTRY.json','utf8')); if(r.schema!=='handshake.fr_event_registry@1') process.exit(1);\""
+  ],
+  "risk_if_missed": "Without a typed registry, every site emits free-form strings; typos slip in (FR-EVT-MAILBOX-BACKPRESURE vs FR-EVT-MAILBOX-BACKPRESSURE); diagnostics panel filters break silently; the folded stub's 'new FR event families' invariant becomes a string-soup.",
+  "validator_focus": "Rust enum and JSON manifest provably aligned (test fails if either drifts); every variant has a documented schema_fields description; .GOV/roles_shared/records/ JSON validated via JSON Schema (forward-compat for HBR-INT-001 registry pattern).",
+  "hbr_obligations": ["HBR-INT-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Observability-Spans-FR-v1 (new FR event families standardized)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-196"],
+    "blocks": ["MT-199", "MT-200"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Rust-JSON alignment test fails CI if either side drifts (no manual sync trust).",
+      "JSON manifest validated via JSON Schema (added to .GOV/roles_shared/records/ schema dir).",
+      "Adopters in MT-182/186/188/189/191/192/193/195 noted as refactor obligations; each MT picks up FrEventId on its own implementation."
+    ]
+  }
+}

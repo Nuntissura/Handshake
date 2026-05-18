@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-062",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-062.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ModelRuntime trait surface (engine-agnostic)",
+  "goal": "Define the `ModelRuntime` async trait with the full engine-agnostic surface per AC-MODEL-RUNTIME-TRAIT: load, unload, generate (streaming TokenStream), score, embed, capabilities, kv_cache, lora_stack, steering_hooks, cancel. Trait MUST not leak engine-specific types — all parameters and return shapes use handshake-owned types defined in this MT.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/trait.rs declaring the trait + companion types (LoadSpec, GenerateRequest, TokenStream alias, Score, Embedding, KvCacheHandle, LoraStackHandle, SteeringHookHandle, CancellationToken, ModelId). mod.rs re-exports.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/trait.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs",
+    "src/backend/handshake_core/src/model_runtime/types.rs"
+  ],
+  "depends_on_mts": ["MT-061"],
+  "unblock_conditions": "MT-061 module scaffolding merged.",
+  "implementation_notes": "Per spec §4.6.1 (AC-MODEL-RUNTIME-TRAIT) trait methods: `async fn load(&mut self, spec: LoadSpec) -> Result<ModelId, ModelRuntimeError>`; `async fn unload(&mut self, id: ModelId) -> Result<(), ModelRuntimeError>`; `fn generate(&self, req: GenerateRequest) -> TokenStream` where `TokenStream = Pin<Box<dyn Stream<Item = Result<GeneratedToken, ModelRuntimeError>> + Send>>` (futures::Stream); `async fn score(&self, id: ModelId, sequence: Vec<u32>) -> Result<Score, ModelRuntimeError>`; `async fn embed(&self, id: ModelId, text: &str) -> Result<Embedding, ModelRuntimeError>`; `fn capabilities(&self, id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError>`; `fn kv_cache(&self, id: ModelId) -> Result<KvCacheHandle, ModelRuntimeError>`; `fn lora_stack(&self, id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError>`; `fn steering_hooks(&self, id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError>`; `fn cancel(&self, token: CancellationToken)`. Companion types in types.rs: `ModelId(Uuid)` minted via uuid::Uuid::now_v7() per HBR-INT-008; `LoadSpec { artifact_path: PathBuf, sha256_expected: String, runtime_kind: RuntimeKind (enum LlamaCpp|Candle), sampling_defaults: SamplingParams, kv_cache_policy: KvCachePolicy, declared_capabilities: ModelCapabilities }`; `GenerateRequest { id: ModelId, prompt: GenPrompt, sampling: SamplingParams, lora_overrides: Vec<LoraId>, steering_overrides: Vec<SteeringVectorId>, kv_prefix_handle: Option<KvPrefixHandle>, cancel: CancellationToken, max_tokens: u32, stop_sequences: Vec<String>, structured_decoding: Option<JsonSchema> }`; `GeneratedToken { token_id: u32, text: String, logprob: Option<f32>, finish_reason: Option<FinishReason> }`; `KvCacheHandle`, `LoraStackHandle`, `SteeringHookHandle` are opaque handle structs (sub-traits like KvCacheOps come later in MT-063..MT-068). `CancellationToken` wraps tokio::sync::CancellationToken or similar. `SamplingParams { temperature, top_p, top_k, min_p, repetition_penalty, frequency_penalty, presence_penalty, seed }` all Option<f32>/u32. async_trait::async_trait attribute on the trait. The trait must be `Send + Sync` so it can be Arc<dyn ModelRuntime> in LlmClient routing (MT-070). Implement Debug + Clone for ModelId. UUID v7 per HBR-INT-008 mandatory for ModelId mint.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_runtime::trait_compiles"
+  ],
+  "risk_if_missed": "Adapter MTs cannot land coherently; engine-specific types leak into callers; LlmClient cannot route uniformly.",
+  "validator_focus": "Engine-specific types do not appear in the trait method signatures; trait is Send+Sync; ModelId mint uses now_v7(); compile-only test ensures trait is object-safe (`fn _check(_: &dyn ModelRuntime)`).",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.1"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT", "AC-MODEL-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-061"],
+    "blocks": ["MT-063", "MT-064", "MT-065", "MT-066", "MT-067", "MT-068", "MT-069", "MT-070", "MT-071", "MT-072", "MT-081", "MT-125"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Grep the trait surface for llama_cpp_2:: / candle_core:: imports — must be zero.",
+      "Compile-only test confirms trait is object-safe (`&dyn ModelRuntime` constructible).",
+      "ModelId uses Uuid::now_v7() (HBR-INT-008); golden test asserts v7 timestamp prefix monotonic across mints."
+    ]
+  }
+}

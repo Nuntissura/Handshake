@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-064",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-064.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LoraStackHandle sub-trait + LoRA mount/unmount API",
+  "goal": "Define the LoraStackOps sub-trait reachable through LoraStackHandle: mount, unmount, list_active, set_strength, swap (atomic replace of the active stack). LoRA hot-swap is a PRODUCTION technique (INF-1) and must be supported by both LlamaCppRuntime (via per-request --lora flag) and CandleRuntime (via PEFT-style mount).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/lora.rs with LoraStackHandle, LoraStackOps, LoraId, LoraDescriptor, LoraStrength, LoraStackSnapshot. mod.rs re-exports.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/lora.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs"
+  ],
+  "depends_on_mts": ["MT-062"],
+  "unblock_conditions": "MT-062 trait surface merged.",
+  "implementation_notes": "Per spec §4.7.1a (LoRA hot-swap PRODUCTION) and AC-INFER-LAB-8-TECHNIQUES the LoRA stack is operator-controllable. LoraId is `Uuid` (v7 per HBR-INT-008). LoraDescriptor: `{ id: LoraId, artifact_path: PathBuf, sha256: [u8;32], rank: u32, target_modules: Vec<String>, base_model_compat: BaseModelTag, license_tag: LicenseTag }`. LoraStackOps trait methods: `async fn mount(&self, desc: LoraDescriptor, strength: LoraStrength) -> Result<(), ModelRuntimeError>`; `async fn unmount(&self, id: LoraId) -> Result<(), ModelRuntimeError>`; `fn list_active(&self) -> Vec<LoraStackEntry>` where LoraStackEntry = `{ id: LoraId, strength: LoraStrength, mounted_at_utc: DateTime<Utc> }`; `async fn set_strength(&self, id: LoraId, strength: LoraStrength) -> Result<(), ModelRuntimeError>`; `async fn swap(&self, new_stack: Vec<(LoraDescriptor, LoraStrength)>) -> Result<LoraStackSnapshot, ModelRuntimeError>` — atomic replace returning the previous stack snapshot for rollback. LoraStrength wraps `f32` clamped 0.0..=2.0 with `try_new` constructor. BaseModelTag opaque string (e.g., \"llama-3.1-8b-instruct\") so mount errors out when a LoRA targets a different base. License tagging mandatory for downstream Skill Bank reference (per AC-DISTILL-CONTENT-REVIEW). mount/unmount/swap MUST NOT require process restart per AC-INFER-LAB-8-TECHNIQUES.a (hot-swap invariant). LoraStackSnapshot for rollback after a failed multi-LoRA swap.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_runtime::lora::"
+  ],
+  "risk_if_missed": "LoRA hot-swap (INF-1 PRODUCTION) has no trait surface; mount/unmount semantics drift between adapters.",
+  "validator_focus": "LoraId minted via now_v7(); base-model-tag mismatch returns typed error; swap is atomic (failure leaves the previous stack intact); strength clamping rejected with try_new error.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT", "AC-MODEL-CAP-DECL", "AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-062"],
+    "blocks": ["MT-072", "MT-081", "MT-090", "MT-091", "MT-092", "MT-115"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Atomic-swap invariant test: failed swap leaves previous stack intact.",
+      "Base-model-tag mismatch rejected with typed error before mount.",
+      "Strength clamping enforced at try_new; out-of-range returns Err."
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-122",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.12",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-122.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Distillation teacher/student PEFT training pipeline (CLI invocation; produces LoRA artifact)",
+  "goal": "Implement the teacher/student PEFT distillation pipeline: takes a TrainingCorpus (from MT-119) + teacher ModelId + student base ModelId; runs PEFT LoRA training (out-of-process Python invocation via PEFT/Transformers since Rust has no production PEFT trainer yet); produces a distilled LoRA artifact mountable into ModelRuntime per spec §4.8 + AC-DISTILL-EDITABLE-SURFACE (note: training is not the editable surface in V0; AC-DISTILL-EDITABLE-SURFACE caps V0 to ModelManual + retrieval policy params).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/distillation/peft_pipeline.rs orchestrating the subprocess Python invocation; new scripts/distill/train_lora.py (Python PEFT training script); ProcessOwnershipLedger row.",
+  "owned_files": [
+    "src/backend/handshake_core/src/distillation/peft_pipeline.rs",
+    "scripts/distill/train_lora.py",
+    "scripts/distill/requirements.txt",
+    "src/backend/handshake_core/tests/distillation_peft_pipeline_tests.rs"
+  ],
+  "depends_on_mts": ["MT-119", "MT-120", "MT-121"],
+  "unblock_conditions": "MT-119 + MT-120 + MT-121 merged.",
+  "implementation_notes": "Per spec §4.8 + refinement INF-1 (LoRA-as-distillation-output). PEFT training is not available in Rust at production maturity in 2026 — the practical path is to call out to Python PEFT/Transformers via subprocess. PeftPipeline::distill(teacher_id, student_base_id, corpus, hyperparams) -> Result<DistilledLoraArtifact, DistillError>: (1) ContentReview::review each turn (gate); (2) write filtered corpus to JSONL on disk (governed artifact); (3) spawn Python subprocess `python scripts/distill/train_lora.py --corpus <jsonl> --teacher <path> --student <path> --out <lora_dir> --rank 16 --epochs 1 --lr 2e-4` with sandbox boundary (SandboxAdapter from cluster B for the python process); (4) register subprocess via ProcessOwnershipLedger with engine_kind=DistillationJob; (5) await completion + parse the output LoRA safetensors + metadata; (6) wrap as DistilledLoraArtifact { lora_id: v7, safetensors_path, target_modules, rank, base_model_compat, teacher_model_id, corpus_size, trained_at_utc, license_tag (inherited from teacher), provenance: { teacher_id, student_base_id, corpus_hash, hyperparams_hash } }; (7) DistilledLoraArtifact is mountable into ModelRuntime via LoraStackOps from MT-064. NOT EDITABLE-SURFACE in V0 (AC-DISTILL-EDITABLE-SURFACE explicitly excludes LoRA weights from V0 editable surface) — this pipeline produces a candidate; promotion to active is operator-driven via PromotionGate (separate from V0 self-improvement loop). Python script is opt-in extra (`scripts/distill/requirements.txt`: torch, peft, transformers, datasets); operator MUST provision Python env (documented in tests/README.json under \"distillation_python_env\"). Tests (env-gated by HANDSHAKE_TEST_PYTHON_DISTILL=1): tiny synthetic corpus + tiny student model -> training completes + LoRA artifact produced + mountable. Non-Python-env test: pipeline returns Err with explicit \"python_env_not_provisioned\" message.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target distillation_peft_pipeline_tests"
+  ],
+  "risk_if_missed": "Distillation output produces nothing mountable; AC-DISTILL-EDITABLE-SURFACE constraint observed but no pipeline path.",
+  "validator_focus": "Subprocess sandboxed via SandboxAdapter; ProcessOwnershipLedger row; LoRA mountable; license inherited; V0 NOT editable-surface (this is a candidate-producing pipeline, not the self-improvement loop).",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE", "AC-DISTILL-CONTENT-REVIEW", "AC-DISTILL-OPT-IN"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-119", "MT-120", "MT-121"],
+    "blocks": ["MT-123", "MT-124"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Subprocess registered + sandboxed (no unguarded fork).",
+      "Python env documented in tests/README.json.",
+      "LoRA artifact mountable via MT-064 LoraStackOps (round-trip test)."
+    ]
+  }
+}

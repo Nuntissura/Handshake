@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-123",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.12",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-123.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Distillation candidate DistilledLoraArtifact registration + PromotionGate review",
+  "goal": "Register the DistilledLoraArtifact in the LoRA registry with review_status=PENDING per AC-DISTILL-LOOP-SAFEGUARDS (PromotionGate operator review required per promotion). Operator-promote action moves to ACTIVE; only promoted artifacts can be mounted via standard LoraStackOps for production work.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/distillation/candidate_registry.rs; KernelActionCatalogV1 actions kernel.distill.candidate_register + kernel.distill.candidate_promote; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/distillation/candidate_registry.rs",
+    "src/backend/handshake_core/tests/distill_candidate_registry_tests.rs"
+  ],
+  "depends_on_mts": ["MT-122"],
+  "unblock_conditions": "MT-122 PEFT pipeline merged.",
+  "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS: PromotionGate operator review required per promotion. CandidateRegistry: holds DistilledLoraArtifact entries with review_status enum (Pending|Promoted|Rejected). kernel.distill.candidate_register action: lands a freshly trained DistilledLoraArtifact in the registry with review_status=Pending; logs FR-EVT-DISTILL-CANDIDATE-REGISTER. kernel.distill.candidate_promote action: requires operator_signature; flips review_status to Promoted; logs FR-EVT-DISTILL-CANDIDATE-PROMOTE. kernel.distill.candidate_reject action: requires operator_signature + reason; flips to Rejected; logs FR-EVT-DISTILL-CANDIDATE-REJECT. LoraStackOps::mount checks the CandidateRegistry: if a LoraId resolves to a Pending or Rejected candidate, mount returns Err with explicit reason; only Promoted (or non-candidate, i.e., externally-provided LoRAs) can mount in production sessions. Operator may bypass for explicit experimental sessions via a flag settings.exec_policy.allow_unpromoted_distilled_loras: bool (default false). Tests: register candidate; mount returns Err (pending); promote; mount succeeds; reject; mount returns Err.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target distill_candidate_registry_tests"
+  ],
+  "risk_if_missed": "Distillation candidates mountable without operator review; AC-DISTILL-LOOP-SAFEGUARDS PromotionGate breach.",
+  "validator_focus": "Mount-gate enforced on Pending/Rejected; signature requirement on promote/reject; allow_unpromoted flag explicit opt-in.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-122"],
+    "blocks": ["MT-124"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Mount-gate enforced on Pending/Rejected.",
+      "Signature on promote/reject.",
+      "allow_unpromoted opt-in default false."
+    ]
+  }
+}

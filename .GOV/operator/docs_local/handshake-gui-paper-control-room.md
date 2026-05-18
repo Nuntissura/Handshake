@@ -22,7 +22,7 @@ The working design name is **Paper Control Room**.
 
 </topic>
 
-<topic id="operator-intent" status="draft" version="2" summary="Records the Operator's stated GUI intent, including project-only top tabs and bottom search." updated_at="2026-05-18">
+<topic id="operator-intent" status="draft" version="3" summary="Records the Operator's stated GUI intent, including project-only top tabs, pane header semantics, and bottom search." updated_at="2026-05-18">
 
 ## Operator Intent
 
@@ -35,6 +35,10 @@ The Operator wants Handshake to act similarly to a VS Code-style workspace, espe
 - Top-right global module navigation should expose the main Handshake modules: `MAIN`, `CKC`, `INGEST`, `STAGE`, `LAB`, and `STUDIO`.
 - Each project persists its own window layout.
 - Windows inside a project can carry many file/view tabs, with side-scrollable tab behavior like VS Code.
+- Pane headers should show the active file name or window name, not the module/type name.
+- Pane-local tabs should carry the module/type label so the Operator can see what kind of surface each tab represents.
+- The active pane-local tab should use the same background color as its pane header to show which tab owns the header.
+- Every project pane header should expose the same control set on the right: `+`, drawer, pop out, options, search, and close.
 - More pane types than a normal code editor, including webviewer, stage, text, JSON, terminal, traces, artifacts, and other file-type viewers.
 - A much stronger GUI direction than the current Handshake GUI.
 - A brutalist paper feel rather than a generic dark app.
@@ -42,6 +46,9 @@ The Operator wants Handshake to act similarly to a VS Code-style workspace, espe
 - Stronger use of the bottom bar.
 - A bottom search bar integrated into the bottom rail.
 - A bottom drawer that can stow away items such as text, stage captures, terminal output, snippets, and temporary working material.
+- The bottom drawer label/header should include a `+` affordance in the right corner of that same title box.
+- The bottom drawer quick categories should read `Agenda`, `Mail`, `Lists`, and `Notes`.
+- The left activity rail should include Agenda, Mail, and Notes icons/affordances.
 - A folder/file drawer treatment where off-white label backgrounds are only as wide as the text or name, with variable widths per item instead of full-row fills.
 - File and folder label text aligned toward the right, using the provided paper-strip reference as the visual cue.
 - A real project tree in the project section of the left sidebar.
@@ -76,7 +83,7 @@ The visual target should be **brutalist paper workbench**, not cyber terminal. T
 
 </topic>
 
-<topic id="layout-model" status="draft" version="2" summary="Defines project tabs, pane tabs, pane grid, and project-scoped layout persistence." updated_at="2026-05-18">
+<topic id="layout-model" status="draft" version="3" summary="Defines project tabs, pane tabs, pane headers, pane grid, and project-scoped layout persistence." updated_at="2026-05-18">
 
 ## Layout Model
 
@@ -105,6 +112,10 @@ Rules:
 - The top tab row should not hold files, individual panes, or editor documents.
 - File/view tabs belong inside the relevant project pane group.
 - Pane-local tabs can be side-scrollable like VS Code when many files or views are open.
+- Pane-local tab labels should include the module/type name, such as `CKC / Workflow`, `TERM / Build`, or `STAGE / Preview`.
+- The pane header should show the active tab's file name, document name, or window name, such as `cui-workflow.json`, `castkit-route.term`, or `website-stage.html`.
+- Changing the active pane-local tab should update the pane header title.
+- The active pane-local tab should visually connect to the pane header by sharing the same dark header background.
 - Each pane tab should retain its pane type, content id, dirty state, and project id.
 - Closing a project tab should not discard the project layout unless explicitly reset or deleted.
 
@@ -145,6 +156,8 @@ The central workspace should behave like a professional IDE-style docking grid:
 - Support future popout/floating windows without making them the default.
 - Preserve zero-gap tiling between adjacent windows.
 - Use thin integrated splitter/scrollbar rails rather than floating white handles.
+- Keep the pane-header control set consistent across all project panes: add/new tab, drawer, pop out, options, search, and close.
+- Treat current text controls as placeholders for later icon buttons; the action order should remain stable.
 
 Pane examples:
 
@@ -192,7 +205,7 @@ Rules:
 
 </topic>
 
-<topic id="castkit-cui-app-surface" status="draft" version="1" summary="Records the current preference for CastKit/CUI as a full app inside Handshake." updated_at="2026-05-18">
+<topic id="castkit-cui-app-surface" status="draft" version="2" summary="Records the current preference for CastKit/CUI as a full app inside Handshake." updated_at="2026-05-18">
 
 ## CastKit / CUI App Surface
 
@@ -210,7 +223,7 @@ Reason:
 Mockup implication:
 
 - CUI can be one of the project windows/panes.
-- CUI should support its own pane-local tabs such as `Workflow`, `Characters`, `World`, `Stories`, `Routes`, and `Exports`.
+- CUI should support its own pane-local tabs such as `CKC / Workflow`, `CKC / Characters`, `CKC / World`, `CKC / Stories`, `CKC / Routes`, and `CKC / Exports`.
 - CUI should be able to route material to Stage panes, terminal tasks, drawer stash items, and validation evidence.
 - Treat CUI as an app surface hosted by the project workspace, not as an accessory inspector.
 
@@ -224,13 +237,15 @@ Mitigation:
 
 </topic>
 
-<topic id="bottom-drawer" status="draft" version="2" summary="Defines bottom search and bottom drawer as separate but adjacent working surfaces." updated_at="2026-05-18">
+<topic id="bottom-drawer" status="draft" version="3" summary="Defines bottom search and bottom drawer as separate but adjacent working surfaces." updated_at="2026-05-18">
 
 ## Bottom Drawer
 
 The bottom bar should become an active command, search, and stash surface. The bottom drawer should not be only a terminal. It should act like a **stash shelf** or **pastebin drawer** for work-in-progress material.
 
 Bottom search is a persistent rail-level search/command input. It should remain separate from drawer contents so search is always available even when the drawer is collapsed.
+
+The bottom drawer title box should include a right-aligned `+` affordance so adding a drawer item feels attached to the drawer itself, not hidden in a separate toolbar.
 
 Useful bottom search scopes:
 
@@ -246,6 +261,10 @@ Useful bottom search scopes:
 
 The drawer should support:
 
+- Agenda items.
+- Mail references.
+- Lists.
+- Notes.
 - Text snippets.
 - Terminal output blocks.
 - Stage captures.
@@ -272,6 +291,8 @@ Useful drawer actions:
 - Discard item.
 
 High-ROI design move: show the bottom drawer as a horizontal shelf of typed cells/tags, not as another full-height panel that competes with the main workspace.
+
+Current drawer category labels should be `Agenda`, `Mail`, `Lists`, and `Notes`; the older `Text`, `Json`, `Term`, and `Stage` labels are too implementation-type oriented for the Operator-facing bottom drawer.
 
 </topic>
 

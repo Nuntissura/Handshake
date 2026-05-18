@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-178",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:02:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-178.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Deterministic repo export of Role Mailbox to .GOV/roles_shared/exports/role_mailbox/ (always-on)",
+  "goal": "Implement the always-on deterministic mailbox-to-repo exporter that mirrors authoritative Postgres state into .GOV/roles_shared/exports/role_mailbox/ as JSON Lines append-only thread files plus a thread index, preserving the folded WP-1-Role-Mailbox-v1 stub intent (LLM role-to-role coordination with auditable governance, chat-is-not-state).",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/role_mailbox/exporter.rs with `MailboxExporter::export(repo, target_dir)` writing thread_index.json + per-thread JSONL files; integration tests under src/backend/handshake_core/tests/role_mailbox_exporter_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/role_mailbox/exporter.rs",
+    "src/backend/handshake_core/tests/role_mailbox_exporter_tests.rs"
+  ],
+  "depends_on_mts": ["MT-177"],
+  "unblock_conditions": "MT-177 repo provides the read surface the exporter consumes.",
+  "implementation_notes": "Per spec v02.186 §05-security-and-observability.md lines 5904 and 5962-5967 (Role Mailbox structured projections [ADD v02.168]) and the folded stub intent (always-on deterministic repo export to .GOV/ROLE_MAILBOX/): exporter writes (a) `thread_index.json` containing the compact summary contract (thread_id, title, lifecycle_state, linked_record_kind, linked_record_id, updated_at_utc, message_count) for every non-archived thread, sorted by updated_at_utc descending; (b) per-thread file `threads/<thread_id>.jsonl` with one JSON object per message line in chronological order. Append-only semantics: if a thread file exists, only NEW messages (since the last exported message_id watermark stored in `<thread_id>.watermark`) are appended; existing lines never rewritten. Idempotency: running exporter twice with no new messages writes nothing. Deterministic: same inputs produce byte-identical outputs (stable key ordering via BTreeMap, stable line ordering by message created_at_utc then message_id). The target path is configurable via `MailboxExporterConfig { target_dir: PathBuf }` defaulting to `.GOV/roles_shared/exports/role_mailbox/` relative to the repo root discovered via the same project-root helper used by KERNEL-002. Honors GLOBAL-PORTABILITY-004 (no hardcoded absolute paths). Tests: (a) export an empty repo, expect thread_index.json with []; (b) create 3 threads with 2 messages each, export, expect 3 files + 6 lines; (c) re-run with no new state, expect no file writes (mtime unchanged); (d) add 1 new message to thread 2, re-run, expect only thread-2.jsonl appended by 1 line; (e) goldenfile cross-check on a fixture set.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target role_mailbox_exporter_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without deterministic export, the operator loses the auditable repo-side mailbox view; the folded WP-1-Role-Mailbox-v1 stub's 'always-on deterministic repo export to .GOV/ROLE_MAILBOX/' intent is dropped; LLM-to-LLM coordination loses its safety net.",
+  "validator_focus": "Exporter is idempotent (no-op when state unchanged), append-only (never rewrites existing lines), deterministic (golden-fixture byte-identical), and uses repo-root discovery not hardcoded paths.",
+  "hbr_obligations": ["HBR-INT-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#role-mailbox-structured-projections"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-v1 (always-on deterministic repo export)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-177"],
+    "blocks": ["MT-183"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Goldenfile cross-check test asserts byte-identical output for a fixed seed.",
+      "Append-only invariant verified by mtime + line-count assertions across multiple re-runs.",
+      "Exporter resolves target_dir via repo-root helper (no `D:\\` or `/home/` literals; GLOBAL-PORTABILITY-005)."
+    ]
+  }
+}

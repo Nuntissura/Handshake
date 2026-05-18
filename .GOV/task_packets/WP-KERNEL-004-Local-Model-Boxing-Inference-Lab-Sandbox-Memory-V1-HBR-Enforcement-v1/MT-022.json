@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-022",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-022.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Renderer console + runtime error scan (HBR-VIS-002)",
+  "goal": "Per spec §6.4.3 + HBR-VIS-002, every captured frame must include a renderer console/runtime error scan. Uncaught errors during the test window fail the gate. Implement the scan as a Playwright fixture that subscribes to CDP `Runtime.consoleAPICalled` + `Runtime.exceptionThrown` + Playwright `pageerror` events for the test window's duration.",
+  "expected_diff_shape": "New test fixture tests/visual/console_error_scan.ts; updated webview2_cdp_driver.ts (MT-021) to wire the scan into every screenshot test; sample failing fixture proves the scan catches an injected error.",
+  "owned_files": [
+    "tests/visual/console_error_scan.ts",
+    "tests/visual/console_error_scan.spec.ts"
+  ],
+  "depends_on_mts": ["MT-021"],
+  "unblock_conditions": "MT-021 Playwright + CDP driver ships.",
+  "implementation_notes": "Per spec §6.4.3 (AC-VISUAL-DEBUGGER-IPC) the scan combines three event sources: CDP `Runtime.consoleAPICalled` (filtered to level in {error, warning}), CDP `Runtime.exceptionThrown`, and Playwright's high-level `page.on('pageerror', ...)`. The fixture: `class ConsoleErrorScan { constructor(page: Page); subscribe(): void; assertNoErrors(): void; }`. subscribe() registers all three listeners and accumulates events in an in-memory buffer. assertNoErrors() throws if the buffer has any error-level event during the test window. Integration with the Playwright test API: provide a Playwright fixture `consoleScan` that auto-subscribes at test start and auto-asserts at test end (via the test.afterEach hook), so existing tests pick it up by importing the fixture. Per HBR-VIS-002 evidence_kind=renderer_console_error_report the test output produces a JSONL log of every error event seen (for forensic review even on passing tests). console_error_scan.spec.ts contains two tests: (1) happy-path navigates to the main app and asserts no errors; (2) deliberate-error injects `await page.evaluate(() => { throw new Error('inject-test'); })` and asserts the scan caught it and the test fails as expected (use Playwright's `test.fail()` decorator). The scan respects HBR-VIS-002 not_applicable_when by skipping when HBR-VIS-001 is N/A for the WP.",
+  "proof_commands": [
+    "cd app && pnpm exec playwright test tests/visual/console_error_scan.spec.ts",
+    "just visual-test"
+  ],
+  "risk_if_missed": "Without renderer error scan, visual tests can pass while the UI is throwing uncaught errors invisibly; HBR-VIS-002 has no evidence.",
+  "validator_focus": "Both deliberate-error test fails (the scan caught it) AND happy-path test passes (the scan does not false-positive on normal app load); JSONL forensic log is produced for every test run.",
+  "hbr_obligations": ["HBR-VIS-001", "HBR-VIS-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
+  ],
+  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IPC"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-021"],
+    "blocks": ["MT-026", "MT-027"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Scan subscribes to all three event sources (not just one) so a regression in any one source cannot blind the scan.",
+      "JSONL forensic log is produced even on passing tests for post-hoc review.",
+      "test.fail() decorator confirms the scan can produce a failure when needed (not just a no-op)."
+    ]
+  }
+}

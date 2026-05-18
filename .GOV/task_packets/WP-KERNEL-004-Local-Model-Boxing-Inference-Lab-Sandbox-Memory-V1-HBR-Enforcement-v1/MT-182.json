@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-182",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:06:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-182.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Mailbox backpressure (per-role inbox cap + rate-limit) with degraded-mode receipt",
+  "goal": "Land the backpressure mechanism that prevents a runaway role or executor from flooding the mailbox: per-role bounded inbox (configurable cap, default 256 pending messages), per-role per-second send rate limit (token-bucket, configurable, default 8 msg/s burst 32), and FR-EVT-MAILBOX-BACKPRESSURE degraded-mode receipt on saturation per the spec §5.7.3 bypass-on-overflow pattern.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/role_mailbox/backpressure.rs with `BackpressureGuard`, `BackpressureConfig`, and `BackpressureDecision` types; integration test under src/backend/handshake_core/tests/role_mailbox_backpressure_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/role_mailbox/backpressure.rs",
+    "src/backend/handshake_core/tests/role_mailbox_backpressure_tests.rs"
+  ],
+  "depends_on_mts": ["MT-177", "MT-180"],
+  "unblock_conditions": "MT-177 repo provides the pending-message count query; MT-180 lease infrastructure provides session_id binding for rate-limit keys.",
+  "implementation_notes": "Pattern mirrors spec §5.7.3 ProcessOwnershipLedger perf safeguards (batched async writes with FR-EVT-LEDGER-OVERFLOW on saturation): `BackpressureGuard::check(role_id, repo) -> BackpressureDecision { Allow | Deny { reason, retry_after_secs } }`. Inbox cap path: query `repo.count_pending_messages_for_role(role_id)`; if >= cap, return Deny with reason=`InboxFull` and retry_after derived from a probe of next expiry/ack. Rate-limit path: in-process token bucket keyed by role_id, configurable refill rate, burst capacity; thread-safe via `tokio::sync::Mutex<HashMap<RoleId, TokenBucket>>` (or atomic-int per-bucket). On Deny, the caller (MT-189 executor + MT-177 repo) MUST: (a) increment a metrics counter; (b) emit a Flight Recorder event `FR-EVT-MAILBOX-BACKPRESSURE { role_id, reason, retry_after_secs, observed_pending }` (event family registered in MT-198); (c) NEVER silently drop the message — return Deny to the caller. Config struct loaded from `kernel.role_mailbox.backpressure` section of Work Profile (forward-compat for KERNEL-005 profile layer; default constants used until profile reads land). Tests: (a) send 256 messages, expect 257th to Deny with InboxFull; (b) send 33 messages in 1 second, expect 33rd to Deny with RateLimitExceeded; (c) wait token-refill window, expect next send to Allow; (d) concurrent senders from 8 tasks — count exact Allow/Deny split matches token bucket math (deterministic with injected clock); (e) FR event emission verified via test stub Flight Recorder.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target role_mailbox_backpressure_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without backpressure, a runaway loop (e.g., a misconfigured automation in a takeover-loop) floods the mailbox, exhausts Postgres connection pool, blocks other executors, and overflows the role_mailbox_message table; the cluster X preservation slice loses its bounded-loop invariant.",
+  "validator_focus": "No silent drops — every saturation emits FR-EVT-MAILBOX-BACKPRESSURE; token bucket math is deterministic with injected clock; backpressure decisions are observable in metrics and Flight Recorder, never just suppressed.",
+  "hbr_obligations": ["HBR-SWARM-002", "HBR-SWARM-004"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.3",
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-claim-lease"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 (backpressure for executor routing)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-177", "MT-180"],
+    "blocks": ["MT-189"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Backpressure decisions emit FR events even on Allow path (sampled) so saturation trends are observable before they trip.",
+      "Token bucket uses injected clock; no `std::time::Instant::now()` calls inside the bucket.",
+      "Config defaults documented in code comments + linked to spec §5.7.3 pattern."
+    ]
+  }
+}

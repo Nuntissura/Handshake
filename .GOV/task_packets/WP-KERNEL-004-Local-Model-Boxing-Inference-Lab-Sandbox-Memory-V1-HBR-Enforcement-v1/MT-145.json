@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-145",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:04:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-145.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MemoryCapsule persistence via KernelActionCatalogV1 + WriteBoxV1",
+  "goal": "Persist MemoryCapsule audit records through the existing KernelActionCatalogV1 + WriteBoxV1 mutation path (per packet forbidden_paths: 'No mutations through the backend inspector plane') so capsule history is durable, replayable, and review-gated. The persisted shape is the CapsuleAuditLog plus capsule metadata (not the full MemoryPack item contents, which already live in FEMS).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/persistence.rs (CapsuleRecorder + CapsuleRecord typed shape) defining a KernelActionCatalogV1 action variant `CapsuleAuditRecord`. Wiring uses the existing kernel/write_box surface; no new mutation path. Tests under src/backend/handshake_core/tests/memory_persistence_tests.rs using a mock KernelActionCatalogV1.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/persistence.rs",
+    "src/backend/handshake_core/tests/memory_persistence_tests.rs"
+  ],
+  "depends_on_mts": ["MT-141", "MT-142", "MT-143"],
+  "unblock_conditions": "MT-141/142/143 ship the capsule primitives + builder. KernelActionCatalogV1 + WriteBoxV1 already exist in main from KERNEL-002.",
+  "implementation_notes": "Per the WP-KERNEL-004 packet forbidden_paths the ONLY mutation paths are KernelActionCatalogV1 + WriteBoxV1; no parallel mutation. CapsuleRecorder must therefore submit a typed action via the existing catalog, not invent a new write path. Surface: `pub struct CapsuleRecorder<'a> { action_catalog: &'a dyn KernelActionSubmitter }` with `pub fn record(record: CapsuleRecord) -> Result<RecordReceipt, RecorderError>`. CapsuleRecord shape: `{ capsule_id: Uuid (v7), capsule_source_hash: String, task_type: TaskType, policy: RetrievalPolicy, audit_log: CapsuleAuditLog, built_at_utc, recorded_at_utc, session_id, role_id, outcome: Option<CapsuleOutcome> }` where CapsuleOutcome is filled later by the outcome feedback loop (MT-158). RecordReceipt: `{ record_id: Uuid v7, write_box_envelope_id: Uuid v7, persisted_at_utc }`. Use serde_json for envelope payload; the catalog routes to durable storage via the existing WriteBoxV1 review path (review-gated per FEMS V1 invariant). Tests: recorder constructs a well-formed catalog action; record receipt round-trips; recorder fails cleanly on KernelActionCatalogV1 rejection with typed RecorderError; outcome field defaults to None at initial record.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target memory_persistence_tests"
+  ],
+  "risk_if_missed": "Without persistence via the canonical mutation path, capsule audit history fragments across ad-hoc stores and the no-parallel-mutation invariant is violated.",
+  "validator_focus": "All writes flow through KernelActionCatalogV1; no direct database calls. CapsuleRecord captures the full audit log so replay is possible without re-running retrieval.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-141", "MT-142", "MT-143"],
+    "blocks": ["MT-147", "MT-148", "MT-158"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "All persistence flows through KernelActionCatalogV1 + WriteBoxV1; no parallel mutation path.",
+      "CapsuleRecord captures the full audit log so replay does not depend on re-running retrieval.",
+      "RecorderError is typed so call sites cannot silently swallow persistence failures."
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-183",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:07:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-183.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Handoff bundle + announce-back provenance primitive",
+  "goal": "Implement the handoff bundle (`MailboxHandoffBundleV1`) and announce-back provenance primitive per spec v02.186 §02-system-architecture.md role mailbox subsection [ADD v02.177]: when one executor hands work to another (delegate_work, escalation, takeover) it produces a typed bundle containing context, artifacts, transcript reference, and provenance hash. When the receiver completes, it produces an `announce_back` message carrying the bundle reference + completion artifacts + provenance chain.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/role_mailbox/handoff.rs with `MailboxHandoffBundleV1`, `HandoffBundleBuilder`, `AnnounceBackComposer`; integration test under src/backend/handshake_core/tests/role_mailbox_handoff_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/role_mailbox/handoff.rs",
+    "src/backend/handshake_core/tests/role_mailbox_handoff_tests.rs"
+  ],
+  "depends_on_mts": ["MT-177", "MT-178", "MT-179"],
+  "unblock_conditions": "MT-179 message families (DelegateWorkBody, AnnounceBackBody) merged; MT-178 exporter merged so handoff bundles serialize via the same projection path.",
+  "implementation_notes": "Per spec [ADD v02.177] line 6160 (role mailbox handoff bundle, note transcription, announce-back provenance): define `MailboxHandoffBundleV1 { bundle_id: Uuid v7, source_thread_id: Uuid v7, source_message_id: Uuid v7, target_role: RoleId, target_executor_kind: ExecutorKind, context_summary: String, linked_artifacts: Vec<ArtifactPointer>, transcript_pointer: Option<TranscriptPointer>, capability_grants: Vec<CapabilityGrant>, expires_at_utc: Option, content_hash: String (sha256 of canonical JSON), created_at_utc, created_by_session: Uuid v7 }`. `HandoffBundleBuilder` is a typestate builder that requires every required field before `.build()` can be called. The bundle is stored in a new `role_mailbox_handoff_bundle` Postgres table with FKs to thread + message, and content_hash is recomputed on insert (validator enforced). `AnnounceBackComposer::compose(bundle_ref, completion: CompletionResult) -> RoleMailboxMessage` produces a `MessageFamily::AnnounceBack` message whose AnnounceBackBody includes: (a) bundle_id reference, (b) provenance_chain: Vec<ProvenanceLink> (each link: predecessor_message_id + content_hash for tamper-evident chain), (c) completion artifacts, (d) completion_state. Provenance verifier: `verify_chain(messages) -> Result<(), ChainError>` walks the chain from AnnounceBack back to the original DelegateWork, asserts content_hash chain unbroken. Tests: (a) builder rejects missing fields at compile time (typestate); (b) bundle insert recomputes hash and rejects tampered input; (c) compose AnnounceBack, verify chain — passes; (d) tamper with intermediate message body, verify chain — fails with typed ChainError; (e) goldenfile cross-check for canonical JSON hashing.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target role_mailbox_handoff_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without typed handoff bundles + provenance chains, delegated work loses its audit trail; announce-back becomes unstructured chat; the folded WP-1-Role-Mailbox-v1 stub's auditable-governance intent silently degrades to copy-paste discipline.",
+  "validator_focus": "Provenance chain is tamper-evident (content_hash mismatch fails verification); typestate builder prevents missing-field bundles at compile time; bundle table content_hash recomputed on insert (not trusted from caller).",
+  "hbr_obligations": ["HBR-INT-008", "HBR-INT-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-handoff-bundle"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-v1 (handoff bundle + announce-back provenance)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-177", "MT-178", "MT-179"],
+    "blocks": ["MT-189"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Tampered-chain test asserts ChainError::ContentHashMismatch is returned, not a soft warning.",
+      "Bundle table has a CHECK constraint or trigger asserting content_hash matches canonical JSON (defense-in-depth).",
+      "Canonical JSON hashing is deterministic (sorted keys, no trailing whitespace) and proven by golden-fixture."
+    ]
+  }
+}

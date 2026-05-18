@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-020",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-020.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Automation-first design contract test (HBR-QUIET-002 design audit)",
+  "goal": "Land the automation-first design contract test that audits every Tauri command + UI surface introduced by KERNEL-004 and proves it is reachable without OS-level keyboard injection, cursor movement, focus stealing, or foregrounding. Negative: any path requiring those mechanisms fails the gate.",
+  "expected_diff_shape": "New test file src/backend/handshake_core/tests/automation_first_audit_tests.rs that walks the Tauri command inventory and asserts each is callable via IPC alone; CI artifact captures the audit report.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/automation_first_audit_tests.rs",
+    ".GOV/roles_shared/scripts/automation-first-audit.mjs"
+  ],
+  "depends_on_mts": ["MT-014", "MT-015", "MT-016", "MT-017", "MT-018", "MT-019"],
+  "unblock_conditions": "All A.4 foundation MTs merged so the audit has the full quiet-mode + focus-audit + injection-test + lint + foreground-exception stack to assert against.",
+  "implementation_notes": "Per spec §6.6 + HBR-QUIET-002 evidence_kind=automation_path_audit. The audit walks the Tauri command inventory (extracted via a build-time scanner that greps for `#[tauri::command]`) and for each command runs: (1) call via IPC mock — must succeed without any OS-level input; (2) call via IPC while focus-audit (MT-015) is active — assert zero handshake-owned foreground transitions; (3) call via raw OS keyboard injection (MT-016) — assert zero invocation count. Commands that legitimately require foreground are exempted only if they appear in a `foreground_exempt_commands` allowlist documented inline (currently empty; if a future command needs exemption it must declare via MT-019 ForegroundException). The Node helper script `automation-first-audit.mjs` produces a markdown summary report (on-demand only per CX-908) for operator review. Per HBR-QUIET-002 evidence_kind = automation_path_audit this MT is THE wire test that produces the audit evidence. Tests: assert all current KERNEL-004 Tauri commands (from MT-013, MT-018, MT-027, MT-030, MT-036) pass the audit; assert that a synthetic violation (a test command that calls SetForegroundWindow) fails the audit loudly.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target automation_first_audit_tests",
+    "node .GOV/roles_shared/scripts/automation-first-audit.mjs --report --out /tmp/audit-report.md"
+  ],
+  "risk_if_missed": "Without the audit, HBR-QUIET-002 has no end-to-end evidence; individual MTs prove pieces but not the whole-app guarantee.",
+  "validator_focus": "Audit walks the WHOLE Tauri command inventory (not a hand-picked subset); synthetic violation fixture proves the audit can catch a regression.",
+  "hbr_obligations": ["HBR-QUIET-001", "HBR-QUIET-002", "HBR-QUIET-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.6"
+  ],
+  "acceptance_criteria_refs": ["AC-QUIET-WINDOW-CONFIG", "AC-QUIET-FOCUS-AUDIT", "AC-QUIET-INJECT-NEG-TEST", "AC-QUIET-API-LINT", "AC-QUIET-FOREGROUND-EXCEPTION"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-014", "MT-015", "MT-016", "MT-017", "MT-018", "MT-019"],
+    "blocks": ["MT-034"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Audit walks the FULL Tauri command inventory (auto-discovered, not hand-listed).",
+      "Synthetic-violation fixture confirms the audit can catch regressions.",
+      "foreground_exempt_commands allowlist is documented and initially empty."
+    ]
+  }
+}

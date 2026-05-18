@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-041",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-041.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Sandbox shared types: ProcessSpec / ProcessHandle / BindMode / NetPolicy / Signal / ProcessStatus / ExecResult",
+  "goal": "Define the engine-agnostic value types every SandboxAdapter consumes and returns. These shared types are the public surface of the sandbox module and MUST be the only types that leak into upstream callers (per spec §3.5.1 'trait MUST NOT expose adapter-specific types'). This MT is the prerequisite for the SandboxAdapter trait (MT-042) and every adapter implementation.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/sandbox/mod.rs (re-exporter) + src/backend/handshake_core/src/sandbox/types.rs holding ProcessSpec, ProcessHandle, BindMode, NetPolicy, Signal, ProcessStatus, ExecResult, Command, AdapterId, SandboxAdapterError. Unit tests under src/backend/handshake_core/tests/sandbox_types_tests.rs. Cargo.toml additions: serde, serde_json, thiserror, uuid (v7), bytes.",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/mod.rs",
+    "src/backend/handshake_core/src/sandbox/types.rs",
+    "src/backend/handshake_core/tests/sandbox_types_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "No prerequisites; this MT is the foundation for cluster B.",
+  "implementation_notes": "Per spec §3.5.1 the SandboxAdapter trait surface must be expressed only in shared types. Define: (1) `ProcessSpec { id: AdapterId, image_or_root: ImageRef, cmd: Vec<String>, env: BTreeMap<String,String>, cwd: Option<PathBuf>, binds: Vec<BindSpec>, net_policy: NetPolicy, resource_limits: ResourceLimits, required_capabilities: BTreeSet<RequiredCapability>, metadata: BTreeMap<String,String> }` where `RequiredCapability` is an enum {win32_native_fidelity, nvidia_cuda_passthrough, vendor_agnostic_gpu, cross_machine_portable, very_strong_filesystem_isolation, very_strong_network_isolation, high_stdio_throughput}; (2) `ProcessHandle { id: Uuid (v7 per HBR-INT-008), adapter_id: AdapterId, pid: Option<u32>, sandbox_internal_id: String, spawned_at_utc: DateTime<Utc> }` — opaque to callers; (3) `BindMode` enum {ReadOnly, ReadWrite, NoExec}; (4) `BindSpec { host_path: PathBuf, guest_path: PathBuf, mode: BindMode }`; (5) `NetPolicy` enum {DenyAll, LoopbackOnly, Allowlist(Vec<NetAllowlistEntry>)} where `NetAllowlistEntry { host: String, port: Option<u16>, protocol: NetProtocol }`; (6) `Signal` enum {Term, Kill, Int} (POSIX-style; adapters translate to OS-native); (7) `ProcessStatus` enum {Running, Exited{ code: i32 }, Killed{ by_signal: Signal }, Orphaned, FailedToStart{ reason: String }}; (8) `ExecResult { exit_code: i32, stdout: bytes::Bytes, stderr: bytes::Bytes, duration_ms: u64 }`; (9) `Command { argv: Vec<String>, env_overlay: BTreeMap<String,String>, stdin: Option<bytes::Bytes>, timeout_ms: Option<u64> }`; (10) `AdapterId` newtype `String` (immutable, e.g. \"wsl2_podman\", \"windows_native_jail\", \"docker\"); (11) `SandboxAdapterError` thiserror enum covering ImageMissing, BindHostPathMissing, BindGuestPathInvalid, NetPolicyApplyFailed, SpawnFailed{ adapter_id, reason }, ProcessHandleStale, AdapterUnavailable{ adapter_id, reason }, CapabilityUnsatisfied{ required, available }. ALL types derive Serialize+Deserialize+Clone+Debug; ProcessHandle.id MUST mint via uuid::Uuid::now_v7() per HBR-INT-008 (cite repo policy). NO adapter-specific imports anywhere (no podman::*, no bollard::*, no win32::* in this file). Unit tests assert (a) ProcessHandle::new mints v7 UUIDs, (b) NetPolicy::DenyAll != LoopbackOnly serialization round-trip, (c) RequiredCapability set comparison is BTreeSet so equality is deterministic, (d) SandboxAdapterError display strings are stable.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target sandbox_types_tests"
+  ],
+  "risk_if_missed": "Without shared types frozen first, each adapter MT (MT-044/046/047) invents its own ProcessHandle/NetPolicy shape and the SandboxAdapter trait surface fractures, defeating spec §3.5.1.",
+  "validator_focus": "No adapter-specific crate appears in sandbox/types.rs imports; ProcessHandle.id is UUID v7; all types serde round-trip; RequiredCapability and AdapterCapabilities form a consistent vocabulary.",
+  "hbr_obligations": ["HBR-INT-008", "HBR-QUIET-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5"
+  ],
+  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-TRAIT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": [],
+    "blocks": ["MT-042", "MT-043", "MT-044", "MT-045", "MT-046", "MT-047", "MT-048"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Lint check (grep test in sandbox_types_tests.rs build.rs OR repo-level rustc deny) ensures sandbox/types.rs imports no adapter-specific crate.",
+      "ProcessHandle.id mint test asserts v7 UUID (top nibble of byte 6 == 0x7) per HBR-INT-008.",
+      "NetPolicy serde test rejects unknown variants to prevent silent NetPolicy::Allowlist leakage from forgotten enum arm."
+    ]
+  }
+}

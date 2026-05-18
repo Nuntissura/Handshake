@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-083",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-083.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime transformer-path load + generate (safetensors-backed)",
+  "goal": "Implement load + generate for the Transformer variant of CandleModelHandle: load safetensors weights via candle-transformers (Llama/Qwen/etc), generate streaming with sampler integration, ensure hooks (MT-082) fire at correct layer indices during forward.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/candle/transformer.rs with TransformerModel trait + Llama impl; generate_transformer streaming function; tests (env-gated).",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/transformer.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/generate.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/adapter.rs",
+    "src/backend/handshake_core/tests/candle_transformer_tests.rs"
+  ],
+  "depends_on_mts": ["MT-081", "MT-082"],
+  "unblock_conditions": "MT-081 scaffolding + MT-082 hooks merged.",
+  "implementation_notes": "TransformerModel trait abstracts over candle-transformers model implementations: `trait TransformerModel: Send + Sync { fn forward(&mut self, input_ids: &Tensor, hooks: &HookRegistry) -> Result<Tensor, CandleError>; fn n_layers(&self) -> u32; fn hidden_dim(&self) -> u32; fn vocab_size(&self) -> u32; }`. Initial concrete impl: LlamaModel wrapping candle_transformers::models::llama::Llama; future MTs can add Qwen, Mistral, etc. Load: read safetensors via candle_core::safetensors::load + VarBuilder; instantiate LlamaConfig from a config.json sibling; verify SHA256 of safetensors file matches LoadSpec.sha256_expected. Generate: tokenize prompt via tokenizer cache; loop forward(input_ids, &hook_registry) -> logits; sampler picks next token (reuse sampler module shape from MT-074 generalised); yield GeneratedToken stream; per-token cancellation poll; per-token hook callbacks fire as a side effect of forward (MT-082 plumbing). Per AC-CANDLE-ADAPTER capabilities for Transformer variant: supports_lora=true (MT-084), supports_activation_steering=true, supports_subquadratic=false, supports_speculative_draft=false (not in scope for CandleRuntime in v02.186), supports_kv_prefix_cache=true (basic prefix-share). Tests (env-gated by HANDSHAKE_TEST_CANDLE_MODEL_DIR pointing at a directory with config.json + tokenizer.json + safetensors + sha256.txt): load a small Llama-style model; generate 32 tokens deterministically (fixed seed); capture activations at layer 5 with hooks (verifies MT-082 integration end-to-end); cancel mid-stream within 100ms.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_transformer_tests"
+  ],
+  "risk_if_missed": "CandleRuntime transformer path missing; activation-hook techniques have no model to run against.",
+  "validator_focus": "Hooks fire during forward (verified by counter incremented); SHA256 verification before load; cancel <100ms; deterministic output with fixed seed.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2"
+  ],
+  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-081", "MT-082"],
+    "blocks": ["MT-084", "MT-096", "MT-100", "MT-103", "MT-106"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Hook counter incremented during forward (proves wiring).",
+      "SHA256 mismatch returns explicit LoadError.",
+      "Generation determinism with fixed seed verified."
+    ]
+  }
+}

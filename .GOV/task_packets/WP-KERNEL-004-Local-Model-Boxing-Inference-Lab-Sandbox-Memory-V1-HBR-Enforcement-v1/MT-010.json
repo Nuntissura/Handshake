@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-010",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.6",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-010.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ModelManual authority module (typed Rust structs + MANUAL_VERSION)",
+  "goal": "Land src/backend/handshake_core/src/model_manual/mod.rs as the single source-of-truth for ModelManual content per spec §10.15.1 (AC-MODEL-MANUAL-AUTHORITY). Typed Rust structs (ManualCommand, ManualWorkflow, ManualSafetyConstraint, ManualFeatureGroup, CommandReference) carry the content; MANUAL_VERSION is a `pub const &str` bumped on every wired-surface change.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/model_manual/{mod.rs,types.rs,content.rs}; types.rs defines the struct hierarchy; content.rs holds the v1 manual content as Rust const data; mod.rs exposes the public API.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_manual/mod.rs",
+    "src/backend/handshake_core/src/model_manual/types.rs",
+    "src/backend/handshake_core/src/model_manual/content.rs",
+    "src/backend/handshake_core/tests/model_manual_tests.rs"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "No prerequisites; this is the foundation MT for A.6.",
+  "implementation_notes": "Per spec §10.15.1 there is NO separate MODEL_MANUAL.md file that competes for authority; the typed Rust structs ARE the manual. Struct hierarchy: `Manual { version: &'static str, feature_groups: &'static [ManualFeatureGroup], command_reference: &'static [CommandReference], safety_constraints: &'static [ManualSafetyConstraint], workflows: &'static [ManualWorkflow] }`. ManualFeatureGroup `{ id, title, description, commands: &'static [&'static str] (refs into command_reference) }`. CommandReference `{ id, name, ipc_channel: Option<&'static str>, tauri_command: Option<&'static str>, schema_fields: &'static [&'static str], cli_flag: Option<&'static str>, description, expected_input, expected_output, common_errors: &'static [&'static str], recovery_steps: &'static [&'static str] }`. ManualWorkflow `{ id, title, prerequisites, steps: &'static [&'static str], expected_outcome, failure_modes: &'static [&'static str] }`. ManualSafetyConstraint `{ id, constraint_text, enforcement_point }`. MANUAL_VERSION starts at \"1.0.0\". The v1 content covers: (a) feature_groups for Sandbox (Cluster B), ModelRuntime (Cluster C), Memory/SelfImprovement (Cluster D), HBR/ProcessLedger/Diagnostics (Cluster A), (b) command_reference for every Tauri IPC channel KERNEL-004 ships (placeholders for cluster B/C/D commands marked `status: \"planned\"` until those MTs land — but the A-cluster channels declared by MT-013 IPC bridge, MT-027 visual debug IPC, MT-030 inspector IPC, MT-036 swarm harness CLI must all be present at v1.0.0), (c) safety_constraints citing HBR rules, (d) workflows covering startup, basic governed-session run, and diagnostics-panel triage. Implement as compile-time const data so the manual is a single immutable snapshot per build. Test: assert MANUAL_VERSION matches a SemVer pattern; assert every CommandReference id is unique; assert every ManualFeatureGroup.commands ref resolves to a CommandReference; assert no orphan CommandReference exists.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_manual_tests"
+  ],
+  "risk_if_missed": "Without typed authority, prose .md drift becomes the de facto manual and HBR-MAN-003 self-consistency cannot be enforced mechanically.",
+  "validator_focus": "Manual is pure const data (no I/O, no allocation); ids are unique; refs resolve; MANUAL_VERSION is a public const visible from outside the crate.",
+  "hbr_obligations": ["HBR-MAN-001", "HBR-MAN-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.15"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-MANUAL-AUTHORITY"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": [],
+    "blocks": ["MT-011", "MT-012", "MT-013"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "All ids are unique (test enforces).",
+      "MANUAL_VERSION is `pub const` so HBR-MAN-001 paired-diff check can grep for it from the .GOV scripts.",
+      "Content is const (no runtime mutation) so the manual is a build-time artifact only."
+    ]
+  }
+}

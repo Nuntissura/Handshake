@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-128",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.13",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-128.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Cloud lane API key vault + consent gate (HBR-INT-005 lane normalization)",
+  "goal": "Operator Secrets Vault for cloud API keys: keys stored encrypted-at-rest (OS keychain via keyring crate), retrieved per-call, never logged, per-lane consent gate (operator confirms cloud send for first call per session if cloud_consent_per_session=true).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/cloud/secrets_vault.rs + consent_gate.rs; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/cloud/secrets_vault.rs",
+    "src/backend/handshake_core/src/model_runtime/cloud/consent_gate.rs",
+    "src/backend/handshake_core/Cargo.toml",
+    "src/backend/handshake_core/tests/cloud_secrets_consent_tests.rs"
+  ],
+  "depends_on_mts": ["MT-125", "MT-126"],
+  "unblock_conditions": "MT-125 + MT-126 BYOK adapters merged.",
+  "implementation_notes": "Per HBR-INT-005 lane normalization: cloud lanes need uniform API-key handling + consent gating. Cargo.toml add `keyring = \"3\"` (cross-platform OS keychain). SecretsVault::store(lane: CloudLane, key: SecretString, operator_signature: String) -> Result<(), VaultError>: stores under service \"handshake-cloud-keys\" + account=lane.label; routes through KernelActionCatalogV1 action kernel.cloud_secrets.store; signature required (HBR-INT-006). SecretsVault::retrieve(lane: CloudLane) -> Result<SecretString, VaultError>: pulls from keyring; SecretString zeros memory on drop (secrecy crate). ApiKeyProvider impl backed by SecretsVault. Consent gate: settings.policy.cloud_consent_per_session: bool (default true); first cloud call in a session checks the session's consent_granted_for_lanes set; if absent, generate returns Err(ConsentRequired { lane, prompt_text }) which the frontend translates to an operator-facing prompt; on operator-grant, frontend calls kernel.cloud_consent.grant(session_id, lane) action. cloud_invocations Postgres table records consent_granted_at_utc + operator_signature per consent. NEVER log the secret in any event. Tests: store, retrieve, key never appears in FR events or stdout; consent gate blocks first call; second call after grant succeeds; consent scoped per session (different session re-prompts).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target cloud_secrets_consent_tests"
+  ],
+  "risk_if_missed": "Cloud API keys stored plaintext; consent gate missing; operator privacy posture breached.",
+  "validator_focus": "SecretString zeroization; OS keychain integration tested per-platform; consent scoped per session; no plaintext in logs.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-005", "HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-125", "MT-126"],
+    "blocks": ["MT-129", "MT-130"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Plaintext-key grep test on all FR events + logs.",
+      "Per-session consent scope tested (cross-session does not leak).",
+      "OS keychain integration tested (or skipped with documented reason if CI cannot)."
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-141",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-141.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MemoryCapsule core struct + RetrievalPolicy + AuditLog typed primitives",
+  "goal": "Land the core MemoryCapsule struct under src/backend/handshake_core/src/memory/capsule.rs as a typed wrapper around the existing ACE MemoryPack (src/backend/handshake_core/src/ace/mod.rs::MemoryPack already in main). MemoryCapsule adds three things the bare MemoryPack does not have: (1) a typed RetrievalPolicy describing how the capsule was built (top_k, capsule_budget_bytes, task_type, scoring formula version), (2) a typed AuditLog of per-item provenance + suppression decisions, and (3) source-link metadata per HBR-INT-006 so every injected item is inspectable and suppressible from the operator panel.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/mod.rs (creates the memory crate-level module) + src/backend/handshake_core/src/memory/capsule.rs (MemoryCapsule + RetrievalPolicy + CapsuleAuditLog + CapsuleAuditEntry types) + unit tests under src/backend/handshake_core/tests/memory_capsule_tests.rs. Cargo.toml gets no new deps (reuses serde, uuid v7, thiserror already present).",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/mod.rs",
+    "src/backend/handshake_core/src/memory/capsule.rs",
+    "src/backend/handshake_core/tests/memory_capsule_tests.rs"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "FEMS V1 surfaces already in main (src/backend/handshake_core/src/kernel/fems_memory_poisoning_drift_guardrails.rs, fems_mt_handoff_memory_context.rs, fems_working_memory_checkpoint.rs) and ACE MemoryPack primitives in main (src/backend/handshake_core/src/ace/mod.rs::MemoryPack, MemoryPackItem, MemoryPackBudgets, MemoryPackRebuildHint). No KERNEL-004 MT prerequisites; this is the D.1 foundation.",
+  "implementation_notes": "Per spec §4.8.5 (editable surface) and AC-DISTILL-EDITABLE-SURFACE, retrieval policy parameters (top_k + capsule_budget_bytes) are part of the V0 editable surface for the self-improvement loop, so MemoryCapsule MUST carry RetrievalPolicy as durable typed state, not as ad-hoc kwargs at call sites. Public surface: `pub struct MemoryCapsule { id: Uuid (v7 per HBR-INT-008), task_type: TaskType, pack: MemoryPack, policy: RetrievalPolicy, audit: CapsuleAuditLog, built_at_utc: chrono::DateTime<Utc>, source_hash: String (sha256 over pack items in canonical order) }`. RetrievalPolicy fields: `pub struct RetrievalPolicy { pub top_k: u32, pub capsule_budget_bytes: u64, pub task_type: TaskType, pub scoring_formula_version: String, pub graceful_degradation_tier: DegradationTier }`. CapsuleAuditLog: `pub struct CapsuleAuditLog { pub entries: Vec<CapsuleAuditEntry> }` where each entry records `{ item_id, source_uri, included: bool, suppression_reason: Option<String>, score: f64, score_breakdown: BTreeMap<String, f64>, pinned: bool }` so HBR-INT-006 (FEMS record + retrieval policy audit) is satisfied without a separate sidecar. Implement `MemoryCapsule::new(task_type, pack, policy)` that derives `built_at_utc=now`, computes `source_hash` deterministically (serde_json canonical bytes of pack items, sorted by id), and constructs an empty AuditLog. Implement `MemoryCapsule::suppress_item(item_id, reason)` that flips `included=false` and sets `suppression_reason` so operator-driven suppression flows can mutate the audit log without rebuilding the pack. Tests: assert UUID v7 minting; assert source_hash determinism across two equivalent capsules; assert suppress_item updates only the audit log not the pack; assert RetrievalPolicy round-trips through serde_json; assert no panic on empty pack.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target memory_capsule_tests"
+  ],
+  "risk_if_missed": "Without MemoryCapsule as the typed wrapper, every downstream D MT bakes its own retrieval-policy + audit-log shape, drift becomes unrecoverable, and HBR-INT-006 cannot be enforced uniformly.",
+  "validator_focus": "MemoryCapsule is pure data + small constructor; no I/O or LLM dependencies. source_hash is deterministic and stable across runs. RetrievalPolicy is durable typed state (not stringly-typed). UUID v7 used at every mint site per HBR-INT-008.",
+  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": [],
+    "blocks": ["MT-142", "MT-143", "MT-144", "MT-145", "MT-146", "MT-147"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "MemoryCapsule has no I/O surface and cannot bypass FEMS V1 write-review gates.",
+      "AuditLog records every item including suppressed ones so operator suppression decisions are forensically reconstructible.",
+      "source_hash uses canonical serialization to prevent silent drift between two semantically-equal capsules."
+    ]
+  }
+}

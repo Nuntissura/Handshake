@@ -1,0 +1,61 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-092",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-092.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-1 LoRA hot-swap integration test (parity across LlamaCpp + Candle)",
+  "goal": "Cross-adapter parity test: same LoRA descriptor mounted on a LlamaCpp model and a Candle model produces equivalent qualitative behavior (output differs from base on both; license tag preserved; FR events emit on both). Catches per-adapter drift.",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/inf1_lora_parity_tests.rs exercising mount+generate on both adapter paths against a parallel fixture model pair.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/inf1_lora_parity_tests.rs"
+  ],
+  "depends_on_mts": ["MT-090", "MT-091"],
+  "unblock_conditions": "MT-090 + MT-091 merged.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.a parity gate: behavior must be uniform across both adapters for INF-1 PRODUCTION declaration to hold. Test scenario: register two models — one LlamaCpp (GGUF), one Candle (safetensors) — both fine-tunes of the same base; mount a LoRA designed for that base on each; generate; assert both differ from base; assert license tag carried through; assert FR-EVT-LLM-INFER-LORA-MOUNT fires on both. Skip gracefully when env vars unset. Cross-adapter equivalence is qualitative (not bit-exact; different sampler RNG paths) — assert e.g., perplexity-diff > threshold on a fixed prompt. This is the regression gate for INF-1 across adapter boundary.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf1_lora_parity_tests"
+  ],
+  "risk_if_missed": "Adapter drift in INF-1 unnoticed; LoRA behavior unstable across adapters.",
+  "validator_focus": "Skip path documented; qualitative parity threshold reasonable; license tag carried.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-090", "MT-091"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Skip path when fixtures missing.",
+      "Qualitative threshold (not bit-exact) — documented why.",
+      "License tag preservation verified across adapter boundary."
+    ]
+  }
+}

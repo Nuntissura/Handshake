@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-185",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:09:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-185.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MT loop-control checkpoint contract (bounded retries + verifier feedback)",
+  "goal": "Implement the bounded mailbox-loop-control checkpoint contract that lets Role Mailbox coordinate Micro-Task retries, verifier feedback, verification-needed waits, escalation, and completion reports through structured checkpoints instead of transcript replay. Folds WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1 stub intent: small local models, cloud models, reviewers, and operators can resume or inspect MT loops from compact state.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/mt_loop_control.rs with `MtLoopCheckpoint`, `MtLoopState`, `MtLoopControlBudget` types + `MtLoopControl` orchestration helper; integration tests under src/backend/handshake_core/tests/mt_loop_control_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/mt_loop_control.rs",
+    "src/backend/handshake_core/tests/mt_loop_control_tests.rs"
+  ],
+  "depends_on_mts": ["MT-179", "MT-184"],
+  "unblock_conditions": "MT-179 micro_task_* message families provide the typed feedback payloads; MT-184 MicroTaskJob provides the state container.",
+  "implementation_notes": "Per spec line 6147 + folded stub WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1 intent (refinement.json line 987): 'durable loop-control contract so small local models, cloud models, reviewers, and operators can resume or inspect Micro-Task loops from compact state rather than chat chronology.' Define `MtLoopCheckpoint { checkpoint_id: Uuid v7, job_id: Uuid v7 (FK MicroTaskJob), iteration_n: u32, state_at_checkpoint: MtLoopState, retry_budget_remaining: u32, verifier_feedback_history: Vec<VerifierFeedbackRef>, compact_summary: String (<= 2048 bytes — what next executor needs to continue), evidence_pointers: Vec<EvidencePointer>, created_at_utc, created_by_session: Uuid v7 }`. `MtLoopState` enum: `WaitingForVerifier`, `IteratingOnFeedback { feedback_id }`, `VerificationNeeded { reason }`, `EscalationProposed { target_tier }`, `Completed { signal: CompletionSignal }`. `MtLoopControlBudget { max_iterations: u32, max_consecutive_failures: u32, max_hardgate_pause_secs: u32, max_verifier_feedback_loops: u32 }` loaded from MT contract or default. `MtLoopControl::record_checkpoint(job, state, summary, evidence) -> MtLoopCheckpoint` writes to Postgres with FK to MicroTaskJob, enforces budget (returns LoopBudgetExceeded if violated). `MtLoopControl::resume_from(checkpoint_id) -> ResumeContext` produces the compact context a fresh executor needs (no transcript replay required). Spec line 6147 invariant enforced: must NOT authorize open-ended 'keep trying' loops; budget exhaustion returns LoopBudgetExceeded which forces escalation (handed to MT-188). Tests: (a) record sequential checkpoints, resume from last — get exact compact context; (b) exceed max_iterations, expect LoopBudgetExceeded; (c) resume across executor handoff (session_id change), checkpoint chain queryable; (d) verifier_feedback_history append-only (no rewrites).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target mt_loop_control_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without compact checkpoints, MT loops require transcript replay to resume — silently violating the folded stub's 'compact state rather than chat chronology' invariant. Open-ended 'keep trying' loops become possible because the bounded-retry contract has no enforcement point.",
+  "validator_focus": "Budget enforcement returns typed error (not silent continuation); compact_summary size bounded (CHECK constraint or runtime assertion); resume_from produces same context regardless of which executor calls it (determinism).",
+  "hbr_obligations": ["HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-message-contract"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1 (bounded loop control via checkpoints)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-179", "MT-184"],
+    "blocks": ["MT-188", "MT-189"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Budget exhaustion test asserts LoopBudgetExceeded forces escalation (no silent continuation).",
+      "Compact summary CHECK constraint enforces <= 2048 bytes at the database level.",
+      "Resume determinism proven by cross-executor test: two different session_ids resuming from same checkpoint produce byte-identical ResumeContext."
+    ]
+  }
+}

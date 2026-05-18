@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-100",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.7",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-100.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-4 Refusal Vector extraction (refusal direction extraction from small model)",
+  "goal": "Implement refusal-direction extraction per Arditi et al. 2024 (\"Refusal in LLMs is mediated by a single direction\") plus the runtime ablation API (subset of #6 abliteration; reuses RepE/INF-3 plumbing). Operator targets the refusal direction at inference time, not in weights (which is INF-6 offline tool).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/techniques/refusal_vector.rs implementing extract_refusal_direction + ablate_at_inference; uses INF-3 SteeringHookOps plumbing; tests (env-gated).",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/techniques/refusal_vector.rs",
+    "src/backend/handshake_core/tests/inf4_refusal_vector_tests.rs"
+  ],
+  "depends_on_mts": ["MT-082", "MT-083", "MT-096"],
+  "unblock_conditions": "MT-096 activation steering technique merged.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.d + refinement INF-4 research_workstream_resolution: refusal direction extracted from contrastive activation pairs; runtime injection at decoding. Method: collect a harmful-instruction-pool (operator-supplied; e.g., 20 prompts that base model typically refuses) and a harmless-instruction-pool (20 benign prompts); for each prompt, capture residual stream activations at all middle layers (capture API from MT-096); for each layer compute refusal_direction_l = mean(harmful_activations_l) - mean(harmless_activations_l); normalise per layer. extract_refusal_direction returns Vec<(LayerIndex, NormalisedDirection)>. ablate_at_inference: registers a runtime hook that ORTHOGONALISES the residual stream against the refusal direction at each forward step (subtracts the projection of residual onto direction): `new_resid = resid - (resid . direction) * direction`. Implemented as a SteeringVector with provenance=Contrastive{technique:RefusalVector}, intensity sign and magnitude chosen to produce orthogonalisation rather than addition (a small wrapper around register_vector that flags the vector as an ablation rather than additive). The runtime ablation is reversible (unregister to restore original behaviour); INF-6 abliteration is the offline weight-orthogonalisation cousin (NOT reversible; produces new model artifact). License + operator-content discipline applies (license tag mandatory; operator accepts adult-production responsibility per GLOBAL-PRODUCTION-010..015 — no assistant-side moralizing). Tests (env-gated): extract on small Llama-Instruct with the 40-prompt pool; assert refusal direction non-zero at middle layers; activate ablation; generate completion for a prompt the base model refuses; assert the ablated completion is not a refusal (operator-defined refusal-classifier: regex \"^(I can't|I cannot|I'm sorry|As an AI)\" returns false on >70% of test prompts).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf4_refusal_vector_tests"
+  ],
+  "risk_if_missed": "INF-4 PRODUCTION ships without an extraction primitive; operator cannot derive a refusal vector from their own corpus.",
+  "validator_focus": "Reversibility (unregister restores base behaviour); reuses INF-3 plumbing (no parallel hook layer); license/provenance enforced; assistant does NOT add moralizing wrappers per GLOBAL-PRODUCTION.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-082", "MT-083", "MT-096"],
+    "blocks": ["MT-101", "MT-102", "MT-106"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Reversibility test (unregister restores base behaviour).",
+      "Reuses INF-3 SteeringHookOps (no parallel hook layer).",
+      "Assistant-side moralizing prohibition documented in implementation_notes per GLOBAL-PRODUCTION."
+    ]
+  }
+}

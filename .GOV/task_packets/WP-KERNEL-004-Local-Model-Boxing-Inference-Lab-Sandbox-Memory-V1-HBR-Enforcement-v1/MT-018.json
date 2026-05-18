@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-018",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-018.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "WebView2 CDP screenshot path (--remote-debugging-port wiring)",
+  "goal": "Wire WebView2 to expose Chrome DevTools Protocol via `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=<random>` and `WEBVIEW2_USER_DATA_FOLDER` per spec §6.4.1 (AC-VISUAL-DEBUGGER-IMPL). Implement the headless screenshot API `kernel.visual_debug.screenshot(scope, opts)` (PNG via CDP Page.captureScreenshot) per §6.4.3.",
+  "expected_diff_shape": "app/src-tauri/src/main.rs or equivalent bootstrap: set the env vars before WebView2 init; new module src/backend/handshake_core/src/operator_foreground/cdp_client.rs providing a typed CDP client; Tauri command handler in app/src-tauri/src/visual_debug.rs exposing the screenshot IPC.",
+  "owned_files": [
+    "app/src-tauri/src/visual_debug.rs",
+    "src/backend/handshake_core/src/operator_foreground/cdp_client.rs",
+    "src/backend/handshake_core/tests/cdp_screenshot_tests.rs"
+  ],
+  "depends_on_mts": ["MT-007", "MT-014"],
+  "unblock_conditions": "MT-014 quiet window foundation; MT-007 ProcessOwnershipLedger so the CDP-driven WebView2 child process is recorded with engine_kind appropriate.",
+  "implementation_notes": "Per spec §6.4.1: WebView2 CDP requires setting two env vars before WebView2 process spawn. In app/src-tauri/src/main.rs (find the existing entry point via Glob app/src-tauri/src/*.rs), before `tauri::Builder::default().build()`, set `std::env::set_var(\"WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS\", format!(\"--remote-debugging-port={}\", random_port))` where random_port is chosen via TcpListener::bind(\"127.0.0.1:0\"). Set `std::env::set_var(\"WEBVIEW2_USER_DATA_FOLDER\", per_test_dir)` where per_test_dir is a fresh tempdir each launch. Expose the chosen port via a new IPC channel `kernel.visual_debug.port() -> u16` so test harnesses can find it. cdp_client.rs: thin async CDP client using tokio + websocket (use `tokio-tungstenite` crate; add to Cargo.toml) — implements just enough CDP to call `Page.captureScreenshot { format: \"png\", clip: Option<{x,y,width,height}> }` and `Runtime.evaluate` (for the console-error scan in MT-022). Tauri command `kernel.visual_debug.screenshot(scope: ScreenshotScope, opts: ScreenshotOpts) -> Vec<u8>` where ScreenshotScope = { Full, Element { selector: String }, Region { x, y, w, h } }. The CDP-spawned WebView2 child registers in ProcessOwnershipLedger with `engine_kind = \"webview2_cdp\"`. Tests: spawn the app in test mode, connect via CDP, call captureScreenshot, assert PNG bytes are valid (PNG magic header check). Per AC-VISUAL-DEBUGGER-IMPL the WebView2 instance is never modified outside test scope — confirm by asserting no UI state changes after the screenshot call.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target cdp_screenshot_tests"
+  ],
+  "risk_if_missed": "Without CDP wiring the visual debugger has no capture path; HBR-VIS-001 cannot be satisfied via Playwright.",
+  "validator_focus": "Random port + per-test user-data-folder are confirmed by reading env vars after init; the CDP-spawned child appears in ProcessOwnershipLedger; no UI state changes from a screenshot call.",
+  "hbr_obligations": ["HBR-VIS-001", "HBR-QUIET-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
+  ],
+  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IMPL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-007", "MT-014"],
+    "blocks": ["MT-021", "MT-022", "MT-023"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Random port selection via TcpListener::bind(0) (no fixed port; prevents collision in parallel test runs).",
+      "Per-launch WEBVIEW2_USER_DATA_FOLDER is a tempdir cleaned on Handle drop.",
+      "ProcessOwnershipLedger row exists for the CDP-spawned WebView2 child."
+    ]
+  }
+}

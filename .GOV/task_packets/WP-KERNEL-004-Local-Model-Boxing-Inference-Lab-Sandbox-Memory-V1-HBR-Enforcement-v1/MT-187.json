@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-187",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:11:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-187.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MT queue starvation prevention (age-based priority + fair scheduling)",
+  "goal": "Implement starvation prevention in the MicroTaskQueue so long-pending jobs do not get crowded out by a steady stream of fresh higher-tier jobs. Adds age-based priority boost + per-WP fair scheduling so no single WP can monopolize executor capacity.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/mt_scheduler.rs (extends queue from MT-184) with `FairScheduler`, `PriorityScore`, `StarvationGuard`; integration tests under src/backend/handshake_core/tests/mt_scheduler_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/mt_scheduler.rs",
+    "src/backend/handshake_core/tests/mt_scheduler_tests.rs"
+  ],
+  "depends_on_mts": ["MT-184"],
+  "unblock_conditions": "MT-184 MicroTaskJob primitive provides the rows the scheduler orders.",
+  "implementation_notes": "Per spec §6.7 swarm-agent harness (lines 6793+) concurrency-invariant principle: a fair scheduler must prevent any single WP, any single escalation tier, or any single LoRA family from monopolizing executor capacity. `FairScheduler::next_for_executor(executor_kind, capabilities, now: SystemTime) -> Option<MicroTaskJob>` computes priority as: `priority = base_tier_weight(escalation_tier) + age_boost(now - created_at_utc) + fairness_penalty(per_wp_recent_claims)`. base_tier_weight: HardGate=1000 (always first), T32B=100, T13BAlt=80, T13B=60, T7BAlt=40, T7B=20. age_boost: +1 per minute waiting (caps at +200 so it can eventually outweigh tier weight, preventing indefinite starvation). fairness_penalty: -50 per recent claim by the same wp_id in the last 60s (cap at -200). Tie-break: FIFO on created_at_utc. The scheduler query uses a Postgres CTE that computes priority server-side and SELECT FOR UPDATE SKIP LOCKED LIMIT 1 (no in-memory re-ranking — avoids race between query and claim). `StarvationGuard` is a metrics emitter: any job whose age > `starvation_threshold_secs` (default 600s) emits FR-EVT-MT-STARVED { job_id, wp_id, age_secs } once per threshold crossing; the diagnostics panel surfaces these. Tests: (a) inject 100 fresh T7B jobs + 1 old T32B job — old job claimed within first 5 picks regardless of fresh job order; (b) inject 50 jobs from same wp_id + 5 from other wp_id — other wp_id jobs claimed proportionally; (c) starvation threshold crossing emits exactly one FR event per crossing (not per query).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target mt_scheduler_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without starvation prevention, a steady stream of high-tier jobs from one WP starves low-tier jobs from another WP indefinitely — folded stub WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry intent (safe parallelism) is violated.",
+  "validator_focus": "Priority computed server-side in a single CTE (no out-of-band re-ranking race); FR-EVT-MT-STARVED emitted exactly once per threshold crossing per job; tie-break deterministic via FIFO.",
+  "hbr_obligations": ["HBR-SWARM-001", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-SWARM-HARNESS-INVARIANTS (related — fair-scheduling concurrency invariant)",
+    "PRESERVED_INTENT:WP-1-Micro-Task-Executor-v1 (bounded iteration limits + fairness)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-184"],
+    "blocks": ["MT-189"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Server-side priority CTE proven by EXPLAIN ANALYZE test asserting no client-side re-rank.",
+      "Starvation metric is monotonic (no flapping) via 'last_emitted_at_utc' watermark per job.",
+      "Fairness penalty key (per_wp_recent_claims) computed from kernel_micro_task_job table rows in last 60s window, not from in-memory counter (survives process restart)."
+    ]
+  }
+}

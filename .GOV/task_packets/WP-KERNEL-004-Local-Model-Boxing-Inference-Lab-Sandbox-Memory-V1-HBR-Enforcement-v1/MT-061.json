@@ -1,0 +1,68 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-061",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-061.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ModelRuntime module scaffolding + Cargo workspace deps",
+  "goal": "Create the model_runtime/ module root in handshake_core with public mod.rs, error.rs, capabilities.rs scaffolding plus the Cargo.toml workspace dependency additions for llama-cpp-2 and candle-core + candle-transformers. This is the foundation MT every C.* MT depends on; gets the crate compiling against new deps before any runtime code lands.",
+  "expected_diff_shape": "New directory src/backend/handshake_core/src/model_runtime/ with mod.rs (empty pub trait/struct stubs declared), error.rs (ModelRuntimeError enum), capabilities.rs (ModelCapabilities struct stub); src/backend/handshake_core/Cargo.toml workspace deps additions; lib.rs adds `pub mod model_runtime;`.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/mod.rs",
+    "src/backend/handshake_core/src/model_runtime/error.rs",
+    "src/backend/handshake_core/src/model_runtime/capabilities.rs",
+    "src/backend/handshake_core/src/lib.rs",
+    "src/backend/handshake_core/Cargo.toml",
+    "src/backend/handshake_core/Cargo.lock"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "No prerequisites; foundation MT for cluster C.",
+  "implementation_notes": "Per spec §4.6.1 (AC-MODEL-RUNTIME-TRAIT) the ModelRuntime trait surface MUST be engine-agnostic (callers never see llama_cpp_2::* or candle_core::* types). This MT does NOT implement the trait yet (MT-062 does) — it lands the module scaffolding and dependency edges so subsequent MTs compile incrementally. Cargo.toml additions: `llama-cpp-2 = \"0.1\"` (pin a current 2026 version; latest stable as of 2026-05 supports per-request --lora and KV quant), `candle-core = \"0.7\"`, `candle-transformers = \"0.7\"` (candle 0.7+ has Mamba2 + RWKV v5/v6/v7 support), `tokenizers = \"0.20\"` (Hugging Face tokenizers crate; needed by both runtimes), `futures = \"0.3\"` for the streaming generate signature, `async-trait = \"0.1\"` for trait method async (MT-062), `tokio = { version = \"1\", features = [\"sync\", \"rt\", \"macros\"] }` if not already present. `ModelRuntimeError` enum variants: `LoadError(String)`, `UnloadError(String)`, `GenerateError(String)`, `ScoreError(String)`, `EmbedError(String)`, `CapabilityNotSupported { capability: String, adapter: String }`, `KvCacheError(String)`, `LoraStackError(String)`, `SteeringHookError(String)`, `Cancelled`, `AdapterMismatch { expected: String, got: String }`. Use thiserror::Error derive. `ModelCapabilities` struct fields exactly per AC-MODEL-CAP-DECL: `supports_lora: bool`, `supports_kv_prefix_cache: bool`, `supports_kv_quantization: KvQuantSupport (enum: None|Q4|Q8|Q4Q8Mix)`, `supports_activation_steering: bool`, `supports_subquadratic: bool`, `supports_speculative_draft: bool`, `supports_eagle3: bool`. Derive serde::{Serialize, Deserialize}. lib.rs gets `pub mod model_runtime;` line. Verify `cargo build -p handshake_core` succeeds with empty scaffolding (no orphan dep warnings). UUID v7 per HBR-INT-008 will be used in MT-062 when ModelId is minted.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_runtime::"
+  ],
+  "risk_if_missed": "Cluster C cannot compile incrementally; subsequent MTs hit dependency-resolution churn.",
+  "validator_focus": "Cargo.toml additions pin compatible versions; module compiles with empty stubs; no unused-import warnings; lib.rs cleanly exports the module.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.1",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.3"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT", "AC-MODEL-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": [],
+    "blocks": ["MT-062", "MT-063", "MT-064", "MT-065", "MT-066", "MT-067", "MT-068", "MT-069", "MT-070", "MT-071", "MT-072", "MT-081"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "llama-cpp-2 + candle versions must build clean on Windows host (no Linux-only feature flags pulled in).",
+      "Engine-specific types never leak through model_runtime::mod.rs public surface (verify by grep for llama_cpp_2:: and candle_core:: in module).",
+      "ModelCapabilities struct field names exact-match AC-MODEL-CAP-DECL (frontend IPC consumers depend on stable names)."
+    ]
+  }
+}

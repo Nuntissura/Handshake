@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-197",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:21:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-197.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Span binding to EventLedger via model_session_id correlation + Postgres schema",
+  "goal": "Land the durable span storage schema and the binding that correlates every ModelSessionSpan + ActivitySpan to KERNEL-001 EventLedger rows via model_session_id. Folded stub WP-1-Session-Observability-Spans-FR-v1 invariant: 'session-wide queries to work via model_session_id even without spans.'",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/observability/span_repo.rs; new Postgres migration src/backend/handshake_core/migrations/NNN_observability_spans.sql; integration tests under src/backend/handshake_core/tests/observability_span_repo_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/observability/span_repo.rs",
+    "src/backend/handshake_core/migrations/NNN_observability_spans.sql",
+    "src/backend/handshake_core/tests/observability_span_repo_tests.rs"
+  ],
+  "depends_on_mts": ["MT-196"],
+  "unblock_conditions": "MT-196 span primitives merged so the repo has typed inputs.",
+  "implementation_notes": "Postgres tables: `kernel_model_session_span { span_id Uuid v7 PK, model_session_id Uuid v7 NOT NULL, session_id Uuid v7 NOT NULL, started_at_utc TIMESTAMPTZ NOT NULL, ended_at_utc TIMESTAMPTZ NULL, status TEXT NOT NULL, attributes JSONB NOT NULL, last_event_ledger_seq BIGINT NULL (cross-link to KERNEL-001 EventLedger watermark at span end) }` and `kernel_activity_span { span_id Uuid v7 PK, parent_span_id Uuid v7 NOT NULL REFERENCES kernel_model_session_span(span_id) ON DELETE CASCADE, activity_kind TEXT NOT NULL, started_at_utc TIMESTAMPTZ NOT NULL, ended_at_utc TIMESTAMPTZ NULL, status TEXT NOT NULL, attributes JSONB NOT NULL, related_event_ledger_seqs BIGINT[] DEFAULT '{}' }`. Indexes: (model_session_id, started_at_utc DESC) on session spans; (parent_span_id, started_at_utc) on activity spans; (activity_kind) on activity spans for typed filtering. `SpanRepo::insert_session_span / update_session_span_end / insert_activity_span / update_activity_span_end / attach_event_ledger_seq` methods are append-friendly (only end-time + status updates allowed; attributes immutable post-insert). Cross-link contract: every span includes the EventLedger seq watermark at start AND at end (related_event_ledger_seqs accumulates seqs of events emitted within the span lifetime). This makes the spec line 1011 invariant ('session-wide queries via model_session_id even without spans') concrete: query joins kernel_model_session_span on model_session_id with kernel_event_ledger on model_session_id and gets both span tree + raw events. Tests: (a) insert + update end time round-trips; (b) parent FK enforced; (c) related_event_ledger_seqs accumulates correctly via attach_event_ledger_seq; (d) query 'all activity spans for model_session_id X between T1 and T2' returns expected ordered list; (e) cross-link join with KERNEL-001 EventLedger (use a stub events table in tests) returns matching events.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target observability_span_repo_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without durable span storage + EventLedger correlation, spans only live in-memory and are lost on crash; the cross-session query invariant of spec line 1011 cannot be satisfied; multi-session debugging stays opaque.",
+  "validator_focus": "Cross-link join proven by test (model_session_id correlation works in both directions); FK CASCADE prevents orphan activity spans; attribute immutability enforced (no update path on attributes column).",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Observability-Spans-FR-v1 (durable span storage + model_session_id correlation)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-196"],
+    "blocks": ["MT-199", "MT-200"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "FK CASCADE proven by deleting parent session span and asserting orphan activity spans removed.",
+      "Attribute immutability enforced by absence of update method + db trigger preventing UPDATE of attributes column.",
+      "Cross-link join performance verified via EXPLAIN on a fixture with 1k sessions x 100 spans each (latency target documented)."
+    ]
+  }
+}

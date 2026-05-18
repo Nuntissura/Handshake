@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-196",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:20:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-196.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ModelSessionSpan + ActivitySpan primitive types",
+  "goal": "Land the typed observability span primitives required by spec v02.186 and folded WP-1-Session-Observability-Spans-FR-v1 stub intent: ModelSessionSpan binds session-wide observability via model_session_id; ActivitySpan binds bounded activity scopes (MT iteration, mailbox lease, model swap, checkpoint write) inside a session. Span bindings let session-wide queries work across multi-session swarm execution.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/observability/mod.rs + src/backend/handshake_core/src/observability/spans.rs with `ModelSessionSpan`, `ActivitySpan`, `SpanContext`, `SpanGuard`; unit tests under src/backend/handshake_core/tests/observability_spans_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/observability/mod.rs",
+    "src/backend/handshake_core/src/observability/spans.rs",
+    "src/backend/handshake_core/tests/observability_spans_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "KERNEL-001 TraceProjection + KERNEL-002 traces already in main; this MT layers cluster X session-observability spans on top.",
+  "implementation_notes": "Per folded WP-1-Session-Observability-Spans-FR-v1 intent (refinement.json line 1011): 'session-scoped observability for multi-session execution: new FR event families, base schema correlation via model_session_id, and span bindings (ModelSessionSpan + ActivitySpan).' Define `ModelSessionSpan { span_id: Uuid v7, model_session_id: Uuid v7, session_id: Uuid v7, started_at_utc, ended_at_utc: Option, attributes: BTreeMap<String, AttributeValue>, status: SpanStatus (Active|Completed|Failed { reason })}`. `ActivitySpan { span_id: Uuid v7, parent_span_id: Uuid v7 (FK to ModelSessionSpan.span_id), activity_kind: ActivityKind (MtIteration|MailboxLease|ModelSwap|CheckpointWrite|StateReplay|ToolInvocation|Other(String)), started_at_utc, ended_at_utc: Option, attributes, status }`. Use `tracing` crate (already in handshake_core dep tree) for OpenTelemetry-compatible API. `SpanGuard` is an RAII wrapper that records ended_at_utc on Drop and emits FR-EVT-SPAN-ENDED (event id resolved via MT-198 registry). `SpanContext` is the thread-local + task-local handle that nested ActivitySpans use to discover their parent. ModelSessionSpan::start(model_session_id, session_id, attributes) -> SpanGuard; ActivitySpan::start(activity_kind, attributes) -> SpanGuard (looks up parent from SpanContext). Attributes are typed via `AttributeValue { String(String), Int(i64), Float(f64), Bool(bool) }` (no nested objects — keeps wire format simple, matches OpenTelemetry attribute model). Cargo additions: tracing, tracing-opentelemetry (optional behind a feature flag for downstream wiring), uuid (already added). Tests: (a) ModelSessionSpan + 3 nested ActivitySpans, Drop order asserts FR-EVT-SPAN-ENDED in correct order; (b) attribute round-trip; (c) status transitions Active->Failed{reason} preserved across Drop; (d) span without parent ActivitySpan -> standalone ModelSessionSpan recorded.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target observability_spans_tests"
+  ],
+  "risk_if_missed": "Without typed spans, session-wide queries cannot correlate across multi-session swarms (folded stub's central pain point); multi-session orchestration becomes un-debuggable per the stub's risk statement.",
+  "validator_focus": "SpanGuard Drop semantics correct (always records end time, even on panic via unwind); attribute model simple enough to serialize cleanly; parent-discovery via SpanContext task-local (not thread-local since tokio tasks migrate threads).",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Observability-Spans-FR-v1 (ModelSessionSpan + ActivitySpan primitives)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": [],
+    "blocks": ["MT-197", "MT-198", "MT-199", "MT-200"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "SpanGuard Drop records ended_at_utc EVEN ON PANIC (tested via std::panic::catch_unwind + scopeguard).",
+      "SpanContext uses tokio task_local! not thread_local! so async migration does not break parent discovery.",
+      "Attribute size cap (per-attribute 1024 bytes; per-span 16 attributes) enforced to prevent runaway memory."
+    ]
+  }
+}

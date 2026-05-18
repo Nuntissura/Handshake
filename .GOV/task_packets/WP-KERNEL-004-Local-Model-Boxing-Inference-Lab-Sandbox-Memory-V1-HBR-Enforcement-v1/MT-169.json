@@ -1,0 +1,67 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-169",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:28:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-169.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "AC-DISTILL-OPT-IN and AC-DISTILL-CONTENT-REVIEW negative-path acceptance test",
+  "goal": "Negative-path acceptance test that proves the four AC-DISTILL-* acceptance criteria reject prohibited paths: (a) AC-DISTILL-OPT-IN: distillation default OFF and opt-in does not extend transitively across sessions; (b) AC-DISTILL-CONTENT-REVIEW: PII-bearing fragments are blocked, license-untaggable fragments quarantined, near-dup candidates deduplicated; (c) AC-DISTILL-EDITABLE-SURFACE: an attempt to register a forbidden editable surface (spec text, role-shared system prompt, LoRA weight, tool description) fails with typed error; (d) AC-DISTILL-LOOP-SAFEGUARDS: holdout encryption + multi-metric promotion floor + Goodhart sentinel + HBR-SWARM-002 cap all reject their respective bad inputs.",
+  "expected_diff_shape": "New integration test src/backend/handshake_core/tests/ac_distill_negative_path_tests.rs. Adds tests/fixtures/ac_distill_negative_path/ with PII fixture, license-untaggable fixture, near-dup fixture pair, forbidden-surface fixture.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/ac_distill_negative_path_tests.rs",
+    "src/backend/handshake_core/tests/fixtures/ac_distill_negative_path/pii_sample.json",
+    "src/backend/handshake_core/tests/fixtures/ac_distill_negative_path/license_untaggable_sample.json",
+    "src/backend/handshake_core/tests/fixtures/ac_distill_negative_path/near_dup_pair.json"
+  ],
+  "depends_on_mts": ["MT-149", "MT-152", "MT-153", "MT-156", "MT-158", "MT-163", "MT-166"],
+  "unblock_conditions": "D.2 + D.3 chain MTs land (specifically the safeguard MTs).",
+  "implementation_notes": "Each AC gets a sub-test: (a) AC-DISTILL-OPT-IN: invoke SpawnTreeHarvester (MT-166) with opt_in_confirmed=false, assert HarvestError::OptInRequired; invoke harvester on session A with opt-in=true and assert it does NOT recurse into session B (spawned by A) unless B is independently opted in. (b) AC-DISTILL-CONTENT-REVIEW: feed PII fixture (sample with email + phone) through ContentReviewer (assume cluster C reviewer trait), assert FR-EVT-DISTILL-PII-DETECT emitted and candidate blocked; feed license-untaggable fragment, assert quarantine record created; feed near-dup pair, assert second item deduplicated (returns existing candidate id). (c) AC-DISTILL-EDITABLE-SURFACE: construct synthetic LoopTarget with a SpecText variant (must NOT exist in the closed enum - this is a compile-time assertion that the enum is closed; runtime assertion via attempt to register a custom EditableSurfaceProvider for spec text fails with EditableSurfaceError::Forbidden); construct a LoopTarget for RetrievalPolicy with top_k=0 (out of bounds), assert RetrievalPolicySurface::snapshot returns typed error. (d) AC-DISTILL-LOOP-SAFEGUARDS: attempt to decrypt holdout without key, assert CorpusError; submit baseline+trial EvalResult where dev_pass equal (no improvement), assert MultiMetricPromotionFloor returns Rejected with FloorReason::DevPassRateNotImproved; submit 3 consecutive widening-gap iterations, assert GoodhartSentinel returns Pause; submit 26th scheduling request in 24h window, assert LoopScheduler returns Skip BudgetExhausted with FR-EVT-DISTILL-LOOP-CAP emitted.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test ac_distill_negative_path_tests"
+  ],
+  "risk_if_missed": "Without negative-path coverage the safeguards may compile and pass happy-path tests but silently allow bypass; AC-DISTILL-* acceptance is not provably enforced.",
+  "validator_focus": "Each AC has explicit negative test. Compile-time enum closedness is asserted. Runtime typed errors enumerated.",
+  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.1",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-OPT-IN", "AC-DISTILL-CONTENT-REVIEW", "AC-DISTILL-EDITABLE-SURFACE", "AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-149", "MT-152", "MT-153", "MT-156", "MT-158", "MT-163", "MT-166"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Every AC-DISTILL-* ID has an explicit negative test that asserts the typed rejection.",
+      "Opt-in non-transitivity tested by spawn-tree A->B fixture with only A opted in.",
+      "Forbidden surface enforcement asserted both at compile time (closed enum) and runtime (typed error)."
+    ]
+  }
+}

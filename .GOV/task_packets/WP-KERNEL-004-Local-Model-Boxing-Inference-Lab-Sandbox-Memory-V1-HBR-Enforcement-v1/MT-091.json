@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-091",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-091.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-1 LoRA stack composer UI (Inference Lab knob)",
+  "goal": "Implement the LoRA stack composer view in the Inference Lab UI per AC-INFER-LAB-UI-TOGGLES: ordered list of mounted LoRAs with per-LoRA strength slider, mount-from-disk dialog, unmount, drag-to-reorder, save-as-Work-Profile.",
+  "expected_diff_shape": "New Svelte component app/src/components/inference_lab/LoraStackComposer.svelte + supporting store app/src/lib/stores/lora_stack.ts; integration into the InferenceLab parent view.",
+  "owned_files": [
+    "app/src/components/inference_lab/LoraStackComposer.svelte",
+    "app/src/lib/stores/lora_stack.ts",
+    "app/src/components/inference_lab/InferenceLab.svelte"
+  ],
+  "depends_on_mts": ["MT-068", "MT-090"],
+  "unblock_conditions": "MT-068 capability IPC + MT-090 LoRA technique surface merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-INFER-LAB-UI-AB-COMPARE. LoraStackComposer.svelte: shows the current active stack as an ordered list (drag-to-reorder via svelte-dnd-action or HTML5 drag); each row has [LoRA name, strength slider 0..2, unmount button, license tag badge]; bottom of view has [Mount from disk... button] opening a file picker; [Save as Work Profile] button writes settings.exec_policy.lora_stack. Backed by lora_stack.ts store: subscribes to kernel_model_runtime_lora_list updates (polls every 2s or subscribes to FR events when the SSE bridge is available); commits via kernel_model_runtime_lora_mount/_swap/_unmount. Hidden when capabilities.supportsLora==false (per MT-068 IPC; aligns with AC-INFER-LAB-UI-TOGGLES \"toggles for techniques the model's adapter does not support are hidden, not greyed\"). A/B compare per AC-INFER-LAB-UI-AB-COMPARE: clicking a strength slider opens an A/B side-panel showing generation with current strength vs proposed strength on the same prompt; operator commits or discards. License tag badge prominent for adult-production licensing discipline (per GLOBAL-PRODUCTION operator concerns). Backend mutation routes through KernelActionCatalogV1 (no debug-only paths). UI tests via Playwright/CDP (per cluster A.2 RW-4 decision): mount mock LoRA, assert list updates; change strength, assert IPC call fires.",
+  "proof_commands": [
+    "cd app && pnpm run typecheck",
+    "cd app && pnpm exec playwright test --grep lora_stack_composer"
+  ],
+  "risk_if_missed": "LoRA UI knob missing; INF-1 not operator-controllable through Inference Lab; AC-INFER-LAB-UI-TOGGLES partial.",
+  "validator_focus": "Hidden-not-greyed for unsupported adapters; A/B compare flow lands in same Work Profile path; license badge present; KernelActionCatalogV1 routing.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES", "AC-INFER-LAB-UI-AB-COMPARE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-068", "MT-090"],
+    "blocks": ["MT-092"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Hidden (display:none) when supportsLora=false — NOT just disabled.",
+      "License badge rendered for every entry.",
+      "All mutations route through KernelActionCatalogV1 (verify via network tab assertion)."
+    ]
+  }
+}

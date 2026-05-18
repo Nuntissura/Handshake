@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-075",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-075.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LlamaCppRuntime KV cache control (quantization q4/q8, occupancy stats)",
+  "goal": "Implement KvCacheOps for LlamaCppRuntime: set_quantization to q4/q8 via llama-cpp-2 type_k/type_v context params (rebuild context on switch), occupancy stats (bytes_used from llama_cpp_2 kv_cache state, bytes_capacity from n_ctx * n_kv_layers * head_dim * type_size), evict_all (llama_kv_cache_clear).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/llama_cpp/kv_cache_impl.rs implementing KvCacheOps for LlamaCppKvCache; integration with context.rs to expose per-model handle; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/kv_cache_impl.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/context.rs",
+    "src/backend/handshake_core/tests/llama_cpp_kv_cache_tests.rs"
+  ],
+  "depends_on_mts": ["MT-063", "MT-074"],
+  "unblock_conditions": "MT-063 KvCacheOps trait + MT-074 generate path merged.",
+  "implementation_notes": "Per AC-LLAMACPP-ADAPTER + spec §4.7.1b (KV caching PRODUCTION): llama.cpp KV cache quantization shipped 2024 with `--cache-type-k q4_0|q8_0|f16|...` and `--cache-type-v q4_0|q8_0|f16|...`; llama-cpp-2 exposes via LlamaContextParams type_k / type_v. Set quantization path: switching quant level requires context rebuild (cannot mutate existing KV in-place to a new quant); set_quantization records the new policy and triggers a deferred rebuild on next load (or immediate rebuild + invalidate prefix cache if model loaded). Occupancy stats: query llama_cpp_2 LlamaContext::kv_cache_size() or compute manually as `n_ctx * n_layer * n_kv_head * head_dim * (type_size_k + type_size_v)`. Prefix cache: llama.cpp does not have a built-in prefix-share API; implement an in-process LRU layered over llama_cpp_2 by caching `(content_hash, llama_kv_cache_state_snapshot)` tuples. prefix_commit copies the current KV state via llama_state_seq_get_data into a buffer, hashes input tokens, stores LRU entry. prefix_restore uses llama_state_seq_set_data to load the buffer. Replay-resistant: on restore, recompute content_hash from prefix_tokens stored in handle and compare against KvPrefixHandle.content_hash — mismatch returns KvCacheError(\"prefix handle hash mismatch\"). evict_all clears all prefix entries + calls llama_kv_cache_clear. set_quantization with KvQuantSupport::None on a model whose capability says supports_kv_quantization=None returns CapabilityNotSupported. Tests (env-gated): load model, prefix_commit some tokens, generate, prefix_restore returns hit, hit counter increments; tamper handle hash, restore fails; switch quant from f16 to q4 — verify context rebuilt and prefix cache flushed.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target llama_cpp_kv_cache_tests"
+  ],
+  "risk_if_missed": "KV caching technique (INF-2 PRODUCTION) has no concrete LlamaCppRuntime impl; spec §4.7.1b technique fails AC-INFER-LAB-8-TECHNIQUES.",
+  "validator_focus": "Quant switch invalidates prefix cache (correctness); tamper detection on restore; LRU eviction does not leak memory under load; capability gate honored.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-063", "MT-074"],
+    "blocks": ["MT-093", "MT-094", "MT-095", "MT-109"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Quant switch flushes prefix cache (verify hit miss on restore after switch).",
+      "Tamper detection negative test.",
+      "LRU eviction bounded (memory does not grow unbounded under 1000 commits)."
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-078",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-078.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LlamaCppRuntime score + embed implementations",
+  "goal": "Implement the score() (sequence log-prob) and embed() (text -> embedding vector) ModelRuntime trait methods for LlamaCppRuntime via llama-cpp-2 evaluation primitives. score returns Score { token_logprobs, total_logprob }; embed returns Embedding { vector: Vec<f32>, model_id, dim }.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/llama_cpp/score_embed.rs; adapter.rs wiring; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/score_embed.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+    "src/backend/handshake_core/tests/llama_cpp_score_embed_tests.rs"
+  ],
+  "depends_on_mts": ["MT-074"],
+  "unblock_conditions": "MT-074 generate path merged (shares sampler infrastructure).",
+  "implementation_notes": "score: feed `sequence: Vec<u32>` token-by-token through llama_cpp_2 decode, collect logits[i][sequence[i+1]] (the logprob of the next token) for i in 0..len-1; return Score { token_logprobs: Vec<f32>, total_logprob: f32 (sum) }. Used by Memory V0+ Self-Improvement Loop scoring (MemoryCapsule effectiveness). embed: requires model loaded with embeddings=true context param (MT-073 added); call llama_cpp_2 embed_eval or llama_get_embeddings_ith to get pooled sentence embedding; return Embedding { vector, model_id, dim }. Embedding dimension is model-dependent (e.g., 768 / 1024 / 4096); store on Embedding struct so consumers can validate dim match. score on a model not loaded returns explicit Err; embed on a model with embeddings=false context returns CapabilityNotSupported. Tests (env-gated): score a known sequence on a small model and assert total_logprob is negative finite; embed two similar prompts and assert cosine_similarity > 0.7 (sanity check); embed on a non-embedding model returns CapabilityNotSupported.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target llama_cpp_score_embed_tests"
+  ],
+  "risk_if_missed": "score / embed paths missing; MemoryCapsule scoring (cluster D) cannot be implemented; self-improvement loop missing a signal.",
+  "validator_focus": "Embedding dim matches model declared dim; sanity cosine similarity > 0.7 on similar prompts; capability gate correct.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2"
+  ],
+  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-MODEL-RUNTIME-TRAIT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-074"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Embedding context requirement enforced (embed without embeddings=true returns CapabilityNotSupported).",
+      "score returns finite negative float (not NaN/Inf/positive).",
+      "Embedding dim asserted against model card declared dim."
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-076",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-076.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LlamaCppRuntime LoRA hot-swap (per-request --lora; mount/unmount without process restart)",
+  "goal": "Implement LoraStackOps for LlamaCppRuntime via the per-request --lora mechanism shipped in llama.cpp 2025 (multi-LoRA support). mount loads a LoRA adapter into a llama-cpp-2 LlamaModel without unloading the base; per-request lora_overrides honored in generate; unmount removes from the active set. NO process restart.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/llama_cpp/lora_impl.rs implementing LoraStackOps; integration with generate.rs to apply per-request overrides; tests (env-gated).",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/lora_impl.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs",
+    "src/backend/handshake_core/tests/llama_cpp_lora_tests.rs"
+  ],
+  "depends_on_mts": ["MT-064", "MT-074"],
+  "unblock_conditions": "MT-064 LoraStackOps trait + MT-074 generate path merged.",
+  "implementation_notes": "Per AC-LLAMACPP-ADAPTER + AC-INFER-LAB-8-TECHNIQUES.a (LoRA hot-swap PRODUCTION) and refinement.json inference_technique_matrix INF-1: llama.cpp 2025 supports multi-LoRA via `llama_lora_adapter_init` + per-context `llama_lora_adapter_set` (scale param) without unloading the base model. Implementation: LlamaCppLoraStack holds `HashMap<LoraId, llama_cpp_2::LoraAdapter>` plus a per-context active set. mount: validate LoraDescriptor.base_model_compat matches the model's base tag (compare LoadSpec.base_model_tag); load GGUF LoRA via llama_cpp_2 LoraAdapter constructor (path + sha256 verification); set_lora_adapter on the active context with the provided strength. unmount: llama_lora_adapter_remove (or set strength to 0.0 and drop from active set). set_strength: call llama_lora_adapter_set with new scale. swap (atomic replace): for each new entry, ensure it can mount; if any fails, roll back to previous snapshot; on success, batch-apply via a single context lock. Per-request override path: GenerateRequest.lora_overrides Vec<LoraId> — generate.rs uses these for the call duration; if a LoraId is not currently mounted, mount it transiently (with explicit failure if mount fails). License tagging mandatory (LoraDescriptor.license_tag is non-Optional). Tests (env-gated, requires a small LoRA file beside the GGUF): mount LoRA, generate with override, verify output differs from base; unmount, verify output reverts; swap with a failing entry rolls back; per-request override on non-mounted LoRA works (transient mount). FR-EVT-LLM-INFER-LORA-MOUNT / UNMOUNT events emitted.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target llama_cpp_lora_tests"
+  ],
+  "risk_if_missed": "LoRA hot-swap (INF-1) ships with broken LlamaCpp path; AC-INFER-LAB-8-TECHNIQUES.a fails on default adapter.",
+  "validator_focus": "No process restart on mount/unmount; base-model-tag validation; atomic swap rollback on partial failure; per-request override path covered.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-064", "MT-074"],
+    "blocks": ["MT-090", "MT-091", "MT-092"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Process-restart-free invariant: PID before and after mount/unmount/swap unchanged (test asserts std::process::id()).",
+      "Atomic swap rollback covered.",
+      "License tag enforced at mount."
+    ]
+  }
+}

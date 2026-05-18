@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-012",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.6",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-012.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "HBR-MAN-003 self-consistency scanner (manual names resolve to Rust symbols)",
+  "goal": "Build `hbr-man-003-scan.mjs` per spec §10.15.5 (AC-MODEL-MANUAL-SELF-CONSISTENCY). Grep-scan Rust source for every command name, IPC channel id, schema field, config key, and CLI flag the manual names; a name in the manual that does not resolve to a Rust source symbol is an HBR-MAN-003 violation, preventing manual drift away from wired surface.",
+  "expected_diff_shape": "New script .GOV/roles_shared/checks/hbr-man-003-scan.mjs; gov-check umbrella wiring; test fixture exercising pass/fail.",
+  "owned_files": [
+    ".GOV/roles_shared/checks/hbr-man-003-scan.mjs",
+    ".GOV/roles_shared/checks/hbr-man-003-scan.test.mjs",
+    "justfile"
+  ],
+  "depends_on_mts": ["MT-010"],
+  "unblock_conditions": "MT-010 ModelManual content.rs exists.",
+  "implementation_notes": "Per spec §10.15.5 the scanner extracts every name from the manual and verifies each resolves to a Rust source symbol. Implementation: (1) Read src/backend/handshake_core/src/model_manual/content.rs and extract every CommandReference.name, .ipc_channel, .tauri_command, .schema_fields entries, and .cli_flag. (2) For each name, search the Rust source tree (src/backend/handshake_core/src/**/*.rs + app/src-tauri/src/**/*.rs) via ripgrep. Resolution rules: ipc_channel string must appear as a string literal somewhere; tauri_command must appear in an `#[tauri::command] pub fn <name>` signature; schema_field must appear as a `pub <name>:` field in some struct; cli_flag must appear as a clap attribute literal. (3) Names that fail to resolve are emitted as JSONL `{manual_id, name, kind, reason: \"no_source_match\"}` to stderr and exit code is 2. (4) Manual entries explicitly tagged `status: \"planned\"` (a new optional field on CommandReference added in this MT to types.rs — coordinate with MT-010 author if MTs run in parallel) are skipped per HBR-MAN-003 not_applicable_when. Caveat: ripgrep search must use word boundaries to avoid spurious substring matches; document the regex strategy in a comment block. Justfile: add `hbr-man-003` recipe and wire into gov-check. Tests: fixture manual with one bogus name fails; same fixture with the bogus name tagged status=planned passes; fixture with all real names against the live content.rs passes.",
+  "proof_commands": [
+    "node .GOV/roles_shared/checks/hbr-man-003-scan.test.mjs",
+    "just hbr-man-003"
+  ],
+  "risk_if_missed": "Without self-consistency, manual entries drift to reference renamed/removed Rust symbols; operator and no-context models follow stale documentation.",
+  "validator_focus": "False positives are bounded: word-boundary regex prevents substring matches; status=planned escape hatch is documented and tested.",
+  "hbr_obligations": ["HBR-MAN-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.15"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-MANUAL-SELF-CONSISTENCY"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-010"],
+    "blocks": ["MT-013"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Word-boundary regex strategy documented inline.",
+      "status=planned escape hatch is tested (so future spec-deferred entries can survive scan).",
+      "Scanner exits non-zero on first unresolved name and prints ALL unresolved names (does not stop at first)."
+    ]
+  }
+}

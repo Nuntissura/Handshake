@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-116",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.11",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-116.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-9 Activation steering for SSMs (hooks into Mamba2 + RWKV state graph) [MULTI-QUARTER]",
+  "goal": "Implement SteeringHookOps for SSM/RWKV variants: register vector + apply at chosen layer's residual stream output. The hook substrate is candle-native; the challenge is that SSM forward passes are token-by-token (not batched per-prompt) so hook semantics differ from transformer.",
+  "expected_diff_shape": "Edit src/backend/handshake_core/src/model_runtime/candle/hooks.rs to add SSM-variant hook callbacks; mamba2.rs + rwkv_*.rs forward wrappers to call hook registry per layer; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/hooks.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/mamba2.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/rwkv_v5.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/rwkv_v6.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/rwkv_v7.rs",
+    "src/backend/handshake_core/tests/inf9_ssm_steering_tests.rs"
+  ],
+  "depends_on_mts": ["MT-065", "MT-082", "MT-085", "MT-086", "MT-087"],
+  "unblock_conditions": "MT-082 transformer hooks + MT-085..MT-087 SSM/RWKV base merged.",
+  "implementation_notes": "Per refinement INF-9 feature_parity_detail: \"activation steering for SSMs (steering-for-SSM work)\". The HookPoint enum from MT-065 (ResidStream | MlpOut | AttnOut) maps differently for SSMs: ResidStream = output of layer block (after Mamba2 block or RWKV time+channel mix combined); MlpOut = channel-mix output (RWKV) or out_proj (Mamba2); AttnOut = time-mix output (RWKV) or x_proj branch (Mamba2 — approximate). Implementation: each SSM/RWKV variant's per-layer forward calls hook_registry[layer].iter().for_each(|cb| cb(&mut hidden)) after the block computation. Token-by-token semantics: hook fires once per token (vs once per prompt-batch for transformers). CaptureSpec.prompts must be processed sequentially, capturing the activation at the last token of each prompt for steering-vector derivation (matches CAA semantics on transformers). After this MT, capabilities.supportsActivationSteering=true for SSM variants. Tests (env-gated): register zero-vector at layer 5 on Mamba2 -> output unchanged (identity); random vector -> output differs; capture from contrastive prompt pair -> nonzero vector. MULTI-QUARTER applies.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf9_ssm_steering_tests"
+  ],
+  "risk_if_missed": "INF-9 steering parity missing; operator E-2 breached.",
+  "validator_focus": "Identity test (zero vector -> output unchanged); token-by-token hook semantics documented; HookPoint mapping per architecture documented.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-CANDLE-ADAPTER"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-065", "MT-082", "MT-085", "MT-086", "MT-087"],
+    "blocks": ["MT-118"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Identity test correctness gate.",
+      "HookPoint mapping documented per architecture.",
+      "Token-by-token semantics clear."
+    ]
+  }
+}

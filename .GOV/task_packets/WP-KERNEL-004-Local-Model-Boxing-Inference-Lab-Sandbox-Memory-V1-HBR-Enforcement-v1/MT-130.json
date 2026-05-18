@@ -1,0 +1,61 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-130",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.13",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-130.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Cloud lane parity integration test (uniform ModelRuntime behavior across local + OpenAI + Anthropic + CLI bridge)",
+  "goal": "End-to-end test asserting uniform ModelRuntime behavior across all cloud + local lanes for the operations they all support (load, generate streaming, cancel, capabilities introspection). The parity gate for HBR-INT-005 lane normalization.",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/cloud_local_parity_smoke.rs orchestrating per-lane sub-tests with mock cloud servers + a local llama-cpp fixture.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/cloud_local_parity_smoke.rs"
+  ],
+  "depends_on_mts": ["MT-080", "MT-125", "MT-126", "MT-127", "MT-128", "MT-129"],
+  "unblock_conditions": "MT-080 LlamaCpp e2e + MT-125..MT-129 cloud lanes merged.",
+  "implementation_notes": "Per HBR-INT-005 lane normalization. Test scenario per lane (Local LlamaCpp, OpenAI BYOK mock, Anthropic BYOK mock, OfficialCli bridge mock): (1) register lane-appropriate model via kernel.model_runtime.register_model; (2) capabilities() returns lane-appropriate flags (assert per-lane expectations); (3) generate 32 tokens with cancellation at token 16, assert Cancelled within 200ms; (4) FR-EVT-LLM-INFER-START/TOKEN/END events emit identical SHAPE (different values, same fields) across lanes; (5) for cloud lanes verify consent_gate fires on first call without prior grant; (6) for local lane verify ProcessOwnershipLedger row; for cloud lanes verify cloud_invocations row; for CLI bridge verify ProcessOwnershipLedger row with engine_kind=OfficialCliBridge. Mock cloud servers: wiremock or httpmock crate. Local lane skipped gracefully when no GGUF fixture (env-gated). Mock CLI: a tiny Rust binary built as test fixture. FR-EVT shape parity is the KEY assertion — operator dashboards must work identically regardless of lane.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target cloud_local_parity_smoke -- --ignored"
+  ],
+  "risk_if_missed": "Lane normalization (HBR-INT-005) regresses silently; observability dashboards work for some lanes only.",
+  "validator_focus": "FR-EVT shape parity verified field-by-field across lanes; capability assertions per lane explicit; consent gate per-cloud-lane verified.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-005", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT", "AC-MODEL-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-080", "MT-125", "MT-126", "MT-127", "MT-128", "MT-129"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "FR-EVT shape parity verified field-by-field (no per-lane fields).",
+      "Capability assertions per lane explicit (not generic).",
+      "Skip path per lane when fixture/env missing."
+    ]
+  }
+}

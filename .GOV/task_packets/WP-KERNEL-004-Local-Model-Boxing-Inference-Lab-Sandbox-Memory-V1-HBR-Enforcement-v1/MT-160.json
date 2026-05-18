@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-160",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:19:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-160.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "FEMS hygiene manager job: consolidate + prune + flag + promote (folded WP-1-FEMS-Hygiene-Manager-Job)",
+  "goal": "Implement a scheduled FEMS hygiene job that runs consolidation, pruning, flagging, and procedural promotion via a cost-effective model (no LLM in the runtime path; LLM only as opt-in step for consolidation summarization). Folded from WP-1-FEMS-Hygiene-Manager-Job. Ports the battle-tested Memory Manager pattern from repo governance into the product Execution / Job Runtime.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/hygiene.rs (HygieneJobRunner + HygieneTask + HygieneReport + ProceduralPromotion types). Wires into the existing Execution / Job Runtime (consumed by trait so no new scheduler). Tests src/backend/handshake_core/tests/hygiene_manager_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/hygiene.rs",
+    "src/backend/handshake_core/tests/hygiene_manager_tests.rs"
+  ],
+  "depends_on_mts": ["MT-157", "MT-158", "MT-159"],
+  "unblock_conditions": "MT-157 (bitemporal indexing - hygiene needs to invalidate items, not delete), MT-158 (outcome feedback - hygiene uses outcome history for promotion decisions), MT-159 (pinned core - hygiene must not prune pinned items).",
+  "implementation_notes": "Per WP-1-FEMS-Hygiene-Manager-Job preserved_intent and refinement D.3 'hygiene manager job for procedural promotion / GC'. Surface: `pub struct HygieneJobRunner<'a> { fems: &'a dyn FemsAccessor, action_catalog: &'a dyn KernelActionSubmitter }` with `pub fn run_once(config: HygieneConfig) -> Result<HygieneReport, HygieneError>`. HygieneTask enum: `Consolidate { max_pairs: u32 }`, `PruneStale { older_than: Duration, min_score: f64 }`, `FlagContradictions`, `PromoteProcedural { min_use_count: u32, min_pass_rate: f64 }`. HygieneReport: per-task `{ items_visited, items_acted_on, errors, duration_ms }`. Consolidation: find near-duplicate pairs (using existing FEMS embedding distance) and emit MemoryConsolidationCandidate via KernelActionCatalogV1 for review-gated merge; DO NOT auto-merge. Prune: items older than threshold AND score below min_score get invalidated (set invalidated_at via MT-157 bitemporal axis, not deleted). MUST skip pinned items (MT-159). Flag contradictions: pairs of items with high cosine similarity but contradicting outcomes (one PASS-attributed, one FAIL-attributed) flagged for operator review. Promote procedural: items used >=min_use_count times with PASS rate >=min_pass_rate become candidates for ProceduralPromotion (operator review then surface promotion). NO LLM required in the runtime path; an optional consolidation summarizer is opt-in only and runs out-of-band. Tests: each HygieneTask runs independently; pruned items get invalidated_at set (NOT deleted); pinned items skipped; consolidation emits candidates without auto-merging; report aggregates per-task counts.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target hygiene_manager_tests"
+  ],
+  "risk_if_missed": "Without active hygiene FEMS LongTermMemory grows unbounded, stale items pollute MemoryPack injection, and contradictions accumulate.",
+  "validator_focus": "Hygiene never auto-merges or auto-deletes; all mutations are review-gated via KernelActionCatalogV1. Pruning uses bitemporal invalidation, not destructive delete. Pinned items always skipped.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-157", "MT-158", "MT-159"],
+    "blocks": ["MT-162", "MT-168"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Hygiene never auto-merges or auto-deletes; all mutations are operator-review-gated via KernelActionCatalogV1.",
+      "Pruning uses bitemporal invalidation (sets invalidated_at) instead of destructive delete so replay still works.",
+      "Pinned items always skipped; hygiene cannot collide with operator pin decisions."
+    ]
+  }
+}

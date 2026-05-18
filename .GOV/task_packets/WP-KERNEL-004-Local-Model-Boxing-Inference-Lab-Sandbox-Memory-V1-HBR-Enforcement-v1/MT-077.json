@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-077",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-077.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LlamaCppRuntime Self-Speculative Decoding (ngram + draft-model paths)",
+  "goal": "Implement Self-Speculative Decoding for LlamaCppRuntime per operator decision E-4: ngram lookup (llama.cpp lookup-N decoder) + draft-model path (smaller draft model verified by target). EAGLE-3 NOT in scope (deferred until llama.cpp PR #18039 merges; capability flag supports_eagle3 stays false in v02.186).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/llama_cpp/speculative.rs with NgramDraftDecoder + DraftModelDecoder; generate.rs integration when GenerateRequest.speculative_mode is Some; tests (env-gated).",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/speculative.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs",
+    "src/backend/handshake_core/tests/llama_cpp_speculative_tests.rs"
+  ],
+  "depends_on_mts": ["MT-074"],
+  "unblock_conditions": "MT-074 generate path merged.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.g + operator E-4 + refinement inference_technique_matrix INF-8: llama.cpp ngram + draft-model speculative decoding paths shipping today (production maturity). NgramDraftDecoder: maintains a per-context ngram cache (token n-grams from prompt + generation history) and proposes draft tokens via lookup-N matching; llama-cpp-2 exposes via llama_sampler_init_dry-adjacent or via the lookup helpers in common/speculative. DraftModelDecoder: loads a smaller \"draft\" GGUF model (operator-supplied via DraftModelHandle on GenerateRequest), runs draft tokens 1..k forward, target model verifies in a single batch; on rejection at position j, accept 0..j and resample at j. SpeculativeMode enum on SamplingParams (extension): `None | Ngram { lookback: u32, max_draft: u32 } | DraftModel { draft_id: ModelId, max_draft: u32 } | Eagle3 { ... }` — Eagle3 variant deserializes but generate returns CapabilityNotSupported (supports_eagle3=false in v02.186). After llama.cpp PR #18039 merges, an EAGLE-3 upgrade MT can flip the capability flag without changing the API. Tests (env-gated): load target + draft model pair; generate 64 tokens with ngram mode; assert verified-token-count > 0 and equivalent output to non-spec generation (same seed); cancellation works mid-spec; Eagle3 returns CapabilityNotSupported.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target llama_cpp_speculative_tests"
+  ],
+  "risk_if_missed": "INF-8 Self-Speculative PRODUCTION ships without a concrete path; perf gains unrealized.",
+  "validator_focus": "Output equivalence with non-speculative path (correctness); cancellation mid-spec works; Eagle3 capability gate correct.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-LLAMACPP-ADAPTER", "AC-MODEL-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-074"],
+    "blocks": ["MT-109", "MT-110", "MT-111"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Speculative output equivalent to non-spec output for same seed (correctness > perf).",
+      "Eagle3 variant rejected with CapabilityNotSupported until PR #18039 lands.",
+      "Draft-model spawn registered in ProcessOwnershipLedger as engine_kind=LlamaCppServer (test asserts row insert)."
+    ]
+  }
+}

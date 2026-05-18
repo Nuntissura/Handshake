@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-155",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:14:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-155.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Self-improvement loop Tauri IPC: status, pause, unpause, review_pending",
+  "goal": "Expose Tauri IPC commands so the operator can drive the loop from the app: read current loop status (running/paused/idle), pause manually, unpause (after Goodhart pause or manual pause), list pending promotion-review tickets, and submit promotion approval/rejection inline. All commands flow through KernelActionCatalogV1.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/ipc.rs (Tauri command handlers for kernel.self_improve.{status,pause,unpause,list_pending_reviews,approve_promotion,reject_promotion}). Wiring into app/src-tauri/src/main.rs command registration. Tests src/backend/handshake_core/tests/self_improve_ipc_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/ipc.rs",
+    "src/backend/handshake_core/tests/self_improve_ipc_tests.rs",
+    "app/src-tauri/src/main.rs"
+  ],
+  "depends_on_mts": ["MT-148", "MT-153", "MT-154"],
+  "unblock_conditions": "MT-148 (loop core), MT-153 (Goodhart sentinel pause receipts), MT-154 (PromotionGate adapter).",
+  "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS the operator MUST be able to inspect + intervene; per refinement D.2 'operator review required before promotion'. Tauri commands: `status() -> LoopStatusSnapshot` (returns { loop_state, last_iteration_at_utc, last_iteration_id, paused: bool, pause_reason: Option<PauseReason>, pending_review_count: u32, iteration_budget_remaining_24h: u32 }); `pause() -> PauseReceipt`; `unpause(reason: String) -> UnpauseReceipt` (records operator rationale; rejects if no current pause); `list_pending_reviews(limit: u32) -> Vec<PromotionRequest>`; `approve_promotion(iteration_id: Uuid, rationale: String) -> PromotionApproval`; `reject_promotion(iteration_id: Uuid, rationale: String) -> PromotionRejection`. All mutating commands flow through KernelActionCatalogV1 (PauseLoopAction, UnpauseLoopAction, ApprovePromotionAction, RejectPromotionAction). Status command is read-only projection. Pause/unpause emit FR-EVT-LOOP-PAUSE / FR-EVT-LOOP-UNPAUSE via FEMS flight recorder. Approve/reject emit FR-EVT-PROMOTION-DECISION. Tests: status returns snapshot without mutating; pause when already paused returns typed error; unpause when not paused returns typed error; approve/reject for unknown iteration returns typed error; all mutations route through mock KernelActionCatalogV1 in tests.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target self_improve_ipc_tests"
+  ],
+  "risk_if_missed": "Without operator IPC the loop is a black box; pauses cannot be cleared and pending promotions cannot be reviewed.",
+  "validator_focus": "All mutations through KernelActionCatalogV1; status is a read-only projection; pause/unpause receipts are durable.",
+  "hbr_obligations": ["HBR-INT-006", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-148", "MT-153", "MT-154"],
+    "blocks": ["MT-156"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "All mutating commands flow through KernelActionCatalogV1; no direct DB writes.",
+      "Status command is a pure projection; cannot mutate state.",
+      "Pause/unpause/approve/reject each emit a typed FR-EVT-* flight recorder event."
+    ]
+  }
+}

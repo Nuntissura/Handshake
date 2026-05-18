@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-146",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:05:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-146.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Capsule inspection + suppression IPC (Tauri commands) for operator panel",
+  "goal": "Expose Tauri IPC commands so the operator panel (cluster X UI surfaces) can list recent capsules, inspect a capsule by id, and suppress an individual capsule or item per HBR-INT-006 ('source-linked, inspectable, suppressible'). Commands are read+suppress only on this surface; rebuilds happen through the canonical CapsuleBuilder path.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/ipc.rs registering Tauri commands `kernel.memory_capsule.list_recent`, `kernel.memory_capsule.get`, `kernel.memory_capsule.suppress_item`, `kernel.memory_capsule.suppress_capsule`. Wiring into app/src-tauri/src/main.rs (command registration only). Tests under src/backend/handshake_core/tests/memory_ipc_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/ipc.rs",
+    "src/backend/handshake_core/tests/memory_ipc_tests.rs",
+    "app/src-tauri/src/main.rs"
+  ],
+  "depends_on_mts": ["MT-144", "MT-145"],
+  "unblock_conditions": "MT-144 (injection + handle), MT-145 (persistence via KernelActionCatalogV1).",
+  "implementation_notes": "Per HBR-INT-006 retrieval policy + audit log must be inspectable; per AC-DISTILL-CONTENT-REVIEW any capsule entering the loop must support content review. Tauri command signatures: `list_recent(limit: u32) -> Vec<CapsuleSummary>`, `get(capsule_id: Uuid) -> CapsuleRecord`, `suppress_item(capsule_id: Uuid, item_id: Uuid, reason: String) -> SuppressionReceipt`, `suppress_capsule(capsule_id: Uuid, reason: String) -> SuppressionReceipt`. CapsuleSummary: `{ capsule_id, task_type, built_at_utc, included_count, suppressed_count, has_outcome }`. Suppression flows through KernelActionCatalogV1 (CapsuleSuppression action variant) so the operator suppression is durable + audit-trail-bearing. Suppression emits `FR-EVT-CAPSULE-SUPPRESSED` via FEMS flight recorder. Tests: list_recent returns ordered by built_at_utc desc and respects limit; get returns full record with audit_log; suppress_item updates ONLY that entry's included flag + reason; suppress_capsule marks all entries suppressed; commands fail cleanly on unknown capsule_id; commands DO NOT bypass the catalog (mock catalog records every suppression).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target memory_ipc_tests"
+  ],
+  "risk_if_missed": "Without inspect+suppress IPC the operator cannot honor HBR-INT-006 inspectability requirement; a poisoning capsule has no operator escape hatch.",
+  "validator_focus": "All IPC suppressions flow through KernelActionCatalogV1; commands are pure projections (list/get) or audit-bearing mutations (suppress).",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-CONTENT-REVIEW", "AC-DISTILL-EDITABLE-SURFACE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-144", "MT-145"],
+    "blocks": ["MT-147"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Suppression always flows through KernelActionCatalogV1; no direct DB writes.",
+      "list_recent + get are read-only projections; cannot mutate state.",
+      "Every suppression emits an FR-EVT-CAPSULE-SUPPRESSED flight recorder event so audit trail is complete."
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-049",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-049.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Wire SandboxAdapter into KERNEL-001 ModelAdapter for model-process boxing",
+  "goal": "Every model process Handshake spawns must be a child of a SandboxAdapter per spec §3.6.2 invariant ('no bare std::process::Command model spawns'). This MT wires the SandboxAdapter trait into the KERNEL-001 ModelAdapter so the dummy adapter shipped by KERNEL-001 is replaced by a sandbox-routed call path. Foundation for cluster C ModelRuntime adapters (LlamaCppRuntime / CandleRuntime) — those C MTs delegate engine boxing to the API surface this MT lands.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/sandbox_binding.rs that exposes `box_model_process(registry: &SandboxAdapterRegistry, spec: ModelProcessSpec) -> Result<ProcessHandle, ModelBoxingError>` translating ModelProcessSpec (high-level: model_id, gguf_path, engine_kind, work_profile_override) into a ProcessSpec then routing through SandboxAdapterRegistry::select; updates to existing KERNEL-001 ModelAdapter (likely in src/backend/handshake_core/src/kernel/model_adapter.rs — locate by Grep) to delegate to sandbox_binding. Tests under src/backend/handshake_core/tests/model_adapter_sandbox_binding_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/sandbox_binding.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs",
+    "src/backend/handshake_core/tests/model_adapter_sandbox_binding_tests.rs"
+  ],
+  "depends_on_mts": ["MT-042", "MT-043", "MT-044", "MT-048"],
+  "unblock_conditions": "SandboxAdapter trait + registry + selection + default adapter (WSL2Podman) + bootstrap merged. KERNEL-001 ModelAdapter trait exists in main (verify path via Grep against the merged KERNEL-001 source).",
+  "implementation_notes": "Pre-step: Grep for `pub trait ModelAdapter` and `impl ModelAdapter for DummyModelAdapter` in src/backend/handshake_core/src/kernel/** to locate the KERNEL-001 surface; record the exact module path in implementation_notes so the validator can re-discover. sandbox_binding.rs: define `pub struct ModelProcessSpec { model_id: String, gguf_path: PathBuf, engine_kind: EngineKind (enum LlamaCpp|Candle), work_profile_override: Option<AdapterId>, required_capabilities: BTreeSet<RequiredCapability>, env: BTreeMap<String,String>, gguf_root_bind: PathBuf, tokenizer_cache_bind: PathBuf }` and `pub fn box_model_process(registry: &SandboxAdapterRegistry, spec: ModelProcessSpec) -> Result<ProcessHandle, ModelBoxingError>` that (1) builds a ProcessSpec with binds=[ BindSpec{ host_path: spec.gguf_root_bind, guest_path: \"/models/gguf\", mode: ReadOnly }, BindSpec{ host_path: spec.tokenizer_cache_bind, guest_path: \"/models/tokenizers\", mode: ReadOnly } ] per spec §3.6.3, (2) calls `selection::select(registry, &process_spec, spec.work_profile_override.as_ref())` propagating SandboxSelectionFailure, (3) calls `adapter.spawn(process_spec).await`, (4) returns the ProcessHandle. ModelBoxingError thiserror enum wraps SandboxAdapterError + SandboxSelectionFailure + ModelGgufNotFound + WorkProfileInvalid. Update the existing KERNEL-001 ModelAdapter (or its dummy implementation) to call box_model_process when constructing a model process; the dummy adapter from KERNEL-001 stays for unit tests that don't exercise spawn. CRITICAL: a `#[deny(clippy::disallowed_methods)]` style lint or a repo-level grep test must catch any future addition of `std::process::Command::new` in src/backend/handshake_core/src/model_runtime/** or src/backend/handshake_core/src/kernel/model_adapter.rs (spec §3.6.2 'no bare std::process::Command model spawns'). Implement this as a Node-side grep test in .GOV/roles_shared/checks/no-bare-process-command-check.mjs (CO-OWNED with cluster A.4 if HBR-QUIET-003 has one already; coordinate via packet allowed_paths). Tests: (a) box_model_process with a missing gguf_path returns ModelGgufNotFound; (b) work_profile_override that doesn't satisfy required_capabilities returns the underlying SandboxSelectionFailure (not silent fallback); (c) successful spawn returns a ProcessHandle whose adapter_id matches the selected adapter; (d) grep test asserts no `Command::new` outside the sandbox/wsl2_podman/* and sandbox/windows_native_jail/* and sandbox/docker/* paths inside model_runtime/** and kernel/model_adapter.rs.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_adapter_sandbox_binding_tests",
+    "node .GOV/roles_shared/checks/no-bare-process-command-check.mjs"
+  ],
+  "risk_if_missed": "Without wiring, the KERNEL-001 ModelAdapter remains the dummy spawn path and AC-LOCAL-MODEL-BOXING ('every model process is a child of a SandboxAdapter') fails; cluster C ModelRuntime adapters cannot land their engine boxing.",
+  "validator_focus": "(a) box_model_process is the sole route for model-process spawn; (b) gguf_root + tokenizer_cache binds are ReadOnly per spec §3.6.3; (c) selection failures propagate (no silent fallback); (d) no-bare-process-command-check passes against the touched modules.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-QUIET-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6.3"
+  ],
+  "acceptance_criteria_refs": ["AC-LOCAL-MODEL-BOXING", "AC-SANDBOX-ADAPTER-IMPLS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-042", "MT-043", "MT-044", "MT-048"],
+    "blocks": ["MT-053", "MT-057"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "no-bare-process-command-check.mjs blocks future Command::new from sneaking into model_runtime/** or kernel/model_adapter.rs.",
+      "GGUF bind ReadOnly assertion is part of the integration test (not just a unit test) so the host-to-guest behavior is verified.",
+      "SandboxSelectionFailure propagates upward; box_model_process MUST NOT swallow the variant into a generic spawn error."
+    ]
+  }
+}

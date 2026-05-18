@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-084",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-084.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime LoRA mount for transformer models (PEFT-style adapter)",
+  "goal": "Implement LoraStackOps for CandleRuntime's Transformer variant: mount a PEFT LoRA (safetensors with lora_A/lora_B per target module) and apply during forward pass. Hot-swap without rebuilding the base model. Per AC-CANDLE-ADAPTER and operator E-3.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/candle/lora_impl.rs with CandleLoraStack + LoraAdapter (Tensor pairs per target module); transformer.rs forward wrapping to apply LoRA delta; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/lora_impl.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/transformer.rs",
+    "src/backend/handshake_core/tests/candle_lora_tests.rs"
+  ],
+  "depends_on_mts": ["MT-064", "MT-083"],
+  "unblock_conditions": "MT-064 LoraStackOps trait + MT-083 transformer load/generate merged.",
+  "implementation_notes": "PEFT LoRA convention: safetensors file with tensors named `<target_module>.lora_A.weight` shape [r, in_dim] and `<target_module>.lora_B.weight` shape [out_dim, r] for each target_module in {q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj, ...}. CandleLoraAdapter: `{ id: LoraId, target_modules: HashMap<String, (Tensor /*A*/, Tensor /*B*/)>, rank: u32, scaling: f32 (alpha/rank) }`. Forward wrapping: in transformer.rs, each Linear layer named in target_modules computes `y = base.forward(x) + scaling * strength * (B @ (A @ x))`. CandleLoraStack: HashMap<LoraId, CandleLoraAdapter> + active set Vec<(LoraId, LoraStrength)>; forward iterates active stack and accumulates LoRA deltas. mount: load safetensors, validate target_modules against the loaded model's layer names (mismatch -> Err with explicit list of missing/extra), insert into stack, return Ok. unmount: remove from active set + stack. set_strength: update active set entry. swap: atomic build new stack + active set; on any mount failure roll back to snapshot. Tests (env-gated, requires a small Llama base + a small LoRA safetensors): mount, generate, verify output differs from base; unmount, output reverts; mount LoRA targeting nonexistent module returns Err with module list; license_tag enforced. No process restart (PID invariant test).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_lora_tests"
+  ],
+  "risk_if_missed": "LoRA hot-swap missing CandleRuntime path; activation-hook models cannot accept LoRAs; INF-1 partial.",
+  "validator_focus": "Target-module validation mismatch returns explicit Err; atomic swap rollback; PID invariant test; license tag enforced.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-064", "MT-083"],
+    "blocks": ["MT-090", "MT-091", "MT-092", "MT-115"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Target-module mismatch returns explicit Err with list (no silent skip).",
+      "PID invariant test (no process restart on mount/unmount/swap).",
+      "Atomic swap rollback on partial failure."
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-038",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.7",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-038.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Role-protocol linkage updates (kernel_builder / integration_validator / wp_validator / coder / orchestrator / classic_orchestrator / validator)",
+  "goal": "Add HBR-citation sections to the seven role protocols that govern WPs touching product code: kernel_builder, integration_validator, wp_validator, coder, orchestrator, classic_orchestrator, validator. Each protocol's WP-claim/closeout/handoff section gains a `## HBR Gate Obligations` block citing CX-131 + spec §5.6 + the relevant pillar applicability per role. NOT activation_manager (governance-only) or memory_manager (operator-tooling-only).",
+  "expected_diff_shape": "Edit existing role protocol files under .GOV/roles/<role>/*_PROTOCOL.md adding the new HBR section; no role-protocol creation or removal; preserve all existing rule IDs and section anchors.",
+  "owned_files": [
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
+    ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
+    ".GOV/roles/coder/CODER_PROTOCOL.md",
+    ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
+    ".GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md",
+    ".GOV/roles/validator/VALIDATOR_PROTOCOL.md"
+  ],
+  "depends_on_mts": ["MT-013"],
+  "unblock_conditions": "MT-013 ModelManual + IPC bridge land so role protocols can cite the manual entries the HBR gates reference.",
+  "implementation_notes": "Each of the seven role protocols gets a new top-level `## HBR Gate Obligations` section (insert after the role's primary scope section, before any closeout sections). The section content is consistent across protocols but the cited rules differ by role applicability. KERNEL_BUILDER: cite all 23 HBR rules with focus on INT pillar (implementation responsibility). INTEGRATION_VALIDATOR: cite all 23 with focus on validator-scan integration (MT-005). WP_VALIDATOR: cite the 23 with focus on per-MT verification path (note: per packet workflow.wp_validator_gate=DISABLED for KERNEL-004; the protocol still carries the obligations for other WPs). CODER: cite the INT + QUIET pillars (code-writing focus). ORCHESTRATOR: cite the SWARM + MAN pillars (handoff + manual currency focus). CLASSIC_ORCHESTRATOR: cite the same as ORCHESTRATOR but with the note that classic_orchestrator is manual-relay only and HBR gates apply equally. VALIDATOR (catch-all role): cite all 23. Each section format: `\n## HBR Gate Obligations\n\nThis role must honor HANDSHAKE_BUILD_RULES.json v1.2.0+ (see Codex CX-131, spec §5.6, registry at .GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json).\n\n- At WP claim: read packet.acceptance_matrix.hbr and confirm row applicability.\n- At MT execution: produce evidence per evidence_kind for each Applicable rule.\n- At role handoff: HandoffGate (MT-004) MUST PASS or the handoff is blocked.\n- At closeout: confirm no HBR row is PENDING/STEER/BLOCKED per CX-503B1.\n\nApplicable pillars for this role: [INT / SWARM / VIS / QUIET / MAN — list per role].\n`. Operator note inline: this MT does NOT touch activation_manager or memory_manager protocols (the brief explicitly excluded them). Tests: a Node script `.GOV/roles_shared/checks/role-protocol-hbr-linkage.mjs` greps each of the seven protocols for `## HBR Gate Obligations` and `CX-131` mentions; fails if absent. Add the script as a gov-check sub-check.",
+  "proof_commands": [
+    "node .GOV/roles_shared/checks/role-protocol-hbr-linkage.mjs",
+    "just gov-check"
+  ],
+  "risk_if_missed": "Without role-protocol linkage, roles read protocols that don't mention HBR; sessions skip the gate.",
+  "validator_focus": "All seven role protocols include the section; activation_manager and memory_manager protocols are NOT touched (verify via git diff); existing rule IDs and section anchors preserved.",
+  "hbr_obligations": ["HBR-INT-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6",
+    ".GOV/codex/Handshake_Codex_v1.4.md#CX-131"
+  ],
+  "acceptance_criteria_refs": ["AC-HBR-AUTHORITY", "AC-HBR-HANDOFF-GATE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-013"],
+    "blocks": ["MT-039"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Activation_manager and memory_manager protocols are explicitly NOT touched.",
+      "Existing rule IDs and section anchors preserved (no renumbering).",
+      "Linkage scanner sub-check added to gov-check umbrella."
+    ]
+  }
+}

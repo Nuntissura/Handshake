@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-112",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.11",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-112.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-9 Subquadratic technique surface (load/generate/state-vector public API) [MULTI-QUARTER SCOPE]",
+  "goal": "Lift the per-adapter SSM/RWKV implementations (MT-085 Mamba2 + MT-086 RWKV v5/v6 + MT-087 RWKV v7 + MT-088 state-vector) into the public Subquadratic technique surface per AC-INFER-LAB-8-TECHNIQUES.h + operator E-2 FULL FEATURE PARITY. MULTI-QUARTER SCOPE FLAG (6+ months per operator E-2 acceptance and refinement R-2).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/techniques/subquadratic.rs orchestrating SSM-specific load/generate/state APIs; Tauri commands; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/techniques/subquadratic.rs",
+    "app/src-tauri/src/commands/subquadratic.rs",
+    "app/src-tauri/src/main.rs",
+    "src/backend/handshake_core/tests/subquadratic_technique_tests.rs"
+  ],
+  "depends_on_mts": ["MT-085", "MT-086", "MT-087", "MT-088"],
+  "unblock_conditions": "MT-085..MT-088 base SSM/RWKV merged.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.h + operator E-2 + refinement INF-9. MULTI-QUARTER TIMELINE (6+ months per operator E-2 acceptance, refinement risk R-2): this MT plus MT-113..MT-118 represent the full feature parity scope; expected to slip beyond KERNEL-004 nominal window. Operator E-2 accepted this eyes-open. Public API: subquadratic_load(spec) (verifies runtime_binding=Candle + variant in {Mamba2, RwkvV5, RwkvV6, RwkvV7}); subquadratic_generate (dispatches to variant-specific generate); state_vector_commit / restore / evict / persist_to_disk / load_from_disk (cross-session restore from MT-117). Tauri commands: kernel_model_runtime_subquad_load, kernel_model_runtime_subquad_state_commit, kernel_model_runtime_subquad_state_restore, kernel_model_runtime_subquad_state_list, kernel_model_runtime_subquad_persist (writes state to disk for cross-session), kernel_model_runtime_subquad_rehydrate. Reference models: state-spaces/mamba2-2.7b, BlinkDL/rwkv-5-world, BlinkDL/rwkv-6-world-7b, BlinkDL/rwkv-7-world (cited in MT-085/086/087). FR events: FR-EVT-LLM-INFER-SUBQUAD-LOAD, FR-EVT-LLM-INFER-SUBQUAD-STATE-COMMIT { state_id, model_id, bytes }, FR-EVT-LLM-INFER-SUBQUAD-STATE-RESTORE { state_id, model_id, hit }, FR-EVT-LLM-INFER-SUBQUAD-PERSIST { state_id, disk_path, bytes }. Capability gate: capabilities.supportsSubquadratic must be true.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target subquadratic_technique_tests"
+  ],
+  "risk_if_missed": "INF-9 PRODUCTION lacks operator-facing surface; SSM models cannot be loaded via standard ModelRuntime API.",
+  "validator_focus": "Multi-quarter timeline flag visible in implementation_notes; capability gate; reference model citations in MT-085/086/087 already.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-MODEL-CAP-DECL", "AC-CANDLE-ADAPTER"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-085", "MT-086", "MT-087", "MT-088"],
+    "blocks": ["MT-113", "MT-114", "MT-115", "MT-116", "MT-117", "MT-118"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Multi-quarter timeline visible in implementation_notes + risk_if_missed.",
+      "Reference models cited.",
+      "Capability gate enforced."
+    ]
+  }
+}

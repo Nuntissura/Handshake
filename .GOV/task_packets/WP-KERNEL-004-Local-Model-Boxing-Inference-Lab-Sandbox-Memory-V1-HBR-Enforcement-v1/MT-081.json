@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-081",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-081.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime adapter scaffolding (candle-core + candle-transformers)",
+  "goal": "Create the CandleRuntime adapter module: public adapter struct, candle-core + candle-transformers dependency wiring, ModelRuntime impl skeleton, Device selection (CPU/CUDA/Metal), tokenizer integration via tokenizers crate. Subsequent MTs fill in real implementations (activation hooks, SSMs).",
+  "expected_diff_shape": "New directory src/backend/handshake_core/src/model_runtime/candle/ with mod.rs, adapter.rs (CandleRuntime struct + skeleton ModelRuntime impl), device.rs (Device selector), tokenizer.rs (HF tokenizers wrapper); registry update.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/mod.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/adapter.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/device.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/tokenizer.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs"
+  ],
+  "depends_on_mts": ["MT-062", "MT-063", "MT-064", "MT-065", "MT-066", "MT-067", "MT-069", "MT-070"],
+  "unblock_conditions": "MT-061..MT-070 trait + sub-traits + registry + LlmClient routing merged.",
+  "implementation_notes": "Per AC-CANDLE-ADAPTER (spec §4.6.2): CandleRuntime wraps candle-core + candle-transformers; required path for hook-requiring techniques (activation steering, refusal vector, CAA) and for subquadratic architectures (Mamba2, RWKV v5-v7). CandleRuntime struct: `pub struct CandleRuntime { models: Arc<RwLock<HashMap<ModelId, CandleModelHandle>>>, device: candle_core::Device, tokenizer_cache: Arc<RwLock<HashMap<ModelId, Arc<tokenizers::Tokenizer>>>>, ledger: Arc<ProcessLedgerIntegration> }`. CandleModelHandle is an enum: `Transformer { model: Box<dyn TransformerModel>, config: TransformerConfig, state: TransformerState }`, `Mamba2 { model: candle_transformers::models::mamba2::Model, state: Mamba2State }`, `RwkvV5 { model: ..., state: ... }`, `RwkvV6 { ... }`, `RwkvV7 { ... }`. (Mamba2/RWKV variants implemented in MT-085/MT-086/MT-087.) candle_core::Device selection per OS+GPU: try Cuda(0) if cuda feature enabled and available; fallback Metal(0) on macOS; fallback Cpu. Operator override via LoadSpec.device_override. Tokenizer cache: HF tokenizers crate loads `tokenizer.json` from the model directory; embedded in CandleModelHandle for fast access. impl ModelRuntime for CandleRuntime: load verifies RuntimeKind==Candle, sha256, mints ModelId v7, registers with ledger; generate/score/embed return NotImplemented (filled MT-082..MT-088); kv_cache returns Err CapabilityNotSupported for Mamba2/RWKV variants (they use state-vector cache, MT-088 separate handle), Default impl for Transformer variant; steering_hooks returns SteeringHookHandle backed by CandleSteeringHook (MT-082). All candle_core::* / candle_transformers::* identifiers MUST stay inside model_runtime/candle/**.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle::adapter::"
+  ],
+  "risk_if_missed": "CandleRuntime cannot be wired into LlmClient; hook-requiring techniques and SSMs have no host.",
+  "validator_focus": "Grep candle_core:: / candle_transformers:: only inside model_runtime/candle/**; Device selector respects operator override; ModelId v7.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2"
+  ],
+  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-MODEL-RUNTIME-TRAIT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-062", "MT-063", "MT-064", "MT-065", "MT-066", "MT-067", "MT-069", "MT-070"],
+    "blocks": ["MT-082", "MT-083", "MT-084", "MT-085", "MT-086", "MT-087", "MT-088", "MT-089", "MT-096", "MT-100", "MT-103", "MT-112"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Engine-specific identifier containment grep test.",
+      "Device selector cuda-not-available path returns CPU fallback (no panic).",
+      "Cargo feature flags for cuda/metal documented so non-GPU builds compile."
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-033",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-033.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "A.3 inspector plane end-to-end smoke (HTTP + IPC + TraceProjection + replay-drive)",
+  "goal": "Run the full inspector-plane pipeline end-to-end against a live KERNEL-004 build: start server, query read endpoints via HTTP, query identical read endpoints via Tauri IPC, fetch a TraceProjection for a synthetic session, perform one replay-drive via signed envelope, confirm an EventLedger row is emitted, and assert no compile-leak of mutation paths into the read-only trait.",
+  "expected_diff_shape": "New integration test src/backend/handshake_core/tests/a3_inspector_smoke.rs spinning up a synthetic session + the inspector server + a CDP-driven Diagnostics-panel mock; new gov-check sub-check; run produces a smoke report JSONL.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/a3_inspector_smoke.rs",
+    ".GOV/roles_shared/checks/hbr-inspector-smoke.mjs",
+    "justfile"
+  ],
+  "depends_on_mts": ["MT-028", "MT-029", "MT-030", "MT-031", "MT-032"],
+  "unblock_conditions": "All A.3 building blocks merged.",
+  "implementation_notes": "End-to-end wire test for AC-INSPECTOR-PLANE-BIND + READONLY + MUTATION-ROUTING + HBR-VIS-004. Flow: (1) Start handshake_core in test mode with `inspector` feature; (2) Inject a synthetic session into EventLedger (one of each event kind covering TraceProjection's seven fields); (3) Start InspectorServer (MT-029) and capture port; (4) HTTP GETs for all read endpoints — assert payloads parse and TraceProjection has all seven fields populated; (5) Invoke equivalent Tauri IPC commands (MT-032) — assert identical payloads byte-for-byte; (6) POST a valid replay-drive envelope (MT-030) — assert 200 + KernelActionCatalogV1 dispatch + EventLedger row emitted; (7) POST an extra-field body — assert 403; (8) Verify no compile-leak: run a compile-check against a synthetic test crate that tries to call a write-side method through the InspectorReadV1 trait and assert it fails to compile (use trybuild crate; add dev-dep if absent). Output JSONL `{ endpoints_passed, ipc_passed, trace_projection_fields, replay_drive_success, compile_leak_detected: false }`. Justfile recipe `hbr-inspector-smoke` wired into gov-check umbrella. The smoke test fails loud on any of the six conditions.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features inspector a3_inspector_smoke",
+    "just hbr-inspector-smoke"
+  ],
+  "risk_if_missed": "Without the smoke, individual A.3 MTs prove pieces but not integration; a regression that breaks the chain ships green.",
+  "validator_focus": "HTTP and IPC payloads byte-identical; trybuild compile-leak test confirms read-only boundary holds at compile time; smoke fails on any of six conditions.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-003", "HBR-INT-007", "HBR-VIS-001", "HBR-VIS-004"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
+  ],
+  "acceptance_criteria_refs": ["AC-INSPECTOR-PLANE-BIND", "AC-INSPECTOR-PLANE-READONLY", "AC-INSPECTOR-PLANE-MUTATION-ROUTING"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-028", "MT-029", "MT-030", "MT-031", "MT-032"],
+    "blocks": ["MT-034"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "trybuild compile-leak test confirms the read-only boundary holds at compile time (not just runtime).",
+      "HTTP and IPC payloads are byte-identical for the same query (no schema drift between transports).",
+      "Smoke fails loud on any of the six conditions."
+    ]
+  }
+}

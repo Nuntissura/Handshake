@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-016",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-016.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "WH_KEYBOARD_LL keyboard-injection negative test",
+  "goal": "Per spec §6.6.5 (AC-QUIET-INJECT-NEG-TEST) install a `WH_KEYBOARD_LL` low-level hook checking `KBDLLHOOKSTRUCT.flags & LLKHF_INJECTED`, fire `SendInput` shortcut sequences while a hidden Tauri window is alive, and assert (a) no `#[tauri::command]` handler fired, (b) no state mutation occurred, (c) the LL-hook saw the injection.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/operator_foreground/keyboard_inject_test.rs (Windows-only); cargo test that orchestrates a hidden window + SendInput + assertions.",
+  "owned_files": [
+    "src/backend/handshake_core/src/operator_foreground/keyboard_inject_test.rs",
+    "src/backend/handshake_core/tests/keyboard_inject_neg_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": ["MT-014", "MT-015"],
+  "unblock_conditions": "MT-014 quiet window + MT-015 focus audit merged so test can use them.",
+  "implementation_notes": "Per spec §6.6.5 this is a *negative* test: it deliberately tries to drive Handshake via OS-level keyboard injection and proves the attempt cannot succeed. Cargo.toml: add `[target.'cfg(windows)'.dependencies] windows = { version = \"<latest>\", features = [\"Win32_UI_WindowsAndMessaging\", \"Win32_UI_Input_KeyboardAndMouse\"] }`. keyboard_inject_test.rs implements: (1) `install_ll_hook() -> LlHookHandle` calls `SetWindowsHookExW(WH_KEYBOARD_LL, callback, ...)` with a callback that examines `KBDLLHOOKSTRUCT.flags`; if `flags & LLKHF_INJECTED != 0`, increments an atomic injected_event_count. (2) `simulate_shortcut_injection(seq: &[VkSequence])` calls `SendInput` with the keystroke sequence (e.g., Ctrl+Shift+F to simulate an arbitrary registered shortcut). (3) `track_command_invocations(app: &AppHandle) -> CmdTracker` instruments every #[tauri::command] handler via a global counter (use a test-only middleware or a global AtomicU64 incremented in a test-only wrapping macro). The test flow: spawn a hidden QuietWindow, install LL hook, install cmd tracker, simulate injection of a known shortcut, sleep 100ms, query: assert injected_event_count >= 1 (the LL-hook saw the injection) AND assert tracker.invocation_count() == 0 (no Tauri command fired) AND assert state-mutation observable via a sentinel field == unchanged. Per HBR-QUIET-002 evidence_kind=automation_path_audit this satisfies the negative test obligation. Like MT-015, gated `#[cfg_attr(not(target_os = \"windows\"), ignore)]` and documented as Windows-desktop-only.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target keyboard_inject_neg_tests"
+  ],
+  "risk_if_missed": "Without negative test, HBR-QUIET-002 'surface cannot be accidentally driven by global input hijacking' is unverified; a future regression could open Handshake to OS-keyboard hijack.",
+  "validator_focus": "All three assertions (LL-hook saw injection, no Tauri command fired, no state mutation) are explicit and the test fails loudly on any one being violated.",
+  "hbr_obligations": ["HBR-QUIET-001", "HBR-QUIET-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.6"
+  ],
+  "acceptance_criteria_refs": ["AC-QUIET-INJECT-NEG-TEST"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-014", "MT-015"],
+    "blocks": ["MT-020"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Test must assert the LL-hook actually saw the injection (proves the test is meaningful, not a no-op).",
+      "Cmd tracker uses a test-only macro to avoid leaking into release builds.",
+      "Test is gated to Windows-desktop and the gate reason is documented inline."
+    ]
+  }
+}

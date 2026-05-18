@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-167",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:26:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-167.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "End-to-end self-improvement loop iteration test on the fixed HBR test-packet corpus",
+  "goal": "End-to-end integration test that runs one full self-improvement loop iteration against the fixed 30-item HBR test-packet corpus (MT-150), proving the entire D.2 chain composes: target choice -> editable surface snapshot -> sandbox run -> eval -> multi-metric floor -> Goodhart sentinel -> PromotionGate -> recorder. Test uses a fixture editable-surface proposal (small RetrievalPolicy.top_k change) and asserts the iteration completes through every stage with typed outputs.",
+  "expected_diff_shape": "New integration test src/backend/handshake_core/tests/self_improve_e2e_iteration_tests.rs. Reuses fixture src/backend/handshake_core/tests/fixtures/hbr_test_packet_corpus/items.json from MT-150. Adds tests/fixtures/self_improve_e2e/baseline_eval_result.json for baseline EvalResult.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/self_improve_e2e_iteration_tests.rs",
+    "src/backend/handshake_core/tests/fixtures/self_improve_e2e/baseline_eval_result.json"
+  ],
+  "depends_on_mts": ["MT-148", "MT-149", "MT-150", "MT-151", "MT-152", "MT-153", "MT-154", "MT-155", "MT-156"],
+  "unblock_conditions": "All D.2 MTs land.",
+  "implementation_notes": "Per refinement D.4 ('End-to-end test: one full self-improvement loop iteration against fixed HBR test-packet corpus'). Test flow: (1) load HBR test-packet corpus fixture (30 items) via MT-150 loader; (2) construct LoopCore + scheduler + sentinel + gate + recorder with mocks where appropriate (mock sandbox, mock validator runner returning deterministic PASS/FAIL per item, mock OperatorGate that auto-approves); (3) seed history with baseline EvalResult from fixture (dev_pass=0.5, holdout_pass=0.5, latency_p95=120ms, capsule_bytes=24000); (4) invoke scheduler.try_schedule_next() and assert Schedule decision; (5) invoke loop_core.run_one_iteration() with TargetPicker pre-configured to propose RetrievalPolicy.top_k change from 6 to 8 for ValidatorHbrTestPacket task type; (6) assert iteration walks every LoopStage in order (ChooseTarget -> IsolateEditableSurface -> RunInSandbox -> ExecuteEval -> AcceptReject -> RecordAsMemory -> Complete); (7) assert EditableSurfaceSnapshot captured the before/after policy values; (8) assert EvalResult populated for train/dev/holdout splits; (9) assert PromotionDecision is Approved (because trial dev_pass=0.6 > baseline 0.5 and other metrics don't regress); (10) assert SentinelDecision is Continue (only one iteration so far); (11) assert iteration recorded via CapsuleRecorder mock; (12) assert FR-EVT-CAPSULE-INJECTED + FR-EVT-PROMOTION-DECISION emitted exactly once. Run with cargo test --release; assert wall-clock <30s (NOT a hard gate; logged warning).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test self_improve_e2e_iteration_tests"
+  ],
+  "risk_if_missed": "Without end-to-end loop coverage the D.2 surfaces may compose incorrectly at the seams; integration validator cannot verify the loop pipeline against AC-DISTILL-LOOP-SAFEGUARDS.",
+  "validator_focus": "Test exercises every D.2 surface in one run; mocks are explicit; FR events validated; perf signal logged.",
+  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS", "AC-DISTILL-EDITABLE-SURFACE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-148", "MT-149", "MT-150", "MT-151", "MT-152", "MT-153", "MT-154", "MT-155", "MT-156"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Test runs in CI without external dependencies; all I/O surfaces are mocked.",
+      "Every LoopStage transition asserted; cannot pass while skipping stages.",
+      "FR events asserted exactly once each; double-emission is a test failure."
+    ]
+  }
+}

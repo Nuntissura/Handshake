@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-014",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-014.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Tauri quiet-mode WindowBuilder config + HBR-QUIET-001 violation lint",
+  "goal": "Enforce per spec §6.6.1 (AC-QUIET-WINDOW-CONFIG): any window opened during automated GUI tests or governed agent activity MUST set `.visible(false).focus(false).focusable(false).skip_taskbar(true).always_on_bottom(true).decorations(false)`. Any inverted flag is an HBR-QUIET-001 violation. Implement the canonical Tauri WindowBuilder wrapper and a clippy lint that fails the build on raw WindowBuilder use outside the wrapper.",
+  "expected_diff_shape": "New module app/src-tauri/src/quiet_window.rs exposing `QuietWindowBuilder`; tauri.conf.json updates for default invisible window; a workspace clippy lint rule banning raw tauri::WindowBuilder calls outside operator_foreground::* and quiet_window::*.",
+  "owned_files": [
+    "app/src-tauri/src/quiet_window.rs",
+    "app/src-tauri/tauri.conf.json",
+    "src/backend/handshake_core/src/operator_foreground/mod.rs",
+    "src/backend/handshake_core/tests/quiet_window_tests.rs"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "No prerequisites; this is the foundation MT for A.4.",
+  "implementation_notes": "Per spec §6.6.1 the QuietWindowBuilder wraps tauri::WindowBuilder and forces the six required flags at construction time. API: `QuietWindowBuilder::new(app: &AppHandle, label: &str, url: WebviewUrl) -> Self` returns a builder with flags already set; further chained methods that would invert any of the six are private/absent from the API; `.build()` returns the constructed Window. The struct field is private and constructor explicitly calls `.visible(false).focus(false).focusable(false).skip_taskbar(true).always_on_bottom(true).decorations(false)`. tauri.conf.json: default the main window to `\"visible\": false, \"focus\": false, \"focusable\": false, \"skipTaskbar\": true, \"alwaysOnBottom\": true, \"decorations\": false` (operator can override via a runtime flag — see MT-019 foreground exception). operator_foreground module: empty placeholder mod.rs that documents it as the only allowed escape hatch (MT-019 lands the real surface). Clippy lint rule: add a custom workspace lint via cargo-deny or via a clippy.toml `disallowed-methods` entry for `tauri::WindowBuilder::new` outside `app/src-tauri/src/quiet_window.rs` and `src/backend/handshake_core/src/operator_foreground/*`. Note: clippy disallowed-methods works on method paths and can scope by file via lint allowlists; if file-scoping is not directly supported, add a marker comment grep step in MT-017 forbidden-APIs lint as a fallback. Tests: instantiate a QuietWindowBuilder, build a window, query its config back via Tauri APIs, assert all six flags are correct; negative test asserts the type system rejects calls that would set visible(true).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target quiet_window_tests",
+    "cd app && pnpm tauri dev --no-watch 2>&1 | head -50"
+  ],
+  "risk_if_missed": "Without enforced quiet mode, any new window construction can steal focus, breaking HBR-QUIET-001 across the app.",
+  "validator_focus": "QuietWindowBuilder does not expose any chainable setter that could invert the six required flags; tauri.conf.json defaults reflect the same constraints; the placeholder operator_foreground module clearly documents itself as the only allowed escape.",
+  "hbr_obligations": ["HBR-QUIET-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.6"
+  ],
+  "acceptance_criteria_refs": ["AC-QUIET-WINDOW-CONFIG"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": [],
+    "blocks": ["MT-015", "MT-016", "MT-017", "MT-018", "MT-019", "MT-020", "MT-021"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "QuietWindowBuilder is the only constructor exposed publicly; raw WindowBuilder is banned by clippy.",
+      "tauri.conf.json defaults match the six required flags.",
+      "Type system rejects attempts to set visible(true) on QuietWindowBuilder (private builder fields)."
+    ]
+  }
+}

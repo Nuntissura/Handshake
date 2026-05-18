@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-028",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-028.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "InspectorReadV1 trait + inspector_read crate (compile-time read-only enforcement)",
+  "goal": "Per spec §6.5.2 (AC-INSPECTOR-PLANE-READONLY) introduce the `InspectorReadV1` Rust trait with NO `&mut self` methods, living in a new `inspector_read` crate that does NOT depend on the write-side crate; a workspace-level deny-lint blocks any reverse dependency edge so mutation cannot leak into the inspector path at compile time.",
+  "expected_diff_shape": "New crate src/backend/handshake_core/src/inspector_read/{mod.rs,trait_def.rs,impls.rs}; workspace Cargo.toml deny-lint entry preventing inspector_read from depending on kernel write-side modules; tests prove the trait surface has zero mutable methods.",
+  "owned_files": [
+    "src/backend/handshake_core/src/inspector_read/mod.rs",
+    "src/backend/handshake_core/src/inspector_read/trait_def.rs",
+    "src/backend/handshake_core/src/inspector_read/impls.rs",
+    "src/backend/handshake_core/tests/inspector_read_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": [],
+  "unblock_conditions": "No prerequisites; foundation MT for A.3.",
+  "implementation_notes": "Per spec §6.5.2 the InspectorReadV1 trait surface is the compile-time guarantee that the inspector cannot mutate. Trait shape: `pub trait InspectorReadV1 { fn list_sessions(&self) -> Vec<SessionSummary>; fn session_state(&self, id: SessionId) -> Option<SessionStateRead>; fn event_ledger_tail(&self, n: usize) -> Vec<EventLedgerRow>; fn process_ledger_active(&self) -> Vec<ProcessRow>; fn workspace_state_read(&self, ws_id: WorkspaceId) -> Option<WorkspaceStateRead>; fn trace_projection(&self, session_id: SessionId) -> Option<TraceProjection>; fn loaded_models(&self) -> Vec<ModelLoadedRow>; }`. NO `&mut self`, NO interior-mutability inside `&self` methods (use Arc<RwLock> only for read paths). All return types are owned/clones to prevent borrow-leak. impls.rs provides one concrete impl that takes immutable references to the read-only views of KERNEL-001 (EventLedger), KERNEL-002 (CRDT workspace), MT-007 (ProcessLedger), and cluster C (ModelRuntime — placeholder when not yet landed). Workspace Cargo.toml: per [GLOBAL-GOVARTIFACTS] the inspector_read module must not depend on write-side modules. Since this MT lives inside the same Cargo crate as the write side, enforce the boundary via a `cargo-deny` (or a custom workspace lint) rule: forbid `use crate::kernel::write::*` from `inspector_read` files. Add cargo-deny config to deny.toml with a `[bans]` section listing forbidden source paths. Alternative if cargo-deny path-based bans are not supported: a grep-based check in .GOV/roles_shared/checks/inspector-read-isolation.mjs that ripgreps for forbidden imports and exits 2 on hit. Tests: assert by reflection (compile-fail trick) that adding `&mut self` to a trait method fails compilation; assert the trait can be implemented and called from a `Arc<dyn InspectorReadV1>` context.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inspector_read_tests",
+    "cargo deny check bans"
+  ],
+  "risk_if_missed": "Without the read-only trait, a future inspector endpoint could accidentally take &mut self and silently expose a mutation path; spec §6.5 single-mutation-path guarantee is breached.",
+  "validator_focus": "Trait surface has ZERO &mut self methods; cargo-deny or grep check enforces no reverse dependency to write-side; compile-fail test confirms the boundary is enforced at compile time.",
+  "hbr_obligations": ["HBR-INT-007", "HBR-VIS-004"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
+  ],
+  "acceptance_criteria_refs": ["AC-INSPECTOR-PLANE-READONLY"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": [],
+    "blocks": ["MT-029", "MT-030", "MT-031", "MT-032", "MT-033"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Compile-fail test enforces zero &mut self in trait surface.",
+      "cargo-deny or grep check enforces no reverse dependency to write-side.",
+      "All return types are owned (no borrowed references that could leak mutation context)."
+    ]
+  }
+}

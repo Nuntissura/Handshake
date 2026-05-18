@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-119",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.12",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-119.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Distillation EventLedger replay -> training corpus extractor (opt-in per session)",
+  "goal": "Extract distillation training corpus from EventLedger replay per spec §4.8.1 + AC-DISTILL-OPT-IN: only sessions flagged DISTILL_CORPUS=true at session close enter the corpus; default opt-out. Output: structured turn-pair corpus (prompt + completion + metadata).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/distillation/corpus_extractor.rs implementing replay -> training corpus; integration with EventLedger (KERNEL-001); tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/distillation/corpus_extractor.rs",
+    "src/backend/handshake_core/src/distillation/mod.rs",
+    "src/backend/handshake_core/tests/distillation_corpus_extractor_tests.rs"
+  ],
+  "depends_on_mts": ["MT-062", "MT-067", "MT-069"],
+  "unblock_conditions": "MT-062 trait + MT-067 registry + MT-069 ledger integration + KERNEL-001 EventLedger (already in main) merged.",
+  "implementation_notes": "Per AC-DISTILL-OPT-IN + Q-DISTILL-CORPUS resolution: explicit opt-in per session; operator marks DISTILL_CORPUS=true at session close (post-hoc); scope is single session's events + artifacts; default opt-out; non-transitive. CorpusExtractor::extract(session_id) -> Result<TrainingCorpus, ExtractionError>: (1) verify session has DISTILL_CORPUS=true flag in session metadata (Postgres governed_sessions table); refuse if flag is missing/false. (2) Replay EventLedger for that session_id; filter to FR-EVT-LLM-INFER-START / TOKEN / END event triples (each triple = one model call). (3) For each model call, reconstruct turn-pair: prompt = events.start.prompt, completion = events.token.* assembled in order, metadata = { model_id, lora_stack, steering_vectors_active, sampling_params, finish_reason, latency_ms, accepted_by_validator: bool (cross-reference to MT-validator-verdict events) }. (4) Yield TrainingTurn { id_v7, session_id, model_id, prompt, completion, metadata, license_tag (inherited from model + LoRAs), provenance: { sourced_at_utc, source_session_id, source_event_ids } }. TrainingCorpus is an iterator over turns (memory-efficient). Spawn registers ProcessOwnershipLedger row with engine_kind=DistillationJob (per MT-069). Default-deny: if session lookup fails or flag missing, return Err with reason \"session_not_opted_in\". Adult-production privacy: per Q-DISTILL-CORPUS \"honors operator adult-production privacy + license discipline\" — explicit opt-in is the privacy gate. Tests: extract from opted-in session returns turns; extract from non-opted-in session returns Err; turn count matches event triple count; license_tag carried.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target distillation_corpus_extractor_tests"
+  ],
+  "risk_if_missed": "Corpus extraction without explicit opt-in violates AC-DISTILL-OPT-IN + operator privacy discipline.",
+  "validator_focus": "Opt-in default-deny enforced; Postgres flag lookup; ProcessOwnershipLedger row recorded; license_tag preserved.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.1"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-OPT-IN"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-062", "MT-067", "MT-069"],
+    "blocks": ["MT-120", "MT-121", "MT-122", "MT-123", "MT-124"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Opt-in default-deny (test verifies non-opted-in session refused).",
+      "Postgres flag lookup before extraction (no in-memory shortcut).",
+      "Adult-production privacy intent documented."
+    ]
+  }
+}

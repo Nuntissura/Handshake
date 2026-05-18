@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-066",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-066.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LocalModelAdapter invariant enforcement (no third-party wrapping)",
+  "goal": "Enforce the LocalModelAdapter invariant per spec §3.6: LocalModel runtime authority MUST NOT wrap a third-party app (LM Studio, Ollama) as its primary runtime path. Ship a guarded RuntimeKind enum + adapter-bind-time validation that rejects construction of a LocalModelAdapter whose engine_path resolves to a forbidden third-party-app process or HTTP endpoint pattern. ExternalEngineImport (spec §3.6.4) is the only pass-through lane and is flagged provider=\"external_compat\".",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/invariant.rs with LocalModelAdapterInvariant + EngineOriginValidator + ExternalEngineImportRecord; updates to types.rs RuntimeKind + LoadSpec.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/invariant.rs",
+    "src/backend/handshake_core/src/model_runtime/types.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs",
+    "src/backend/handshake_core/tests/model_runtime_invariant_tests.rs"
+  ],
+  "depends_on_mts": ["MT-062"],
+  "unblock_conditions": "MT-062 trait surface merged.",
+  "implementation_notes": "Per spec §3.6.1 (operator-locked invariant): No LM Studio or Ollama runtime authority. LocalModelAdapterInvariant::validate(spec: &LoadSpec) -> Result<(), ModelRuntimeError> checks: (1) RuntimeKind is LlamaCpp or Candle (never ExternalCompat for LocalModelAdapter); (2) artifact_path is a regular file on disk (not a URL); (3) if a sibling field engine_origin is Some, it does not match a denylist of patterns: process name `lm_studio*`, `ollama*`, HTTP host patterns matching `localhost:11434` (Ollama default) or `localhost:1234` (LM Studio default) UNLESS the LoadSpec carries an ExternalEngineImportRecord — in which case the model is flagged `provider=\"external_compat\"` and routed through the ExternalEngineImport lane (spec §3.6.4 AC-EXTERNAL-ENGINE-IMPORT) which does NOT register as Handshake-owned in ProcessOwnershipLedger. ExternalEngineImportRecord: `{ endpoint_url: Url, openai_compatible: bool, operator_signed_at_utc: DateTime<Utc>, operator_signature: String }`. The denylist is data-driven (deny_patterns Vec<String>) so future third-party apps can be added without code changes. Add LoadSpec field `provider: ProviderKind { Local, ExternalCompat, ByokCloud, OfficialCli }`. LocalModelAdapter wraps Box<dyn ModelRuntime> and runs validate() in its constructor; failed validation returns ModelRuntimeError::AdapterMismatch. Tests: load with engine_origin=\"ollama\" without ExternalEngineImportRecord fails; same with record succeeds and flags provider=ExternalCompat; load with LlamaCpp + regular GGUF path succeeds. This MT is the runtime enforcement of the operator-locked invariant (spec §3.6); CX-503R adjacent (no SQLite) is enforced separately in MT-068.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_runtime_invariant_tests"
+  ],
+  "risk_if_missed": "Invariant becomes prose-only; a future contributor wraps Ollama as primary runtime authority, violating operator-locked spec §3.6.1.",
+  "validator_focus": "Denylist enforces; ExternalEngineImport pass-through correctly flags provider=ExternalCompat; constructor validation runs unconditionally; signed ExternalEngineImportRecord required for the pass-through lane.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.1"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-062"],
+    "blocks": ["MT-070", "MT-072", "MT-081", "MT-125", "MT-127"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Denylist patterns match case-insensitively (ollama, OLLAMA, Ollama all caught).",
+      "Pass-through lane signed_at_utc must be non-null and within operator-configured staleness window.",
+      "ProcessOwnershipLedger never records ExternalEngineImport endpoints as Handshake-owned (test asserts no insert on the lane)."
+    ]
+  }
+}

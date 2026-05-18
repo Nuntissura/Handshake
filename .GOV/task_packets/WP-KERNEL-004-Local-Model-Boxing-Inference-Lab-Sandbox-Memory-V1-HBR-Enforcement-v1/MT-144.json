@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-144",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:03:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-144.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Capsule injection into ModelRuntime call path (bounded, suppressible)",
+  "goal": "Wire MemoryCapsule injection into the ModelRuntime call path defined in cluster C so every model invocation that opts in receives exactly one MemoryCapsule alongside its prompt envelope, with capsule_id recorded in the FEMS V1 flight-recorder event stream and the capsule itself addressable from the operator panel for inspection and suppression.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/injection.rs (CapsuleInjector + InjectionDecision types + CapsuleHandle). Wiring into ModelRuntime trait surface (extends, does not replace, the trait landed in cluster C). Tests under src/backend/handshake_core/tests/memory_injection_tests.rs using mock ModelRuntime.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/injection.rs",
+    "src/backend/handshake_core/tests/memory_injection_tests.rs"
+  ],
+  "depends_on_mts": ["MT-141", "MT-142", "MT-143"],
+  "unblock_conditions": "MT-141/142/143 ship the capsule primitives + builder; ModelRuntime trait exists from cluster C (cross-cluster boundary: this MT links against ModelRuntime by trait, not by concrete adapter).",
+  "implementation_notes": "Per refinement D.1 ('bounded MemoryCapsule artifact injected per microtask') and HBR-INT-006 (FEMS record + retrieval policy audit). Surface: `pub struct CapsuleInjector<'a> { builder: &'a CapsuleBuilder<'a>, fems_flight_recorder: &'a dyn FemsFlightRecorder }` with `pub fn inject_for_call(call_ctx: &ModelCallContext) -> Result<InjectionDecision, InjectionError>`. InjectionDecision: `{ Inject { capsule: MemoryCapsule, capsule_handle: CapsuleHandle }, Skip { reason: SkipReason } }` where SkipReason is one of `OperatorOptedOut`, `TaskTypeNotEligible`, `BudgetExceededAfterPin`, `FemsUnavailable`. CapsuleHandle: opaque newtype `pub struct CapsuleHandle(Uuid)` (v7 minted by builder, surfaced to flight-recorder for cross-reference). The injection wires: build capsule via CapsuleBuilder, emit `FR-EVT-CAPSULE-INJECTED` event via FemsFlightRecorder with `{ capsule_id, capsule_source_hash, policy: RetrievalPolicy, item_count, included_count, suppressed_count }`, return capsule + handle to call site. Bounded: respects MemoryPackBudgets caps already enforced by builder; if pinned items exceed budget, returns Skip{BudgetExceededAfterPin} rather than silently dropping pinned items (anticipates MT-159). Suppressible: surfaces capsule_id so operator panel (cluster X UI) can call a separate `suppress_capsule(handle)` action that emits `FR-EVT-CAPSULE-SUPPRESSED` and removes the capsule from any retried call. Tests: injector returns Inject for eligible TaskType + opted-in operator setting; returns Skip with correct reason for ineligible task type; emits exactly one FR-EVT-CAPSULE-INJECTED per Inject decision; injector is pure relative to FEMS (mockable).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target memory_injection_tests"
+  ],
+  "risk_if_missed": "Without typed injection + handle + flight-recorder events, downstream MTs cannot inspect or suppress capsules per HBR-INT-006, and the operator has no path to override a poisoning capsule.",
+  "validator_focus": "InjectionDecision is closed enum; SkipReason is typed (no string excuses). Every Inject decision emits exactly one FR-EVT-CAPSULE-INJECTED. CapsuleHandle is opaque (no field access).",
+  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-141", "MT-142", "MT-143"],
+    "blocks": ["MT-146", "MT-147", "MT-148", "MT-149"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Injector emits FR-EVT-CAPSULE-INJECTED for every successful Inject decision so flight recorder reconstruction is complete.",
+      "Skip reasons are a closed enum so silent skips cannot occur.",
+      "CapsuleHandle is opaque so call sites cannot mutate capsule state out-of-band."
+    ]
+  }
+}

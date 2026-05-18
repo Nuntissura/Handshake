@@ -1,0 +1,67 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-058",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-058.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Filesystem escape + network escape negative tests across all three adapters",
+  "goal": "Land the canonical escape negative-test suite: a process inside each SandboxAdapter MUST NOT (a) read or write outside its declared binds, (b) reach the network when NetPolicy::DenyAll, (c) escalate privileges to host UID, (d) escape a Job Object / cgroup / Podman namespace, (e) inject input into the host operator's foreground (HBR-QUIET-001). Negative tests are the most-load-bearing assertion that the abstraction's promises are real and not just adapter documentation.",
+  "expected_diff_shape": "New tests under src/backend/handshake_core/tests/sandbox_escape_negative_tests.rs across all three adapters with per-adapter expected-deny outcomes; new harness module src/backend/handshake_core/src/test_harness/escape_attempts.rs containing the catalog of escape attempts; fixtures under src/backend/handshake_core/tests/fixtures/escape_attempts/.",
+  "owned_files": [
+    "src/backend/handshake_core/src/test_harness/escape_attempts.rs",
+    "src/backend/handshake_core/src/test_harness/mod.rs",
+    "src/backend/handshake_core/tests/sandbox_escape_negative_tests.rs",
+    "src/backend/handshake_core/tests/fixtures/escape_attempts/README.txt"
+  ],
+  "depends_on_mts": ["MT-044", "MT-046", "MT-047", "MT-052"],
+  "unblock_conditions": "All three adapters + WorkPacketScopeBinder merged (binder provides the in-scope vs out-of-scope partition used by escape tests).",
+  "implementation_notes": "Escape catalog (each entry maps to a small payload that tries one specific escape): (1) ESC-FS-READ-OUT-OF-BIND: `cat /etc/shadow` or `type C:\\Windows\\System32\\config\\SAM` — assert ACCESS_DENIED or non-existence; (2) ESC-FS-WRITE-OUT-OF-BIND: `touch /workspace/forbidden_dir/x` against a binder-produced bind set where forbidden_dir is outside allowed_paths — assert EROFS or ENOENT; (3) ESC-FS-SYMLINK-TRAVERSAL: `ln -s /etc/passwd /workspace/allowed/leak; cat /workspace/allowed/leak` — assert the symlink either does not resolve or resolves to nothing (bind-mounted root is not /etc); (4) ESC-NET-DENY-ALL-DNS: `getent hosts cnn.com` under NetPolicy::DenyAll — non-zero exit; (5) ESC-NET-DENY-ALL-TCP: `bash -c 'exec 3<>/dev/tcp/8.8.8.8/53; echo > &3'` under DenyAll — non-zero exit; (6) ESC-NET-LOOPBACK-ONLY-EXTERNAL: under LoopbackOnly, attempt outbound to 8.8.8.8 — denied; (7) ESC-PRIV-ESCALATE-UID: `id -u` and assert NOT 0 (rootless on Podman/Docker; non-system SID on Windows AppContainer) AND `chown 0:0 /workspace/allowed/x` fails; (8) ESC-NAMESPACE-PID: `ls /proc/1/status` and verify the visible PID 1 is the container init (Name: pause OR podman OR similar) NOT the host operator's process; (9) ESC-DEVICE-ACCESS: `ls /dev` and assert /dev/sda, /dev/nvme0n1, etc are NOT present (only the sandbox-allowed device set); (10) ESC-WIN32-FOREGROUND-INJECT (Windows + WindowsNativeJailAdapter only): attempt SetForegroundWindow via a tiny Win32 test binary inside the AppContainer — assert ERROR_ACCESS_DENIED and assert the focus-audit ledger (cluster A.4 wiring) records NO foreground transition to the operator's pid (HBR-QUIET-001). Each escape attempt is run against each adapter that's available; per-adapter expected outcomes are recorded in the fixture (some adapters provide weaker enforcement on some axes — e.g., Docker without --userns=keep-id may show UID 0 inside, which is a finding to record per RW-1 scoring rather than a test failure for that adapter). Test verdicts: each escape attempt is GREEN if denied, RED if successful, YELLOW if behavior matches the documented weaker-enforcement marker for that adapter. A RED on any adapter blocks the WP integration validation. The harness emits a JSON results blob with per-adapter, per-escape outcomes — written to ../Handshake_Artifacts/sandbox-escape-results-<mt-058-run-id>.json for the Integration Validator.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target sandbox_escape_negative_tests",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --features wsl2-integration,docker-integration sandbox_escape_negative_tests",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --target x86_64-pc-windows-msvc --features win-native-integration sandbox_escape_negative_tests"
+  ],
+  "risk_if_missed": "Without escape negative tests, the trait abstraction's safety promises are advisory only; a regression in adapter wiring (a stray --privileged flag, a missing --read-only, a docker socket bind) ships silently and exposes the host operator's machine.",
+  "validator_focus": "(a) Every escape attempt is RUN against every available adapter (no silent skip); (b) RED on any adapter blocks WP validation; (c) Win32 foreground-inject test is run on Windows (the HBR-QUIET-001 acid test); (d) results JSON is durable for Integration Validator review.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-QUIET-001", "HBR-QUIET-003", "HBR-SWARM-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6.2"
+  ],
+  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS", "AC-LOCAL-MODEL-BOXING"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-044", "MT-046", "MT-047", "MT-052"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "RED on any escape attempt blocks the WP merge — escape negative tests are load-bearing for the whole cluster B safety story.",
+      "Win32 foreground-inject test (HBR-QUIET-001) is gated on Windows but MUST RUN on the Windows CI lane; non-run is a coverage gap not a pass.",
+      "Results JSON is captured under ../Handshake_Artifacts/ so Integration Validator has durable evidence (not just transient cargo-test stdout)."
+    ]
+  }
+}

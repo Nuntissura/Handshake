@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-009",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-009.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "A.1 enforcement-status flip + end-to-end smoke test",
+  "goal": "Flip HANDSHAKE_BUILD_RULES.json.enforcement.implementation_status from DESIGN_ONLY_WIRING_PENDING to ACTIVE; write the end-to-end smoke test that exercises MT-001..MT-008 in a single live run against the KERNEL-004 packet itself; confirm every cluster A.1 acceptance criterion is met by code, not by prose.",
+  "expected_diff_shape": "One-line registry status flip + version bump in HANDSHAKE_BUILD_RULES.json (version_log entry added); new end-to-end test src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs that orchestrates loader -> hydrator -> matrix-check -> handoff-gate -> violation-emit in one run.",
+  "owned_files": [
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+    "src/backend/handshake_core/tests/hbr_e2e_smoke_test.rs"
+  ],
+  "depends_on_mts": ["MT-002", "MT-003", "MT-004", "MT-005", "MT-006", "MT-008"],
+  "unblock_conditions": "MT-002 through MT-008 merged; PROVED evidence_pointers exist for AC-HBR-AUTHORITY / AC-HBR-HANDOFF-GATE / AC-HBR-TYPED-RECEIPT / AC-PROCESS-LEDGER-* via their respective MT tests.",
+  "implementation_notes": "Two activities. (1) Registry update: change `enforcement.implementation_status` from `\"DESIGN_ONLY_WIRING_PENDING\"` to `\"ACTIVE\"`; bump `version` from `1.1.0` to `1.2.0`; add a new `version_log` entry `{ version: \"1.2.0\", date: \"<today>\", summary: \"Enforcement wiring active per MT-001..MT-008. PACKET_ACCEPTANCE_MATRIX auto-emission, gov-check sub-check, validator-scan integration, handoff-gate evaluator, ProcessOwnershipLedger reclaim, and HBR_VIOLATION typed receipts all online.\", rgf: null, changeset: \"WP-KERNEL-004-MT-009\" }`. The `enforcement.implementation_owner` text becomes a past-tense reference to MT-001..MT-008 and removes the 'Until that wiring lands' phrase. (2) End-to-end test: in a single cargo test, instantiate an in-memory Postgres test fixture (use sqlx-test or testcontainers per repo convention; confirm via Grep before authoring), run hbr-matrix-hydrate against a fixture packet, run hbr-matrix-check (via std::process::Command shelling to node), run a synthetic HandoffGate::evaluate, deliberately fail one rule, assert an HBR_VIOLATION is emitted in canonical-JSON to a captured sink, assert ProcessOwnershipLedger records a START + STOP pair for the synthetic test process, assert that the gov-check umbrella exit code reflects the failure. This smoke test is the wire test that proves the entire A.1 chain is live, satisfying the HBR-INT-001 evidence_kind=test_run_with_ledger_replay obligation for the KERNEL-004 packet itself. NOTE: Because changing HANDSHAKE_BUILD_RULES.json from DESIGN_ONLY_WIRING_PENDING to ACTIVE flips enforcement globally, this MT must land AFTER all of MT-001..MT-008 are merged and green; otherwise repository-wide gov-check fails everywhere.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target hbr_e2e_smoke_test",
+    "just gov-check",
+    "node .GOV/roles_shared/scripts/hbr-registry-loader.mjs --validate"
+  ],
+  "risk_if_missed": "Without the flip and smoke test, A.1 ships as nine wired-but-not-active MTs; the registry remains advisory.",
+  "validator_focus": "End-to-end test exercises the WHOLE chain in one run (not eight isolated unit tests); registry flip happens in the same commit as the smoke test pass so the repo cannot be in an inconsistent state.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-007", "HBR-INT-008", "HBR-SWARM-004"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.6",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
+  ],
+  "acceptance_criteria_refs": ["AC-HBR-AUTHORITY", "AC-HBR-HANDOFF-GATE", "AC-HBR-TYPED-RECEIPT", "AC-PROCESS-LEDGER-PRIMITIVE", "AC-PROCESS-LEDGER-PERF", "AC-PROCESS-LEDGER-RECLAIM", "AC-PROCESS-LEDGER-SCOPE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-002", "MT-003", "MT-004", "MT-005", "MT-006", "MT-008"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Registry flip and smoke test land in the SAME commit so the repo is never in a partially-active state.",
+      "Smoke test exercises the failure path (not just the happy path) and asserts a typed HBR_VIOLATION row is produced.",
+      "version_log entry is appended (never replaces an existing entry)."
+    ]
+  }
+}

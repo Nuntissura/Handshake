@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-089",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-089.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime end-to-end integration smoke test (Mamba2 + RWKV + Transformer + hooks)",
+  "goal": "End-to-end smoke test for CandleRuntime covering all three model families: Transformer load+generate+hook+LoRA; Mamba2 load+generate+state_vector commit/restore; RWKV v5/v6/v7 load+generate. Test gated by per-family env vars (graceful skip per family).",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/candle_e2e_smoke.rs with per-family sub-tests gated by env vars; tests/README.json updated with per-family env var list.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/candle_e2e_smoke.rs",
+    "src/backend/handshake_core/tests/README.json"
+  ],
+  "depends_on_mts": ["MT-082", "MT-083", "MT-084", "MT-085", "MT-086", "MT-087", "MT-088"],
+  "unblock_conditions": "All CandleRuntime feature MTs merged.",
+  "implementation_notes": "Smoke scenarios per family: (Transformer) load Llama-style via HANDSHAKE_TEST_CANDLE_MODEL_DIR; capabilities check; generate; capture activations at layer N; register zero-vector steering at N + generate (identity); register random vector + generate (output differs); mount LoRA + generate (output differs); unmount; unload. (Mamba2) load via HANDSHAKE_TEST_MAMBA2_MODEL_DIR; capabilities (subquad=true); generate 32 tokens deterministically; state_vector_commit; generate; state_vector_restore; generate same continuation; tamper hash test; unload. (RWKV v5) load via HANDSHAKE_TEST_RWKV_V5_MODEL_DIR; generate; state commit/restore; unload. (RWKV v6) same. (RWKV v7) same. Each sub-test skips gracefully if its env var unset; CI without any GPU env vars still runs the test binary (all sub-tests skip with status SKIPPED logged). FR event family coverage asserted per family. README.json updated: { test_id: \"candle_e2e_smoke\", required_env: [\"HANDSHAKE_TEST_CANDLE_MODEL_DIR\", \"HANDSHAKE_TEST_MAMBA2_MODEL_DIR\", \"HANDSHAKE_TEST_RWKV_V5_MODEL_DIR\", \"HANDSHAKE_TEST_RWKV_V6_MODEL_DIR\", \"HANDSHAKE_TEST_RWKV_V7_MODEL_DIR\"], description: \"per-family skip if unset\" }.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_e2e_smoke -- --ignored"
+  ],
+  "risk_if_missed": "CandleRuntime regressions ship undetected; AC-CANDLE-ADAPTER has no integration evidence across families.",
+  "validator_focus": "Per-family skip path documented; FR event family coverage asserted per family; identity test (zero-vector hook -> output unchanged) is the correctness gate.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-082", "MT-083", "MT-084", "MT-085", "MT-086", "MT-087", "MT-088"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Per-family skip path documented and tested (no panic on missing env var).",
+      "FR event family coverage asserted per family.",
+      "Identity test correctness gate."
+    ]
+  }
+}

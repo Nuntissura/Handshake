@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-102",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.7",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-102.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-4 Refusal Vector UI (extraction wizard + per-layer effectiveness display)",
+  "goal": "Refusal vector wizard in Inference Lab: harmful-pool + benign-pool text areas, [Extract direction] button, per-layer effectiveness bars, [Save & activate] flow.",
+  "expected_diff_shape": "New Svelte components app/src/components/inference_lab/RefusalVectorWizard.svelte + store; integration into InferenceLab.",
+  "owned_files": [
+    "app/src/components/inference_lab/RefusalVectorWizard.svelte",
+    "app/src/lib/stores/refusal.ts",
+    "app/src/components/inference_lab/InferenceLab.svelte"
+  ],
+  "depends_on_mts": ["MT-098", "MT-101"],
+  "unblock_conditions": "MT-098 steering UI + MT-101 metrics merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES. RefusalVectorWizard.svelte: two text areas (harmful prompts, benign prompts; one per line); model picker; [Extract direction] button calls kernel_model_runtime_refusal_extract (Tauri wrapper around MT-100 extraction); per-layer effectiveness bar chart (uses per_layer_drop from MT-101 metrics); [Save & activate] saves as SteeringVectorArtifact (provenance=Contrastive{technique:RefusalVector}) and sets active. Hidden via capabilities.supportsActivationSteering == false. Operator-content discipline: prompt text areas accept verbatim adult-production content without sanitisation; license tag picker mandatory at save.",
+  "proof_commands": [
+    "cd app && pnpm run typecheck"
+  ],
+  "risk_if_missed": "INF-4 UI knob missing; operator cannot run the extraction wizard interactively.",
+  "validator_focus": "Per-layer effectiveness display present; no UI sanitisation; license tag mandatory.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-098", "MT-101"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Per-layer bar chart present (not just an aggregate number).",
+      "No UI sanitisation of prompts (verbatim per GLOBAL-PRODUCTION).",
+      "License tag picker present."
+    ]
+  }
+}

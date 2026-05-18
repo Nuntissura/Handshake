@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-096",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.6",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-096.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-3 Activation Steering / RepE: activation capture API + vector application",
+  "goal": "Lift the per-adapter SteeringHookOps (CandleRuntime only; LlamaCpp returns CapabilityNotSupported) to the public Activation Steering / RepE technique surface per AC-INFER-LAB-8-TECHNIQUES.c. Reference: Zou et al. 2023 arXiv:2310.01405 (Representation Engineering: A Top-Down Approach to AI Transparency).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/techniques/activation_steering.rs orchestrating capture + register + apply; Tauri commands; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/techniques/activation_steering.rs",
+    "app/src-tauri/src/commands/steering.rs",
+    "app/src-tauri/src/main.rs",
+    "src/backend/handshake_core/tests/activation_steering_tests.rs"
+  ],
+  "depends_on_mts": ["MT-065", "MT-082", "MT-083"],
+  "unblock_conditions": "MT-082 Candle hooks + MT-083 transformer generate merged.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.c + refinement INF-3 (research basis: Zou et al. 2023 arXiv:2310.01405). Technique surface methods: `pub async fn capture(rt: &dyn ModelRuntime, model_id, prompts: Vec<String>, layers: Vec<LayerIndex>) -> Result<CaptureResult, ModelRuntimeError>`; `pub async fn register_steering_vector(...) -> Result<SteeringVectorId, ...>`; `pub async fn set_active_steering_vectors(...) -> Result<(), ...>`; `pub async fn unregister(...) -> Result<(), ...>`. Dispatches through ModelRuntime::steering_hooks(model_id). Tauri commands: kernel_model_runtime_steering_capture, _register_vector, _set_active, _unregister, _list_vectors. FR events: FR-EVT-LLM-INFER-STEER-CAPTURE { model_id, layers, prompts_count }, FR-EVT-LLM-INFER-STEER-REGISTER { vector_id, layer, intensity, technique: RepE|RefusalVector|CAA }, FR-EVT-LLM-INFER-STEER-ACTIVE { active_ids }, FR-EVT-LLM-INFER-STEER-APPLY { model_id, request_id, vector_id_count } (per generate). Capability gate: if capabilities.supportsActivationSteering == false, technique returns CapabilityNotSupported with `adapter` field naming which adapter rejected (helps UI explain why). Provenance enforced: register_vector requires non-empty SteeringProvenance (MT-065). Eval test: capture residual stream on a steering-targeted prompt pair (e.g., positive=\"I want to be honest\", negative=\"I want to deceive\"); compute difference vector at a middle layer; register; generate with steering active; assert generation drifts toward positive (use embedding-similarity to a held-out 'honest' generation as a soft metric). The eval is a smoke test — not a benchmark — because operator/coder will refine the eval suite in a follow-on WP.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target activation_steering_tests"
+  ],
+  "risk_if_missed": "INF-3 PRODUCTION ships without an operator-facing technique surface; capture/register/apply paths each handle differently.",
+  "validator_focus": "Capture round-trip (shape correct); provenance enforced; capability gate names adapter; smoke eval shows steering effect.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-INFER-LAB-UI-TOGGLES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-065", "MT-082", "MT-083"],
+    "blocks": ["MT-097", "MT-098", "MT-099", "MT-100", "MT-103", "MT-106"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Provenance non-empty enforced.",
+      "Capability gate names adapter (operator can see why it failed).",
+      "Smoke eval defines a clear pass criterion (similarity threshold) rather than being aspirational."
+    ]
+  }
+}

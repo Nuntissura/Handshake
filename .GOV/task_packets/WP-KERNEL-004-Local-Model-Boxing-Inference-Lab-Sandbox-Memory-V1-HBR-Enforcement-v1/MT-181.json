@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-181",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:05:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-181.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Role-scoped executor routing (executor_kind_allowlist + claim_mode resolver)",
+  "goal": "Implement the executor-routing decision surface that, given a thread and a candidate executor, decides whether the executor may claim/lease/respond on the thread per the thread's executor_kind_allowlist, claim_mode, and response_authority_scope. Provides a pure decision function `ExecutorRouter::decide(thread, executor) -> RouteDecision` reusable by every mailbox consumer (orchestrator, validator, automation, operator UI).",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/role_mailbox/router.rs with `ExecutorRouter`, `RouteDecision`, and `RouteReason` types; unit tests under src/backend/handshake_core/tests/role_mailbox_router_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/role_mailbox/router.rs",
+    "src/backend/handshake_core/tests/role_mailbox_router_tests.rs"
+  ],
+  "depends_on_mts": ["MT-176", "MT-180"],
+  "unblock_conditions": "MT-176 thread types + MT-180 lease primitive merged so router can consume both.",
+  "implementation_notes": "Per spec v02.186 §02-system-architecture.md role mailbox subsection [ADD v02.176] line 6153: 'Every actionable Role Mailbox thread SHOULD declare executor_kind_allowlist, claim_mode, lease_duration, takeover_policy, and response_authority_scope ... so local small models, cloud models, reviewers, validators, operators, and workflow automation do not race to answer the same thread.' This MT's `ExecutorRouter` is the pure decision layer. Signature: `pub fn decide(thread: &RoleMailboxThread, current_lease: Option<&RoleMailboxClaimLeaseV1>, executor: &ExecutorIdentity) -> RouteDecision`. `ExecutorIdentity { executor_kind: ExecutorKind (LocalSmallModel|CloudModel|Reviewer|Validator|Operator|WorkflowAutomation), role_id: RoleId, session_id: Uuid v7, capabilities: Vec<Capability> }`. RouteDecision enum: `MayClaim { reason }`, `MayRespondInExistingLease { reason }`, `MayTakeover { predecessor_lease_id, reason }`, `MustWait { reason }`, `Denied { reason }`. Algorithm (pure, no I/O): (1) if executor.executor_kind not in thread.executor_kind_allowlist -> Denied(\"executor_kind not in allowlist\"); (2) if thread.lifecycle_state is terminal (resolved/expired/archived) -> Denied(\"thread in terminal lifecycle state\"); (3) if no current_lease and thread.claim_mode in [Exclusive, Handoff] -> MayClaim; (4) if current_lease.holder_session_id == executor.session_id -> MayRespondInExistingLease; (5) if current_lease.expires_at_utc < now -> MayClaim (stale lease); (6) if thread.takeover_policy permits -> MayTakeover; (7) else MustWait. response_authority_scope check applied per role_id (e.g., MicroTaskCompletionScope requires holder to also hold the linked MT executor lease — forward-declared, MT-189 wires the cross-check). All reasons are typed enums + a free-form String. Tests: exhaustive matrix of (claim_mode × current_lease present × executor_kind match × takeover_policy) — 32+ combinations; assert no panic on any input; golden-fixture covering each RouteDecision variant.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target role_mailbox_router_tests"
+  ],
+  "risk_if_missed": "Without role-scoped routing, parallel executors race to claim or respond, the lease primitive (MT-180) loses its decision surface, and the cluster X 'one lawful ownership layer' degrades to mutex-by-database which is harder to audit and reason about.",
+  "validator_focus": "Router is pure (no I/O, no clock except `now: SystemTime` injected as a parameter for testability); decision matrix is exhaustive; every Denied/MustWait has a typed reason validators can act on.",
+  "hbr_obligations": ["HBR-SWARM-001", "HBR-SWARM-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-claim-lease"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-Executor-Routing-Claim-Lease-v1 (role-scoped routing decision surface)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-176", "MT-180"],
+    "blocks": ["MT-184", "MT-189"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Router accepts `now: SystemTime` parameter (no implicit SystemTime::now()) so tests are deterministic.",
+      "Property-based test (proptest) generates arbitrary thread + lease + executor combos and asserts no panic.",
+      "Every RouteDecision variant has at least one positive test asserting the reason text is non-empty."
+    ]
+  }
+}

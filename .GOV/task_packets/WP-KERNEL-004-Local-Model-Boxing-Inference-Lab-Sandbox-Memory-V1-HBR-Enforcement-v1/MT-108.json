@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-108",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.9",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-108.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-6 Abliteration offline-only invariant enforcement test (static + runtime)",
+  "goal": "Dedicated invariant test enforcing AC-ABLITERATION-OFFLINE: static-analysis scan (no abliterate references in generate paths), runtime-policy check (ModelRuntime refuses to generate from a model marked engine_kind=AbliterationTool unless that model has been re-registered as a regular model after review).",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/abliteration_offline_invariant_tests.rs; helper invariant-check function shared with hbr-matrix-check.mjs.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/abliteration_offline_invariant_tests.rs",
+    "src/backend/handshake_core/src/model_runtime/invariant.rs"
+  ],
+  "depends_on_mts": ["MT-106", "MT-107"],
+  "unblock_conditions": "MT-106 + MT-107 merged.",
+  "implementation_notes": "Per AC-ABLITERATION-OFFLINE invariant declaration. Tests: (1) static_scan_no_abliterate_in_generate — read files src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs and candle/generate.rs; grep for `abliterate` (case-insensitive); assert zero matches. Same for techniques/*.rs. (2) runtime_refusal_to_load_abliteration_tool_output — attempt to LoadSpec a path whose ProcessOwnershipLedger row would have engine_kind=AbliterationTool; LocalModelAdapterInvariant rejects with explicit Err. (3) abliteration_output_must_re_register — after review (MT-107 Pass), the abliterated GGUF must be re-registered as a regular ModelRegistration with engine_kind=LlamaCppServer or CandleWorker (not AbliterationTool) before ModelRuntime accepts it; verified by test. (4) cargo_check_abliterate_only_in_distillation — assert the `abliterate` module is declared only inside src/backend/handshake_core/src/distillation/**, not exported from model_runtime/. Invariant helper: `fn assert_abliteration_offline_invariant() -> Result<(), Vec<String>>` callable from a future just gov-check sub-check.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target abliteration_offline_invariant_tests"
+  ],
+  "risk_if_missed": "INF-6 offline invariant decays silently as future MTs add code; spec §4.7.4 becomes prose-only.",
+  "validator_focus": "Static-analysis test exists and runs; runtime-policy test exists and runs; helper function callable from gov-check.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.4"
+  ],
+  "acceptance_criteria_refs": ["AC-ABLITERATION-OFFLINE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-106", "MT-107"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Static-analysis test scope explicit (paths + grep pattern).",
+      "Re-registration gate enforced.",
+      "Helper function callable from gov-check (no test-only API)."
+    ]
+  }
+}

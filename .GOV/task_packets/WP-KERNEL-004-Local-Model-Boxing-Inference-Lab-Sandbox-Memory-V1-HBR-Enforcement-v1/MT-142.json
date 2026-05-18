@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-142",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:01:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-142.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "TaskType enum + per-task CapsulePolicyTable",
+  "goal": "Define the closed TaskType enum that drives capsule generation policy per task type per D.1 (refinement: 'capsule generation policy per task type') and ship a static CapsulePolicyTable mapping TaskType -> default RetrievalPolicy. Initial TaskType variants cover the kernel-004 in-scope task surfaces: ValidatorHbrTestPacket, KernelBuilderMtImplementation, IntegrationValidatorBatchReview, OperatorTriage, SwarmHarnessSession, ProcessLedgerInspection, SelfImprovementLoopEval, GeneralRetrieval. Each TaskType gets a default policy carrying sane top_k + capsule_budget_bytes + degradation tier appropriate to that surface.",
+  "expected_diff_shape": "Extends src/backend/handshake_core/src/memory/capsule.rs with `pub enum TaskType { ... }` and adds new file src/backend/handshake_core/src/memory/policy_table.rs with `pub struct CapsulePolicyTable` + `pub fn default_policy_for(task_type: TaskType) -> RetrievalPolicy`. Tests in src/backend/handshake_core/tests/memory_policy_table_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/capsule.rs",
+    "src/backend/handshake_core/src/memory/policy_table.rs",
+    "src/backend/handshake_core/tests/memory_policy_table_tests.rs"
+  ],
+  "depends_on_mts": ["MT-141"],
+  "unblock_conditions": "MT-141 ships MemoryCapsule + RetrievalPolicy + CapsuleAuditLog typed primitives.",
+  "implementation_notes": "Per AC-DISTILL-EDITABLE-SURFACE the editable surface for the V0 self-improvement loop is exactly (a) ModelManual capsule text and (b) retrieval policy parameters (top_k, capsule_budget_bytes). The policy table is the durable home for those parameters and the loop will mutate this surface via PromotionGate writes (NOT direct mutation). TaskType is a closed enum to give the loop a stable optimization target (cannot optimize an open string set). Initial defaults: ValidatorHbrTestPacket {top_k: 6, capsule_budget_bytes: 32_768, degradation: Strict}, KernelBuilderMtImplementation {top_k: 12, capsule_budget_bytes: 65_536, degradation: Tiered}, IntegrationValidatorBatchReview {top_k: 16, capsule_budget_bytes: 131_072, degradation: Tiered}, OperatorTriage {top_k: 8, capsule_budget_bytes: 49_152, degradation: Strict}, SwarmHarnessSession {top_k: 4, capsule_budget_bytes: 16_384, degradation: Aggressive}, ProcessLedgerInspection {top_k: 8, capsule_budget_bytes: 32_768, degradation: Strict}, SelfImprovementLoopEval {top_k: 6, capsule_budget_bytes: 32_768, degradation: Strict}, GeneralRetrieval {top_k: 10, capsule_budget_bytes: 49_152, degradation: Tiered}. The scoring_formula_version field MUST default to a constant `RETRIEVAL_SCORING_FORMULA_V0` exported from the same module so MT-148 self-improvement-loop reads can pin a version. Tests: every TaskType variant has a default policy; defaults serialize+deserialize stably; budget bytes are powers-of-2-aligned (32k/64k/etc) to keep operator mental model simple.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target memory_policy_table_tests"
+  ],
+  "risk_if_missed": "Without a typed TaskType + policy table, every call site picks its own top_k/budget on the fly, the editable surface is undefined, and the self-improvement loop has no stable optimization target.",
+  "validator_focus": "TaskType is closed (no String fallback). Every variant has a non-zero default policy. Defaults serialize round-trip cleanly.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-141"],
+    "blocks": ["MT-143", "MT-144", "MT-145", "MT-146", "MT-147", "MT-148"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "TaskType enum is closed; an unknown task type fails compilation rather than silently defaulting.",
+      "Policy table defaults are reviewed by operator at promotion; values are not silently auto-tuned outside the self-improvement loop.",
+      "Budget values are bounded so a misconfigured policy cannot overflow MemoryPackBudgets caps."
+    ]
+  }
+}

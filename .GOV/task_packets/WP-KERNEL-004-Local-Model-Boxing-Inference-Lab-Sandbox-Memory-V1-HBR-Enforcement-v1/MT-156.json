@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-156",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:15:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-156.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LoopScheduler with HBR-SWARM-002 loop counter cap (25 iterations / 24h) and pending-review gating",
+  "goal": "Land the LoopScheduler that orchestrates iteration cadence under HBR-SWARM-002 hard caps: at most 25 iterations per rolling 24-hour window per loop instance. Scheduler refuses to start a new iteration when (a) cap reached, (b) Goodhart pause active, (c) operator manual pause active, or (d) a pending promotion review blocks the prior iteration. Emits FR-EVT-DISTILL-LOOP-CAP per AC-DISTILL-LOOP-SAFEGUARDS when the cap rejects a start request.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/scheduler.rs (LoopScheduler + ScheduleDecision + IterationBudget + SchedulerReceipt types). Tests src/backend/handshake_core/tests/loop_scheduler_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/scheduler.rs",
+    "src/backend/handshake_core/tests/loop_scheduler_tests.rs"
+  ],
+  "depends_on_mts": ["MT-148", "MT-149", "MT-150", "MT-151", "MT-152", "MT-153", "MT-154", "MT-155"],
+  "unblock_conditions": "All D.2 supporting MTs land.",
+  "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS: 'HBR-SWARM-002 loop counter cap with FR-EVT-DISTILL-LOOP-CAP receipt'. Per HBR-SWARM-002 the cap value is 25 iterations / 24h rolling window (operator-tunable but defaults to 25). Surface: `pub struct LoopScheduler<'a> { core: &'a LoopCore, sentinel: &'a GoodhartSentinel, gate: &'a LoopPromotionGate, ipc_state: &'a LoopIpcState, flight_recorder: &'a dyn FemsFlightRecorder, budget: IterationBudget }`. IterationBudget: `{ max_iterations_per_24h: u32 (default 25), rolling_window_seconds: u64 (default 86400) }`. Scheduler API: `pub fn try_schedule_next(history: &SchedulerHistory) -> ScheduleDecision`. ScheduleDecision: `{ Schedule, Skip { reason: SkipReason } }`. SkipReason enum: `BudgetExhausted { count_in_window, cap, window_started_at_utc }`, `GoodhartPause { receipt: SentinelReceipt }`, `OperatorPause { reason: String }`, `PendingPromotionReview { iteration_id, ticket_id }`. On BudgetExhausted, emit FR-EVT-DISTILL-LOOP-CAP with { count_in_window, cap, window_started_at_utc, next_eligible_at_utc }. Scheduler is the ONLY caller of `LoopCore::run_one_iteration`. Driver pattern: caller invokes try_schedule_next every N seconds; if Schedule, calls run_one_iteration and records result in history; if Skip, records the skip with reason and waits. Tests: budget enforcement (26th call in 24h returns Skip BudgetExhausted); rolling window shifts correctly (oldest iteration falls out after 24h); Goodhart pause blocks scheduling until unpause; operator pause blocks; pending promotion review for prior iteration blocks; FR-EVT-DISTILL-LOOP-CAP emitted exactly once per cap-skip; scheduler is deterministic given fixed clock injection.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target loop_scheduler_tests"
+  ],
+  "risk_if_missed": "Without the scheduler the loop can run unbounded, HBR-SWARM-002 is violated, and pause receipts are advisory rather than enforced.",
+  "validator_focus": "Scheduler is the sole caller of run_one_iteration. Budget uses a true rolling window not a fixed daily reset. Every skip reason is typed.",
+  "hbr_obligations": ["HBR-SWARM-002", "HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-148", "MT-149", "MT-150", "MT-151", "MT-152", "MT-153", "MT-154", "MT-155"],
+    "blocks": ["MT-167", "MT-170"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Scheduler is the only caller of run_one_iteration; no out-of-band iteration triggers.",
+      "Budget rolling window uses true 24h slide so cap cannot be evaded by burst+wait patterns.",
+      "FR-EVT-DISTILL-LOOP-CAP emitted on every cap-skip so audit reconstruction is complete."
+    ]
+  }
+}

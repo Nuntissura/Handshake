@@ -1,0 +1,61 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-170",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:29:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-170.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "PromotionGate operator-review-required path: end-to-end + Goodhart-pause-unpause scenario",
+  "goal": "End-to-end test of the PromotionGate operator-review-required happy path AND the Goodhart-pause / operator-unpause scenario. Proves that (a) an Accept iteration does NOT mutate authority until PromotionGate returns Approved and (b) a Goodhart-triggered pause persists across scheduler invocations until the operator unpauses via IPC.",
+  "expected_diff_shape": "New integration test src/backend/handshake_core/tests/promotion_gate_pause_e2e_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/promotion_gate_pause_e2e_tests.rs"
+  ],
+  "depends_on_mts": ["MT-152", "MT-153", "MT-154", "MT-155", "MT-156"],
+  "unblock_conditions": "MT-152 (promotion floor), MT-153 (Goodhart sentinel), MT-154 (PromotionGate adapter), MT-155 (loop IPC), MT-156 (scheduler).",
+  "implementation_notes": "Test scenario 1 (operator-review required path): (1) construct LoopCore + scheduler + mock PromotionGate that holds tickets in Pending state; (2) run one iteration with editable-surface proposal; (3) iteration reaches AcceptReject stage and submits to gate; (4) assert iteration status is PendingReview; (5) assert apply_proposal was NOT called on the editable surface (mutation blocked); (6) invoke list_pending_reviews IPC (MT-155), assert one PromotionRequest returned; (7) invoke approve_promotion IPC with rationale 'AC-test approval'; (8) assert apply_proposal NOW called on editable surface; (9) assert FR-EVT-PROMOTION-DECISION emitted with Approved variant. Test scenario 2 (Goodhart pause + operator unpause): (1) seed scheduler with history of 3 prior accepted iterations whose dev/holdout gaps were 0.05, 0.10, 0.15 (monotonically widening); (2) run iteration 4 which evaluates a trial that produces gap 0.20 (4th widening); (3) assert GoodhartSentinel emits Pause with PauseReason::MonotonicGapWidening; (4) assert scheduler.try_schedule_next() returns Skip with GoodhartPause reason; (5) invoke unpause IPC (MT-155) with operator rationale 'reviewed and accepted Goodhart risk'; (6) assert subsequent scheduler.try_schedule_next() returns Schedule; (7) assert FR-EVT-LOOP-UNPAUSE emitted. Test scenario 3 (rejection path): (1) run iteration with editable-surface proposal; (2) gate returns Rejected; (3) assert iteration records rejection as memory (so future iterations don't repropose); (4) assert apply_proposal NOT called.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test promotion_gate_pause_e2e_tests"
+  ],
+  "risk_if_missed": "Without PromotionGate + Goodhart-pause end-to-end coverage the operator-review invariant could be bypassed at the integration seam; pause persistence across scheduler invocations is not provably enforced.",
+  "validator_focus": "Mutation strictly blocked until Approved. Pause persists across scheduler invocations. Unpause requires operator IPC. All FR events asserted exactly once.",
+  "hbr_obligations": ["HBR-INT-006", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-152", "MT-153", "MT-154", "MT-155", "MT-156"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "apply_proposal is strictly gated by PromotionStatus::Approved; Pending or Rejected paths assert no mutation.",
+      "Goodhart pause persists across scheduler invocations and only operator IPC clears it.",
+      "Rejection is recorded as memory so future iterations cannot loop on the same rejected proposal."
+    ]
+  }
+}

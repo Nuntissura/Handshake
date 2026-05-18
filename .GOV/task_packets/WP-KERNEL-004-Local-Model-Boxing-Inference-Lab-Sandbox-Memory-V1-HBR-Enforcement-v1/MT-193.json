@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-193",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:17:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-193.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Restart resume orchestrator integrating with KERNEL-001 SessionBroker",
+  "goal": "Implement the restart resume orchestrator that, on Handshake process startup, discovers all sessions left in non-terminal states from the previous run, computes a ReplayPlan per session via MT-192, and hands reconstructed state back to the KERNEL-001 SessionBroker for resumption. This is the entrypoint that makes the cluster X crash recovery slice actually heal a crashed process.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/restart_resume.rs with `RestartResumeOrchestrator`, `ResumeReport`; integration tests under src/backend/handshake_core/tests/restart_resume_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/restart_resume.rs",
+    "src/backend/handshake_core/tests/restart_resume_tests.rs"
+  ],
+  "depends_on_mts": ["MT-191", "MT-192", "MT-186"],
+  "unblock_conditions": "MT-191 (checkpoint writer) and MT-192 (replay) merged. MT-186 cancellation primitive merged so the orchestrator can surface resume-impossible sessions for cancellation rather than silent hang.",
+  "implementation_notes": "Orchestrator runs once at startup, after database migrations, before SessionBroker accepts new traffic. Algorithm: (1) query KERNEL-001 session table for sessions where state IN ('Running', 'AwaitingVerification', 'Paused', 'CancellationRequested'); (2) for each session: (a) call StateReplayer::plan(session_id) (MT-192); (b) if plan succeeds, call StateReplayer::execute with the session's state_apply function (registered via a `ResumableSession` trait that KERNEL-001 SessionBroker implements); (c) if execute Ok, hand state to SessionBroker::resume(session_id, state) and mark resumed; (d) if execute Err (MissingEvent/StateInvariantViolated), mark session state='RecoveryFailed' and queue a decision_request mailbox message to operator role asking for cancel or manual rerun decision; (e) if ProcessOwnershipLedger shows orphan processes for this session, call reclaim hooks (MT-186 cancellation forced path) before resuming. Emits ResumeReport { sessions_examined, sessions_resumed: Vec<Uuid>, sessions_recovery_failed: Vec<(Uuid, ResumeError)>, total_replay_events, total_duration_ms } and writes ResumeReport to a `kernel_restart_resume_report` table for forensic audit. FR-EVT-RESTART-RESUME-{STARTED,SESSION_RESUMED,SESSION_RECOVERY_FAILED,COMPLETED} emitted per phase. Idempotent: if orchestrator runs twice on same database state, second run resumes 0 sessions (since first run transitioned them out of resumable states). Honors spec §5 line 1208: replay works with EventLedger alone, no Flight Recorder dependency. Tests: (a) seed db with 3 mid-run sessions + checkpoints + events, restart, expect 3 resumed; (b) seed with gap in event seq, expect 1 sessions_recovery_failed + decision_request mailbox message posted; (c) seed with orphan process, expect reclaim hook fired before resume; (d) idempotency: run twice, second time examines 0.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target restart_resume_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without the restart orchestrator, MT-190/191/192 primitives are unwired libraries — a crashed Handshake never actually resumes; cluster X's central recovery promise has zero behavior.",
+  "validator_focus": "Idempotency proven by second-run test (0 sessions examined); RecoveryFailed sessions always trigger operator decision_request (never silent hang); reclaim hooks invoked before resume (no double-process).",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (restart reconstruction + orchestration)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-191", "MT-192", "MT-186"],
+    "blocks": ["MT-195"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Orchestrator runs BEFORE SessionBroker accepts new traffic (startup ordering enforced by main.rs sequence + integration test).",
+      "ResumeReport persisted to kernel_restart_resume_report table for forensic audit even on partial failures.",
+      "Operator decision_request mailbox messages posted with linked_record_id=session_id and a clear reason field."
+    ]
+  }
+}

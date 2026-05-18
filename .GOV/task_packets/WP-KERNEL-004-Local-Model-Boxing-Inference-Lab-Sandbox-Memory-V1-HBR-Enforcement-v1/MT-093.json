@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-093",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.5",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-093.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-2 KV cache technique public API + Work Profile knob + observability",
+  "goal": "Lift the per-adapter KvCacheOps into the public ModelRuntime-level KV cache technique surface per AC-INFER-LAB-8-TECHNIQUES.b: kernel.model_runtime.kv_set_quantization, kv_prefix_commit, kv_prefix_restore, kv_evict, kv_occupancy. Wire Work Profile knob settings.exec_policy.kv_cache + FR-EVT-LLM-INFER-KV-* events.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/techniques/kv_cache_technique.rs; Tauri commands in app/src-tauri/src/commands/kv_cache.rs; Work Profile schema extension; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/techniques/kv_cache_technique.rs",
+    "app/src-tauri/src/commands/kv_cache.rs",
+    "app/src-tauri/src/main.rs",
+    "src/backend/handshake_core/tests/kv_cache_technique_tests.rs"
+  ],
+  "depends_on_mts": ["MT-063", "MT-075", "MT-090"],
+  "unblock_conditions": "MT-075 LlamaCpp KV cache impl merged; Candle transformer KV cache lands implicitly via candle internals.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.b + refinement INF-2: KV caching PRODUCTION. Work Profile knob: settings.exec_policy.kv_cache: `{ quantization: KvQuantSupport, prefix_cache_ttl_seconds: u64, max_bytes: Option<u64> }` applied at session start. Tauri commands: kernel_model_runtime_kv_set_quantization, kernel_model_runtime_kv_prefix_commit, kernel_model_runtime_kv_prefix_restore, kernel_model_runtime_kv_evict_all, kernel_model_runtime_kv_occupancy. FR events: FR-EVT-LLM-INFER-KV-QUANT-CHANGE { model_id, prev, next }, FR-EVT-LLM-INFER-KV-PREFIX-COMMIT { model_id, handle_id, token_count }, FR-EVT-LLM-INFER-KV-PREFIX-RESTORE { model_id, handle_id, hit: bool }, FR-EVT-LLM-INFER-KV-EVICT { model_id, evicted_entries, reason }. Conservative defaults: quantization=q8 (lower memory; production sane); prefix_cache_ttl=300s; max_bytes=None (operator-driven). Capability gate: technique surface returns CapabilityNotSupported when supports_kv_quantization=None (e.g., SSM models) — UI hides the knob per MT-068 IPC. Replay-resistance: prefix_restore validates the handle's content_hash against the cached state's hash (already enforced in MT-063/MT-075). Tests: technique surface dispatches to LlamaCpp KvCacheOps correctly; quant change emits FR event; restore hit/miss counter increments.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target kv_cache_technique_tests"
+  ],
+  "risk_if_missed": "INF-2 PRODUCTION partial (per-adapter only); UI knob has no backend.",
+  "validator_focus": "Capability gate hides knob for SSMs; FR event field shape stable; conservative defaults documented.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1",
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-INFER-LAB-UI-TOGGLES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-063", "MT-075", "MT-090"],
+    "blocks": ["MT-094", "MT-095"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Capability gate hides UI when SSM (test verifies).",
+      "Conservative default = q8 (operator-sane).",
+      "FR field stability (snake_case JSON contract for tooling)."
+    ]
+  }
+}

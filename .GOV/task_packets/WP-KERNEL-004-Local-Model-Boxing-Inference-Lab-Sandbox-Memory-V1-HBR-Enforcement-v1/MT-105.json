@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-105",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.8",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-105.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-5 CAA UI (paired-prompt editor + extract wizard)",
+  "goal": "CAA wizard UI in Inference Lab: paired-prompt editor (table of context + positive/negative completion pairs), [Extract CAA vector] button, layer picker, save+activate flow. Hidden via capabilities.supportsActivationSteering == false.",
+  "expected_diff_shape": "New Svelte component app/src/components/inference_lab/CaaWizard.svelte + store; integration into InferenceLab.",
+  "owned_files": [
+    "app/src/components/inference_lab/CaaWizard.svelte",
+    "app/src/lib/stores/caa.ts",
+    "app/src/components/inference_lab/InferenceLab.svelte"
+  ],
+  "depends_on_mts": ["MT-098", "MT-104"],
+  "unblock_conditions": "MT-098 steering UI + MT-104 eval merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES. CaaWizard.svelte: table view with columns [Context, Positive completion, Negative completion]; add-row / delete-row; import from JSON; layer-index picker (dropdown from model n_layers); [Extract CAA vector] calls kernel_model_runtime_caa_extract (Tauri wrapper around MT-103); preview generation with vector active at intensity 1.0; [Save & activate] persists with provenance=Contrastive{technique:CAA}. Hidden via capability gate. Operator-content discipline: prompt cells accept verbatim adult-production content; license tag picker mandatory.",
+  "proof_commands": [
+    "cd app && pnpm run typecheck"
+  ],
+  "risk_if_missed": "INF-5 UI missing; operator cannot run CAA extraction interactively.",
+  "validator_focus": "Paired-prompt structure preserved (three columns); hidden when unsupported; license tag.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-098", "MT-104"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Three-column paired structure (not single-column).",
+      "Hidden when unsupported.",
+      "License tag picker mandatory."
+    ]
+  }
+}

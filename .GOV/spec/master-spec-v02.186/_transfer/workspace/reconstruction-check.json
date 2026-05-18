@@ -1,0 +1,103 @@
+{
+  "artifact_type": "indexed-spec-reconstruction-check",
+  "generated_at": "2026-05-13T04:42:33.451Z",
+  "source_file": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+  "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+  "reconstructed_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
+  "byte_exact_match": true,
+  "total_source_lines": 84130,
+  "module_count": 13,
+  "coverage": [
+    {
+      "module_id": "00",
+      "path": "spec-modules/00-preamble.md",
+      "source_line_start": 1,
+      "source_line_end": 289,
+      "line_count": 289
+    },
+    {
+      "module_id": "01",
+      "path": "spec-modules/01-vision-and-context.md",
+      "source_line_start": 290,
+      "source_line_end": 995,
+      "line_count": 706
+    },
+    {
+      "module_id": "02",
+      "path": "spec-modules/02-system-architecture.md",
+      "source_line_start": 996,
+      "source_line_end": 19141,
+      "line_count": 18146
+    },
+    {
+      "module_id": "03",
+      "path": "spec-modules/03-local-first-infrastructure.md",
+      "source_line_start": 19142,
+      "source_line_end": 19908,
+      "line_count": 767
+    },
+    {
+      "module_id": "04",
+      "path": "spec-modules/04-llm-infrastructure.md",
+      "source_line_start": 19909,
+      "source_line_end": 22175,
+      "line_count": 2267
+    },
+    {
+      "module_id": "05",
+      "path": "spec-modules/05-security-and-observability.md",
+      "source_line_start": 22176,
+      "source_line_end": 23902,
+      "line_count": 1727
+    },
+    {
+      "module_id": "06",
+      "path": "spec-modules/06-mechanical-integrations.md",
+      "source_line_start": 23903,
+      "source_line_end": 30488,
+      "line_count": 6586
+    },
+    {
+      "module_id": "07",
+      "path": "spec-modules/07-user-experience-and-development.md",
+      "source_line_start": 30489,
+      "source_line_end": 49311,
+      "line_count": 18823
+    },
+    {
+      "module_id": "08",
+      "path": "spec-modules/08-reference.md",
+      "source_line_start": 49312,
+      "source_line_end": 53634,
+      "line_count": 4323
+    },
+    {
+      "module_id": "09",
+      "path": "spec-modules/09-continuous-local-skill-distillation.md",
+      "source_line_start": 53635,
+      "source_line_end": 54531,
+      "line_count": 897
+    },
+    {
+      "module_id": "10",
+      "path": "spec-modules/10-product-surfaces.md",
+      "source_line_start": 54532,
+      "source_line_end": 62455,
+      "line_count": 7924
+    },
+    {
+      "module_id": "11",
+      "path": "spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+      "source_line_start": 62456,
+      "source_line_end": 72238,
+      "line_count": 9783
+    },
+    {
+      "module_id": "12",
+      "path": "spec-modules/12-end-of-file-appendices.md",
+      "source_line_start": 72239,
+      "source_line_end": 84130,
+      "line_count": 11892
+    }
+  ]
+}

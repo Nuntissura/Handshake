@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-126",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.13",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-126.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Cloud lane BYOK Anthropic API adapter (ModelRuntime impl)",
+  "goal": "Implement AnthropicByokRuntime as a ModelRuntime adapter for the Anthropic Messages API. Same trait surface as OpenAiByokRuntime; same lane normalization; same audit posture.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/cloud/anthropic_byok.rs implementing ModelRuntime; tests with mock HTTP server.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/cloud/anthropic_byok.rs",
+    "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+    "src/backend/handshake_core/tests/cloud_anthropic_byok_tests.rs"
+  ],
+  "depends_on_mts": ["MT-125"],
+  "unblock_conditions": "MT-125 OpenAI BYOK adapter merged (shares HTTP client patterns).",
+  "implementation_notes": "AnthropicByokRuntime parallel to OpenAiByokRuntime. POST https://api.anthropic.com/v1/messages with `anthropic-version: 2023-06-01` header (or newer per operator-set api_version field) + `x-api-key`. Streaming: stream=true; SSE events `message_start`, `content_block_start`, `content_block_delta` (text), `content_block_stop`, `message_delta`, `message_stop`. Token assembly from `content_block_delta.delta.text`. score: Anthropic Messages API does not return logprobs by default (as of 2026-05) — score returns CapabilityNotSupported with explicit reason. embed: Anthropic does not provide an embedding endpoint — returns CapabilityNotSupported (operator routes embeddings to OpenAI or a local model). Capabilities: supports_lora=false; supports_kv_prefix_cache=true (Anthropic prompt caching shipped 2024); supports_kv_quantization=None; supports_activation_steering=false; supports_subquadratic=false; supports_speculative_draft=false. Model allowlist: claude-3-5-sonnet, claude-3-5-haiku, claude-opus-4, claude-opus-4-7, etc. (operator-set). Tests: mock server; generate; cancellation; embed returns CapabilityNotSupported; score returns CapabilityNotSupported.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target cloud_anthropic_byok_tests"
+  ],
+  "risk_if_missed": "Cloud lane parity missing Anthropic; LlmClient cannot serve claude-* model invocations.",
+  "validator_focus": "score/embed correctly return CapabilityNotSupported (not silent zero-result); SSE parser handles Anthropic-specific event shapes; api_version header operator-configurable.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-005"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-125"],
+    "blocks": ["MT-127", "MT-128", "MT-129", "MT-130"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "score/embed return CapabilityNotSupported with reason (not silent or zero).",
+      "api_version header operator-configurable.",
+      "API key never logged."
+    ]
+  }
+}

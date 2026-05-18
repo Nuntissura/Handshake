@@ -177,6 +177,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 
 Assignee/model is recorded in the work packet (CODER_MODEL, CODER_REASONING_STRENGTH). Task Board stays minimal.
 - **[WP-KERNEL-002-CRDT-Workspace-Write-Box-Preuse-Hardening-v1]** - [IN_PROGRESS]
+- **[WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1]** - [READY_FOR_DEV]
 
 
 

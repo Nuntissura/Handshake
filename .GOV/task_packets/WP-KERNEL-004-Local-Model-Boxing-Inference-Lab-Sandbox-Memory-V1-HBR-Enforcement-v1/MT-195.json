@@ -1,0 +1,72 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-195",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:19:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-195.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Crash recovery integration test corpus + failure-mode coverage matrix",
+  "goal": "Build the end-to-end crash recovery test corpus that exercises every documented failure mode of cluster X.3 in an integration setting: clean shutdown, SIGKILL mid-iteration, Postgres connection loss mid-checkpoint, orphan processes, event-seq gaps, idempotency conflicts, and operator-cancel during recovery. Mandatory because the folded WP-1-Session-Crash-Recovery-Checkpointing-v1 stub demands 'deterministic failure modes and explicit evidence.'",
+  "expected_diff_shape": "New integration test crate src/backend/handshake_core/tests/crash_recovery_e2e/ with one test file per failure mode + a shared harness module + a goldenfile evidence corpus under tests/fixtures/crash_recovery_evidence/.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/crash_recovery_e2e/mod.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/clean_shutdown.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/sigkill_mid_iteration.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/postgres_loss.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/orphan_process.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/event_seq_gap.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/idempotency_conflict.rs",
+    "src/backend/handshake_core/tests/crash_recovery_e2e/operator_cancel_during_recovery.rs",
+    "src/backend/handshake_core/tests/fixtures/crash_recovery_evidence/.gitkeep"
+  ],
+  "depends_on_mts": ["MT-190", "MT-191", "MT-192", "MT-193", "MT-194"],
+  "unblock_conditions": "All X.3 primitives + restart orchestrator + idempotency layer merged.",
+  "implementation_notes": "Each test file exercises one failure mode with a deterministic seed and expected ResumeReport. Shared harness module provides: (a) `CrashRecoveryHarness::new(scenario)` spins up a Postgres test container, seeds it with a scenario fixture, then runs a Handshake-subprocess (or in-process simulator) until the simulated crash point; (b) `harness.simulate_crash(kind)` executes the failure (SIGKILL, db disconnect, etc.); (c) `harness.restart()` invokes RestartResumeOrchestrator (MT-193) on the fresh process; (d) `harness.expect_resume_report(expected: ResumeReport)` asserts the report matches and persists evidence to tests/fixtures/crash_recovery_evidence/<scenario>.json for forensic comparison. Failure mode matrix: clean_shutdown -> all sessions resumed cleanly; sigkill_mid_iteration -> sessions resumed with one outcome=Failure recorded for the killed MT; postgres_loss -> orchestrator emits FR-EVT-RESTART-RESUME-DB-UNAVAILABLE, retries with backoff, eventually resumes when db returns; orphan_process -> reclaim hook (MT-186 forced cancellation) invoked, then resume; event_seq_gap -> sessions_recovery_failed populated, operator decision_request posted; idempotency_conflict -> AlreadyApplied path verified, no double side effects; operator_cancel_during_recovery -> resume aborted gracefully, session marked Cancelled with reason. Every test asserts: (1) ResumeReport.sessions_resumed and sessions_recovery_failed counts exact; (2) FR events emitted in expected order; (3) goldenfile match (tolerant of timestamps via canonicalization). The whole suite runs under `cargo test -p handshake_core --test crash_recovery_e2e`.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test crash_recovery_e2e -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without an integration test corpus, all X.3 unit tests pass individually but the end-to-end recovery path may silently break — and the operator only finds out during a real crash. The folded stub's 'deterministic failure modes and explicit evidence' invariant cannot be validated.",
+  "validator_focus": "Every failure mode has a dedicated test; goldenfile evidence corpus is byte-stable (modulo canonicalized timestamps); FR event ordering asserted not just presence.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (deterministic failure modes + explicit evidence)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-190", "MT-191", "MT-192", "MT-193", "MT-194"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Goldenfile canonicalization documented in harness (timestamps to T-N notation, UUIDs to U-N notation, paths to repo-relative).",
+      "Each failure mode test asserts EXACT counts not just non-zero (e.g., sessions_resumed == 3 not >= 1).",
+      "Integration suite runs serially (--test-threads=1) because shared Postgres test container is the bottleneck; documented in test module preamble."
+    ]
+  }
+}

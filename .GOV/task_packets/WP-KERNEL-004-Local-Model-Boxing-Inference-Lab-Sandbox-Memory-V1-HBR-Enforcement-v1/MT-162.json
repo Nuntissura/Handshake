@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-162",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:21:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-162.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "FEMS calibration dashboard data feed (folded WP-1-FEMS-Calibration-Dashboard)",
+  "goal": "Add operational health calibration signals so the operator can see whether FEMS is healthy or degrading. Ports the calibration signals pattern from repo governance memory hygiene reports. Folded from WP-1-FEMS-Calibration-Dashboard. This MT covers the BACKEND data feed; the frontend panel surface is built in cluster X.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/calibration.rs (CalibrationSignals + CalibrationCollector + CalibrationSnapshot types + Tauri IPC `kernel.memory_calibration.snapshot`). Tests src/backend/handshake_core/tests/calibration_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/calibration.rs",
+    "src/backend/handshake_core/tests/calibration_tests.rs"
+  ],
+  "depends_on_mts": ["MT-158", "MT-160", "MT-161"],
+  "unblock_conditions": "MT-158 (outcome feedback - calibration reads outcome stats), MT-160 (hygiene reports), MT-161 (degradation reports).",
+  "implementation_notes": "Per WP-1-FEMS-Calibration-Dashboard preserved_intent: 'memory degradation (bloat, stale dominance, trust drift, embedding gaps) is invisible until it manifests as poor model behavior'. CalibrationSignals struct: `{ bloat: BloatSignal, stale_dominance: StaleDominanceSignal, trust_drift: TrustDriftSignal, embedding_gap: EmbeddingGapSignal, degradation_rate: DegradationRateSignal, hygiene_lag: HygieneLagSignal }`. Each signal type: `{ value: f64, status: SignalStatus (Healthy/Watch/Alert), updated_at_utc, threshold_watch: f64, threshold_alert: f64 }`. Bloat: total item count and bytes growth rate. Stale dominance: fraction of MemoryPack items >30 days old. Trust drift: histogram of trust scores over time. Embedding gap: fraction of items without embeddings. Degradation rate: fraction of recent retrievals that completed in Tiered or Aggressive mode (from MT-161 DegradationReport). Hygiene lag: time since last hygiene run completed (from MT-160). CalibrationCollector: `pub fn collect_snapshot(fems: &dyn FemsAccessor) -> Result<CalibrationSnapshot, CalibrationError>` runs each signal collector independently. IPC: `kernel.memory_calibration.snapshot() -> CalibrationSnapshot` returns the current signals (read-only). Tests: each signal independently computable; SignalStatus thresholds enforced (Healthy if below watch, Watch if between, Alert if above alert); snapshot timestamps populated; IPC returns deterministic shape.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target calibration_tests"
+  ],
+  "risk_if_missed": "Without calibration signals memory degradation is invisible to operator until it manifests as bad model output.",
+  "validator_focus": "Each signal independently testable; thresholds typed not magic numbers; IPC is read-only.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-158", "MT-160", "MT-161"],
+    "blocks": ["MT-168"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Each signal is independently testable so a broken collector does not poison the whole snapshot.",
+      "Thresholds are typed durable values; not magic numbers in code.",
+      "IPC is read-only; the calibration surface cannot mutate FEMS state."
+    ]
+  }
+}

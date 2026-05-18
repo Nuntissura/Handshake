@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-121",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.12",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-121.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Distillation session-close flag wiring (DISTILL_CORPUS=true setting + IPC)",
+  "goal": "Wire the operator-facing DISTILL_CORPUS=true session-close flag: Tauri IPC kernel.session.mark_for_distillation(session_id, flag: bool); Postgres governed_sessions.distill_corpus column; default-deny posture per AC-DISTILL-OPT-IN.",
+  "expected_diff_shape": "New Tauri command in app/src-tauri/src/commands/session_distill.rs; schema migration adding distill_corpus column to governed_sessions; tests.",
+  "owned_files": [
+    "app/src-tauri/src/commands/session_distill.rs",
+    "app/src-tauri/src/main.rs",
+    "src/backend/handshake_core/src/distillation/session_flag.rs",
+    "src/backend/handshake_core/tests/distillation_session_flag_tests.rs"
+  ],
+  "depends_on_mts": ["MT-119"],
+  "unblock_conditions": "MT-119 corpus extractor merged.",
+  "implementation_notes": "Per AC-DISTILL-OPT-IN + Q-DISTILL-CORPUS resolution. Schema migration: ALTER TABLE governed_sessions ADD COLUMN distill_corpus BOOLEAN NOT NULL DEFAULT false. Tauri command: kernel_session_mark_for_distillation(session_id: String, flag: bool, operator_signature: String) -> Result<(), String>. Operator-signature required (HBR-INT-006 governance obligation on session metadata writes); the signature is recorded in flight recorder for audit. Implementation routes through KernelActionCatalogV1 `kernel.session.mark_for_distillation` action -> WriteBoxV1 -> Postgres. Reads via kernel_session_get_distill_flag(session_id). Default-deny: never assumed true. UI flow (placeholder for cluster X session-close panel): at session close, operator sees a checkbox \"Include this session in distillation corpus\" (defaults UNCHECKED), with prominent note \"This will let Handshake learn from this session. Default off.\" — operator content discipline: no moralizing or hand-wringing language, just the technical fact. Tests: mark flag true requires signature; reading without flag returns false; reading with flag returns true; CorpusExtractor::extract gated on this flag (verifies MT-119 enforcement).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target distillation_session_flag_tests"
+  ],
+  "risk_if_missed": "Opt-in flag has no UI surface; AC-DISTILL-OPT-IN operator-facing requirement unwireable.",
+  "validator_focus": "Default-deny column default; signature requirement on writes; KernelActionCatalogV1 route; no moralizing copy in UI.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.1"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-OPT-IN"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-119"],
+    "blocks": ["MT-122", "MT-123", "MT-124"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Default-deny column default explicit.",
+      "Signature requirement on writes.",
+      "Copy uses 'Default off' technical language (no moralizing per GLOBAL-PRODUCTION)."
+    ]
+  }
+}

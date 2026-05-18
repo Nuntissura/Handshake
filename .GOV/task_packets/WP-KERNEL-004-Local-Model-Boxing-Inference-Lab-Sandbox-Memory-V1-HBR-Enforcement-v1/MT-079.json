@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-079",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-079.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LlamaCppRuntime per-model perf stats + observability events",
+  "goal": "Wire per-model perf stats (tokens/sec, prompt_eval_ms, gen_eval_ms, VRAM_resident, time_since_last_call) and Flight Recorder FR-EVT-LLM-INFER-* event family for LlamaCppRuntime. Drives the §10.13 ModelRuntime Control Panel (AC-MODEL-RUNTIME-CONTROL-PANEL).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/llama_cpp/perf_stats.rs (Perf collector); FR event emit calls in generate.rs / score_embed.rs / lora_impl.rs; new FR event family registration.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/perf_stats.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs",
+    "src/backend/handshake_core/src/flight_recorder/events_llm_infer.rs",
+    "src/backend/handshake_core/tests/llama_cpp_perf_stats_tests.rs"
+  ],
+  "depends_on_mts": ["MT-074", "MT-075", "MT-076"],
+  "unblock_conditions": "MT-074 generate + MT-075 KV cache + MT-076 LoRA merged (events emit from those paths).",
+  "implementation_notes": "Per AC-MODEL-RUNTIME-CONTROL-PANEL: §10.13 panel displays per loaded model: id + on-disk artifact path + SHA256, active adapter, KV-cache occupancy, LoRA stack, active steering vectors, ProcessOwnershipLedger row link, live perf stats (tokens/sec, VRAM resident, time-since-last-call). PerfStats struct: `{ total_prompts: u64, total_tokens_generated: u64, prompt_eval_ms_total: u64, gen_eval_ms_total: u64, tokens_per_sec_ema: f32 (exponential moving avg), vram_resident_bytes: u64 (from CUDA runtime if available, 0 on CPU), last_call_at_utc: DateTime<Utc> }`. Collected in generate path: timing markers at decode-prompt-start / first-token / last-token. EMA update on each call. VRAM polling via cuda-rs or llama_cpp_2 GPU stat API (fallback 0 when CPU). FR events: FR-EVT-LLM-INFER-START { model_id, request_id (v7), tokens_in_prompt }, FR-EVT-LLM-INFER-TOKEN { model_id, request_id, token_index, latency_ms } (sampled at every 16th token to avoid flood), FR-EVT-LLM-INFER-END { model_id, request_id, tokens_generated, total_ms, finish_reason }, FR-EVT-LLM-INFER-LORA-MOUNT { model_id, lora_id, strength }, FR-EVT-LLM-INFER-LORA-UNMOUNT { model_id, lora_id }, FR-EVT-LLM-INFER-KV-EVICT { model_id, evicted_entries, reason }, FR-EVT-LLM-INFER-CANCEL { model_id, request_id, at_token_index }, FR-EVT-LLM-INFER-CAPS-LOOKUP { model_id, caller }. Events serialized via existing flight_recorder appender. PerfStats exposed via IPC kernel.model_runtime.perf_stats(model_id) (Tauri command in MT-068 extension).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target llama_cpp_perf_stats_tests"
+  ],
+  "risk_if_missed": "§10.13 ModelRuntime Control Panel has no data source; perf regressions invisible; cluster X panel work cannot land.",
+  "validator_focus": "EMA computation correctness; sampled-event throttling on TOKEN (no flood); VRAM fallback on CPU = 0 (not undefined); per-request request_id uses v7.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.13"
+  ],
+  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-MODEL-RUNTIME-CONTROL-PANEL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-074", "MT-075", "MT-076"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "TOKEN event sampling at every 16th token (verified by event count vs generated tokens).",
+      "EMA reasonable (test sequence of timing values produces expected EMA).",
+      "request_id uses now_v7() (HBR-INT-008)."
+    ]
+  }
+}

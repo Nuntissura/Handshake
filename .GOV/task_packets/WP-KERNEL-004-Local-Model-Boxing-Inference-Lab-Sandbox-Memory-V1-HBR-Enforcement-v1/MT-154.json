@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-154",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:13:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-154.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "PromotionGate integration: operator review required before any promotion",
+  "goal": "Wire the self-improvement loop's AcceptRejectDecision stage through the KERNEL-001 PromotionGate so any Accept (a) requires operator review evidence before the editable surface mutation is applied to authority and (b) emits a typed promotion receipt that EventLedger replays can reconstruct. No promotion proceeds without operator signoff per AC-DISTILL-LOOP-SAFEGUARDS ('PromotionGate operator review per promotion').",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/promotion_gate_adapter.rs (LoopPromotionGate + PromotionRequest + PromotionApproval + PromotionRejection types). Wiring uses existing KERNEL-001 PromotionGate trait surface; no new gate. Tests src/backend/handshake_core/tests/loop_promotion_gate_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/promotion_gate_adapter.rs",
+    "src/backend/handshake_core/tests/loop_promotion_gate_tests.rs"
+  ],
+  "depends_on_mts": ["MT-148", "MT-149", "MT-152"],
+  "unblock_conditions": "MT-148 (loop core), MT-149 (editable surface), MT-152 (promotion floor). KERNEL-001 PromotionGate exists in main.",
+  "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS: 'PromotionGate operator review per promotion'. Per refinement D.2: 'promotion-gated; operator review required before promotion'. Surface: `pub struct LoopPromotionGate<'a> { gate: &'a dyn PromotionGateSubmitter }` with `pub fn submit(request: PromotionRequest) -> Result<PromotionTicket, GateError>` and `pub fn poll(ticket: &PromotionTicket) -> Result<PromotionStatus, GateError>`. PromotionRequest: `{ iteration_id, target: LoopTarget, baseline_snapshot, proposed_snapshot, eval_result: EvalResult, floor_decision: PromotionDecision, sentinel_decision: SentinelDecision, justification_text: String }`. PromotionStatus: `{ Pending { submitted_at_utc }, Approved { approval: PromotionApproval }, Rejected { rejection: PromotionRejection } }`. PromotionApproval: `{ approved_by: OperatorId, approved_at_utc, signoff_evidence_id: Uuid v7 }`. PromotionRejection: `{ rejected_by: OperatorId, rejected_at_utc, rejection_reason: String }`. The gate is asynchronous (submit then poll) because operator review may take hours/days; the loop scheduler (MT-156) tracks pending tickets and resumes the iteration ONLY after Approved. On Rejected, the loop records the rejection as a memory entry (so future iterations learn) and advances to the next target. Tests: submit creates a typed request via the gate; poll returns Pending immediately after submit; gate rejection produces typed PromotionRejection; gate approval populates signoff_evidence_id; loop cannot apply the surface mutation without an Approved status (assert by attempting apply with Pending status returns typed error).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target loop_promotion_gate_tests"
+  ],
+  "risk_if_missed": "Without PromotionGate integration the loop can apply Accept decisions directly to authority, bypassing operator review and creating a shadow self-modification path.",
+  "validator_focus": "PromotionRequest captures the full evidence bundle (baseline + proposal + eval + floor + sentinel). Apply path is gated by PromotionStatus::Approved.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-148", "MT-149", "MT-152"],
+    "blocks": ["MT-155", "MT-156", "MT-167", "MT-170"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Apply path is gated by PromotionStatus::Approved; Pending or Rejected returns typed error.",
+      "PromotionRequest bundles all evidence (baseline + proposal + eval + floor + sentinel) so operator review is informed.",
+      "Rejection is recorded as memory so future iterations do not re-propose the same change."
+    ]
+  }
+}

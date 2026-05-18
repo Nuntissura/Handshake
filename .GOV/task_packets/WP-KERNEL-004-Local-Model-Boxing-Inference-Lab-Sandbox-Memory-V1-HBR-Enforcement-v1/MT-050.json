@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-050",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-050.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Wire SandboxAdapter into KERNEL-003 sandbox runner for model-written code (validation lane)",
+  "goal": "Replace the KERNEL-003 sandbox runner's direct Docker invocation with the SandboxAdapter trait so that model-written code (code emitted by a coder model and executed for validation) flows through the same selection policy as model-process boxing. Preserves the KERNEL-003 ValidationRunner behavior; changes only the boxing layer. Pair MT to MT-049 (which wires model-process boxing); together they enforce 'one sandbox abstraction shared by model-written code, local-model inference, validation runners, and the swarm-agent harness' per cluster B goal.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/sandbox/validation_runner_binding.rs (the thin bridge); edits to the KERNEL-003 ValidationRunner module (locate via Grep `pub struct ValidationRunner` in src/backend/handshake_core/src/kernel/**) replacing its direct Docker call site with a sandbox_runner: Arc<dyn SandboxAdapter> dependency injected at construction. Tests under src/backend/handshake_core/tests/validation_runner_sandbox_binding_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/validation_runner_binding.rs",
+    "src/backend/handshake_core/src/sandbox/mod.rs",
+    "src/backend/handshake_core/tests/validation_runner_sandbox_binding_tests.rs"
+  ],
+  "depends_on_mts": ["MT-042", "MT-043", "MT-047"],
+  "unblock_conditions": "SandboxAdapter trait + selection policy + DockerAdapter merged (DockerAdapter is the KERNEL-003 preservation path).",
+  "implementation_notes": "Pre-step: Grep the merged KERNEL-003 code in src/backend/handshake_core/src/kernel/** for the ValidationRunner struct AND its current Docker call site (likely `docker_runner.rs` or similar — record exact path for the validator). Strategy: keep the ValidationRunner struct's public API identical so callers in main don't break — only the internal sandbox dependency changes from `Arc<DockerRunner>` to `Arc<dyn SandboxAdapter>`. validation_runner_binding.rs: `pub struct ValidationProcessSpecBuilder` that translates the existing KERNEL-003 ValidationJob (whatever its shape is in main) into a generic ProcessSpec — preserve the existing image/binds/cmd/env semantics byte-for-byte so behavior parity holds. For the default sandbox-runner choice: use whatever the operator's Work Profile knob (`sandbox.adapter`) says, falling back to the registry's default. CRITICAL: model-written code (validation lane) has stricter NetPolicy than model-process boxing — default to NetPolicy::DenyAll unless the validation job explicitly declares network access in its ValidationJob spec (preserving KERNEL-003 behavior). Edits to ValidationRunner: change its constructor signature to `ValidationRunner::new(sandbox: Arc<dyn SandboxAdapter>, ...)` AND add a `ValidationRunner::from_registry(registry: &SandboxAdapterRegistry, validation_job: &ValidationJob) -> Result<Self, _>` factory that selects the right adapter per the job. Update one call site (the Tauri main.rs or wherever ValidationRunner is constructed) to use the factory. Tests: (a) construct a ValidationRunner with a NoopAdapter (test double from MT-042), submit a fake ValidationJob, assert spawn was called with the correct ProcessSpec shape; (b) assert NetPolicy defaults to DenyAll for validation jobs; (c) golden parity test asserts the new ProcessSpec produced by the builder for a known KERNEL-003 ValidationJob equals the Docker argv KERNEL-003 emitted pre-refactor (capture a fixture from KERNEL-003 sources at audit time and store it under tests/fixtures/kernel_003_validation_argv.json).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target validation_runner_sandbox_binding_tests"
+  ],
+  "risk_if_missed": "Without this binding the KERNEL-003 ValidationRunner stays Docker-only and the cluster B goal of 'one sandbox abstraction shared by model-written code, local-model inference, validation runners, and the swarm-agent harness' fractures; refactoring MTs (MT-054/055) cannot proceed.",
+  "validator_focus": "(a) ValidationRunner public API is preserved (no breaking change to callers in main); (b) golden parity fixture matches; (c) NetPolicy default is DenyAll for validation lane; (d) sandbox-adapter dependency is injected (not constructed inside ValidationRunner) so tests can pass NoopAdapter.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-SWARM-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
+  ],
+  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-042", "MT-043", "MT-047"],
+    "blocks": ["MT-051", "MT-054", "MT-055"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Golden parity fixture prevents silent behavior drift when KERNEL-003 ValidationJob -> ProcessSpec translation regresses.",
+      "NetPolicy default for validation lane MUST be DenyAll (model-written code is untrusted by default per KERNEL-003 posture).",
+      "Public API preservation: any change to ValidationRunner::new signature MUST add a factory method, not break existing call sites blindly."
+    ]
+  }
+}

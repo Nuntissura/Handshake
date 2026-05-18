@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-054",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-054.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Refactor existing KERNEL-003 sandbox consumers to use SandboxAdapter trait",
+  "goal": "Move every call site in the shipped KERNEL-003 codebase that today consumes the concrete DocketAdapter type onto the abstract `Arc<dyn SandboxAdapter>` trait. After this MT, no module in src/backend/handshake_core/src/kernel/** or src/backend/handshake_core/src/storage/** imports the KERNEL-003 DocketAdapter type directly; all consumption flows through the trait via dependency injection.",
+  "expected_diff_shape": "Mechanical refactor across the KERNEL-003 consumer modules (run Grep `DocketAdapter|docket_adapter|DockerRunner` across src/backend/handshake_core/src/** at MT-claim time to locate; expected affected files ~5-12); each `Arc<DocketAdapter>` field becomes `Arc<dyn SandboxAdapter>`; constructors gain SandboxAdapter injection; no behavior change. Migration log artifact at .GOV/roles_shared/records/sandbox/WP-KERNEL-004-kernel-003-callsite-migration.json capturing every (file, line, before, after) for the refactor.",
+  "owned_files": [
+    ".GOV/roles_shared/records/sandbox/WP-KERNEL-004-kernel-003-callsite-migration.json",
+    "src/backend/handshake_core/src/kernel/**",
+    "src/backend/handshake_core/src/sandbox/mod.rs"
+  ],
+  "depends_on_mts": ["MT-043", "MT-047", "MT-050"],
+  "unblock_conditions": "DockerAdapter (MT-047) is the migration target for existing callers; selection policy (MT-043) provides default; ValidationRunner binding (MT-050) is the model for how to inject.",
+  "implementation_notes": "Pre-step: Grep `DocketAdapter`, `docket_adapter`, `DockerRunner`, and `docker_runner` across src/backend/handshake_core/src/**. Expected hits: KERNEL-003 sandbox runner module, KERNEL-001 ToolGate (if it touches sandbox), KERNEL-001 PromotionGate (if it touches sandbox), tests fixtures. Record exact files in the migration log. For each call site: (1) change field type from concrete DocketAdapter to `Arc<dyn SandboxAdapter>`; (2) change constructor parameter; (3) if construction happens inline (`Arc::new(DocketAdapter::new(...))`), move to the bootstrap layer (MT-048) — pass the constructed adapter into the constructor instead; (4) update direct method calls — DocketAdapter likely has `run(image, cmd, binds, env)` shape; map onto SandboxAdapter::spawn + the docker-specific argv mapping that now lives in src/backend/handshake_core/src/sandbox/docker/adapter.rs (MT-047). Behavior parity discipline: NO functional change in this MT — the refactor is purely structural. To prove parity, the migration log records every changed call site AND a paired before/after test that asserts the same input produces the same OS-level behavior (assert the resulting docker argv via the parity fixture from MT-047). Care with backwards-compatibility: KERNEL-003 callers in main may construct DocketAdapter at multiple points; consolidating into the bootstrap layer requires propagating a SandboxAdapterRegistry handle to those construction sites. Use SessionBroker / Tauri app state (whichever KERNEL-001 already threads as shared state) as the injection vehicle to avoid passing the registry through every function. Tests: (a) compile-time test that no module outside src/backend/handshake_core/src/sandbox/docker/ imports DocketAdapter directly (grep test); (b) each affected module's existing test suite passes unchanged; (c) migration-log schema validation (`schema: \"hsk.sandbox_callsite_migration@1\"`).",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target",
+    "node -e \"const r=require('./.GOV/roles_shared/records/sandbox/WP-KERNEL-004-kernel-003-callsite-migration.json'); if(!Array.isArray(r.changes)||r.changes.length===0) process.exit(1)\"",
+    "node .GOV/roles_shared/checks/no-direct-docket-adapter-import-check.mjs"
+  ],
+  "risk_if_missed": "Without refactor, KERNEL-003 callers stay docker-only and the 3-adapter pattern cannot select WSL2Podman or WindowsNativeJail for those code paths; R-3 ('orphans KERNEL-003') remains live.",
+  "validator_focus": "(a) Behavior parity: existing KERNEL-003 tests pass unchanged; (b) grep test asserts no direct DocketAdapter import outside the docker adapter module; (c) migration log is exhaustive (no surprise unchanged file imports DocketAdapter); (d) bootstrap layer is the single injection point.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-SWARM-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2"
+  ],
+  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-043", "MT-047", "MT-050"],
+    "blocks": ["MT-055", "MT-056"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Behavior parity: existing KERNEL-003 test suite passes without any test modification; tests changes are themselves a red flag in this MT.",
+      "no-direct-docket-adapter-import-check.mjs prevents future KERNEL-003 callers from re-importing the concrete type after the refactor.",
+      "Migration log exhaustiveness: a final repo-wide grep at MT close verifies log.changes covers every match (audit step for the validator)."
+    ]
+  }
+}

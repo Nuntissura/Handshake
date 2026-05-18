@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-166",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:25:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-166.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Session-spawn conversation distillation into the distillation pipeline (folded WP-1-Session-Spawn-Conversation-Distillation)",
+  "goal": "Feed spawn-tree conversation histories into the cluster C distillation pipeline so child-session summaries become training data for parent-role specialization. Folded from WP-1-Session-Spawn-Conversation-Distillation. A spawn tree represents a structured decomposition of complex work; parent-child conversation trails are high-quality teacher-student data. MUST honor AC-DISTILL-OPT-IN (default OFF; per-session opt-in only).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/distillation/spawn_tree_harvester.rs (SpawnTreeHarvester + SpawnConversation + DistillationCandidate types). Wires into cluster C distillation pipeline by trait. Tests src/backend/handshake_core/tests/spawn_tree_harvester_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/distillation/spawn_tree_harvester.rs",
+    "src/backend/handshake_core/tests/spawn_tree_harvester_tests.rs"
+  ],
+  "depends_on_mts": ["MT-145", "MT-158"],
+  "unblock_conditions": "MT-145 (CapsuleRecorder for storing distillation candidates), MT-158 (outcome feedback used to gate which spawn trees are candidate-worthy). Cluster C distillation pipeline trait surface consumed externally.",
+  "implementation_notes": "Per WP-1-Session-Spawn-Conversation-Distillation preserved_intent: 'A spawn tree represents a structured decomposition of complex work. The parent-child conversation trail is high-quality training signal for model specialization'. Per AC-DISTILL-OPT-IN: 'Distillation is default OFF for every governed session; opt-in is per-session (never persistent default) via operator setting DISTILL_CORPUS=true at session close (post-hoc); scope of opt-in is a single session's events + artifacts and does not extend transitively'. Per AC-DISTILL-CONTENT-REVIEW: 'Before any distillation candidate enters the Skill Bank it MUST pass: PII scan + license tagging + dedup'. Surface: `pub struct SpawnTreeHarvester<'a> { event_ledger: &'a dyn EventLedgerReader, content_reviewer: &'a dyn ContentReviewer, action_catalog: &'a dyn KernelActionSubmitter }` with `pub fn harvest(session_id: Uuid, opt_in_confirmed: bool) -> Result<Vec<DistillationCandidate>, HarvestError>`. Flow: (1) refuse if opt_in_confirmed is false (AC-DISTILL-OPT-IN); (2) walk spawn tree from session_id; (3) extract parent-child conversation pairs as SpawnConversation { parent_message, child_response, child_outcome (from MT-158) }; (4) filter to pairs where child_outcome is Pass (otherwise teacher-student signal is poisoned); (5) submit each to content_reviewer (PII + license + dedup); (6) emit FR-EVT-DISTILL-CANDIDATE-CREATED for each surviving candidate; (7) submit DistillationCandidate via KernelActionCatalogV1 for review-gated Skill Bank entry. DistillationCandidate: `{ candidate_id: Uuid v7, session_id, parent_message_id, child_message_id, parent_role, child_role, content_hash, license_provenance, pii_scan_result }`. Tests: harvest with opt_in_confirmed=false returns typed error; harvest with opted-in session walks spawn tree; only Pass-outcome pairs are candidates; content_reviewer is invoked for every candidate; harvest emits FR-EVT-DISTILL-CANDIDATE-CREATED for surviving candidates; harvest does NOT auto-promote (review-gated).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target spawn_tree_harvester_tests"
+  ],
+  "risk_if_missed": "Without spawn-tree distillation the parent-child conversation signal is wasted, and the only training data is post-hoc EventLedger replay without structural decomposition.",
+  "validator_focus": "Opt-in is enforced before any harvest. Content review is invoked for every candidate. Only Pass-outcome pairs are candidates (avoid teaching from failures).",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.1",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.2"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-OPT-IN", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-145", "MT-158"],
+    "blocks": ["MT-168", "MT-169"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Opt-in is enforced before any harvest; harvest with opt_in_confirmed=false returns typed error.",
+      "Only Pass-outcome parent-child pairs are candidates; failure pairs cannot leak as teacher-student data.",
+      "Content reviewer is invoked for every candidate; no candidate bypasses PII + license + dedup."
+    ]
+  }
+}

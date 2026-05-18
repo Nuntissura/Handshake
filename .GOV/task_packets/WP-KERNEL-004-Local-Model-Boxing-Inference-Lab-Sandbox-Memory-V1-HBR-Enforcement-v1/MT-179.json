@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-179",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:03:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-179.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Mailbox message family typed payloads (10 Phase-1 families)",
+  "goal": "Define the typed message-family payloads required by spec v02.186 §02-system-architecture.md role mailbox subsection [ADD v02.173]: `delegate_work`, `blocker`, `review_request`, `decision_request`, `announce_back`, `micro_task_request`, `micro_task_feedback`, `micro_task_verification_needed`, `micro_task_escalation`, `micro_task_completion_report`. Each family gets a strongly typed body schema, validator helper, and serde round-trip test. Replaces the MT-176 placeholder MessageType enum with a real typed family hierarchy.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/role_mailbox/families.rs with one struct per family (DelegateWorkBody, BlockerBody, ReviewRequestBody, DecisionRequestBody, AnnounceBackBody, MicroTaskRequestBody, MicroTaskFeedbackBody, MicroTaskVerificationNeededBody, MicroTaskEscalationBody, MicroTaskCompletionReportBody) and a `MessageFamily` enum tagged serde wrapper; unit tests under src/backend/handshake_core/tests/role_mailbox_families_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/role_mailbox/families.rs",
+    "src/backend/handshake_core/tests/role_mailbox_families_tests.rs"
+  ],
+  "depends_on_mts": ["MT-176"],
+  "unblock_conditions": "MT-176 message primitive scaffold lands the placeholder MessageType enum that this MT replaces.",
+  "implementation_notes": "Per spec subsection [ADD v02.173] line 6146 (Phase 1 Role Mailbox message families): define each family as a separate Rust struct. Common fields belong to RoleMailboxMessage (MT-176); family-specific fields live on body structs. Sketch: `DelegateWorkBody { task_summary: String, target_role: RoleId, due_at_utc: Option, linked_wp: Option<String>, linked_mt: Option<String> }`; `BlockerBody { blocker_description: String, blocking_role: Option<RoleId>, severity: BlockerSeverity (Soft|Hard) }`; `ReviewRequestBody { review_target: ReviewTarget (WorkPacket|MicroTask|Patch|Other(String)), review_target_id: String, review_kind: ReviewKind (CodeReview|GovReview|SpecReview), evidence_pointers: Vec<EvidencePointer> }`; `DecisionRequestBody { question: String, options: Vec<DecisionOption>, decision_authority_role: RoleId, deadline_utc: Option }`; `AnnounceBackBody { sub_session_id: Option<Uuid v7>, summary: String, artifacts: Vec<ArtifactPointer>, completion_state: CompletionState }`; the 5 micro_task_* families embed `MicroTaskRef { wp_id, mt_id, iteration_n: u32 }` plus family-specific fields (e.g., MicroTaskEscalationBody adds `escalation_target: EscalationTier`, `reason: String`, `prior_attempts: Vec<PriorAttemptRef>`). The wrapper enum `MessageFamily` uses `#[serde(tag = \"family\", content = \"body\")]` so JSON round-trips cleanly. Per spec line 6147 the 5 micro_task_* families MUST embed a `micro_task_executor_contract_ref: MicroTaskExecutorContractRef` field that points to the bounded loop contract (populated downstream in X.2 — MT-184/MT-185 produce the executor surface; the type is forward-declared here as an opaque newtype). Tests: (a) serialize and deserialize each family body, expect round-trip equality; (b) decode a fixture corpus of pre-authored example payloads (committed under tests/fixtures/role_mailbox_families/) for each family; (c) reject a message with `family=\"micro_task_request\"` but missing `micro_task_executor_contract_ref`.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target role_mailbox_families_tests"
+  ],
+  "risk_if_missed": "Without typed family payloads, mailbox messages become untyped JSON blobs; validators cannot enforce per-family invariants; the spec's bounded micro_task_* family constraints (line 6147) silently degrade to 'keep trying' loops.",
+  "validator_focus": "Every family round-trips serde without information loss; micro_task_* families enforce the executor_contract_ref invariant; unknown families serialize to a typed `Unknown` variant rather than panicking (forward-compat for downstream family additions).",
+  "hbr_obligations": ["HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/02-system-architecture.md#role-mailbox-message-contract"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-v1 (typed message families)",
+    "PRESERVED_INTENT:WP-1-Role-Mailbox-Micro-Task-Loop-Control-v1 (bounded micro_task_* families)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-176"],
+    "blocks": ["MT-183", "MT-184", "MT-189"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Forward-compat: unknown family decodes to `MessageFamily::Unknown { raw: serde_json::Value }` instead of error so future families do not break the repo.",
+      "Property-based test (use proptest) generates arbitrary bodies and asserts round-trip equality.",
+      "Negative test asserts micro_task_* families without contract_ref fail deserialization with a typed error."
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-192",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:16:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-192.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "EventLedger replay reconstruction primitive (checkpoint + delta replay)",
+  "goal": "Implement the deterministic state reconstruction primitive that, given a latest SessionCheckpoint, replays EventLedger events from the checkpoint's last_event_ledger_seq watermark forward to produce the current authoritative state. Spec §5 line 1208: 'replay still works when Flight Recorder or provider trace history is unavailable and EventLedger rows remain intact.'",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/state_replay.rs with `StateReplayer`, `ReplayPlan`, `ReplayResult`, `ReplayError` types; integration tests under src/backend/handshake_core/tests/state_replay_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/state_replay.rs",
+    "src/backend/handshake_core/tests/state_replay_tests.rs"
+  ],
+  "depends_on_mts": ["MT-190"],
+  "unblock_conditions": "MT-190 SessionCheckpoint primitive merged (provides the watermark schema); KERNEL-001 EventLedger already in main.",
+  "implementation_notes": "Per spec §5 line 1192-1208: 'Kernel V1 replay and promotion authority MUST come from the Postgres EventLedger ... replay still works when Flight Recorder or provider trace history is unavailable and EventLedger rows remain intact.' `StateReplayer::plan(session_id) -> ReplayPlan` does: (1) load latest SessionCheckpoint via watermark query (MT-190 index); (2) query KERNEL-001 EventLedger for events where seq > checkpoint.last_event_ledger_seq AND session_id matches, ordered by seq ASC; (3) return `ReplayPlan { from_checkpoint: SessionCheckpoint, events_to_replay: Vec<EventLedgerRow>, expected_final_seq: i64 }`. `StateReplayer::execute(plan, state_apply: impl Fn(&mut State, &EventLedgerRow) -> Result<(), ReplayError>) -> ReplayResult` applies events one-by-one to a state seeded from checkpoint.compact_state, returning either `Ok(final_state, final_seq)` or `Err(ReplayError { at_seq, cause })`. Determinism: events MUST be replayed in seq order; replay is idempotent over any single event (state_apply must be implemented so re-applying the same event is a no-op, but the replayer itself does not enforce this — it documents the contract). ReplayError variants: `EventNotApplicable { seq, reason }`, `StateInvariantViolated { seq, invariant }`, `MissingEvent { gap_at_seq }` (gap detection: assert no seq skipped between checkpoint.watermark+1 and final). The replayer logs every applied event count + final state hash via FR-EVT-REPLAY-{STARTED,PROGRESS,COMPLETED,FAILED}. No I/O during state_apply — the applicator function is pure (replayer takes &mut State, passes events). Tests: (a) checkpoint + 10 events -> replay produces expected final state; (b) gap detection (manually insert seq+2 skipping seq+1) -> returns MissingEvent; (c) state_apply error at event 5 -> ReplayError with at_seq=5; (d) determinism: 100 replays of same plan produce byte-identical final state.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target state_replay_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without deterministic replay, crash recovery cannot rebuild state authoritatively; spec §5 line 1208 invariant (replay works from EventLedger alone) is violated; the cluster X 'idempotent recovery' guarantee has no implementation.",
+  "validator_focus": "Strict seq ordering (no in-memory re-sort allowed — query must be ORDER BY seq ASC); gap detection mandatory (silent gap = silent state loss); 100x determinism test asserts byte-identical replay output.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (state replay from EventLedger)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-190"],
+    "blocks": ["MT-193", "MT-194", "MT-195"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Gap detection test asserts MissingEvent { gap_at_seq } returned (not silent).",
+      "Determinism test runs 100 replays of same plan and asserts byte-identical final state hash.",
+      "FR-EVT-REPLAY-* events emitted at every phase; receipts queryable for post-recovery audit."
+    ]
+  }
+}

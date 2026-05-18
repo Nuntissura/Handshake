@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-151",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-151.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "ValidatorFirstPassEvaluator wiring the loop eval to the HBR test-packet corpus",
+  "goal": "Implement the Evaluator that the loop core (MT-148) consumes per Q-SELF-IMPROVE-TARGET: validator first-pass PASS rate on the fixed ~30-item HBR test-packet corpus. The evaluator runs the validator against each corpus item under a frozen sandbox (cluster B SandboxAdapter) and returns per-split PASS rates plus auxiliary metrics needed for the multi-metric promotion floor (latency p95, capsule bytes).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/evaluator.rs (ValidatorFirstPassEvaluator + EvalResult + SplitMetrics + ValidatorVerdict types). Tests src/backend/handshake_core/tests/validator_first_pass_evaluator_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/evaluator.rs",
+    "src/backend/handshake_core/tests/validator_first_pass_evaluator_tests.rs"
+  ],
+  "depends_on_mts": ["MT-148", "MT-150"],
+  "unblock_conditions": "MT-148 (loop core) + MT-150 (corpus + split). Cluster B SandboxAdapter is consumed by trait (cross-cluster integration boundary).",
+  "implementation_notes": "Per Q-SELF-IMPROVE-TARGET operator decision: 'validator first-pass PASS rate on fixed ~30-item HBR test-packet corpus'. Per AC-DISTILL-LOOP-SAFEGUARDS: 'multi-metric promotion floor (dev PASS up AND latency p95 not regressed AND capsule bytes not regressed AND holdout PASS rate not regressed)'. Surface: `pub struct ValidatorFirstPassEvaluator<'a> { sandbox: &'a dyn LoopSandbox, validator_runner: &'a dyn ValidatorRunner }` with `pub fn evaluate(split: &CorpusSplit, key_provider: &dyn KeyProvider, snapshot: &EditableSurfaceSnapshot) -> Result<EvalResult, EvalError>`. EvalResult: `{ train: SplitMetrics, dev: SplitMetrics, holdout: SplitMetrics, evaluated_at_utc, snapshot_hash: String }`. SplitMetrics: `{ pass_rate: f64 (0.0..=1.0), pass_count: u32, total_count: u32, latency_p95_ms: u64, capsule_bytes_p95: u64, per_item_results: Vec<PerItemResult> }`. PerItemResult: `{ item_id, verdict: ValidatorVerdict, latency_ms, capsule_bytes, error: Option<String> }`. Evaluation runs each corpus item through ValidatorRunner inside a sandboxed instance (so the editable surface snapshot is the ONLY change between baseline and trial runs); seed isolation per RW-6. Holdout evaluation decrypts via KeyProvider, runs items, re-encrypts holdout records before returning (holdout never leaves memory in plaintext form persistently). Tests: evaluator computes pass_rate correctly from per-item PASS/FAIL; latency p95 computed via standard order-statistic; capsule bytes p95 from injection records; holdout decryption fails cleanly without key; evaluator records snapshot_hash so EvalResult is traceable to its surface snapshot.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target validator_first_pass_evaluator_tests"
+  ],
+  "risk_if_missed": "Without a typed evaluator the multi-metric promotion floor (MT-152) has nothing to gate against; the loop cannot measure improvement.",
+  "validator_focus": "Evaluator is pure relative to sandbox + validator (both trait-injected). Per-split metrics computed independently. Holdout decryption is scoped to the eval call.",
+  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-148", "MT-150"],
+    "blocks": ["MT-152", "MT-153", "MT-167"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Evaluator runs every item through the SandboxAdapter so editable surface changes are isolated from the host process.",
+      "Holdout decryption is scoped to a single eval call; plaintext is dropped after metrics are computed.",
+      "Latency and capsule-bytes p95 are computed from raw per-item observations, not from running averages."
+    ]
+  }
+}

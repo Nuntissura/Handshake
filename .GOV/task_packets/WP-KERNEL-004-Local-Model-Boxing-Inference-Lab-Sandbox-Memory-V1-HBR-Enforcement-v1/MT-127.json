@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-127",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.13",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-127.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Cloud lane Official-CLI bridge adapter (Claude Code / Codex CLI as transport)",
+  "goal": "Implement OfficialCliBridgeRuntime as a ModelRuntime adapter that uses an Official CLI (Claude Code, Codex CLI, gemini-cli, etc.) as a transport for model invocations. Operator provides CLI path + auth; adapter spawns the CLI per request, captures output, returns through ModelRuntime trait. Useful when BYOK key is not desired/available.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs implementing ModelRuntime; CliBridgeConfig per CLI; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs",
+    "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+    "src/backend/handshake_core/tests/cloud_official_cli_bridge_tests.rs"
+  ],
+  "depends_on_mts": ["MT-066", "MT-069", "MT-070", "MT-125"],
+  "unblock_conditions": "MT-070 LlmClient routing + MT-125 cloud lane pattern merged.",
+  "implementation_notes": "OfficialCliBridgeRuntime is a fundamentally different cloud lane: invocations transport through a CLI subprocess rather than a direct HTTP call (operator uses their existing CLI auth, no API key in Handshake). CliBridgeConfig per CLI: `{ cli_kind: CliKind (enum ClaudeCode|CodexCli|GeminiCli|Other), executable_path: PathBuf, args_template: Vec<String> (with {prompt}, {model} placeholders), output_format: CliOutputFormat (Json|RawText|JsonStream), env_vars: HashMap<String,String>, working_dir: Option<PathBuf>, timeout_seconds: u64 }`. Per-request flow: serialise prompt to CLI args (per output_format spec), spawn under SandboxAdapter (cluster B; the CLI is treated as an untrusted subprocess), capture stdout, parse per output_format, yield GeneratedToken stream (or single token for non-streaming CLIs). Cancellation: kill subprocess on cancel_token fire. ProcessOwnershipLedger row with engine_kind=OfficialCliBridge per MT-069. Capabilities for CLI bridge: NONE of the inference techniques (LoRA/KV/steering/etc.) work through a CLI bridge — all capability flags false. The bridge is a usability-not-feature lane for operator workflow flexibility. Authentication is operator-managed (the CLI handles its own auth, not Handshake). Per spec §3.6.4 ExternalEngineImport precedent: bridge marks model with provider=OfficialCli (similar to ExternalCompat semantics). Tests: mock CLI script (a bash echo or `cmd /c echo` on Windows); spawn, parse, yield; cancellation; ProcessOwnershipLedger row.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target cloud_official_cli_bridge_tests"
+  ],
+  "risk_if_missed": "Official-CLI bridge missing; operator must use direct BYOK even when their preferred lane is the CLI subscription.",
+  "validator_focus": "Subprocess sandboxed; ProcessOwnershipLedger row; all inference capabilities false (no false advertising); cancellation kills child.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-005", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-066", "MT-069", "MT-070", "MT-125"],
+    "blocks": ["MT-128", "MT-129", "MT-130"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Subprocess sandboxed (SandboxAdapter required).",
+      "All inference capability flags false (no false advertising on CLI bridge).",
+      "Cancellation kills child subprocess (verified via PID disappearance)."
+    ]
+  }
+}

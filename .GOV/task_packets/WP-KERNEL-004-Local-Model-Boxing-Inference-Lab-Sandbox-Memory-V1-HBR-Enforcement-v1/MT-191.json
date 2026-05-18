@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-191",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:15:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-191.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Checkpoint write path (periodic + event-triggered + pre-shutdown)",
+  "goal": "Implement the three checkpoint write paths: (a) periodic (configurable cadence, default every 60s of active session time), (b) event-triggered (after every successful MT iteration boundary, every mailbox lease acquisition, every model swap), (c) pre-shutdown (graceful SIGTERM handler captures one final checkpoint before exit). Mirrors spec §5.7.3 batched async write pattern.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/checkpoint_writer.rs with `CheckpointWriter`, `CheckpointTrigger`, `CheckpointCadenceConfig`; integration tests under src/backend/handshake_core/tests/checkpoint_writer_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/checkpoint_writer.rs",
+    "src/backend/handshake_core/tests/checkpoint_writer_tests.rs"
+  ],
+  "depends_on_mts": ["MT-190"],
+  "unblock_conditions": "MT-190 SessionCheckpoint primitive merged so the writer has a target schema.",
+  "implementation_notes": "Per spec §5.7.3 bypass-on-overflow pattern: writer uses a bounded `tokio::sync::mpsc::channel(capacity=256)` so the producing thread never blocks on Postgres. A single background task drains the channel and batches inserts (up to 32 per batch via a multi-row INSERT). `CheckpointWriter::start(repo, config) -> CheckpointHandle` spawns the background drainer. Producer-side API: `handle.submit(checkpoint) -> Result<(), CheckpointWriterError>` is non-blocking try_send; on channel saturation returns `Err(WriterError::ChannelFull)` and the caller emits FR-EVT-CHECKPOINT-OVERFLOW (mirrors FR-EVT-LEDGER-OVERFLOW pattern from spec §5.7.3). Periodic trigger: `tokio::time::interval(config.period)` ticks call a `StateSnapshotter` trait that producers register; trait method `fn snapshot(&self) -> Option<SessionCheckpoint>`. EventTriggered trigger: producers call `handle.submit_event_triggered(state_kind, snapshot)` directly. Pre-shutdown: `handle.shutdown(timeout) -> Result<()>` flushes the channel, runs a final snapshot pass on all registered StateSnapshotters with state_kind=PreShutdown, then closes. SIGTERM hook wires to handle.shutdown via a tokio::signal listener (spawned at start). Tests (use Postgres test container): (a) periodic writes emitted at expected cadence; (b) event-triggered write observable in <100ms; (c) channel-full returns ChannelFull (saturate test); (d) graceful shutdown writes pending + final snapshots; (e) shutdown timeout enforced (forced exit logged via FR-EVT-CHECKPOINT-SHUTDOWN-FORCED).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target checkpoint_writer_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without periodic + event-triggered + pre-shutdown writes, checkpoints are silently sparse and recovery (MT-193) reconstructs stale state; the cluster X preservation slice's 'checkpointing and idempotent recovery' guarantee is incomplete.",
+  "validator_focus": "Bounded channel never blocks producer (latency assertion); overflow path emits FR event and never silently drops state (caller informed); shutdown completes within timeout or forces with explicit FR event.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.3"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (checkpoint write paths)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-190"],
+    "blocks": ["MT-193", "MT-195"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Channel saturation test asserts ChannelFull is returned (not panic, not block).",
+      "SIGTERM handler test asserts final PreShutdown snapshot persisted before process exits.",
+      "Batched INSERT performance test asserts >= 32 checkpoints/sec sustainable under load."
+    ]
+  }
+}

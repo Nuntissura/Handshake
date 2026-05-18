@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-017",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-017.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Forbidden-APIs clippy lint rule (HBR-QUIET-001/002 surface ban)",
+  "goal": "Per spec §6.6.6 (AC-QUIET-API-LINT) add a workspace clippy lint that fails the build on any reference to `set_focus`, `show` (on hidden windows), `unminimize`, `AllowSetForegroundWindow`, `AttachThreadInput`, `SetForegroundWindow` (from non-foreground processes) outside `operator_foreground::*`; `LockSetForegroundWindow` is never used.",
+  "expected_diff_shape": "New clippy.toml at workspace root configuring disallowed-methods; supplementary grep-based fallback check `.GOV/roles_shared/checks/hbr-quiet-api-lint.mjs` for path-scoped enforcement clippy alone cannot express; gov-check umbrella wiring.",
+  "owned_files": [
+    "clippy.toml",
+    ".GOV/roles_shared/checks/hbr-quiet-api-lint.mjs",
+    ".GOV/roles_shared/checks/hbr-quiet-api-lint.test.mjs",
+    "justfile"
+  ],
+  "depends_on_mts": ["MT-014"],
+  "unblock_conditions": "MT-014 quiet_window + operator_foreground placeholder modules exist so the lint has an allowlist scope.",
+  "implementation_notes": "Two-layer enforcement because clippy alone cannot scope by file path in stable Rust. Layer 1 (clippy.toml at workspace root): add `disallowed-methods = [ { path = \"tauri::Window::set_focus\", reason = \"HBR-QUIET-001\" }, { path = \"tauri::Window::show\", reason = \"HBR-QUIET-001 use QuietWindowBuilder\" }, { path = \"tauri::Window::unminimize\", reason = \"HBR-QUIET-001\" }, { path = \"windows::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow\", reason = \"HBR-QUIET-002\" }, { path = \"windows::Win32::UI::Input::KeyboardAndMouse::AttachThreadInput\", reason = \"HBR-QUIET-002\" }, { path = \"windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow\", reason = \"HBR-QUIET-002\" }, { path = \"windows::Win32::UI::WindowsAndMessaging::LockSetForegroundWindow\", reason = \"HBR-QUIET-002 never use\" } ]`. Layer 2 (hbr-quiet-api-lint.mjs grep): ripgrep for any of the seven API names in src/ + app/src-tauri/ EXCLUDING `**/operator_foreground/**` and `**/quiet_window.rs`. Any match outside the allowlist is a violation. Output JSONL `{file, line, api_name, reason}`. Exit code 0 pass, 2 fail. Justfile recipe `hbr-quiet-api-lint`, wired into gov-check. Tests: fixture src file outside allowlist calling SetForegroundWindow -> exit 2; same call inside operator_foreground/foreground_exception.rs -> exit 0; clippy lint test: introduce a violation in a test fixture crate and assert cargo clippy --workspace -- -D warnings fails.",
+  "proof_commands": [
+    "cargo clippy --workspace --all-targets -- -D warnings",
+    "node .GOV/roles_shared/checks/hbr-quiet-api-lint.test.mjs",
+    "just hbr-quiet-api-lint"
+  ],
+  "risk_if_missed": "Without the lint, any future code path can call SetForegroundWindow and silently violate HBR-QUIET-002 until a focus-audit run catches it post-hoc.",
+  "validator_focus": "Two-layer enforcement: clippy for method-path-level bans, grep for file-scoped bans; the allowlist (operator_foreground::*, quiet_window::*) is canonical and documented in both layers identically.",
+  "hbr_obligations": ["HBR-QUIET-001", "HBR-QUIET-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.6"
+  ],
+  "acceptance_criteria_refs": ["AC-QUIET-API-LINT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-014"],
+    "blocks": ["MT-020"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Allowlist scope is identical between clippy.toml and the grep script (single source-of-truth comment in both).",
+      "Test fixture exercises BOTH layers to prove neither can be bypassed alone.",
+      "Lint failure carries the HBR-* rule id in the reason field for traceability."
+    ]
+  }
+}

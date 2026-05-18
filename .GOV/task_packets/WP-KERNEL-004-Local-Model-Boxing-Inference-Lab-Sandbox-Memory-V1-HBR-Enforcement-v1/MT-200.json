@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-200",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:24:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-200.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Multi-session swarm visibility query surface (SessionAggregateQueries)",
+  "goal": "Land the canonical query surface that operators and diagnostics consumers use to inspect multi-session swarm execution: 'all activity in model_session X', 'all sessions touching wp_id Y', 'top 10 slowest spans by activity_kind', 'session timeline from t0 to t1'. These queries close the loop on cluster X observability: spans + FR events + checkpoints + EventLedger joined into one query API.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/observability/aggregate_queries.rs with `SessionAggregateQueries`, query result DTOs, error types; integration tests under src/backend/handshake_core/tests/observability_aggregate_queries_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/observability/aggregate_queries.rs",
+    "src/backend/handshake_core/tests/observability_aggregate_queries_tests.rs"
+  ],
+  "depends_on_mts": ["MT-189", "MT-197", "MT-198", "MT-199"],
+  "unblock_conditions": "MT-189 MT executor (provides observable workload), MT-197 span repo, MT-198 event registry, MT-199 FR integration all merged.",
+  "implementation_notes": "Define typed query methods on `SessionAggregateQueries { pool: PgPool }`: (1) `activity_for_model_session(model_session_id, from_utc, to_utc, limit) -> Vec<ActivityRow>` joins kernel_activity_span + kernel_model_session_span + kernel_event_ledger on model_session_id, returns interleaved timeline; (2) `sessions_touching_wp(wp_id, from_utc, to_utc) -> Vec<SessionSummary>` queries kernel_micro_task_job by wp_id, joins through sessions; (3) `slowest_spans_by_activity_kind(activity_kind, limit) -> Vec<SpanLatencyRow>` returns top-N by duration; (4) `session_timeline(session_id, from_utc, to_utc) -> SessionTimeline` produces a chronologically ordered list of events, span boundaries, mailbox messages (via MT-177), checkpoints (via MT-190), MT outcomes (via MT-188); (5) `swarm_concurrency_snapshot(now: SystemTime) -> SwarmSnapshot` returns currently-active sessions count, active leases count, in-flight MTs, pending mailbox messages — for live diagnostics panel rendering. Each method returns a typed DTO (no raw serde_json::Value at the API boundary). All queries paginated (offset + limit with defaults: limit=100, max=1000) to prevent runaway result sets. Performance contract: each query returns within 2s for a workload of 100 sessions x 10k events. Use prepared statements (sqlx::query_as!) where possible. Tests: (a) seed fixture with 3 sessions + spans + events, query each method, assert expected shape; (b) pagination: limit=10 returns exactly 10 rows; (c) latency assertion via timing wrapper (test fails if any query > 5s on the fixture); (d) timeline query produces strict chronological order across mixed entity types.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target observability_aggregate_queries_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without aggregate queries, operators must hand-craft SQL to debug multi-session swarms; the diagnostics panel (cluster A AC-DIAG-PANEL-*) has no backend surface for its visualization; the cluster X observability slice fails to deliver operator-actionable visibility.",
+  "validator_focus": "Every query method has typed DTO return (no raw JSON exposure); pagination enforced (no unbounded result sets); performance contract tested (latency assertion in test suite).",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.12"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-DIAG-PANEL-SURFACES (backend surface for diagnostics panel queries)",
+    "PRESERVED_INTENT:WP-1-Session-Observability-Spans-FR-v1 (multi-session swarm visibility)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-189", "MT-197", "MT-198", "MT-199"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Pagination cap (max=1000) enforced at the type level via a `Limit` newtype.",
+      "Latency assertion in test suite (cluster X queries < 5s on 100-session fixture).",
+      "Cross-entity timeline ordering proven by mixed-type fixture test (events + spans + messages interleaved correctly)."
+    ]
+  }
+}

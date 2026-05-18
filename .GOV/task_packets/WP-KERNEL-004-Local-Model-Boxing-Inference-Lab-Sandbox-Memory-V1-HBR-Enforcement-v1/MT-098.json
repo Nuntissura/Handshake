@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-098",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.6",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-098.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-3 Activation Steering UI (vector editor + intensity slider + layer picker)",
+  "goal": "Steering vector editor in Inference Lab per AC-INFER-LAB-UI-TOGGLES: list of registered vectors with active-toggle, intensity slider, layer-index picker; capture-from-contrastive-prompts wizard; hidden when capabilities.supportsActivationSteering == false.",
+  "expected_diff_shape": "New Svelte components app/src/components/inference_lab/SteeringVectorEditor.svelte + ContrastiveCaptureWizard.svelte + store; integration into InferenceLab parent view.",
+  "owned_files": [
+    "app/src/components/inference_lab/SteeringVectorEditor.svelte",
+    "app/src/components/inference_lab/ContrastiveCaptureWizard.svelte",
+    "app/src/lib/stores/steering.ts",
+    "app/src/components/inference_lab/InferenceLab.svelte"
+  ],
+  "depends_on_mts": ["MT-068", "MT-097"],
+  "unblock_conditions": "MT-068 IPC + MT-097 vector store merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-INFER-LAB-UI-AB-COMPARE. SteeringVectorEditor.svelte: list of registered vectors (name, layer, intensity, technique badge); toggle to set active; intensity slider -10..10 (per MT-065 SteeringVector clamp); layer-index picker (dropdown of 0..n_layers from model config). ContrastiveCaptureWizard.svelte: two text areas (positive prompts, negative prompts); [Capture activations] button calls kernel_model_runtime_steering_capture for both sets; computes difference vector (positive_mean - negative_mean) at chosen layer; preview generated text with vector active vs inactive (A/B compare); [Save vector] persists with provenance=Contrastive{technique:RepE}. Hidden via capabilities.supportsActivationSteering==false. Adult-production note: per GLOBAL-PRODUCTION the wizard accepts raw explicit text in prompts (no sanitisation or moralizing in the UI); license tag picker explicit at save time.",
+  "proof_commands": [
+    "cd app && pnpm run typecheck",
+    "cd app && pnpm exec playwright test --grep steering_vector_editor"
+  ],
+  "risk_if_missed": "INF-3 UI knob missing; operator cannot create or apply steering vectors interactively.",
+  "validator_focus": "Hidden when unsupported; A/B compare flow present; no UI-level sanitisation of operator-provided prompt text; license picker present.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES", "AC-INFER-LAB-UI-AB-COMPARE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-068", "MT-097"],
+    "blocks": ["MT-099"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "No UI-level text sanitisation (operator prompts go through verbatim per GLOBAL-PRODUCTION-005).",
+      "Hidden when unsupported.",
+      "License tag picker mandatory at save."
+    ]
+  }
+}

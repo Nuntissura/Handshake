@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-125",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.13",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-125.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Cloud lane BYOK OpenAI API adapter (ModelRuntime impl)",
+  "goal": "Implement OpenAiByokRuntime as a ModelRuntime adapter for the BYOK cloud lane. Operator supplies API key; adapter calls the OpenAI Chat Completions / Responses API behind the same ModelRuntime trait surface. Lane normalization per HBR-INT-005.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/cloud/openai_byok.rs implementing ModelRuntime; tests with mock HTTP server.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+    "src/backend/handshake_core/src/model_runtime/cloud/openai_byok.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs",
+    "src/backend/handshake_core/Cargo.toml",
+    "src/backend/handshake_core/tests/cloud_openai_byok_tests.rs"
+  ],
+  "depends_on_mts": ["MT-062", "MT-066", "MT-067", "MT-069", "MT-070"],
+  "unblock_conditions": "MT-061..MT-070 trait + registry + ledger merged.",
+  "implementation_notes": "Cargo.toml add reqwest = { version = \"0.12\", features = [\"json\", \"stream\", \"rustls-tls\"] }, eventsource-stream = \"0.2\" (or similar SSE parser for streaming responses). OpenAiByokRuntime struct: `pub struct OpenAiByokRuntime { client: reqwest::Client, api_base: Url, api_key_provider: Arc<dyn ApiKeyProvider>, models: Arc<RwLock<HashMap<ModelId, OpenAiModelHandle>>> }`. impl ModelRuntime: load — verify provider=ByokCloud, validate model_id_string against allowlist (operator-set list of OpenAI model names: gpt-4o, gpt-4-turbo, o1, etc.), mint ModelId v7, register OpenAiModelHandle with the model name; NO ProcessOwnershipLedger row for cloud BYOK (no Handshake-owned process; per MT-066 ExternalCompat semantics extended to ByokCloud) — but DO log a CloudLaneRegistration row in a sibling cloud_invocations Postgres table for audit. generate: POST /v1/chat/completions with stream=true; parse SSE; yield GeneratedToken from each `delta.content`; cancellation via reqwest abort. score: post with `logprobs=true`; embed: POST /v1/embeddings. capabilities for cloud BYOK: supports_lora=false (no LoRA over BYOK API; could be true for fine-tuned model names — operator-set via capability declaration at register), supports_kv_prefix_cache=true (OpenAI's prompt caching is automatic), supports_kv_quantization=None (server-side opaque), supports_activation_steering=false, supports_subquadratic=false, supports_speculative_draft=false. Per HBR-INT-005 lane normalization: every cloud invocation goes through LlmClient (MT-070) which already routes per ModelRegistration.provider — this MT extends LocalRouter or adds a CloudRouter sibling. API key NEVER logged or stored in plain text in FR events; OperatorSecretsVault is the only storage. FR events: FR-EVT-LLM-INFER-START/TOKEN/END identical to local (lane-uniform observability). Tests: mock HTTP server (wiremock or httpmock crate); generate 32 tokens; cancellation; capability assertions; ensure NO ProcessOwnershipLedger row; ensure cloud_invocations row present.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target cloud_openai_byok_tests"
+  ],
+  "risk_if_missed": "Cloud lane parity missing OpenAI; LlmClient cannot serve BYOK provider=ByokCloud.",
+  "validator_focus": "Lane normalization (FR events identical shape across local + cloud); API key never logged; cloud_invocations audit row; capabilities correctly reflect cloud constraints.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-005", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-062", "MT-066", "MT-067", "MT-069", "MT-070"],
+    "blocks": ["MT-126", "MT-127", "MT-128", "MT-129", "MT-130"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "API key not logged (grep test on FR events).",
+      "cloud_invocations audit row written per call.",
+      "Capabilities match cloud realities (no supports_activation_steering=true)."
+    ]
+  }
+}

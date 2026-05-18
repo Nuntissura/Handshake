@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-088",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-088.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime State-Vector handle abstraction (SSM/RWKV parity for KV cache surface)",
+  "goal": "Define StateVectorHandle + StateVectorOps as the SSM/RWKV equivalent of KvCacheHandle: capture/restore/evict per-model SSM or RWKV state vectors. Returned from kv_cache() for SSM variants as the prefix-reuse-equivalent surface (per refinement INF-9 feature_parity_detail: 'prefix-reuse-equivalent for SSMs').",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/candle/state_vector.rs with StateVectorHandle, StateVectorOps, SSMStateSnapshot serde impls; adapter.rs kv_cache() variant routing.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/adapter.rs",
+    "src/backend/handshake_core/tests/candle_state_vector_tests.rs"
+  ],
+  "depends_on_mts": ["MT-063", "MT-085", "MT-086", "MT-087"],
+  "unblock_conditions": "MT-063 KvCacheOps trait + MT-085/086/087 SSM/RWKV base merged.",
+  "implementation_notes": "Per refinement INF-9 feature_parity_detail: SSMs need prefix-reuse-equivalent. The KvCacheOps trait surface in MT-063 is intentionally generic so SSMs can implement it with SSM-state semantics: prefix_commit captures the current SSM/RWKV state into a serialisable buffer + content_hash of the prefix tokens; prefix_restore writes the buffer back into the model's mutable state; prefix_evict + evict_all manage the in-memory LRU. SSMStateSnapshot enum: `Mamba2 { conv_states: Vec<Tensor>, ssm_states: Vec<Tensor> }`, `RwkvV5 { token_shift: Vec<Tensor>, ssm: Vec<Tensor> }`, `RwkvV6 { ... }`, `RwkvV7 { ... }` — serde Serialize as raw bytes (Tensor to_vec + dtype + shape) so snapshots persist to disk via cross-session state restore (MT-117). On restore: validate snapshot variant matches model variant; restore tensors; cross-session restore additionally validates ModelId artifact_sha256 matches the snapshot's recorded sha256 (rejects restoring into a different model). For Transformer variant: kv_cache() returns the candle-native KV-cache wrapper (MT-093 implements actual transformer KV ops); SSM/RWKV variants return StateVectorHandle. KvCacheStats for SSMs reports state_vector_bytes + entries (not token KV pairs). Tests: commit state on Mamba2, generate, restore, generate same continuation -> deterministic; tamper hash -> Err; restore across mismatched variants -> Err. UUID v7 for StateVectorId per HBR-INT-008.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_state_vector_tests"
+  ],
+  "risk_if_missed": "SSM prefix-reuse-equivalent missing; INF-9 feature parity incomplete; cross-session state restore (MT-117) has no primitive to build on.",
+  "validator_focus": "Variant-mismatch restore returns explicit Err; tamper detection; deterministic continuation after commit/restore on Mamba2.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-063", "MT-085", "MT-086", "MT-087"],
+    "blocks": ["MT-114", "MT-117"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Variant-mismatch restore rejected with explicit Err.",
+      "Tamper hash detection on restore.",
+      "Cross-session state restore artifact_sha256 binding enforced."
+    ]
+  }
+}

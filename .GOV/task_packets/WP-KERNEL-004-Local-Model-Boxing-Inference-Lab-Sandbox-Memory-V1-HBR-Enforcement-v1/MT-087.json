@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-087",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-087.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime RWKV v7 load + generate (base path)",
+  "goal": "Implement load + generate for the RwkvV7 variant per operator E-2 (subquadratic full-feature scope includes RWKV v5/v6/v7). RWKV v7 reference checkpoint: BlinkDL/rwkv-7-world (or rwkv-7-g1-2.9b as the 2026 production-ready World/G1 release). Multi-quarter timeline applies.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/candle/rwkv_v7.rs implementing v7 (Goose/G1) architecture forward; adapter.rs CandleModelHandle::RwkvV7 wiring; tests (env-gated).",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/rwkv_v7.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/adapter.rs",
+    "src/backend/handshake_core/tests/candle_rwkv_v7_tests.rs"
+  ],
+  "depends_on_mts": ["MT-086"],
+  "unblock_conditions": "MT-086 RWKV v5/v6 merged (shares state-pattern code).",
+  "implementation_notes": "Per operator E-2 + refinement INF-9. RWKV v7 (codenamed Goose/G1) introduces decay-vector-eval improvements and channel-mix changes over v6. Reference HuggingFace checkpoint: `BlinkDL/rwkv-7-world` or `BlinkDL/rwkv-7-g1-2.9b` (the smaller G1 2.9B variant is the easiest production reference; larger 7B+ variants exist). candle-transformers Rwkv7 support may need a custom impl if not yet in the latest candle 0.7 release at coder-execution time; in that case, the impl ports from the BlinkDL reference Python code (https://github.com/BlinkDL/RWKV-LM) to candle Tensor ops. Pre-implementation MT (MT-087-prep, if needed; otherwise inlined here): scan candle-transformers HEAD for an Rwkv7 wrapper; if present, use it; if absent, port the v7 time-mix and channel-mix forward functions (Tensor ops only; ~400 LOC). Load: parse config.json (RWKV v7 has additional config fields vs v6: head_size_a, head_size_divisor, ...), build VarBuilder. State: v7 per-layer state structure (token-shift state + time-mix state + channel-mix state per layer). Generate: same pattern as v5/v6. Capabilities: same as v5/v6 (supports_subquadratic=true, others false until parity MTs). Tests (env-gated by HANDSHAKE_TEST_RWKV_V7_MODEL_DIR): load v7 model, generate 32 tokens deterministically, assert v7-specific state structure differs from v6.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_rwkv_v7_tests"
+  ],
+  "risk_if_missed": "v7 path absent; operator E-2 v5/v6/v7 coverage incomplete.",
+  "validator_focus": "v7 state shape differs from v6; if porting from BlinkDL ref, output matches reference for fixed prompt (operator-supplied golden); multi-quarter timeline note.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES", "AC-MODEL-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-086"],
+    "blocks": ["MT-088", "MT-112", "MT-113", "MT-115", "MT-116", "MT-117", "MT-118"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Port-from-Python golden test (if candle-transformers lacks v7 at coder time) — output equivalence with BlinkDL ref for a fixed prompt.",
+      "v7 state structure asserted distinct from v6.",
+      "Multi-quarter timeline flagged."
+    ]
+  }
+}

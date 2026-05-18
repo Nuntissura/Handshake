@@ -1,0 +1,67 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-184",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:08:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-184.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MicroTaskJob primitive + Postgres job queue schema",
+  "goal": "Land the durable MicroTaskJob primitive and Postgres queue schema that turns micro-task iteration into a first-class, auditable job loop. Folds WP-1-Micro-Task-Executor-v1 intent: MT definitions become typed rows with fresh-context-per-iteration, completion-signal parsing fields, bounded iteration limits, and 6-level escalation chain fields.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/micro_task_job.rs + src/backend/handshake_core/src/process_ledger/micro_task_queue.rs; new Postgres migration src/backend/handshake_core/migrations/NNN_micro_task_job_queue.sql; unit tests under src/backend/handshake_core/tests/micro_task_job_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/micro_task_job.rs",
+    "src/backend/handshake_core/src/process_ledger/micro_task_queue.rs",
+    "src/backend/handshake_core/migrations/NNN_micro_task_job_queue.sql",
+    "src/backend/handshake_core/tests/micro_task_job_tests.rs"
+  ],
+  "depends_on_mts": ["MT-177", "MT-179", "MT-180", "MT-181"],
+  "unblock_conditions": "X.1 lease + router + repo merged so MicroTaskJob can bind to mailbox threads with proper claim semantics.",
+  "implementation_notes": "Folded WP-1-Micro-Task-Executor-v1 intent in refinement.json line 995: 'Make micro-task iteration a first-class, auditable job loop with deterministic escalation and hard-gate pauses ... bounded iteration limits ... 6-level escalation chain (7B->7B-alt->13B->13B-alt->32B->HARD_GATE) with LoRA selection by task_tags.' Define `MicroTaskJob { job_id: Uuid v7, wp_id: String, mt_id: String, mt_contract_path: PathBuf, iteration_n: u32, max_iterations: u32, escalation_tier: EscalationTier (T7B|T7BAlt|T13B|T13BAlt|T32B|HardGate), escalation_history: Vec<EscalationStep>, task_tags: Vec<String>, lora_id: Option<String>, mailbox_thread_id: Option<Uuid v7> (links to X.1 thread for feedback/escalation), state: MicroTaskJobState (Queued|Claimed|Running|AwaitingVerification|Escalated|Completed|HardGated|Cancelled|Failed), claimed_by_session: Option<Uuid v7>, claimed_at_utc: Option, created_at_utc, updated_at_utc, completion_signal: Option<CompletionSignal>, progress_artifact_ref: Option<ArtifactPointer>, run_ledger_ref: Option<RunLedgerPointer> }`. Postgres table `kernel_micro_task_job` indexed on (state, escalation_tier, created_at_utc) and (wp_id, mt_id). Queue methods on `MicroTaskQueue`: `enqueue(job)`, `claim_next(executor_kind, capabilities) -> Option<MicroTaskJob>` (atomic SELECT FOR UPDATE SKIP LOCKED + UPDATE state=Claimed), `update_state(job_id, new_state, transition_reason)`, `escalate(job_id, new_tier, reason)` records an EscalationStep with timestamp + reason + predecessor_tier. The 6-tier escalation chain is canonicalized in `EscalationTier::next(current) -> Option<EscalationTier>` returning None at HardGate. Hard-gate transition triggers operator pause (forward-declared; MT-188 wires the escalation router). All Uuid v7. Tests: (a) enqueue+claim_next is atomic under 8 parallel claimers; (b) escalation chain progresses tier-by-tier, refuses to skip; (c) HardGate state blocks further claims; (d) cancellation transitions Running -> Cancelled cleanly.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target micro_task_job_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without a first-class MicroTaskJob primitive, MT iteration stays implicit chat replay (the folded stub's explicit anti-pattern); escalation becomes non-deterministic; distillation evidence (downstream MT-189) has no schema to attach to; silent infinite loops become possible.",
+  "validator_focus": "Atomic claim under concurrency (SKIP LOCKED + FOR UPDATE pattern proven); escalation tier monotonic (cannot skip or downgrade except via explicit downgrade method); HardGate is terminal until operator releases via signed envelope.",
+  "hbr_obligations": ["HBR-INT-008", "HBR-SWARM-001", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7",
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Micro-Task-Executor-v1 (first-class auditable job loop with deterministic escalation)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-177", "MT-179", "MT-180", "MT-181"],
+    "blocks": ["MT-185", "MT-186", "MT-187", "MT-188", "MT-189"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "SKIP LOCKED proven via 8-task parallel claim test asserting no double-claim.",
+      "Escalation tier monotonic enforced by CHECK constraint or trigger on state column.",
+      "HardGate release requires operator capability proof (forward-declared; MT-188 wires signed envelope check)."
+    ]
+  }
+}

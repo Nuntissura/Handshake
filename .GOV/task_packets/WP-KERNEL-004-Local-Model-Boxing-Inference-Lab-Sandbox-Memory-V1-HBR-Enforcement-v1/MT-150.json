@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-150",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:09:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-150.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "HBR test-packet corpus loader + 60/20/20 train/dev/holdout split with encrypted-at-rest holdout",
+  "goal": "Land the fixed ~30-item HBR test-packet corpus loader and apply the 60/20/20 train/dev/holdout split per AC-DISTILL-LOOP-SAFEGUARDS. The holdout split MUST be encrypted-at-rest using a key sourced from the operator credential store; non-holdout splits stored plain. Corpus identity is content-addressed (sha256 over canonical item bytes) so loop runs are reproducible.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/corpus.rs (HbrTestPacketCorpus + CorpusSplit + CorpusItem + EncryptedHoldout). Corpus fixture at src/backend/handshake_core/tests/fixtures/hbr_test_packet_corpus/items.json (30 items). Tests src/backend/handshake_core/tests/corpus_split_tests.rs. Cargo.toml gains aes-gcm + chacha20poly1305 (one will be chosen by implementation) for encrypted-at-rest.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/corpus.rs",
+    "src/backend/handshake_core/tests/fixtures/hbr_test_packet_corpus/items.json",
+    "src/backend/handshake_core/tests/corpus_split_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": ["MT-148"],
+  "unblock_conditions": "MT-148 loop core ships.",
+  "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS: '60/20/20 train/dev/holdout split with holdout encrypted-at-rest'. Per RW-6: 'held-out task eval with seed isolation'. Surface: `pub struct HbrTestPacketCorpus { items: Vec<CorpusItem>, content_hash: String }` + `pub struct CorpusSplit { train: Vec<CorpusItem>, dev: Vec<CorpusItem>, holdout: EncryptedHoldout, split_seed: u64, content_hash: String }`. Split is deterministic from (content_hash, split_seed) so reproducibility holds across runs. EncryptedHoldout: `pub struct EncryptedHoldout { ciphertext: Vec<u8>, nonce: [u8; 12], key_id: String }` with `pub fn decrypt(key_provider: &dyn KeyProvider) -> Result<Vec<CorpusItem>, CorpusError>`. Key sourcing: `pub trait KeyProvider { fn fetch_key(key_id: &str) -> Result<Vec<u8>, KeyError>; }` so production wires to the operator credential store and tests inject a fixed key. CorpusItem shape: `{ id: Uuid (v7), hbr_rule_id: String, packet_under_test: String, expected_first_pass_verdict: ValidatorVerdict, fixtures: serde_json::Value }`. Fixture committed to tests/fixtures/ has exactly 30 items spanning the 5 HBR pillars (INT/SWARM/VIS/QUIET/MAN). Tests: split sizes are exactly 18/6/6 for a 30-item corpus; split is deterministic across runs for the same seed; holdout cannot be read without the key; tampered ciphertext fails decryption; content_hash changes if any item changes.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target corpus_split_tests"
+  ],
+  "risk_if_missed": "Without holdout encryption + deterministic split, the loop overfits to dev and the Goodhart sentinel (MT-153) cannot trust holdout PASS rate as an independent signal.",
+  "validator_focus": "Encryption is real (not stub); KeyProvider trait is testable; split is deterministic across runs.",
+  "hbr_obligations": ["HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-148"],
+    "blocks": ["MT-151", "MT-152", "MT-153", "MT-156", "MT-167"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Holdout is encrypted-at-rest with a real AEAD cipher; not a stub.",
+      "KeyProvider trait so production cannot accidentally ship test keys.",
+      "Split is deterministic; same seed + content always produces same split."
+    ]
+  }
+}

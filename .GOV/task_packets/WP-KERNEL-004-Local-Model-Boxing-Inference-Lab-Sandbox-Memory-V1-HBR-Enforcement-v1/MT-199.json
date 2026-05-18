@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-199",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:23:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-199.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Flight Recorder integration: span lifecycle emits FR-EVT-SPAN-* via registry",
+  "goal": "Wire MT-196 spans to MT-198 registry by automatically emitting FR-EVT-SPAN-{STARTED,ENDED,FAILED} on every span lifecycle transition. Provides the universal observability fabric: every ActivitySpan and ModelSessionSpan boundary becomes an FR event row, queryable alongside session state for full multi-session swarm visibility.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/observability/fr_emitter.rs with `SpanFrEmitter`, `FrRecorder` trait; updates to src/backend/handshake_core/src/observability/spans.rs to call emitter on lifecycle transitions; integration tests under src/backend/handshake_core/tests/observability_fr_integration_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/observability/fr_emitter.rs",
+    "src/backend/handshake_core/tests/observability_fr_integration_tests.rs"
+  ],
+  "depends_on_mts": ["MT-196", "MT-197", "MT-198"],
+  "unblock_conditions": "MT-196 spans + MT-197 repo + MT-198 registry all merged.",
+  "implementation_notes": "Define `FrRecorder` trait: `fn record(event_id: FrEventId, payload: serde_json::Value, span_context: Option<SpanContextRef>) -> Result<(), FrRecorderError>`. Default impl `PostgresFrRecorder` writes to kernel_event_ledger (KERNEL-001 existing table) with model_session_id + span_id columns populated from SpanContext. `SpanFrEmitter::on_span_start(span) -> Result<()>` invokes the recorder with FrEventId::SpanStarted + payload `{ span_id, model_session_id, parent_span_id, kind, attributes }`. on_span_end similar with FrEventId::SpanEnded + duration_ms. on_span_failed with FrEventId::SpanFailed + reason. SpanGuard Drop calls the appropriate end/failed emitter based on guard.status at drop time. Decoupled: emitter is injected into spans via a `tokio::task_local!` ref so tests can substitute a `NullFrRecorder` for unit tests and `StubFrRecorder` (in-memory vec) for assertions. Sampling: span-level sampling is supported via `SpanFrEmitterConfig { sample_rate: f32 (0.0 .. 1.0), force_emit_failures: bool (default true) }` — sampled-out spans skip emission but failures always emit (per spec §5 observability invariant: failures are never silently dropped). Integration test asserts: (a) every span boundary produces an FR event row; (b) parent_span_id correlation correct; (c) Drop-on-panic still emits SpanFailed; (d) sampling reduces span emissions but never drops failures; (e) PostgresFrRecorder write performance > 500 events/sec (uses batched insert via MT-191's channel pattern adapted).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target observability_fr_integration_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without automatic FR emission, spans live in their own silo unjoinable with the EventLedger; the cluster X observability slice fails to deliver the 'session-wide queries' invariant; multi-session debugging requires manual correlation queries.",
+  "validator_focus": "SpanGuard Drop ALWAYS emits an event (even on panic — tested via catch_unwind); failures bypass sampling (force_emit_failures honored); PostgresFrRecorder uses batched async writes per spec §5.7.3 pattern (does not block span Drop).",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Observability-Spans-FR-v1 (Flight Recorder integration with span lifecycle)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-196", "MT-197", "MT-198"],
+    "blocks": ["MT-200"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Drop-on-panic emission test asserts SpanFailed event row exists in StubFrRecorder after catch_unwind.",
+      "Sampling test asserts force_emit_failures honored even with sample_rate=0.0 — failures always emitted.",
+      "Performance test asserts > 500 events/sec sustainable via batched async write path (no per-event blocking)."
+    ]
+  }
+}

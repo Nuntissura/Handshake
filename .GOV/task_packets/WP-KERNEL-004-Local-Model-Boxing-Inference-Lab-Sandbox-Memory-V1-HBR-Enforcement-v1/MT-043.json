@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-043",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-043.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "SandboxAdapterRegistry + selection policy + SandboxSelectionFailure event",
+  "goal": "Build the central registry that holds every available SandboxAdapter instance and the selection policy that picks an adapter for a ProcessSpec per spec §3.5.3 (operator default = WSL2PodmanAdapter; per-job override via Work Profile knob OR ProcessSpec.required_capabilities; WindowsNativeJailAdapter when win32_native_fidelity required; DockerAdapter only on explicit operator opt-in; silent fallback is FORBIDDEN; failure emits typed SandboxSelectionFailure event).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/sandbox/registry.rs (SandboxAdapterRegistry struct) + src/backend/handshake_core/src/sandbox/selection.rs (selection policy + SandboxSelectionFailure event) + tests under src/backend/handshake_core/tests/sandbox_selection_tests.rs. mod.rs re-exports.",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/registry.rs",
+    "src/backend/handshake_core/src/sandbox/selection.rs",
+    "src/backend/handshake_core/src/sandbox/mod.rs",
+    "src/backend/handshake_core/tests/sandbox_selection_tests.rs"
+  ],
+  "depends_on_mts": ["MT-041", "MT-042"],
+  "unblock_conditions": "Shared types + SandboxAdapter trait merged; registry can hold trait objects.",
+  "implementation_notes": "SandboxAdapterRegistry: `pub struct SandboxAdapterRegistry { adapters: BTreeMap<AdapterId, Arc<dyn SandboxAdapter>>, default_adapter_id: AdapterId, docker_explicit_opt_in: bool }`. Constructor: `SandboxAdapterRegistry::new(default_adapter_id: AdapterId) -> Self`. Mutation surface: `register(adapter: Arc<dyn SandboxAdapter>)` (panics on duplicate AdapterId so registration mistakes fail loud), `set_docker_explicit_opt_in(opt_in: bool)`. Read surface: `list() -> Vec<AdapterCapabilities>`, `get(adapter_id: &AdapterId) -> Option<Arc<dyn SandboxAdapter>>`, `default() -> Arc<dyn SandboxAdapter>`. Selection policy lives in selection.rs: `pub fn select(registry: &SandboxAdapterRegistry, spec: &ProcessSpec, work_profile_override: Option<&AdapterId>) -> Result<Arc<dyn SandboxAdapter>, SandboxSelectionFailure>`. Algorithm: (1) if work_profile_override is Some, attempt that adapter and verify its capabilities satisfy spec.required_capabilities; if no match, emit SandboxSelectionFailure::OverrideCapabilityMismatch; (2) else if spec.required_capabilities contains win32_native_fidelity, attempt windows_native_jail; (3) else if spec.required_capabilities contains DockerOnly (a sentinel RequiredCapability variant added in this MT only if not already present from MT-041 — coordinate via MT-041 errata if needed), require docker_explicit_opt_in==true and use docker; (4) else use registry.default(). For every candidate, run `candidate.capabilities()` and check each `spec.required_capabilities` entry is satisfied (mapping rules: win32_native_fidelity -> caps.win32_native_fidelity==true; nvidia_cuda_passthrough -> caps.gpu_passthrough==NvidiaCuda; vendor_agnostic_gpu -> caps.gpu_passthrough!=None; cross_machine_portable -> caps.cross_machine_portable==true; very_strong_filesystem_isolation -> caps.filesystem_isolation_strength==VeryStrong; very_strong_network_isolation -> caps.network_isolation_strength==VeryStrong; high_stdio_throughput -> caps.stdio_throughput_class==High). If any required capability fails, emit SandboxSelectionFailure::CapabilityUnsatisfied{ required, available_by_adapter }. NO silent fallback to default; failure is loud per spec §3.5.3. SandboxSelectionFailure enum (thiserror Error + Serialize): CapabilityUnsatisfied{ required: Vec<RequiredCapability>, available_by_adapter: BTreeMap<AdapterId, AdapterCapabilities> }, AdapterNotRegistered{ adapter_id: AdapterId }, DockerNotExplicitlyOptedIn, OverrideCapabilityMismatch{ override_id: AdapterId, required: Vec<RequiredCapability> }. Selection failures MUST emit an EventLedger row of family `FR-EVT-SANDBOX-SELECT-FAIL` for HBR-INT-001 replay (consumer of the event is wired later in MT-050/MT-053). Tests: (a) default adapter is returned when no overrides and empty required_capabilities, (b) win32_native_fidelity routes to windows_native_jail, (c) Docker selection fails when docker_explicit_opt_in==false, (d) capability mismatch emits CapabilityUnsatisfied (NOT silent fallback), (e) work_profile_override forces a specific adapter or fails loud.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target sandbox_selection_tests"
+  ],
+  "risk_if_missed": "Without selection policy, callers reach for the first adapter they can `get()` and the spec §3.5.3 'silent fallback is forbidden' rule is violated; Docker becomes accidental default.",
+  "validator_focus": "Silent-fallback test: a ProcessSpec demanding win32_native_fidelity on a registry containing only WSL2Podman MUST return SandboxSelectionFailure, not WSL2Podman; Docker opt-in test: a ProcessSpec preferring docker MUST fail when docker_explicit_opt_in==false.",
+  "hbr_obligations": ["HBR-INT-001", "HBR-SWARM-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.3"
+  ],
+  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS", "AC-SANDBOX-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-041", "MT-042"],
+    "blocks": ["MT-048", "MT-049", "MT-050", "MT-054", "MT-056"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "No silent fallback test: capability mismatch returns SandboxSelectionFailure and does NOT silently return the default adapter.",
+      "Docker opt-in test asserts a packet that did not call set_docker_explicit_opt_in(true) cannot reach the DockerAdapter.",
+      "Registry duplicate-register call panics (registration mistakes fail loud at startup, not silently)."
+    ]
+  }
+}

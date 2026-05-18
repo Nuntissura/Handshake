@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-168",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.4",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:27:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-168.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "FEMS V1 feedback integration end-to-end test (bitemporal + outcome + pinned + hygiene + degradation + calibration + replay + routing + trace + spawn distill)",
+  "goal": "End-to-end integration test covering the full D.3 FEMS V1 feedback integration chain: build a capsule under RetrievalModeRouter, inject + record + attach outcome, run hygiene + check calibration + run replay + export trace + harvest spawn-tree candidates. Validates that all 10 folded WP-1-FEMS-* stub primitives compose against the shared MemoryCapsule + FEMS V1 surfaces.",
+  "expected_diff_shape": "New integration test src/backend/handshake_core/tests/fems_integration_e2e_tests.rs. Reuses fixtures from D.1 (sample_fems_items.json) + adds tests/fixtures/fems_integration_e2e/spawn_tree.json for the spawn-tree harvest path.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/fems_integration_e2e_tests.rs",
+    "src/backend/handshake_core/tests/fixtures/fems_integration_e2e/spawn_tree.json"
+  ],
+  "depends_on_mts": ["MT-157", "MT-158", "MT-159", "MT-160", "MT-161", "MT-162", "MT-163", "MT-164", "MT-165", "MT-166"],
+  "unblock_conditions": "All D.3 MTs land.",
+  "implementation_notes": "Test flow: (1) build a capsule with RetrievalModeRouter (assert Hybrid mode for general query); (2) build same capsule with exact uuid query (assert NoRag mode); (3) build same capsule with hbr_id_pattern query (assert AuthoritativeOnly mode); (4) inject + record capsule via D.1 path; (5) attach Pass outcome via MT-158, assert per-item scores updated; (6) pin one item via MT-159, assert outcome feedback skips it on next attach; (7) run hygiene job via MT-160, assert one consolidation candidate emitted and pinned items skipped; (8) generate retrieval under simulated load_signal=0.9, assert DegradationReport shows graph + re-rank skipped; (9) read calibration snapshot via MT-162, assert degradation_rate signal updated; (10) run replay via MT-163 against the original capsule, assert replay_succeeded with empty ReplayDifference; (11) export trace via MT-165 with default redaction policy, assert pii redacted in bundle; (12) opt-in a fixture session via DISTILL_CORPUS=true and harvest spawn tree via MT-166, assert candidate emitted only for Pass-outcome parent-child pair; (13) assert bitemporal indexing via MT-157 returns the right items at AsOfQuery snapshots both before and after hygiene invalidation. Run with cargo test --release; logged warning if wall-clock >60s.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test fems_integration_e2e_tests"
+  ],
+  "risk_if_missed": "Without end-to-end FEMS feedback coverage the 10 folded stubs may individually pass unit tests but fail to compose; the integration validator cannot verify AC-DISTILL-CONTENT-REVIEW and AC-DISTILL-EDITABLE-SURFACE in concert.",
+  "validator_focus": "Test exercises every D.3 surface in one run; uses real MT-141 capsules + real RetrievalMode routing; perf logged.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.1",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.2"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE", "AC-DISTILL-CONTENT-REVIEW", "AC-DISTILL-OPT-IN", "AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-157", "MT-158", "MT-159", "MT-160", "MT-161", "MT-162", "MT-163", "MT-164", "MT-165", "MT-166"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Test covers all four AC-DISTILL-* IDs in one run; partial coverage is a test failure.",
+      "Pinned item skip and content-reviewer invocation asserted at the integration level, not just unit level.",
+      "Replay correctness asserted via empty ReplayDifference on round-trip."
+    ]
+  }
+}

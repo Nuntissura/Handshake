@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-025",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-025.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "kernel.visual_debug.console_stream IPC (renderer console + exception stream)",
+  "goal": "Per spec §6.4.3 (AC-VISUAL-DEBUGGER-IPC) implement `kernel.visual_debug.console_stream(scope)` exposing a streaming subscription to renderer console + exception events via CDP `Runtime.consoleAPICalled` + `Runtime.exceptionThrown` + Playwright `pageerror`. Consumed by the Diagnostics panel for live console viewing.",
+  "expected_diff_shape": "Tauri command + event emission via tauri::Window.emit for streaming; CDP subscription logic in cdp_client.rs; test asserts events flow end-to-end.",
+  "owned_files": [
+    "app/src-tauri/src/visual_debug.rs",
+    "src/backend/handshake_core/src/operator_foreground/cdp_client.rs",
+    "src/backend/handshake_core/tests/cdp_console_stream_tests.rs"
+  ],
+  "depends_on_mts": ["MT-018", "MT-021", "MT-022"],
+  "unblock_conditions": "MT-022 already implements the subscription in test scope; this MT exposes the same subscription as an IPC stream for Diagnostics panel.",
+  "implementation_notes": "Per spec §6.4.3. cdp_client.rs adds `console_stream(scope, sink: ConsoleSink)` where ConsoleSink is a trait `fn on_event(event: ConsoleEvent)`. ConsoleEvent enum: `Log { level, message, timestamp }`, `Exception { message, stack, timestamp }`, `PageError { message, timestamp }`. The streaming subscription holds a websocket connection to CDP and forwards filtered events to the sink. Tauri command: `#[tauri::command] async fn visual_debug_console_stream_start(window: Window, scope: ConsoleScope) -> Result<StreamId, String>` returns a StreamId; events flow via `window.emit(\"console_event\", payload)` (Tauri's event emission); companion `visual_debug_console_stream_stop(stream_id: StreamId)` cleans up. The Tauri event channel id is documented in MT-013 manual content. Per HBR-VIS-002 the console scan (MT-022) reuses the same subscription primitive — extract common code into cdp_client.rs and have MT-022's scan call into it. Tests: start stream, inject console.error via page.evaluate, assert event received via Tauri event listener; stop stream and assert no further events.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target cdp_console_stream_tests"
+  ],
+  "risk_if_missed": "Without streaming IPC, Diagnostics panel can only poll for console events; HBR-VIS-001 live observation requirement degraded.",
+  "validator_focus": "Stop cleanly unregisters the CDP subscription (no leak); the subscription primitive is shared with MT-022 (no duplicated code); Tauri event channel id matches manual entry.",
+  "hbr_obligations": ["HBR-VIS-001", "HBR-VIS-002", "HBR-MAN-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
+  ],
+  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IPC"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-018", "MT-021", "MT-022"],
+    "blocks": ["MT-027"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Stop call unregisters the CDP subscription (asserted by leak test).",
+      "Subscription primitive is shared between MT-022 scan and MT-025 stream (single source).",
+      "Tauri event channel id is listed in manual entry per HBR-MAN-001."
+    ]
+  }
+}

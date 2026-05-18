@@ -1,0 +1,67 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-046",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-046.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "WindowsNativeJailAdapter implementation (wraps audited Rust crate from MT-045 decision)",
+  "goal": "Implement the WindowsNativeJailAdapter per spec §3.5.2: Win32 Job Objects + AppContainer + Restricted Tokens, wrapping the Rust crate chosen by MT-045's license audit. Strict isolation with Win32-native fidelity (registry isolation, native DirectX path, no WSL2 round-trip). Selected when ProcessSpec.required_capabilities includes win32_native_fidelity per spec §3.5.3.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/sandbox/windows_native_jail/{mod.rs, adapter.rs, capabilities.rs, job_object_wrap.rs}; integration tests under src/backend/handshake_core/tests/windows_native_jail_adapter_tests.rs (gated by `#[cfg(target_os=\"windows\")]` and `#[cfg_attr(not(feature=\"win-native-integration\"), ignore)]`). Cargo.toml additions: the audited crate from MT-045 decision record (codex-windows-sandbox OR rappct), windows-rs (already a workspace dep likely; verify), winapi only if the audited crate requires it transitively.",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/windows_native_jail/mod.rs",
+    "src/backend/handshake_core/src/sandbox/windows_native_jail/adapter.rs",
+    "src/backend/handshake_core/src/sandbox/windows_native_jail/capabilities.rs",
+    "src/backend/handshake_core/src/sandbox/windows_native_jail/job_object_wrap.rs",
+    "src/backend/handshake_core/tests/windows_native_jail_adapter_tests.rs",
+    "src/backend/handshake_core/Cargo.toml"
+  ],
+  "depends_on_mts": ["MT-041", "MT-042", "MT-045"],
+  "unblock_conditions": "MT-045 decision record exists at .GOV/roles_shared/records/sandbox/WP-KERNEL-004-windows-native-jail-crate-license-audit.json with decision.chosen_crate != null AND operator_escalation_required == false. If escalation required, MT-046 stays BLOCKED.",
+  "implementation_notes": "Pre-step: implementer reads the MT-045 decision record, extracts decision.chosen_crate and decision.chosen_version, and adds that exact crate+version to Cargo.toml as a workspace dependency. DO NOT hand-roll Win32 Job Object / AppContainer / Restricted Token code (spec §3.5.2: 'DO NOT hand-roll Win32 isolation' + OpenAI Codex 2026 pattern). adapter.rs implements SandboxAdapter by delegating to the chosen crate: (1) `spawn`: construct the crate's sandbox-spec from ProcessSpec (map ProcessSpec.cmd -> argv, env -> environment block, binds -> per-AppContainer file-grant API call, resource_limits -> Job Object accounting limits via the crate's API, net_policy -> Windows Filtering Platform rules via the crate IF supported else SpawnFailed with reason); the spawned process becomes a child of a Job Object so kill+orphan-reclaim are guaranteed by the OS; capture the crate's process handle as `sandbox_internal_id`; mint ProcessHandle with UUID v7. (2) `exec`: many Win32 jails do NOT support exec-after-spawn (the AppContainer SID is process-scoped) — if the crate does not support exec, return SandboxAdapterError::SpawnFailed{ reason: \"WindowsNativeJailAdapter does not support exec; declare cmd in ProcessSpec\" } loud per spec §3.5.3. (3) `fs_bind`: post-spawn bind = unsupported on AppContainer (same reason); SpawnFailed loud. (4) `net_policy`: post-spawn change uses WFP rule update IF the crate supports it. (5) `kill`: TerminateJobObject for Term/Kill; map Int to GenerateConsoleCtrlEvent CTRL_C_EVENT. (6) `status`: GetExitCodeProcess + IsProcessInJob. (7) `exit_code`: GetExitCodeProcess. (8) `capabilities()`: returns AdapterCapabilities { adapter_id: \"windows_native_jail\", filesystem_isolation_strength: VeryStrong (AppContainer file-grant model is per-SID), network_isolation_strength: Strong (WFP, but per-process granularity depends on crate), gpu_passthrough: VendorAgnostic (DirectX/Direct3D pass via host driver), stdio_throughput_class: Medium (Win32 anonymous pipes), win32_native_fidelity: true, cross_machine_portable: false (Windows-only) }. capabilities.rs centralizes the AdapterCapabilities so MT-048 IPC reads from one place. job_object_wrap.rs is a thin wrapper around the chosen crate's Job-Object handle type so the rest of the module never imports the crate directly (insulation layer; if MT-045 chose a different crate in a future revision, only job_object_wrap.rs changes). Integration tests (gated): spawn `cmd.exe /c echo hello`, assert exit code 0 + stdout==\"hello\\r\\n\"; spawn a process that tries to write outside its AppContainer-granted paths and assert ACCESS_DENIED; spawn a process that tries to open a TCP socket and assert WFP blocks it (when net_policy=DenyAll). Cross-platform CI: tests are `#[cfg(target_os=\"windows\")]` so non-Windows CI skips; presence of a `#[cfg(not(target_os=\"windows\"))]` smoke that asserts SandboxAdapterError::AdapterUnavailable so callers on non-Windows hosts get a typed error rather than a build failure.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --target x86_64-pc-windows-msvc --features win-native-integration",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target windows_native_jail_adapter_tests --target x86_64-pc-windows-msvc --features win-native-integration"
+  ],
+  "risk_if_missed": "Without the strict-isolation adapter, jobs declaring required_capabilities=win32_native_fidelity have no satisfier and selection (MT-043) fails loud; certain Win32-native workloads (registry-touching plugin processes, DirectX-dependent helpers) cannot be sandboxed.",
+  "validator_focus": "Adapter delegates to the MT-045-chosen crate (no hand-rolled Job Object code in repo); capabilities().win32_native_fidelity==true; capabilities().cross_machine_portable==false; AccessDenied is the integration-test assertion for outside-AppContainer file writes; non-Windows host returns AdapterUnavailable not a build failure.",
+  "hbr_obligations": ["HBR-INT-008", "HBR-QUIET-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2"
+  ],
+  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS", "AC-SANDBOX-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-041", "MT-042", "MT-045"],
+    "blocks": ["MT-048", "MT-057", "MT-058"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Grep test asserts NO direct windows-rs Job Object or AppContainer API call appears outside job_object_wrap.rs (forces the insulation layer per spec §3.5.2 'DO NOT hand-roll').",
+      "Non-Windows host test asserts the adapter constructs and returns AdapterUnavailable typed error rather than panicking or refusing to compile.",
+      "Integration test asserts a process inside the jail cannot read C:\\Windows\\System32 unless explicitly granted (proves AppContainer SID restriction is wired)."
+    ]
+  }
+}

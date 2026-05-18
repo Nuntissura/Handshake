@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-106",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.9",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-106.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-6 Abliteration offline weight-orthogonalization tool (CLI binary; NOT a runtime path)",
+  "goal": "Build an OFFLINE abliteration tool per AC-ABLITERATION-OFFLINE and operator decision E-5: takes a base model + refusal direction extracted via INF-4 + output path, performs weight orthogonalisation against the refusal direction (kabachuha/abliterate.cpp pattern), writes a new GGUF (or safetensors) as a derived model artifact. NEVER inserted into ModelRuntime.generate per spec §4.7.4.",
+  "expected_diff_shape": "New Rust binary src/backend/handshake_core/src/bin/abliterate.rs (CLI tool with clap arg parsing); src/backend/handshake_core/src/distillation/abliterate.rs (the actual orthogonalisation algorithm; lives under distillation/ allowed_paths); Cargo.toml [[bin]] section.",
+  "owned_files": [
+    "src/backend/handshake_core/src/bin/abliterate.rs",
+    "src/backend/handshake_core/src/distillation/abliterate.rs",
+    "src/backend/handshake_core/src/distillation/mod.rs",
+    "src/backend/handshake_core/Cargo.toml",
+    "src/backend/handshake_core/tests/abliterate_tool_tests.rs"
+  ],
+  "depends_on_mts": ["MT-082", "MT-083", "MT-100"],
+  "unblock_conditions": "MT-082 hooks + MT-083 transformer + MT-100 refusal extraction merged (refusal direction is input to abliteration).",
+  "implementation_notes": "Per AC-ABLITERATION-OFFLINE + spec §4.7.4 + operator E-5: abliteration is OFFLINE TOOL ONLY. Never inserted into a hot inference path or ModelRuntime::generate. Output is a new derived model artifact with own ModelId + on-disk GGUF/safetensors. Passes through §4.8 content-review pipeline (PII scan + license tagging + provenance) before any Skill Bank reference. ProcessOwnershipLedger records the job as `engine_kind=\"abliteration_tool\"`. CLI args: `--base-model <PATH>` (GGUF or safetensors), `--refusal-direction <PATH>` (JSON file written by INF-4 extraction with `{layer, values, ...}`), `--out-model <PATH>` (output GGUF/safetensors), `--license-tag <STRING>`, `--provenance-note <STRING>`. Algorithm (kabachuha/abliterate.cpp pattern, ported to Rust): load weight tensors of the target Linear modules (typically o_proj of every attention block and down_proj of every MLP block per refusal-direction research); for each target weight tensor W, compute orthogonalised W' = W - (W @ direction.unsqueeze(-1)) @ direction.unsqueeze(0); write back. For GGUF input: use llama-cpp-2 quantize-roundtrip helpers OR a small standalone GGUF reader/writer (gguf-rs crate if available). For safetensors: candle_core::safetensors helpers. Output carries provenance metadata: { base_model_sha256, refusal_direction_sha256, abliteration_tool_version, abliterated_at_utc, license_tag, operator_signature }. Spawn-time: register a ProcessOwnershipLedger row with engine_kind=AbliterationTool (per MT-069 EngineKind enum). Hot-path invariant test: a static-analysis-style cargo test scans model_runtime/llama_cpp/generate.rs + model_runtime/candle/generate.rs for any call into distillation::abliterate; if any, fail with HBR-INT-002 violation. CLI tests (env-gated): given small fixture model + fixture direction, produce output; verify output loads; verify weight differs at target modules; verify provenance metadata preserved.",
+  "proof_commands": [
+    "cargo build -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --bin abliterate",
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target abliterate_tool_tests"
+  ],
+  "risk_if_missed": "INF-6 OFFLINE TOOL ONLY invariant unenforced; abliteration ends up in hot path; spec §4.7.4 violated.",
+  "validator_focus": "Static analysis test enforcing no hot-path call into abliterate module; provenance preserved; ProcessOwnershipLedger row with engine_kind=AbliterationTool; license_tag required.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.4"
+  ],
+  "acceptance_criteria_refs": ["AC-ABLITERATION-OFFLINE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-082", "MT-083", "MT-100"],
+    "blocks": ["MT-107", "MT-108"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Hot-path invariant: static-analysis test rejects any generate.rs reference to abliterate module.",
+      "ProcessOwnershipLedger row with engine_kind=AbliterationTool required.",
+      "license_tag mandatory CLI arg (no default)."
+    ]
+  }
+}

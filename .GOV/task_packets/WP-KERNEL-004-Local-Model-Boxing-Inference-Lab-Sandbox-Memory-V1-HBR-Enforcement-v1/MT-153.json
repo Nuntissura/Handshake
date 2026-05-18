@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-153",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:12:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-153.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "GoodhartSentinel: auto-pause when dev/holdout gap widens monotonically 3 iterations",
+  "goal": "Implement the Goodhart sentinel per AC-DISTILL-LOOP-SAFEGUARDS: auto-pause the self-improvement loop when the dev-vs-holdout PASS-rate gap widens monotonically for 3 consecutive accepted iterations. A pause emits a typed receipt that the loop scheduler (MT-156) treats as a hard stop until operator unpause.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/goodhart_sentinel.rs (GoodhartSentinel + SentinelDecision + SentinelHistory + SentinelReceipt types). Tests src/backend/handshake_core/tests/goodhart_sentinel_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/goodhart_sentinel.rs",
+    "src/backend/handshake_core/tests/goodhart_sentinel_tests.rs"
+  ],
+  "depends_on_mts": ["MT-148", "MT-151", "MT-152"],
+  "unblock_conditions": "MT-148 (loop core), MT-151 (evaluator), MT-152 (promotion floor) all land.",
+  "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS: 'Goodhart sentinel (auto-pause if dev/holdout gap widens monotonically 3 iterations)'. The sentinel observes (dev_pass_rate, holdout_pass_rate) for each ACCEPTED iteration. The gap is `dev_pass_rate - holdout_pass_rate`. 'Monotonically widens' means the gap is strictly greater than the previous iteration's gap, sustained across 3 consecutive accepted iterations. Surface: `pub struct GoodhartSentinel;` with `pub fn evaluate(history: &SentinelHistory, latest: &EvalResult) -> SentinelDecision`. SentinelHistory: `{ entries: VecDeque<SentinelEntry> }` (bounded; only the most recent 10 entries are kept). SentinelEntry: `{ iteration_number, dev_pass_rate, holdout_pass_rate, gap, accepted_at_utc }`. SentinelDecision: `{ Continue, Pause { reason: PauseReason, receipt: SentinelReceipt } }`. PauseReason: `MonotonicGapWidening { gaps: Vec<f64>, iteration_numbers: Vec<u32> }`. SentinelReceipt: `{ receipt_id: Uuid v7, paused_at_utc, fr_event_kind: \"FR-EVT-GOODHART-PAUSE\", history_snapshot: SentinelHistory }`. Pause emits FR-EVT-GOODHART-PAUSE via the FEMS flight recorder; scheduler (MT-156) reads the receipt and refuses to schedule further iterations until operator runs `unpause_loop` IPC (MT-155). Tests: sentinel returns Continue for 1-2 widening iterations; returns Pause on the 3rd consecutive widening; resets the counter on a narrowing iteration; tolerates equal gaps (not strictly widening); bounded history truncates at 10 entries; receipt round-trips through serde.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target goodhart_sentinel_tests"
+  ],
+  "risk_if_missed": "Without the Goodhart sentinel the loop can run unbounded while overfitting dev at the cost of holdout; promotion floor alone catches single regressions but not slow monotonic drift.",
+  "validator_focus": "Sentinel is pure (no I/O). Strict monotonic widening required (equal gaps reset counter). Pause receipt is durable and routes through FEMS flight recorder.",
+  "hbr_obligations": ["HBR-INT-006", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-148", "MT-151", "MT-152"],
+    "blocks": ["MT-155", "MT-156", "MT-167", "MT-170"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Strict monotonic widening required; equal gaps reset the counter to prevent false positives on stable runs.",
+      "Pause receipt is durable and tracked by the scheduler so unpause requires operator IPC.",
+      "Bounded history prevents unbounded memory growth across long-lived loop instances."
+    ]
+  }
+}

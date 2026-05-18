@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-082",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-082.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime activation hooks (layer-wise capture + injection)",
+  "goal": "Implement CandleSteeringHook providing layer-wise activation capture (read residual stream at any layer) and injection (add a steering vector during forward pass). This is the substrate every hook-requiring technique (INF-3 activation steering, INF-4 refusal vector, INF-5 CAA) depends on per AC-CANDLE-ADAPTER.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/candle/hooks.rs with HookRegistry, HookHandle, CandleSteeringHook impl of SteeringHookOps; candle Tensor-graph hook insertion at chosen layer indices.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/hooks.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/adapter.rs",
+    "src/backend/handshake_core/tests/candle_hooks_tests.rs"
+  ],
+  "depends_on_mts": ["MT-065", "MT-081"],
+  "unblock_conditions": "MT-065 SteeringHookOps trait + MT-081 CandleRuntime scaffolding merged.",
+  "implementation_notes": "Per AC-CANDLE-ADAPTER + AC-INFER-LAB-8-TECHNIQUES.c/d/e: CandleRuntime is the hook substrate. candle-core does not have a TransformerLens-style register_hook API out-of-the-box; the implementation pattern (per RW-3 research): wrap the model's forward function so that after each transformer block forward call, a registered closure inspects (capture) and optionally mutates (inject) the residual stream tensor. HookRegistry: `HashMap<LayerIndex, Vec<HookCallback>>` where HookCallback is `Box<dyn Fn(&mut Tensor) -> Result<(), CandleError> + Send + Sync>`. Forward wrapper: each layer i in 0..n_layers calls `block.forward(&hidden)` then iterates registry[i] callbacks. capture(spec): registers a one-shot callback per layer in spec.layers that clones the tensor into a buffer keyed by (layer_id, batch_idx); runs forward pass; collects buffer; returns CaptureResult. register_vector(vec): stores vec in HookRegistry under vec.layer; on subsequent generate calls, a long-lived callback adds vec.values * vec.intensity to the tensor at vec.hook_point. set_active(ids): toggles which registered vectors are active. unregister(id): drops the registry entry. HookPoint enum: ResidStream (residual stream after block forward), MlpOut (just after MLP), AttnOut (just after attention). For ResidStream: hook fires after `block.forward`. For MlpOut/AttnOut: need to instrument inside the block (decompose forward into attn + mlp halves). Some candle-transformers models expose this decomposition; for ones that don't, only ResidStream is supported (return CapabilityNotSupported for other hook points). HookRegistry per ModelId so concurrent generate calls don't interfere. Tests (env-gated): load a small Llama via candle-transformers, capture residual stream at layer 5 on a fixed prompt, assert shape [seq_len, hidden_dim]; register a steering vector of zeros at layer 5 with intensity 1.0, generate, assert output IDENTICAL to base; register with random vector intensity 1.0, generate, assert output DIFFERS from base.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_hooks_tests"
+  ],
+  "risk_if_missed": "INF-3/INF-4/INF-5 have no hook substrate; cluster C.6/C.7/C.8 cannot land.",
+  "validator_focus": "Identity test (zero vector hook -> output unchanged) is the correctness gate; HookRegistry per-ModelId isolation prevents cross-talk; capability for non-ResidStream hook points correctly reported.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-065", "MT-081"],
+    "blocks": ["MT-083", "MT-084", "MT-096", "MT-097", "MT-098", "MT-099", "MT-100", "MT-101", "MT-102", "MT-103", "MT-104", "MT-105", "MT-106", "MT-116"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Zero-vector identity test (output unchanged) is the correctness gate.",
+      "Per-ModelId HookRegistry isolation (concurrent generate cannot leak hooks).",
+      "Non-supported HookPoint returns CapabilityNotSupported (not silent no-op)."
+    ]
+  }
+}

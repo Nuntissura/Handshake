@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-124",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.12",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-124.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Distillation queue UI (Inference Lab integration; AC-INFER-LAB-UI sub-feature)",
+  "goal": "Distillation queue UI in Inference Lab: list of opted-in sessions with [Extract corpus] button per session, pending candidates with [Promote] / [Reject] actions, training job queue with status (queued/running/done), per-candidate license + provenance display.",
+  "expected_diff_shape": "New Svelte component app/src/components/inference_lab/DistillationQueue.svelte + store; integration into InferenceLab.",
+  "owned_files": [
+    "app/src/components/inference_lab/DistillationQueue.svelte",
+    "app/src/lib/stores/distillation.ts",
+    "app/src/components/inference_lab/InferenceLab.svelte"
+  ],
+  "depends_on_mts": ["MT-119", "MT-122", "MT-123"],
+  "unblock_conditions": "MT-119 + MT-122 + MT-123 merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI sub-feature (Section 10.14 \"distillation queue\" listed in spec enrichment subsections_added). DistillationQueue.svelte: tabs [Opted-In Sessions | Pending Candidates | Training Jobs]. Opted-In Sessions tab: list of governed_sessions with distill_corpus=true; per-row [Extract Corpus] button. Pending Candidates tab: list of CandidateRegistry entries with review_status=Pending; per-row [Promote] / [Reject] (Reject requires reason text); provenance display ({teacher_id, student_base_id, corpus_size, trained_at_utc, license_tag}). Training Jobs tab: queue status from FR-EVT-DISTILL-* events; per-job status badge (queued/running/done/error). All actions route through KernelActionCatalogV1. Adult-production posture: no UI moralizing; copy is technical (\"Promote candidate to active\", not \"Approve this learning data\").",
+  "proof_commands": [
+    "cd app && pnpm run typecheck"
+  ],
+  "risk_if_missed": "Distillation flow lacks operator UI; opt-in + promote actions only via CLI/IPC; reduces usability.",
+  "validator_focus": "All actions through KernelActionCatalogV1; provenance display complete; no moralizing copy.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES", "AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-119", "MT-122", "MT-123"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Three-tab structure (opted-in / pending / jobs).",
+      "Provenance display complete.",
+      "No moralizing copy."
+    ]
+  }
+}

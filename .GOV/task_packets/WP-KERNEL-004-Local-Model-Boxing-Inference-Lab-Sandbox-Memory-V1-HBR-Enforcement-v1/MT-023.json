@@ -1,0 +1,67 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-023",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-023.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Capture matrix (Playwright projects-matrix) + baseline-hash visual regression receipt",
+  "goal": "Per spec §6.4.4 (AC-VISUAL-DEBUGGER-MATRIX) implement the capture matrix: Playwright projects-matrix shape, each scenario produces a manifest entry with scenario_id/route/viewport/color_scheme/locale/edge_state_tag/wait_for/mask_selectors/baseline_hash; baselines content-addressed under .GOV/visual_baselines/; drift triggers a typed visual-regression receipt.",
+  "expected_diff_shape": "Updated playwright.config.ts with projects matrix; new tests/visual/capture_matrix.ts manifest schema + utilities; new directory .GOV/visual_baselines/ with .gitignore stub explaining content-addressed storage; HBR_VIS_REGRESSION typed receipt schema added to shared schemas dir.",
+  "owned_files": [
+    "tests/visual/capture_matrix.ts",
+    "tests/visual/capture_matrix.spec.ts",
+    "app/playwright.config.ts",
+    ".GOV/visual_baselines/.gitignore",
+    ".GOV/roles_shared/schemas/hbr-vis-regression.schema.json"
+  ],
+  "depends_on_mts": ["MT-021", "MT-022", "MT-006"],
+  "unblock_conditions": "MT-021 Playwright + driver; MT-022 console scan (every capture pairs with a scan); MT-006 HBR_VIOLATION receipt schema (visual regression piggybacks on the same canonical-JSON receipt pattern).",
+  "implementation_notes": "Per spec §6.4.4. Manifest schema: `interface CaptureMatrixEntry { scenario_id: string; route: string; viewport: { width: number; height: number }; color_scheme: 'light'|'dark'; locale: string; edge_state_tag: 'normal'|'empty'|'error'|'loading'|'multi_item'; wait_for: string; mask_selectors: string[]; baseline_hash: string; }`. playwright.config.ts projects array enumerates the matrix: at minimum the trio required by HBR-VIS-003 (one normal viewport, one constrained viewport, one edge state). Baselines content-addressed: filename is sha256(rendered-png), stored under .GOV/visual_baselines/<sha>.png; the manifest carries baseline_hash. On capture: compute hash, compare against manifest's baseline_hash via pixel-diff threshold; on drift emit HBR_VIS_REGRESSION receipt (canonical-JSON per MT-006 pattern): `{ receipt_kind: \"HBR_VIS_REGRESSION\", schema_version: 1, receipt_uuid: Uuid v7, scenario_id, baseline_hash, captured_hash, pixel_diff_percent, drift_regions: [{x,y,w,h}] }`. .GOV/visual_baselines/.gitignore: explain that baseline PNGs MAY be checked in or stored externally depending on disk-space policy (per [GLOBAL-PORTABILITY-008] this is configurable; default = check in; cap at 100MB total directory size; if exceeded, externalize via configured external-baselines path). hbr-vis-regression.schema.json: JSON schema validated by both the Playwright test and a Node validator (mirrors MT-006 pattern). capture_matrix.spec.ts: walks the matrix, calls page.screenshot per entry with mask_selectors honored (via Playwright's clip + page.locator masking), pairs with MT-022 console scan, on drift emits the receipt. Tests: fixture matrix with two scenarios, one passing one with deliberate drift; assert receipt produced on drift; assert no receipt on identical render.",
+  "proof_commands": [
+    "cd app && pnpm exec playwright test tests/visual/capture_matrix.spec.ts",
+    "node -e \"require('ajv').default && console.log('ajv loaded')\"",
+    "just visual-test"
+  ],
+  "risk_if_missed": "Without capture matrix, HBR-VIS-003 has no evidence; visual regressions across viewports/states go undetected.",
+  "validator_focus": "Baselines are content-addressed (filename == sha256); drift emits the canonical-JSON receipt validated against the schema; mask_selectors actually mask (verify by rendering an animated region and confirming no false drift).",
+  "hbr_obligations": ["HBR-VIS-001", "HBR-VIS-002", "HBR-VIS-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
+  ],
+  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-MATRIX"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-021", "MT-022", "MT-006"],
+    "blocks": ["MT-026", "MT-027"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Content-addressed baseline storage prevents accidental overwrite of an old baseline (filename == hash).",
+      "Baseline directory size cap is enforced (test asserts dir < 100MB or external storage configured).",
+      "Mask selectors are validated by a fixture with animated content to prove they actually mask."
+    ]
+  }
+}

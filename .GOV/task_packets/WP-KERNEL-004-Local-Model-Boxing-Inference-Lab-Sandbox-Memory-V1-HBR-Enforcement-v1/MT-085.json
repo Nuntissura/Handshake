@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-085",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-085.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "CandleRuntime Mamba2 subquadratic load + generate (base path)",
+  "goal": "Implement load + generate for the Mamba2 variant of CandleModelHandle via candle_transformers::models::mamba2. PRODUCTION-tier per operator E-2; full feature parity work (LoRA, steering, state persistence) lands in dedicated cluster C.11 MTs. This MT lands the base SSM forward pass so subsequent feature MTs have a model to extend.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/candle/mamba2.rs implementing the Mamba2 path, including SSM state init and step-by-step generation; integration with adapter.rs CandleModelHandle::Mamba2; tests (env-gated).",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/candle/mamba2.rs",
+    "src/backend/handshake_core/src/model_runtime/candle/adapter.rs",
+    "src/backend/handshake_core/tests/candle_mamba2_tests.rs"
+  ],
+  "depends_on_mts": ["MT-081"],
+  "unblock_conditions": "MT-081 scaffolding merged.",
+  "implementation_notes": "Per operator E-2 + refinement INF-9 + RW-3 synthesis: CandleRuntime hosts Mamba2 at PRODUCTION tier. candle-transformers ships `models/mamba2/` since candle 0.7. Reference model citation: `state-spaces/mamba2-2.7b` HuggingFace checkpoint (operator-supplied via HANDSHAKE_TEST_MAMBA2_MODEL_DIR env var; the 2.7B param checkpoint is the standard production-scale Mamba2 reference). Load: VarBuilder from safetensors + config.json (Mamba2Config: d_model, n_layer, d_state, d_conv, expand, headdim, etc.); instantiate candle_transformers::models::mamba2::Model::new; mint ModelId v7. SSM state vs KV cache: Mamba2 uses a per-layer SSM state (conv state + ssm state Tensor pair), NOT KV pairs. KvCacheOps on Mamba2 variant returns CapabilityNotSupported (separate StateVectorOps in MT-088). Generate: loop forward(input_ids, state) -> (logits, new_state); sampler picks next; state advances; yield GeneratedToken. Per AC-MODEL-CAP-DECL Mamba2 capabilities: supports_lora=false (filled by MT-115 LoRA-for-SSM), supports_kv_prefix_cache=false, supports_kv_quantization=None, supports_activation_steering=false (filled by MT-116), supports_subquadratic=true. MULTI-QUARTER TIMELINE FLAG: per operator E-2 acceptance and refinement risk R-2, the FULL feature parity work (LoRA + steering + prefix-reuse-equivalent + cross-session state restore) is multi-quarter scope (6+ months). This MT delivers only the base SSM forward path; remaining parity lands in MT-114..MT-117. Tests (env-gated): load Mamba2-2.7B, generate 32 tokens deterministically, assert SSM state advances (test that forwarding the same prompt twice from fresh state produces same output; from advanced state produces continuation).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target candle_mamba2_tests"
+  ],
+  "risk_if_missed": "Subquadratic INF-9 has no Mamba2 base; cluster C.11 full-parity MTs have no model to extend.",
+  "validator_focus": "SSM state evolves correctly (deterministic re-forward from fresh state matches; from advanced state continues); capability flags correct for Mamba2 variant.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-CANDLE-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES", "AC-MODEL-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-081"],
+    "blocks": ["MT-088", "MT-112", "MT-113", "MT-114", "MT-115", "MT-116", "MT-117", "MT-118"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Multi-quarter timeline flagged in implementation_notes + visible in risk_if_missed.",
+      "Capability flags for Mamba2 variant correct (no false support advertising).",
+      "Reference model citation (state-spaces/mamba2-2.7b) explicit."
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-037",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.5",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-037.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Swarm invariants test (lock/lease + cancellation + loop-counter + ledger consistency)",
+  "goal": "Per spec §6.7.5 (AC-SWARM-HARNESS-INVARIANTS) the harness must surface lock/lease behavior under contention, cancellation propagation when sessions terminate mid-mutation, loop-counter behavior (HBR-SWARM-002) when a session loops on a stuck precondition, and ProcessOwnershipLedger consistency when multiple sessions write concurrently. Failures here gate KERNEL-004 acceptance.",
+  "expected_diff_shape": "New test src/backend/handshake_core/tests/swarm_invariants_tests.rs exercising the four invariants; HBR_SWARM_INVARIANT_FAIL typed receipt for any violation; gov-check sub-check.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/swarm_invariants_tests.rs",
+    ".GOV/roles_shared/checks/hbr-swarm-invariants.mjs",
+    "justfile"
+  ],
+  "depends_on_mts": ["MT-034", "MT-035", "MT-036"],
+  "unblock_conditions": "All A.5 building blocks merged.",
+  "implementation_notes": "Per spec §6.7.5 four invariants must be tested as wire conditions, not unit-tested in isolation. (1) Lock/lease contention: 16 sessions race on a single resource lease; assert lease is granted to all 16 in some serializable order; assert no lease is granted to more than one session at a time (use a shared atomic that increments on grant and decrements on release, asserts max value == 1). (2) Cancellation propagation: 8 sessions start a long-running mutation; trigger cancellation after 100ms; assert all 8 cancellations propagate within bounded time (default 500ms upper bound) by polling each session's status — fails if any session is still running at deadline. (3) Loop-counter (HBR-SWARM-002): a session deliberately loops on a stuck precondition (e.g., waits for an event that never fires); the HBR-SWARM-002 loop counter must fire and emit FR-EVT-LOOP-CAP receipt after the configured cap (default 1000 iterations) — assert receipt emitted and session terminated. (4) ProcessLedger consistency: 8 sessions each spawn 10 processes; assert every START has a matching STOP after the swarm completes; assert no duplicate process_uuid across sessions; assert ledger rows correlate session_id correctly. Any invariant failure emits an HBR_SWARM_INVARIANT_FAIL typed receipt (canonical JSON per MT-006 pattern). Justfile recipe `hbr-swarm-invariants` wired into gov-check umbrella as the canonical AC-SWARM-HARNESS-INVARIANTS evidence.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target swarm_invariants_tests",
+    "just hbr-swarm-invariants"
+  ],
+  "risk_if_missed": "Without invariant tests, AC-SWARM-HARNESS-INVARIANTS has no evidence; concurrency regressions in any of the four areas ship unobserved.",
+  "validator_focus": "Each invariant has its own assertion (not aggregated); failing receipt is structured (machine-readable); loop-counter test uses the actual HBR-SWARM-002 cap from MT-008 reclaim infrastructure (not a duplicated counter).",
+  "hbr_obligations": ["HBR-SWARM-001", "HBR-SWARM-002", "HBR-SWARM-003", "HBR-SWARM-004", "HBR-QUIET-003"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.7"
+  ],
+  "acceptance_criteria_refs": ["AC-SWARM-HARNESS-INVARIANTS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-034", "MT-035", "MT-036"],
+    "blocks": ["MT-040"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Each of the four invariants asserts independently (no aggregated pass).",
+      "Cancellation deadline is enforced via timeout (not best-effort).",
+      "ProcessLedger consistency check asserts no duplicate process_uuid AND correct session correlation."
+    ]
+  }
+}

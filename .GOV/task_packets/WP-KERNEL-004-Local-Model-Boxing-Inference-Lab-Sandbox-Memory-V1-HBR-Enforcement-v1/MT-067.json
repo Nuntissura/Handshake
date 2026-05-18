@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-067",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-067.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Per-model adapter assignment registry + register-time binding",
+  "goal": "Implement the per-model adapter registry: at model registration time the operator picks WHICH runtime (LlamaCppRuntime or CandleRuntime) hosts a given model; re-binding requires unload + re-register (per AC-CANDLE-ADAPTER). The registry is durable authority via KERNEL-002 WriteBoxV1.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/registry.rs with ModelRegistry, ModelRegistration, RuntimeBinding; KERNEL-002 KernelActionCatalogV1 action `kernel.model_runtime.register_model`; WriteBoxV1 persistence path.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/registry.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs",
+    "src/backend/handshake_core/tests/model_registry_tests.rs"
+  ],
+  "depends_on_mts": ["MT-062", "MT-066"],
+  "unblock_conditions": "MT-062 trait + MT-066 invariant enforcement merged.",
+  "implementation_notes": "Per operator decision E-3 (refinement.json) and AC-LLAMACPP-ADAPTER + AC-CANDLE-ADAPTER: a model is bound to exactly one adapter at register time; re-binding requires unload + re-register. ModelRegistration: `{ model_id: ModelId, artifact_path: PathBuf, sha256: [u8;32], runtime_binding: RuntimeBinding (enum LlamaCpp|Candle), declared_capabilities: ModelCapabilities, base_model_tag: BaseModelTag, registered_at_utc: DateTime<Utc>, registered_by: OperatorId, provider: ProviderKind }`. ModelRegistry: `register(reg: ModelRegistration) -> Result<(), ModelRuntimeError>`; `lookup(id: ModelId) -> Option<&ModelRegistration>`; `list() -> Vec<&ModelRegistration>`; `rebind(id: ModelId, new_binding: RuntimeBinding) -> Result<(), ModelRuntimeError>` returns Err if the model is currently loaded (caller must unload first). Persistence: ModelRegistry is materialized through KERNEL-002 KernelActionCatalogV1 via a new action `kernel.model_runtime.register_model { reg: ModelRegistration }`; the action lands in WriteBoxV1 and is the only mutation path. Reads go through `kernel.model_runtime.list_registrations()` query action. CapabilityEnforcement: ModelRegistration.declared_capabilities MUST be consistent with runtime_binding — e.g., a Candle binding may declare supports_activation_steering=true; a LlamaCpp binding must declare supports_activation_steering=false (enforced at register). registered_by field threads operator identity for audit (HBR-INT-006 obligations on writes). Tests: register a LlamaCpp model; lookup returns it; rebind while loaded returns Err; rebind after unload succeeds; register with capability/binding mismatch returns Err. ModelId minted via now_v7() (HBR-INT-008).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target model_registry_tests"
+  ],
+  "risk_if_missed": "Adapter-per-model assignment becomes implicit; operator cannot pin a model to its hook-bearing runtime; LoraCompat across adapters drifts.",
+  "validator_focus": "Capability/binding consistency enforced at register; rebind requires unload; KernelActionCatalogV1 is the only mutation path; reads are query-only.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.3"
+  ],
+  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT", "AC-LLAMACPP-ADAPTER", "AC-CANDLE-ADAPTER", "AC-MODEL-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-062", "MT-066"],
+    "blocks": ["MT-068", "MT-069", "MT-070", "MT-072", "MT-081"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Register-time capability/binding mismatch rejected (LlamaCpp + supports_activation_steering=true fails).",
+      "Rebind-while-loaded returns Err with explicit reason.",
+      "All mutations route through KernelActionCatalogV1 (grep test asserts no direct writes)."
+    ]
+  }
+}

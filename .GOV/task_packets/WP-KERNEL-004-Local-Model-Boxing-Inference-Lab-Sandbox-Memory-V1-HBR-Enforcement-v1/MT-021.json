@@ -1,0 +1,66 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-021",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-021.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Playwright dev dependency + WebView2 CDP driver scaffold",
+  "goal": "Add Playwright as a dev dependency in app/package.json and scaffold the WebView2-via-CDP driver per spec §6.4.1 (AC-VISUAL-DEBUGGER-IMPL). The driver attaches to the random remote-debugging-port published by MT-018 and exposes a typed test API the capture-matrix scenarios (MT-023) and console-error scan (MT-022) call into.",
+  "expected_diff_shape": "app/package.json + app/pnpm-lock.yaml dev-dep additions (@playwright/test, playwright); new test scaffold under tests/visual/webview2_cdp_driver.ts; sample fixture test exercising one screenshot.",
+  "owned_files": [
+    "app/package.json",
+    "app/pnpm-lock.yaml",
+    "tests/visual/webview2_cdp_driver.ts",
+    "tests/visual/sample_screenshot.spec.ts"
+  ],
+  "depends_on_mts": ["MT-018"],
+  "unblock_conditions": "MT-018 CDP wiring ships so the random remote-debugging-port is discoverable.",
+  "implementation_notes": "Per spec §6.4.1 + research note RW-4. app/package.json: add `\"@playwright/test\": \"^1.46.0\"` and `\"playwright\": \"^1.46.0\"` to devDependencies. Run `pnpm install` to regenerate pnpm-lock.yaml (the MT must check in the resulting lockfile). webview2_cdp_driver.ts: implements `class WebView2CdpDriver { async connect(handshakeProcess: ChildProcess): Promise<Page>; async disconnect(): Promise<void>; }`. connect(): (1) queries the Handshake process via Tauri IPC `kernel.visual_debug.port()` to discover the random port; (2) calls `await chromium.connectOverCDP(`http://127.0.0.1:${port}`)`; (3) returns the first Page (the main WebView2 page). Per AC-VISUAL-DEBUGGER-IMPL the driver never modifies UI state outside test scope — the test API enforces this by wrapping any `page.evaluate` calls behind a `readOnly()` namespace that rejects writes. sample_screenshot.spec.ts: minimal test that connects, takes a screenshot via Playwright's `page.screenshot()`, asserts the resulting buffer is non-empty PNG bytes. Playwright config (playwright.config.ts): timeout 30s per test, `projects` array with one project for now (matrix expansion lands in MT-023). The MT also adds a justfile recipe `visual-test` that runs `pnpm --filter app exec playwright test`. NOTE: pnpm-lock.yaml diff will be large; that's expected.",
+  "proof_commands": [
+    "cd app && pnpm install --frozen-lockfile",
+    "cd app && pnpm exec playwright test tests/visual/sample_screenshot.spec.ts",
+    "just visual-test"
+  ],
+  "risk_if_missed": "Without Playwright + CDP driver, the visual debugger has no test framework; HBR-VIS-001 evidence_kind=gui_drive_with_screenshot_capture cannot be produced.",
+  "validator_focus": "pnpm-lock.yaml is committed and `pnpm install --frozen-lockfile` passes; the driver's readOnly() wrapper rejects writes; the sample test produces a non-empty PNG.",
+  "hbr_obligations": ["HBR-VIS-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
+  ],
+  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IMPL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-018"],
+    "blocks": ["MT-022", "MT-023", "MT-024", "MT-025"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Playwright dev-dep version is pinned (no caret-only) for reproducibility.",
+      "readOnly() wrapper enforces no UI mutation from test scope.",
+      "pnpm-lock.yaml committed in same MT to ensure frozen-lockfile reproducibility."
+    ]
+  }
+}

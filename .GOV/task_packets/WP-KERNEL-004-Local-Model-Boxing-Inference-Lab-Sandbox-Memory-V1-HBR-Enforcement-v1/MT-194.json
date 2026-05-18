@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-194",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:18:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-194.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Idempotent recovery semantics + event-deduplication on replay",
+  "goal": "Land the idempotency layer that ensures replaying the same EventLedger event multiple times produces the same final state and does not double-apply side effects. Folded WP-1-Session-Crash-Recovery-Checkpointing-v1 stub intent: 'idempotent recovery/resume for interrupted model_run jobs with deterministic failure modes.'",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/idempotency.rs with `IdempotencyKey`, `IdempotencyLedger`, `IdempotentApply` trait; integration tests under src/backend/handshake_core/tests/idempotency_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/idempotency.rs",
+    "src/backend/handshake_core/tests/idempotency_tests.rs"
+  ],
+  "depends_on_mts": ["MT-190", "MT-192"],
+  "unblock_conditions": "MT-190 SessionCheckpoint and MT-192 replay primitives merged.",
+  "implementation_notes": "Some EventLedger events have external side effects (e.g., Postgres writes, mailbox message posts, file system writes) that must NOT re-execute on replay. Solution: an IdempotencyLedger table keyed by (session_id, event_seq, side_effect_kind) recording 'this side effect already executed for this event'. `IdempotencyKey { session_id: Uuid v7, event_seq: i64, side_effect_kind: SideEffectKind }`. Postgres table `kernel_idempotency_ledger` with UNIQUE constraint on the key (enforces single-application at db level). `IdempotentApply` trait: `async fn try_apply(key: IdempotencyKey, op: impl FnOnce() -> Future<Result<...>>) -> Result<ApplyOutcome { Applied | AlreadyApplied | Failed { err } }>`. Algorithm: (1) BEGIN; (2) INSERT idempotency row with ON CONFLICT DO NOTHING; (3) if 0 rows inserted -> return AlreadyApplied (rollback); (4) execute op; (5) on op success -> COMMIT, return Applied; (6) on op failure -> ROLLBACK (idempotency row removed), return Failed. SideEffectKind enum: `MailboxMessagePost`, `PostgresWrite { table }`, `FileSystemWrite { path_hash }`, `ProcessSpawn`, `LeaseAcquisition`. Each side effect in cluster X (MT-179 mailbox post, MT-184 job state transition, MT-188 outcome record, MT-189 executor steps) MUST wrap its mutating call in `IdempotentApply::try_apply(key, ...)` where key derives from (session_id, event_seq, side_effect_kind). MT-192 replay invokes state_apply which then routes through IdempotentApply, so re-replay sees AlreadyApplied for every previously-executed side effect. Tests: (a) try_apply twice with same key — first Applied, second AlreadyApplied; (b) parallel try_apply from 8 tasks — exactly one Applied; (c) op failure rolls back idempotency row so retry can succeed; (d) replay of 10 events with 5 side effects — second replay re-applies 0 side effects.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target idempotency_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without idempotency, restart resume (MT-193) double-posts mailbox messages, double-acquires leases, and double-runs MT outcomes; recovery becomes worse than crash; the cluster X 'idempotent recovery' invariant is violated.",
+  "validator_focus": "UNIQUE constraint at db level (not just app); parallel-apply test asserts exactly-one-Applied; rollback on op failure restores idempotency state for retry.",
+  "hbr_obligations": ["HBR-INT-008", "HBR-SWARM-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5"
+  ],
+  "acceptance_criteria_refs": [
+    "PRESERVED_INTENT:WP-1-Session-Crash-Recovery-Checkpointing-v1 (idempotent recovery)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-190", "MT-192"],
+    "blocks": ["MT-195"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "UNIQUE constraint on (session_id, event_seq, side_effect_kind) at db level; raw INSERT bypass test must fail with unique-violation.",
+      "Parallel apply test (8 tasks) asserts exactly one Applied outcome; others see AlreadyApplied.",
+      "Failed op test verifies idempotency row rolled back so retry can succeed."
+    ]
+  }
+}

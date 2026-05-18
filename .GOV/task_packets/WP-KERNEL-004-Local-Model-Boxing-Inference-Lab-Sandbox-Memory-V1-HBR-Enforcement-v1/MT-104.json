@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-104",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.8",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-104.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-5 CAA eval suite (Rimsky 2024 sycophancy reproduction smoke test)",
+  "goal": "Small eval suite reproducing one CAA case from Rimsky et al. 2024: sycophancy steering on a Llama-2-7B-Chat. Quantitative pass/fail threshold so INF-5 regression is detectable.",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/inf5_caa_eval.rs implementing the sycophancy CAA reproduction; fixture prompt pairs under tests/fixtures/inf5/.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/inf5_caa_eval.rs",
+    "src/backend/handshake_core/tests/fixtures/inf5/sycophancy_pairs.json",
+    "src/backend/handshake_core/tests/fixtures/inf5/eval_questions.json"
+  ],
+  "depends_on_mts": ["MT-103"],
+  "unblock_conditions": "MT-103 CAA extraction merged.",
+  "implementation_notes": "Per refinement INF-5 research basis (Rimsky 2024). sycophancy_pairs.json: 30 pairs of form `{ context: \"...\", sycophantic_response: \"...\", non_sycophantic_response: \"...\" }`. eval_questions.json: 20 questions with `{ q, expected_non_syco_answer, expected_syco_answer }`. Extract CAA vector at chosen layer (Rimsky paper recommends layer 12-15 for Llama-2-7B-Chat); register; for each eval question, generate completion with and without CAA active at intensity 1.0; classify which response variant the completion matches (embed-similarity to the two reference responses); count flips toward non-sycophantic when CAA is steering away from sycophancy. Threshold: flip-rate > 30% counts as INF-5 functional (regression gate). Env-gated by HANDSHAKE_TEST_CAA_MODEL_DIR.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf5_caa_eval"
+  ],
+  "risk_if_missed": "INF-5 PRODUCTION declaration unsupported by quantitative evidence; regression detection impossible.",
+  "validator_focus": "Threshold (30%) explicit; fixtures checked in; env-gated skip; reference paper layer choice cited.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-103"],
+    "blocks": ["MT-105"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Threshold explicit (30%).",
+      "Reference paper layer choice cited in fixture or test comment.",
+      "Skip path on missing model env var."
+    ]
+  }
+}

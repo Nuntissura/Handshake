@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-164",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:23:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-164.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "RAG retrieval-mode policy: typed RetrievalMode enum + per-operation routing (folded WP-1-RAG-Retrieval-Mode-Policy)",
+  "goal": "Define and implement one governed retrieval-mode policy so QueryPlan, RetrievalTrace, Project Brain, Prompt-to-Spec Router, Work Packet loads, and Micro-Task context assembly each choose the cheapest authoritative retrieval path instead of defaulting to hybrid retrieval. Folded from WP-1-RAG-Retrieval-Mode-Policy.",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/retrieval_mode.rs (RetrievalMode enum + RetrievalModePolicy + RetrievalModeRouter types + RoutingRule). Tests src/backend/handshake_core/tests/retrieval_mode_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/retrieval_mode.rs",
+    "src/backend/handshake_core/tests/retrieval_mode_tests.rs"
+  ],
+  "depends_on_mts": ["MT-141", "MT-142", "MT-143"],
+  "unblock_conditions": "MT-141/142/143 ship capsule primitives + TaskType + CapsuleBuilder.",
+  "implementation_notes": "Per WP-1-RAG-Retrieval-Mode-Policy preserved_intent: 'Handshake now has rich retrieval substrates and graph signals, but it still needs explicit no-RAG and lower-cost retrieval rules so exact identifiers, authoritative packet state, bounded local-small-model loops, and freshness-sensitive operations do not get blurred into one generic semantic-search path'. RetrievalMode enum: `pub enum RetrievalMode { NoRag (use the canonical key/id lookup), FullText, Vector, Hybrid, GraphAware, AuthoritativeOnly (read directly from JSON authority file) }`. RoutingRule: `{ id: String, predicate: Box<dyn Fn(&RetrievalContext) -> bool>, mode: RetrievalMode, rationale: String }`. RetrievalModePolicy: `pub struct RetrievalModePolicy { rules: Vec<RoutingRule>, default_mode: RetrievalMode }`. RetrievalModeRouter: `pub fn route(ctx: &RetrievalContext) -> (RetrievalMode, String) { /* return mode + matched rule id or 'default' */ }`. Default policy rules (initial set): (1) exact_uuid_in_query -> NoRag; (2) wp_id_pattern -> AuthoritativeOnly (load packet.json directly); (3) hbr_id_pattern -> AuthoritativeOnly (load HANDSHAKE_BUILD_RULES.json directly); (4) spec_anchor_pattern -> AuthoritativeOnly (load spec module); (5) freshness_sensitive task_type -> Vector + outcome-weighted; (6) general_freeform_query -> Hybrid. CapsuleBuilder (MT-143) MUST consult RetrievalModeRouter before dispatching to retrieval; if NoRag or AuthoritativeOnly, skip embedding lookup entirely and return the typed authoritative item. Tests: every default rule routes correctly to its mode; default applies when no rule matches; router is deterministic; CapsuleBuilder honors the routed mode in fixtures.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target retrieval_mode_tests"
+  ],
+  "risk_if_missed": "Without a typed retrieval mode policy every operation defaults to expensive hybrid retrieval; exact-id queries become semantic-search guessing.",
+  "validator_focus": "RetrievalMode is closed enum; routing is deterministic; default policy rules cover the documented operation classes; CapsuleBuilder consults the router.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-141", "MT-142", "MT-143"],
+    "blocks": ["MT-165", "MT-168"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "RetrievalMode is a closed enum; widening requires a typed code change.",
+      "AuthoritativeOnly rules read JSON authority files directly; cannot fall back to vector search.",
+      "Router is deterministic; same context always routes to same mode."
+    ]
+  }
+}

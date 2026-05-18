@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-026",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-026.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "HBR-VIS-005 verification-gap blocking-receipt path",
+  "goal": "Per HBR-VIS-005, when a validator discovers a UI/automation surface that cannot be captured or driven by headless automation, it must record a blocking verification gap in WP OPEN_BLOCKERS with the exact missing surface; do not silently certify the work. Open a follow-up WP for the missing automation hook.",
+  "expected_diff_shape": "New module/script .GOV/roles_shared/scripts/hbr-vis-gap-emit.mjs producing a HBR_VIS_GAP receipt + writing the OPEN_BLOCKERS entry; Rust helper in handshake_core for runtime emission; tests covering both build-time and runtime emission paths.",
+  "owned_files": [
+    ".GOV/roles_shared/scripts/hbr-vis-gap-emit.mjs",
+    ".GOV/roles_shared/scripts/hbr-vis-gap-emit.test.mjs",
+    "src/backend/handshake_core/src/hbr/vis_gap.rs",
+    "src/backend/handshake_core/tests/hbr_vis_gap_tests.rs"
+  ],
+  "depends_on_mts": ["MT-006", "MT-022", "MT-023"],
+  "unblock_conditions": "MT-006 receipt schema + MT-022 console scan + MT-023 capture matrix exist so the gap emitter has the right context to attach to.",
+  "implementation_notes": "Per HBR-VIS-005 evidence_kind=open_blocker_with_missing_surface_named. When MT-022 scan or MT-023 capture-matrix encounters a UI element with no automation handle (e.g., a canvas-rendered control that has no CDP-queryable accessibility tree node, or a native-Win32 child window injected via webview-rust-side that CDP cannot drive), it must: (1) emit a typed `HBR_VIS_GAP` receipt with `{ receipt_kind: \"HBR_VIS_GAP\", schema_version: 1, receipt_uuid: Uuid v7, wp_id, surface_name, surface_path, gap_class: \"no_cdp_handle\"|\"native_child_window\"|\"opaque_canvas\"|\"shadow_root_inaccessible\"|\"other\", proposed_followup_wp: Option<String>, evidence_pointer: Option<String> }`, (2) append a blocker entry to the WP's OPEN_BLOCKERS list (the WP packet.json gets an `open_blockers` array; this MT defines the schema if not already present). The script CLI: `node .GOV/roles_shared/scripts/hbr-vis-gap-emit.mjs --wp <id> --surface <name> --gap-class <class>` produces the receipt + writes the OPEN_BLOCKERS entry. Rust runtime: `VisGap::emit(packet: &mut Packet, gap: VisGap)`. Tests: emit a gap, assert (a) receipt produced in canonical JSON validates against schema, (b) packet's open_blockers array contains the new entry, (c) gov-check umbrella detects open_blockers and blocks PASS closure (this validates the integration with MT-003 matrix check — MT-003 must also check open_blockers count as a separate fail condition).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target hbr_vis_gap_tests",
+    "node .GOV/roles_shared/scripts/hbr-vis-gap-emit.test.mjs"
+  ],
+  "risk_if_missed": "Without HBR-VIS-005 path, validators silently certify visual coverage despite gaps; the WP ships with unverifiable surfaces.",
+  "validator_focus": "Gap receipt validates against schema; OPEN_BLOCKERS entry is structured (not freeform prose); gov-check umbrella blocks closure when open_blockers count > 0.",
+  "hbr_obligations": ["HBR-VIS-001", "HBR-VIS-005"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4"
+  ],
+  "acceptance_criteria_refs": ["AC-VISUAL-DEBUGGER-IMPL", "AC-VISUAL-DEBUGGER-IPC"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-006", "MT-022", "MT-023"],
+    "blocks": ["MT-027"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "open_blockers entries are structured (schema-validated), not freeform prose.",
+      "gov-check umbrella checks open_blockers count and blocks PASS when > 0.",
+      "Follow-up WP id is optional but encouraged (the receipt schema supports it)."
+    ]
+  }
+}

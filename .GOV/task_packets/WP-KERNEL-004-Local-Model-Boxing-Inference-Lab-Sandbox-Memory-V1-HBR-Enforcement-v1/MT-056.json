@@ -1,0 +1,67 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-056",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-056.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "DockerAdapter compat-only-not-default selection enforcement + repo lint",
+  "goal": "Lock in the spec §3.5.3 'DockerAdapter selected only when operator explicitly opts in (no implicit fallback)' rule with both runtime enforcement AND a repo-wide lint that prevents a future MT from accidentally setting Docker as the default. Pairs with MT-043's selection policy; this MT adds the discipline and the audit trail.",
+  "expected_diff_shape": "New repo check .GOV/roles_shared/checks/docker-not-default-adapter-check.mjs that scans `bootstrap.rs` and any settings.* default to verify default_adapter_id is never \"docker\"; new settings schema enforcement under src/backend/handshake_core/src/sandbox/settings_schema.rs defining the allowed values for `settings.sandbox.docker_explicit_opt_in` (bool, default false) and `settings.sandbox.default_adapter` (enum, default \"wsl2_podman\", value \"docker\" is REJECTED by the validator); tests under src/backend/handshake_core/tests/sandbox_compat_only_tests.rs.",
+  "owned_files": [
+    ".GOV/roles_shared/checks/docker-not-default-adapter-check.mjs",
+    "src/backend/handshake_core/src/sandbox/settings_schema.rs",
+    "src/backend/handshake_core/src/sandbox/mod.rs",
+    "src/backend/handshake_core/tests/sandbox_compat_only_tests.rs"
+  ],
+  "depends_on_mts": ["MT-043", "MT-047", "MT-054"],
+  "unblock_conditions": "Selection policy + DockerAdapter + KERNEL-003 refactor merged.",
+  "implementation_notes": "settings_schema.rs: `pub struct SandboxSettings { pub default_adapter: SandboxDefaultAdapterChoice, pub docker_explicit_opt_in: bool }` where `pub enum SandboxDefaultAdapterChoice { Wsl2Podman, WindowsNativeJail }` — NOTE: enum does NOT contain Docker, so by Rust typing the operator cannot set default_adapter=\"docker\" via deserialization (a JSON value of \"docker\" returns a typed serde error). Add `impl Default for SandboxSettings { fn default() -> Self { SandboxSettings { default_adapter: SandboxDefaultAdapterChoice::Wsl2Podman, docker_explicit_opt_in: false } } }`. The bootstrap in MT-048 reads SandboxSettings via settings_schema and feeds the default_adapter choice into SandboxAdapterRegistry::new — this MT updates that wiring. docker-not-default-adapter-check.mjs: a Node-side repo check that (1) reads bootstrap.rs and asserts `SandboxAdapterRegistry::new(AdapterId(\"docker\"))` or string \"docker\" never appears as the default arg in a constructor call; (2) reads .GOV/settings/**/*.json (any operator settings defaults) and verifies `sandbox.default_adapter` is never \"docker\"; (3) emits a structured failure row JSONL on stderr for each violation. Wire the check into `just gov-check` (recipe addition; if cluster A.1 owns justfile, coordinate). Tests: (a) deserializing `{ \"default_adapter\": \"docker\" }` fails with a typed serde error; (b) docker-not-default-adapter-check.mjs passes on the current repo state; (c) docker-not-default-adapter-check.mjs fails on a synthetic fixture where bootstrap.rs has been mutated to default to docker (negative test, exit 2); (d) runtime test: selection.select() called with a ProcessSpec preferring Docker AND docker_explicit_opt_in==false returns SandboxSelectionFailure::DockerNotExplicitlyOptedIn (preserving MT-043 behavior; this MT re-asserts).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target sandbox_compat_only_tests",
+    "node .GOV/roles_shared/checks/docker-not-default-adapter-check.mjs",
+    "just gov-check"
+  ],
+  "risk_if_missed": "Without the lint, a future MT could silently flip Docker to default (settings change in a low-traffic file or a constructor default arg edit) and KERNEL-004's 3-adapter posture collapses back to KERNEL-003's Docker-only world.",
+  "validator_focus": "(a) Enum-level enforcement (Rust type system rejects Docker as default); (b) repo check passes on current state AND fails on the negative fixture; (c) wired into gov-check; (d) MT-043 runtime guard re-validated.",
+  "hbr_obligations": ["HBR-INT-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5.3"
+  ],
+  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-043", "MT-047", "MT-054"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Rust enum lacks a Docker variant for SandboxDefaultAdapterChoice — type-level enforcement is the primary control.",
+      "Negative fixture test for the repo check proves the lint actually fires on a Docker-default mutation.",
+      "Wired into `just gov-check` so the lint is part of every PR's build-time gate (HBR-INT-001 surface)."
+    ]
+  }
+}

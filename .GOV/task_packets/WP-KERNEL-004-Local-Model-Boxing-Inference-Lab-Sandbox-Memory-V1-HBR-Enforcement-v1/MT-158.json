@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-158",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:17:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-158.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "FEMS outcome feedback loop: pack-outcome attribution + scoring tune (folded WP-1-FEMS-Outcome-Feedback-Loop)",
+  "goal": "After a MemoryCapsule is used in a model call, track the downstream outcome (MT PASS/FAIL, validator verdict, escalation) and feed it back into per-item memory scoring. Good outcomes boost items in that capsule; bad outcomes penalize them. Folded from WP-1-FEMS-Outcome-Feedback-Loop. Ports the Cognee self-improving memory pattern. No LLM required (per FEMS V1 pattern).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/memory/outcome_feedback.rs (OutcomeFeedbackLoop + CapsuleOutcome + OutcomeScoringTuner + OutcomeAttribution types). Tests src/backend/handshake_core/tests/outcome_feedback_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/memory/outcome_feedback.rs",
+    "src/backend/handshake_core/tests/outcome_feedback_tests.rs"
+  ],
+  "depends_on_mts": ["MT-145", "MT-157"],
+  "unblock_conditions": "MT-145 (CapsuleRecorder so outcomes can attach to records) + MT-157 (bitemporal indexing so outcome attribution is replay-aware).",
+  "implementation_notes": "Per WP-1-FEMS-Outcome-Feedback-Loop preserved_intent. Per refinement D.3: 'outcome feedback loop'. CapsuleOutcome enum: `Pass { mt_id, validator_verdict_id }`, `Fail { mt_id, validator_verdict_id, failure_class: FailureClass }`, `Escalation { mt_id, escalation_reason: String }`, `Skipped { reason: String }`. Surface: `pub struct OutcomeFeedbackLoop<'a> { recorder: &'a CapsuleRecorder, tuner: &'a OutcomeScoringTuner, action_catalog: &'a dyn KernelActionSubmitter }` with `pub fn record_outcome(capsule_id: Uuid, outcome: CapsuleOutcome) -> Result<OutcomeReceipt, OutcomeError>`. record_outcome attaches the outcome to the CapsuleRecord (via KernelActionCatalogV1 CapsuleOutcomeAttach action) then invokes the tuner. OutcomeScoringTuner: pure function `pub fn apply_outcome(item_scores: &mut HashMap<Uuid, f64>, outcome: &CapsuleOutcome, pack_items: &[MemoryPackItem], tuning_params: &TuningParams)`. TuningParams: `{ pass_boost: f64 (default 0.05), fail_penalty: f64 (default 0.10), escalation_penalty: f64 (default 0.15), per_item_decay_per_use: f64 (default 0.01) }`. Tuning is bounded (per-item score change capped per call to prevent runaway). NO LLM required - this is pure arithmetic per existing FEMS V1 pattern. Tests: PASS outcome increases item scores by exactly pass_boost; FAIL outcome decreases by exactly fail_penalty; Skipped outcome leaves scores unchanged; tuning is bounded per call; outcome attaches to record via mock catalog.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target outcome_feedback_tests"
+  ],
+  "risk_if_missed": "Without outcome feedback the scoring formula is frozen at static weights and a memory that consistently leads to failures keeps getting injected.",
+  "validator_focus": "Pure arithmetic tuner (no LLM). Score changes are bounded per call. Outcome attaches via canonical action catalog.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-145", "MT-157"],
+    "blocks": ["MT-160", "MT-162", "MT-168", "MT-169"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Tuner is pure arithmetic; no LLM call (preserves FEMS V1 no-LLM invariant).",
+      "Score changes are bounded per call so a single bad outcome cannot collapse a memory's score.",
+      "Outcome attachment flows through KernelActionCatalogV1 so audit trail is complete."
+    ]
+  }
+}

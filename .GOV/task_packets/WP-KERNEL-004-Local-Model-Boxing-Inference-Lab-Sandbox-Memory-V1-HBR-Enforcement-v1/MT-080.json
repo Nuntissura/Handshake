@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-080",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-080.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LlamaCppRuntime end-to-end integration smoke test (load + generate + LoRA + KV + spec-decode)",
+  "goal": "End-to-end integration test exercising the full LlamaCppRuntime surface on a representative GGUF: load, generate, mount LoRA, generate with override, switch KV quant, prefix-share commit/restore, self-spec ngram, unload. Test gated by HANDSHAKE_TEST_GGUF_PATH env var.",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/llama_cpp_e2e_smoke.rs with a single integration test orchestrating the full path; CI documentation note in tests/README.json (NOT .md) describing how to populate the env var.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/llama_cpp_e2e_smoke.rs",
+    "src/backend/handshake_core/tests/README.json"
+  ],
+  "depends_on_mts": ["MT-073", "MT-074", "MT-075", "MT-076", "MT-077", "MT-078", "MT-079"],
+  "unblock_conditions": "All LlamaCppRuntime feature MTs merged.",
+  "implementation_notes": "Smoke test scenario: (1) load fixture GGUF (operator-supplied via HANDSHAKE_TEST_GGUF_PATH); (2) assert capabilities { supports_lora=true, supports_kv_quantization=Q4Q8Mix, supports_speculative_draft=true, supports_activation_steering=false, supports_subquadratic=false, supports_eagle3=false }; (3) generate 32 tokens with seed=42 — capture output; (4) mount fixture LoRA (HANDSHAKE_TEST_LORA_PATH env, skip subtest if absent), generate again with override, assert output differs; (5) switch KV quant from f16 to q4, generate, assert no crash; (6) prefix_commit on a 20-token prompt, generate continuation, prefix_restore, generate same continuation, assert deterministic; (7) ngram self-spec generate (mode=Ngram{lookback=4, max_draft=4}) 32 tokens, assert output matches non-spec generation; (8) score a 10-token sequence, assert total_logprob negative finite; (9) embed (skipped if model loaded without embeddings=true); (10) unload, assert ledger row terminated, assert models map empty. All steps log FR-EVT-LLM-INFER-* events; test asserts at least 1 of each expected event family was emitted. Smoke test is the contract gate before any LlamaCppRuntime change merges. README.json: { test_id: \"llama_cpp_e2e_smoke\", required_env: [\"HANDSHAKE_TEST_GGUF_PATH\", \"HANDSHAKE_TEST_LORA_PATH (optional)\"], description: \"...\" }.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target llama_cpp_e2e_smoke -- --ignored"
+  ],
+  "risk_if_missed": "Regression in any LlamaCppRuntime sub-feature ships undetected; no integration evidence for AC-LLAMACPP-ADAPTER.",
+  "validator_focus": "All 10 steps executed when env var present; gracefully skipped when absent (test reports skip, not fail); FR event family coverage verified.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-INFER-LAB-8-TECHNIQUES"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-073", "MT-074", "MT-075", "MT-076", "MT-077", "MT-078", "MT-079"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Skip path documented (test reports skip status, does not panic when env absent).",
+      "All 10 sub-steps present and assert; no commented-out steps.",
+      "FR event family coverage explicitly verified per family."
+    ]
+  }
+}

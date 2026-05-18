@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-147",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:06:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-147.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Capsule build+inject integration test on a representative microtask context",
+  "goal": "End-to-end integration test that drives the full CapsuleBuilder + CapsuleInjector + CapsuleRecorder + IPC path against a representative microtask context (KernelBuilderMtImplementation task type, fixture FEMS payload, fixture ModelRuntime) to prove the D.1 primitives compose correctly before D.2 (self-improvement loop) consumes them.",
+  "expected_diff_shape": "New integration test src/backend/handshake_core/tests/memory_capsule_e2e_tests.rs (no new modules). Adds tests/fixtures/memory_capsule_e2e/sample_fems_items.json with 30 fixture items mirroring the HBR test-packet corpus shape so the same fixtures can be reused by the D.2 self-improvement-loop tests.",
+  "owned_files": [
+    "src/backend/handshake_core/tests/memory_capsule_e2e_tests.rs",
+    "src/backend/handshake_core/tests/fixtures/memory_capsule_e2e/sample_fems_items.json"
+  ],
+  "depends_on_mts": ["MT-141", "MT-142", "MT-143", "MT-144", "MT-145", "MT-146"],
+  "unblock_conditions": "All D.1 MTs land.",
+  "implementation_notes": "Per refinement D.1 'Tests on a representative microtask context.' Fixture: 30 FEMS items shaped like the actual HBR test-packet corpus (mix of HBR rule IDs, validator scratchpad fragments, ModelManual snippets). Test flow: (1) construct CapsuleBuilder with TestFemsAdapter loaded from fixture, (2) build a capsule for KernelBuilderMtImplementation task type with a query like 'how do I add a new HBR rule applicability tag', (3) assert capsule contains at most top_k items, all within capsule_budget_bytes, with audit_log entries for both included and excluded items, (4) construct CapsuleInjector and inject for a mock ModelRuntime call context, assert Inject decision and exactly one FR-EVT-CAPSULE-INJECTED, (5) record via CapsuleRecorder against mock KernelActionCatalogV1, assert RecordReceipt round-trips through the catalog, (6) invoke list_recent and get IPC commands against the recorded capsule, assert shape, (7) invoke suppress_item against one included item, assert FR-EVT-CAPSULE-SUPPRESSED and that subsequent get returns updated audit_log with that entry suppressed. Run with cargo test --release for realistic perf signal. Assertion includes that the full e2e completes in <500ms on stock dev hardware (NOT a hard latency gate; logs warning if exceeded).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test memory_capsule_e2e_tests"
+  ],
+  "risk_if_missed": "Without end-to-end coverage the D.1 primitives may compose incorrectly at the seams (builder + injector + recorder + IPC) and D.2 will inherit broken plumbing.",
+  "validator_focus": "Test exercises every D.1 surface in one run; fixture is reusable by D.2; perf signal logged but not hard-gated.",
+  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE", "AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-141", "MT-142", "MT-143", "MT-144", "MT-145", "MT-146"],
+    "blocks": ["MT-148"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "E2E test runs in CI without external dependencies (no live FEMS or ModelRuntime).",
+      "Fixture corpus is committed and shared with D.2 tests for traceability.",
+      "Perf signal is logged (not hard-gated) so D.2 has a baseline before optimizing."
+    ]
+  }
+}

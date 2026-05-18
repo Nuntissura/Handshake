@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-074",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-074.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "LlamaCppRuntime streaming generate + sampling params + cancellation",
+  "goal": "Implement the generate() path for LlamaCppRuntime: streaming TokenStream via llama-cpp-2 sample-and-decode loop, sampling params honoured (temperature/top_p/top_k/min_p/repetition_penalty/seed), structured-decoding stub, cancellation token mid-stream, stop sequences.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs + sampler.rs; adapter.rs generate() implementation; tests exercising streaming + cancel + stop sequences (env-var-gated).",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/generate.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/sampler.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+    "src/backend/handshake_core/tests/llama_cpp_generate_tests.rs"
+  ],
+  "depends_on_mts": ["MT-073"],
+  "unblock_conditions": "MT-073 loader merged.",
+  "implementation_notes": "Per AC-LLAMACPP-ADAPTER + AC-INFER-LAB-8-TECHNIQUES: streaming generate is the default surface. Implement as `async fn generate_stream(&self, req: GenerateRequest) -> TokenStream` returning a Pin<Box<dyn Stream<Item=Result<GeneratedToken, ModelRuntimeError>> + Send>>. Internal loop: tokenize prompt via cached tokenizer, run llama_cpp_2 decode batch by batch, after each token call the sampler (sampler.rs assembles llama_cpp_2 sampler chain from SamplingParams), yield GeneratedToken via async-stream macro or tokio::sync::mpsc + ReceiverStream. Per-token poll the CancellationToken — if cancelled, break loop and yield ModelRuntimeError::Cancelled. Stop sequences: maintain a rolling buffer of last N tokens; after each yield, check decoded suffix against stop_sequences; on match, set finish_reason=StopSequence and break. max_tokens cap enforced. Structured decoding: if req.structured_decoding Some, build a llama_cpp_2 grammar from the JsonSchema (gbnf conversion; partial in this MT, full JSON Schema support deferred to a future WP — return CapabilityNotSupported with explicit error for unsupported features like $ref/oneOf). FR-EVT-LLM-INFER-START / FR-EVT-LLM-INFER-TOKEN / FR-EVT-LLM-INFER-END events fired from generate. Per-request lora_overrides applied via llama-cpp-2 per-call --lora flag (mechanism for MT-090 LoRA hot-swap; this MT only wires the parameter path). Tests (env-gated by HANDSHAKE_TEST_GGUF_PATH): generate 16 tokens on a fixed seed and assert deterministic output; cancel mid-generation and assert Cancelled error within 100ms; stop sequence \"###\" terminates correctly; structured decoding with simple grammar produces JSON-shaped output.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target llama_cpp_generate_tests"
+  ],
+  "risk_if_missed": "LlamaCppRuntime cannot serve real generate traffic; LlmClient routing has no concrete backend.",
+  "validator_focus": "Streaming TokenStream actually streams (not batched-then-yielded); cancellation latency <100ms; stop sequence + max_tokens caps respected; sampling determinism with fixed seed.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6.2",
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-LLAMACPP-ADAPTER", "AC-MODEL-RUNTIME-TRAIT"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-073"],
+    "blocks": ["MT-075", "MT-076", "MT-077", "MT-080", "MT-090", "MT-109", "MT-110"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Streaming latency: first token <200ms after generate() poll begins (test against fixture model).",
+      "Cancellation latency <100ms verified.",
+      "Stop sequence boundary correct (decoded suffix not the raw token boundary)."
+    ]
+  }
+}

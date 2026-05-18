@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-032",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "A",
+  "cluster_subscope": "A.3",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:30:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-032.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "kernel.inspector.* Tauri IPC bridge for Diagnostics-panel access",
+  "goal": "Bridge the inspector_read trait to Tauri IPC so the Diagnostics panel (cluster X) reads inspector state without binding to the local HTTP server (the panel runs in-process and skips the network hop). IPC channels: `kernel.inspector.port`, `kernel.inspector.list_sessions`, `kernel.inspector.session_state`, `kernel.inspector.event_ledger_tail`, `kernel.inspector.process_ledger_active`, `kernel.inspector.trace_projection`, `kernel.inspector.loaded_models`.",
+  "expected_diff_shape": "New Tauri command file app/src-tauri/src/inspector.rs with seven commands; each delegates to InspectorReadV1 trait impl; tests confirm IPC payload shapes round-trip cleanly.",
+  "owned_files": [
+    "app/src-tauri/src/inspector.rs",
+    "src/backend/handshake_core/tests/inspector_ipc_tests.rs"
+  ],
+  "depends_on_mts": ["MT-028"],
+  "unblock_conditions": "MT-028 InspectorReadV1 trait ships.",
+  "implementation_notes": "Per spec §6.5.2 the Diagnostics panel (cluster X) needs read access without going through the HTTP server (network hop unnecessary in-process). The Tauri commands wrap the InspectorReadV1 trait methods one-to-one. Each command serializes the returned struct to JSON via serde. The handlers take a `State<Arc<dyn InspectorReadV1>>` parameter populated at Tauri::Builder setup. Channel ids per spec §6.5 + MT-010 manual convention: `kernel.inspector.port` (returns the random port from MT-029 server if running, else None), `kernel.inspector.list_sessions`, `kernel.inspector.session_state(session_id: SessionId)`, `kernel.inspector.event_ledger_tail(n: usize)`, `kernel.inspector.process_ledger_active`, `kernel.inspector.trace_projection(session_id: SessionId)`, `kernel.inspector.loaded_models`. Each command must appear in the ModelManual (per HBR-MAN-001 paired-diff — the commit adding these commands must update content.rs). Tests: instantiate a Tauri test harness, invoke each command via IPC mock, assert response payload deserializes back to the same struct type returned by the trait method.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inspector_ipc_tests",
+    "just hbr-man-001"
+  ],
+  "risk_if_missed": "Without IPC bridge, Diagnostics panel must hit HTTP for in-process reads — adds latency and an unnecessary network surface.",
+  "validator_focus": "All seven IPC channels are added to ModelManual content in the same commit (HBR-MAN-001 paired-diff gate will block otherwise); IPC payload shapes round-trip cleanly; State<Arc<dyn InspectorReadV1>> is the single source of read truth.",
+  "hbr_obligations": ["HBR-INT-007", "HBR-VIS-001", "HBR-VIS-004", "HBR-MAN-001"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
+  ],
+  "acceptance_criteria_refs": ["AC-INSPECTOR-PLANE-READONLY"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-028"],
+    "blocks": ["MT-033"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Seven commands added to ModelManual in same commit (HBR-MAN-001 gate).",
+      "State<Arc<dyn InspectorReadV1>> is the single read source (no duplicate impls).",
+      "IPC round-trip tested for every command."
+    ]
+  }
+}

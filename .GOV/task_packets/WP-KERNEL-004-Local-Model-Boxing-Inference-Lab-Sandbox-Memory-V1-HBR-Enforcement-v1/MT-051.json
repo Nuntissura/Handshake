@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-051",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "B",
+  "cluster_subscope": "B.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-051.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Promotion path: KERNEL-003 ValidationRunner -> KERNEL-001 PromotionGate over SandboxAdapter handle",
+  "goal": "Wire the sandbox-routed ValidationRunner (MT-050) into the existing KERNEL-001 PromotionGate so that successful sandbox-executed validations promote artifacts to authority. Preserves KERNEL-003 promotion semantics; the new sandbox boundary becomes the trust line. ProcessHandle from the SandboxAdapter is the durable receipt that promotion writes into the EventLedger for replay (HBR-INT-001).",
+  "expected_diff_shape": "New src/backend/handshake_core/src/sandbox/promotion_binding.rs that wraps a ValidationRunner result + ProcessHandle into a PromotionRequest; edits to the KERNEL-001 PromotionGate module (locate via Grep) accepting a new PromotionRequest variant carrying ProcessHandle as evidence. Tests under src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/sandbox/promotion_binding.rs",
+    "src/backend/handshake_core/src/sandbox/mod.rs",
+    "src/backend/handshake_core/tests/sandbox_promotion_binding_tests.rs"
+  ],
+  "depends_on_mts": ["MT-050"],
+  "unblock_conditions": "MT-050 ValidationRunner binding merged; KERNEL-001 PromotionGate already in main (verify path).",
+  "implementation_notes": "Pre-step: Grep `pub struct PromotionGate` and `pub enum PromotionRequest` in src/backend/handshake_core/src/kernel/** to locate the KERNEL-001 surface and the existing request variants. promotion_binding.rs: `pub struct SandboxValidationEvidence { process_handle: ProcessHandle, adapter_capabilities: AdapterCapabilities, validation_exit_code: i32, validation_stdout_artifact_id: ArtifactId, validation_stderr_artifact_id: ArtifactId, sandbox_runtime_ms: u64 }` and `pub fn build_promotion_request(evidence: SandboxValidationEvidence, candidate_artifact: ArtifactId) -> PromotionRequest`. The PromotionGate accepts this new request shape; on success, the gate writes an EventLedger row of family `FR-EVT-PROMOTION-SANDBOX-VALIDATED` carrying the ProcessHandle.id (UUID v7) so HBR-INT-001 replay can reconstruct which adapter+handle produced the validated artifact. Critically: the PromotionGate REJECTS evidence where adapter_capabilities.filesystem_isolation_strength==Weak OR network_isolation_strength==Weak — sandbox quality is part of the promotion criterion (prevents an attacker swapping in a fake/no-op adapter to bypass validation). Add `pub enum PromotionRejectReason { ... InsufficientSandboxIsolation { required_min: IsolationStrength, observed: IsolationStrength }, ... }`. Tests: (a) successful promotion writes the FR-EVT-PROMOTION-SANDBOX-VALIDATED row containing the ProcessHandle.id; (b) Weak isolation rejects with InsufficientSandboxIsolation; (c) non-zero validation_exit_code rejects with the existing KERNEL-001 reject variant (preserve behavior); (d) replay-equivalence test: given two recorded EventLedger streams that differ only in ProcessHandle.id values, both produce identical projected promotion state (HBR-INT-001 replay invariant).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target sandbox_promotion_binding_tests"
+  ],
+  "risk_if_missed": "Without binding, sandbox-validated artifacts cannot reach PromotionGate authority; the KERNEL-003 promotion path silently bypasses the new sandbox isolation guarantee.",
+  "validator_focus": "(a) Weak isolation rejection works; (b) EventLedger row carries ProcessHandle.id (UUID v7); (c) replay-equivalence test passes; (d) existing KERNEL-001 PromotionGate reject variants are preserved (no regression).",
+  "hbr_obligations": ["HBR-INT-001", "HBR-INT-008"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.4",
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7"
+  ],
+  "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS", "AC-LOCAL-MODEL-BOXING"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-050"],
+    "blocks": ["MT-055"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Weak isolation rejection prevents an attacker (or accidental NoopAdapter wiring) from promoting unsafe artifacts.",
+      "Replay-equivalence test prevents promotion state from becoming sandbox-internal-id-dependent (would break HBR-INT-001 EventLedger replay).",
+      "Preserve existing KERNEL-001 PromotionGate variants; this MT is additive."
+    ]
+  }
+}

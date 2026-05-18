@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-110",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.10",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-110.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-8 Self-Speculative UI knob (mode picker + draft-model picker + perf gain display)",
+  "goal": "Self-Spec UI in Inference Lab per AC-INFER-LAB-UI-TOGGLES: mode picker (None / Ngram / DraftModel / Eagle3-deferred-badge), draft-model picker for DraftModel mode, live perf gain display (tokens/sec ratio + accept rate).",
+  "expected_diff_shape": "New Svelte component app/src/components/inference_lab/SpeculativeDecodingPanel.svelte + store; integration.",
+  "owned_files": [
+    "app/src/components/inference_lab/SpeculativeDecodingPanel.svelte",
+    "app/src/lib/stores/speculative.ts",
+    "app/src/components/inference_lab/InferenceLab.svelte"
+  ],
+  "depends_on_mts": ["MT-068", "MT-109"],
+  "unblock_conditions": "MT-068 IPC + MT-109 technique merged.",
+  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES. SpeculativeDecodingPanel.svelte: mode select (None|Ngram|DraftModel); Ngram sub-controls (lookback, max_draft sliders); DraftModel sub-controls (model picker scoped to registry models with supportsSpeculativeDraft compatible + max_draft slider); Eagle3 entry visible but marked \"deferred (llama.cpp PR #18039 pending)\" with link to upstream tracking. Live perf-gain bar: subscribes to kernel_model_runtime_spec_stats (polls 2s); shows accept_rate %, observed speedup x. Hidden when supportsSpeculativeDraft=false. A/B compare: pick prompt, generate with spec on/off, show side-by-side latency.",
+  "proof_commands": [
+    "cd app && pnpm run typecheck"
+  ],
+  "risk_if_missed": "INF-8 UI missing; operator cannot interactively tune speculative mode.",
+  "validator_focus": "Eagle3 deferral surfaced (not hidden); draft-model picker scope correct (only compatible models); A/B compare flow present.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES", "AC-INFER-LAB-UI-AB-COMPARE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-068", "MT-109"],
+    "blocks": ["MT-111"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Eagle3 deferral message clear (links to PR #18039).",
+      "Draft-model picker scope filtered by capability.",
+      "A/B compare latency display."
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-149",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:08:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-149.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "EditableSurface registry: V0 allow-list and forbid-list",
+  "goal": "Define and enforce the V0 editable surface allow-list (ModelManual capsule text + retrieval policy params) and forbid-list (spec text, role-shared system prompts, LoRA weights, tool descriptions) per AC-DISTILL-EDITABLE-SURFACE. Provide an EditableSurfaceProvider that the loop core (MT-148) consumes; any attempt to register or mutate a forbidden surface fails at compile time (closed enum) and at runtime (typed error).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/editable_surface.rs (EditableSurfaceProvider trait + ModelManualSurface + RetrievalPolicySurface concrete impls + EditableSurfaceError + ForbidddenSurfaceGuard). Tests src/backend/handshake_core/tests/editable_surface_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/editable_surface.rs",
+    "src/backend/handshake_core/tests/editable_surface_tests.rs"
+  ],
+  "depends_on_mts": ["MT-148"],
+  "unblock_conditions": "MT-148 loop core ships LoopTarget enum.",
+  "implementation_notes": "Per AC-DISTILL-EDITABLE-SURFACE the V0 editable surface is exactly: (1) ModelManual capsule text (spec §10.15) and (2) retrieval policy parameters (top_k, capsule_budget_bytes). The forbid-list is: spec text (shadow-authority risk), role-shared system prompts (blast radius), LoRA weights (no V0 training infra), tool descriptions. Surface: `pub trait EditableSurfaceProvider { fn snapshot(target: &LoopTarget) -> Result<EditableSurfaceSnapshot, EditableSurfaceError>; fn apply_proposal(snapshot: &EditableSurfaceSnapshot, proposal: SurfaceProposal) -> Result<EditableSurfaceSnapshot, EditableSurfaceError>; }`. Two concrete impls: ModelManualSurface (reads ModelManual via the Tauri IPC backed by src/backend/handshake_core/src/model_manual/mod.rs from cluster X; writes via KernelActionCatalogV1) and RetrievalPolicySurface (reads from CapsulePolicyTable MT-142; writes via KernelActionCatalogV1 PolicyTableUpdate action). Forbidden surface guard: `pub struct ForbiddenSurfaceGuard;` with `pub fn check(target: &LoopTarget) -> Result<(), EditableSurfaceError>` returning `EditableSurfaceError::Forbidden { surface_id: String, reason: ForbidReason }` for any attempt that walks the LoopTarget enum into a forbid-list. ForbidReason enum: ShadowAuthority, BlastRadiusTooWide, NoTrainingInfraInV0, ToolDescriptionAuthority. Tests: ModelManualSurface snapshot+apply round-trip via mock catalog; RetrievalPolicySurface enforces budget bounds (cannot propose top_k=0 or budget>1MB); ForbiddenSurfaceGuard fails for any synthetic LoopTarget that names a spec path; guard is invoked by snapshot() before any work.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target editable_surface_tests"
+  ],
+  "risk_if_missed": "Without an enforced allow/forbid list, the loop can silently widen the editable surface and shadow-authority risk (spec edits via the loop) becomes real.",
+  "validator_focus": "ForbiddenSurfaceGuard is the only check that runs before snapshot/apply; both impls go through the guard. Closed enum means widening requires a typed code change.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-148"],
+    "blocks": ["MT-150", "MT-153", "MT-156"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Forbidden surface guard is invoked unconditionally before any snapshot or apply.",
+      "Both concrete surfaces write via KernelActionCatalogV1 so the audit trail is the same as operator-driven edits.",
+      "Policy bounds (top_k > 0, budget_bytes within sane ceiling) enforced at the surface, not at the proposer."
+    ]
+  }
+}

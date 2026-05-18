@@ -1,0 +1,65 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-186",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "X",
+  "cluster_subscope": "X.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:10:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-186.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MT cancellation primitive (cooperative + forced) with cleanup hooks",
+  "goal": "Implement cooperative and forced cancellation for in-flight MicroTaskJobs. Cooperative: cancellation token observed by the executor at safe checkpoints; Forced: process-level kill with cleanup via ProcessOwnershipLedger reclaim hooks (spec §5.7.5). Required by KERNEL-001 SessionBroker shutdown path and by operator-initiated cancellation from the diagnostics panel.",
+  "expected_diff_shape": "New Rust module src/backend/handshake_core/src/process_ledger/mt_cancellation.rs with `MtCancellationToken`, `MtCancellationReason`, `MtCanceller` types; integration tests under src/backend/handshake_core/tests/mt_cancellation_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/process_ledger/mt_cancellation.rs",
+    "src/backend/handshake_core/tests/mt_cancellation_tests.rs"
+  ],
+  "depends_on_mts": ["MT-184"],
+  "unblock_conditions": "MT-184 MicroTaskJob state machine provides the Cancelled state target.",
+  "implementation_notes": "Two-tier cancellation. Tier 1 (cooperative): `MtCancellationToken` is a `tokio_util::sync::CancellationToken` wrapper bound to a job_id; executor polls `.is_cancelled()` at every iteration boundary and at every Postgres write. `MtCanceller::request_cooperative(job_id, reason: MtCancellationReason)` flips the token, updates job.state=`CancellationRequested`, writes audit row, returns immediately. Executor observes within next iteration; transitions state=`Cancelled` with reason recorded. Tier 2 (forced): if cooperative cancellation timeout exceeds `force_after_secs` (default 30s), `MtCanceller::force(job_id, reason)` (a) queries ProcessOwnershipLedger (spec §5.7) for the process(es) owned by job's session_id; (b) invokes reclaim hooks per spec §5.7.5 (SIGTERM, then SIGKILL after grace); (c) updates job.state=`Cancelled` with `force_used=true`; (d) emits FR-EVT-MT-CANCEL-FORCED. Cleanup hooks (`MtCancellationCleanupHook` trait) registered per job: cleanup runs in reverse-registration order, errors logged but do not abort the cancellation chain. `MtCancellationReason` enum: `OperatorRequested { operator_id }`, `SessionShutdown`, `BudgetExceeded`, `EscalationToHardGate`, `DependencyFailed { dep_job_id }`. Tests: (a) cooperative cancellation observed within 1s; (b) cancellation idempotent (request twice — only one audit row); (c) forced cancellation invokes reclaim hooks via stub ProcessOwnershipLedger; (d) cleanup hooks run in reverse order; (e) cleanup hook error logged but does not block transition to Cancelled.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target mt_cancellation_tests -- --test-threads=1"
+  ],
+  "risk_if_missed": "Without MT cancellation, runaway jobs cannot be stopped without operator-restart of the whole Handshake process; SessionBroker shutdown leaks orphan child processes; operator pause becomes effectively impossible.",
+  "validator_focus": "Cooperative cancellation polled at every iteration boundary (no missed window); forced cancellation always triggers reclaim hooks (no orphan processes); idempotent (multiple requests = one audit chain).",
+  "hbr_obligations": ["HBR-INT-008", "HBR-SWARM-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/05-security-and-observability.md#5.7.5"
+  ],
+  "acceptance_criteria_refs": [
+    "AC-PROCESS-LEDGER-RECLAIM (related — reclaim hooks reused for forced cancellation)",
+    "PRESERVED_INTENT:WP-1-Micro-Task-Executor-v1 (hard-gate pauses + bounded iteration)"
+  ],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-184"],
+    "blocks": ["MT-189", "MT-193"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Forced cancellation MUST invoke ProcessOwnershipLedger reclaim or fail loudly; never leak orphans (test asserts no PID survives).",
+      "Cleanup hook errors logged with FR-EVT-MT-CANCEL-CLEANUP-FAILED but do not block the Cancelled transition.",
+      "Cooperative-to-forced escalation respects force_after_secs configurable per Work Profile (default 30s)."
+    ]
+  }
+}

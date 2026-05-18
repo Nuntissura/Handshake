@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-111",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.10",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-111.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-8 Self-Speculative perf eval + EAGLE-3 upgrade hook scaffold",
+  "goal": "Perf eval suite measuring speedup_observed and accept_rate for ngram and draft-model modes; scaffold an EAGLE-3 upgrade hook (placeholder function + capability flag flip path) so when llama.cpp PR #18039 merges, the upgrade MT touches one file.",
+  "expected_diff_shape": "New src/backend/handshake_core/tests/inf8_spec_perf_eval.rs; src/backend/handshake_core/src/model_runtime/llama_cpp/eagle3_hook.rs (placeholder + capability flag flip path).",
+  "owned_files": [
+    "src/backend/handshake_core/tests/inf8_spec_perf_eval.rs",
+    "src/backend/handshake_core/src/model_runtime/llama_cpp/eagle3_hook.rs"
+  ],
+  "depends_on_mts": ["MT-109", "MT-110"],
+  "unblock_conditions": "MT-109 + MT-110 merged.",
+  "implementation_notes": "Perf eval (env-gated): load target+draft pair; for a fixed seed and 32 eval prompts, run baseline (no spec) and ngram-spec generation; compute mean tokens/sec for each; assert speedup >= 1.1x on average (modest threshold — actual gains are model-dependent; this is a regression gate). Then run draft-model mode; assert accept_rate >= 30% on average. Stats emitted via FR-EVT-LLM-INFER-SPEC-STATS. Eagle3 hook scaffold: stub `pub fn eagle3_decode(...) -> Result<DraftTokens, EagleError>` returning Err(EagleError::PendingUpstream{pr_url: \"https://github.com/ggerganov/llama.cpp/pull/18039\"}); a TODO marker comment with a checklist of what changes when the PR merges (capability flag flip to supports_eagle3=true; constructor wiring; UI badge removal). Capability flag accessor `pub fn eagle3_available() -> bool` reads a const that's false until the upgrade MT flips it. Future upgrade MT (post-PR-merge, NOT in KERNEL-004): swap stub for real impl, flip const, remove UI deferral badge.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf8_spec_perf_eval"
+  ],
+  "risk_if_missed": "INF-8 perf claims unsupported; EAGLE-3 upgrade path requires hunt across many files.",
+  "validator_focus": "Threshold (1.1x speedup; 30% accept_rate) explicit; eagle3_available() const single-source-of-truth; TODO comment with PR link.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-MODEL-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-109", "MT-110"],
+    "blocks": []
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Thresholds explicit.",
+      "eagle3_available() const single source.",
+      "Upgrade-MT checklist comment with PR link."
+    ]
+  }
+}

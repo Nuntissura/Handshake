@@ -553,6 +553,12 @@
       "notes": "Kernel003 sandbox/validation/promotion packet; 80/80 MT PASS + adversarial review 22/22 closed; merged to main at a813b7615f4e29d77ed8ee0b3ea8845ad5fd406f on 2026-05-17."
     },
     {
+      "base_wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement",
+      "active_packet_path": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
+      "task_board_projection": "In Progress: WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+      "notes": "Kernel004 four-cluster max-fold (HBR enforcement + tooling | sandbox 3-adapter | local-model boxing + 8 PRODUCTION inference techniques | Memory V0+ on FEMS V1); 30 historical WP-1-* stubs folded with preservation map; spec v02.186 enrichment applied; Codex CX-131 added; user_signature ilja180520260209 captured 2026-05-18T02:09Z; JSON-first contract authority (packet.json + refinement.json); legacy md projection skipped per operator decision (feedback_no_default_md_files + governance gate modernization debt)."
+    },
+    {
       "base_wp_id": "WP-1-Storage-Capability-Boundary-Refactor",
       "active_packet_path": ".GOV/task_packets/WP-1-Storage-Capability-Boundary-Refactor-v1/packet.md",
       "task_board_projection": "Stub Backlog (Not Activated): WP-1-Storage-Capability-Boundary-Refactor-v1",

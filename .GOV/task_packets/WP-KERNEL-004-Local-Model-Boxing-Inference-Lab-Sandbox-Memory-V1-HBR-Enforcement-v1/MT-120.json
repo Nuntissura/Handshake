@@ -1,0 +1,63 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-120",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.12",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-120.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "Distillation content review pipeline (PII scan + license tagging + dedup)",
+  "goal": "Implement the content review pipeline per AC-DISTILL-CONTENT-REVIEW: PII scan (regex + NER for names/emails/phones/credentials/machine-ids), license tagging (provenance for third-party fragments; untaggable quarantined), dedup (content-hash + embedding-similarity near-dup). Promotion blocked on failure; emits FR-EVT-DISTILL-PII-DETECT.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/distillation/content_review.rs with PII scanner + license tagger + dedup; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/distillation/content_review.rs",
+    "src/backend/handshake_core/src/distillation/pii_patterns.rs",
+    "src/backend/handshake_core/tests/distillation_content_review_tests.rs"
+  ],
+  "depends_on_mts": ["MT-119"],
+  "unblock_conditions": "MT-119 corpus extractor merged.",
+  "implementation_notes": "Per AC-DISTILL-CONTENT-REVIEW. ContentReview::review(turn: &TrainingTurn) -> Result<ReviewVerdict, ReviewError>. PII scanner: regex patterns for emails (RFC 5322 simplified), phone numbers (E.164 + common formats), credit cards (Luhn-verified), API keys (common prefixes: sk-, AKIA, ghp_, etc.), Windows-style paths revealing user names (C:\\Users\\<name>), MAC addresses, IPv4/IPv6 (private+public, configurable); plus a minimal NER pass for personal names (regex + capitalization heuristic — full NER deferred to a future WP). Each pattern hit emits PiiDetection { kind, span, severity }. License tagger: every turn must inherit license_tag from its source model + LoRAs; verifies the tag is in allowed-licenses set (operator-configurable; defaults: MIT, Apache-2.0, custom_internal); fragments tagged with non-allowed license -> quarantine. Untaggable (license_tag is None or empty) -> quarantine. Dedup: compute BLAKE3 of (prompt + completion); compare against in-corpus hashes (exact dedup); compute embedding via local model (reuse ModelRuntime.embed) for near-dup (cosine_similarity > 0.95 -> warn + flag). ReviewVerdict: Pass | Quarantine { reasons: Vec<String> } | Reject { reasons: Vec<String> }. FR-EVT-DISTILL-PII-DETECT { turn_id, pii_kinds, severity } emitted on any PII hit; FR-EVT-DISTILL-LICENSE-FAIL on license failure. Quarantine path: move turn to .distill_quarantine/ + log; do NOT delete. Adult-production note: explicit sexual content is NOT a PII category — the PII pipeline is for personal-information leakage detection, not content moderation (per GLOBAL-PRODUCTION-002..009 the operator's explicit content is not sanitised by the assistant). Tests: PII regex sweep with positive + negative fixtures; license allowlist; dedup exact + near-dup; quarantine path; FR events.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target distillation_content_review_tests"
+  ],
+  "risk_if_missed": "AC-DISTILL-CONTENT-REVIEW unenforced; PII leakage into corpus; license violations propagate.",
+  "validator_focus": "PII patterns target leakage NOT content moderation (explicit sexual content not flagged); license allowlist configurable; quarantine moves, never deletes; FR events fire on each detection class.",
+  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.2"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-CONTENT-REVIEW"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-119"],
+    "blocks": ["MT-121", "MT-122", "MT-123", "MT-124", "MT-107"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Explicit sexual content NOT flagged as PII (operator content discipline; GLOBAL-PRODUCTION).",
+      "Quarantine moves never deletes.",
+      "License allowlist operator-configurable."
+    ]
+  }
+}

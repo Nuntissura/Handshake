@@ -1,0 +1,62 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-152",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "D",
+  "cluster_subscope": "D.2",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:11:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-152.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "MultiMetricPromotionFloor: dev PASS up AND latency not regressed AND capsule bytes not regressed AND holdout PASS not regressed",
+  "goal": "Implement the multi-metric promotion floor per AC-DISTILL-LOOP-SAFEGUARDS so a proposed change is only Accept-eligible when ALL four conditions hold against a baseline EvalResult: dev PASS rate strictly improves, latency p95 does not regress beyond tolerance, capsule bytes p95 does not regress beyond tolerance, and holdout PASS rate does not regress. Tolerances are typed durable knobs (not magic numbers).",
+  "expected_diff_shape": "New module src/backend/handshake_core/src/self_improve/promotion_floor.rs (MultiMetricPromotionFloor + PromotionDecision + PromotionTolerances + FloorReason types). Tests src/backend/handshake_core/tests/promotion_floor_tests.rs.",
+  "owned_files": [
+    "src/backend/handshake_core/src/self_improve/promotion_floor.rs",
+    "src/backend/handshake_core/tests/promotion_floor_tests.rs"
+  ],
+  "depends_on_mts": ["MT-148", "MT-151"],
+  "unblock_conditions": "MT-148 (loop core) + MT-151 (evaluator producing EvalResult shape).",
+  "implementation_notes": "Per AC-DISTILL-LOOP-SAFEGUARDS the floor is: (1) dev PASS rate strictly up, (2) latency p95 not regressed, (3) capsule bytes p95 not regressed, (4) holdout PASS rate not regressed. Surface: `pub struct MultiMetricPromotionFloor { tolerances: PromotionTolerances }` with `pub fn evaluate(baseline: &EvalResult, trial: &EvalResult) -> PromotionDecision`. PromotionTolerances: `{ pub latency_p95_regression_tolerance_pct: f64 (default 5.0), pub capsule_bytes_p95_regression_tolerance_pct: f64 (default 5.0), pub holdout_pass_regression_tolerance_pp: f64 (default 0.0 - no tolerance for holdout regression) }`. PromotionDecision: `{ Approved { delta: MetricDelta }, Rejected { reasons: Vec<FloorReason>, delta: MetricDelta } }`. FloorReason enum: DevPassRateNotImproved, LatencyP95Regressed { baseline_ms, trial_ms, delta_pct }, CapsuleBytesRegressed { baseline_bytes, trial_bytes, delta_pct }, HoldoutPassRegressed { baseline_pass_rate, trial_pass_rate, delta_pp }. MetricDelta: `{ dev_pass_delta_pp, latency_p95_delta_ms, capsule_bytes_p95_delta_bytes, holdout_pass_delta_pp }`. Tolerances are durable typed state (not magic numbers); they live in the loop config and any change to tolerances itself flows through PromotionGate operator review. Tests: floor accepts when all four conditions hold; rejects with each individual FloorReason when one condition fails; rejects with multiple reasons when several fail; tolerance bounds (e.g., 100% latency regression) trigger rejection; floor is pure (no I/O).",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target promotion_floor_tests"
+  ],
+  "risk_if_missed": "Without a multi-metric floor the loop can ship dev-PASS improvements that regress latency, capsule bytes, or holdout PASS; this is the textbook Goodhart failure mode.",
+  "validator_focus": "Floor is a pure function (no I/O). Tolerances are durable typed state. Every rejection reason is typed.",
+  "hbr_obligations": ["HBR-INT-006"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
+  ],
+  "acceptance_criteria_refs": ["AC-DISTILL-LOOP-SAFEGUARDS"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-148", "MT-151"],
+    "blocks": ["MT-153", "MT-154", "MT-156", "MT-167", "MT-170"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "All four floor conditions evaluated independently; no condition can be silently bypassed.",
+      "Tolerances are durable typed state; tolerance changes themselves flow through PromotionGate operator review.",
+      "Floor is pure; tests cover every individual rejection reason and combinations."
+    ]
+  }
+}

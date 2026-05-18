@@ -1,0 +1,64 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "mt_id": "MT-109",
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+  "cluster": "C",
+  "cluster_subscope": "C.10",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": null,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
+  },
+  "title": "INF-8 Self-Speculative Decoding technique surface + Work Profile knob",
+  "goal": "Lift the LlamaCppRuntime self-spec impl (MT-077) to the public Self-Speculative Decoding technique surface per AC-INFER-LAB-8-TECHNIQUES.g: kernel.model_runtime.spec_decode_set_mode, with Work Profile knob settings.exec_policy.speculative + FR-EVT-LLM-INFER-SPEC-* events. Conservative default opt-in.",
+  "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/techniques/speculative_decoding.rs; Tauri commands; tests.",
+  "owned_files": [
+    "src/backend/handshake_core/src/model_runtime/techniques/speculative_decoding.rs",
+    "app/src-tauri/src/commands/speculative.rs",
+    "app/src-tauri/src/main.rs",
+    "src/backend/handshake_core/tests/speculative_decoding_technique_tests.rs"
+  ],
+  "depends_on_mts": ["MT-077", "MT-093"],
+  "unblock_conditions": "MT-077 LlamaCpp self-spec impl merged.",
+  "implementation_notes": "Per AC-INFER-LAB-8-TECHNIQUES.g + operator E-4 + refinement INF-8. Public API: set_speculative_mode(model_id, SpeculativeMode), get_speculative_mode(model_id), get_speculative_stats(model_id) returning { tokens_generated, tokens_drafted, accept_rate, speedup_observed }. Work Profile knob: settings.exec_policy.speculative: SpeculativeMode (default None — conservative opt-in). Tauri commands: kernel_model_runtime_spec_set_mode, kernel_model_runtime_spec_stats, kernel_model_runtime_spec_get_mode. FR events: FR-EVT-LLM-INFER-SPEC-MODE-CHANGE { model_id, prev, next }, FR-EVT-LLM-INFER-SPEC-STATS { model_id, request_id, tokens_generated, tokens_drafted, accept_rate, speedup } (per request, sampled). Capability gate: supportsSpeculativeDraft=false (CandleRuntime, SSMs) hides technique; supportsEagle3=false everywhere in v02.186 (until llama.cpp PR #18039 merges) — Eagle3 sub-toggle shows but generates CapabilityNotSupported. Per operator E-4 the EAGLE-3 upgrade is a post-merge dependency upgrade, not a v02.186 ship block.",
+  "proof_commands": [
+    "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target speculative_decoding_technique_tests"
+  ],
+  "risk_if_missed": "INF-8 PRODUCTION lacks operator-facing knob; speculative decoding remains a per-request hidden parameter.",
+  "validator_focus": "Conservative default (None); capability gates; FR stats sampling; Eagle3 sub-toggle clearly marked deferred.",
+  "hbr_obligations": ["HBR-INT-002"],
+  "spec_anchors": [
+    ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
+  ],
+  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-INFER-LAB-UI-TOGGLES", "AC-MODEL-CAP-DECL"],
+  "lifecycle": {
+    "active": false,
+    "status": "PENDING",
+    "validator_verdict": "PENDING",
+    "depends_on": ["MT-077", "MT-093"],
+    "blocks": ["MT-110", "MT-111"]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Conservative default = None.",
+      "Eagle3 sub-toggle marked deferred (not silently broken).",
+      "FR stats sampled (no per-token flood)."
+    ]
+  }
+}
