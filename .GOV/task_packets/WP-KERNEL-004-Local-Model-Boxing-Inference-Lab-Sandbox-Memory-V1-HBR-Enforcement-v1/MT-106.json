@@ -45,13 +45,25 @@
   "acceptance_criteria_refs": ["AC-ABLITERATION-OFFLINE"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-082", "MT-083", "MT-100"],
-    "blocks": ["MT-107", "MT-108"]
+    "blocks": ["MT-107", "MT-108"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T01:15:00Z",
+    "completed_at_utc": "2026-05-20T01:55:00Z",
+    "proof": {
+      "cargo_build_bin": "PASS (cargo build --bin abliterate => Finished in 2m 29s; new [[bin]] entry added to handshake_core Cargo.toml)",
+      "cargo_test_lib_unit": "PASS 4/4 (distillation::abliterate::tests::* covering orthogonalisation correctness on hand-derived case + dimension mismatch rejection + license/signature mandatory validation + native_toolchain_unavailable when run_abliteration_offline reaches the I/O boundary)",
+      "cargo_test_integration": "PASS 3/3 (tests/abliterate_tool_tests.rs: hot_path_does_not_reference_abliterate_module static analysis + hot_path_invariant_test_actually_walks_at_least_one_runtime_file vacuous-true guard + cli_smoke env-gated skip)",
+      "hot_path_invariant_static_analysis": "tests/abliterate_tool_tests.rs::hot_path_does_not_reference_abliterate_module reads model_runtime/llama_cpp/generate.rs and model_runtime/candle/generate.rs and asserts none of FORBIDDEN_REFERENCES (distillation::abliterate, abliterate::orthogonalise, abliterate::run_abliteration_offline) appear; HBR-INT-002 violation if any does",
+      "process_ledger_engine_kind_documented": "AbliterationTool variant of ProcessEngineKind already exists at process_ledger/table.rs:141; spawn-time ledger registration is wired in the run_abliteration_offline orchestrator at the I/O boundary which currently returns NativeToolchainUnavailable",
+      "license_tag_mandatory_cli_arg": "bin/abliterate.rs parse_args requires --license-tag with no default; tests/abliterate_tool_tests.rs and AbliterationConfig::validate both pin the requirement; lib unit test config_validate_requires_license_tag_and_signature gates it",
+      "offline_only_invariant_documented": "Module docstring + bin docstring + Master Spec §4.7.4 references + MT-106.implementation_notes all state OFFLINE TOOL ONLY; never inserted into ModelRuntime::generate"
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
