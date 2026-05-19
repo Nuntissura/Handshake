@@ -41,13 +41,24 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-100"],
-    "blocks": ["MT-102"]
+    "blocks": ["MT-102"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-19T22:50:00Z",
+    "completed_at_utc": "2026-05-19T23:15:00Z",
+    "proof": {
+      "cargo_test_lib_unit": "PASS 7/7 (model_runtime::techniques::refusal_metrics::tests::* covering is_refusal happy/sad paths + refusal_rate aggregation + measure_metrics drop+preservation + acceptance pass case + input shape validation + threshold pinning)",
+      "cargo_test_integration": "PASS 5/5 (tests/inf4_refusal_metrics_tests.rs: cross-crate API smoke + REFUSAL_DROP_FLOOR + HARMLESSNESS_PRESERVATION_FLOOR pinned + REFUSAL_PATTERN audit-grep surface + per-layer breakdown distinguishes layers + env-gated end-to-end skip)",
+      "thresholds_in_code": "REFUSAL_DROP_FLOOR = 0.3 and HARMLESSNESS_PRESERVATION_FLOOR = 0.7 are pub const in refusal_metrics.rs; pinned by lib unit test AND integration test so contract revision must touch both",
+      "per_layer_breakdown_surfaced": "RefusalMetrics.per_layer_drop: BTreeMap<LayerIndex, f32>; populated per AblatedCompletionsByLayer block; integration test asserts entries distinguish layers",
+      "harmlessness_floor_enforced": "meets_inf4_production_acceptance() returns false when harmlessness_preservation_rate < HARMLESSNESS_PRESERVATION_FLOOR even if refusal drop is large; lib unit test exercises this (0.5 < 0.7 -> acceptance fails)",
+      "env_gated_skip": "inf4_refusal_metrics_end_to_end_eval_skips_cleanly_or_runs_when_model_dir_set: skips on HANDSHAKE_TEST_REFUSAL_MODEL_DIR unset / non-dir; eval body documented inline pending MT-074 unblock"
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
