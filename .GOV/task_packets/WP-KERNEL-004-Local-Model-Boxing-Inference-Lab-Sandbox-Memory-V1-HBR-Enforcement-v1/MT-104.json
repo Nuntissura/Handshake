@@ -42,13 +42,23 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-103"],
-    "blocks": ["MT-105"]
+    "blocks": ["MT-105"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T00:30:00Z",
+    "completed_at_utc": "2026-05-20T00:45:00Z",
+    "proof": {
+      "cargo_test": "PASS 3/3 (tests/inf5_caa_eval.rs: fixtures_match_contract_threshold_and_counts + skips_cleanly_or_runs_when_model_dir_set + threshold_constant_matches_red_team_minimum_controls)",
+      "threshold_in_code": "FLIP_RATE_THRESHOLD = 0.30 + CAA_REFERENCE_LAYER = 14 pinned in test source; fixture and Rust constant cross-asserted by the fixture test",
+      "reference_paper_layer_cited": "tests/fixtures/inf5/sycophancy_pairs.json.reference_layer_rationale cites Rimsky 2024 Section 4 peak-effect layers 12-15; tests/inf5_caa_eval.rs CAA_REFERENCE_LAYER docstring repeats the citation",
+      "skip_path": "Env-gated on HANDSHAKE_TEST_CAA_MODEL_DIR; skips cleanly when unset or not a directory; live eval body documented inline pending MT-074 unblock",
+      "fixtures_committed": "tests/fixtures/inf5/sycophancy_pairs.json (30 paired prompts spanning factual misconceptions, false confidence claims, and flattery requests) + eval_questions.json (20 held-out probes with non_syco/syco reference completions)"
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
