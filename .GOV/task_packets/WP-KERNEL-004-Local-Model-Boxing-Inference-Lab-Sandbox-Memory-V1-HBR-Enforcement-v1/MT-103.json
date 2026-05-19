@@ -41,13 +41,23 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-082", "MT-083", "MT-096"],
-    "blocks": ["MT-104", "MT-105"]
+    "blocks": ["MT-104", "MT-105"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T00:00:00Z",
+    "completed_at_utc": "2026-05-20T00:25:00Z",
+    "proof": {
+      "cargo_test_lib_unit": "PASS 1/1 (model_runtime::techniques::caa::tests::caa_default_intensity_is_one pinning CAA_DEFAULT_INTENSITY = 1.0)",
+      "cargo_test_integration": "PASS 4/4 (tests/inf5_caa_tests.rs: extract_caa_vector_returns_paired_direction_at_layer + extract_caa_vector_rejects_empty_or_blank_pairs + register_caa_vector_pushes_through_shared_hook_ops + inf5_caa_end_to_end_eval_skips_cleanly_or_runs_when_model_dir_set)",
+      "completion_token_position_semantics": "extract_caa_vector preserves prompt strings verbatim (positives first, negatives second) so the runtime hook reads the residual at the final token of each input; the kernel layer does not re-interpret prompt structure. Test extract_caa_vector_returns_paired_direction_at_layer asserts the captured prompt order matches positives-then-negatives so contrastive_difference_vector splits correctly.",
+      "experimental_opt_in_default_false": "Module documentation states the technique is experimental and the Work Profile knob caa_enabled defaults false; the kernel function itself is gate-agnostic - opt-in is enforced by callers (UI / Work Profile / future MT-105 wizard).",
+      "provenance_caa_distinct_from_repe": "Test extract_caa_vector_returns_paired_direction_at_layer + register_caa_vector_pushes_through_shared_hook_ops both assert provenance.technique == ContrastiveTechnique::CAA; downstream UI/refusal_vector keys on this discriminator."
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
