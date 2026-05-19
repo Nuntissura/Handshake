@@ -3,6 +3,7 @@ pub mod content_review;
 pub mod corpus_extractor;
 pub mod dataset;
 pub mod eval;
+pub mod peft_pipeline;
 pub mod pii_patterns;
 pub mod redaction;
 pub mod scoring;
