@@ -6,6 +6,7 @@ import { DocumentView } from "./components/DocumentView";
 import { CanvasView } from "./components/CanvasView";
 import { DebugPanel } from "./components/DebugPanel";
 import { KernelDccProjectionView } from "./components/KernelDccProjectionView";
+import { InferenceLab } from "./components/inference_lab";
 import { FontManagerView } from "./components/FontManagerView";
 import { MediaDownloaderView } from "./components/MediaDownloaderView";
 import {
@@ -41,6 +42,7 @@ function App() {
     | "fonts"
     | "flight-recorder"
     | "kernel-dcc"
+    | "inference-lab"
     | "problems"
     | "jobs"
     | "timeline"
@@ -119,8 +121,14 @@ function App() {
             >
               Kernel DCC
             </button>
-            <button 
-              className={activeView === "problems" ? "active" : ""} 
+            <button
+              className={activeView === "inference-lab" ? "active" : ""}
+              onClick={() => setActiveView("inference-lab")}
+            >
+              Inference Lab
+            </button>
+            <button
+              className={activeView === "problems" ? "active" : ""}
               onClick={() => setActiveView("problems")}
             >
               Problems
@@ -232,6 +240,10 @@ function App() {
                   <h2>Kernel DCC projection unavailable</h2>
                 </div>
               )}
+            </div>
+          ) : activeView === "inference-lab" ? (
+            <div className="content-panel content-panel--full">
+              <InferenceLab />
             </div>
           ) : activeView === "problems" ? (
             <div className="content-panel content-panel--full">

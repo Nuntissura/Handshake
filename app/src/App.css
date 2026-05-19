@@ -1721,3 +1721,106 @@ body {
     width: 100%;
   }
 }
+
+/* Inference Lab (MT-098, MT-091/094/102/105/110/113/124/129 follow-on) */
+
+.inference-lab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1rem;
+}
+
+.inference-lab__header h2 {
+  margin: 0 0 0.25rem 0;
+}
+
+.inference-lab__model-picker label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 32rem;
+}
+
+.inference-lab__model-picker select {
+  padding: 0.4rem 0.5rem;
+}
+
+.inference-lab__panels {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inference-lab__panel {
+  border: 1px solid var(--border-color, #d0d4dc);
+  border-radius: 6px;
+  padding: 1rem;
+  background-color: var(--panel-background, #ffffff);
+}
+
+.inference-lab__panel-header h3 {
+  margin: 0 0 0.25rem 0;
+}
+
+.inference-lab__steering table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+
+.inference-lab__steering th,
+.inference-lab__steering td {
+  border: 1px solid var(--border-color, #d0d4dc);
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.inference-lab__toggle {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.inference-lab__wizard {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-top: 1px dashed var(--border-color, #d0d4dc);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.inference-lab__wizard label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 36rem;
+}
+
+.inference-lab__wizard textarea,
+.inference-lab__wizard input,
+.inference-lab__wizard select {
+  padding: 0.35rem 0.4rem;
+  font: inherit;
+}
+
+.inference-lab__wizard-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.inference-lab__wizard-save {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dotted var(--border-color, #d0d4dc);
+}
+
+.inference-lab__ab-compare {
+  margin-top: 0.6rem;
+}
