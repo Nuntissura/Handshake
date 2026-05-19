@@ -7,7 +7,15 @@
   "cluster_subscope": "C.7",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-19T23:25:00Z",
+  "contract_repair_log": [
+    {
+      "at_utc": "2026-05-19T23:25:00Z",
+      "actor": "KERNEL_BUILDER",
+      "kind": "FRAMEWORK_CORRECTION",
+      "summary": "Owned-file extensions repaired Svelte -> React/TSX (same defect class as MT-098). App stack is React 19 + Vite + TypeScript per app/package.json; refinement.json and spec module 10.14 are framework-agnostic. Behavior, acceptance criteria, validator focus, and red-team controls unchanged. Replaced lib/stores/refusal.ts (Svelte-store convention) with lib/ipc/refusal.ts + lib/ipc/refusal.test.ts (parallel of MT-098's lib/ipc/steering.ts). Added adjacent Tauri command path app/src-tauri/src/commands/refusal.rs (mirrors the MT-096 steering command surface) because MT-100 implemented extract_refusal_direction only at the kernel/lib level and the wizard needs an IPC channel."
+    }
+  ],
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -21,11 +29,16 @@
   },
   "title": "INF-4 Refusal Vector UI (extraction wizard + per-layer effectiveness display)",
   "goal": "Refusal vector wizard in Inference Lab: harmful-pool + benign-pool text areas, [Extract direction] button, per-layer effectiveness bars, [Save & activate] flow.",
-  "expected_diff_shape": "New Svelte components app/src/components/inference_lab/RefusalVectorWizard.svelte + store; integration into InferenceLab.",
+  "expected_diff_shape": "New React/TSX RefusalVectorWizard.tsx + lib/ipc/refusal.ts (Tauri IPC binding) + lib/ipc/refusal.test.ts (vitest); integration into existing InferenceLab.tsx parent (from MT-098); CSS additions for refusal-bar effectiveness chart; adjacent Tauri command surface app/src-tauri/src/commands/refusal.rs (wraps refusal_vector::extract_refusal_direction).",
   "owned_files": [
-    "app/src/components/inference_lab/RefusalVectorWizard.svelte",
-    "app/src/lib/stores/refusal.ts",
-    "app/src/components/inference_lab/InferenceLab.svelte"
+    "app/src/components/inference_lab/RefusalVectorWizard.tsx",
+    "app/src/components/inference_lab/InferenceLab.tsx",
+    "app/src/components/inference_lab/index.ts",
+    "app/src/lib/ipc/refusal.ts",
+    "app/src/lib/ipc/refusal.test.ts",
+    "app/src/App.css",
+    "app/src-tauri/src/commands/refusal.rs",
+    "app/src-tauri/src/lib.rs"
   ],
   "depends_on_mts": ["MT-098", "MT-101"],
   "unblock_conditions": "MT-098 steering UI + MT-101 metrics merged.",
@@ -42,13 +55,24 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-098", "MT-101"],
-    "blocks": []
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-19T23:20:00Z",
+    "completed_at_utc": "2026-05-19T23:50:00Z",
+    "proof": {
+      "pnpm_typecheck": "PASS (cd app && pnpm run typecheck => tsc --noEmit exit 0)",
+      "vitest_refusal_ipc": "PASS 1/1 (src/lib/ipc/refusal.test.ts: extractRefusal sends camelCase request envelope with harmfulPrompts/harmlessPrompts/layers)",
+      "cargo_test_refusal_command": "PASS 2/2 (app/src-tauri/src/commands/refusal.rs::tests::refusal_extract_dto_uses_camel_case_serde + refusal_extract_rejects_empty_inputs covering empty/blank prompt + empty layer validation)",
+      "per_layer_bar_chart_present": "RefusalVectorWizard.tsx renders one .refusal-bar div per layer in extractState.directions with selectable layer button + bar fill width proportional to vector L2 norm (placeholder proxy for refusal_drop until MT-101 live metrics + MT-074 runtime)",
+      "no_ui_sanitisation": "splitPrompts only trims/empty-filters lines per GLOBAL-PRODUCTION-005..009; the wizard forwards harmfulList/harmlessList verbatim to extractRefusal and to registerVector provenance",
+      "license_picker_present": "<select data-testid='refusal-vector-wizard.license'> with Permissive | SourceModelLicenseOnly | Restricted; default SourceModelLicenseOnly; serialised into the saved vector description field"
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
