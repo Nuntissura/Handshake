@@ -1824,3 +1824,44 @@ body {
 .inference-lab__ab-compare {
   margin-top: 0.6rem;
 }
+
+/* Refusal Vector Wizard (MT-102) */
+
+.inference-lab__refusal-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.inference-lab__refusal-effectiveness {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border-top: 1px dotted var(--border-color, #d0d4dc);
+}
+
+.refusal-bar {
+  display: grid;
+  grid-template-columns: 6rem 1fr 6rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.refusal-bar--selected {
+  background-color: var(--selection-background, #f0f4ff);
+  border-radius: 4px;
+  padding: 0.2rem 0.3rem;
+}
+
+.refusal-bar__track {
+  height: 0.5rem;
+  background-color: var(--track-background, #e2e6ee);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.refusal-bar__fill {
+  height: 100%;
+  background-color: var(--accent-color, #4a6cf7);
+}

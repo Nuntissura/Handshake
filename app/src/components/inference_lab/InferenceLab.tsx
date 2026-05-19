@@ -5,6 +5,7 @@ import {
   type LoadedModelRuntime,
   type ModelCapabilities,
 } from "../../lib/ipc/model_runtime";
+import { RefusalVectorWizard } from "./RefusalVectorWizard";
 import { SteeringVectorEditor } from "./SteeringVectorEditor";
 
 // Default visible layer range for steering layer pickers when the kernel does not
@@ -127,6 +128,11 @@ export function InferenceLab() {
       ) : caps.status === "ready" ? (
         <div className="inference-lab__panels">
           <SteeringVectorEditor
+            modelId={selectedModelId}
+            capabilities={caps.capabilities}
+            nLayers={DEFAULT_LAYER_COUNT}
+          />
+          <RefusalVectorWizard
             modelId={selectedModelId}
             capabilities={caps.capabilities}
             nLayers={DEFAULT_LAYER_COUNT}

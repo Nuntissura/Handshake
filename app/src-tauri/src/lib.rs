@@ -1,17 +1,138 @@
+#![deny(clippy::disallowed_methods)]
+
 use std::{
     net::Ipv4Addr,
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
 
 mod fonts;
+mod foreground_warning;
+mod inspector;
+mod manual;
+mod quiet_window;
 mod session_chat_log;
+mod swarm;
+mod visual_debug;
 
+mod commands {
+    pub mod memory_capsule;
+    pub mod model_runtime;
+    pub mod refusal;
+    pub mod sandbox;
+    pub mod steering;
+}
+
+use quiet_window::QuietWindowBuilder;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Manager, Url, WebviewUrl, WindowEvent};
 use time::format_description::well_known::Rfc3339;
 use uuid::Uuid;
+
+macro_rules! handshake_invoke_handlers {
+    () => {
+        tauri::generate_handler![
+            greet,
+            md_output_root_dir_get,
+            md_output_root_dir_set,
+            md_sessions_list,
+            md_session_create,
+            md_session_open,
+            md_session_export_cookies,
+            fonts::fonts_bootstrap_pack,
+            fonts::fonts_rebuild_manifest,
+            fonts::fonts_list,
+            fonts::fonts_import,
+            fonts::fonts_remove,
+            foreground_warning::foreground_warning_emit,
+            inspector::kernel_inspector_port,
+            inspector::kernel_inspector_list_sessions,
+            inspector::kernel_inspector_session_state,
+            inspector::kernel_inspector_event_ledger_tail,
+            inspector::kernel_inspector_process_ledger_active,
+            inspector::kernel_inspector_trace_projection,
+            inspector::kernel_inspector_loaded_models,
+            commands::model_runtime::kernel_model_runtime_capabilities,
+            commands::model_runtime::kernel_model_runtime_list_loaded,
+            commands::memory_capsule::kernel_memory_capsule_list_recent,
+            commands::memory_capsule::kernel_memory_capsule_get,
+            commands::memory_capsule::kernel_memory_capsule_suppress_item,
+            commands::memory_capsule::kernel_memory_capsule_suppress_capsule,
+            commands::sandbox::kernel_sandbox_list_adapters,
+            commands::sandbox::kernel_sandbox_capabilities,
+            commands::steering::kernel_model_runtime_steering_capture,
+            commands::steering::kernel_model_runtime_steering_register_vector,
+            commands::steering::kernel_model_runtime_steering_set_active,
+            commands::steering::kernel_model_runtime_steering_unregister,
+            commands::steering::kernel_model_runtime_steering_list_vectors,
+            commands::refusal::kernel_model_runtime_refusal_extract,
+            manual::model_manual_get,
+            manual::model_manual_list_commands,
+            manual::model_manual_search,
+            session_chat_log::session_chat_get_session_id,
+            session_chat_log::session_chat_append,
+            session_chat_log::session_chat_read,
+            visual_debug::kernel_visual_debug_launch_config,
+            visual_debug::kernel_visual_debug_port,
+            visual_debug::kernel_visual_debug_screenshot,
+            visual_debug::kernel_visual_debug_dom_snapshot,
+            visual_debug::kernel_visual_debug_console_stream_start,
+            visual_debug::kernel_visual_debug_console_stream_stop,
+        ]
+    };
+    ($($extra:path),+ $(,)?) => {
+        tauri::generate_handler![
+            greet,
+            md_output_root_dir_get,
+            md_output_root_dir_set,
+            md_sessions_list,
+            md_session_create,
+            md_session_open,
+            md_session_export_cookies,
+            fonts::fonts_bootstrap_pack,
+            fonts::fonts_rebuild_manifest,
+            fonts::fonts_list,
+            fonts::fonts_import,
+            fonts::fonts_remove,
+            foreground_warning::foreground_warning_emit,
+            inspector::kernel_inspector_port,
+            inspector::kernel_inspector_list_sessions,
+            inspector::kernel_inspector_session_state,
+            inspector::kernel_inspector_event_ledger_tail,
+            inspector::kernel_inspector_process_ledger_active,
+            inspector::kernel_inspector_trace_projection,
+            inspector::kernel_inspector_loaded_models,
+            commands::model_runtime::kernel_model_runtime_capabilities,
+            commands::model_runtime::kernel_model_runtime_list_loaded,
+            commands::memory_capsule::kernel_memory_capsule_list_recent,
+            commands::memory_capsule::kernel_memory_capsule_get,
+            commands::memory_capsule::kernel_memory_capsule_suppress_item,
+            commands::memory_capsule::kernel_memory_capsule_suppress_capsule,
+            commands::sandbox::kernel_sandbox_list_adapters,
+            commands::sandbox::kernel_sandbox_capabilities,
+            commands::steering::kernel_model_runtime_steering_capture,
+            commands::steering::kernel_model_runtime_steering_register_vector,
+            commands::steering::kernel_model_runtime_steering_set_active,
+            commands::steering::kernel_model_runtime_steering_unregister,
+            commands::steering::kernel_model_runtime_steering_list_vectors,
+            commands::refusal::kernel_model_runtime_refusal_extract,
+            manual::model_manual_get,
+            manual::model_manual_list_commands,
+            manual::model_manual_search,
+            session_chat_log::session_chat_get_session_id,
+            session_chat_log::session_chat_append,
+            session_chat_log::session_chat_read,
+            visual_debug::kernel_visual_debug_launch_config,
+            visual_debug::kernel_visual_debug_port,
+            visual_debug::kernel_visual_debug_screenshot,
+            visual_debug::kernel_visual_debug_dom_snapshot,
+            visual_debug::kernel_visual_debug_console_stream_start,
+            visual_debug::kernel_visual_debug_console_stream_stop,
+            $($extra),+
+        ]
+    };
+}
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -36,12 +157,18 @@ impl OrchestratorState {
         let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
             "postgres://postgres:postgres@localhost:65432/handshake_test".to_string()
         });
-        cmd.args(["run", "--features", "app-runtime", "--bin", "handshake_core"])
-            .current_dir(workdir)
-            .env("HANDSHAKE_WORKSPACE_ROOT", workspace_root())
-            .env("DATABASE_URL", database_url)
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+        cmd.args([
+            "run",
+            "--features",
+            "app-runtime",
+            "--bin",
+            "handshake_core",
+        ])
+        .current_dir(workdir)
+        .env("HANDSHAKE_WORKSPACE_ROOT", workspace_root())
+        .env("DATABASE_URL", database_url)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
 
         let child = cmd.spawn()?;
         println!("spawned handshake_core via cargo run (pid {})", child.id());
@@ -315,8 +442,7 @@ fn navigation_allowed(url: &Url, allow_private_network: bool) -> bool {
 fn cookie_field_sanitize(input: &str) -> String {
     input
         .replace('\t', " ")
-        .replace('\r', "")
-        .replace('\n', "")
+        .replace(['\r', '\n'], "")
         .trim()
         .to_string()
 }
@@ -422,7 +548,11 @@ fn md_session_create(app: AppHandle, label: String) -> Result<MdSessionRecordV0,
 }
 
 #[tauri::command]
-fn md_session_open(app: AppHandle, session_id: String, start_url: String) -> Result<(), String> {
+async fn md_session_open(
+    app: AppHandle,
+    session_id: String,
+    start_url: String,
+) -> Result<(), String> {
     let root = workspace_root();
     let mut registry = load_or_init_sessions_registry(&root)?;
     let record = registry
@@ -439,7 +569,6 @@ fn md_session_open(app: AppHandle, session_id: String, start_url: String) -> Res
     let label = format!("md-stage-session-{}", record.session_id);
     if let Some(existing) = app.get_webview_window(&label) {
         let _ = existing.navigate(url);
-        let _ = existing.set_focus();
         record.last_used_at = Some(now_rfc3339()?);
         let _ = save_sessions_registry(&root, &registry);
         return Ok(());
@@ -448,7 +577,7 @@ fn md_session_open(app: AppHandle, session_id: String, start_url: String) -> Res
     let data_dir = stage_session_data_dir(&app, &record.session_id)?;
     let allow_private_network = record.allow_private_network;
 
-    WebviewWindowBuilder::new(&app, label, WebviewUrl::External(url))
+    QuietWindowBuilder::new(&app, label, WebviewUrl::External(url))
         .title(format!("Stage Session: {}", record.label))
         .data_directory(data_dir)
         .on_navigation(move |url| navigation_allowed(url, allow_private_network))
@@ -513,8 +642,24 @@ async fn md_session_export_cookies(app: AppHandle, session_id: String) -> Result
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let visual_debug_state = visual_debug::VisualDebugState::initialize()
+        .expect("WebView2 CDP visual debug launch config");
+    let inspector_reader: Arc<dyn handshake_core::inspector_read::InspectorReadV1> =
+        Arc::new(handshake_core::inspector_read::InspectorReadSnapshot::default());
+    let sandbox_registry = Arc::new(
+        handshake_core::sandbox::build_default_registry()
+            .expect("sandbox adapter registry bootstrap failed"),
+    );
+
+    let builder = tauri::Builder::default()
+        .manage(visual_debug_state)
+        .manage(inspector::InspectorPortState::new(None))
+        .manage(inspector_reader)
+        .manage(commands::model_runtime::ModelRuntimeState::default())
+        .manage(commands::memory_capsule::MemoryCapsuleIpcState::default())
+        .manage(sandbox_registry)
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let _ = fonts::fonts_bootstrap_pack(app.handle().clone(), None);
@@ -523,7 +668,7 @@ pub fn run() {
             let app_data_root = app
                 .path()
                 .app_data_dir()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
             app.manage(session_chat_log::SessionChatLogState::new(app_data_root));
 
             let state = OrchestratorState::default();
@@ -540,24 +685,15 @@ pub fn run() {
                     state.kill();
                 }
             }
-        })
-        .invoke_handler(tauri::generate_handler![
-            greet,
-            md_output_root_dir_get,
-            md_output_root_dir_set,
-            md_sessions_list,
-            md_session_create,
-            md_session_open,
-            md_session_export_cookies,
-            fonts::fonts_bootstrap_pack,
-            fonts::fonts_rebuild_manifest,
-            fonts::fonts_list,
-            fonts::fonts_import,
-            fonts::fonts_remove,
-            session_chat_log::session_chat_get_session_id,
-            session_chat_log::session_chat_append,
-            session_chat_log::session_chat_read,
-        ])
+        });
+
+    #[cfg(all(debug_assertions, feature = "swarm_ipc"))]
+    let builder = builder.invoke_handler(handshake_invoke_handlers!(swarm::kernel_swarm_run));
+
+    #[cfg(not(all(debug_assertions, feature = "swarm_ipc")))]
+    let builder = builder.invoke_handler(handshake_invoke_handlers!());
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
