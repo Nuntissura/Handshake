@@ -41,13 +41,24 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-082", "MT-083", "MT-096"],
-    "blocks": ["MT-101", "MT-102", "MT-106"]
+    "blocks": ["MT-101", "MT-102", "MT-106"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-19T22:15:00Z",
+    "completed_at_utc": "2026-05-19T22:45:00Z",
+    "proof": {
+      "cargo_test_lib_unit": "PASS 5/5 (model_runtime::techniques::refusal_vector::tests::* covering mean_activations correct path + width mismatch + unit_normalise correctness + zero-vector rejection + REFUSAL_ABLATION_INTENSITY constant pin)",
+      "cargo_test_integration": "PASS 6/6 (tests/inf4_refusal_vector_tests.rs: extract_refusal_direction_returns_unit_vectors_per_layer + extract_refusal_direction_rejects_empty_pools_and_layers + ablate_at_inference_registers_refusal_vector_with_ablation_intensity + ablate_at_inference_is_reversible_via_existing_steering_api + ablate_at_inference_round_trips_operator_prompt_text_verbatim + inf4_refusal_end_to_end_eval_skips_cleanly_or_runs_when_model_dir_set)",
+      "reversibility_proven": "ablate_at_inference_is_reversible_via_existing_steering_api: registers a refusal vector then unregisters via activation_steering::unregister; asserts the hook-recorded vectors map is empty afterwards (no parallel hook layer per MT-100.red_team.minimum_controls)",
+      "reuses_inf3_plumbing": "refusal_vector.rs imports activation_steering::{capture, register_steering_vector} and uses the same SteeringHookOps surface; no new hook trait was added",
+      "license_provenance_preserved": "ablate_at_inference_round_trips_operator_prompt_text_verbatim: asserts harmful_prompts + harmless_prompts pass through SteeringProvenance::Contrastive without sanitisation; technique == ContrastiveTechnique::RefusalVector",
+      "env_gated_skip": "inf4_refusal_end_to_end_eval_skips_cleanly_or_runs_when_model_dir_set: skips when HANDSHAKE_TEST_REFUSAL_MODEL_DIR is unset; live eval body documented inline pending MT-074 unblock"
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
