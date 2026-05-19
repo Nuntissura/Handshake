@@ -4,6 +4,53 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
+[package.metadata.handshake.inspector_read_isolation]
+source_globs = ["src/inspector_read/*.rs"]
+deny_mutable_self_methods = true
+deny_interior_mutability = true
+deny_kernel_write_side_imports = [
+  "crate::kernel::action_catalog",
+  "crate::kernel::direct_edit_guard",
+  "crate::kernel::kb003_promotion",
+  "crate::kernel::pre_use_kernel_acceptance_run",
+  "crate::kernel::validation::patch_proposal",
+  "crate::kernel::write_boxes",
+]
+
+[lints.clippy]
+assertions_on_constants = "allow"
+await_holding_lock = "allow"
+bind_instead_of_map = "allow"
+cloned_ref_to_slice_refs = "allow"
+collapsible_if = "allow"
+collapsible_str_replace = "allow"
+default_constructed_unit_structs = "allow"
+derivable_impls = "allow"
+disallowed_methods = "deny"
+double_ended_iterator_last = "allow"
+enum_variant_names = "allow"
+explicit_auto_deref = "allow"
+field_reassign_with_default = "allow"
+io_other_error = "allow"
+large_enum_variant = "allow"
+manual_div_ceil = "allow"
+manual_is_multiple_of = "allow"
+manual_range_patterns = "allow"
+manual_strip = "allow"
+needless_lifetimes = "allow"
+question_mark = "allow"
+redundant_closure = "allow"
+result_large_err = "allow"
+sliced_string_as_bytes = "allow"
+too_many_arguments = "allow"
+unit_arg = "allow"
+unnecessary_get_then_check = "allow"
+unnecessary_lazy_evaluations = "allow"
+unnecessary_map_or = "allow"
+unnecessary_sort_by = "allow"
+useless_format = "allow"
+useless_vec = "allow"
+
 [[bin]]
 name = "handshake_core"
 path = "src/main.rs"
@@ -18,13 +65,25 @@ required-features = ["app-runtime"]
 name = "handshake"
 path = "src/bin/handshake.rs"
 
+[[bin]]
+name = "model_manual_md_gen"
+path = "src/bin/model_manual_md_gen.rs"
+
+[[bin]]
+name = "handshake-swarm"
+path = "src/bin/handshake-swarm.rs"
+
+[[bin]]
+name = "abliterate"
+path = "src/bin/abliterate.rs"
+
 [dependencies]
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sync", "time", "io-util"] }
 tower-http = { version = "0.6", features = ["cors"] }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "postgres", "macros", "migrate", "chrono"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "chrono"] }
 uuid = { version = "1", features = ["v7", "fast-rng", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 tracing = "0.1"
@@ -33,6 +92,9 @@ tracing-appender = "0.2"
 thiserror = "2.0.17"
 duckdb = { version = "1.4.3", optional = true, features = ["bundled"] }
 reqwest = { version = "0.12", features = ["json"] }
+tokio-tungstenite = "0.26"
+futures = "0.3"
+futures-util = "0.3"
 async-trait = "0.1"
 once_cell = "1.20"
 sha2 = "0.10"
@@ -41,40 +103,90 @@ base64 = "0.22"
 unicode-normalization = "0.1"
 idna = "1"
 caseless = "0.2"
+bytes = { version = "1", features = ["serde"] }
+globset = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 tree-sitter = "0.24"
 tree-sitter-rust = "0.23"
 tree-sitter-javascript = "0.23"
 tree-sitter-typescript = "0.23"
+# Native engine crates stay behind an explicit feature until adapter MTs own host toolchain proof.
+llama-cpp-2 = { version = "0.1.146", default-features = false, optional = true }
+candle-core = { version = "0.10.2", optional = true }
+candle-nn = { version = "0.10.2", optional = true }
+candle-transformers = { version = "0.10.2", optional = true }
 tiktoken-rs = { version = "0.5", optional = true }
 # Disable the esaxx default feature to avoid static CRT conflicts on Windows.
-tokenizers = { version = "0.15", optional = true, default-features = false, features = ["onig", "progressbar"] }
+tokenizers = { version = "0.23.1", optional = true, default-features = false, features = ["onig", "progressbar"] }
 regex = "1"
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
 jsonschema = "0.17"
+which = "8"
 
 [dev-dependencies]
 tempfile = "3"
+
+[target.'cfg(windows)'.dependencies]
+wineventhook = "0.11.0"
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }
 
 [features]
 default = ["runtime-full"]
 kernel-runtime = []
 runtime-full = ["kernel-runtime", "tokenization"]
 kernel-proof = ["runtime-full"]
+inspector = []
+swarm_ipc = []
+candle-runtime-engine = ["dep:candle-core", "dep:candle-nn", "dep:candle-transformers", "dep:tokenizers"]
+llama-cpp-runtime-engine = ["dep:llama-cpp-2"]
+model-runtime-engines = ["llama-cpp-runtime-engine", "candle-runtime-engine"]
 app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
 test-utils = []  # Exposes test helper utilities for integration tests
+wsl2-integration = []
+docker-integration = []
 
 [[test]]
 name = "ai_ready_data_arch_tests"
 path = "tests/ai_ready_data_arch_tests.rs"
-required-features = ["duckdb-flight-recorder"]
+required-features = ["duckdb-flight-recorder", "test-utils"]
+
+[[test]]
+name = "calendar_storage_tests"
+path = "tests/calendar_storage_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "kernel_crdt_persistence_tests"
+path = "tests/kernel_crdt_persistence_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "kernel_crdt_promotion_bridge_tests"
+path = "tests/kernel_crdt_promotion_bridge_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "kernel_crdt_snapshot_tests"
+path = "tests/kernel_crdt_snapshot_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "kernel_end_to_end_tests"
+path = "tests/kernel_end_to_end_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "kernel_postgres_event_ledger_tests"
+path = "tests/kernel_postgres_event_ledger_tests.rs"
+required-features = ["test-utils"]
 
 [[test]]
 name = "mcp_e2e_tests"
 path = "tests/mcp_e2e_tests.rs"
-required-features = ["duckdb-flight-recorder"]
+required-features = ["duckdb-flight-recorder", "test-utils"]
 
 [[test]]
 name = "mcp_gate_tests"
@@ -84,7 +196,7 @@ required-features = ["duckdb-flight-recorder"]
 [[test]]
 name = "mex_tests"
 path = "tests/mex_tests.rs"
-required-features = ["duckdb-flight-recorder"]
+required-features = ["duckdb-flight-recorder", "test-utils"]
 
 [[test]]
 name = "micro_task_executor_tests"
@@ -110,6 +222,11 @@ required-features = ["duckdb-flight-recorder"]
 name = "runtime_chat_events_tests"
 path = "tests/runtime_chat_events_tests.rs"
 required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "storage_conformance"
+path = "tests/storage_conformance.rs"
+required-features = ["test-utils"]
 
 [[test]]
 name = "terminal_guards_tests"
