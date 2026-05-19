@@ -1,17 +1,10 @@
 {
-  "schema_id": "hsk.work_packet_contract@1",
-  "schema_version": "work_packet_contract_v1",
-  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "base_wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement",
-  "contract_authority": "PRIMARY_MACHINE_READABLE",
-  "created_at_utc": "2026-05-18T02:09:00Z",
-  "updated_at_utc": "2026-05-18T03:00:00Z",
+  "acceptance_matrix": {
+    "hbr": [],
+    "hbr_not_applicable": [],
+    "schema_version": 1
+  },
   "artifact_policy": {
-    "authority_surface": "MACHINE_CONTRACT",
-    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
-    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
-    "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false,
     "allowed_markdown_exceptions": [
       "operator_created_notes",
       "operator_created_research",
@@ -19,45 +12,59 @@
       "explicit_on_demand_projection",
       "explicit_report_projection_contract",
       "frozen_legacy_migration_reference"
-    ]
+    ],
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "model_created_markdown_authority_allowed": false,
+    "operator_facing_authority": false,
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND"
   },
   "authority_files": {
+    "microtask_contract_glob": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-*.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
     "packet_projection": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.md",
-    "refinement_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json",
-    "microtask_contract_glob": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-*.json"
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json"
   },
+  "base_wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "created_at_utc": "2026-05-18T02:09:00Z",
+  "hbr": {
+    "not_applicable_overrides": [],
+    "tags_declared": []
+  },
+  "kernel004_extension_ref": "refinement.json kernel004_extension carries cluster_map, inference_technique_matrix (8 PRODUCTION + 1 SPEC_DEFERRED MoD), stub_fold_preservation_map (30 stubs), operator_decisions_locked (10 decisions), key_open_questions (9 RESOLVED), blockers (4 RESOLVED + 1 STILL_BLOCKING B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking), research_basis_plan (6 COMPLETED workstreams), foundation_in_main (KERNEL-001/002/003 + FEMS V1), hbr_enforcement_status. Packet.json does not duplicate; refinement.json is the deep contract authority surface.",
   "lifecycle": {
-    "status": "Ready for Dev",
-    "packet_format_version": "2026-04-06",
-    "risk_tier": "HIGH",
-    "user_signature": "ilja180520260209",
-    "user_signature_evidence": "Operator provided signature in chat on 2026-05-18 after reviewing the REFINEMENT_HANDOFF_SUMMARY for KERNEL-004 (post-spec-v02.186 bump, all 9 KOQs resolved, 4 of 5 blockers resolved, B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking): ilja180520260209. Globally unique per CX-585C verification via Grep across .GOV and full repo (no prior matches).",
+    "current_main_compatibility_baseline_sha": "NONE",
+    "current_main_compatibility_status": "NOT_RUN",
+    "current_main_compatibility_verified_at_utc": "N/A",
     "integration_validator_of_record": "<unassigned>",
-    "wp_validator_of_record": "NONE",
     "main_containment_status": "NOT_STARTED",
     "main_containment_verified_at_utc": "N/A",
-    "current_main_compatibility_status": "NOT_RUN",
-    "current_main_compatibility_baseline_sha": "NONE",
-    "current_main_compatibility_verified_at_utc": "N/A",
     "merged_main_commit": "NONE",
+    "packet_format_version": "2026-04-06",
     "packet_widening_decision": "NONE",
-    "packet_widening_evidence": "N/A"
+    "packet_widening_evidence": "N/A",
+    "risk_tier": "HIGH",
+    "status": "In Progress",
+    "user_signature": "ilja180520260209",
+    "user_signature_evidence": "Operator provided signature in chat on 2026-05-18 after reviewing the REFINEMENT_HANDOFF_SUMMARY for KERNEL-004 (post-spec-v02.186 bump, all 9 KOQs resolved, 4 of 5 blockers resolved, B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking): ilja180520260209. Globally unique per CX-585C verification via Grep across .GOV and full repo (no prior matches).",
+    "wp_validator_of_record": "NONE"
   },
   "markdown_projection": {
+    "generated_at_utc": null,
+    "generator": "PENDING_DEMAND",
+    "note": "Per feedback_no_default_md_files + CX-908 + CX-914, on-demand md projection only; not auto-generated.",
     "path": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.md",
-    "status": "NOT_GENERATED_BY_DEFAULT",
     "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "source_file": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json",
     "source_hash": "NOT_GENERATED_BY_DEFAULT",
-    "generator": "PENDING_DEMAND",
-    "generated_at_utc": null,
-    "note": "Per feedback_no_default_md_files + CX-908 + CX-914, on-demand md projection only; not auto-generated."
+    "status": "NOT_GENERATED_BY_DEFAULT"
   },
   "microtasks": {
-    "active_id": "MT-001",
-    "claimable_id": "MT-001",
-    "next_id": "MT-002",
+    "active_id": "MT-099",
+    "claimable_id": "MT-099",
+    "contract_glob": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-*.json",
+    "declared_count": 183,
     "declared_ids": [
       "MT-001",
       "MT-002",
@@ -243,32 +250,65 @@
       "MT-199",
       "MT-200"
     ],
-    "contract_glob": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-*.json",
-    "sequencing_note": "KERNEL_BUILDER implements MTs back to back with no per-MT WP Validator gate per validation_topology = INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1. Cluster ordering: A then B then C then D then X, subject to dependency relationships in each MT.depends_on_mts field. Authored 2026-05-18T03:00Z by 5 parallel Opus cluster subagents per operator decision to launch in parallel.",
-    "declared_count": 183,
-    "id_gaps_note": "ID ranges with intentional gaps reflect cluster mid-range count choices: MT-059..060 (cluster B reserved unused, used 041..058), MT-131..140 (cluster C reserved unused, used 061..130), MT-171..175 (cluster D reserved unused, used 141..170), MT-201..205 (cluster X reserved unused, used 176..200). Gaps are intentional and do not indicate missing MTs."
+    "id_gaps_note": "ID ranges with intentional gaps reflect cluster mid-range count choices: MT-059..060 (cluster B reserved unused, used 041..058), MT-131..140 (cluster C reserved unused, used 061..130), MT-171..175 (cluster D reserved unused, used 141..170), MT-201..205 (cluster X reserved unused, used 176..200). Gaps are intentional and do not indicate missing MTs.",
+    "next_id": "MT-100",
+    "sequencing_note": "KERNEL_BUILDER implements MTs back to back with no per-MT WP Validator gate per validation_topology = INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1. Cluster ordering: A then B then C then D then X, subject to dependency relationships in each MT.depends_on_mts field. Authored 2026-05-18T03:00Z by 5 parallel Opus cluster subagents per operator decision to launch in parallel."
+  },
+  "red_team": {
+    "minimum_controls": [
+      "Packet contract must reference refinement contract before any MT authoring or coder work.",
+      "Refinement projection must carry source hash once generator enforcement is active.",
+      "Unsupported prose-only refinement claims become explicit migration debt.",
+      "All MT contracts must be authored in Stage 4E and pass contract/projection check before any product implementation starts.",
+      "Per-cluster MT batches must be reviewable; cluster ordering A then B then C then D then X with explicit dependency edges.",
+      "Integration Validator batch review at end of MT implementation; no WP Validator per-MT gate.",
+      "B-FEMS-V1-INTEGRATION-SURFACE blocker must be resolved (FEMS V1 API surface verification) before cluster D MT authoring.",
+      "Subquadratic full-feature-parity timeline must be disclosed in MT scoping; operator may revise scope if timeline extends beyond expected window.",
+      "All UUID mint sites in product code MUST use UUID v7 per HBR-INT-008.",
+      "All process spawns MUST register in kernel_process_lifecycle Postgres table per spec §5.7.2.",
+      "All model invocations MUST flow through ModelRuntime + LocalModelAdapter per spec §4.6.",
+      "All sandbox boxing MUST flow through SandboxAdapter trait per spec §3.5."
+    ],
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "required": true,
+    "risks": [
+      "R-1 Scope-consuming-product: This is the largest WP in project history. A WP this large risks the same failure mode the reset brief escaped, where the harness consumes the product.",
+      "R-2 PRODUCTION-tier research-frontier risk: Subquadratic full feature parity is multi-quarter research-frontier work; KERNEL-004 timeline extends 6+ months per RW-3 estimate.",
+      "R-3 Sandbox-architecture-flip-orphans-KERNEL-003: 3-adapter pattern preserves DockerAdapter; migration MTs map existing KERNEL-003 sandbox consumers.",
+      "R-4 Spec-enrichment-becomes-its-own-project: Resolved by single coherent v02.186 bundle bump (no incremental drift).",
+      "R-5 LM-Studio/Ollama-lockout: Mitigated by ExternalEngineImport lane (spec §3.6.4) that lets operator point Handshake at a model file path or local OpenAI-compatible endpoint without depending on those apps as runtime authority.",
+      "R-6 Visual-debugger-parallel-mutation-path: Mitigated by 3-layer parallel-mutation controls (compile-time trait separation + runtime localhost+secret+feature-flag + audit log per spec §6.5).",
+      "R-7 Self-improvement-overfit: Mitigated by 60/20/20 train/dev/holdout split + multi-metric promotion floor + Goodhart sentinel + HBR-SWARM-002 loop counter + PromotionGate operator review (spec §4.8.3).",
+      "R-8 MoD-Subquad-feasibility: MoD resolved by spec-deferring to Phase 3 roadmap (§6.8); Subquadratic locked at full feature parity per operator E-2 with timeline impact disclosed.",
+      "R-9 FEMS-V1-API-drift: B-FEMS-V1-INTEGRATION-SURFACE blocker; verification pass in Stage 4D before cluster D MT authoring.",
+      "R-10 WindowsNativeJailAdapter-crate-license: License audit MT required before adopting codex-windows-sandbox or rappct crate.",
+      "R-11 Process-ledger-perf-under-swarm: Mitigated by batched async writes + per-process metadata cap + async write path + FR-EVT-LEDGER-OVERFLOW degraded mode (spec §5.7.3).",
+      "R-12 mojibake-in-spec-module-04: Pre-existing UTF-8 double-encoding in legacy §4.2 content; Stage 2 subagent worked around it; cleanup is non-blocking governance debt.",
+      "R-13 AC-cross-reference-drift: 52 AC-* IDs in spec cross-referenced from refinement.json; renames or splits must update both surfaces in same change."
+    ]
   },
   "refinement": {
-    "status": "SIGNED",
-    "contract_file": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json",
-    "source_refinement_file": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json",
-    "hydration_profile": "HYDRATED_RESEARCH_V1",
-    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "activation_manager_note": "KERNEL_BUILDER acted as Activation Manager for this WP per kernel-builder protocol Activation Mode; activation work completed pre-signature.",
     "activation_manager_required": true,
-    "activation_manager_note": "KERNEL_BUILDER acted as Activation Manager for this WP per kernel-builder protocol Activation Mode; activation work completed pre-signature."
+    "contract_file": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json",
+    "enforcement_profile": "HYDRATED_RESEARCH_V1",
+    "hydration_profile": "HYDRATED_RESEARCH_V1",
+    "source_refinement_file": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/refinement.json",
+    "status": "SIGNED"
   },
   "role_profiles": {
-    "kernel_builder": "OPENAI_GPT_5_5_XHIGH",
-    "implementation_role": "KERNEL_BUILDER",
-    "orchestrator": "OPENAI_GPT_5_5_XHIGH",
     "activation_manager": "OPENAI_GPT_5_5_XHIGH",
     "coder": "OPENAI_GPT_5_5_XHIGH",
-    "wp_validator": "N/A",
-    "integration_validator": "OPENAI_GPT_5_5_XHIGH"
+    "implementation_role": "KERNEL_BUILDER",
+    "integration_validator": "OPENAI_GPT_5_5_XHIGH",
+    "kernel_builder": "OPENAI_GPT_5_5_XHIGH",
+    "orchestrator": "OPENAI_GPT_5_5_XHIGH",
+    "wp_validator": "N/A"
   },
+  "schema_id": "hsk.work_packet_contract@1",
+  "schema_version": "work_packet_contract_v1",
   "scope": {
-    "summary": "KERNEL-004 lands the Kernel-V0-Substrate four-cluster max-fold: (A) HBR enforcement at build+handoff gate + visual debugger + backend inspector plane + non-hijacking GUI invariants + swarm-agent harness + ModelManual currency + Codex CX-131 linkage; (B) SandboxAdapter trait with 3 adapters (WSL2+Podman default, WindowsNativeJailAdapter strict, Docker compat); (C) ModelRuntime + LocalModelAdapter (LlamaCppRuntime default + CandleRuntime for hook-requiring techniques + subquadratic) + 8 PRODUCTION inference techniques + Distillation pipeline + MoD spec-deferred per Phase 3 roadmap; (D) Memory V0+ MemoryCapsule retrieval + Karpathy-style self-improvement loop on fixed ~30-item HBR test-packet corpus on top of FEMS V1.",
-    "why": "Each cluster on its own would touch the same kernel, sandbox, model, memory, and HBR surfaces. Splitting them into separate WPs would force three or more sequential migrations of the same product code, each one redoing the spec enrichment, the activation review, and the sandbox/runtime choice. The max-fold is operator-locked (2026-05-18) because the architecture decisions in clusters B and C and the enforcement decisions in cluster A are mutually entangled. KERNEL-001 (EventLedger/SessionBroker/dummy ModelAdapter/ToolGate/ArtifactStore/PromotionGate/TraceProjection), KERNEL-002 (KernelActionCatalogV1/WriteBoxV1/CRDT workspace), KERNEL-003 (Sandbox/ValidationRunner/PromotionGate), and FEMS V1 (typed memory + session integration + operator panel + flight-recorder events + bounded memory pack injection + review-gated writes) are the stable foundation; KERNEL-004 builds on them.",
+    "acceptance_criteria_ref": "REFERENCE: refinement.json kernel004_extension.acceptance_criteria carries the 52 structured AC-* entries (cluster A:21, B:3, C:12, D:4, X:12) cross-referenced to v02.186 spec subsections. refinement.json refinement.summary_criteria carries the 16 operator-readable high-level criteria. Both are authoritative; this packet does not duplicate them.",
     "allowed_paths": [
       "src/backend/handshake_core/src/sandbox/**",
       "src/backend/handshake_core/src/model_runtime/**",
@@ -298,6 +338,8 @@
       ".GOV/roles_shared/checks/hbr-matrix-check.mjs",
       "justfile"
     ],
+    "broad_tool_allowlist": "NONE",
+    "data_contract_profile": "LLM_FIRST_DATA_V1",
     "forbidden_paths": [
       "No SQLite authority, cache, offline, fallback, compatibility, or test fixture anywhere per CX-503R.",
       "No condensing, merging, dropping, or renumbering MTs after Stage 4E authoring.",
@@ -317,7 +359,18 @@
       "No worktree creation or switching by sub-agents (kernel-builder protocol §SUBAGENTS).",
       "No commits on `feat/WP-KERNEL-004-*` branch that include `/.GOV/` files (CX-212F)."
     ],
-    "acceptance_criteria_ref": "REFERENCE: refinement.json kernel004_extension.acceptance_criteria carries the 52 structured AC-* entries (cluster A:21, B:3, C:12, D:4, X:12) cross-referenced to v02.186 spec subsections. refinement.json refinement.summary_criteria carries the 16 operator-readable high-level criteria. Both are authoritative; this packet does not duplicate them.",
+    "implementation_reality_notes": [
+      "src/backend/handshake_core/src/kernel/** exists from KERNEL-002 with KernelActionCatalogV1, WriteBoxV1, and CRDT workspace; SandboxAdapter, ModelRuntime, ProcessOwnershipLedger, HBR, Memory V0+, SelfImprovementLoop, InspectorRead, OperatorForeground, ModelManual, and TestHarness modules are NEW under sibling paths and must be created.",
+      "FEMS V1 runtime shipped via WP-1-Front-End-Memory-System-v1 (VALIDATED in main); cluster D MemoryCapsule + SelfImprovementLoop builds on FEMS V1 retrieval + injection scoring + bounded memory pack injection + review-gated writes. B-FEMS-V1-INTEGRATION-SURFACE requires API surface verification before cluster D MT authoring (Stage 4D).",
+      "KERNEL-003 shipped Docker as the first sandbox integration; KERNEL-004 cluster B reopens the architecture with SandboxAdapter trait and 3 adapters. DockerAdapter preserves the KERNEL-003 work as one of 3 adapters; explicit migration MTs in cluster B map existing KERNEL-003 sandbox consumers to the new SandboxAdapter trait.",
+      "HANDSHAKE_BUILD_RULES.json v1.1.0 exists at .GOV/roles_shared/records/ with 23 active rules across INT/SWARM/VIS/QUIET/MAN pillars (status DESIGN_ONLY_WIRING_PENDING pre-KERNEL-004). Cluster A wires enforcement via PACKET_ACCEPTANCE_MATRIX hydration + hbr-matrix-check.mjs gov-check sub-check + validator-scan integration.",
+      "Spec §5.6 + Codex CX-131 establish HBR as build-time + handoff-time gate authority (new in v02.186 + Codex update; did not exist pre-Stage-3).",
+      "llama-cpp-2 Rust crate + candle-core + candle-transformers must be added to src/backend/handshake_core/Cargo.toml workspace dependencies (cluster C engine adapters).",
+      "WindowsNativeJailAdapter wraps an existing Rust crate (codex-windows-sandbox or rappct per RW-1 research); license audit MT required before crate adoption.",
+      "Existing storage code (src/backend/storage/) has Postgres-primary posture but still includes SQLite cache/offline/test paths; KERNEL-004 must NOT add new SQLite consumers; per CX-503R, kernel_process_lifecycle table goes to Postgres only.",
+      "App frontend uses Tauri 2.x + WebView2 on Windows; Tauri quiet-mode config + WebView2 CDP `Page.captureScreenshot` are the canonical paths for cluster A.4 non-hijacking GUI work per RW-5 research.",
+      "Playwright is the recommended GUI driver per RW-4 (CDP against WebView2 via WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port). app/package.json gets new dev dependencies."
+    ],
     "spec_anchors": [
       ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.5",
       ".GOV/spec/master-spec-v02.186/spec-modules/03-local-first-infrastructure.md#3.6",
@@ -340,90 +393,46 @@
       ".GOV/spec/master-spec-v02.186/spec-modules/12-end-of-file-appendices.md",
       ".GOV/codex/Handshake_Codex_v1.4.md#CX-131"
     ],
-    "data_contract_profile": "LLM_FIRST_DATA_V1",
+    "summary": "KERNEL-004 lands the Kernel-V0-Substrate four-cluster max-fold: (A) HBR enforcement at build+handoff gate + visual debugger + backend inspector plane + non-hijacking GUI invariants + swarm-agent harness + ModelManual currency + Codex CX-131 linkage; (B) SandboxAdapter trait with 3 adapters (WSL2+Podman default, WindowsNativeJailAdapter strict, Docker compat); (C) ModelRuntime + LocalModelAdapter (LlamaCppRuntime default + CandleRuntime for hook-requiring techniques + subquadratic) + 8 PRODUCTION inference techniques + Distillation pipeline + MoD spec-deferred per Phase 3 roadmap; (D) Memory V0+ MemoryCapsule retrieval + Karpathy-style self-improvement loop on fixed ~30-item HBR test-packet corpus on top of FEMS V1.",
     "touched_file_budget": "80-120",
-    "broad_tool_allowlist": "NONE",
-    "implementation_reality_notes": [
-      "src/backend/handshake_core/src/kernel/** exists from KERNEL-002 with KernelActionCatalogV1, WriteBoxV1, and CRDT workspace; SandboxAdapter, ModelRuntime, ProcessOwnershipLedger, HBR, Memory V0+, SelfImprovementLoop, InspectorRead, OperatorForeground, ModelManual, and TestHarness modules are NEW under sibling paths and must be created.",
-      "FEMS V1 runtime shipped via WP-1-Front-End-Memory-System-v1 (VALIDATED in main); cluster D MemoryCapsule + SelfImprovementLoop builds on FEMS V1 retrieval + injection scoring + bounded memory pack injection + review-gated writes. B-FEMS-V1-INTEGRATION-SURFACE requires API surface verification before cluster D MT authoring (Stage 4D).",
-      "KERNEL-003 shipped Docker as the first sandbox integration; KERNEL-004 cluster B reopens the architecture with SandboxAdapter trait and 3 adapters. DockerAdapter preserves the KERNEL-003 work as one of 3 adapters; explicit migration MTs in cluster B map existing KERNEL-003 sandbox consumers to the new SandboxAdapter trait.",
-      "HANDSHAKE_BUILD_RULES.json v1.1.0 exists at .GOV/roles_shared/records/ with 23 active rules across INT/SWARM/VIS/QUIET/MAN pillars (status DESIGN_ONLY_WIRING_PENDING pre-KERNEL-004). Cluster A wires enforcement via PACKET_ACCEPTANCE_MATRIX hydration + hbr-matrix-check.mjs gov-check sub-check + validator-scan integration.",
-      "Spec §5.6 + Codex CX-131 establish HBR as build-time + handoff-time gate authority (new in v02.186 + Codex update; did not exist pre-Stage-3).",
-      "llama-cpp-2 Rust crate + candle-core + candle-transformers must be added to src/backend/handshake_core/Cargo.toml workspace dependencies (cluster C engine adapters).",
-      "WindowsNativeJailAdapter wraps an existing Rust crate (codex-windows-sandbox or rappct per RW-1 research); license audit MT required before crate adoption.",
-      "Existing storage code (src/backend/storage/) has Postgres-primary posture but still includes SQLite cache/offline/test paths; KERNEL-004 must NOT add new SQLite consumers; per CX-503R, kernel_process_lifecycle table goes to Postgres only.",
-      "App frontend uses Tauri 2.x + WebView2 on Windows; Tauri quiet-mode config + WebView2 CDP `Page.captureScreenshot` are the canonical paths for cluster A.4 non-hijacking GUI work per RW-5 research.",
-      "Playwright is the recommended GUI driver per RW-4 (CDP against WebView2 via WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port). app/package.json gets new dev dependencies."
-    ]
+    "why": "Each cluster on its own would touch the same kernel, sandbox, model, memory, and HBR surfaces. Splitting them into separate WPs would force three or more sequential migrations of the same product code, each one redoing the spec enrichment, the activation review, and the sandbox/runtime choice. The max-fold is operator-locked (2026-05-18) because the architecture decisions in clusters B and C and the enforcement decisions in cluster A are mutually entangled. KERNEL-001 (EventLedger/SessionBroker/dummy ModelAdapter/ToolGate/ArtifactStore/PromotionGate/TraceProjection), KERNEL-002 (KernelActionCatalogV1/WriteBoxV1/CRDT workspace), KERNEL-003 (Sandbox/ValidationRunner/PromotionGate), and FEMS V1 (typed memory + session integration + operator panel + flight-recorder events + bounded memory pack injection + review-gated writes) are the stable foundation; KERNEL-004 builds on them."
   },
   "source_control": {
+    "artifact_hygiene_preflight": "PASS_2026-05-18 (D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/ clean for this WP)",
+    "backup_push_status": "PUSHED_2026-05-18T02:09Z (new branch on origin; local tracks origin/feat/WP-KERNEL-004-*)",
     "canonical_branch": "main",
     "merge_base_sha": "51b1d500",
     "merge_base_sha_note": "Local main fast-forwarded 5b02198b -> 51b1d500 by worktree-add helper before branch creation; feat/WP-KERNEL-004-* branched from 51b1d500.",
-    "work_branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-    "worktree_dir": "../wtc-kernel-004-fold-v1",
-    "worktree_absolute_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1",
-    "worktree_gov_junction": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/.GOV -> D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV",
     "remote_backup_branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
     "remote_backup_url": "https://github.com/Nuntissura/Handshake/tree/feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-    "backup_push_status": "PUSHED_2026-05-18T02:09Z (new branch on origin; local tracks origin/feat/WP-KERNEL-004-*)",
-    "artifact_hygiene_preflight": "PASS_2026-05-18 (D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/ clean for this WP)"
+    "work_branch": "feat/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
+    "worktree_absolute_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1",
+    "worktree_dir": "../wtc-kernel-004-fold-v1",
+    "worktree_gov_junction": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/.GOV -> D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV"
   },
+  "updated_at_utc": "2026-05-18T03:00:00Z",
   "workflow": {
-    "lane": "ORCHESTRATOR_MANAGED",
     "authority": "ORCHESTRATOR",
-    "implementation_role": "KERNEL_BUILDER",
-    "execution_owner": "KERNEL_BUILDER-A",
     "coder_compatible_execution_lane": "CODER_A",
-    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
-    "wp_validator_gate": "DISABLED",
-    "integration_validator_batch_review": true,
-    "kernel_builder_consolidation": true,
-    "technical_authority": "INTEGRATION_VALIDATOR",
-    "technical_advisor": "NONE",
-    "merge_authority": "INTEGRATION_VALIDATOR",
-    "host_preference": "HANDSHAKE_ACP_BROKER",
-    "session_start_authority": "ORCHESTRATOR_ONLY",
     "communication_contract": "DIRECT_REVIEW_V1",
     "communication_dir": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
     "communication_health_gate": "INTEGRATION_BATCH_REVIEW_BLOCKING",
-    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RUNTIME_STATUS.json",
+    "execution_owner": "KERNEL_BUILDER-A",
+    "host_preference": "HANDSHAKE_ACP_BROKER",
+    "implementation_role": "KERNEL_BUILDER",
+    "integration_validator_batch_review": true,
+    "kernel_builder_consolidation": true,
+    "lane": "ORCHESTRATOR_MANAGED",
+    "merge_authority": "INTEGRATION_VALIDATOR",
+    "notifications_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/NOTIFICATIONS.jsonl",
     "receipts_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+    "runtime_status_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RUNTIME_STATUS.json",
+    "session_start_authority": "ORCHESTRATOR_ONLY",
+    "technical_advisor": "NONE",
+    "technical_authority": "INTEGRATION_VALIDATOR",
     "thread_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/THREAD.md",
-    "notifications_file": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/NOTIFICATIONS.jsonl"
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1",
+    "wp_validator_gate": "DISABLED"
   },
-  "red_team": {
-    "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "risks": [
-      "R-1 Scope-consuming-product: This is the largest WP in project history. A WP this large risks the same failure mode the reset brief escaped, where the harness consumes the product.",
-      "R-2 PRODUCTION-tier research-frontier risk: Subquadratic full feature parity is multi-quarter research-frontier work; KERNEL-004 timeline extends 6+ months per RW-3 estimate.",
-      "R-3 Sandbox-architecture-flip-orphans-KERNEL-003: 3-adapter pattern preserves DockerAdapter; migration MTs map existing KERNEL-003 sandbox consumers.",
-      "R-4 Spec-enrichment-becomes-its-own-project: Resolved by single coherent v02.186 bundle bump (no incremental drift).",
-      "R-5 LM-Studio/Ollama-lockout: Mitigated by ExternalEngineImport lane (spec §3.6.4) that lets operator point Handshake at a model file path or local OpenAI-compatible endpoint without depending on those apps as runtime authority.",
-      "R-6 Visual-debugger-parallel-mutation-path: Mitigated by 3-layer parallel-mutation controls (compile-time trait separation + runtime localhost+secret+feature-flag + audit log per spec §6.5).",
-      "R-7 Self-improvement-overfit: Mitigated by 60/20/20 train/dev/holdout split + multi-metric promotion floor + Goodhart sentinel + HBR-SWARM-002 loop counter + PromotionGate operator review (spec §4.8.3).",
-      "R-8 MoD-Subquad-feasibility: MoD resolved by spec-deferring to Phase 3 roadmap (§6.8); Subquadratic locked at full feature parity per operator E-2 with timeline impact disclosed.",
-      "R-9 FEMS-V1-API-drift: B-FEMS-V1-INTEGRATION-SURFACE blocker; verification pass in Stage 4D before cluster D MT authoring.",
-      "R-10 WindowsNativeJailAdapter-crate-license: License audit MT required before adopting codex-windows-sandbox or rappct crate.",
-      "R-11 Process-ledger-perf-under-swarm: Mitigated by batched async writes + per-process metadata cap + async write path + FR-EVT-LEDGER-OVERFLOW degraded mode (spec §5.7.3).",
-      "R-12 mojibake-in-spec-module-04: Pre-existing UTF-8 double-encoding in legacy §4.2 content; Stage 2 subagent worked around it; cleanup is non-blocking governance debt.",
-      "R-13 AC-cross-reference-drift: 52 AC-* IDs in spec cross-referenced from refinement.json; renames or splits must update both surfaces in same change."
-    ],
-    "minimum_controls": [
-      "Packet contract must reference refinement contract before any MT authoring or coder work.",
-      "Refinement projection must carry source hash once generator enforcement is active.",
-      "Unsupported prose-only refinement claims become explicit migration debt.",
-      "All MT contracts must be authored in Stage 4E and pass contract/projection check before any product implementation starts.",
-      "Per-cluster MT batches must be reviewable; cluster ordering A then B then C then D then X with explicit dependency edges.",
-      "Integration Validator batch review at end of MT implementation; no WP Validator per-MT gate.",
-      "B-FEMS-V1-INTEGRATION-SURFACE blocker must be resolved (FEMS V1 API surface verification) before cluster D MT authoring.",
-      "Subquadratic full-feature-parity timeline must be disclosed in MT scoping; operator may revise scope if timeline extends beyond expected window.",
-      "All UUID mint sites in product code MUST use UUID v7 per HBR-INT-008.",
-      "All process spawns MUST register in kernel_process_lifecycle Postgres table per spec §5.7.2.",
-      "All model invocations MUST flow through ModelRuntime + LocalModelAdapter per spec §4.6.",
-      "All sandbox boxing MUST flow through SandboxAdapter trait per spec §3.5."
-    ]
-  },
-  "kernel004_extension_ref": "refinement.json kernel004_extension carries cluster_map, inference_technique_matrix (8 PRODUCTION + 1 SPEC_DEFERRED MoD), stub_fold_preservation_map (30 stubs), operator_decisions_locked (10 decisions), key_open_questions (9 RESOLVED), blockers (4 RESOLVED + 1 STILL_BLOCKING B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking), research_basis_plan (6 COMPLETED workstreams), foundation_in_main (KERNEL-001/002/003 + FEMS V1), hbr_enforcement_status. Packet.json does not duplicate; refinement.json is the deep contract authority surface."
+  "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1"
 }
