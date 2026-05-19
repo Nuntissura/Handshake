@@ -43,13 +43,25 @@
   "acceptance_criteria_refs": ["AC-DISTILL-OPT-IN"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-119"],
-    "blocks": ["MT-122", "MT-123", "MT-124"]
+    "blocks": ["MT-122", "MT-123", "MT-124"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T03:20:00Z",
+    "completed_at_utc": "2026-05-20T03:50:00Z",
+    "proof": {
+      "cargo_test_lib_unit": "PASS 6/6 (distillation::session_flag::tests::* covering default-deny + mark/unmark round-trip + HBR-INT-006 empty-signature rejection + empty session_id error + per-session non-global scope)",
+      "cargo_test_integration": "PASS 4/4 (tests/distillation_session_flag_tests.rs: default_deny + mark+unmark with signature + HBR-INT-006 signature rejection preserves default-deny + corpus_extractor_honours_session_flag_via_store_backed_adapter wiring MT-119 + MT-121 end-to-end)",
+      "cargo_test_tauri_command": "PASS 3/3 (app::commands::session_distill::tests::* covering camelCase serialization + empty session_id/signature rejection + default-deny read until store wired)",
+      "default_deny_default_explicit": "DEFAULT_LICENSE_ALLOWLIST is not the analog here; the default-deny posture is enforced by get_distill_flag returning false when no row is present and by session_distill::session_get_distill_flag returning distill_corpus=false until the Postgres store is attached. Integration test corpus_extractor_honours_session_flag_via_store_backed_adapter shows MT-119 CorpusExtractor refuses extraction under default-deny",
+      "signature_requirement_on_writes": "mark_for_distillation requires non-empty operator_signature; SessionFlagError::EmptySignature returned otherwise; Tauri wrapper mirrors the gate. Both lib unit (empty_signature_rejected_per_hbr_int_006) and integration (mark_without_signature_is_refused_per_hbr_int_006) tests pin this",
+      "no_moralizing_copy": "Module docstring states the operator-facing UI surface (rendered by cluster-X follow-on) shows 'Include this session in distillation corpus' with 'Default off' technical language per MT-121.implementation_notes; no moralizing or hand-wringing copy. UI itself is out of scope for this MT (cluster X)",
+      "live_store_deferred_with_default_deny_preserved": "session_distill::session_mark_for_distillation returns 'live store is not attached' until the governed_sessions.distill_corpus Postgres migration follow-on lands; the validation gates and default-deny posture are preserved so MT-119 CorpusExtractor::extract behaves correctly through the UI without any risk of accidental opt-in"
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
