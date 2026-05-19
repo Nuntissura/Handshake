@@ -5,6 +5,7 @@ import {
   type LoadedModelRuntime,
   type ModelCapabilities,
 } from "../../lib/ipc/model_runtime";
+import { CaaWizard } from "./CaaWizard";
 import { RefusalVectorWizard } from "./RefusalVectorWizard";
 import { SteeringVectorEditor } from "./SteeringVectorEditor";
 
@@ -133,6 +134,11 @@ export function InferenceLab() {
             nLayers={DEFAULT_LAYER_COUNT}
           />
           <RefusalVectorWizard
+            modelId={selectedModelId}
+            capabilities={caps.capabilities}
+            nLayers={DEFAULT_LAYER_COUNT}
+          />
+          <CaaWizard
             modelId={selectedModelId}
             capabilities={caps.capabilities}
             nLayers={DEFAULT_LAYER_COUNT}

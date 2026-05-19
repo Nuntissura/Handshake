@@ -1865,3 +1865,25 @@ body {
   height: 100%;
   background-color: var(--accent-color, #4a6cf7);
 }
+
+/* CAA Wizard (MT-105) */
+.inference-lab__caa-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.inference-lab__caa-wizard table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.inference-lab__caa-wizard th,
+.inference-lab__caa-wizard td {
+  border: 1px solid var(--border-color, #d0d4dc);
+  padding: 0.4rem;
+  vertical-align: top;
+}
+.inference-lab__caa-wizard textarea {
+  width: 100%;
+  font: inherit;
+  box-sizing: border-box;
+}
