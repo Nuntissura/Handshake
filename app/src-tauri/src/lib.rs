@@ -22,6 +22,7 @@ mod commands {
     pub mod model_runtime;
     pub mod refusal;
     pub mod sandbox;
+    pub mod session_distill;
     pub mod steering;
 }
 
@@ -69,6 +70,8 @@ macro_rules! handshake_invoke_handlers {
             commands::steering::kernel_model_runtime_steering_list_vectors,
             commands::refusal::kernel_model_runtime_refusal_extract,
             commands::caa::kernel_model_runtime_caa_extract,
+            commands::session_distill::kernel_session_mark_for_distillation,
+            commands::session_distill::kernel_session_get_distill_flag,
             manual::model_manual_get,
             manual::model_manual_list_commands,
             manual::model_manual_search,
@@ -120,6 +123,8 @@ macro_rules! handshake_invoke_handlers {
             commands::steering::kernel_model_runtime_steering_list_vectors,
             commands::refusal::kernel_model_runtime_refusal_extract,
             commands::caa::kernel_model_runtime_caa_extract,
+            commands::session_distill::kernel_session_mark_for_distillation,
+            commands::session_distill::kernel_session_get_distill_flag,
             manual::model_manual_get,
             manual::model_manual_list_commands,
             manual::model_manual_search,

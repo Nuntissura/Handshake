@@ -6,3 +6,4 @@ pub mod eval;
 pub mod pii_patterns;
 pub mod redaction;
 pub mod scoring;
+pub mod session_flag;
