@@ -7,7 +7,15 @@
   "cluster_subscope": "C.8",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T00:50:00Z",
+  "contract_repair_log": [
+    {
+      "at_utc": "2026-05-20T00:50:00Z",
+      "actor": "KERNEL_BUILDER",
+      "kind": "FRAMEWORK_CORRECTION",
+      "summary": "Same Svelte->TSX defect class as MT-098 / MT-102; React 19 + Vite + TypeScript per app/package.json. Replaced lib/stores/caa.ts (Svelte-store convention) with lib/ipc/caa.ts + lib/ipc/caa.test.ts. Added adjacent Tauri command surface app/src-tauri/src/commands/caa.rs (CaaExtractRequestIpc / CaaExtractResultIpc + kernel_model_runtime_caa_extract) because MT-103 implemented caa::extract_caa_vector only at the kernel/lib level."
+    }
+  ],
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -21,11 +29,16 @@
   },
   "title": "INF-5 CAA UI (paired-prompt editor + extract wizard)",
   "goal": "CAA wizard UI in Inference Lab: paired-prompt editor (table of context + positive/negative completion pairs), [Extract CAA vector] button, layer picker, save+activate flow. Hidden via capabilities.supportsActivationSteering == false.",
-  "expected_diff_shape": "New Svelte component app/src/components/inference_lab/CaaWizard.svelte + store; integration into InferenceLab.",
+  "expected_diff_shape": "New React/TSX CaaWizard.tsx + lib/ipc/caa.ts (Tauri IPC binding) + lib/ipc/caa.test.ts (vitest); integration into existing InferenceLab.tsx parent; CSS additions; adjacent Tauri command surface app/src-tauri/src/commands/caa.rs (wraps caa::extract_caa_vector).",
   "owned_files": [
-    "app/src/components/inference_lab/CaaWizard.svelte",
-    "app/src/lib/stores/caa.ts",
-    "app/src/components/inference_lab/InferenceLab.svelte"
+    "app/src/components/inference_lab/CaaWizard.tsx",
+    "app/src/components/inference_lab/InferenceLab.tsx",
+    "app/src/components/inference_lab/index.ts",
+    "app/src/lib/ipc/caa.ts",
+    "app/src/lib/ipc/caa.test.ts",
+    "app/src/App.css",
+    "app/src-tauri/src/commands/caa.rs",
+    "app/src-tauri/src/lib.rs"
   ],
   "depends_on_mts": ["MT-098", "MT-104"],
   "unblock_conditions": "MT-098 steering UI + MT-104 eval merged.",
@@ -42,13 +55,25 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-098", "MT-104"],
-    "blocks": []
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T00:50:00Z",
+    "completed_at_utc": "2026-05-20T01:10:00Z",
+    "proof": {
+      "pnpm_typecheck": "PASS (cd app && pnpm run typecheck => exit 0)",
+      "vitest_caa_ipc": "PASS 1/1 (src/lib/ipc/caa.test.ts: extractCaa sends camelCase request envelope with name/description/pairs/layer)",
+      "cargo_test_caa_command": "PASS 2/2 (app/src-tauri/src/commands/caa.rs::tests::* covering camelCase DTO serialization + all 5 input-validation paths: empty name, empty description, empty pairs, blank positive, blank negative)",
+      "audit_still_pass": "automation-first-audit reports status=PASS / command_count=48 / 0 violations after adding kernel_model_runtime_caa_extract to both generate_handler! arms",
+      "three_column_paired_structure": "CaaWizard.tsx renders a <table data-testid='caa-wizard.table'> with explicit Context / Positive completion / Negative completion columns plus per-row Add / Remove and import-from-JSON",
+      "hidden_when_unsupported": "Component returns null when capabilities.supportsActivationSteering is false",
+      "license_tag_picker_mandatory": "<select data-testid='caa-wizard.license'> Permissive | SourceModelLicenseOnly | Restricted; serialised into the description sent to the kernel"
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
