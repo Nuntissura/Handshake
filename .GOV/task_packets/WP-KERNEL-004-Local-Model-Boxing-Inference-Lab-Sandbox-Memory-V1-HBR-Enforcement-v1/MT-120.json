@@ -42,13 +42,25 @@
   "acceptance_criteria_refs": ["AC-DISTILL-CONTENT-REVIEW"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-119"],
-    "blocks": ["MT-121", "MT-122", "MT-123", "MT-124", "MT-107"]
+    "blocks": ["MT-121", "MT-122", "MT-123", "MT-124", "MT-107"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T02:35:00Z",
+    "completed_at_utc": "2026-05-20T03:15:00Z",
+    "proof": {
+      "cargo_test_lib_distillation": "PASS 103/103 (full distillation:: lib suite; new modules content_review (8 tests) + pii_patterns (8 tests) included alongside pre-existing dataset/eval/redaction/scoring)",
+      "cargo_test_integration": "PASS 4/4 (tests/distillation_content_review_tests.rs: explicit_sexual_content_not_flagged_as_pii + quarantine_path_recorded_never_deleted + license_allowlist_operator_configurable + pii_kinds_have_stable_string_labels)",
+      "explicit_sexual_content_not_pii": "pii_patterns::scan returns 0 hits for operator-authored explicit sexual content; ContentReview::review returns Pass for an explicit prompt+completion when license is in allowlist. Pinned in both inline unit test (explicit_sexual_content_is_not_flagged_as_pii) and integration test (content_review_explicit_sexual_content_not_flagged_as_pii) per MT-120 red_team minimum_controls[0]",
+      "quarantine_never_deletes": "ReviewVerdict::Quarantine records quarantine_path; the reviewer never touches the filesystem. Integration test asserts the path includes the turn id so a downstream mover has a stable target",
+      "license_allowlist_operator_configurable": "ContentReviewConfig.license_allowlist is a HashSet<String>; defaults defined by DEFAULT_LICENSE_ALLOWLIST const (MIT / Apache-2.0 / custom_internal). Integration test replaces the default set and verifies (1) previously-allowed license now quarantines (2) newly-allowed license now passes",
+      "pii_categories_covered": "Email, Phone (E.164 + dashed), CreditCard (Luhn-verified), ApiKey (sk-/sk-ant-/AKIA/ghp_/github_pat_/xoxb-/xoxp-), WindowsUserPath (C:\\\\Users\\\\<name>), MacAddress, Ipv4 (octet-range-validated). Severity mapping: ApiKey+CreditCard=High (reject), Email/Phone/WindowsUserPath/MacAddress=Medium (quarantine), Ipv4=Low (quarantine)",
+      "exact_dedup_via_sha256": "ContentReview::dedup_hash = SHA-256 over (prompt || \\\\0 || completion); stand-in for the BLAKE3 named in MT-120.implementation_notes (same property: cryptographic collision-resistant exact-match hash). Near-dup (cosine_similarity > 0.95 via ModelRuntime.embed) is deferred to a follow-on because it requires the live runtime (MT-074)"
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
