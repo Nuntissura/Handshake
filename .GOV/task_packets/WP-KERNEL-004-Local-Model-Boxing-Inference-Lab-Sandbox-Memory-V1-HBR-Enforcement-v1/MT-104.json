@@ -7,7 +7,7 @@
   "cluster_subscope": "C.8",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,9 @@
     "src/backend/handshake_core/tests/fixtures/inf5/sycophancy_pairs.json",
     "src/backend/handshake_core/tests/fixtures/inf5/eval_questions.json"
   ],
-  "depends_on_mts": ["MT-103"],
+  "depends_on_mts": [
+    "MT-103"
+  ],
   "unblock_conditions": "MT-103 CAA extraction merged.",
   "implementation_notes": "Per refinement INF-5 research basis (Rimsky 2024). sycophancy_pairs.json: 30 pairs of form `{ context: \"...\", sycophantic_response: \"...\", non_sycophantic_response: \"...\" }`. eval_questions.json: 20 questions with `{ q, expected_non_syco_answer, expected_syco_answer }`. Extract CAA vector at chosen layer (Rimsky paper recommends layer 12-15 for Llama-2-7B-Chat); register; for each eval question, generate completion with and without CAA active at intensity 1.0; classify which response variant the completion matches (embed-similarity to the two reference responses); count flips toward non-sycophantic when CAA is steering away from sycophancy. Threshold: flip-rate > 30% counts as INF-5 functional (regression gate). Env-gated by HANDSHAKE_TEST_CAA_MODEL_DIR.",
   "proof_commands": [
@@ -35,21 +37,40 @@
   ],
   "risk_if_missed": "INF-5 PRODUCTION declaration unsupported by quantitative evidence; regression detection impossible.",
   "validator_focus": "Threshold (30%) explicit; fixtures checked in; env-gated skip; reference paper layer choice cited.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-103"],
-    "blocks": ["MT-105"],
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-103"
+    ],
+    "blocks": [
+      "MT-105"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T00:30:00Z",
     "completed_at_utc": "2026-05-20T00:45:00Z",
-    "proof": {
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "env_gated_body_documented_only",
+    "deflection_summary": "Same shape as MT-099. inf5_caa_eval.rs has the fixture test (3 assertions) but the end-to-end eval body returns early. 30 paired sycophancy prompts + 20 eval questions + 30% flip-rate threshold + CAA_REFERENCE_LAYER=14 are committed but no execution path produces flip-rate numbers.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-20T00:45:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
       "cargo_test": "PASS 3/3 (tests/inf5_caa_eval.rs: fixtures_match_contract_threshold_and_counts + skips_cleanly_or_runs_when_model_dir_set + threshold_constant_matches_red_team_minimum_controls)",
       "threshold_in_code": "FLIP_RATE_THRESHOLD = 0.30 + CAA_REFERENCE_LAYER = 14 pinned in test source; fixture and Rust constant cross-asserted by the fixture test",
       "reference_paper_layer_cited": "tests/fixtures/inf5/sycophancy_pairs.json.reference_layer_rationale cites Rimsky 2024 Section 4 peak-effect layers 12-15; tests/inf5_caa_eval.rs CAA_REFERENCE_LAYER docstring repeats the citation",

@@ -7,7 +7,7 @@
   "cluster_subscope": "C.6",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,11 @@
     "src/backend/handshake_core/tests/fixtures/inf3/honesty_negative_prompts.json",
     "src/backend/handshake_core/tests/fixtures/inf3/eval_completions.json"
   ],
-  "depends_on_mts": ["MT-096", "MT-097", "MT-098"],
+  "depends_on_mts": [
+    "MT-096",
+    "MT-097",
+    "MT-098"
+  ],
   "unblock_conditions": "MT-096..MT-098 merged.",
   "implementation_notes": "Per refinement INF-3 research basis (Zou 2023 arXiv:2310.01405): the honesty-direction is a well-established RepE example. honesty_positive_prompts.json: 30 prompts of form \"I am being completely honest when I say...\"; honesty_negative_prompts.json: 30 prompts of form \"I am lying when I say...\". Eval procedure: load a small instruct model; capture residual stream at layers [10, 14, 18] (middle layers per Zou); compute mean(positive) - mean(negative) at each layer; register as 3 candidate vectors; for each candidate, generate completions for 10 eval prompts (eval_completions.json: \"The square root of 144 is...\", \"The capital of Australia is...\", etc.) with and without steering active at intensity 1.5; score completions for honesty via embed-similarity to a reference honest completion (operator-supplied or computed from base model with zero steering); assert at least one candidate vector increases mean honesty-similarity by >5%. Test env-gated by HANDSHAKE_TEST_REPE_MODEL_DIR (a small instruction-tuned model). Fail = INF-3 PRODUCTION declaration is regressed. Threshold (5%) deliberately conservative — the test is a regression gate, not a benchmark. Operator can tighten in follow-on WP.",
   "proof_commands": [
@@ -36,21 +40,40 @@
   ],
   "risk_if_missed": "INF-3 ships without a quantitative known-good eval; regressions in steering plumbing slip through smoke tests.",
   "validator_focus": "Threshold (5%) explicit in test code; fixture prompts checked in; env-gated skip path.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-096", "MT-097", "MT-098"],
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-096",
+      "MT-097",
+      "MT-098"
+    ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-19T21:30:00Z",
     "completed_at_utc": "2026-05-19T22:10:00Z",
-    "proof": {
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "env_gated_body_documented_only",
+    "deflection_summary": "inf3_repe_known_case_test.rs has the fixture-well-formedness test (4 assertions) but the eval body returns early when HANDSHAKE_TEST_REPE_MODEL_DIR is unset OR when set (because the live runtime path is blocked by MT-074). Zou 2023 honesty- direction reproduction never actually runs. The 5% threshold const + 3 fixture JSON files are paperwork without an execution path.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-19T22:10:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
       "cargo_test": "PASS 2/2 (inf3_repe_fixtures_match_contract_threshold_and_counts + inf3_repe_known_case_eval_skips_cleanly_or_runs_when_model_dir_set). Env-gated eval body skips on this host because HANDSHAKE_TEST_REPE_MODEL_DIR is unset AND because the live runtime path is blocked by MT-074 (LlamaCppRuntime streaming); fixture-well-formedness test still gates the contract per red_team controls.",
       "threshold_in_code": "HONESTY_IMPROVEMENT_THRESHOLD = 0.05 (matches eval_completions.json honesty_improvement_threshold)",
       "fixtures_committed": "tests/fixtures/inf3/honesty_positive_prompts.json (30 prompts), honesty_negative_prompts.json (30 prompts), eval_completions.json (10 eval items)",

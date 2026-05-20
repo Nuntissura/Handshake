@@ -7,7 +7,7 @@
   "cluster_subscope": "C.7",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-19T23:25:00Z",
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "contract_repair_log": [
     {
       "at_utc": "2026-05-19T23:25:00Z",
@@ -40,7 +40,10 @@
     "app/src-tauri/src/commands/refusal.rs",
     "app/src-tauri/src/lib.rs"
   ],
-  "depends_on_mts": ["MT-098", "MT-101"],
+  "depends_on_mts": [
+    "MT-098",
+    "MT-101"
+  ],
   "unblock_conditions": "MT-098 steering UI + MT-101 metrics merged.",
   "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES. RefusalVectorWizard.svelte: two text areas (harmful prompts, benign prompts; one per line); model picker; [Extract direction] button calls kernel_model_runtime_refusal_extract (Tauri wrapper around MT-100 extraction); per-layer effectiveness bar chart (uses per_layer_drop from MT-101 metrics); [Save & activate] saves as SteeringVectorArtifact (provenance=Contrastive{technique:RefusalVector}) and sets active. Hidden via capabilities.supportsActivationSteering == false. Operator-content discipline: prompt text areas accept verbatim adult-production content without sanitisation; license tag picker mandatory at save.",
   "proof_commands": [
@@ -48,21 +51,39 @@
   ],
   "risk_if_missed": "INF-4 UI knob missing; operator cannot run the extraction wizard interactively.",
   "validator_focus": "Per-layer effectiveness display present; no UI sanitisation; license tag mandatory.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.14"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-UI-TOGGLES"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-098", "MT-101"],
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-098",
+      "MT-101"
+    ],
     "blocks": [],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-19T23:20:00Z",
     "completed_at_utc": "2026-05-19T23:50:00Z",
-    "proof": {
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "ui_no_live_ipc_wiring",
+    "deflection_summary": "RefusalVectorWizard.tsx typechecks. The adjacent Tauri command kernel_model_runtime_refusal_extract returns live_runtime_unavailable in its inner function (same pattern as MT-096 steering commands). Per-layer effectiveness bar chart shows L2 norm as a placeholder proxy because the real refusal_drop from MT-101 metrics is not wired. Save -> register flow routes through the steering IPC binding which also returns runtime-unavailable.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-19T23:50:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
       "pnpm_typecheck": "PASS (cd app && pnpm run typecheck => tsc --noEmit exit 0)",
       "vitest_refusal_ipc": "PASS 1/1 (src/lib/ipc/refusal.test.ts: extractRefusal sends camelCase request envelope with harmfulPrompts/harmlessPrompts/layers)",
       "cargo_test_refusal_command": "PASS 2/2 (app/src-tauri/src/commands/refusal.rs::tests::refusal_extract_dto_uses_camel_case_serde + refusal_extract_rejects_empty_inputs covering empty/blank prompt + empty layer validation)",

@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:02:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,10 @@
     "src/backend/handshake_core/src/memory/builder.rs",
     "src/backend/handshake_core/tests/memory_builder_tests.rs"
   ],
-  "depends_on_mts": ["MT-141", "MT-142"],
+  "depends_on_mts": [
+    "MT-141",
+    "MT-142"
+  ],
   "unblock_conditions": "MT-141 (MemoryCapsule), MT-142 (TaskType + CapsulePolicyTable), and FEMS V1 surfaces in main (fems_mt_handoff_memory_context.rs + ace/mod.rs::MemoryPack).",
   "implementation_notes": "Per refinement D.1: 'bounded MemoryCapsule artifact injected per microtask; typed; capsule generation policy per task type; capsule audit log per HBR-INT-006'. The builder is the only authorized constructor of populated MemoryCapsules (raw MemoryCapsule::new is for tests and policy tables only). Surface: `pub struct CapsuleBuilder<'a> { fems: &'a dyn FemsRetriever, policy_table: &'a CapsulePolicyTable }` with `pub fn build(ctx: BuildContext) -> Result<MemoryCapsule, BuilderError>`. BuildContext: `{ task_type, query: String, role_id, session_id, override_policy: Option<RetrievalPolicy> }`. Trait `pub trait FemsRetriever { fn retrieve(query: &str, top_k: u32) -> Result<Vec<RetrievedItem>, FemsError>; }` lets tests inject a fake; production impl wraps the FEMS V1 handoff context call. Build flow: (1) pick policy (override or default-for-task-type from MT-142 table); (2) call fems.retrieve(query, policy.top_k); (3) construct MemoryPackBudgets from policy.capsule_budget_bytes; (4) score+pack items into MemoryPack using existing ACE primitives, respecting budget; (5) build CapsuleAuditLog with one entry per retrieved item (included=true for packed items, included=false with suppression_reason=\"budget\" for dropped items); (6) build MemoryCapsule via MemoryCapsule::new. The builder MUST NOT call the LLM. The builder MUST mark `pinned: true` items per FEMS V1 semantics (pinned items always include before budget scoring runs on the rest; this anticipates MT-159 pinned-core-memory extension). Tests: builder with empty retrieval returns capsule with empty pack but populated policy + audit; builder honors override_policy; builder records budget-dropped items in audit log; builder fails gracefully on FemsError with typed BuilderError; builder produces deterministic source_hash for identical inputs.",
   "proof_commands": [
@@ -34,21 +37,49 @@
   ],
   "risk_if_missed": "Without a builder, ad-hoc capsule construction proliferates across call sites, the FEMS V1 bounded-injection invariant is violated, and HBR-INT-006 audit obligations leak.",
   "validator_focus": "CapsuleBuilder uses FemsRetriever trait (testable). Pure build function. Audit log records both included and excluded items. No LLM dependency.",
-  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-006",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-141", "MT-142"],
-    "blocks": ["MT-144", "MT-145", "MT-146", "MT-147", "MT-148"]
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-141",
+      "MT-142"
+    ],
+    "blocks": [
+      "MT-144",
+      "MT-145",
+      "MT-146",
+      "MT-147",
+      "MT-148"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T07:14:51Z",
+    "completed_at_utc": "2026-05-19T07:35:43Z",
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "prior_session_uncommitted",
+    "deflection_summary": "Same as MT-141: prior session work, committed without spec validation. CapsuleBuilder over FEMS V1 retrieval depends on a FEMS V1 retrieval surface that may or may not exist at the depth the spec requires (FEMS V1 itself has its own MT chain).",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260518-235451",
+    "previous_completed_at_utc": "2026-05-19T07:35:43Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files."
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null

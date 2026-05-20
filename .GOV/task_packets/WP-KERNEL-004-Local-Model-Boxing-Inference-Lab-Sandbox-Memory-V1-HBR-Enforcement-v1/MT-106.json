@@ -7,7 +7,7 @@
   "cluster_subscope": "C.9",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -29,7 +29,11 @@
     "src/backend/handshake_core/Cargo.toml",
     "src/backend/handshake_core/tests/abliterate_tool_tests.rs"
   ],
-  "depends_on_mts": ["MT-082", "MT-083", "MT-100"],
+  "depends_on_mts": [
+    "MT-082",
+    "MT-083",
+    "MT-100"
+  ],
   "unblock_conditions": "MT-082 hooks + MT-083 transformer + MT-100 refusal extraction merged (refusal direction is input to abliteration).",
   "implementation_notes": "Per AC-ABLITERATION-OFFLINE + spec §4.7.4 + operator E-5: abliteration is OFFLINE TOOL ONLY. Never inserted into a hot inference path or ModelRuntime::generate. Output is a new derived model artifact with own ModelId + on-disk GGUF/safetensors. Passes through §4.8 content-review pipeline (PII scan + license tagging + provenance) before any Skill Bank reference. ProcessOwnershipLedger records the job as `engine_kind=\"abliteration_tool\"`. CLI args: `--base-model <PATH>` (GGUF or safetensors), `--refusal-direction <PATH>` (JSON file written by INF-4 extraction with `{layer, values, ...}`), `--out-model <PATH>` (output GGUF/safetensors), `--license-tag <STRING>`, `--provenance-note <STRING>`. Algorithm (kabachuha/abliterate.cpp pattern, ported to Rust): load weight tensors of the target Linear modules (typically o_proj of every attention block and down_proj of every MLP block per refusal-direction research); for each target weight tensor W, compute orthogonalised W' = W - (W @ direction.unsqueeze(-1)) @ direction.unsqueeze(0); write back. For GGUF input: use llama-cpp-2 quantize-roundtrip helpers OR a small standalone GGUF reader/writer (gguf-rs crate if available). For safetensors: candle_core::safetensors helpers. Output carries provenance metadata: { base_model_sha256, refusal_direction_sha256, abliteration_tool_version, abliterated_at_utc, license_tag, operator_signature }. Spawn-time: register a ProcessOwnershipLedger row with engine_kind=AbliterationTool (per MT-069 EngineKind enum). Hot-path invariant test: a static-analysis-style cargo test scans model_runtime/llama_cpp/generate.rs + model_runtime/candle/generate.rs for any call into distillation::abliterate; if any, fail with HBR-INT-002 violation. CLI tests (env-gated): given small fixture model + fixture direction, produce output; verify output loads; verify weight differs at target modules; verify provenance metadata preserved.",
   "proof_commands": [
@@ -38,21 +42,44 @@
   ],
   "risk_if_missed": "INF-6 OFFLINE TOOL ONLY invariant unenforced; abliteration ends up in hot path; spec §4.7.4 violated.",
   "validator_focus": "Static analysis test enforcing no hot-path call into abliterate module; provenance preserved; ProcessOwnershipLedger row with engine_kind=AbliterationTool; license_tag required.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.4"
   ],
-  "acceptance_criteria_refs": ["AC-ABLITERATION-OFFLINE"],
+  "acceptance_criteria_refs": [
+    "AC-ABLITERATION-OFFLINE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-082", "MT-083", "MT-100"],
-    "blocks": ["MT-107", "MT-108"],
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-082",
+      "MT-083",
+      "MT-100"
+    ],
+    "blocks": [
+      "MT-107",
+      "MT-108"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T01:15:00Z",
     "completed_at_utc": "2026-05-20T01:55:00Z",
-    "proof": {
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "surface_only_no_live_behavior",
+    "deflection_summary": "abliterate.rs has the pure orthogonalisation primitive (W' = W - (W . d^T) . d) fully unit-tested on a hand-derived case. The bin/abliterate.rs CLI parses args correctly. BUT run_abliteration_offline returns NativeToolchainUnavailable at the I/O boundary; no GGUF/safetensors load + write actually happens. The hot-path static-analysis test is a real safeguard, but the offline tool itself never produces a derived model artifact. ProcessOwnershipLedger engine_kind=AbliterationTool row registration is never written.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-20T01:55:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
       "cargo_build_bin": "PASS (cargo build --bin abliterate => Finished in 2m 29s; new [[bin]] entry added to handshake_core Cargo.toml)",
       "cargo_test_lib_unit": "PASS 4/4 (distillation::abliterate::tests::* covering orthogonalisation correctness on hand-derived case + dimension mismatch rejection + license/signature mandatory validation + native_toolchain_unavailable when run_abliteration_offline reaches the I/O boundary)",
       "cargo_test_integration": "PASS 3/3 (tests/abliterate_tool_tests.rs: hot_path_does_not_reference_abliterate_module static analysis + hot_path_invariant_test_actually_walks_at_least_one_runtime_file vacuous-true guard + cli_smoke env-gated skip)",

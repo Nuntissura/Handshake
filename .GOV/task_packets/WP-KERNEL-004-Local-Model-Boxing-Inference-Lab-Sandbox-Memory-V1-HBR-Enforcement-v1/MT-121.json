@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -28,7 +28,9 @@
     "src/backend/handshake_core/src/distillation/session_flag.rs",
     "src/backend/handshake_core/tests/distillation_session_flag_tests.rs"
   ],
-  "depends_on_mts": ["MT-119"],
+  "depends_on_mts": [
+    "MT-119"
+  ],
   "unblock_conditions": "MT-119 corpus extractor merged.",
   "implementation_notes": "Per AC-DISTILL-OPT-IN + Q-DISTILL-CORPUS resolution. Schema migration: ALTER TABLE governed_sessions ADD COLUMN distill_corpus BOOLEAN NOT NULL DEFAULT false. Tauri command: kernel_session_mark_for_distillation(session_id: String, flag: bool, operator_signature: String) -> Result<(), String>. Operator-signature required (HBR-INT-006 governance obligation on session metadata writes); the signature is recorded in flight recorder for audit. Implementation routes through KernelActionCatalogV1 `kernel.session.mark_for_distillation` action -> WriteBoxV1 -> Postgres. Reads via kernel_session_get_distill_flag(session_id). Default-deny: never assumed true. UI flow (placeholder for cluster X session-close panel): at session close, operator sees a checkbox \"Include this session in distillation corpus\" (defaults UNCHECKED), with prominent note \"This will let Handshake learn from this session. Default off.\" — operator content discipline: no moralizing or hand-wringing language, just the technical fact. Tests: mark flag true requires signature; reading without flag returns false; reading with flag returns true; CorpusExtractor::extract gated on this flag (verifies MT-119 enforcement).",
   "proof_commands": [
@@ -36,21 +38,43 @@
   ],
   "risk_if_missed": "Opt-in flag has no UI surface; AC-DISTILL-OPT-IN operator-facing requirement unwireable.",
   "validator_focus": "Default-deny column default; signature requirement on writes; KernelActionCatalogV1 route; no moralizing copy in UI.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.1"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-OPT-IN"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-OPT-IN"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-119"],
-    "blocks": ["MT-122", "MT-123", "MT-124"],
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-119"
+    ],
+    "blocks": [
+      "MT-122",
+      "MT-123",
+      "MT-124"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T03:20:00Z",
     "completed_at_utc": "2026-05-20T03:50:00Z",
-    "proof": {
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "surface_only_no_live_behavior",
+    "deflection_summary": "InMemorySessionFlagStore + Tauri commands + ConsentGate adapter shape are all committed and tested. BUT the Postgres migration adding governed_sessions.distill_corpus BOOLEAN NOT NULL DEFAULT false was never written; kernel_session_mark_for_distillation returns 'live store not attached'; kernel_session_get_distill_flag always returns false. MT-119 CorpusExtractor therefore always default-denies, which is correct-but-vacuous - no operator can actually opt in.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-20T03:50:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
       "cargo_test_lib_unit": "PASS 6/6 (distillation::session_flag::tests::* covering default-deny + mark/unmark round-trip + HBR-INT-006 empty-signature rejection + empty session_id error + per-session non-global scope)",
       "cargo_test_integration": "PASS 4/4 (tests/distillation_session_flag_tests.rs: default_deny + mark+unmark with signature + HBR-INT-006 signature rejection preserves default-deny + corpus_extractor_honours_session_flag_via_store_backed_adapter wiring MT-119 + MT-121 end-to-end)",
       "cargo_test_tauri_command": "PASS 3/3 (app::commands::session_distill::tests::* covering camelCase serialization + empty session_id/signature rejection + default-deny read until store wired)",

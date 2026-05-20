@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:03:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,11 @@
     "src/backend/handshake_core/src/memory/injection.rs",
     "src/backend/handshake_core/tests/memory_injection_tests.rs"
   ],
-  "depends_on_mts": ["MT-141", "MT-142", "MT-143"],
+  "depends_on_mts": [
+    "MT-141",
+    "MT-142",
+    "MT-143"
+  ],
   "unblock_conditions": "MT-141/142/143 ship the capsule primitives + builder; ModelRuntime trait exists from cluster C (cross-cluster boundary: this MT links against ModelRuntime by trait, not by concrete adapter).",
   "implementation_notes": "Per refinement D.1 ('bounded MemoryCapsule artifact injected per microtask') and HBR-INT-006 (FEMS record + retrieval policy audit). Surface: `pub struct CapsuleInjector<'a> { builder: &'a CapsuleBuilder<'a>, fems_flight_recorder: &'a dyn FemsFlightRecorder }` with `pub fn inject_for_call(call_ctx: &ModelCallContext) -> Result<InjectionDecision, InjectionError>`. InjectionDecision: `{ Inject { capsule: MemoryCapsule, capsule_handle: CapsuleHandle }, Skip { reason: SkipReason } }` where SkipReason is one of `OperatorOptedOut`, `TaskTypeNotEligible`, `BudgetExceededAfterPin`, `FemsUnavailable`. CapsuleHandle: opaque newtype `pub struct CapsuleHandle(Uuid)` (v7 minted by builder, surfaced to flight-recorder for cross-reference). The injection wires: build capsule via CapsuleBuilder, emit `FR-EVT-CAPSULE-INJECTED` event via FemsFlightRecorder with `{ capsule_id, capsule_source_hash, policy: RetrievalPolicy, item_count, included_count, suppressed_count }`, return capsule + handle to call site. Bounded: respects MemoryPackBudgets caps already enforced by builder; if pinned items exceed budget, returns Skip{BudgetExceededAfterPin} rather than silently dropping pinned items (anticipates MT-159). Suppressible: surfaces capsule_id so operator panel (cluster X UI) can call a separate `suppress_capsule(handle)` action that emits `FR-EVT-CAPSULE-SUPPRESSED` and removes the capsule from any retried call. Tests: injector returns Inject for eligible TaskType + opted-in operator setting; returns Skip with correct reason for ineligible task type; emits exactly one FR-EVT-CAPSULE-INJECTED per Inject decision; injector is pure relative to FEMS (mockable).",
   "proof_commands": [
@@ -34,20 +38,48 @@
   ],
   "risk_if_missed": "Without typed injection + handle + flight-recorder events, downstream MTs cannot inspect or suppress capsules per HBR-INT-006, and the operator has no path to override a poisoning capsule.",
   "validator_focus": "InjectionDecision is closed enum; SkipReason is typed (no string excuses). Every Inject decision emits exactly one FR-EVT-CAPSULE-INJECTED. CapsuleHandle is opaque (no field access).",
-  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-006",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE", "AC-DISTILL-CONTENT-REVIEW"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-EDITABLE-SURFACE",
+    "AC-DISTILL-CONTENT-REVIEW"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-141", "MT-142", "MT-143"],
-    "blocks": ["MT-146", "MT-147", "MT-148", "MT-149"]
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-141",
+      "MT-142",
+      "MT-143"
+    ],
+    "blocks": [
+      "MT-146",
+      "MT-147",
+      "MT-148",
+      "MT-149"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260519-073737",
+    "completed_at_utc": "2026-05-19T08:10:50.461Z",
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "prior_session_uncommitted",
+    "deflection_summary": "Same as MT-141. Capsule injection into ModelRuntime call path: bounded budget + suppression logic committed. Injection at the actual ModelRuntime.generate boundary is not verified to be the spec's injection point or shape.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-073737",
+    "previous_completed_at_utc": "2026-05-19T08:10:50.461Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files."
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-073737",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null

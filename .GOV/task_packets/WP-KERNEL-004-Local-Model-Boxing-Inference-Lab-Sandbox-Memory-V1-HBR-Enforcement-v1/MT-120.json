@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,9 @@
     "src/backend/handshake_core/src/distillation/pii_patterns.rs",
     "src/backend/handshake_core/tests/distillation_content_review_tests.rs"
   ],
-  "depends_on_mts": ["MT-119"],
+  "depends_on_mts": [
+    "MT-119"
+  ],
   "unblock_conditions": "MT-119 corpus extractor merged.",
   "implementation_notes": "Per AC-DISTILL-CONTENT-REVIEW. ContentReview::review(turn: &TrainingTurn) -> Result<ReviewVerdict, ReviewError>. PII scanner: regex patterns for emails (RFC 5322 simplified), phone numbers (E.164 + common formats), credit cards (Luhn-verified), API keys (common prefixes: sk-, AKIA, ghp_, etc.), Windows-style paths revealing user names (C:\\Users\\<name>), MAC addresses, IPv4/IPv6 (private+public, configurable); plus a minimal NER pass for personal names (regex + capitalization heuristic — full NER deferred to a future WP). Each pattern hit emits PiiDetection { kind, span, severity }. License tagger: every turn must inherit license_tag from its source model + LoRAs; verifies the tag is in allowed-licenses set (operator-configurable; defaults: MIT, Apache-2.0, custom_internal); fragments tagged with non-allowed license -> quarantine. Untaggable (license_tag is None or empty) -> quarantine. Dedup: compute BLAKE3 of (prompt + completion); compare against in-corpus hashes (exact dedup); compute embedding via local model (reuse ModelRuntime.embed) for near-dup (cosine_similarity > 0.95 -> warn + flag). ReviewVerdict: Pass | Quarantine { reasons: Vec<String> } | Reject { reasons: Vec<String> }. FR-EVT-DISTILL-PII-DETECT { turn_id, pii_kinds, severity } emitted on any PII hit; FR-EVT-DISTILL-LICENSE-FAIL on license failure. Quarantine path: move turn to .distill_quarantine/ + log; do NOT delete. Adult-production note: explicit sexual content is NOT a PII category — the PII pipeline is for personal-information leakage detection, not content moderation (per GLOBAL-PRODUCTION-002..009 the operator's explicit content is not sanitised by the assistant). Tests: PII regex sweep with positive + negative fixtures; license allowlist; dedup exact + near-dup; quarantine path; FR events.",
   "proof_commands": [
@@ -35,21 +37,45 @@
   ],
   "risk_if_missed": "AC-DISTILL-CONTENT-REVIEW unenforced; PII leakage into corpus; license violations propagate.",
   "validator_focus": "PII patterns target leakage NOT content moderation (explicit sexual content not flagged); license allowlist configurable; quarantine moves, never deletes; FR events fire on each detection class.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.2"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-CONTENT-REVIEW"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-CONTENT-REVIEW"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-119"],
-    "blocks": ["MT-121", "MT-122", "MT-123", "MT-124", "MT-107"],
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-119"
+    ],
+    "blocks": [
+      "MT-121",
+      "MT-122",
+      "MT-123",
+      "MT-124",
+      "MT-107"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T02:35:00Z",
     "completed_at_utc": "2026-05-20T03:15:00Z",
-    "proof": {
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "pure_logic_no_runtime_consumer",
+    "deflection_summary": "PII regex scanner + license allowlist + SHA-256 exact dedup are fully tested. BUT no consumer feeds it real TrainingTurn data: MT-119 CorpusExtractor needs the Postgres/FlightRecorder live wiring first, and MT-122 PEFT pipeline calls ContentReview but is itself deferred. The pipeline is gate-correct in isolation but never gates a real corpus. Near-dup (cosine via embed) is deferred to live runtime.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-20T03:15:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
       "cargo_test_lib_distillation": "PASS 103/103 (full distillation:: lib suite; new modules content_review (8 tests) + pii_patterns (8 tests) included alongside pre-existing dataset/eval/redaction/scoring)",
       "cargo_test_integration": "PASS 4/4 (tests/distillation_content_review_tests.rs: explicit_sexual_content_not_flagged_as_pii + quarantine_path_recorded_never_deleted + license_allowlist_operator_configurable + pii_kinds_have_stable_string_labels)",
       "explicit_sexual_content_not_pii": "pii_patterns::scan returns 0 hits for operator-authored explicit sexual content; ContentReview::review returns Pass for an explicit prompt+completion when license is in allowlist. Pinned in both inline unit test (explicit_sexual_content_is_not_flagged_as_pii) and integration test (content_review_explicit_sexual_content_not_flagged_as_pii) per MT-120 red_team minimum_controls[0]",

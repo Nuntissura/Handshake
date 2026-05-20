@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T08:00:00Z",
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "contract_repair_log": [
     {
       "at_utc": "2026-05-20T08:00:00Z",
@@ -36,7 +36,12 @@
     "app/src/components/model_runtime_panel/ConsentPromptModal.svelte",
     "app/src/lib/stores/cloud_lane.ts"
   ],
-  "depends_on_mts": ["MT-125", "MT-126", "MT-127", "MT-128"],
+  "depends_on_mts": [
+    "MT-125",
+    "MT-126",
+    "MT-127",
+    "MT-128"
+  ],
   "unblock_conditions": "MT-125..MT-128 merged.",
   "implementation_notes": "Per AC-MODEL-RUNTIME-CONTROL-PANEL §10.13. CloudLanePanel.svelte: tabs [BYOK Models | CLI Bridge Models | API Keys]. BYOK Models tab: list of registered cloud models with provider badge (OpenAI|Anthropic), model name, capabilities (read-only display), [Register New] / [Unregister] actions. CLI Bridge Models tab: list of CLI bridge models with cli_kind badge, executable_path, [Register New] / [Test] actions. API Keys tab: ApiKeyVault.svelte renders the list of lanes with stored keys (NEVER displays the key — shows only \"key stored on YYYY-MM-DD\" + [Rotate] / [Delete] buttons); [Store new key] form. ConsentPromptModal.svelte: modal triggered by ConsentRequired error from generate; shows lane name + recently-attempted prompt summary + [Grant for session] / [Deny] buttons; on grant, calls kernel.cloud_consent.grant. Per AC-MODEL-RUNTIME-CONTROL-PANEL the panel is single source for cloud lane management. No moralizing about cloud send (per GLOBAL-PRODUCTION) — copy is technical (\"Send first request to OpenAI in this session?\").",
   "proof_commands": [
@@ -44,29 +49,53 @@
   ],
   "risk_if_missed": "Operator cannot manage cloud lanes through UI; CLI-only secret management.",
   "validator_focus": "API key never rendered in UI (verify by visual inspection AND text-search of rendered DOM); consent modal copy technical not moralistic; rotate / delete actions confirm before destructive action.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-005", "HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/10-product-surfaces.md#10.13"
   ],
-  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-CONTROL-PANEL"],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-CONTROL-PANEL"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-125", "MT-126", "MT-127", "MT-128"],
-    "blocks": ["MT-130"],
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-125",
+      "MT-126",
+      "MT-127",
+      "MT-128"
+    ],
+    "blocks": [
+      "MT-130"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T07:45:00Z",
     "completed_at_utc": "2026-05-20T08:05:00Z",
-    "proof": {
+    "deferred_to_followon": {
+      "live_ipc_wiring": "Live IPC for SecretsVault read/write + lane registration + ConsentGate prompt arrival is a follow-on. The components take all data + all handlers as props so the wiring point is the parent route (the future ModelRuntime control panel); parent route + IPC plumbing land alongside the OS keychain SecretsVault impl (deferred per MT-128)."
+    },
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "ui_no_live_ipc_wiring",
+    "deflection_summary": "CloudLanePanel + ApiKeyVault + ConsentPromptModal TSX components typecheck. BUT no parent route mounts the panel; no IPC commands read/write the SecretsVault or list registered cloud lanes; no consent prompt actually arrives at the operator. The structural shell renders but never receives real data.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-20T08:05:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
       "pnpm_typecheck": "PASS (cd app && pnpm run typecheck => tsc --noEmit exit 0)",
       "api_key_never_rendered_in_ui": "ApiKeyVault.tsx never renders the secret value: the table shows only lane id + 'stored'/'missing' indicator + updated timestamp. The edit form uses <input type='password'> (DOM masks the value). Per HBR-INT-005 the actual key string is only in transit from the input handler to onPutSecret(); the local draftSecret state is cleared immediately after the parent handler returns.",
       "destructive_actions_confirm": "Delete-secret in ApiKeyVault.tsx requires explicit confirmation: clicking Delete shows the api-key-vault.confirm-delete dialog with Delete + Keep buttons. Per MT-129 red_team minimum_controls[1] no destructive action proceeds on a single click. Lane registration / removal in CloudLanePanel.tsx is also two-step (a Remove button per row).",
       "consent_copy_technical_not_moralistic": "ConsentPromptModal.tsx copy: 'First cloud call this session...', 'Approve cloud send', 'Deny', 'Decision is per-session per-lane'. No phrases that imply moral judgement or hand-wringing per GLOBAL-PRODUCTION-002..009. The prompt preview is displayed verbatim in a <pre> block to preserve operator-authored text exactly.",
       "three_tab_structure_present": "CloudLanePanel.tsx mounts three sub-surfaces: register-new-lane form + registered-lanes table + ApiKeyVault. ConsentPromptModal is a sibling dialog that opens when pendingConsentPrompt prop is set. The MT-129 contract describes 4 owned files (CloudLanePanel + ApiKeyVault + ConsentPromptModal + a cloud_lane.ts store); the store is replaced with parent-passed props per the FRAMEWORK_CORRECTION."
-    },
-    "deferred_to_followon": {
-      "live_ipc_wiring": "Live IPC for SecretsVault read/write + lane registration + ConsentGate prompt arrival is a follow-on. The components take all data + all handlers as props so the wiring point is the parent route (the future ModelRuntime control panel); parent route + IPC plumbing land alongside the OS keychain SecretsVault impl (deferred per MT-128)."
     }
   },
   "handoff": {

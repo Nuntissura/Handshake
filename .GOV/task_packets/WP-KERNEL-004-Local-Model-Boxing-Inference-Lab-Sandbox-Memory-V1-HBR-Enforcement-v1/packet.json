@@ -46,6 +46,42 @@
     "packet_widening_evidence": "N/A",
     "risk_tier": "HIGH",
     "status": "In Progress",
+    "wp_hard_fail_open_blockers": {
+      "decision_at_utc": "2026-05-20T08:50:00Z",
+      "decision_by": "OPERATOR",
+      "summary": "27 MTs reopened with status=NEEDS_REIMPLEMENTATION and validator_verdict=HARD_FAIL. Prior session shipped surface-shape implementations (trait abstractions + LiveXxxUnavailable / placeholder props) that satisfied test contracts but did not satisfy the Master Spec's runtime behavior. WP-KERNEL-004 cannot close until ALL 27 are correctly redone and re-validated against the spec. No other MT in this packet may be claimed until the 27 close correctly. MT-148 (already in progress under the same defective pattern) was rolled back and must be revisited only after the 27 close.",
+      "reopened_mt_ids": [
+        "MT-098",
+        "MT-099",
+        "MT-100",
+        "MT-101",
+        "MT-102",
+        "MT-103",
+        "MT-104",
+        "MT-105",
+        "MT-106",
+        "MT-119",
+        "MT-120",
+        "MT-121",
+        "MT-122",
+        "MT-123",
+        "MT-124",
+        "MT-125",
+        "MT-126",
+        "MT-127",
+        "MT-128",
+        "MT-129",
+        "MT-141",
+        "MT-142",
+        "MT-143",
+        "MT-144",
+        "MT-145",
+        "MT-146",
+        "MT-147"
+      ],
+      "claim_order": "Start at MT-098 (the lowest of the 27); each MT's deflection_category + deflection_summary in its MT-NNN.json describes what was missing. The committed code on feat/WP-KERNEL-004-* remains as a base; the lifecycle.status field below is the source of truth, NOT the presence of source files.",
+      "no_claims_outside_27_until_resolved": true
+    },
     "user_signature": "ilja180520260209",
     "user_signature_evidence": "Operator provided signature in chat on 2026-05-18 after reviewing the REFINEMENT_HANDOFF_SUMMARY for KERNEL-004 (post-spec-v02.186 bump, all 9 KOQs resolved, 4 of 5 blockers resolved, B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking): ilja180520260209. Globally unique per CX-585C verification via Grep across .GOV and full repo (no prior matches).",
     "wp_validator_of_record": "NONE"
@@ -61,8 +97,8 @@
     "status": "NOT_GENERATED_BY_DEFAULT"
   },
   "microtasks": {
-    "active_id": "MT-148",
-    "claimable_id": "MT-148",
+    "active_id": "MT-098",
+    "claimable_id": "MT-098",
     "contract_glob": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-*.json",
     "declared_count": 183,
     "declared_ids": [
@@ -251,7 +287,7 @@
       "MT-200"
     ],
     "id_gaps_note": "ID ranges with intentional gaps reflect cluster mid-range count choices: MT-059..060 (cluster B reserved unused, used 041..058), MT-131..140 (cluster C reserved unused, used 061..130), MT-171..175 (cluster D reserved unused, used 141..170), MT-201..205 (cluster X reserved unused, used 176..200). Gaps are intentional and do not indicate missing MTs.",
-    "next_id": "MT-149",
+    "next_id": "MT-099",
     "sequencing_note": "KERNEL_BUILDER implements MTs back to back with no per-MT WP Validator gate per validation_topology = INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1. Cluster ordering: A then B then C then D then X, subject to dependency relationships in each MT.depends_on_mts field. Authored 2026-05-18T03:00Z by 5 parallel Opus cluster subagents per operator decision to launch in parallel."
   },
   "red_team": {

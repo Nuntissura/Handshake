@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -35,21 +35,47 @@
   ],
   "risk_if_missed": "Without MemoryCapsule as the typed wrapper, every downstream D MT bakes its own retrieval-policy + audit-log shape, drift becomes unrecoverable, and HBR-INT-006 cannot be enforced uniformly.",
   "validator_focus": "MemoryCapsule is pure data + small constructor; no I/O or LLM dependencies. source_hash is deterministic and stable across runs. RetrievalPolicy is durable typed state (not stringly-typed). UUID v7 used at every mint site per HBR-INT-008.",
-  "hbr_obligations": ["HBR-INT-006", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-006",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.3"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-EDITABLE-SURFACE"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
     "depends_on": [],
-    "blocks": ["MT-142", "MT-143", "MT-144", "MT-145", "MT-146", "MT-147"]
+    "blocks": [
+      "MT-142",
+      "MT-143",
+      "MT-144",
+      "MT-145",
+      "MT-146",
+      "MT-147"
+    ],
+    "claimed_by": "KERNEL_BUILDER-20260518-235451",
+    "claimed_at_utc": "2026-05-19T06:34:34Z",
+    "completed_at_utc": "2026-05-19T06:56:57Z",
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "prior_session_uncommitted",
+    "deflection_summary": "Lifecycle.status was COMPLETED by KERNEL_BUILDER-20260518-235451 (prior session) but the product code was uncommitted in the wtc worktree. Current session committed the artifacts durably to feat branch without validating against spec. Operator review treats as not correctly implemented. The MemoryCapsule + RetrievalPolicy + AuditLog shape may or may not match the Master Spec - cannot vouch.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260518-235451",
+    "previous_completed_at_utc": "2026-05-19T06:56:57Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files."
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260518-235451",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null

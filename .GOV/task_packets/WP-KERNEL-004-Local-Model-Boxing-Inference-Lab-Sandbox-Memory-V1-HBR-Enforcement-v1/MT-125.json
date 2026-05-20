@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -29,7 +29,13 @@
     "src/backend/handshake_core/Cargo.toml",
     "src/backend/handshake_core/tests/cloud_openai_byok_tests.rs"
   ],
-  "depends_on_mts": ["MT-062", "MT-066", "MT-067", "MT-069", "MT-070"],
+  "depends_on_mts": [
+    "MT-062",
+    "MT-066",
+    "MT-067",
+    "MT-069",
+    "MT-070"
+  ],
   "unblock_conditions": "MT-061..MT-070 trait + registry + ledger merged.",
   "implementation_notes": "Cargo.toml add reqwest = { version = \"0.12\", features = [\"json\", \"stream\", \"rustls-tls\"] }, eventsource-stream = \"0.2\" (or similar SSE parser for streaming responses). OpenAiByokRuntime struct: `pub struct OpenAiByokRuntime { client: reqwest::Client, api_base: Url, api_key_provider: Arc<dyn ApiKeyProvider>, models: Arc<RwLock<HashMap<ModelId, OpenAiModelHandle>>> }`. impl ModelRuntime: load — verify provider=ByokCloud, validate model_id_string against allowlist (operator-set list of OpenAI model names: gpt-4o, gpt-4-turbo, o1, etc.), mint ModelId v7, register OpenAiModelHandle with the model name; NO ProcessOwnershipLedger row for cloud BYOK (no Handshake-owned process; per MT-066 ExternalCompat semantics extended to ByokCloud) — but DO log a CloudLaneRegistration row in a sibling cloud_invocations Postgres table for audit. generate: POST /v1/chat/completions with stream=true; parse SSE; yield GeneratedToken from each `delta.content`; cancellation via reqwest abort. score: post with `logprobs=true`; embed: POST /v1/embeddings. capabilities for cloud BYOK: supports_lora=false (no LoRA over BYOK API; could be true for fine-tuned model names — operator-set via capability declaration at register), supports_kv_prefix_cache=true (OpenAI's prompt caching is automatic), supports_kv_quantization=None (server-side opaque), supports_activation_steering=false, supports_subquadratic=false, supports_speculative_draft=false. Per HBR-INT-005 lane normalization: every cloud invocation goes through LlmClient (MT-070) which already routes per ModelRegistration.provider — this MT extends LocalRouter or adds a CloudRouter sibling. API key NEVER logged or stored in plain text in FR events; OperatorSecretsVault is the only storage. FR events: FR-EVT-LLM-INFER-START/TOKEN/END identical to local (lane-uniform observability). Tests: mock HTTP server (wiremock or httpmock crate); generate 32 tokens; cancellation; capability assertions; ensure NO ProcessOwnershipLedger row; ensure cloud_invocations row present.",
   "proof_commands": [
@@ -37,29 +43,58 @@
   ],
   "risk_if_missed": "Cloud lane parity missing OpenAI; LlmClient cannot serve BYOK provider=ByokCloud.",
   "validator_focus": "Lane normalization (FR events identical shape across local + cloud); API key never logged; cloud_invocations audit row; capabilities correctly reflect cloud constraints.",
-  "hbr_obligations": ["HBR-INT-002", "HBR-INT-005", "HBR-INT-008"],
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-008"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.6"
   ],
-  "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
+  "acceptance_criteria_refs": [
+    "AC-MODEL-RUNTIME-TRAIT"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-062", "MT-066", "MT-067", "MT-069", "MT-070"],
-    "blocks": ["MT-126", "MT-127", "MT-128", "MT-129", "MT-130"],
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-062",
+      "MT-066",
+      "MT-067",
+      "MT-069",
+      "MT-070"
+    ],
+    "blocks": [
+      "MT-126",
+      "MT-127",
+      "MT-128",
+      "MT-129",
+      "MT-130"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T05:25:00Z",
     "completed_at_utc": "2026-05-20T06:00:00Z",
-    "proof": {
+    "deferred_to_followon": {
+      "live_http_streaming": "chat_completions_stream() currently returns LiveClientUnavailable. The live wire-up requires (1) reqwest features extended from [\"json\"] to [\"json\", \"stream\", \"rustls-tls\"], (2) an SSE parser dep (eventsource-stream = \"0.2\" or similar), (3) wiremock/httpmock crate for the HTTP mock-server tests, (4) plumbing into the ModelRuntime trait full impl (load/unload/generate/score/embed/capabilities/kv_cache/lora_stack/steering_hooks/cancel). Adding those deps and wiring requires a full workspace recompile and was out of scope for this MT's session window."
+    },
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "dep_deferred",
+    "deflection_summary": "OpenAiByokRuntime struct + ApiKeyProvider trait + DEFAULT_OPENAI_MODEL_ALLOWLIST + CloudInvocationAuditSink trait + capability declaration are committed and tested (15 tests). BUT chat_completions_stream returns LiveClientUnavailable. reqwest features stay at [\"json\"] - need [\"json\", \"stream\", \"rustls-tls\"]. eventsource-stream + wiremock deps never added to Cargo.toml. Full ModelRuntime trait impl (load/unload/generate/score/embed/capabilities/kv_cache/lora_stack/steering_hooks/cancel) was never written. Spec 4.6 demands the adapter exposes the same trait surface as the local adapters.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-20T06:00:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
       "cargo_test_lib_unit": "PASS 10/10 (model_runtime::cloud::openai_byok::tests::* covering debug redaction + allowlist family-prefix matching + non-allowlisted rejection + empty model-name rejection + allowlist extension + cloud capabilities mapping + audit sink forwarding + api-key fetch round-trip + LiveClientUnavailable for chat_completions_stream + ModelNotRegistered for unknown handle)",
       "cargo_test_integration": "PASS 5/5 (tests/cloud_openai_byok_tests.rs: capabilities match BYOK realities + Debug redacts API key + register_handle allowlist + audit sink lifecycle row + LiveClientUnavailable scaffold)",
       "api_key_not_logged": "ApiKeyProvider boundary holds the secret; OpenAiByokRuntime Debug impl deliberately renders '<redacted Arc<dyn ApiKeyProvider>>' instead of forwarding to the provider. Pinned by debug_repr_redacts_api_key_provider (lib unit) + cloud_openai_runtime_debug_redacts_api_key (integration). The api_key value returned by fetch_api_key() is by-value and the contract is callers must drop it quickly + never emit it to FR events.",
       "cloud_invocations_audit_row_written": "CloudInvocationAuditRow + CloudInvocationAuditSink trait scaffolded; OpenAiByokRuntime::record_audit() forwards rows through the sink. Tested via CapturingSink mock that asserts the lifecycle row is forwarded with model_id + openai_model_name + call_kind + status. Concrete Postgres cloud_invocations table wiring is the follow-on per MT-125 deferred-scope note.",
       "capabilities_match_cloud_realities": "OpenAiByokRuntime::cloud_capabilities() returns supports_lora=false + supports_kv_prefix_cache=true (OpenAI's prompt caching is automatic) + supports_kv_quantization=None (server-side opaque) + supports_activation_steering=false + supports_subquadratic=false + supports_speculative_draft=false + supports_eagle3=false. Pinned in both lib unit and integration tests."
-    },
-    "deferred_to_followon": {
-      "live_http_streaming": "chat_completions_stream() currently returns LiveClientUnavailable. The live wire-up requires (1) reqwest features extended from [\"json\"] to [\"json\", \"stream\", \"rustls-tls\"], (2) an SSE parser dep (eventsource-stream = \"0.2\" or similar), (3) wiremock/httpmock crate for the HTTP mock-server tests, (4) plumbing into the ModelRuntime trait full impl (load/unload/generate/score/embed/capabilities/kv_cache/lora_stack/steering_hooks/cancel). Adding those deps and wiring requires a full workspace recompile and was out of scope for this MT's session window."
     }
   },
   "handoff": {

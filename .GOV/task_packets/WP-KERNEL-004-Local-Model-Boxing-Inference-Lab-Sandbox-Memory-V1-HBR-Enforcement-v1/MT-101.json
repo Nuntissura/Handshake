@@ -7,7 +7,7 @@
   "cluster_subscope": "C.7",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -26,7 +26,9 @@
     "src/backend/handshake_core/src/model_runtime/techniques/refusal_metrics.rs",
     "src/backend/handshake_core/tests/inf4_refusal_metrics_tests.rs"
   ],
-  "depends_on_mts": ["MT-100"],
+  "depends_on_mts": [
+    "MT-100"
+  ],
   "unblock_conditions": "MT-100 refusal extraction merged.",
   "implementation_notes": "Metrics: (1) base_refusal_rate = fraction of harmful-pool prompts where base model responds with refusal-pattern (regex classifier from MT-100). (2) ablated_refusal_rate = same fraction with ablation active. (3) harmlessness_preservation_rate = fraction of benign-pool prompts where ablated model still answers correctly (operator-supplied ground-truth or perplexity-stable assertion). (4) per_layer_drop = ablated_refusal_rate when ablating at layer L only — to identify which middle layer carries most refusal direction. RefusalMetrics struct: `{ base_refusal_rate: f32, ablated_refusal_rate: f32, harmlessness_preservation_rate: f32, per_layer_drop: BTreeMap<LayerIndex, f32>, n_prompts_harmful: u32, n_prompts_benign: u32 }`. measure(model_id, harmful_pool, benign_pool) -> RefusalMetrics. Acceptance for INF-4 PRODUCTION declaration: ablated_refusal_rate < base_refusal_rate - 0.3 AND harmlessness_preservation_rate > 0.7. Test env-gated; runs against the same fixture pools as MT-100.",
   "proof_commands": [
@@ -34,21 +36,40 @@
   ],
   "risk_if_missed": "INF-4 effectiveness is anecdotal; regression detection impossible.",
   "validator_focus": "Acceptance thresholds explicit in code; metrics not magic-numbered; per-layer breakdown surfaced.",
-  "hbr_obligations": ["HBR-INT-002"],
+  "hbr_obligations": [
+    "HBR-INT-002"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
   ],
-  "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
+  "acceptance_criteria_refs": [
+    "AC-INFER-LAB-8-TECHNIQUES"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "COMPLETED",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-100"],
-    "blocks": ["MT-102"],
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-100"
+    ],
+    "blocks": [
+      "MT-102"
+    ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-19T22:50:00Z",
     "completed_at_utc": "2026-05-19T23:15:00Z",
-    "proof": {
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "pure_logic_no_runtime_consumer",
+    "deflection_summary": "refusal_metrics.rs is fully unit-tested as pure aggregation (12 tests) but no caller wires it to a real model generate path. There is no measure_with_runtime implementation that drives real harmful/benign prompts through a model, classifies completions, and produces RefusalMetrics. The thresholds-in-code + meets_inf4_ production_acceptance() are inert without that consumer.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": "KERNEL_BUILDER-20260519-203500",
+    "previous_completed_at_utc": "2026-05-19T23:15:00Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
+    "previous_proof": {
       "cargo_test_lib_unit": "PASS 7/7 (model_runtime::techniques::refusal_metrics::tests::* covering is_refusal happy/sad paths + refusal_rate aggregation + measure_metrics drop+preservation + acceptance pass case + input shape validation + threshold pinning)",
       "cargo_test_integration": "PASS 5/5 (tests/inf4_refusal_metrics_tests.rs: cross-crate API smoke + REFUSAL_DROP_FLOOR + HARMLESSNESS_PRESERVATION_FLOOR pinned + REFUSAL_PATTERN audit-grep surface + per-layer breakdown distinguishes layers + env-gated end-to-end skip)",
       "thresholds_in_code": "REFUSAL_DROP_FLOOR = 0.3 and HARMLESSNESS_PRESERVATION_FLOOR = 0.7 are pub const in refusal_metrics.rs; pinned by lib unit test AND integration test so contract revision must touch both",

@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:05:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-20T08:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -27,7 +27,10 @@
     "src/backend/handshake_core/tests/memory_ipc_tests.rs",
     "app/src-tauri/src/main.rs"
   ],
-  "depends_on_mts": ["MT-144", "MT-145"],
+  "depends_on_mts": [
+    "MT-144",
+    "MT-145"
+  ],
   "unblock_conditions": "MT-144 (injection + handle), MT-145 (persistence via KernelActionCatalogV1).",
   "implementation_notes": "Per HBR-INT-006 retrieval policy + audit log must be inspectable; per AC-DISTILL-CONTENT-REVIEW any capsule entering the loop must support content review. Tauri command signatures: `list_recent(limit: u32) -> Vec<CapsuleSummary>`, `get(capsule_id: Uuid) -> CapsuleRecord`, `suppress_item(capsule_id: Uuid, item_id: Uuid, reason: String) -> SuppressionReceipt`, `suppress_capsule(capsule_id: Uuid, reason: String) -> SuppressionReceipt`. CapsuleSummary: `{ capsule_id, task_type, built_at_utc, included_count, suppressed_count, has_outcome }`. Suppression flows through KernelActionCatalogV1 (CapsuleSuppression action variant) so the operator suppression is durable + audit-trail-bearing. Suppression emits `FR-EVT-CAPSULE-SUPPRESSED` via FEMS flight recorder. Tests: list_recent returns ordered by built_at_utc desc and respects limit; get returns full record with audit_log; suppress_item updates ONLY that entry's included flag + reason; suppress_capsule marks all entries suppressed; commands fail cleanly on unknown capsule_id; commands DO NOT bypass the catalog (mock catalog records every suppression).",
   "proof_commands": [
@@ -35,21 +38,43 @@
   ],
   "risk_if_missed": "Without inspect+suppress IPC the operator cannot honor HBR-INT-006 inspectability requirement; a poisoning capsule has no operator escape hatch.",
   "validator_focus": "All IPC suppressions flow through KernelActionCatalogV1; commands are pure projections (list/get) or audit-bearing mutations (suppress).",
-  "hbr_obligations": ["HBR-INT-006"],
+  "hbr_obligations": [
+    "HBR-INT-006"
+  ],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.8.5",
     ".GOV/spec/master-spec-v02.186/spec-modules/06-mechanical-integrations.md#6.5"
   ],
-  "acceptance_criteria_refs": ["AC-DISTILL-CONTENT-REVIEW", "AC-DISTILL-EDITABLE-SURFACE"],
+  "acceptance_criteria_refs": [
+    "AC-DISTILL-CONTENT-REVIEW",
+    "AC-DISTILL-EDITABLE-SURFACE"
+  ],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
-    "validator_verdict": "PENDING",
-    "depends_on": ["MT-144", "MT-145"],
-    "blocks": ["MT-147"]
+    "status": "NEEDS_REIMPLEMENTATION",
+    "validator_verdict": "HARD_FAIL",
+    "depends_on": [
+      "MT-144",
+      "MT-145"
+    ],
+    "blocks": [
+      "MT-147"
+    ],
+    "completed_at_utc": "2026-05-19T09:11:12.746Z",
+    "reopened_at_utc": "2026-05-20T08:50:00Z",
+    "reopened_by": "OPERATOR",
+    "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
+    "deflection_category": "prior_session_uncommitted",
+    "deflection_summary": "Same as MT-141. Tauri IPC commands for capsule inspection + suppression committed (8 tests pass). The Tauri command surface itself is wired but consumer-side UI + operator review of the suppression UX was not verified.",
+    "wp_hard_fail_until_redone": true,
+    "must_complete_before_other_mts": true,
+    "previous_completed_status": "COMPLETED",
+    "previous_completed_by": null,
+    "previous_completed_at_utc": "2026-05-19T09:11:12.746Z",
+    "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files."
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-084653",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
