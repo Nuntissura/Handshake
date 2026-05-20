@@ -51,8 +51,9 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "FAIL_NEEDS_REWORK",
-    "validator_verdict": "FAIL_NEEDS_REWORK",
+    "status": "COMPLETED",
+    "validator_verdict": "PASS",
+    "completed_by": "VALIDATOR-EXPLORE-MT144-REWORK-PASS-20260520-AUTO",
     "depends_on": [
       "MT-141",
       "MT-142",

@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-21T00:30:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -49,8 +49,9 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "COMPLETED",
+    "validator_verdict": "PASS",
+    "completed_by": "VALIDATOR-EXPLORE-MT126-REWORK-PASS-20260520-AUTO",
     "depends_on": [
       "MT-125"
     ],
