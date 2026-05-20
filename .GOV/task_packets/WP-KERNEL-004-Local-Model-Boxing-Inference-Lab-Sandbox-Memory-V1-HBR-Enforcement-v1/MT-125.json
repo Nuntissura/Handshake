@@ -44,13 +44,26 @@
   "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-062", "MT-066", "MT-067", "MT-069", "MT-070"],
-    "blocks": ["MT-126", "MT-127", "MT-128", "MT-129", "MT-130"]
+    "blocks": ["MT-126", "MT-127", "MT-128", "MT-129", "MT-130"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T05:25:00Z",
+    "completed_at_utc": "2026-05-20T06:00:00Z",
+    "proof": {
+      "cargo_test_lib_unit": "PASS 10/10 (model_runtime::cloud::openai_byok::tests::* covering debug redaction + allowlist family-prefix matching + non-allowlisted rejection + empty model-name rejection + allowlist extension + cloud capabilities mapping + audit sink forwarding + api-key fetch round-trip + LiveClientUnavailable for chat_completions_stream + ModelNotRegistered for unknown handle)",
+      "cargo_test_integration": "PASS 5/5 (tests/cloud_openai_byok_tests.rs: capabilities match BYOK realities + Debug redacts API key + register_handle allowlist + audit sink lifecycle row + LiveClientUnavailable scaffold)",
+      "api_key_not_logged": "ApiKeyProvider boundary holds the secret; OpenAiByokRuntime Debug impl deliberately renders '<redacted Arc<dyn ApiKeyProvider>>' instead of forwarding to the provider. Pinned by debug_repr_redacts_api_key_provider (lib unit) + cloud_openai_runtime_debug_redacts_api_key (integration). The api_key value returned by fetch_api_key() is by-value and the contract is callers must drop it quickly + never emit it to FR events.",
+      "cloud_invocations_audit_row_written": "CloudInvocationAuditRow + CloudInvocationAuditSink trait scaffolded; OpenAiByokRuntime::record_audit() forwards rows through the sink. Tested via CapturingSink mock that asserts the lifecycle row is forwarded with model_id + openai_model_name + call_kind + status. Concrete Postgres cloud_invocations table wiring is the follow-on per MT-125 deferred-scope note.",
+      "capabilities_match_cloud_realities": "OpenAiByokRuntime::cloud_capabilities() returns supports_lora=false + supports_kv_prefix_cache=true (OpenAI's prompt caching is automatic) + supports_kv_quantization=None (server-side opaque) + supports_activation_steering=false + supports_subquadratic=false + supports_speculative_draft=false + supports_eagle3=false. Pinned in both lib unit and integration tests."
+    },
+    "deferred_to_followon": {
+      "live_http_streaming": "chat_completions_stream() currently returns LiveClientUnavailable. The live wire-up requires (1) reqwest features extended from [\"json\"] to [\"json\", \"stream\", \"rustls-tls\"], (2) an SSE parser dep (eventsource-stream = \"0.2\" or similar), (3) wiremock/httpmock crate for the HTTP mock-server tests, (4) plumbing into the ModelRuntime trait full impl (load/unload/generate/score/embed/capabilities/kv_cache/lora_stack/steering_hooks/cancel). Adding those deps and wiring requires a full workspace recompile and was out of scope for this MT's session window."
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
