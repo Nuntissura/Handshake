@@ -76,6 +76,7 @@ path = "src/bin/handshake-swarm.rs"
 [[bin]]
 name = "abliterate"
 path = "src/bin/abliterate.rs"
+required-features = ["candle-runtime-engine"]
 
 [dependencies]
 axum = { version = "0.7", features = ["ws"] }

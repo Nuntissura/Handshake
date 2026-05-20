@@ -1,4 +1,9 @@
-use std::{cell::RefCell, collections::BTreeMap, fmt};
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    fmt,
+    sync::{Arc, Mutex},
+};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -7,7 +12,10 @@ use uuid::Uuid;
 
 use crate::model_runtime::{GenPrompt, GenerateRequest};
 
-use super::{BuildContext, BuilderError, CapsuleBuilder, MemoryCapsule, RetrievalPolicy, TaskType};
+use super::{
+    BuildContext, BuilderError, CapsuleBuilder, CapsulePolicyTable, FemsRetriever, MemoryCapsule,
+    RetrievalPolicy, TaskType,
+};
 
 pub const FR_EVT_CAPSULE_INJECTED: &str = "FR-EVT-CAPSULE-INJECTED";
 pub const FR_EVT_CAPSULE_SUPPRESSED: &str = "FR-EVT-CAPSULE-SUPPRESSED";
@@ -386,4 +394,186 @@ fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     hex::encode(hasher.finalize())
+}
+
+/// Object-safe abstraction over the capsule injection surface so that
+/// `LocalModelRuntimeLlmClient` (and any future runtime dispatcher) can hold
+/// the injector behind `Arc<dyn MemoryCapsuleInjection>` without leaking the
+/// borrow lifetime that the per-call [`CapsuleInjector`] uses.
+///
+/// Implementations MUST preserve the same FEMS Flight Recorder contract as the
+/// borrow-checked [`CapsuleInjector`]: every `Inject` decision emits exactly
+/// one `FR-EVT-CAPSULE-INJECTED` event before returning, and every successful
+/// `suppress_capsule` call emits exactly one `FR-EVT-CAPSULE-SUPPRESSED`.
+pub trait MemoryCapsuleInjection: Send + Sync {
+    fn inject_for_call(
+        &self,
+        call_ctx: &ModelCallContext,
+    ) -> Result<InjectionDecision, InjectionError>;
+
+    fn suppress_capsule(
+        &self,
+        handle: CapsuleHandle,
+        reason: String,
+    ) -> Result<(), InjectionError>;
+}
+
+/// Owned, `Send + Sync` variant of [`CapsuleInjector`] suitable for storage
+/// behind `Arc<dyn MemoryCapsuleInjection>`. It owns its FEMS retriever,
+/// capsule policy table, and FEMS flight recorder via `Arc` and rebuilds a
+/// short-lived [`CapsuleBuilder`] per call so the production wiring does not
+/// need to thread a per-request borrow through the LocalRouter dispatcher.
+///
+/// Behaviorally identical to [`CapsuleInjector`] (same Skip taxonomy, same
+/// FEMS event semantics, same opaque [`CapsuleHandle`] contract); the only
+/// differences are (a) thread-safe storage of the suppressed-capsule set
+/// behind a `Mutex` and (b) `Arc`-owned collaborators.
+pub struct SharedCapsuleInjector {
+    fems_retriever: Arc<dyn FemsRetriever + Send + Sync>,
+    policy_table: Arc<CapsulePolicyTable>,
+    fems_flight_recorder: Arc<dyn FemsFlightRecorder + Send + Sync>,
+    suppressed_capsules: Mutex<BTreeMap<Uuid, String>>,
+}
+
+impl SharedCapsuleInjector {
+    pub fn new(
+        fems_retriever: Arc<dyn FemsRetriever + Send + Sync>,
+        policy_table: Arc<CapsulePolicyTable>,
+        fems_flight_recorder: Arc<dyn FemsFlightRecorder + Send + Sync>,
+    ) -> Self {
+        Self {
+            fems_retriever,
+            policy_table,
+            fems_flight_recorder,
+            suppressed_capsules: Mutex::new(BTreeMap::new()),
+        }
+    }
+
+    fn retry_references_suppressed_capsule(&self, handle: Option<CapsuleHandle>) -> bool {
+        let Some(handle) = handle else {
+            return false;
+        };
+        let guard = match self.suppressed_capsules.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        guard.contains_key(&handle.capsule_id())
+    }
+}
+
+impl MemoryCapsuleInjection for SharedCapsuleInjector {
+    fn inject_for_call(
+        &self,
+        call_ctx: &ModelCallContext,
+    ) -> Result<InjectionDecision, InjectionError> {
+        if !call_ctx.operator_memory_opt_in {
+            return Ok(InjectionDecision::Skip {
+                reason: SkipReason::OperatorOptedOut,
+            });
+        }
+
+        if self.retry_references_suppressed_capsule(call_ctx.retry_of_capsule) {
+            return Ok(InjectionDecision::Skip {
+                reason: SkipReason::OperatorOptedOut,
+            });
+        }
+
+        let Some(task_type) = call_ctx.task_type else {
+            return Ok(InjectionDecision::Skip {
+                reason: SkipReason::TaskTypeNotEligible,
+            });
+        };
+
+        let builder = CapsuleBuilder::new(self.fems_retriever.as_ref(), self.policy_table.as_ref());
+        let capsule = match builder.build(BuildContext {
+            task_type,
+            query: call_ctx.query.clone(),
+            role_id: call_ctx.role_id.clone(),
+            session_id: call_ctx.session_id.clone(),
+            override_policy: call_ctx.override_policy.clone(),
+        }) {
+            Ok(capsule) => capsule,
+            Err(BuilderError::Fems(_)) => {
+                return Ok(InjectionDecision::Skip {
+                    reason: SkipReason::FemsUnavailable,
+                });
+            }
+            Err(error) => return Err(InjectionError::Builder(error)),
+        };
+
+        if pinned_included_bytes(&capsule) > capsule.policy.capsule_budget_bytes {
+            return Ok(InjectionDecision::Skip {
+                reason: SkipReason::BudgetExceededAfterPin,
+            });
+        }
+
+        let capsule_handle = CapsuleHandle(capsule.id);
+        let event = CapsuleFlightRecorderEvent::CapsuleInjected(CapsuleInjectedEvent {
+            capsule_id: capsule.id,
+            capsule_source_hash: capsule.source_hash.clone(),
+            policy: capsule.policy.clone(),
+            item_count: capsule.audit.entries.len(),
+            included_count: capsule
+                .audit
+                .entries
+                .iter()
+                .filter(|entry| entry.included)
+                .count(),
+            suppressed_count: capsule
+                .audit
+                .entries
+                .iter()
+                .filter(|entry| !entry.included)
+                .count(),
+        });
+
+        if self.fems_flight_recorder.record_event(event).is_err() {
+            return Ok(InjectionDecision::Skip {
+                reason: SkipReason::FemsUnavailable,
+            });
+        }
+
+        Ok(InjectionDecision::Inject {
+            capsule,
+            capsule_handle,
+        })
+    }
+
+    fn suppress_capsule(
+        &self,
+        handle: CapsuleHandle,
+        reason: String,
+    ) -> Result<(), InjectionError> {
+        let trimmed = reason.trim().to_string();
+        if trimmed.is_empty() {
+            return Err(InjectionError::EmptySuppressionReason);
+        }
+
+        self.fems_flight_recorder
+            .record_event(CapsuleFlightRecorderEvent::CapsuleSuppressed(
+                CapsuleSuppressedEvent {
+                    capsule_id: handle.capsule_id(),
+                    reason: trimmed.clone(),
+                },
+            ))?;
+        let mut guard = match self.suppressed_capsules.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        guard.insert(handle.capsule_id(), trimmed);
+        Ok(())
+    }
+}
+
+/// Per-request adapter that resolves a [`ModelCallContext`] for a given
+/// completion request. Held by `LocalModelRuntimeLlmClient` so the production
+/// runtime dispatcher can decide whether and how to call
+/// [`MemoryCapsuleInjection::inject_for_call`] without leaking knowledge of
+/// the higher-level orchestrator that owns the eligibility policy.
+///
+/// `S` is the upstream completion-request type (e.g. `crate::llm::CompletionRequest`).
+/// The trait stays generic so this module retains its existing dependency
+/// direction (memory does not import from llm).
+pub trait ModelCallContextSource<S>: Send + Sync {
+    fn model_call_context(&self, request: &S) -> Option<ModelCallContext>;
 }

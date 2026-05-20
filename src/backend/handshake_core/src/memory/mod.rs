@@ -17,8 +17,8 @@ pub use injection::{
     attach_capsule_to_generate_request, render_capsule_prompt, CapsuleFlightRecorderEvent,
     CapsuleHandle, CapsuleInjectedEvent, CapsuleInjector, CapsuleSuppressedEvent,
     FemsFlightRecorder, FemsFlightRecorderError, InjectionDecision, InjectionError,
-    MemoryInjectionReceipt, ModelCallContext, SkipReason, FR_EVT_CAPSULE_INJECTED,
-    FR_EVT_CAPSULE_SUPPRESSED,
+    MemoryCapsuleInjection, MemoryInjectionReceipt, ModelCallContext, ModelCallContextSource,
+    SharedCapsuleInjector, SkipReason, FR_EVT_CAPSULE_INJECTED, FR_EVT_CAPSULE_SUPPRESSED,
 };
 pub use ipc::{
     CapsuleIpcError, CapsuleIpcService, CapsuleRecordStore, CapsuleSummary, GetCapsuleRequest,

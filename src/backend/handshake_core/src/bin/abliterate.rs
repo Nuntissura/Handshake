@@ -1,10 +1,16 @@
 //! MT-106 INF-6 abliterate CLI binary.
 //!
 //! Operator-facing entrypoint for offline weight orthogonalisation. The
-//! binary lives here; the algorithm + I/O orchestration live in
-//! `handshake_core::distillation::abliterate`. The hot-path invariant
+//! binary lives here; the algorithm + safetensors I/O orchestration live
+//! in `handshake_core::distillation::abliterate`. The hot-path invariant
 //! (`distillation::abliterate` MUST NOT be referenced from any runtime
 //! `generate.rs`) is enforced by `tests/abliterate_tool_tests.rs`.
+//!
+//! Per WP-KERNEL-004 wp_validator_final_disposition the model I/O path
+//! uses `candle_core::safetensors::load` / `save` (option_c), so this
+//! binary is gated on the `candle-runtime-engine` cargo feature in
+//! Cargo.toml `[[bin]] required-features`. Build with
+//! `cargo build --bin abliterate --features candle-runtime-engine`.
 //!
 //! Usage:
 //!   abliterate \
@@ -22,7 +28,7 @@
 use std::{env, path::PathBuf, process::ExitCode};
 
 use handshake_core::distillation::abliterate::{
-    run_abliteration_offline, AbliterationConfig, AbliterationError,
+    provenance_sidecar_path, run_abliteration_offline, AbliterationConfig,
 };
 
 fn main() -> ExitCode {
@@ -47,17 +53,20 @@ where
         return Ok(help_text().to_string());
     }
     let abliteration_config = config.into_abliteration_config()?;
-    match run_abliteration_offline(&abliteration_config) {
-        Ok(provenance) => Ok(format!(
-            "abliteration succeeded; provenance: {}",
-            serde_json::to_string_pretty(&provenance)
-                .unwrap_or_else(|err| format!("(provenance serialise failed: {err})"))
-        )),
-        Err(AbliterationError::NativeToolchainUnavailable(message)) => Err(format!(
-            "abliteration tool surface is wired but the model I/O toolchain is not available on \
-             this host. Algorithm primitive is unit-tested in distillation::abliterate; CLI shell \
-             is wired and validates inputs. {message}"
-        )),
+    // The CLI on a host without an attached Postgres ledger writer
+    // passes `None`; integration tests pass `Some(&LedgerBatcher)` so
+    // the engine_kind=AbliterationTool row registration is exercised.
+    match run_abliteration_offline(&abliteration_config, None) {
+        Ok(provenance) => {
+            let sidecar = provenance_sidecar_path(&abliteration_config.out_model_path);
+            Ok(format!(
+                "abliteration succeeded; output={}; provenance_sidecar={}; provenance:\n{}",
+                abliteration_config.out_model_path.display(),
+                sidecar.display(),
+                serde_json::to_string_pretty(&provenance)
+                    .unwrap_or_else(|err| format!("(provenance serialise failed: {err})"))
+            ))
+        }
         Err(other) => Err(format!("{other}")),
     }
 }

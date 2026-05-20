@@ -16,18 +16,42 @@
 //! This module is library code; the CLI binary at `bin/abliterate.rs` is
 //! the operator-facing entrypoint. The kabachuha/abliterate.cpp algorithm
 //! is implemented as a pure orthogonalisation function so it can be
-//! unit-tested in-tree without GGUF I/O. The full GGUF/safetensors
-//! round-trip and ProcessOwnershipLedger spawn-time registration are
-//! orchestrated by `run_abliteration_offline`, which is gated on
-//! the same live-runtime-toolchain that MT-074 is waiting on; until the
-//! native llama.cpp toolchain is available on the build host, the I/O
-//! pipeline returns `AbliterationError::NativeToolchainUnavailable` with
-//! a clear operator action hint.
+//! unit-tested in-tree without I/O. The full safetensors round-trip and
+//! optional ProcessOwnershipLedger spawn-time registration are
+//! orchestrated by `run_abliteration_offline`, which uses
+//! `candle_core::safetensors::load`/`save` (operator decision: option_c
+//! per WP-KERNEL-004 wp_validator_final_disposition; avoids the
+//! llama-cpp-2 + LLVM/libclang dependency that blocked MT-074).
+//!
+//! Target modules per kabachuha/abliterate.cpp pattern and MT-106
+//! implementation_notes: every Linear weight tensor whose name contains
+//! `o_proj` (attention output projection) or `down_proj` (MLP down
+//! projection). All other tensors are copied through unchanged. The
+//! refusal direction must match the last-dim ("cols") of the weight; any
+//! target tensor whose shape disagrees is rejected.
 
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+#[cfg(feature = "candle-runtime-engine")]
+use std::collections::HashMap;
+#[cfg(feature = "candle-runtime-engine")]
+use std::io::Read;
+
+#[cfg(feature = "candle-runtime-engine")]
+use chrono::Utc;
+#[cfg(feature = "candle-runtime-engine")]
+use sha2::{Digest, Sha256};
+
+#[cfg(feature = "candle-runtime-engine")]
+use crate::process_ledger::{
+    record_spawn, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, SpawnMeta,
+};
+
+/// Tool version recorded in `AbliterationProvenance.abliteration_tool_version`.
+pub const ABLITERATION_TOOL_VERSION: &str = "handshake-abliterate-mt106-v1";
 
 /// CLI / library input shape. `license_tag` is mandatory per MT-106
 /// red_team minimum_controls; constructing this struct without one is a
@@ -63,6 +87,18 @@ pub struct AbliterationProvenance {
     pub license_tag: String,
     pub operator_signature: String,
     pub provenance_note: String,
+    /// Target weight tensor keys that were actually orthogonalised. Lets
+    /// downstream callers (and the integration test) confirm the
+    /// algorithm ran against the expected Linear modules rather than
+    /// silently no-op-ing.
+    #[serde(default)]
+    pub orthogonalised_weight_keys: Vec<String>,
+    /// Process ledger row id when a `LedgerBatcher` was provided to
+    /// `run_abliteration_offline`; `None` when the caller (typically the
+    /// CLI on a host without a running ledger writer) elected not to
+    /// register a row.
+    #[serde(default)]
+    pub process_ledger_record_id: Option<String>,
 }
 
 #[derive(Debug, Error)]
@@ -71,11 +107,12 @@ pub enum AbliterationError {
     InvalidConfig(String),
     #[error("abliteration refusal-direction file invalid: {0}")]
     InvalidDirection(String),
-    #[error(
-        "abliteration native toolchain unavailable: {0}; install the model I/O toolchain \
-         (GGUF reader/writer or safetensors-compatible candle build) and rerun"
-    )]
-    NativeToolchainUnavailable(String),
+    #[error("abliteration safetensors I/O failed: {0}")]
+    Io(String),
+    #[error("abliteration weight transform failed: {0}")]
+    WeightTransform(String),
+    #[error("abliteration process-ledger registration failed: {0}")]
+    LedgerRegistration(String),
 }
 
 impl AbliterationConfig {
@@ -125,7 +162,7 @@ impl AbliterationConfig {
 /// length-`cols` vector and is expected to be unit-length (caller's
 /// responsibility, typically guaranteed by INF-4
 /// `unit_normalise`). The pure-math form lets us cover the algorithm in
-/// unit tests without GGUF/safetensors I/O.
+/// unit tests without safetensors I/O.
 pub fn orthogonalise_weight_in_place(
     weight: &mut [f32],
     rows: usize,
@@ -182,23 +219,48 @@ pub fn weight_is_orthogonal_to(
     true
 }
 
-/// Orchestrator entrypoint. Validates the config, loads the refusal
-/// direction file, registers a ProcessOwnershipLedger row with
-/// `engine_kind = AbliterationTool`, then walks the target Linear
-/// modules of the base model applying [`orthogonalise_weight_in_place`].
+/// Returns `true` when a safetensors tensor key names an attention
+/// output projection (`o_proj`) or MLP down projection (`down_proj`)
+/// Linear weight. These are the target modules per the kabachuha
+/// abliteration recipe + MT-106 implementation_notes.
 ///
-/// The full implementation requires either the llama.cpp GGUF
-/// round-trip helpers (gated on MT-074's native toolchain) or a
-/// safetensors path through `candle_core`. Until the native toolchain
-/// lands we return [`AbliterationError::NativeToolchainUnavailable`]
-/// with operator guidance. The pure orthogonalisation primitive above
-/// IS reachable and unit-tested so the algorithm can be exercised
-/// without I/O.
+/// The match is intentionally permissive about the prefix (`model.layers.N.`
+/// vs `transformer.h.N.`, etc.) but requires the tensor be a `.weight`,
+/// not a `.bias`, so biases pass through unchanged.
+pub fn is_abliteration_target_module(key: &str) -> bool {
+    if !key.ends_with(".weight") {
+        return false;
+    }
+    key.contains(".o_proj.") || key.contains(".down_proj.")
+}
+
+/// Orchestrator entrypoint. Validates the config, loads the refusal
+/// direction file, optionally registers a ProcessOwnershipLedger row
+/// with `engine_kind = AbliterationTool`, walks the tensors of the base
+/// safetensors artifact, applies [`orthogonalise_weight_in_place`] to
+/// every tensor accepted by [`is_abliteration_target_module`], and
+/// writes the resulting tensor set to `out_model_path`.
+///
+/// This is the offline-tool entrypoint and is gated on the
+/// `candle-runtime-engine` cargo feature, which brings in
+/// `candle_core::safetensors`. The bin/abliterate.rs binary declares
+/// the same `required-features` so operators always invoke it with the
+/// Candle backend wired in.
+///
+/// `ledger` is optional: production callers pass a live
+/// `LedgerBatcher` so the abliteration job appears in the
+/// ProcessOwnershipLedger; the CLI on a host without an attached
+/// Postgres writer can pass `None`. The integration test exercises the
+/// `Some` path so the engine_kind=AbliterationTool row registration is
+/// actually written, not just declared.
+#[cfg(feature = "candle-runtime-engine")]
 pub fn run_abliteration_offline(
     config: &AbliterationConfig,
+    ledger: Option<&LedgerBatcher>,
 ) -> Result<AbliterationProvenance, AbliterationError> {
     config.validate()?;
 
+    // Refusal-direction load + parse.
     let raw_direction = std::fs::read_to_string(&config.refusal_direction_path).map_err(|err| {
         AbliterationError::InvalidDirection(format!(
             "read {}: {err}",
@@ -217,16 +279,215 @@ pub fn run_abliteration_offline(
         ));
     }
 
-    // GGUF / safetensors round-trip + ProcessOwnershipLedger
-    // engine_kind=AbliterationTool spawn-time registration require the
-    // native model I/O toolchain; the orthogonalisation algorithm
-    // itself is fully wired and unit-tested.
-    Err(AbliterationError::NativeToolchainUnavailable(format!(
-        "model I/O (load weights from {}, write to {}) requires the native toolchain; \
-         orthogonalisation primitive is ready and unit-tested per MT-106 algorithm contract",
-        config.base_model_path.display(),
-        config.out_model_path.display(),
-    )))
+    // Hashes go into provenance. Computed from raw file bytes so the
+    // operator can audit them against the on-disk artifacts after the
+    // run.
+    let base_model_sha256 = sha256_of_file(&config.base_model_path)?;
+    let refusal_direction_sha256 = sha256_of_bytes(raw_direction.as_bytes());
+
+    // Optional spawn-time ProcessOwnershipLedger row. We register
+    // BEFORE doing the heavy I/O so the row exists even if the
+    // safetensors round-trip fails partway through — that matches the
+    // "ProcessOwnershipLedger is the truth" invariant from MT-069.
+    let process_ledger_record_id = if let Some(batcher) = ledger {
+        let pid = std::process::id();
+        let owner_wp = Some("WP-KERNEL-004".to_string());
+        let mut meta = SpawnMeta::new(pid, ProcessEngineKind::AbliterationTool, "ABLITERATE_CLI");
+        meta.owner_wp = owner_wp.clone();
+        meta.wp_id = owner_wp;
+        meta.mt_id = Some("MT-106".to_string());
+        meta.model_artifact_sha256 = Some(base_model_sha256.clone());
+        meta.metadata_blob = serde_json::json!({
+            "tool": "abliterate",
+            "tool_version": ABLITERATION_TOOL_VERSION,
+            "base_model_path": config.base_model_path.display().to_string(),
+            "out_model_path": config.out_model_path.display().to_string(),
+            "refusal_direction_sha256": refusal_direction_sha256,
+            "license_tag": config.license_tag,
+        });
+        let record_id = record_spawn(batcher, meta).map_err(|err| {
+            AbliterationError::LedgerRegistration(format!(
+                "record_spawn(engine_kind=AbliterationTool) failed: {err}"
+            ))
+        })?;
+        Some(format_record_id(record_id))
+    } else {
+        None
+    };
+
+    // Tensor load + transform + save via Candle safetensors helpers.
+    let device = candle_core::Device::Cpu;
+    let input_tensors = candle_core::safetensors::load(&config.base_model_path, &device)
+        .map_err(|err| {
+            AbliterationError::Io(format!(
+                "candle_core::safetensors::load({}) failed: {err}",
+                config.base_model_path.display()
+            ))
+        })?;
+
+    if input_tensors.is_empty() {
+        return Err(AbliterationError::Io(format!(
+            "base safetensors {} contains no tensors",
+            config.base_model_path.display()
+        )));
+    }
+
+    let mut output_tensors: HashMap<String, candle_core::Tensor> = HashMap::new();
+    let mut orthogonalised_weight_keys: Vec<String> = Vec::new();
+
+    for (name, tensor) in input_tensors.into_iter() {
+        if !is_abliteration_target_module(&name) {
+            output_tensors.insert(name, tensor);
+            continue;
+        }
+
+        let transformed = orthogonalise_candle_tensor(&name, &tensor, &direction.values)?;
+        orthogonalised_weight_keys.push(name.clone());
+        output_tensors.insert(name, transformed);
+    }
+
+    orthogonalised_weight_keys.sort();
+
+    // Refuse to write a no-op artifact: if zero target modules matched
+    // it almost certainly means the operator pointed at the wrong file
+    // or the refusal direction width is wrong. Better to fail loudly
+    // than to ship a "abliterated" model that is byte-identical to the
+    // input.
+    if orthogonalised_weight_keys.is_empty() {
+        return Err(AbliterationError::WeightTransform(format!(
+            "no target modules matched in {}; expected at least one tensor whose key contains \
+             `.o_proj.` or `.down_proj.` and ends with `.weight`",
+            config.base_model_path.display()
+        )));
+    }
+
+    candle_core::safetensors::save(&output_tensors, &config.out_model_path).map_err(|err| {
+        AbliterationError::Io(format!(
+            "candle_core::safetensors::save({}) failed: {err}",
+            config.out_model_path.display()
+        ))
+    })?;
+
+    let provenance = AbliterationProvenance {
+        base_model_sha256,
+        refusal_direction_sha256,
+        abliteration_tool_version: ABLITERATION_TOOL_VERSION.to_string(),
+        abliterated_at_utc: Utc::now().to_rfc3339(),
+        license_tag: config.license_tag.clone(),
+        operator_signature: config.operator_signature.clone(),
+        provenance_note: config.provenance_note.clone(),
+        orthogonalised_weight_keys,
+        process_ledger_record_id,
+    };
+
+    // Provenance also goes next to the output artifact so downstream
+    // §4.8 content-review pipelines can read it without re-deriving the
+    // hash chain. Path is `{out_model_path}.provenance.json`.
+    let provenance_path = provenance_sidecar_path(&config.out_model_path);
+    let provenance_bytes = serde_json::to_vec_pretty(&provenance).map_err(|err| {
+        AbliterationError::Io(format!("serialize provenance failed: {err}"))
+    })?;
+    std::fs::write(&provenance_path, &provenance_bytes).map_err(|err| {
+        AbliterationError::Io(format!(
+            "write provenance sidecar {} failed: {err}",
+            provenance_path.display()
+        ))
+    })?;
+
+    Ok(provenance)
+}
+
+/// Path of the JSON provenance sidecar written alongside the output
+/// safetensors artifact. Exposed so the integration test (and any
+/// downstream content-review reader) can locate it without
+/// re-deriving the convention.
+pub fn provenance_sidecar_path(out_model_path: &std::path::Path) -> PathBuf {
+    let mut s = out_model_path.as_os_str().to_owned();
+    s.push(".provenance.json");
+    PathBuf::from(s)
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+fn format_record_id(record_id: ProcessOwnershipRecordId) -> String {
+    record_id.as_uuid().to_string()
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+fn sha256_of_file(path: &std::path::Path) -> Result<String, AbliterationError> {
+    let mut file = std::fs::File::open(path).map_err(|err| {
+        AbliterationError::Io(format!("open {} for hashing failed: {err}", path.display()))
+    })?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buf).map_err(|err| {
+            AbliterationError::Io(format!("read {} for hashing failed: {err}", path.display()))
+        })?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buf[..read]);
+    }
+    Ok(hex::encode(hasher.finalize()))
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+fn sha256_of_bytes(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())
+}
+
+/// Reads a 2-D F32 tensor into a row-major Vec<f32>, runs
+/// [`orthogonalise_weight_in_place`], and returns a new Tensor of the
+/// same shape/dtype on CPU. Rejects non-F32 tensors and tensors whose
+/// last dim does not match the refusal-direction width — both
+/// conditions would silently corrupt the output model otherwise.
+#[cfg(feature = "candle-runtime-engine")]
+fn orthogonalise_candle_tensor(
+    name: &str,
+    tensor: &candle_core::Tensor,
+    direction: &[f32],
+) -> Result<candle_core::Tensor, AbliterationError> {
+    let shape = tensor.shape();
+    let dims = shape.dims();
+    if dims.len() != 2 {
+        return Err(AbliterationError::WeightTransform(format!(
+            "target module {name} is not a 2-D Linear weight (shape={dims:?}); abliteration \
+             only orthogonalises Linear-layer weights",
+        )));
+    }
+    let rows = dims[0];
+    let cols = dims[1];
+    if cols != direction.len() {
+        return Err(AbliterationError::WeightTransform(format!(
+            "target module {name} has cols={cols} but refusal direction has length \
+             {}; cannot orthogonalise",
+            direction.len()
+        )));
+    }
+    if tensor.dtype() != candle_core::DType::F32 {
+        return Err(AbliterationError::WeightTransform(format!(
+            "target module {name} dtype={:?} is not F32; cast to F32 before abliterating",
+            tensor.dtype()
+        )));
+    }
+    let cpu_tensor = tensor.to_device(&candle_core::Device::Cpu).map_err(|err| {
+        AbliterationError::WeightTransform(format!(
+            "tensor {name} to_device(CPU) failed: {err}"
+        ))
+    })?;
+    let mut data: Vec<f32> = cpu_tensor.flatten_all().and_then(|t| t.to_vec1::<f32>()).map_err(
+        |err| AbliterationError::WeightTransform(format!("tensor {name} flatten/to_vec1 failed: {err}")),
+    )?;
+
+    orthogonalise_weight_in_place(&mut data, rows, cols, direction)?;
+
+    candle_core::Tensor::from_vec(data, (rows, cols), &candle_core::Device::Cpu).map_err(|err| {
+        AbliterationError::WeightTransform(format!(
+            "rebuilding tensor {name} from orthogonalised data failed: {err}"
+        ))
+    })
 }
 
 #[cfg(test)]
@@ -275,7 +536,7 @@ mod tests {
         let cfg = AbliterationConfig {
             base_model_path: temp.clone(),
             refusal_direction_path: temp.clone(),
-            out_model_path: temp.join("out.gguf"),
+            out_model_path: temp.join("out.safetensors"),
             license_tag: "".to_string(),
             provenance_note: "test".to_string(),
             operator_signature: "operator-test".to_string(),
@@ -286,7 +547,7 @@ mod tests {
         let cfg2 = AbliterationConfig {
             base_model_path: temp.clone(),
             refusal_direction_path: temp.clone(),
-            out_model_path: temp.join("out.gguf"),
+            out_model_path: temp.join("out.safetensors"),
             license_tag: "Permissive".to_string(),
             provenance_note: "test".to_string(),
             operator_signature: "".to_string(),
@@ -296,35 +557,41 @@ mod tests {
     }
 
     #[test]
-    fn run_returns_native_toolchain_unavailable_until_io_is_wired() {
-        let temp_dir = tempfile::tempdir().expect("tempdir");
-        let base = temp_dir.path().join("base.gguf");
-        let direction_path = temp_dir.path().join("dir.json");
-        let out = temp_dir.path().join("out.gguf");
-        std::fs::write(&base, b"fake gguf bytes").unwrap();
-        std::fs::write(
-            &direction_path,
-            serde_json::to_string(&RefusalDirectionFile {
-                layer: 14,
-                values: vec![0.707, 0.707],
-                source_model_sha256: Some("ff".repeat(32)),
-            })
-            .unwrap(),
-        )
-        .unwrap();
-
-        let cfg = AbliterationConfig {
-            base_model_path: base,
-            refusal_direction_path: direction_path,
-            out_model_path: out,
-            license_tag: "Permissive".to_string(),
-            provenance_note: "test run".to_string(),
-            operator_signature: "operator-test".to_string(),
-        };
-        let err = run_abliteration_offline(&cfg).expect_err("native toolchain unavailable");
-        assert!(matches!(
-            err,
-            AbliterationError::NativeToolchainUnavailable(_)
+    fn target_module_classifier_matches_o_proj_and_down_proj_weights_only() {
+        assert!(is_abliteration_target_module(
+            "model.layers.0.self_attn.o_proj.weight"
         ));
+        assert!(is_abliteration_target_module(
+            "model.layers.7.mlp.down_proj.weight"
+        ));
+        assert!(is_abliteration_target_module(
+            "transformer.h.0.attn.o_proj.weight"
+        ));
+        // Biases pass through unchanged: abliteration only touches Linear weights.
+        assert!(!is_abliteration_target_module(
+            "model.layers.0.self_attn.o_proj.bias"
+        ));
+        // Other Linear weights are unaffected by the abliteration pass.
+        assert!(!is_abliteration_target_module(
+            "model.layers.0.self_attn.q_proj.weight"
+        ));
+        assert!(!is_abliteration_target_module(
+            "model.layers.0.mlp.up_proj.weight"
+        ));
+        // Non-weight tensors (norm scales, embeddings) pass through.
+        assert!(!is_abliteration_target_module("model.embed_tokens.weight"));
+        assert!(!is_abliteration_target_module(
+            "model.layers.0.input_layernorm.weight"
+        ));
+    }
+
+    #[test]
+    fn provenance_sidecar_path_appends_suffix() {
+        let out = std::path::PathBuf::from("/tmp/abl/out.safetensors");
+        let prov = provenance_sidecar_path(&out);
+        assert_eq!(
+            prov,
+            std::path::PathBuf::from("/tmp/abl/out.safetensors.provenance.json")
+        );
     }
 }
