@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-20T23:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -56,8 +56,9 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "COMPLETED",
+    "validator_verdict": "PASS",
+    "completed_by": "VALIDATOR-EXPLORE-MT125-REWORK-PASS-20260520-AUTO",
     "depends_on": [
       "MT-062",
       "MT-066",
@@ -125,6 +126,40 @@
       "reason": "OpenAI BYOK lane lives under model_runtime/cloud/ which cannot compile. Note: wiremock/httpmock dependency check NOT performed due to broken build foreclosing the build.",
       "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
       "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "autonomous_session_rework_20260520_v2": {
+      "claimed_by": "KERNEL_BUILDER-20260520-115519",
+      "claimed_at_utc": "2026-05-20T23:30:00Z",
+      "transition": "BLOCKED_ON_DEPENDENCY -> RECLAIMED (build verified clean) -> RE-IMPLEMENTED -> READY_FOR_VALIDATION",
+      "fix_for_validator_defect": "Prior deflection: chat_completions_stream returned LiveClientUnavailable; reqwest features stayed at ['json']; eventsource-stream + wiremock deps never added; full ModelRuntime trait impl never written. Rework: (1) LiveClientUnavailable enum variant REMOVED entirely from openai_byok.rs; chat_completions_stream now drives real reqwest::Client + bytes_stream() -> eventsource_stream::Eventsource over the real Chat Completions SSE protocol. Each event.data parses as ChatStreamChunk and yields one GeneratedToken; data: [DONE] terminates the stream. (2) Stream bridged to ModelRuntime's TokenStream via tokio::sync::mpsc::unbounded_channel + futures::stream::unfold (async-stream not a declared dep). (3) Full ModelRuntime trait impl: load (allowlist + provider gate + UUID v7 ModelId mint + register OpenAiModelHandle + audit Started), unload, generate (real streaming + audit lifecycle), score (logprobs=true), embed (POST /v1/embeddings), capabilities (cloud realities), kv_cache/lora_stack/steering_hooks return typed CapabilityNotSupported (lane-correct), cancel (abort outstanding reqwest streams). (4) Authorization header: Bearer <api_key>; key never logged, never in URL, never in body, never in Debug repr. (5) Cargo.toml reqwest features expanded to ['json', 'stream', 'rustls-tls']; eventsource-stream='0.2' and wiremock='0.6' (dev-dep) added.",
+      "proof_quoted": "cargo test --features duckdb-flight-recorder --test cloud_openai_byok_tests = 10/10 PASS (finishes in 0.06s after incremental compile). 7 new wiremock-based integration tests + 3 carry-over structural tests. Cross-impact: cloud_anthropic_byok_tests = 5/5 PASS unchanged; cloud_secrets_consent_tests = 6/6 PASS unchanged.",
+      "sub_rule_2_now_satisfied": "Real resource exercised: wiremock::MockServer::start binds a real TCP port; tests build a real reqwest::Client::builder().build() and point runtime.api_base at mock_server.uri(). The streaming pipeline calls client.post(url).bearer_auth(api_key).send().await.bytes_stream().eventsource() against real localhost socket. Wiremock answers real OpenAI SSE protocol shape (data: {chunk}\\n\\n + data: [DONE]\\n\\n). Per operator clarification 2026-05-20T10:30Z this is the accepted real external resource touch for BYOK adapters.",
+      "files_touched_this_rework": [
+        "src/backend/handshake_core/src/model_runtime/cloud/openai_byok.rs (1176 lines, was 418)",
+        "src/backend/handshake_core/src/model_runtime/cloud/mod.rs (re-export additions)",
+        "src/backend/handshake_core/tests/cloud_openai_byok_tests.rs (554 lines, was 118; 7 new wiremock tests)"
+      ],
+      "feat_branch_commit": "4e040b4d feat: MT-125 OpenAI BYOK real reqwest+SSE streaming via wiremock proof"
+    },
+    "validator_pass_gate_after_rework_v2": {
+      "authored_by": "VALIDATOR-EXPLORE-MT125-REWORK-PASS-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T23:55:00Z",
+      "verdict": "PASS",
+      "rework_history": "Round 1 prior: LiveClientUnavailable scaffold + reqwest features ['json'] only + no eventsource-stream + no wiremock + no ModelRuntime trait impl. Round 2 this validator: PASS.",
+      "proof_quoted": "cargo test --features duckdb-flight-recorder --test cloud_openai_byok_tests = 10/10 PASS (0.06s). Cross-impact cloud_anthropic_byok_tests = 5/5 PASS, cloud_secrets_consent_tests = 6/6 PASS.",
+      "sub_rule_compliance": {
+        "sub_rule_1": "PASS (grep across openai_byok.rs and cloud_openai_byok_tests.rs returned zero matches for LiveClientUnavailable, todo!, unimplemented!, not yet wired, pending MT-, follow-on commit, deferred to follow-on; LiveClientUnavailable enum variant fully removed; every ModelRuntime method has real code; the three not-supported capabilities return typed CapabilityNotSupported with HBR-INT-005 rationale matching local-adapter pattern).",
+        "sub_rule_2": "PASS (wiremock::MockServer::start binds real TCP port; tests build real reqwest::Client::builder().timeout().build() and point runtime.api_base at mock_server.uri(); streaming pipeline calls client.post(url).bearer_auth(api_key).send().await.bytes_stream().eventsource() against real localhost socket; wiremock answers real OpenAI SSE protocol shape).",
+        "sub_rule_3": "PASS (validator session VALIDATOR-EXPLORE-MT125-REWORK-PASS-20260520-AUTO != implementer session KERNEL_BUILDER-20260520-115519)."
+      },
+      "adversarial_attacks_attempted": [
+        "Mocked HTTP client substitution - verified reqwest::Client::builder().build() constructs real client; runtime.api_base = mock.uri() points it at real socket; no mock-client interception path exists",
+        "Synthetic cancellation - cancellation test trips real CancellationToken::cancel() pre-call; spawned task checks is_cancelled() in run_live_stream and per SSE event; mock asserts .expect(0) proving no socket request issued; real tokio mechanism",
+        "API-key leakage in URL/body/headers/Debug - test uses RequestInspector to capture live Request; asserts key appears ONLY in authorization: Bearer header, NOT in any other header, body bytes, URL string, or Debug output",
+        "SSE malformed-chunk silent drop - serde_json::from_str(&event.data) failure produces typed GenerateError with payload echoed plus record_final_audit(Failed); not silent",
+        "Test claims pass without consuming tokens - test 1 collects produced_texts from each non-empty delta.content and asserts vec[Hello, , , world, !] content equality (not just count); also asserts saw_terminal_stop",
+        "ModelRuntime trait surface incompleteness - all 11 methods (adapter_name/load/unload/generate/score/embed/capabilities/kv_cache/lora_stack/steering_hooks/cancel) have real bodies; score and embed use real client.post.bearer_auth.json.send paths with audit lifecycle"
+      ]
     }
   },
   "handoff": {

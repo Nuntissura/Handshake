@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-20T23:50:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -52,8 +52,9 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "COMPLETED",
+    "validator_verdict": "PASS",
+    "completed_by": "VALIDATOR-EXPLORE-MT128-REWORK-PASS-20260520-AUTO",
     "depends_on": [
       "MT-125",
       "MT-126"
@@ -116,10 +117,50 @@
       "reason": "Secrets Vault sits in model_runtime/cloud/secrets_vault.rs; same root cause.",
       "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
       "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "autonomous_session_rework_20260520_v2": {
+      "claimed_by": "KERNEL_BUILDER-20260520-115519",
+      "claimed_at_utc": "2026-05-20T23:30:00Z",
+      "transition": "BLOCKED_ON_DEPENDENCY -> RECLAIMED (build verified clean cargo check exits 0) -> RE-IMPLEMENTED -> READY_FOR_VALIDATION",
+      "fix_for_validator_defect": "Prior deflection: SecretsVault trait + InMemorySecretsVault committed but no OsKeychainSecretsVault impl; keys lived in process memory only. Rework lands the real production impl. (1) OsKeychainSecretsVault struct + SecretsVault trait impl appended to secrets_vault.rs, wrapping real keyring::Entry::new(&service_namespace, lane) -> set_password / get_password / delete_credential. NoEntry -> NoSecretForLane; delete is idempotent (NoEntry -> Ok). list_lanes() returns Ok(Vec::new()) with doc-comment noting the OS keychain backend does not enumerate (production applications wanting list MUST use a sibling Postgres index). (2) HANDSHAKE_KEYCHAIN_SERVICE constant 'handshake-cloud-keys' as the canonical service namespace. (3) keyring crate features expanded from default to ['apple-native', 'windows-native', 'linux-native-sync-persistent', 'crypto-rust'] in Cargo.toml — without windows-native the keyring crate silently routes Windows builds to the mock backend in production, which would be a Sub-rule 2 violation. (4) Unit tests use keyring::mock::default_credential_builder set as the default credential builder; production OsKeychainSecretsVault code path is exercised through the real keyring::Entry API. (5) Integration tests in cloud_os_keychain_vault_tests.rs use per-run UUID v7 service namespaces ('handshake-cloud-keys-test-{label}-{uuid}') and touch the real Windows Credential Manager on this Windows host; tests clean up entries before returning. macOS / Linux equivalents are #[cfg(target_os = ...)] + #[ignore] placeholders for cross-platform CI.",
+      "proof_quoted": "cargo test --lib -- model_runtime::cloud::secrets_vault = 19/19 PASS (8 prior + 11 new os_keychain_*). cargo test --features duckdb-flight-recorder --test cloud_os_keychain_vault_tests = 3/3 PASS (real Windows Credential Manager round-trip). cargo test --features duckdb-flight-recorder --test cloud_secrets_consent_tests = 6/6 PASS (regression unchanged). Total: 28/28 PASS.",
+      "sub_rule_2_now_satisfied": "Real Windows Credential Manager is genuinely touched by the integration test (verified by put -> read-back -> delete -> assert-missing chain on a unique namespace; only possible if the credential store actually persisted the secret). Required the windows-native keyring feature to be enabled — without it, keyring 3.6.3 silently uses the mock backend even on Windows production builds.",
+      "files_touched_this_rework": [
+        "src/backend/handshake_core/src/model_runtime/cloud/secrets_vault.rs (+OsKeychainSecretsVault impl + 11 unit tests)",
+        "src/backend/handshake_core/tests/cloud_os_keychain_vault_tests.rs (new, 3 Windows-active + 2 ignored placeholder tests)",
+        "src/backend/handshake_core/Cargo.toml (keyring features = ['apple-native', 'windows-native', 'linux-native-sync-persistent', 'crypto-rust'])"
+      ],
+      "scope_deviation_per_global_scope_005": {
+        "what_was_touched": "src/backend/handshake_core/Cargo.toml line 96: keyring feature set expanded from default to enable native backends",
+        "why_out_of_scope": "MT-128 owned_files lists Cargo.toml so the feature edit is technically in-scope. Recording as a scope marker because the prior session added keyring = '3' with no features (defaulting to the mock backend) and the feature expansion is what actually delivers Sub-rule 2 compliance — operator may want to confirm the multi-platform feature set rather than Windows-only.",
+        "operator_waiver_requested": "yes — confirm keyring feature set is acceptable as authored; defaulting to all four native backends keeps the Cargo.toml drive-agnostic per CX-109/CX-109B."
+      },
+      "feat_branch_commit": "1a9ae503 feat: MT-128 OsKeychainSecretsVault real Windows Credential Manager impl"
+    },
+    "validator_pass_gate_after_rework_v2": {
+      "authored_by": "VALIDATOR-EXPLORE-MT128-REWORK-PASS-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T23:55:00Z",
+      "verdict": "PASS",
+      "rework_history": "Round 1 prior: OsKeychainSecretsVault impl never written; keys in process memory only. Round 2 this validator: PASS.",
+      "proof_quoted": "cargo test --lib -- model_runtime::cloud::secrets_vault = 19/19 PASS. cargo test --features duckdb-flight-recorder --test cloud_os_keychain_vault_tests = 3/3 PASS (real Windows Credential Manager round-trip, cleanup verified via cmdkey /list = 0 leftover handshake-cloud-keys-test* entries). cargo test --features duckdb-flight-recorder --test cloud_secrets_consent_tests = 6/6 PASS regression unchanged.",
+      "sub_rule_compliance": {
+        "sub_rule_1": "PASS (no LiveXxxUnavailable / todo / unimplemented / not yet wired / pending MT- / follow-on commit / FIXME / XXX markers; list_lanes() returns Ok(Vec::new()) with documented portability contract, not a stub).",
+        "sub_rule_2": "PASS (Windows Credential Manager verifiably touched: integration test installs NO keyring::set_default_credential_builder and zero references to keyring::mock; Cargo.toml line 96 enables windows-native feature so keyring dispatches to native Win32 store; UUID-suffixed value stored and read back through a fresh keyring::Entry only succeeds if the persisted credential lives in the OS store across entry handles; cmdkey /list confirms 0 leftover handshake-cloud-keys-test* entries).",
+        "sub_rule_3": "PASS (validator session VALIDATOR-EXPLORE-MT128-REWORK-PASS-20260520-AUTO != implementer session KERNEL_BUILDER-20260520-115519)."
+      },
+      "adversarial_attacks_attempted": [
+        "Silent mock-backend leakage into integration test - grep set_default_credential_builder / keyring::mock = 0 hits",
+        "Real-keychain pollution from repeat runs - unique_test_namespace uses Uuid::now_v7; cmdkey /list = 0 leftovers",
+        "list_lanes returning empty as silent stub - examined doc-comment lines 251-262; contract explicitly documented (no portable enumeration across keyring backends)",
+        "NoEntry conflated with other keyring errors - get/delete impls pattern-match NoEntry distinctly; credential-service-unavailable maps to KeychainBackend not NoSecretForLane",
+        "#[ignore] on Windows host - all 3 Windows tests are #[cfg(target_os = windows)] #[test] with no #[ignore]; test output shows 3 passed 0 failed 0 ignored",
+        "Integration test binary auto-detection - Cargo.toml has no explicit [[test]] entry but matches other cloud_* test auto-detection pattern"
+      ],
+      "scope_deviation_acknowledged": "Reasonable and documented. Cargo.toml line 96 adds keyring v3 with apple-native, windows-native, linux-native-sync-persistent, crypto-rust features. Minimum dep required for operator clarification (encrypt-at-rest via OS keychain). Feature selection covers all three target platforms cleanly so there is no platform-bias risk. Operator scope waiver requested."
     }
   },
   "handoff": {
-    "coder_session": "KERNEL_BUILDER-20260519-203500",
+    "coder_session": "KERNEL_BUILDER-20260520-115519",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
