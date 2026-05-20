@@ -57,9 +57,16 @@ pub enum SessionFlagError {
 /// - [`InMemorySessionFlagStore`] (in-module, used by unit tests).
 /// - PostgresSessionFlagStore (follow-on; reads/writes
 ///   `governed_sessions.distill_corpus`).
+///
+/// `list_opted_in` returns every session row where `distill_corpus = true`,
+/// in insertion-order-stable form (the in-memory impl sorts by
+/// `session_id` so the order is deterministic for UI consumers; the
+/// Postgres impl will sort by `updated_at_utc DESC` per AC-DISTILL-OPT-IN
+/// queue ordering when it lands).
 pub trait SessionFlagStore {
     fn read(&self, session_id: &str) -> Result<Option<DistillSessionFlag>, SessionFlagError>;
     fn write(&self, flag: DistillSessionFlag) -> Result<(), SessionFlagError>;
+    fn list_opted_in(&self) -> Result<Vec<DistillSessionFlag>, SessionFlagError>;
 }
 
 /// In-memory impl backing unit tests + early integration.
@@ -91,6 +98,20 @@ impl SessionFlagStore for InMemorySessionFlagStore {
             .map_err(|err| SessionFlagError::Storage(format!("write lock poisoned: {err}")))?;
         guard.insert(flag.session_id.clone(), flag);
         Ok(())
+    }
+
+    fn list_opted_in(&self) -> Result<Vec<DistillSessionFlag>, SessionFlagError> {
+        let guard = self
+            .state
+            .read()
+            .map_err(|err| SessionFlagError::Storage(format!("read lock poisoned: {err}")))?;
+        let mut rows: Vec<DistillSessionFlag> = guard
+            .values()
+            .filter(|flag| flag.distill_corpus)
+            .cloned()
+            .collect();
+        rows.sort_by(|a, b| a.session_id.cmp(&b.session_id));
+        Ok(rows)
     }
 }
 
@@ -212,5 +233,29 @@ mod tests {
         mark_for_distillation(&store, "a", true, "op", "2026-05-20T03:00:00Z").unwrap();
         assert!(get_distill_flag(&store, "a").unwrap());
         assert!(!get_distill_flag(&store, "b").unwrap());
+    }
+
+    #[test]
+    fn list_opted_in_returns_only_true_rows_sorted_by_session_id() {
+        // MT-124 list-surface test: the Tauri command kernel.distill.list_sessions
+        // reads through this trait method; default-deny means only rows with
+        // distill_corpus = true are returned.
+        let store = InMemorySessionFlagStore::default();
+        mark_for_distillation(&store, "session-b", true, "op", "2026-05-20T03:00:00Z").unwrap();
+        mark_for_distillation(&store, "session-a", true, "op", "2026-05-20T03:01:00Z").unwrap();
+        mark_for_distillation(&store, "session-c", false, "op", "2026-05-20T03:02:00Z").unwrap();
+
+        let rows = store.list_opted_in().expect("list_opted_in");
+        assert_eq!(rows.len(), 2, "session-c is opted-out and must be filtered");
+        assert_eq!(rows[0].session_id, "session-a");
+        assert_eq!(rows[1].session_id, "session-b");
+        assert!(rows.iter().all(|f| f.distill_corpus));
+    }
+
+    #[test]
+    fn list_opted_in_empty_when_no_rows() {
+        let store = InMemorySessionFlagStore::default();
+        let rows = store.list_opted_in().expect("list");
+        assert!(rows.is_empty());
     }
 }

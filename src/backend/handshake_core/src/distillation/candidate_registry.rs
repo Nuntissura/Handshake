@@ -217,6 +217,34 @@ impl CandidateRegistry {
         Ok(inner.get(lora_id).cloned())
     }
 
+    /// Lists all registered candidates regardless of status. The MT-124
+    /// `kernel.distill.list_candidates` Tauri surface filters this to
+    /// `ReviewStatus::Pending` in the UI projection layer; the registry
+    /// itself returns the full set so the Tauri command can project
+    /// whichever subset the frontend asks for in the future (e.g. an
+    /// audit view of Promoted + Rejected). Rows are sorted by
+    /// `registered_at_utc DESC` so the freshest candidate is first.
+    pub fn list(&self) -> Result<Vec<RegisteredCandidate>, CandidateRegistryError> {
+        let inner = self
+            .inner
+            .read()
+            .map_err(|err| CandidateRegistryError::LockPoisoned(err.to_string()))?;
+        let mut rows: Vec<RegisteredCandidate> = inner.values().cloned().collect();
+        rows.sort_by(|a, b| b.registered_at_utc.cmp(&a.registered_at_utc));
+        Ok(rows)
+    }
+
+    /// Convenience: list only the candidates currently in `Pending`
+    /// review status. The PromotionGate UI uses this for the
+    /// "Pending Candidates" tab in MT-124.
+    pub fn list_pending(&self) -> Result<Vec<RegisteredCandidate>, CandidateRegistryError> {
+        let rows = self.list()?;
+        Ok(rows
+            .into_iter()
+            .filter(|c| matches!(c.status, ReviewStatus::Pending))
+            .collect())
+    }
+
     /// Returns the mount decision for `lora_id`. The upstream
     /// `LoraStackOps::mount` consults this to honour the
     /// PromotionGate.
@@ -439,5 +467,53 @@ mod tests {
             .register(" ", artifact(), "2026-05-20T04:00:00Z")
             .expect_err("empty lora_id");
         assert!(matches!(err, CandidateRegistryError::EmptyLoraId));
+    }
+
+    #[test]
+    fn list_returns_all_candidates_sorted_freshest_first() {
+        // MT-124 list-surface test: the Tauri command kernel.distill.list_candidates
+        // depends on this listing API; the Promotion Queue tab needs a
+        // deterministic newest-first order.
+        let registry = CandidateRegistry::new();
+        registry
+            .register("lora-old", artifact(), "2026-05-20T04:00:00Z")
+            .unwrap();
+        registry
+            .register("lora-new", artifact(), "2026-05-20T04:30:00Z")
+            .unwrap();
+        registry
+            .register("lora-mid", artifact(), "2026-05-20T04:15:00Z")
+            .unwrap();
+
+        let rows = registry.list().expect("list");
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0].lora_id, "lora-new");
+        assert_eq!(rows[1].lora_id, "lora-mid");
+        assert_eq!(rows[2].lora_id, "lora-old");
+    }
+
+    #[test]
+    fn list_pending_filters_to_pending_status_only() {
+        let registry = CandidateRegistry::new();
+        registry
+            .register("lora-a", artifact(), "2026-05-20T04:00:00Z")
+            .unwrap();
+        registry
+            .register("lora-b", artifact(), "2026-05-20T04:01:00Z")
+            .unwrap();
+        registry
+            .register("lora-c", artifact(), "2026-05-20T04:02:00Z")
+            .unwrap();
+        registry
+            .promote("lora-b", "op", "2026-05-20T04:03:00Z")
+            .unwrap();
+        registry
+            .reject("lora-c", "op", "quality drop", "2026-05-20T04:04:00Z")
+            .unwrap();
+
+        let pending = registry.list_pending().expect("list_pending");
+        assert_eq!(pending.len(), 1, "only lora-a remains Pending");
+        assert_eq!(pending[0].lora_id, "lora-a");
+        assert_eq!(pending[0].status, ReviewStatus::Pending);
     }
 }

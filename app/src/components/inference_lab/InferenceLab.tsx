@@ -1,4 +1,15 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  extractDistillCorpus,
+  listDistillCandidates,
+  listDistillJobs,
+  listDistillSessions,
+  promoteDistillCandidate,
+  rejectDistillCandidate,
+  type OptedInSession as IpcOptedInSession,
+  type PendingCandidate as IpcPendingCandidate,
+  type TrainingJobSummary as IpcTrainingJob,
+} from "../../lib/ipc/distillation";
 import {
   capabilities as fetchCapabilities,
   listLoaded,
@@ -22,9 +33,11 @@ import { SteeringVectorEditor } from "./SteeringVectorEditor";
 // will replace this with kernel-supplied metadata.
 const DEFAULT_LAYER_COUNT = 32;
 
-const DISTILLATION_QUEUE_PLACEHOLDER_SESSIONS: OptedInSession[] = [];
-const DISTILLATION_QUEUE_PLACEHOLDER_CANDIDATES: PendingCandidate[] = [];
-const DISTILLATION_QUEUE_PLACEHOLDER_JOBS: TrainingJob[] = [];
+// Operator signature attached to per-session promote/reject calls. Until
+// the operator-identity UI surface lands, the lab uses the operator's
+// known signature (matches the MT-121 / MT-123 operator-signature
+// vocabulary). The Tauri backend rejects empty signatures.
+const OPERATOR_SIGNATURE = "operator-inference-lab";
 
 type ModelsState =
   | { status: "loading" }
@@ -37,16 +50,61 @@ type CapState =
   | { status: "error"; message: string }
   | { status: "ready"; capabilities: ModelCapabilities };
 
+type DistillationQueueState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | {
+      status: "ready";
+      sessions: OptedInSession[];
+      candidates: PendingCandidate[];
+      jobs: TrainingJob[];
+    };
+
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
   return "Unknown error";
 }
 
+function adaptSession(row: IpcOptedInSession): OptedInSession {
+  return {
+    sessionId: row.sessionId,
+    modelId: row.modelId,
+    closedAtUtc: row.closedAtUtc,
+    turnCount: row.turnCount,
+  };
+}
+
+function adaptCandidate(row: IpcPendingCandidate): PendingCandidate {
+  return {
+    loraId: row.loraId,
+    teacherModelPath: row.teacherModelPath,
+    studentBaseModelPath: row.studentBaseModelPath,
+    corpusTurnCount: row.corpusTurnCount,
+    trainedAtUtc: row.trainedAtUtc,
+    licenseTag: row.licenseTag,
+    status: row.status,
+    rejectionReason: row.rejectionReason ?? undefined,
+  };
+}
+
+function adaptJob(row: IpcTrainingJob): TrainingJob {
+  return {
+    jobId: row.jobId,
+    sessionId: row.sessionId,
+    status: row.status,
+    queuedAtUtc: row.queuedAtUtc,
+    startedAtUtc: row.startedAtUtc ?? undefined,
+    finishedAtUtc: row.finishedAtUtc ?? undefined,
+    errorMessage: row.errorMessage ?? undefined,
+  };
+}
+
 export function InferenceLab() {
   const [models, setModels] = useState<ModelsState>({ status: "loading" });
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [caps, setCaps] = useState<CapState>({ status: "idle" });
+  const [queue, setQueue] = useState<DistillationQueueState>({ status: "loading" });
 
   useEffect(() => {
     let active = true;
@@ -88,6 +146,75 @@ export function InferenceLab() {
       active = false;
     };
   }, [selectedModelId]);
+
+  const refreshQueue = useCallback(async () => {
+    setQueue({ status: "loading" });
+    try {
+      const [sessions, candidates, jobs] = await Promise.all([
+        listDistillSessions(),
+        listDistillCandidates(),
+        listDistillJobs(),
+      ]);
+      setQueue({
+        status: "ready",
+        sessions: sessions.map(adaptSession),
+        candidates: candidates.map(adaptCandidate),
+        jobs: jobs.map(adaptJob),
+      });
+    } catch (error) {
+      setQueue({ status: "error", message: errorMessage(error) });
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    refreshQueue().then(() => {
+      if (!active) return;
+    });
+    return () => {
+      active = false;
+    };
+  }, [refreshQueue]);
+
+  const handleExtractCorpus = useCallback(
+    async (sessionId: string) => {
+      try {
+        await extractDistillCorpus({ sessionId });
+      } finally {
+        await refreshQueue();
+      }
+    },
+    [refreshQueue],
+  );
+
+  const handlePromote = useCallback(
+    async (loraId: string) => {
+      try {
+        await promoteDistillCandidate({
+          loraId,
+          operatorSignature: OPERATOR_SIGNATURE,
+        });
+      } finally {
+        await refreshQueue();
+      }
+    },
+    [refreshQueue],
+  );
+
+  const handleReject = useCallback(
+    async (loraId: string, reason: string) => {
+      try {
+        await rejectDistillCandidate({
+          loraId,
+          operatorSignature: OPERATOR_SIGNATURE,
+          reason,
+        });
+      } finally {
+        await refreshQueue();
+      }
+    },
+    [refreshQueue],
+  );
 
   return (
     <section
@@ -153,20 +280,27 @@ export function InferenceLab() {
             capabilities={caps.capabilities}
             nLayers={DEFAULT_LAYER_COUNT}
           />
-          <DistillationQueue
-            // Live IPC wiring for opted-in sessions / candidates / jobs
-            // is deferred to a follow-on; the component renders the
-            // structural shell + empty states so MT-124's structural
-            // contract (3 tabs + Promote / Reject UI scaffolding +
-            // license + provenance columns) is on disk and the IPC
-            // wire-up is a small follow-on commit.
-            optedInSessions={DISTILLATION_QUEUE_PLACEHOLDER_SESSIONS}
-            pendingCandidates={DISTILLATION_QUEUE_PLACEHOLDER_CANDIDATES}
-            trainingJobs={DISTILLATION_QUEUE_PLACEHOLDER_JOBS}
-            onExtractCorpus={() => {}}
-            onPromote={() => {}}
-            onReject={() => {}}
-          />
+          {queue.status === "loading" ? (
+            <p data-testid="inference-lab.distillation-queue.loading">
+              Loading distillation queue...
+            </p>
+          ) : queue.status === "error" ? (
+            <p
+              role="alert"
+              data-testid="inference-lab.distillation-queue.error"
+            >
+              Distillation queue load failed: {queue.message}
+            </p>
+          ) : (
+            <DistillationQueue
+              optedInSessions={queue.sessions}
+              pendingCandidates={queue.candidates}
+              trainingJobs={queue.jobs}
+              onExtractCorpus={handleExtractCorpus}
+              onPromote={handlePromote}
+              onReject={handleReject}
+            />
+          )}
           {!caps.capabilities.supportsActivationSteering ? (
             <p
               className="muted"

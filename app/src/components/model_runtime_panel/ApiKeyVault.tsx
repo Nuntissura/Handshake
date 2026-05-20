@@ -1,11 +1,14 @@
 import { useState } from "react";
 
+import { formatStoredOnDate } from "../../lib/ipc/cloud_lane";
+
 // MT-129: API key vault UI for the ModelRuntime control panel.
 // Surface displays + edits the OS-keychain-backed SecretsVault
 // (MT-128). Per HBR-INT-005 the input is masked at-rest in the DOM
 // (type=password); deletion requires explicit confirmation; the
-// vault list shows lane id + masked-key presence indicator (NEVER
-// the value).
+// vault list shows lane id + "stored on YYYY-MM-DD" indicator
+// (NEVER the secret value). All save / delete actions invoke
+// real Tauri commands round-tripping through the OS keychain.
 
 export interface VaultLaneEntry {
   lane: string;
@@ -85,7 +88,11 @@ export function ApiKeyVault({ lanes, onPutSecret, onDeleteSecret }: Props) {
                     {entry.hasSecret ? "stored" : "missing"}
                   </span>
                 </td>
-                <td>{entry.updatedAtUtc ?? "—"}</td>
+                <td data-testid={`api-key-vault.row.${entry.lane}.stored-on`}>
+                  {entry.hasSecret
+                    ? `stored on ${formatStoredOnDate(entry.updatedAtUtc ?? null)}`
+                    : "—"}
+                </td>
                 <td>
                   <button
                     type="button"

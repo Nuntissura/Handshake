@@ -14,19 +14,35 @@ edition = "2021"
 name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+default = []
+swarm_ipc = ["handshake_core/swarm_ipc"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2.3.3"
 tauri-plugin-opener = "2"
+handshake_core = { path = "../../src/backend/handshake_core", features = ["runtime-full", "inspector"] }
+base64 = "0.22"
+futures-util = "0.3"
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 time = { version = "0.3", features = ["formatting"] }
+tokio-tungstenite = "0.26"
 ttf-parser = "0.25"
 uuid = { version = "1", features = ["v7"] }
 walkdir = "2"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+secrecy = { version = "0.10", features = ["serde"] }
+thiserror = "2.0"
+
+[dev-dependencies]
+async-trait = "0.1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 

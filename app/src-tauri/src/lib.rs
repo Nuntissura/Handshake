@@ -18,6 +18,8 @@ mod visual_debug;
 
 mod commands {
     pub mod caa;
+    pub mod cloud_lane;
+    pub mod distillation;
     pub mod memory_capsule;
     pub mod model_runtime;
     pub mod refusal;
@@ -72,6 +74,22 @@ macro_rules! handshake_invoke_handlers {
             commands::caa::kernel_model_runtime_caa_extract,
             commands::session_distill::kernel_session_mark_for_distillation,
             commands::session_distill::kernel_session_get_distill_flag,
+            commands::distillation::list_distill_sessions,
+            commands::distillation::list_distill_candidates,
+            commands::distillation::list_distill_jobs,
+            commands::distillation::extract_distill_corpus,
+            commands::distillation::promote_distill_candidate,
+            commands::distillation::reject_distill_candidate,
+            commands::cloud_lane::list_cloud_lanes,
+            commands::cloud_lane::register_cloud_lane,
+            commands::cloud_lane::remove_cloud_lane,
+            commands::cloud_lane::toggle_cloud_lane,
+            commands::cloud_lane::store_api_key,
+            commands::cloud_lane::rotate_api_key,
+            commands::cloud_lane::delete_api_key,
+            commands::cloud_lane::list_stored_keys,
+            commands::cloud_lane::grant_consent,
+            commands::cloud_lane::deny_consent,
             manual::model_manual_get,
             manual::model_manual_list_commands,
             manual::model_manual_search,
@@ -125,6 +143,22 @@ macro_rules! handshake_invoke_handlers {
             commands::caa::kernel_model_runtime_caa_extract,
             commands::session_distill::kernel_session_mark_for_distillation,
             commands::session_distill::kernel_session_get_distill_flag,
+            commands::distillation::list_distill_sessions,
+            commands::distillation::list_distill_candidates,
+            commands::distillation::list_distill_jobs,
+            commands::distillation::extract_distill_corpus,
+            commands::distillation::promote_distill_candidate,
+            commands::distillation::reject_distill_candidate,
+            commands::cloud_lane::list_cloud_lanes,
+            commands::cloud_lane::register_cloud_lane,
+            commands::cloud_lane::remove_cloud_lane,
+            commands::cloud_lane::toggle_cloud_lane,
+            commands::cloud_lane::store_api_key,
+            commands::cloud_lane::rotate_api_key,
+            commands::cloud_lane::delete_api_key,
+            commands::cloud_lane::list_stored_keys,
+            commands::cloud_lane::grant_consent,
+            commands::cloud_lane::deny_consent,
             manual::model_manual_get,
             manual::model_manual_list_commands,
             manual::model_manual_search,
@@ -659,6 +693,22 @@ pub fn run() {
             .expect("sandbox adapter registry bootstrap failed"),
     );
 
+    // MT-129: Cloud Lane IPC state wires the frontend control panel to
+    // the production `OsKeychainSecretsVault` (Windows Credential
+    // Manager via the `keyring` crate) + a fresh `ConsentGate`. The
+    // in-memory lane registration registry lives inside
+    // `CloudLaneIpcState` and is rebuilt on app start (the OS
+    // keychain has no enumeration API; lane discovery is via the
+    // registry).
+    let cloud_lane_vault: Arc<dyn handshake_core::model_runtime::cloud::SecretsVault> =
+        Arc::new(handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
+            handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
+        ));
+    let cloud_lane_consent_gate =
+        Arc::new(handshake_core::model_runtime::cloud::ConsentGate::default());
+    let cloud_lane_state =
+        commands::cloud_lane::CloudLaneIpcState::new(cloud_lane_vault, cloud_lane_consent_gate);
+
     let builder = tauri::Builder::default()
         .manage(visual_debug_state)
         .manage(inspector::InspectorPortState::new(None))
@@ -666,6 +716,17 @@ pub fn run() {
         .manage(commands::model_runtime::ModelRuntimeState::default())
         .manage(commands::memory_capsule::MemoryCapsuleIpcState::default())
         .manage(commands::session_distill::SessionDistillState::default())
+        // MT-124: Distillation Queue UI (DistillationQueue.tsx) reads
+        // through the production CandidateRegistry (MT-123) + the
+        // production FlightRecorder for FR-EVT-DISTILL-* job state.
+        // The CandidateRegistry default is the in-memory production
+        // impl; the FlightRecorder lane defaults to detached until the
+        // orchestrator wires the DuckDB recorder in a follow-on (the
+        // detached lane returns an empty list, which the UI surfaces
+        // as a real empty-state, not a placeholder array).
+        .manage(commands::distillation::DistillationCandidateState::default())
+        .manage(commands::distillation::DistillationJobsState::default())
+        .manage(cloud_lane_state)
         .manage(sandbox_registry)
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())

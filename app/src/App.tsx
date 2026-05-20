@@ -9,6 +9,7 @@ import { KernelDccProjectionView } from "./components/KernelDccProjectionView";
 import { InferenceLab } from "./components/inference_lab";
 import { FontManagerView } from "./components/FontManagerView";
 import { MediaDownloaderView } from "./components/MediaDownloaderView";
+import { ModelRuntimePanel } from "./components/model_runtime_panel";
 import {
   getKernelDccProjection,
   triggerKernelDccAction,
@@ -43,6 +44,7 @@ function App() {
     | "flight-recorder"
     | "kernel-dcc"
     | "inference-lab"
+    | "model-runtime"
     | "problems"
     | "jobs"
     | "timeline"
@@ -126,6 +128,13 @@ function App() {
               onClick={() => setActiveView("inference-lab")}
             >
               Inference Lab
+            </button>
+            <button
+              className={activeView === "model-runtime" ? "active" : ""}
+              onClick={() => setActiveView("model-runtime")}
+              data-testid="app-nav.model-runtime"
+            >
+              Model Runtime
             </button>
             <button
               className={activeView === "problems" ? "active" : ""}
@@ -244,6 +253,10 @@ function App() {
           ) : activeView === "inference-lab" ? (
             <div className="content-panel content-panel--full">
               <InferenceLab />
+            </div>
+          ) : activeView === "model-runtime" ? (
+            <div className="content-panel content-panel--full">
+              <ModelRuntimePanel />
             </div>
           ) : activeView === "problems" ? (
             <div className="content-panel content-panel--full">
