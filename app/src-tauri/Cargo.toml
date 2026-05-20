@@ -38,6 +38,7 @@ tokio-tungstenite = "0.26"
 ttf-parser = "0.25"
 uuid = { version = "1", features = ["v7"] }
 walkdir = "2"
+which = "8"
 chrono = { version = "0.4", features = ["serde", "clock"] }
 secrecy = { version = "0.10", features = ["serde"] }
 thiserror = "2.0"

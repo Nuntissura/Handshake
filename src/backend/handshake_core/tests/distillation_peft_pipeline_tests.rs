@@ -63,6 +63,8 @@ fn peft_pipeline_distill_writes_filtered_jsonl_and_invokes_executor() {
         hyperparams: PeftHyperparams::default(),
         license_tag: "MIT".to_string(),
         operator_signature: "op-ilja".to_string(),
+        teacher_source: handshake_core::distillation::peft_pipeline::TeacherSource::CliBridge,
+        max_steps: None,
     };
     let artifact = distill(
         &corpus,

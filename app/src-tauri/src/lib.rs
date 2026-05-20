@@ -22,6 +22,7 @@ mod commands {
     pub mod distillation;
     pub mod memory_capsule;
     pub mod model_runtime;
+    pub mod peft;
     pub mod refusal;
     pub mod sandbox;
     pub mod session_distill;
@@ -82,6 +83,7 @@ macro_rules! handshake_invoke_handlers {
             commands::distillation::extract_distill_corpus,
             commands::distillation::promote_distill_candidate,
             commands::distillation::reject_distill_candidate,
+            commands::peft::start_peft_training_job,
             commands::cloud_lane::list_cloud_lanes,
             commands::cloud_lane::register_cloud_lane,
             commands::cloud_lane::remove_cloud_lane,
@@ -151,6 +153,7 @@ macro_rules! handshake_invoke_handlers {
             commands::distillation::extract_distill_corpus,
             commands::distillation::promote_distill_candidate,
             commands::distillation::reject_distill_candidate,
+            commands::peft::start_peft_training_job,
             commands::cloud_lane::list_cloud_lanes,
             commands::cloud_lane::register_cloud_lane,
             commands::cloud_lane::remove_cloud_lane,
@@ -250,6 +253,32 @@ fn orchestrator_workdir() -> PathBuf {
         .join("src")
         .join("backend")
         .join("handshake_core")
+}
+
+fn peft_job_spawner_state() -> commands::peft::PeftJobSpawnerState {
+    // MT-122: discovery uses the workspace root + the bundled
+    // `scripts/distill/train_lora.py`. If the Python interpreter isn't on
+    // PATH or the script isn't bundled (rare; only happens in detached
+    // build trees), construct a state pointing at non-existent paths so
+    // `start_peft_training_job` returns a real TrainerUnavailable error.
+    // The error is the real subprocess error, not a placeholder.
+    let repo_root = workspace_root();
+    match commands::peft::PeftJobSpawnerState::from_repo_discovery(&repo_root) {
+        Ok(state) => state,
+        Err(error) => {
+            eprintln!(
+                "MT-122 peft job spawner state init failed: {error}; \
+                 commands will surface real TrainerUnavailable errors until repaired"
+            );
+            commands::peft::PeftJobSpawnerState::new(
+                PathBuf::from("python"),
+                repo_root
+                    .join("scripts")
+                    .join("distill")
+                    .join("train_lora.py"),
+            )
+        }
+    }
 }
 
 fn steering_vector_store_state() -> Result<commands::steering::SteeringVectorStoreState, String> {
@@ -760,6 +789,12 @@ pub fn run() {
         // as a real empty-state, not a placeholder array).
         .manage(commands::distillation::DistillationCandidateState::default())
         .manage(commands::distillation::DistillationJobsState::default())
+        // MT-122: PEFT training job spawner state. The Python interpreter +
+        // trainer script are resolved at construction time from the workspace
+        // root. If resolution fails the runtime falls back to a detached
+        // state whose `start_peft_training_job` returns a real error rather
+        // than a placeholder result.
+        .manage(peft_job_spawner_state())
         .manage(cloud_lane_state)
         .manage(sandbox_registry)
         .plugin(tauri_plugin_dialog::init())

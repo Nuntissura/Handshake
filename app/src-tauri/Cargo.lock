@@ -147,6 +147,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
+ "tempfile",
  "thiserror 2.0.17",
  "time",
  "tokio",
@@ -154,6 +155,7 @@ dependencies = [
  "ttf-parser",
  "uuid",
  "walkdir",
+ "which",
 ]
 
 [[package]]

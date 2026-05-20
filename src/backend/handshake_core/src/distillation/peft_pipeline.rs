@@ -23,7 +23,8 @@
 //! operator-driven hyperparams. No automatic content judgement
 //! beyond those.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -56,6 +57,47 @@ impl Default for PeftHyperparams {
     }
 }
 
+/// Teacher routing per MT-122 operator clarification 2026-05-20.
+/// Distillation defaults to CLOUD-TEACHER -> LOCAL-STUDENT; BYOK
+/// teachers route through MT-127 CLI bridge by default.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TeacherSource {
+    /// MT-127 governed CLI bridge to a cloud-official CLI (anthropic, openai).
+    CliBridge,
+    /// MT-125/MT-126 BYOK lanes.
+    Byok,
+    /// Local-larger-teacher model loaded via transformers (rare default).
+    LocalLarger,
+}
+
+impl Default for TeacherSource {
+    fn default() -> Self {
+        TeacherSource::CliBridge
+    }
+}
+
+impl TeacherSource {
+    pub fn cli_arg_value(&self) -> &'static str {
+        match self {
+            TeacherSource::CliBridge => "CLI_BRIDGE",
+            TeacherSource::Byok => "BYOK",
+            TeacherSource::LocalLarger => "LOCAL_LARGER",
+        }
+    }
+
+    pub fn from_cli_arg(value: &str) -> Result<Self, String> {
+        match value.trim().to_ascii_uppercase().as_str() {
+            "CLI_BRIDGE" => Ok(TeacherSource::CliBridge),
+            "BYOK" => Ok(TeacherSource::Byok),
+            "LOCAL_LARGER" => Ok(TeacherSource::LocalLarger),
+            other => Err(format!(
+                "unknown teacher_source {other:?}; expected CLI_BRIDGE | BYOK | LOCAL_LARGER"
+            )),
+        }
+    }
+}
+
 /// Inputs to a distillation run.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DistillJobConfig {
@@ -66,6 +108,19 @@ pub struct DistillJobConfig {
     pub hyperparams: PeftHyperparams,
     pub license_tag: String,
     pub operator_signature: String,
+    /// Teacher routing (CLI_BRIDGE default per operator clarification).
+    pub teacher_source: TeacherSource,
+    /// Optional max-steps override. None falls back to the trainer's
+    /// per-script default (1 for integration tests).
+    pub max_steps: Option<u32>,
+}
+
+impl DistillJobConfig {
+    /// Returns the Python script path bundled at the repo root. Used by
+    /// `PythonPeftTrainerExecutor` and the CLI binary.
+    pub fn default_python_script_relative_path() -> PathBuf {
+        PathBuf::from("scripts").join("distill").join("train_lora.py")
+    }
 }
 
 /// On-disk LoRA artifact provenance written alongside the LoRA weights.
@@ -118,6 +173,168 @@ pub struct CorpusReviewSummary {
 /// with engine_kind=DistillationJob (MT-069).
 pub trait PeftTrainerExecutor {
     fn run(&self, config: &DistillJobConfig) -> Result<(), DistillError>;
+}
+
+/// Provenance sidecar written by `scripts/distill/train_lora.py` next
+/// to the LoRA artifact directory as `provenance.json`. The Rust
+/// orchestrator reads this back after subprocess success to assemble
+/// the `DistilledLoraArtifact` returned to the caller.
+///
+/// Schema: `hsk.distill.lora_provenance@v1`. Field stability is
+/// guaranteed; new fields are appended (semver-minor).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PeftProvenanceSidecar {
+    pub teacher_model_id: String,
+    pub teacher_source: String,
+    pub student_base_id: String,
+    pub corpus_path: String,
+    pub corpus_sha256: Option<String>,
+    pub license_tag: String,
+    pub operator_signature: String,
+    pub trained_at_utc: String,
+    pub training_loss: f64,
+    pub num_steps: u32,
+    pub hyperparams: serde_json::Value,
+    #[serde(default)]
+    pub format: String,
+    #[serde(default)]
+    pub schema: String,
+}
+
+impl PeftProvenanceSidecar {
+    pub fn read_from(path: &Path) -> Result<Self, DistillError> {
+        let raw = std::fs::read_to_string(path).map_err(|err| {
+            DistillError::TrainerExec(format!(
+                "read provenance sidecar {}: {err}",
+                path.display()
+            ))
+        })?;
+        serde_json::from_str(&raw).map_err(|err| {
+            DistillError::TrainerExec(format!(
+                "parse provenance sidecar {}: {err}",
+                path.display()
+            ))
+        })
+    }
+}
+
+/// Production `PeftTrainerExecutor` that spawns
+/// `python <script> --corpus ... --out ... --teacher-source ...`
+/// as a subprocess. The script path is resolved relative to the
+/// configured repo root; the python interpreter is configured at
+/// construction time so operators can pin the version (Python 3.11+
+/// is required for peft/transformers/torch compatibility).
+///
+/// The executor is intentionally minimal: it does not register a
+/// ProcessOwnershipLedger row (that wiring lands behind the Tauri
+/// command surface in MT-069 follow-on); it does not enforce a
+/// cluster-B SandboxAdapter (that wiring lands when sandbox runtime
+/// is attached). The subprocess inherits the parent's environment;
+/// callers route through the higher-level kernel orchestrator when
+/// a sandboxed run is required.
+pub struct PythonPeftTrainerExecutor {
+    python_path: PathBuf,
+    script_path: PathBuf,
+    extra_args: Vec<String>,
+    cpu_only: bool,
+}
+
+impl PythonPeftTrainerExecutor {
+    /// Construct from explicit python+script paths.
+    pub fn new(python_path: PathBuf, script_path: PathBuf) -> Self {
+        Self {
+            python_path,
+            script_path,
+            extra_args: Vec::new(),
+            cpu_only: false,
+        }
+    }
+
+    /// Convenience: locate the bundled `train_lora.py` at
+    /// `<repo_root>/scripts/distill/train_lora.py`.
+    pub fn from_repo_root(python_path: PathBuf, repo_root: &Path) -> Self {
+        let script_path = repo_root.join("scripts").join("distill").join("train_lora.py");
+        Self::new(python_path, script_path)
+    }
+
+    /// Force the trainer onto CPU. Required for CI / no-GPU host runs.
+    pub fn with_cpu_only(mut self, cpu_only: bool) -> Self {
+        self.cpu_only = cpu_only;
+        self
+    }
+
+    /// Append extra arguments to the subprocess invocation (operator
+    /// override surface; e.g. `--max-steps 100`).
+    pub fn with_extra_args(mut self, args: Vec<String>) -> Self {
+        self.extra_args = args;
+        self
+    }
+
+    pub fn python_path(&self) -> &Path {
+        &self.python_path
+    }
+
+    pub fn script_path(&self) -> &Path {
+        &self.script_path
+    }
+}
+
+impl PeftTrainerExecutor for PythonPeftTrainerExecutor {
+    fn run(&self, config: &DistillJobConfig) -> Result<(), DistillError> {
+        if !self.script_path.is_file() {
+            return Err(DistillError::TrainerUnavailable(format!(
+                "trainer script missing at {}",
+                self.script_path.display()
+            )));
+        }
+        let mut command = Command::new(&self.python_path);
+        command
+            .arg(&self.script_path)
+            .arg("--corpus").arg(&config.corpus_jsonl_path)
+            .arg("--teacher").arg(&config.teacher_model_path)
+            .arg("--student").arg(&config.student_base_model_path)
+            .arg("--teacher-source").arg(config.teacher_source.cli_arg_value())
+            .arg("--out").arg(&config.output_lora_dir)
+            .arg("--license-tag").arg(&config.license_tag)
+            .arg("--operator-signature").arg(&config.operator_signature)
+            .arg("--rank").arg(config.hyperparams.rank.to_string())
+            .arg("--alpha").arg(config.hyperparams.alpha.to_string())
+            .arg("--dropout").arg(config.hyperparams.dropout.to_string())
+            .arg("--epochs").arg(config.hyperparams.epochs.to_string())
+            .arg("--lr").arg(config.hyperparams.learning_rate.to_string())
+            .arg("--batch-size").arg(config.hyperparams.batch_size.to_string());
+        if let Some(max_steps) = config.max_steps {
+            command.arg("--max-steps").arg(max_steps.to_string());
+        }
+        if self.cpu_only {
+            command.arg("--cpu-only");
+        }
+        for arg in &self.extra_args {
+            command.arg(arg);
+        }
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+        let output = command.output().map_err(|err| {
+            DistillError::TrainerExec(format!(
+                "spawn python {}: {err}",
+                self.python_path.display()
+            ))
+        })?;
+        if !output.status.success() {
+            let stderr_text = String::from_utf8_lossy(&output.stderr).into_owned();
+            let exit_code = output.status.code().unwrap_or(-1);
+            // Exit code 3 from the script = peft/transformers/torch
+            // not importable. Surface that distinctly so operators get
+            // a clear remediation path.
+            if exit_code == 3 {
+                return Err(DistillError::TrainerUnavailable(stderr_text));
+            }
+            return Err(DistillError::TrainerExec(format!(
+                "python trainer exited with code {exit_code}: {stderr_text}"
+            )));
+        }
+        Ok(())
+    }
 }
 
 /// Reviews a corpus through [`ContentReview`] and returns the verdicts
@@ -336,6 +553,8 @@ mod tests {
             hyperparams: PeftHyperparams::default(),
             license_tag: "MIT".to_string(),
             operator_signature: "op".to_string(),
+            teacher_source: TeacherSource::CliBridge,
+            max_steps: None,
         };
         let err = distill(
             &corpus,
@@ -368,6 +587,8 @@ mod tests {
             hyperparams: PeftHyperparams::default(),
             license_tag: "MIT".to_string(),
             operator_signature: "op".to_string(),
+            teacher_source: TeacherSource::CliBridge,
+            max_steps: None,
         };
         let executor = MockExecutor {
             called: std::cell::RefCell::new(None),
@@ -405,6 +626,8 @@ mod tests {
             hyperparams: PeftHyperparams::default(),
             license_tag: "MIT".to_string(),
             operator_signature: "op".to_string(),
+            teacher_source: TeacherSource::CliBridge,
+            max_steps: None,
         };
 
         let mut bad = base.clone();
@@ -447,6 +670,8 @@ mod tests {
             hyperparams: PeftHyperparams::default(),
             license_tag: "MIT".to_string(),
             operator_signature: "op".to_string(),
+            teacher_source: TeacherSource::CliBridge,
+            max_steps: None,
         };
         let executor = MockExecutor {
             called: std::cell::RefCell::new(None),

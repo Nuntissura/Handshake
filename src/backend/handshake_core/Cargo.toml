@@ -78,6 +78,10 @@ name = "abliterate"
 path = "src/bin/abliterate.rs"
 required-features = ["candle-runtime-engine"]
 
+[[bin]]
+name = "peft_train"
+path = "src/bin/peft_train.rs"
+
 [dependencies]
 axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
@@ -186,6 +190,21 @@ required-features = ["test-utils"]
 [[test]]
 name = "kernel_postgres_event_ledger_tests"
 path = "tests/kernel_postgres_event_ledger_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "memory_persistence_postgres_tests"
+path = "tests/memory_persistence_postgres_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "memory_ipc_postgres_tests"
+path = "tests/memory_ipc_postgres_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
+name = "memory_capsule_e2e_postgres_tests"
+path = "tests/memory_capsule_e2e_postgres_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
