@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-20T22:00:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -50,8 +50,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "FAIL_NEEDS_REWORK",
+    "validator_verdict": "FAIL_NEEDS_REWORK",
     "depends_on": [
       "MT-119"
     ],
@@ -104,14 +104,17 @@
       "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
       "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
     },
-    "blocker": {
-      "blocked_at_utc": "2026-05-20T18:35:00Z",
-      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
-      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
-      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
-      "reason": "Same root cause; DISTILL_CORPUS opt-in gate is pure-logic but its consumer surfaces (distillation pipeline) depend on the broken build.",
-      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
-      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    "autonomous_session_reclaim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T21:45:00Z",
+      "transition": "BLOCKED_ON_DEPENDENCY (premature) -> RECLAIMED -> READY_FOR_VALIDATION (Option-1)",
+      "reason": "Distillation session-close flag wiring (DISTILL_CORPUS=true). cargo test --test distillation_session_flag_tests = 4/4 PASS: default_deny_default_session_returns_false + corpus_extractor_honours_session_flag_via_store_backed_adapter + mark_with_signature_sets_then_unsets. Backend logic + Tauri command surface. Backend tests pass against fixed build."
+    },
+    "validator_pass_gate": {
+      "authored_by": "VALIDATOR-EXPLORE-MT121-OPTION1-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T22:00:00Z",
+      "verdict": "FAIL_NEEDS_REWORK",
+      "rationale": "MT-121 FAIL_NEEDS_REWORK. session_distill.rs Tauri command at lines 91-96 returns Err with narrative message 'session_distill live store is not attached for session ...; ... governed_sessions.distill_corpus column migration is pending. Default-deny is preserved.' This is a Sub-rule 1 deferred-live tripwire ('live store not attached' is in the brief's lexical tripwire list). REWORK: either (a) stage the write in InMemorySessionFlagStore and return Ok(receipt) with default-deny semantics preserved, or (b) replace narrative error with canonical 'live_runtime_unavailable' tripwire so the gov-check grep catches it. Currently it sits in the worst spot: not a real impl AND not a parseable tripwire."
     }
   },
   "handoff": {

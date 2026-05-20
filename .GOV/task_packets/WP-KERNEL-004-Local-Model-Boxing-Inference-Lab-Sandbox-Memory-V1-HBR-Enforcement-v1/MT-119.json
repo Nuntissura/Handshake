@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-20T22:00:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -52,8 +52,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "FAIL_NEEDS_REWORK",
+    "validator_verdict": "FAIL_NEEDS_REWORK",
     "depends_on": [
       "MT-062",
       "MT-067",
@@ -108,14 +108,17 @@
       "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
       "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
     },
-    "blocker": {
-      "blocked_at_utc": "2026-05-20T18:35:00Z",
-      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
-      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
-      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
-      "reason": "kernel::sandbox API surface missing in sandbox_binding.rs imports; whole model_runtime/* subtree cannot compile against actual kernel::sandbox module shape; distillation/* depends on model_runtime.",
-      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
-      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    "autonomous_session_reclaim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T21:45:00Z",
+      "transition": "BLOCKED_ON_DEPENDENCY (premature) -> RECLAIMED -> READY_FOR_VALIDATION (Option-1)",
+      "reason": "Distillation EventLedger replay -> training corpus extractor. cargo test --test distillation_corpus_extractor_tests = 2/2 PASS: corpus_extractor_default_deny_when_session_not_opted_in + corpus_extractor_returns_assembled_turn_when_opted_in. Backend pure-logic; no external resource named."
+    },
+    "validator_pass_gate": {
+      "authored_by": "VALIDATOR-EXPLORE-MT119-OPTION1-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T22:00:00Z",
+      "verdict": "FAIL_NEEDS_REWORK",
+      "rationale": "MT-119 FAIL_NEEDS_REWORK. EventLedgerSource trait used with MockLedger/OneTriple test stubs in distillation_corpus_extractor_tests.rs — classic trait+in-memory mock anti-pattern. No concrete EventLedgerSource impl queries the real FlightRecorder for LlmInference events. Sub-rule 2 violation. REWORK: add a real-EventLedger composition test analogous to MT-143's real-FemsMtHandoffRetriever test. Use the production FlightRecorder/EventLedger from MT-001 in main."
     }
   },
   "handoff": {
