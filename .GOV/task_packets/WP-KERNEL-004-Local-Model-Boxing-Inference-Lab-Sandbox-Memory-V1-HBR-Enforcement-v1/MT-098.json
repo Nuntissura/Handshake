@@ -66,8 +66,9 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "COMPLETED",
+    "validator_verdict": "PASS",
+    "completed_by": "VALIDATOR-EXPLORE-MT098-REWORK-PASS-20260520-AUTO",
     "depends_on": [
       "MT-068",
       "MT-097"
