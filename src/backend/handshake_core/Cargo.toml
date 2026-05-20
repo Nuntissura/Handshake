@@ -237,3 +237,8 @@ required-features = ["duckdb-flight-recorder"]
 name = "terminal_session_tests"
 path = "tests/terminal_session_tests.rs"
 required-features = ["duckdb-flight-recorder"]
+
+[[test]]
+name = "distillation_corpus_extractor_tests"
+path = "tests/distillation_corpus_extractor_tests.rs"
+required-features = ["duckdb-flight-recorder"]

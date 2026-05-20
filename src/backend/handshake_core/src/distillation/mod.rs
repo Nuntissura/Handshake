@@ -4,6 +4,7 @@ pub mod content_review;
 pub mod corpus_extractor;
 pub mod dataset;
 pub mod eval;
+pub mod flight_recorder_ledger;
 pub mod peft_pipeline;
 pub mod pii_patterns;
 pub mod redaction;
