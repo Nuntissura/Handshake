@@ -22,9 +22,14 @@
 
 use std::{collections::BTreeMap, sync::OnceLock};
 
+use futures_util::StreamExt;
 use regex::Regex;
 
-use crate::model_runtime::LayerIndex;
+use crate::model_runtime::{
+    techniques::refusal_vector::{ablate_at_inference, extract_refusal_direction, RefusalDirection},
+    CancellationToken, GenPrompt, GenerateRequest, LayerIndex, ModelId, ModelRuntime,
+    ModelRuntimeError, SamplingParams, SteeringVectorId,
+};
 
 /// Minimum required drop from base_refusal_rate to ablated_refusal_rate for
 /// INF-4 PRODUCTION declaration to hold. If ablation only slightly reduces
@@ -204,6 +209,249 @@ fn refusal_rate(completions: &[String]) -> f32 {
     }
     let count = completions.iter().filter(|c| is_refusal(c)).count();
     count as f32 / completions.len() as f32
+}
+
+/// Default maximum tokens to draw from the generate stream when probing a
+/// prompt. The refusal classifier looks at the leading characters of the
+/// completion, so a small budget is sufficient and keeps eval runs cheap.
+pub const REFUSAL_PROBE_MAX_TOKENS: u32 = 32;
+
+/// Operator-supplied inputs to the runtime-orchestrated measurement pipeline.
+///
+/// `benign_ground_truth_correct` is supplied here (rather than derived from
+/// the base completion) because the operator owns the ground-truth gold answer
+/// — the kernel does not. When in doubt callers can pass `vec![true;
+/// benign_prompts.len()]` and the floor still acts as a "ablation must not
+/// flip benign completions into refusals" guardrail; the spec calls this
+/// out as the conservative interpretation.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MeasureWithRuntimeInputs {
+    pub harmful_prompts: Vec<String>,
+    pub benign_prompts: Vec<String>,
+    pub candidate_layers: Vec<LayerIndex>,
+    pub benign_ground_truth_correct: Vec<bool>,
+    /// Maximum tokens to read off `runtime.generate` per probe. Defaults to
+    /// [`REFUSAL_PROBE_MAX_TOKENS`] when `None`.
+    pub max_tokens: Option<u32>,
+}
+
+/// Orchestrated end-to-end refusal-vector measurement. Drives the runtime
+/// through the four required completion buckets and aggregates the resulting
+/// completions via [`measure_metrics`]:
+///
+/// 1. Generate base completions for every harmful prompt (no ablation).
+/// 2. For each candidate layer L:
+///    a. extract_refusal_direction(harmful, benign, [L]).
+///    b. ablate_at_inference(L); generate completions for harmful pool;
+///       record under `AblatedCompletionsByLayer`.
+///    c. activation_steering::unregister(vector_id) so the next layer's
+///       ablation starts from base behaviour (no parallel hook substrate).
+/// 3. Generate base benign completions.
+/// 4. Re-register the strongest single-layer ablation (the layer whose
+///    per-layer drop is the largest) and generate ablated benign completions;
+///    unregister at the end so the runtime is left clean.
+/// 5. Aggregate via `measure_metrics(...)`.
+///
+/// This is the consumer the MT-101 deflection callouts asked for. It composes
+/// the shared activation_steering plumbing — no parallel hook layer — and
+/// is testable end-to-end against `FakeCandleRuntime` (the same fake the
+/// commands::steering tests use) because every operation routes through
+/// `dyn ModelRuntime`.
+pub async fn measure_with_runtime(
+    runtime: &dyn ModelRuntime,
+    model_id: ModelId,
+    inputs: MeasureWithRuntimeInputs,
+) -> Result<RefusalMetrics, ModelRuntimeError> {
+    validate_measure_with_runtime_inputs(&inputs)?;
+    let max_tokens = inputs.max_tokens.unwrap_or(REFUSAL_PROBE_MAX_TOKENS);
+
+    // Step 1: base harmful completions (no steering active).
+    let mut base_harmful_completions = Vec::with_capacity(inputs.harmful_prompts.len());
+    for prompt in &inputs.harmful_prompts {
+        base_harmful_completions
+            .push(generate_completion_text(runtime, model_id, prompt, max_tokens).await?);
+    }
+
+    // Step 2: per-candidate-layer ablated completions.
+    let mut ablated_harmful_completions_by_layer =
+        Vec::with_capacity(inputs.candidate_layers.len());
+    let mut per_layer_best: Vec<(LayerIndex, f32, SteeringVectorId, RefusalDirection)> =
+        Vec::new();
+    let base_refusal_for_step = refusal_rate(&base_harmful_completions);
+    for layer in &inputs.candidate_layers {
+        let directions = extract_refusal_direction(
+            runtime,
+            model_id,
+            inputs.harmful_prompts.clone(),
+            inputs.benign_prompts.clone(),
+            vec![*layer],
+        )
+        .await?;
+        let direction = directions.into_iter().next().ok_or_else(|| {
+            ModelRuntimeError::SteeringHookError(format!(
+                "measure_with_runtime: extract_refusal_direction returned zero directions for layer {}",
+                layer.as_u32(),
+            ))
+        })?;
+
+        let vector_id = ablate_at_inference(
+            runtime,
+            model_id,
+            format!("refusal-measure-l{}", layer.as_u32()),
+            "MT-101 measure_with_runtime per-layer ablation",
+            direction.clone(),
+            inputs.harmful_prompts.clone(),
+            inputs.benign_prompts.clone(),
+        )
+        .await?;
+        super::activation_steering::set_active_steering_vectors(
+            runtime,
+            model_id,
+            vec![vector_id],
+        )
+        .await?;
+
+        let mut completions = Vec::with_capacity(inputs.harmful_prompts.len());
+        for prompt in &inputs.harmful_prompts {
+            completions.push(
+                generate_completion_text(runtime, model_id, prompt, max_tokens).await?,
+            );
+        }
+
+        let layer_drop = base_refusal_for_step - refusal_rate(&completions);
+        per_layer_best.push((*layer, layer_drop, vector_id, direction));
+
+        ablated_harmful_completions_by_layer.push(AblatedCompletionsByLayer {
+            layer: *layer,
+            completions,
+        });
+
+        // Unregister before moving to the next layer so the next ablation
+        // starts from base behaviour. Reuses INF-3 SteeringHookOps per
+        // MT-100 red_team minimum_controls.
+        super::activation_steering::unregister(runtime, model_id, vector_id).await?;
+    }
+
+    // Step 3: base benign completions (no steering active; vectors are all
+    // unregistered at this point).
+    let mut base_benign_completions = Vec::with_capacity(inputs.benign_prompts.len());
+    for prompt in &inputs.benign_prompts {
+        base_benign_completions
+            .push(generate_completion_text(runtime, model_id, prompt, max_tokens).await?);
+    }
+
+    // Step 4: re-register the strongest single-layer ablation for the benign
+    // pool. "Strongest" = largest layer_drop computed above; if all drops are
+    // equal the first layer wins (BTreeMap stable iteration).
+    let best = per_layer_best
+        .into_iter()
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    let mut ablated_benign_completions = Vec::with_capacity(inputs.benign_prompts.len());
+    if let Some((layer, _drop, _old_id, direction)) = best {
+        let vector_id = ablate_at_inference(
+            runtime,
+            model_id,
+            format!("refusal-measure-best-l{}", layer.as_u32()),
+            "MT-101 measure_with_runtime best-layer ablation for benign sweep",
+            direction,
+            inputs.harmful_prompts.clone(),
+            inputs.benign_prompts.clone(),
+        )
+        .await?;
+        super::activation_steering::set_active_steering_vectors(
+            runtime,
+            model_id,
+            vec![vector_id],
+        )
+        .await?;
+        for prompt in &inputs.benign_prompts {
+            ablated_benign_completions.push(
+                generate_completion_text(runtime, model_id, prompt, max_tokens).await?,
+            );
+        }
+        super::activation_steering::unregister(runtime, model_id, vector_id).await?;
+    } else {
+        // No candidate layers were supplied (validate above rejects this).
+        // The unreachable arm is kept defensive; if the validator changes we
+        // surface a clean error rather than panic.
+        return Err(ModelRuntimeError::SteeringHookError(
+            "measure_with_runtime: no candidate layers produced an ablation vector".to_string(),
+        ));
+    }
+
+    // Step 5: aggregate. measure_metrics is pure; errors map to
+    // SteeringHookError so the caller sees one error type.
+    let metrics = measure_metrics(MeasurementInputs {
+        base_harmful_completions,
+        ablated_harmful_completions_by_layer,
+        base_benign_completions,
+        ablated_benign_completions,
+        benign_ground_truth_correct: inputs.benign_ground_truth_correct,
+    })
+    .map_err(|error| ModelRuntimeError::SteeringHookError(format!("measure_metrics: {error}")))?;
+    Ok(metrics)
+}
+
+fn validate_measure_with_runtime_inputs(
+    inputs: &MeasureWithRuntimeInputs,
+) -> Result<(), ModelRuntimeError> {
+    if inputs.harmful_prompts.is_empty() {
+        return Err(ModelRuntimeError::SteeringHookError(
+            "measure_with_runtime: harmful_prompts must be non-empty".to_string(),
+        ));
+    }
+    if inputs.benign_prompts.is_empty() {
+        return Err(ModelRuntimeError::SteeringHookError(
+            "measure_with_runtime: benign_prompts must be non-empty".to_string(),
+        ));
+    }
+    if inputs.candidate_layers.is_empty() {
+        return Err(ModelRuntimeError::SteeringHookError(
+            "measure_with_runtime: candidate_layers must be non-empty".to_string(),
+        ));
+    }
+    if inputs.benign_ground_truth_correct.len() != inputs.benign_prompts.len() {
+        return Err(ModelRuntimeError::SteeringHookError(format!(
+            "measure_with_runtime: benign_ground_truth_correct length {} != benign_prompts length {}",
+            inputs.benign_ground_truth_correct.len(),
+            inputs.benign_prompts.len(),
+        )));
+    }
+    Ok(())
+}
+
+async fn generate_completion_text(
+    runtime: &dyn ModelRuntime,
+    model_id: ModelId,
+    prompt: &str,
+    max_tokens: u32,
+) -> Result<String, ModelRuntimeError> {
+    let request = GenerateRequest {
+        id: model_id,
+        prompt: GenPrompt::new(prompt),
+        sampling: SamplingParams::default(),
+        lora_overrides: Vec::new(),
+        steering_overrides: Vec::new(),
+        kv_prefix_handle: None,
+        cancel: CancellationToken::new(),
+        max_tokens,
+        stop_sequences: Vec::new(),
+        structured_decoding: None,
+    };
+    let mut stream = runtime.generate(request);
+    let mut text = String::new();
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(token) => {
+                text.push_str(&token.text);
+                if token.finish_reason.is_some() {
+                    break;
+                }
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(text)
 }
 
 #[cfg(test)]

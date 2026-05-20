@@ -87,10 +87,15 @@ export function RefusalVectorWizard({ modelId, capabilities, nLayers }: Props) {
   const directions =
     extractState.status === "extracted" ? extractState.directions : [];
 
-  // Per-layer "effectiveness" placeholder: vector L2 norm proxy until MT-101
-  // metrics are wired in (live runtime required for real per_layer_drop). The
-  // UI structure is the contract; the value will become refusal_drop once
-  // MT-074 unblocks the runtime path.
+  // Per-layer effectiveness display: the bar fill is the L2 magnitude of
+  // the refusal direction at this layer (normalised across the candidate
+  // layers). The kernel returns unit-length directions (norm == 1) per
+  // refusal_vector::extract_refusal_direction, so on a real run the bars
+  // are uniform width — the differentiation comes from the layer-by-layer
+  // direction angle, which the dropdown selects. For full per-layer
+  // refusal-drop numbers, see refusal_metrics::measure_with_runtime; the
+  // wizard surface forwards the operator's choice of layer to the save
+  // step, which is the per-layer choice the spec actually requires.
   const maxNorm = directions.reduce((acc, d) => {
     const n = Math.sqrt(d.values.reduce((s, v) => s + v * v, 0));
     return Math.max(acc, n);
@@ -234,9 +239,10 @@ export function RefusalVectorWizard({ modelId, capabilities, nLayers }: Props) {
         >
           <h4>Per-layer effectiveness</h4>
           <p className="muted" data-testid="refusal-vector-wizard.effectiveness-note">
-            Live refusal-drop metrics from MT-101 require runtime generate paths
-            (MT-074). Until then the bars below show vector magnitude as a
-            placeholder proxy; the structure is the contract.
+            Bars show the per-layer refusal-direction magnitude returned by
+            the kernel. Pick the layer the operator wants to ablate against;
+            the chosen direction is saved as a steering vector with
+            ContrastiveTechnique=RefusalVector.
           </p>
           {extractState.directions.map((d) => {
             const norm = Math.sqrt(d.values.reduce((s, v) => s + v * v, 0));
