@@ -34,6 +34,16 @@
 - The Orchestrator prepares all mechanical truth (SHAs, artifacts, clause sync) before the Integration Validator launches. The Integration Validator should NOT need to fix mechanical closeout issues.
 - WP Validator handles per-MT review. The Integration Validator does NOT review individual MTs â€” it judges the whole.
 
+## HBR Gate Obligations
+
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.2.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
+
+- At WP claim: read `packet.acceptance_matrix.hbr` and confirm row applicability.
+- At MT execution: require evidence per `evidence_kind` for each Applicable HBR rule.
+- At role handoff: HandoffGate (MT-004) MUST PASS or the handoff is blocked.
+- At closeout: confirm no HBR row is `PENDING`, `STEER`, or `BLOCKED` per CX-503B1.
+- Applicable pillars for this role: INT, SWARM, VIS, QUIET, MAN. Integration Validator must account for all active HBR rules in the registry, with validator-scan integration from MT-005 as the evidence-review focus.
+
 ## Current Indexed Master Spec Write Surface [CX-SPEC-IDX] (HARD)
 
 Integration Validator is one of the only roles allowed to patch current Master Spec content. The complete allowed spec-writer set is: `ORCHESTRATOR`, `ACTIVATION_MANAGER`, `CLASSIC_ORCHESTRATOR`, `INTEGRATION_VALIDATOR`, and classic `VALIDATOR`.
@@ -303,3 +313,19 @@ Cross-session conversational memory captures what was validated, decided, and fl
 ## Phase bundle and leaf-surface rule [CX-913]
 
 Use `just gov-check` or `just phase-check` as the canonical checkpoint bundle surfaces before adding a new public governance recipe, public leaf script, or standalone diagnostic. If a new public surface is unavoidable, update `.GOV/roles_shared/records/GOVERNANCE_TOPOLOGY.json` in the same governance change or emit a typed topology-ledger proposal if this role cannot write `.GOV`. Diagnose compact bundle failures through the structured failure dossier under the external governance runtime root.
+
+## Spec-Realism Gate (mandatory enforcement before COMPLETED)
+
+This role enforces the Spec-Realism Gate. The `READY_FOR_VALIDATION -> COMPLETED` transition for any MT must pass three sub-rules. If any sub-rule fails, this role records the failure as the new lifecycle status (one of the named alternatives below) and writes a verdict receipt with the failed sub-rule named. The gate sits at the same authority level as the existing PASS/FAIL discipline; a `COMPLETED` verdict in violation of any sub-rule is a higher-severity governance defect than a single bad MT — escalate to operator immediately.
+
+For the default `INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1` topology this role applies the gate to every MT in the batch BEFORE the WP-scoped Master Spec verdict; an MT that fails the gate sends the batch back to the implementer per the existing per-MT mitigation flow.
+
+**Sub-rule 1 — No deferred-live escape.** Grep the committed proof block, the linked test files, and the diff for `LiveClientUnavailable`, `LiveSpawnUnavailable`, `LiveRuntimeUnavailable`, `TrainerUnavailable`, `NativeToolchainUnavailable`, `not yet wired`, `deferred to follow-on`, `pending MT-NNN`, `live store not attached`, or any new placeholder error variant of the same shape. Any hit reachable from the proof path or from the function bodies the MT spec requires to run -> status `BLOCKED_ON_DEPENDENCY`, verdict `HARD_FAIL`. Name the missing dep in the verdict receipt.
+
+**Sub-rule 2 — External-resource touch.** Read the MT contract's `owned_files` + `spec_anchors` + `implementation_notes`. For every external resource named — model artifact, Postgres table/column, HTTP endpoint, subprocess, file-format round-trip, OS-level surface, IPC channel actually routed to a running process — confirm at least one proof command touches the real resource. If the proof only touches mocks the implementer authored alongside the impl, status `NEEDS_EXTERNAL_RESOURCE`, verdict `HARD_FAIL`. Name the resource in the verdict receipt.
+
+**Sub-rule 3 — Implementer did not self-certify.** Read `lifecycle.claimed_by` and the proposed `completed_by`. If they are the same actor, the handoff is malformed; reject and emit `INVALID_HANDOFF_SELF_CERTIFICATION` in the verdict receipt with the request that the implementer transition to `READY_FOR_VALIDATION` instead. This role then performs the `READY_FOR_VALIDATION -> COMPLETED` transition itself.
+
+The question this gate answers in one breath: *"does the diff exercise the spec's required behavior at runtime, or does it satisfy a contract the implementer also authored?"* A passing answer is the first form. Anything in the second form is a sub-rule-1 or sub-rule-2 failure.
+
+Origin: introduced 2026-05-20 after a kernel_builder session shipped 27 MTs whose `lifecycle.status: COMPLETED` claims satisfied the implementer's own tests but did not satisfy the Master Spec behavior the MT contracts required. The 27 were reopened as `NEEDS_REIMPLEMENTATION`; see receipt `correlation_id=reopen-27-mts-operator-decision-20260520` in the WP-KERNEL-004 RECEIPTS.jsonl. Validator, WP Validator, and Integration Validator all enforce this gate identically; the role that signs the `COMPLETED` transition is the role responsible for the verdict.
