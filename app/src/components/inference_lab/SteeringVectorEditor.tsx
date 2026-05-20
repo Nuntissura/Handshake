@@ -95,9 +95,10 @@ export function SteeringVectorEditor({ modelId, capabilities, nLayers }: Props) 
       <header className="inference-lab__panel-header">
         <h3 id="steering-vector-editor-title">Activation Steering Vectors</h3>
         <p className="muted" data-testid="steering-vector-editor.note">
-          Manual intensity slider clamped -10..10 per SteeringVector contract (MT-065). Live
-          activation hooks require LlamaCppRuntime streaming (MT-074); until then, capture and
-          mutation calls return the runtime-unavailable error verbatim.
+          Manual intensity slider clamped -10..10 per SteeringVector contract (MT-065). Capture
+          and mutation calls dispatch to the live CandleRuntime adapter (MT-082). If no adapter is
+          attached to this model in the current session, the kernel returns a typed
+          capture_not_available reason which is surfaced verbatim.
         </p>
       </header>
 

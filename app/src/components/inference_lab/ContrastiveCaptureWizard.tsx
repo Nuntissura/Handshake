@@ -140,12 +140,13 @@ export function ContrastiveCaptureWizard({ modelId, nLayers, onVectorSaved }: Pr
         hookPoint: "resid_stream",
         values: captureState.diffVector,
         intensity,
-        description: `${description.trim()} | license=${license}`,
+        description: description.trim(),
         provenance: {
           technique: "repe",
           positivePrompts: captureState.positivePrompts,
           negativePrompts: captureState.negativePrompts,
         },
+        licenseTag: license,
       });
       setVectorName("");
       setDescription("");
@@ -299,9 +300,10 @@ export function ContrastiveCaptureWizard({ modelId, nLayers, onVectorSaved }: Pr
       <details className="inference-lab__ab-compare" data-testid="contrastive-capture-wizard.ab-compare">
         <summary>A/B compare (live generation)</summary>
         <p className="muted">
-          Side-by-side generation with the proposed vector active vs inactive requires
-          LlamaCppRuntime streaming (MT-074). The control surface is present here so the wizard
-          remains complete; live A/B output will populate once that runtime is attached.
+          Side-by-side generation with the proposed vector active vs inactive runs through the
+          live CandleRuntime adapter (MT-082). If the runtime is not attached to this model in
+          the current session, capture returns a typed capture_not_available reason which the
+          wizard surfaces verbatim above.
         </p>
       </details>
     </section>

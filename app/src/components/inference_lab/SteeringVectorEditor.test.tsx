@@ -135,9 +135,13 @@ describe("SteeringVectorEditor", () => {
     });
   });
 
-  it("surfaces backend errors verbatim (runtime-unavailable path)", async () => {
+  it("surfaces backend errors verbatim (capture-not-available path)", async () => {
+    // MT-068 + MT-096 ship live ModelRuntime dispatch. When no adapter is
+    // attached for the selected model (or the adapter's hook ops report the
+    // model is not loaded), the kernel returns a typed `capture_not_available`
+    // reason. The editor must surface it verbatim.
     listVectorsMock.mockRejectedValueOnce(
-      "activation_steering live model runtime manager is not attached for adapter llama_cpp",
+      "capture_not_available: list_vectors requires a live ModelRuntime adapter attached for model 019a1b2c-0000-7000-8000-aaaaaaaaaaaa",
     );
 
     render(
@@ -150,7 +154,7 @@ describe("SteeringVectorEditor", () => {
 
     await waitFor(() => {
       const errEl = screen.getByTestId("steering-vector-editor.error");
-      expect(errEl.textContent).toContain("live model runtime manager");
+      expect(errEl.textContent).toContain("capture_not_available");
     });
   });
 });

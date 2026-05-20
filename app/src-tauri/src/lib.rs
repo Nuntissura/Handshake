@@ -26,6 +26,8 @@ mod commands {
     pub mod sandbox;
     pub mod session_distill;
     pub mod steering;
+    #[cfg(test)]
+    pub mod testing;
 }
 
 use quiet_window::QuietWindowBuilder;
@@ -248,6 +250,21 @@ fn orchestrator_workdir() -> PathBuf {
         .join("src")
         .join("backend")
         .join("handshake_core")
+}
+
+fn steering_vector_store_state() -> Result<commands::steering::SteeringVectorStoreState, String> {
+    let workspace = workspace_root();
+    let root = workspace
+        .join(".handshake")
+        .join("steering_vector_store");
+    std::fs::create_dir_all(&root)
+        .map_err(|error| format!("create steering vector store root {root:?}: {error}"))?;
+    let store = Arc::new(
+        handshake_core::model_runtime::techniques::steering_vector_store::SteeringVectorStore::new(
+            root,
+        ),
+    );
+    Ok(commands::steering::SteeringVectorStoreState::new(store))
 }
 
 const MD_OUTPUT_ROOT_DIR_SCHEMA_V0: &str = "hsk.output_root_dir@v0";
@@ -709,11 +726,28 @@ pub fn run() {
     let cloud_lane_state =
         commands::cloud_lane::CloudLaneIpcState::new(cloud_lane_vault, cloud_lane_consent_gate);
 
+    // MT-068 + MT-096: the steering vector store backs the
+    // `kernel_model_runtime_steering_register_vector` command with the
+    // production `SteeringVectorStore` (MT-097). The store root lives under
+    // the workspace `Handshake_Output/steering-vectors` directory so it is
+    // visible to operators and follows the disk-agnostic portability policy.
+    // When the workspace path cannot be resolved we fall back to a detached
+    // store state; commands then dispatch through the live adapter without
+    // persistence.
+    let steering_store_state = match steering_vector_store_state() {
+        Ok(state) => state,
+        Err(error) => {
+            eprintln!("steering vector store init failed: {error}; falling back to detached store");
+            commands::steering::SteeringVectorStoreState::detached()
+        }
+    };
+
     let builder = tauri::Builder::default()
         .manage(visual_debug_state)
         .manage(inspector::InspectorPortState::new(None))
         .manage(inspector_reader)
         .manage(commands::model_runtime::ModelRuntimeState::default())
+        .manage(steering_store_state)
         .manage(commands::memory_capsule::MemoryCapsuleIpcState::default())
         .manage(commands::session_distill::SessionDistillState::default())
         // MT-124: Distillation Queue UI (DistillationQueue.tsx) reads

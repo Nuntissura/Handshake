@@ -43,6 +43,10 @@ export interface SteeringRegisterVectorRequest {
   intensity: number;
   description: string;
   provenance: SteeringProvenanceInput;
+  // MT-097 persistence metadata. Optional so the IPC remains compatible with
+  // callers that do not opt into governed persistence (test composition).
+  licenseTag?: string;
+  modelCompatTag?: string;
 }
 
 export interface SteeringVectorIdResult {
