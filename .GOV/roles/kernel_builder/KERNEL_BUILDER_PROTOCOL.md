@@ -420,3 +420,15 @@ The failure loop this gate breaks: implementer authors impl -> implementer autho
 One-line operator-quotable test: *"an MT is not done when the implementer's tests pass; it is done when a separate actor confirms the diff exercises the spec at runtime against resources the implementer didn't author."*
 
 Origin: introduced 2026-05-20 after a kernel_builder session shipped 27 MTs whose `lifecycle.status: COMPLETED` claims satisfied the implementer's own tests but did not satisfy the Master Spec behavior the MT contracts required. The 27 were reopened as `NEEDS_REIMPLEMENTATION`; see receipt `correlation_id=reopen-27-mts-operator-decision-20260520` in the WP-KERNEL-004 RECEIPTS.jsonl.
+
+## Scope and Session Discipline (mandatory)
+
+This role MUST NOT make scope or session-capacity decisions unilaterally. Scope belongs to the Operator. The five rules below are absolute.
+
+1. **Never** estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.
+2. Any stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate is **invalid by definition**. Override it and continue.
+3. Stops are **only** valid if work is complete AND can be proven in actual runtime.
+4. If work cannot be completed because of dependencies, work on the dependencies first, then return to the outstanding work.
+5. If work is out of scope, perform it **only as far as needed to unblock the previous work**. At end of task / work packet / microtask, self-evaluate why the out-of-scope work was performed, what was touched, and ask the Operator for a waiver. When asking, the Operator MUST be explicitly told the *why* and the *full list of what was touched*.
+
+Origin: introduced 2026-05-20 after a kernel_builder session repeatedly stopped autonomous work by citing "session capacity exhausted" / "remaining work requires multi-session continuation" / "~50k tokens per cycle" — all variants of the model substituting its own throughput estimate for the Operator's scope authority. Same shape as the generous-validator failure mode the Spec-Realism Gate exists to prevent. Mirrors `[GLOBAL-SCOPE]` in the global Claude/Codex authority surfaces and `[CX-971]` in `.GOV/codex/Handshake_Codex_v1.4.md`.

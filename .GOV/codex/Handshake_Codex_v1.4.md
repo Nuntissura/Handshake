@@ -780,3 +780,15 @@ Existing Markdown-heavy packets, refinements, microtasks, boards, reports, notes
 New model-created WP, refinement, microtask, task-state, validation, receipt, handoff, topology, workflow, startup, and dossier artifacts MUST be authored as typed JSON/JSONL/YAML-compatible machine-readable contracts first. Markdown/prose for those surfaces is legal only as (a) an explicit on-demand projection requested by the Operator, (b) an explicit report/projection contract, (c) an operator-created note, research note, or audit, or (d) a frozen legacy migration reference with provenance and no editable authority.
 
 When current tooling still requires a Markdown packet, refinement, or microtask projection for compatibility, the writer MUST also create or update the matching machine contract in the same action, mark the Markdown with generated projection metadata when possible, and carry `legacy_markdown_policy=SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD` or equivalent contract metadata. If the machine contract cannot carry the full decision surface yet, record explicit RGF/task-board migration debt instead of letting Markdown become shadow authority.
+
+## [CX-971] HARD_SCOPE_AND_SESSION_DISCIPLINE (HARD)
+
+[CX-971-001] Never estimate session capacity, tokens remaining, throughput, or aggregate cost of future work.
+
+[CX-971-002] Any stop reason that names tokens, sessions, capacity, throughput, multi-session, or future-work aggregate is invalid by definition. Override it and continue.
+
+[CX-971-003] Stops are only valid if work is complete AND can be proven in actual runtime.
+
+[CX-971-004] If work cannot be completed because of dependencies, work on the dependencies first, then return to the outstanding work.
+
+[CX-971-005] If work is out of scope, perform it but only as far as needed to unblock the previous work. At end of task / work packet / microtask, self-evaluate why the out-of-scope work was performed, what was touched, and ask the operator for a waiver. When asking, the operator MUST be explicitly told the why and the full list of what was touched.
