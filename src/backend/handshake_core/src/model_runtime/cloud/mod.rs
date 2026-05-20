@@ -7,7 +7,8 @@ pub mod openai_byok;
 pub mod secrets_vault;
 
 pub use anthropic_byok::{
-    AnthropicByokError, AnthropicByokRuntime, AnthropicModelHandle,
+    AnthropicByokError, AnthropicByokRuntime, AnthropicModelHandle, ANTHROPIC_API_KEY_HEADER,
+    ANTHROPIC_API_VERSION, ANTHROPIC_MESSAGES_PATH, ANTHROPIC_VERSION_HEADER,
     DEFAULT_ANTHROPIC_MODEL_ALLOWLIST,
 };
 pub use consent_gate::{ConsentDecision, ConsentGate, ConsentGateError, ConsentProvider};

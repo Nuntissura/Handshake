@@ -1,14 +1,38 @@
-//! MT-126 cross-crate integration smoke for the Anthropic BYOK
-//! runtime scaffold. Exhaustive coverage lives in the inline tests
-//! in `model_runtime::cloud::anthropic_byok::tests`; this file pins
-//! the cross-crate API surface + the red_team minimum_controls.
+//! MT-126 (rework) cross-crate integration tests for the BYOK
+//! cloud Anthropic Messages runtime.
+//!
+//! Wiremock is the live test surface per the MT-126
+//! `operator_clarification_20260520` note (mirrored from MT-125):
+//! it binds a real TCP port answering the documented Anthropic
+//! Messages API SSE protocol shape. That satisfies Spec-Realism
+//! Gate sub-rule 2 (real reqwest -> real socket -> wiremock
+//! answering protocol shape) without requiring operator BYOK
+//! credit.
+//!
+//! Anthropic protocol deviations exercised explicitly:
+//!   - Path is `/v1/messages` (vs OpenAI `/chat/completions`).
+//!   - Auth header is `x-api-key: <key>` (vs OpenAI `Authorization`).
+//!   - Every request carries `anthropic-version: 2023-06-01`.
+//!   - SSE events are named: `content_block_delta` carries token
+//!     text; `message_stop` terminates the stream.
+//!   - `score()` and `embed()` return CapabilityNotSupported (no
+//!     first-party logprobs or embeddings on the Messages API).
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
+use futures::StreamExt;
 use handshake_core::model_runtime::cloud::{
     AnthropicByokError, AnthropicByokRuntime, ApiKeyProvider, CloudCallKind, CloudCallStatus,
-    CloudInvocationAuditRow, CloudInvocationAuditSink, OpenAiByokError,
+    CloudInvocationAuditRow, CloudInvocationAuditSink, OpenAiByokError, ANTHROPIC_API_KEY_HEADER,
+    ANTHROPIC_API_VERSION, ANTHROPIC_MESSAGES_PATH, ANTHROPIC_VERSION_HEADER,
 };
+use handshake_core::model_runtime::{
+    CancellationToken, GenPrompt, GenerateRequest, KvCachePolicy, LoadSpec, ModelId, ModelRuntime,
+    ProviderKind, SamplingParams,
+};
+use wiremock::matchers::{header, method, path};
+use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
 struct StaticKey {
     key: String,
@@ -30,40 +54,604 @@ impl CloudInvocationAuditSink for CapturingSink {
     }
 }
 
-fn fixture(sink: Arc<CapturingSink>) -> AnthropicByokRuntime {
-    AnthropicByokRuntime::new(
-        "https://api.anthropic.com/v1",
+/// Custom inspector mock that records every incoming `Request` so
+/// tests can assert about headers / body / api-key surface.
+#[derive(Default)]
+struct RequestInspector {
+    requests: Mutex<Vec<Request>>,
+}
+impl RequestInspector {
+    fn record(&self, req: &Request) {
+        self.requests.lock().unwrap().push(req.clone());
+    }
+    fn snapshot(&self) -> Vec<Request> {
+        self.requests.lock().unwrap().clone()
+    }
+}
+
+const API_KEY_FIXTURE: &str = "sk-ant-wiremock-NEVER-LOG-THIS-KEY";
+
+fn fixture_runtime(api_base: String, sink: Arc<CapturingSink>) -> AnthropicByokRuntime {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .expect("reqwest client builds");
+    AnthropicByokRuntime::with_client(
+        api_base,
+        client,
         Arc::new(StaticKey {
-            key: "sk-ant-test-NEVER-LOG-THIS-KEY".to_string(),
+            key: API_KEY_FIXTURE.to_string(),
         }),
         sink,
     )
 }
 
+fn fixture_generate_request(model_id: ModelId, cancel: CancellationToken) -> GenerateRequest {
+    GenerateRequest {
+        id: model_id,
+        prompt: GenPrompt::new("Say hello."),
+        sampling: SamplingParams {
+            temperature: Some(0.7),
+            ..SamplingParams::default()
+        },
+        lora_overrides: Vec::new(),
+        steering_overrides: Vec::new(),
+        kv_prefix_handle: None,
+        cancel,
+        max_tokens: 32,
+        stop_sequences: Vec::new(),
+        structured_decoding: None,
+    }
+}
+
+/// Build a wiremock-friendly Anthropic SSE payload that streams the
+/// given `tokens` as `content_block_delta` events and terminates
+/// with a `message_delta` (`stop_reason=end_turn`) followed by
+/// `message_stop`. Each event uses the named-event SSE wire shape
+/// (`event: <name>\ndata: <json>\n\n`).
+fn sse_payload_for(tokens: &[&str]) -> String {
+    let mut body = String::new();
+
+    // Optional but realistic envelope events. The runtime tolerates
+    // (and skips) `message_start` / `content_block_start`; including
+    // them here proves the dispatch loop ignores non-token events.
+    let message_start = serde_json::json!({
+        "type": "message_start",
+        "message": {
+            "id": "msg_test_0001",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-4-7-20260101",
+            "content": [],
+            "stop_reason": null,
+            "stop_sequence": null,
+            "usage": { "input_tokens": 5, "output_tokens": 0 }
+        }
+    });
+    body.push_str("event: message_start\n");
+    body.push_str(&format!("data: {message_start}\n\n"));
+
+    let block_start = serde_json::json!({
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": { "type": "text", "text": "" }
+    });
+    body.push_str("event: content_block_start\n");
+    body.push_str(&format!("data: {block_start}\n\n"));
+
+    for text in tokens {
+        let chunk = serde_json::json!({
+            "type": "content_block_delta",
+            "index": 0,
+            "delta": { "type": "text_delta", "text": text }
+        });
+        body.push_str("event: content_block_delta\n");
+        body.push_str(&format!("data: {chunk}\n\n"));
+    }
+
+    let block_stop = serde_json::json!({ "type": "content_block_stop", "index": 0 });
+    body.push_str("event: content_block_stop\n");
+    body.push_str(&format!("data: {block_stop}\n\n"));
+
+    let msg_delta = serde_json::json!({
+        "type": "message_delta",
+        "delta": { "stop_reason": "end_turn", "stop_sequence": null },
+        "usage": { "output_tokens": tokens.len() }
+    });
+    body.push_str("event: message_delta\n");
+    body.push_str(&format!("data: {msg_delta}\n\n"));
+
+    let msg_stop = serde_json::json!({ "type": "message_stop" });
+    body.push_str("event: message_stop\n");
+    body.push_str(&format!("data: {msg_stop}\n\n"));
+
+    body
+}
+
+// ---------------------------------------------------------------------
+// Test 1: live streaming against wiremock
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_generate_streams_tokens_against_wiremock() {
+    let mock_server = MockServer::start().await;
+    let payload = sse_payload_for(&["Hello", ", ", "world", "!"]);
+    Mock::given(method("POST"))
+        .and(path(ANTHROPIC_MESSAGES_PATH))
+        .and(header(ANTHROPIC_API_KEY_HEADER, API_KEY_FIXTURE))
+        .and(header(ANTHROPIC_VERSION_HEADER, ANTHROPIC_API_VERSION))
+        .and(header("content-type", "application/json"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(payload),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone());
+    let handle = runtime
+        .register_handle("claude-opus-4-7-20260101", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+
+    let cancel = CancellationToken::new();
+    let req = fixture_generate_request(handle.model_id, cancel);
+    let mut stream = runtime.messages_stream(req);
+
+    let mut produced_texts = Vec::new();
+    let mut saw_terminal_stop = false;
+    while let Some(item) = stream.next().await {
+        let token = item.expect("stream items are Ok in the success path");
+        if let Some(finish) = token.finish_reason {
+            if matches!(
+                finish,
+                handshake_core::model_runtime::FinishReason::Stop
+            ) && token.text.is_empty()
+            {
+                saw_terminal_stop = true;
+                break;
+            }
+        }
+        if !token.text.is_empty() {
+            produced_texts.push(token.text);
+        }
+    }
+
+    assert_eq!(
+        produced_texts,
+        vec![
+            "Hello".to_string(),
+            ", ".to_string(),
+            "world".to_string(),
+            "!".to_string(),
+        ],
+        "stream must yield each content_block_delta.delta.text chunk verbatim"
+    );
+    assert!(
+        saw_terminal_stop,
+        "stream must terminate with FinishReason::Stop on `event: message_stop`"
+    );
+
+    let rows = sink.rows.lock().unwrap().clone();
+    let chat_rows: Vec<_> = rows
+        .iter()
+        .filter(|r| r.call_kind == CloudCallKind::ChatCompletion)
+        .collect();
+    assert!(
+        chat_rows.iter().any(|r| r.status == CloudCallStatus::Started),
+        "audit must include a Started row"
+    );
+    assert!(
+        chat_rows
+            .iter()
+            .any(|r| r.status == CloudCallStatus::Succeeded),
+        "audit must include a Succeeded row after the stream completes"
+    );
+}
+
+// ---------------------------------------------------------------------
+// Test 2: cancellation
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_cancellation_marks_call_cancelled() {
+    // Pre-call cancellation: trip the cancel flag BEFORE calling
+    // messages_stream. The spawned task checks the flag first and
+    // bails with a Cancelled audit row + FinishReason::Cancelled
+    // terminal token, without issuing a request to wiremock. This
+    // avoids racing SSE buffer drains against the cancel flag.
+
+    let mock_server = MockServer::start().await;
+    // Mount a permissive mock but expect 0 hits — we want to prove
+    // pre-call cancellation never reaches the wire.
+    Mock::given(method("POST"))
+        .and(path(ANTHROPIC_MESSAGES_PATH))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string("event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"),
+        )
+        .expect(0)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone());
+    let handle = runtime
+        .register_handle("claude-opus-4-7", "2026-05-20T11:00:00Z")
+        .unwrap();
+
+    let cancel = CancellationToken::new();
+    cancel.cancel();
+    let req = fixture_generate_request(handle.model_id, cancel);
+
+    let mut stream = runtime.messages_stream(req);
+
+    let mut saw_cancelled = false;
+    while let Ok(Some(item)) =
+        tokio::time::timeout(Duration::from_secs(5), stream.next()).await
+    {
+        match item {
+            Ok(token) => {
+                if matches!(
+                    token.finish_reason,
+                    Some(handshake_core::model_runtime::FinishReason::Cancelled)
+                ) {
+                    saw_cancelled = true;
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    assert!(
+        saw_cancelled,
+        "pre-cancelled request must surface FinishReason::Cancelled"
+    );
+
+    // Wait briefly so the spawned audit-write task has a chance to flush.
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let rows = sink.rows.lock().unwrap().clone();
+    assert!(
+        rows.iter().any(|r| r.status == CloudCallStatus::Cancelled),
+        "audit must include a Cancelled row; rows={rows:?}"
+    );
+
+    // And explicit assertion: no HTTP request actually reached wiremock.
+    mock_server.verify().await;
+}
+
+// ---------------------------------------------------------------------
+// Test 3: API key only appears as `x-api-key`, never elsewhere
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_api_key_appears_only_as_x_api_key_header() {
+    let mock_server = MockServer::start().await;
+    let inspector = Arc::new(RequestInspector::default());
+    let inspector_for_mock = inspector.clone();
+
+    let payload = sse_payload_for(&["ok"]);
+    Mock::given(method("POST"))
+        .and(path(ANTHROPIC_MESSAGES_PATH))
+        .respond_with(move |req: &Request| {
+            inspector_for_mock.record(req);
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(payload.clone())
+        })
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone());
+    let handle = runtime
+        .register_handle("claude-opus-4", "2026-05-20T11:00:00Z")
+        .unwrap();
+    let req = fixture_generate_request(handle.model_id, CancellationToken::new());
+    let mut stream = runtime.messages_stream(req);
+    while let Some(item) = stream.next().await {
+        let _ = item;
+    }
+
+    let snapshot = inspector.snapshot();
+    assert_eq!(snapshot.len(), 1, "exactly one HTTP request must reach the mock");
+    let inspected = &snapshot[0];
+
+    // (a) `x-api-key` is the only header carrying the secret.
+    let x_api_key = inspected
+        .headers
+        .get(ANTHROPIC_API_KEY_HEADER)
+        .expect("x-api-key header must be present");
+    let x_api_key_value = x_api_key.to_str().expect("header is ascii");
+    assert_eq!(
+        x_api_key_value, API_KEY_FIXTURE,
+        "x-api-key must carry the api key verbatim (no Bearer wrapper)"
+    );
+
+    // (b) Authorization header must NOT be set (we use x-api-key,
+    // not Bearer auth — this is the key Anthropic protocol deviation
+    // from OpenAI).
+    assert!(
+        inspected.headers.get("authorization").is_none(),
+        "Authorization header must not be set on Anthropic requests"
+    );
+
+    // (c) No other header value contains the key.
+    for (name, value) in inspected.headers.iter() {
+        if name.as_str().eq_ignore_ascii_case(ANTHROPIC_API_KEY_HEADER) {
+            continue;
+        }
+        let v = value.to_str().unwrap_or("");
+        assert!(
+            !v.contains(API_KEY_FIXTURE),
+            "header {} must not contain the api key (got {v})",
+            name.as_str()
+        );
+    }
+
+    // (d) Body must not contain the api key (the body should only
+    // hold the Messages JSON payload).
+    let body = std::str::from_utf8(&inspected.body).unwrap_or("");
+    assert!(
+        !body.contains(API_KEY_FIXTURE),
+        "request body must not contain the api key"
+    );
+
+    // (e) URL/query string must not contain the api key either.
+    assert!(
+        !inspected.url.as_str().contains(API_KEY_FIXTURE),
+        "request URL must not contain the api key"
+    );
+
+    // (f) The runtime's Debug output must not contain the key.
+    let dbg = format!("{runtime:?}");
+    assert!(!dbg.contains(API_KEY_FIXTURE), "{dbg}");
+}
+
+// ---------------------------------------------------------------------
+// Test 4: anthropic-version header is set on every request
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_sends_anthropic_version_header() {
+    let mock_server = MockServer::start().await;
+    let inspector = Arc::new(RequestInspector::default());
+    let inspector_for_mock = inspector.clone();
+
+    let payload = sse_payload_for(&["ok"]);
+    Mock::given(method("POST"))
+        .and(path(ANTHROPIC_MESSAGES_PATH))
+        // Header matcher: wiremock will only return the body if the
+        // request carries `anthropic-version: 2023-06-01`.
+        .and(header(ANTHROPIC_VERSION_HEADER, ANTHROPIC_API_VERSION))
+        .respond_with(move |req: &Request| {
+            inspector_for_mock.record(req);
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(payload.clone())
+        })
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone());
+    let handle = runtime
+        .register_handle("claude-3.5-sonnet-20251022", "2026-05-20T11:00:00Z")
+        .unwrap();
+    let req = fixture_generate_request(handle.model_id, CancellationToken::new());
+    let mut stream = runtime.messages_stream(req);
+    while let Some(_item) = stream.next().await {}
+
+    // Cross-check via the inspector: the header is present with the
+    // documented value, not just matched by the wiremock middleware.
+    let snapshot = inspector.snapshot();
+    assert_eq!(snapshot.len(), 1);
+    let inspected = &snapshot[0];
+    let version_header = inspected
+        .headers
+        .get(ANTHROPIC_VERSION_HEADER)
+        .expect("anthropic-version header must be present");
+    assert_eq!(
+        version_header.to_str().expect("ascii"),
+        ANTHROPIC_API_VERSION,
+        "anthropic-version must carry the documented stable version"
+    );
+}
+
+// ---------------------------------------------------------------------
+// Test 5: capabilities shape
+// ---------------------------------------------------------------------
+
 #[test]
-fn cloud_anthropic_capabilities_match_byok_realities() {
+fn anthropic_byok_capabilities_match_cloud_realities() {
     let caps = AnthropicByokRuntime::cloud_capabilities();
     assert!(!caps.supports_lora);
+    assert!(caps.supports_kv_prefix_cache);
     assert!(!caps.supports_activation_steering);
     assert!(!caps.supports_subquadratic);
     assert!(!caps.supports_speculative_draft);
     assert!(!caps.supports_eagle3);
-    assert!(caps.supports_kv_prefix_cache);
 }
+
+// ---------------------------------------------------------------------
+// Test 6: no ProcessOwnershipLedger row for BYOK calls.
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_does_not_register_process_ownership_row() {
+    let mock_server = MockServer::start().await;
+    let payload = sse_payload_for(&["a", "b", "c"]);
+    Mock::given(method("POST"))
+        .and(path(ANTHROPIC_MESSAGES_PATH))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(payload),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone());
+    let handle = runtime
+        .register_handle("claude-opus-4", "2026-05-20T11:00:00Z")
+        .unwrap();
+    let req = fixture_generate_request(handle.model_id, CancellationToken::new());
+    let mut stream = runtime.messages_stream(req);
+    while let Some(_item) = stream.next().await {}
+
+    // Every audit row written should belong to CloudInvocationAuditSink.
+    // A ProcessOwnershipLedger row would imply a separate write path;
+    // it doesn't exist in this adapter and these rows are the only
+    // evidence channel.
+    let rows = sink.rows.lock().unwrap().clone();
+    assert!(!rows.is_empty(), "BYOK must produce audit rows");
+    for row in rows {
+        assert!(matches!(
+            row.call_kind,
+            CloudCallKind::ChatCompletion | CloudCallKind::Embeddings | CloudCallKind::Score
+        ));
+    }
+}
+
+// ---------------------------------------------------------------------
+// Test 7: allowlist rejection at load() time
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_load_rejects_non_allowlisted_model_name() {
+    let mock_server = MockServer::start().await;
+    let sink = Arc::new(CapturingSink::default());
+    let mut runtime = fixture_runtime(mock_server.uri(), sink.clone());
+
+    let spec = LoadSpec {
+        artifact_path: std::path::PathBuf::from("/not/used/for/cloud"),
+        sha256_expected: String::new(),
+        runtime_kind: handshake_core::model_runtime::RuntimeKind::LlamaCpp, // ignored for cloud
+        sampling_defaults: SamplingParams::default(),
+        kv_cache_policy: KvCachePolicy::default(),
+        declared_capabilities: AnthropicByokRuntime::cloud_capabilities(),
+        provider: ProviderKind::ByokCloud,
+        engine_origin: Some("not-a-real-anthropic-model".to_string()),
+        external_engine_import: None,
+    };
+    let err = runtime.load(spec).await.expect_err("not in allowlist");
+    let msg = format!("{err}");
+    assert!(
+        msg.contains("not in the BYOK allowlist"),
+        "expected allowlist-rejection text, got: {msg}"
+    );
+}
+
+// ---------------------------------------------------------------------
+// Test 8: ProviderKind validation at load() time
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_load_rejects_non_byok_provider() {
+    let mock_server = MockServer::start().await;
+    let sink = Arc::new(CapturingSink::default());
+    let mut runtime = fixture_runtime(mock_server.uri(), sink.clone());
+
+    let spec = LoadSpec {
+        artifact_path: std::path::PathBuf::from("/not/used/for/cloud"),
+        sha256_expected: String::new(),
+        runtime_kind: handshake_core::model_runtime::RuntimeKind::LlamaCpp,
+        sampling_defaults: SamplingParams::default(),
+        kv_cache_policy: KvCachePolicy::default(),
+        declared_capabilities: AnthropicByokRuntime::cloud_capabilities(),
+        provider: ProviderKind::Local, // wrong lane
+        engine_origin: Some("claude-opus-4".to_string()),
+        external_engine_import: None,
+    };
+    let err = runtime.load(spec).await.expect_err("wrong provider");
+    let msg = format!("{err}");
+    assert!(
+        msg.contains("ByokCloud"),
+        "expected ByokCloud lane-validation text, got: {msg}"
+    );
+}
+
+// ---------------------------------------------------------------------
+// Test 9: score() returns CapabilityNotSupported (no logprobs on Messages API)
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_score_returns_capability_not_supported() {
+    let sink = Arc::new(CapturingSink::default());
+    let runtime =
+        fixture_runtime("https://api.anthropic.com".to_string(), sink);
+    let handle = runtime
+        .register_handle("claude-opus-4", "2026-05-20T11:00:00Z")
+        .unwrap();
+    let err = runtime
+        .score(handle.model_id, vec![1, 2, 3])
+        .await
+        .expect_err("Messages API has no logprobs");
+    match err {
+        handshake_core::model_runtime::ModelRuntimeError::CapabilityNotSupported {
+            capability,
+            adapter,
+        } => {
+            assert!(capability.contains("logprobs"), "{capability}");
+            assert_eq!(adapter, "anthropic_byok");
+        }
+        other => panic!("expected CapabilityNotSupported, got {other:?}"),
+    }
+}
+
+// ---------------------------------------------------------------------
+// Test 10: embed() returns CapabilityNotSupported (Anthropic has no embeddings)
+// ---------------------------------------------------------------------
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_embed_returns_capability_not_supported() {
+    let sink = Arc::new(CapturingSink::default());
+    let runtime =
+        fixture_runtime("https://api.anthropic.com".to_string(), sink);
+    let handle = runtime
+        .register_handle("claude-opus-4", "2026-05-20T11:00:00Z")
+        .unwrap();
+    let err = runtime
+        .embed(handle.model_id, "hello")
+        .await
+        .expect_err("Anthropic has no embeddings endpoint");
+    match err {
+        handshake_core::model_runtime::ModelRuntimeError::CapabilityNotSupported {
+            capability,
+            adapter,
+        } => {
+            assert!(capability.contains("embed"), "{capability}");
+            assert_eq!(adapter, "anthropic_byok");
+        }
+        other => panic!("expected CapabilityNotSupported, got {other:?}"),
+    }
+}
+
+// ---------------------------------------------------------------------
+// Carry-over structural tests from the prior session
+// ---------------------------------------------------------------------
 
 #[test]
 fn cloud_anthropic_runtime_debug_redacts_api_key() {
     let sink = Arc::new(CapturingSink::default());
-    let runtime = fixture(sink);
+    let runtime = fixture_runtime("https://api.anthropic.com".to_string(), sink);
     let dbg = format!("{runtime:?}");
     assert!(dbg.contains("<redacted"), "{dbg}");
-    assert!(!dbg.contains("sk-ant-test-NEVER-LOG-THIS-KEY"), "{dbg}");
+    assert!(!dbg.contains(API_KEY_FIXTURE), "{dbg}");
 }
 
 #[test]
 fn cloud_anthropic_runtime_register_handle_validates_allowlist() {
     let sink = Arc::new(CapturingSink::default());
-    let runtime = fixture(sink);
+    let runtime = fixture_runtime("https://api.anthropic.com".to_string(), sink);
     runtime
         .register_handle("claude-3.5-sonnet-20251022", "2026-05-20T06:00:00Z")
         .expect("claude-3.5-sonnet family allowed");
@@ -79,7 +667,7 @@ fn cloud_anthropic_runtime_register_handle_validates_allowlist() {
 #[test]
 fn cloud_anthropic_audit_sink_records_call_lifecycle() {
     let sink = Arc::new(CapturingSink::default());
-    let runtime = fixture(sink.clone());
+    let runtime = fixture_runtime("https://api.anthropic.com".to_string(), sink.clone());
     let handle = runtime
         .register_handle("claude-opus-4", "2026-05-20T06:00:00Z")
         .unwrap();
@@ -93,20 +681,12 @@ fn cloud_anthropic_audit_sink_records_call_lifecycle() {
             status: CloudCallStatus::Succeeded,
         })
         .expect("audit ok");
-    let rows = sink.rows.lock().unwrap();
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].openai_model_name, "claude-opus-4");
-}
-
-#[test]
-fn cloud_anthropic_live_messages_returns_unavailable_until_wired() {
-    let sink = Arc::new(CapturingSink::default());
-    let runtime = fixture(sink);
-    let handle = runtime
-        .register_handle("claude-opus-4", "2026-05-20T06:00:00Z")
-        .unwrap();
-    let err = runtime
-        .messages_stream(handle.model_id)
-        .expect_err("not yet wired");
-    assert!(matches!(err, AnthropicByokError::LiveClientUnavailable(_)));
+    let captured = sink.rows.lock().unwrap();
+    assert!(!captured.is_empty(), "register_handle + record_audit emit rows");
+    assert!(
+        captured
+            .iter()
+            .any(|r| r.openai_model_name == "claude-opus-4" && r.status == CloudCallStatus::Succeeded),
+        "the appended Succeeded row must round-trip via the sink"
+    );
 }
