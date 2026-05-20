@@ -3,6 +3,7 @@ pub mod capsule;
 pub mod injection;
 pub mod ipc;
 pub mod persistence;
+pub mod persistence_postgres;
 pub mod policy_table;
 
 pub use builder::{
@@ -35,5 +36,9 @@ pub use persistence::{
     KERNEL_ACTION_REQUEST_SCHEMA_ID, MEMORY_CAPSULE_RECORD_ACTION_ID,
     MEMORY_CAPSULE_RECORD_INPUT_SCHEMA_ID, MEMORY_CAPSULE_RECORD_PAYLOAD_SCHEMA_ID,
     MEMORY_WRITE_BOX_SCHEMA_ID, WRITE_BOX_V1_ENVELOPE_SCHEMA_ID,
+};
+pub use persistence_postgres::{
+    PostgresKernelActionSubmitter, PostgresMemoryCapsuleStore, MEMORY_CAPSULE_AGGREGATE_TYPE,
+    MEMORY_CAPSULE_SOURCE_COMPONENT,
 };
 pub use policy_table::{CapsulePolicyTable, RETRIEVAL_SCORING_FORMULA_V0};
