@@ -169,7 +169,15 @@ pub mod mcp;
 #[cfg(feature = "runtime-full")]
 pub mod mex;
 #[cfg(feature = "runtime-full")]
+pub mod model_manual;
+#[cfg(feature = "runtime-full")]
+pub mod model_runtime;
+#[cfg(feature = "runtime-full")]
 pub mod models;
+#[cfg(feature = "runtime-full")]
+pub mod process_ledger;
+#[cfg(feature = "runtime-full")]
+pub mod sandbox;
 #[cfg(feature = "runtime-full")]
 pub mod role_mailbox;
 #[cfg(feature = "runtime-full")]
@@ -178,6 +186,8 @@ pub mod runtime_governance;
 pub mod storage;
 #[cfg(feature = "runtime-full")]
 pub mod terminal;
+#[cfg(feature = "runtime-full")]
+pub mod test_harness;
 #[cfg(feature = "tokenization")]
 pub mod tokenization;
 #[cfg(feature = "runtime-full")]

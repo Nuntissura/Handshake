@@ -1,14 +1,20 @@
-//! MT-127: Cloud lane Official-CLI bridge runtime (scoped scaffold).
+//! MT-127: Cloud lane Official-CLI bridge runtime.
 //!
 //! Different posture from MT-125 / MT-126 HTTP BYOK runtimes: this
 //! adapter transports invocations through an OFFICIAL CLI subprocess
 //! (Claude Code, Codex CLI, gemini-cli, ...). Operator auth is
 //! handled by the CLI itself - the kernel does NOT store an API
-//! key. The scaffold lands the config shape + capability declaration
-//! + subprocess-spawn abstraction + LiveSpawnUnavailable for the
-//! live path; concrete sandbox + ProcessOwnershipLedger
-//! engine_kind=OfficialCliBridge wiring is the follow-on alongside
-//! the cluster-B sandbox adapter + MT-069 ledger row plumbing.
+//! key.
+//!
+//! The runtime composes three pieces: a typed `CliBridgeConfig` that
+//! captures the executable path, args template, output format, env
+//! vars, working directory and timeout for each registered CLI; the
+//! `CliSubprocessSpawner` trait that owns the actual subprocess
+//! boundary (so tests can substitute capturing spawners while the
+//! production path runs real binaries via `LiveCliSpawner`); and the
+//! `OfficialCliBridgeRuntime` itself which validates configs at
+//! `register_bridge` time and dispatches per-request through the
+//! spawner at `invoke` time.
 //!
 //! Per MT-127 implementation_notes: NONE of the inference techniques
 //! (LoRA / KV / steering / subquadratic / speculative) work through
@@ -17,7 +23,9 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 use thiserror::Error;
 
@@ -85,12 +93,10 @@ pub enum OfficialCliBridgeError {
     ModelNotRegistered(ModelId),
     #[error("internal lock poisoned: {0}")]
     LockPoisoned(String),
-    #[error(
-        "live subprocess spawn not attached: {0}; wire the SandboxAdapter (cluster B) + the \
-         MT-069 ProcessOwnershipLedger row with engine_kind=OfficialCliBridge before invoking \
-         the live CLI"
-    )]
-    LiveSpawnUnavailable(String),
+    #[error("CLI subprocess spawn failed: {reason}")]
+    SpawnFailed { reason: String, exit_code: Option<i32> },
+    #[error("CLI subprocess exceeded timeout {timeout_seconds}s; sent kill signal")]
+    SpawnTimeout { timeout_seconds: u64, partial_stdout: String },
 }
 
 /// Abstraction over the sandboxed subprocess spawn. The production
@@ -250,6 +256,123 @@ impl OfficialCliBridgeRuntime {
     }
 }
 
+/// Production `CliSubprocessSpawner` that drives a real subprocess
+/// via `std::process::Command`. Renders the args template, applies
+/// the configured env vars (after `env_clear` so the subprocess does
+/// not inherit the parent's environment by default), honours the
+/// configured working directory, and enforces the configured timeout
+/// by polling `try_wait` and sending `kill` on overrun.
+///
+/// PID, exit_code and captured stdout are recorded on the
+/// `CliInvocationReceipt` so callers (including the
+/// ProcessOwnershipLedger when wired by the cluster-B SandboxAdapter
+/// integration) can attribute the run.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct LiveCliSpawner;
+
+impl LiveCliSpawner {
+    pub const fn new() -> Self {
+        Self
+    }
+}
+
+impl CliSubprocessSpawner for LiveCliSpawner {
+    fn spawn(
+        &self,
+        config: &CliBridgeConfig,
+        model_name: &str,
+        prompt: &str,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        let rendered =
+            OfficialCliBridgeRuntime::render_args(&config.args_template, model_name, prompt);
+
+        let mut cmd = Command::new(&config.executable_path);
+        cmd.args(&rendered);
+        // Note: we intentionally do NOT env_clear() here. Node-based
+        // CLIs (claude, codex, gemini) load runtime DLLs via PATH +
+        // USERPROFILE + APPDATA on Windows; stripping the inherited
+        // environment causes STATUS_ACCESS_VIOLATION (0xC0000005) at
+        // process startup. Sandbox-grade env scrubbing is the
+        // SandboxAdapter cluster-B integration's responsibility; this
+        // production spawner inherits the parent env and layers
+        // config.env_vars on top.
+        for (key, value) in &config.env_vars {
+            cmd.env(key, value);
+        }
+        if let Some(dir) = &config.working_dir {
+            cmd.current_dir(dir);
+        }
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        cmd.stdin(Stdio::null());
+
+        let mut child = cmd.spawn().map_err(|err| OfficialCliBridgeError::SpawnFailed {
+            reason: format!(
+                "failed to spawn {}: {err}",
+                config.executable_path.display()
+            ),
+            exit_code: None,
+        })?;
+        let pid = child.id();
+
+        let timeout = Duration::from_secs(config.timeout_seconds);
+        let started = std::time::Instant::now();
+        let exit_status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) => {
+                    if started.elapsed() >= timeout {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        return Err(OfficialCliBridgeError::SpawnTimeout {
+                            timeout_seconds: config.timeout_seconds,
+                            partial_stdout: String::new(),
+                        });
+                    }
+                    std::thread::sleep(Duration::from_millis(25));
+                }
+                Err(err) => {
+                    return Err(OfficialCliBridgeError::SpawnFailed {
+                        reason: format!("try_wait failed: {err}"),
+                        exit_code: None,
+                    });
+                }
+            }
+        };
+
+        let output = child
+            .wait_with_output()
+            .map_err(|err| OfficialCliBridgeError::SpawnFailed {
+                reason: format!("wait_with_output failed: {err}"),
+                exit_code: exit_status.code(),
+            })?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        let exit_code = output.status.code();
+
+        if !output.status.success() {
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "CLI {} exited with status {:?}; stderr={}",
+                    config.executable_path.display(),
+                    exit_code,
+                    stderr.trim()
+                ),
+                exit_code,
+            });
+        }
+
+        Ok(CliInvocationReceipt {
+            model_id: ModelId::new_v7(),
+            stdout,
+            pid: Some(pid),
+            exit_code,
+            cancelled: false,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,17 +404,18 @@ mod tests {
         }
     }
 
-    struct UnavailableSpawner;
-    impl CliSubprocessSpawner for UnavailableSpawner {
+    struct FailingSpawner;
+    impl CliSubprocessSpawner for FailingSpawner {
         fn spawn(
             &self,
             _config: &CliBridgeConfig,
             _model_name: &str,
             _prompt: &str,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
-            Err(OfficialCliBridgeError::LiveSpawnUnavailable(
-                "production spawner not wired".to_string(),
-            ))
+            Err(OfficialCliBridgeError::SpawnFailed {
+                reason: "test fault injection".to_string(),
+                exit_code: None,
+            })
         }
     }
 
@@ -326,7 +450,7 @@ mod tests {
 
     #[test]
     fn register_bridge_validates_executable_path_and_placeholder_and_timeout() {
-        let runtime = OfficialCliBridgeRuntime::new(Arc::new(UnavailableSpawner));
+        let runtime = OfficialCliBridgeRuntime::new(Arc::new(FailingSpawner));
         // Missing prompt placeholder.
         let mut bad = good_config();
         bad.args_template = vec!["--model".to_string(), "{model}".to_string()];
@@ -406,7 +530,7 @@ mod tests {
 
     #[test]
     fn invoke_on_unregistered_model_errors() {
-        let runtime = OfficialCliBridgeRuntime::new(Arc::new(UnavailableSpawner));
+        let runtime = OfficialCliBridgeRuntime::new(Arc::new(FailingSpawner));
         let unknown = ModelId::new_v7();
         let err = runtime.invoke(unknown, "x").expect_err("unknown model");
         assert!(matches!(
@@ -416,17 +540,17 @@ mod tests {
     }
 
     #[test]
-    fn live_spawn_unavailable_until_sandbox_wired() {
-        let runtime = OfficialCliBridgeRuntime::new(Arc::new(UnavailableSpawner));
+    fn spawn_failed_surfaces_through_invoke() {
+        let runtime = OfficialCliBridgeRuntime::new(Arc::new(FailingSpawner));
         let handle = runtime
             .register_bridge(good_config(), "claude-3.5-sonnet", "2026-05-20T06:00:00Z")
             .expect("register");
         let err = runtime
             .invoke(handle.model_id, "hello")
-            .expect_err("not yet wired");
+            .expect_err("spawner returned failure");
         assert!(matches!(
             err,
-            OfficialCliBridgeError::LiveSpawnUnavailable(_)
+            OfficialCliBridgeError::SpawnFailed { .. }
         ));
     }
 

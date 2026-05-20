@@ -13,7 +13,7 @@ pub use anthropic_byok::{
 pub use consent_gate::{ConsentDecision, ConsentGate, ConsentGateError, ConsentProvider};
 pub use official_cli_bridge::{
     CliBridgeConfig, CliBridgeHandle, CliInvocationReceipt, CliKind, CliOutputFormat,
-    CliSubprocessSpawner, OfficialCliBridgeError, OfficialCliBridgeRuntime,
+    CliSubprocessSpawner, LiveCliSpawner, OfficialCliBridgeError, OfficialCliBridgeRuntime,
 };
 pub use openai_byok::{
     ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,
