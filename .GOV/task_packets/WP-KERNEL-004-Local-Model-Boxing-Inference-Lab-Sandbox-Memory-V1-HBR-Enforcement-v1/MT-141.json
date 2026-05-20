@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-20T20:10:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -48,8 +48,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "FAIL_NEEDS_REWORK",
+    "validator_verdict": "FAIL_NEEDS_REWORK",
     "depends_on": [],
     "blocks": [
       "MT-142",
@@ -75,18 +75,43 @@
     "wp_hard_fail_note": "WP-KERNEL-004 cannot complete with these 27 MTs in NEEDS_REIMPLEMENTATION status. Each MT below is individually hard-failed AND counts as a hard-fail blocker on the WP itself. The committed code from the prior session remains on the feat branch as a base to either deepen or replace; the lifecycle status below is the source of truth for whether the MT is done, not the presence of source files.",
     "autonomous_session_claim": {
       "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
-      "claimed_at_utc": "2026-05-20T18:35:00Z",
-      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
-      "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
+      "claimed_at_utc": "2026-05-20T19:50:00Z",
+      "transition": "BLOCKED_ON_DEPENDENCY (premature) -> RECLAIMED -> READY_FOR_VALIDATION",
+      "build_restoration": "After fix landing pub mod memory in lib.rs (6th missing declaration; first 5 added in MT-127 closure), cargo test --test memory_capsule_tests compiles and runs.",
+      "proof_real_resource_touched": [
+        "MT-141 contract names NO external resources (validator_focus: 'MemoryCapsule is pure data + small constructor; no I/O or LLM dependencies'). Spec-Realism Gate Sub-rule 2 applies vacuously: there is no model artifact, no Postgres table, no HTTP endpoint, no subprocess, no IPC channel for this MT to touch. The proof is the cargo test exercising the real Rust type system, real serde_json roundtrip, and real deterministic source_hash computation.",
+        "Cargo test result: `cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target --test memory_capsule_tests` => `running 4 tests; test retrieval_policy_round_trips_through_json ... ok; test memory_capsule_new_mints_uuid_v7_and_allows_empty_pack ... ok; test memory_capsule_suppress_item_updates_audit_without_mutating_pack ... ok; test memory_capsule_source_hash_is_deterministic_for_equivalent_pack_items ... ok; test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s`"
+      ],
+      "spec_realism_gate_compliance": {
+        "sub_rule_1_no_deferred_live_escape": "PASS. MemoryCapsule is concrete data; no LiveXxxUnavailable/TrainerUnavailable/NativeToolchainUnavailable variants in capsule.rs. No 'not yet wired' / 'deferred to follow-on' / 'pending MT-NNN' tripwires.",
+        "sub_rule_2_external_resource_touch": "PASS (VACUOUS). Contract names no external resources. Proof exercises real Rust type system + real serde_json roundtrip + real deterministic hash. Not a trait+in-memory escape -- MemoryCapsule is the concrete type, not a trait.",
+        "sub_rule_3_separate_actor": "AWAITING fresh validator sub-agent. Implementer transitioned to READY_FOR_VALIDATION; completed_by must differ from claimed_by."
+      },
+      "contract_test_matrix": [
+        "Contract: 'assert UUID v7 minting' => test memory_capsule_new_mints_uuid_v7_and_allows_empty_pack",
+        "Contract: 'assert source_hash determinism across two equivalent capsules' => test memory_capsule_source_hash_is_deterministic_for_equivalent_pack_items",
+        "Contract: 'assert suppress_item updates only the audit log not the pack' => test memory_capsule_suppress_item_updates_audit_without_mutating_pack",
+        "Contract: 'assert RetrievalPolicy round-trips through serde_json' => test retrieval_policy_round_trips_through_json",
+        "Contract: 'assert no panic on empty pack' => covered by memory_capsule_new_mints_uuid_v7_and_allows_empty_pack"
+      ],
+      "red_team_minimum_controls_status": {
+        "no_io_surface_cannot_bypass_fems_v1": "VERIFIED. MemoryCapsule has no I/O methods; capsule.rs is pure data + small constructor + suppress_item mutator. No FEMS V1 write-review gates bypassed.",
+        "audit_log_records_every_item_including_suppressed": "VERIFIED. memory_capsule_suppress_item_updates_audit_without_mutating_pack test asserts suppression flips included=false in audit entry without removing the item from the audit log.",
+        "source_hash_canonical_serialization": "VERIFIED. memory_capsule_source_hash_is_deterministic_for_equivalent_pack_items test pins canonical hash behavior."
+      }
     },
-    "blocker": {
-      "blocked_at_utc": "2026-05-20T18:35:00Z",
-      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
-      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
-      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
-      "reason": "Memory capsule. memory/injection.rs imports model_runtime; build is broken. Prior session reported PASS but those results are not reproducible against current lib.rs state.",
-      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
-      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    "validator_pass_gate": {
+      "authored_by": "VALIDATOR-EXPLORE-MT141-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T20:10:00Z",
+      "verdict": "FAIL_NEEDS_REWORK",
+      "adversarial_review_verdict": "PASS_MT_CANDIDATE (subsequently superseded by validator)",
+      "rationale": "Cargo test --test memory_capsule_tests returned 4 passed; 0 failed. The three MT-141-owned files (memory/mod.rs, memory/capsule.rs, tests/memory_capsule_tests.rs) are correct per spec §4.8.5 (RetrievalPolicy as durable typed state). However, the prior session over-scoped by also shipping 5 additional files in src/memory/ that are NOT in MT-141.owned_files: builder.rs, injection.rs, ipc.rs, persistence.rs, policy_table.rs. These add I/O surfaces (IPC commands, Postgres persistence, FEMS retriever logic) that contradict MT-141.validator_focus ('MemoryCapsule is pure data + small constructor; no I/O or LLM dependencies'). The 5 extra files appear to belong to MT-142..MT-147 (per MT-141.lifecycle.blocks list) but were authored prematurely as part of MT-141's closure. The validator interprets this as a contract scope violation requiring rework: either (a) recognize the extra files as MT-142+ scope and re-evaluate MT-141 strictly against its owned_files only, or (b) repartition the files across MT-141..MT-147 boundaries properly.",
+      "remediation_options": [
+        "Option 1 (operator-discretion): formally accept that the extra files belong to MT-142..MT-147 and re-evaluate MT-141 strictly against its 3 owned_files. Under this reading, MT-141 closes COMPLETED -- the validator explicitly confirms the 3 MT-141-owned files satisfy the spec.",
+        "Option 2 (re-partition): move builder.rs / injection.rs / ipc.rs / persistence.rs / policy_table.rs into separate MT-142+ commits. Heavy refactor; not advised mid-WP.",
+        "Option 3 (current state): leave MT-141 in FAIL_NEEDS_REWORK pending operator decision."
+      ],
+      "validator_recommendation": "Option 1. The validator's FAIL verdict is technically correct under a strict 'all files in module belong to MT' reading, but the contract's owned_files list is meant to be authoritative scope. The 3 MT-141 owned files are correct; the 5 extra files are future scope authored early. Operator should formally accept Option 1 to close MT-141 COMPLETED with a clarifying packet.json note about cluster D file authorship pattern."
     }
   },
   "handoff": {
