@@ -167,6 +167,8 @@ pub mod loom_fs;
 #[cfg(feature = "runtime-full")]
 pub mod mcp;
 #[cfg(feature = "runtime-full")]
+pub mod memory;
+#[cfg(feature = "runtime-full")]
 pub mod mex;
 #[cfg(feature = "runtime-full")]
 pub mod model_manual;
