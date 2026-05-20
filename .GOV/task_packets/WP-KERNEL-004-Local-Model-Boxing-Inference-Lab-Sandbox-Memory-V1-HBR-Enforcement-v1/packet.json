@@ -61,8 +61,8 @@
     "status": "NOT_GENERATED_BY_DEFAULT"
   },
   "microtasks": {
-    "active_id": "MT-130",
-    "claimable_id": "MT-130",
+    "active_id": "MT-148",
+    "claimable_id": "MT-148",
     "contract_glob": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-*.json",
     "declared_count": 183,
     "declared_ids": [
@@ -251,7 +251,7 @@
       "MT-200"
     ],
     "id_gaps_note": "ID ranges with intentional gaps reflect cluster mid-range count choices: MT-059..060 (cluster B reserved unused, used 041..058), MT-131..140 (cluster C reserved unused, used 061..130), MT-171..175 (cluster D reserved unused, used 141..170), MT-201..205 (cluster X reserved unused, used 176..200). Gaps are intentional and do not indicate missing MTs.",
-    "next_id": "MT-141",
+    "next_id": "MT-149",
     "sequencing_note": "KERNEL_BUILDER implements MTs back to back with no per-MT WP Validator gate per validation_topology = INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1. Cluster ordering: A then B then C then D then X, subject to dependency relationships in each MT.depends_on_mts field. Authored 2026-05-18T03:00Z by 5 parallel Opus cluster subagents per operator decision to launch in parallel."
   },
   "red_team": {
