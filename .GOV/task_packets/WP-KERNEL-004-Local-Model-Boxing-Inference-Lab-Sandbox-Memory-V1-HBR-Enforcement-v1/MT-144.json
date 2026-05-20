@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:03:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-20T20:35:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -51,8 +51,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "FAIL_NEEDS_REWORK",
+    "validator_verdict": "FAIL_NEEDS_REWORK",
     "depends_on": [
       "MT-141",
       "MT-142",
@@ -91,6 +91,13 @@
       "reason": "Same root cause.",
       "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
       "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "adversarial_review": {
+      "adversarial_session": "ADVERSARIAL-EXPLORE-MT-144-20260520-AUTO",
+      "adversarial_at_utc": "2026-05-20T20:35:00Z",
+      "adversarial_verdict": "FAIL_NEEDS_REWORK",
+      "adversarial_defect": "Adversarial caught: CapsuleInjector exists in isolation, fully tested with mock dependencies (10/10 pass), but never wired into ModelRuntime::generate. Grep across src/backend/handshake_core/src finds zero non-test invocations of `inject_for_call` or `attach_capsule_to_generate_request` in production code paths (local_router, model adapters, etc.). The brief's 'UI placeholders instead of live Tauri->backend->resource' anti-pattern applies analogously: 'injection that never actually injects into a real ModelRuntime generate call'. REWORK REQUIRED: wire CapsuleInjector into the ModelRuntime generate call path. Either extend the trait surface (operator may need to authorize since ModelRuntime trait is in MT-062 scope), OR add the injector call into the LocalRouter (MT-070) generate dispatch. Both options touch out-of-scope MTs.",
+      "triggers_brief_rework_loop": "Per brief Phase 2 step 'If verdict is FAIL_NEEDS_REWORK: fix the defects, rerun proof, spawn a fresh adversarial sub-agent.' Implementation must change before next adversarial round."
     }
   },
   "handoff": {

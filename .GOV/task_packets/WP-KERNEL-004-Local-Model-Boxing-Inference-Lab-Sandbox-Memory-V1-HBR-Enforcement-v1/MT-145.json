@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:04:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-20T20:35:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -51,8 +51,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "FAIL_NEEDS_REWORK",
+    "validator_verdict": "FAIL_NEEDS_REWORK",
     "depends_on": [
       "MT-141",
       "MT-142",
@@ -90,6 +90,13 @@
       "reason": "Same root cause.",
       "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
       "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "adversarial_review": {
+      "adversarial_session": "ADVERSARIAL-EXPLORE-MT-145-20260520-AUTO",
+      "adversarial_at_utc": "2026-05-20T20:35:00Z",
+      "adversarial_verdict": "FAIL_NEEDS_REWORK",
+      "adversarial_defect": "Adversarial caught Sub-rule 2 violation: CapsuleRecorder accepts `&dyn KernelActionSubmitter` trait, and the proof test uses `CapturingSubmitter` (an in-memory `RefCell<Vec<KernelActionSubmission>>` authored in the same diff). No real Postgres row is written; the test asserts only schema-correct action formation. The brief explicitly states 'Real Postgres at POSTGRES_TEST_URL counts' as the satisfying resource touch. REWORK REQUIRED: add an integration test that binds the recorder to a real KernelActionCatalogV1 backed by real Postgres at POSTGRES_TEST_URL, then exercises recorder.record(sample_capsule) and asserts the kernel_action_catalog Postgres table received the row.",
+      "triggers_brief_rework_loop": "Per brief Phase 2 step 'If verdict is FAIL_NEEDS_REWORK: fix the defects, rerun proof, spawn a fresh adversarial sub-agent.' Implementation must change before next adversarial round."
     }
   },
   "handoff": {

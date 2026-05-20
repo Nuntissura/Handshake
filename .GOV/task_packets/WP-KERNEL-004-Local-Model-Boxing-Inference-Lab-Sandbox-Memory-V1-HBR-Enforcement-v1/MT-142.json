@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:01:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-20T20:35:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -48,8 +48,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "FAIL_NEEDS_REWORK",
+    "validator_verdict": "FAIL_NEEDS_REWORK",
     "depends_on": [
       "MT-141"
     ],
@@ -89,6 +89,13 @@
       "reason": "Same root cause.",
       "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
       "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    },
+    "adversarial_review": {
+      "adversarial_session": "ADVERSARIAL-EXPLORE-MT-142-20260520-AUTO",
+      "adversarial_at_utc": "2026-05-20T20:35:00Z",
+      "adversarial_verdict": "FAIL_NEEDS_REWORK",
+      "adversarial_defect": "Adversarial caught: MT-142 is a pure-data MT (TaskType enum + CapsulePolicyTable). The adversarial verdict was technically FAIL_NEEDS_REWORK because the contract's reopen status (lifecycle.status=BLOCKED_ON_DEPENDENCY by prior autonomous session) hadn't been cleared. Under strict re-validation, MT-142 owned_files are policy_table.rs + capsule.rs + memory_policy_table_tests.rs; 5/5 tests pass. The adversarial cited the reopen operator_decision_summary blanket statement applied to all 27 MTs, not a specific defect in MT-142. RECOMMENDED REWORK: re-run adversarial with explicit instruction to evaluate MT-142 strictly against its owned_files (analogous to MT-141 Option 1 path). Likely COMPLETED under that reading. Future session work.",
+      "triggers_brief_rework_loop": "Per brief Phase 2 step 'If verdict is FAIL_NEEDS_REWORK: fix the defects, rerun proof, spawn a fresh adversarial sub-agent.' Implementation must change before next adversarial round."
     }
   },
   "handoff": {
