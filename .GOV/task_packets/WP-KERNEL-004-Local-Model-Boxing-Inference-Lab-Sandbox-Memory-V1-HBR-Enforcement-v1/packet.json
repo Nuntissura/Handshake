@@ -90,6 +90,75 @@
       "completed_by": "VALIDATOR-EXPLORE-MT127-20260520-AUTO",
       "completed_at_utc": "2026-05-20T19:05:00Z",
       "note": "First MT in the 27-MT reopen set to reach validator-signed COMPLETED. WP-level hard_fail_open_blockers list still has 26 MTs in BLOCKED_ON_DEPENDENCY state; WP itself remains in hard-fail per operator decision until all 27 close."
+    },
+    "wp_validator_final_disposition": {
+      "authored_by": "VALIDATOR-EXPLORE-WP-KERNEL-004-FINAL-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T19:35:00Z",
+      "verdict": "WP_BLOCKED",
+      "state_before": "WP_HARD_FAIL",
+      "state_after": "WP_BLOCKED_PENDING_OPERATOR_ACTION",
+      "hard_fail_blockers_cleared": false,
+      "rationale": "Per brief WP-Level Final Gate: 'WP may pass only if all 27 MTs are COMPLETED.' Current state: 1 validator-signed COMPLETED (MT-127), 26 BLOCKED_ON_DEPENDENCY. WP cannot pass. All 27 MTs in terminal states; validator-level WP review completed per brief Step 4 BLOCKED procedure.",
+      "per_mt_outcome": {
+        "completed": [
+          "MT-127"
+        ],
+        "blocked_architectural_mt_068_mt_096": [
+          "MT-098",
+          "MT-099",
+          "MT-100",
+          "MT-101",
+          "MT-102",
+          "MT-103",
+          "MT-104",
+          "MT-105"
+        ],
+        "blocked_llvm_libclang": [
+          "MT-106"
+        ],
+        "blocked_build_broken_NOW_RETRACTED": [
+          "MT-119",
+          "MT-120",
+          "MT-121",
+          "MT-122",
+          "MT-123",
+          "MT-124",
+          "MT-125",
+          "MT-126",
+          "MT-128",
+          "MT-129",
+          "MT-141",
+          "MT-142",
+          "MT-143",
+          "MT-144",
+          "MT-145",
+          "MT-146",
+          "MT-147"
+        ]
+      },
+      "blocker_quality_assessment": {
+        "architectural_mt068_mt096": "HONEST BLOCKER. The 8 cluster C UI/steering/config MTs (MT-098-105) genuinely cannot satisfy spec requirements without runtime-manager wiring through Tauri commands owned by MT-068 + MT-096. MT-068 and MT-096 are lifecycle.status=COMPLETED but their product code returns live_runtime_unavailable from every dispatch. Per operator-imposed scope constraint (no_claims_outside_27_until_resolved=true), implementer cannot modify those files. Operator must reopen MT-068+MT-096 or explicitly waive the no-claims-outside-27 rule.",
+        "llvm_libclang_mt106": "OVERSTATED BLOCKER. MT-106 abliteration requires weight-orthogonalisation producing GGUF/safetensors artifacts. The current blocker names llama-cpp-sys-2 (requires LLVM/libclang) as the only path. However, Candle's safetensors I/O is a real alternative documented in abliterate.rs's own module docstring ('safetensors-compatible candle build') and aligned with spec §3.6.4 ExternalEngineImport precedent. Candle deps require no host LLVM. A future implementer session should reattempt MT-106 via Candle path before requiring LLVM install.",
+        "build_broken_17_mts": "FALSE BLOCKER — RETRACTED. The autonomous session prematurely BLOCKED 17 MTs after misdiagnosing the build failure as catastrophic. The MT-127 validator (VALIDATOR-EXPLORE-MT127-20260520-AUTO) explicitly retracted this diagnosis: the actual fix was 5 pub mod declarations in lib.rs (model_manual, model_runtime, models, process_ledger, sandbox, test_harness) plus reverting sandbox_binding.rs to crate::sandbox. After the fix, cargo check exits clean (50 warnings, 0 errors). MT-127 closure proved the build is fixable in-scope. These 17 BLOCKED dispositions are valid lifecycle records of the implementer's session-time blocker state, but they should be re-evaluated by a future session against the now-buildable feat branch (which is committed in 991683da)."
+      },
+      "operator_action_menu": {
+        "option_a_reopen_mt_068_mt_096": "Reopen MT-068 + MT-096 with full reimplementation authority. Cost: extends reopened set from 27 to 29 MTs. Effect: unblocks MT-098-105 cluster C UI/steering chain.",
+        "option_b_waive_no_claims_outside_27_for_runtime_manager_wiring": "Explicitly waive no_claims_outside_27_until_resolved=true for the narrow scope of runtime-manager wiring in MT-068/MT-096 owned files. Record waiver in packet.json.lifecycle.operator_waiver + RECEIPTS.jsonl per brief. Cost: scope authority change. Effect: unblocks MT-098-105 via in-flight session work, no formal reopen.",
+        "option_c_evaluate_candle_safetensors_path_for_mt106": "Before requiring LLVM install, direct future session to implement MT-106 abliteration via Candle's safetensors I/O path (already documented in abliterate.rs and aligned with spec §3.6.4). Cost: no operator action. Effect: potentially unblocks MT-106 without host LLVM install.",
+        "option_d_re_evaluate_17_build_broken_mts_against_now_working_build": "Direct future session to re-claim the 17 MTs that were prematurely BLOCKED on the misdiagnosed build break. The build is now confirmed clean (cargo check exits 0; MT-127 live test passes; see commit 991683da on feat branch). Cost: future session capacity. Effect: likely closures for memory_capsule chain (MT-141-147 — prior session reported PASS counts against the working build) and BYOK cloud lanes (MT-125-126-128 via Wiremock per operator clarification block). Distillation chain (MT-119-124) additionally needs Python peft/transformers/torch install.",
+        "option_e_authorize_python_peft_install_for_mt122": "Authorize `pip install peft transformers torch` for MT-122 distillation chain. Lower-risk than LLVM install (application deps not toolchain). Future session can run distillation eval.",
+        "option_f_authorize_llvm_install_for_mt106_if_option_c_fails": "Authorize LLVM/libclang install for MT-074 chain. Heaviest path. Only do this after Option C (Candle safetensors) is evaluated and rejected."
+      },
+      "recommended_order": [
+        "option_d",
+        "option_c",
+        "option_a OR option_b",
+        "option_e",
+        "option_f if option_c fails"
+      ],
+      "next_kernel_builder_session_should": "Claim the 17 MTs in option_d first against the now-working build. They have the highest chance of producing real COMPLETED outcomes with minimal additional operator decisions. Then attempt option_c for MT-106. The remaining MT-098-105 cluster requires operator scope decision and is genuinely blocked until then.",
+      "hard_fail_open_blockers_remain": true,
+      "wp_final_pass_authorship_complete": true
     }
   },
   "markdown_projection": {
@@ -307,9 +376,9 @@
       "B-FEMS-V1-INTEGRATION-SURFACE blocker must be resolved (FEMS V1 API surface verification) before cluster D MT authoring.",
       "Subquadratic full-feature-parity timeline must be disclosed in MT scoping; operator may revise scope if timeline extends beyond expected window.",
       "All UUID mint sites in product code MUST use UUID v7 per HBR-INT-008.",
-      "All process spawns MUST register in kernel_process_lifecycle Postgres table per spec §5.7.2.",
-      "All model invocations MUST flow through ModelRuntime + LocalModelAdapter per spec §4.6.",
-      "All sandbox boxing MUST flow through SandboxAdapter trait per spec §3.5."
+      "All process spawns MUST register in kernel_process_lifecycle Postgres table per spec Â§5.7.2.",
+      "All model invocations MUST flow through ModelRuntime + LocalModelAdapter per spec Â§4.6.",
+      "All sandbox boxing MUST flow through SandboxAdapter trait per spec Â§3.5."
     ],
     "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
     "required": true,
@@ -318,14 +387,14 @@
       "R-2 PRODUCTION-tier research-frontier risk: Subquadratic full feature parity is multi-quarter research-frontier work; KERNEL-004 timeline extends 6+ months per RW-3 estimate.",
       "R-3 Sandbox-architecture-flip-orphans-KERNEL-003: 3-adapter pattern preserves DockerAdapter; migration MTs map existing KERNEL-003 sandbox consumers.",
       "R-4 Spec-enrichment-becomes-its-own-project: Resolved by single coherent v02.186 bundle bump (no incremental drift).",
-      "R-5 LM-Studio/Ollama-lockout: Mitigated by ExternalEngineImport lane (spec §3.6.4) that lets operator point Handshake at a model file path or local OpenAI-compatible endpoint without depending on those apps as runtime authority.",
-      "R-6 Visual-debugger-parallel-mutation-path: Mitigated by 3-layer parallel-mutation controls (compile-time trait separation + runtime localhost+secret+feature-flag + audit log per spec §6.5).",
-      "R-7 Self-improvement-overfit: Mitigated by 60/20/20 train/dev/holdout split + multi-metric promotion floor + Goodhart sentinel + HBR-SWARM-002 loop counter + PromotionGate operator review (spec §4.8.3).",
-      "R-8 MoD-Subquad-feasibility: MoD resolved by spec-deferring to Phase 3 roadmap (§6.8); Subquadratic locked at full feature parity per operator E-2 with timeline impact disclosed.",
+      "R-5 LM-Studio/Ollama-lockout: Mitigated by ExternalEngineImport lane (spec Â§3.6.4) that lets operator point Handshake at a model file path or local OpenAI-compatible endpoint without depending on those apps as runtime authority.",
+      "R-6 Visual-debugger-parallel-mutation-path: Mitigated by 3-layer parallel-mutation controls (compile-time trait separation + runtime localhost+secret+feature-flag + audit log per spec Â§6.5).",
+      "R-7 Self-improvement-overfit: Mitigated by 60/20/20 train/dev/holdout split + multi-metric promotion floor + Goodhart sentinel + HBR-SWARM-002 loop counter + PromotionGate operator review (spec Â§4.8.3).",
+      "R-8 MoD-Subquad-feasibility: MoD resolved by spec-deferring to Phase 3 roadmap (Â§6.8); Subquadratic locked at full feature parity per operator E-2 with timeline impact disclosed.",
       "R-9 FEMS-V1-API-drift: B-FEMS-V1-INTEGRATION-SURFACE blocker; verification pass in Stage 4D before cluster D MT authoring.",
       "R-10 WindowsNativeJailAdapter-crate-license: License audit MT required before adopting codex-windows-sandbox or rappct crate.",
-      "R-11 Process-ledger-perf-under-swarm: Mitigated by batched async writes + per-process metadata cap + async write path + FR-EVT-LEDGER-OVERFLOW degraded mode (spec §5.7.3).",
-      "R-12 mojibake-in-spec-module-04: Pre-existing UTF-8 double-encoding in legacy §4.2 content; Stage 2 subagent worked around it; cleanup is non-blocking governance debt.",
+      "R-11 Process-ledger-perf-under-swarm: Mitigated by batched async writes + per-process metadata cap + async write path + FR-EVT-LEDGER-OVERFLOW degraded mode (spec Â§5.7.3).",
+      "R-12 mojibake-in-spec-module-04: Pre-existing UTF-8 double-encoding in legacy Â§4.2 content; Stage 2 subagent worked around it; cleanup is non-blocking governance debt.",
       "R-13 AC-cross-reference-drift: 52 AC-* IDs in spec cross-referenced from refinement.json; renames or splits must update both surfaces in same change."
     ]
   },
@@ -388,17 +457,17 @@
       "No WP Validator gate or session (validation_topology = INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1).",
       "No Integration Validator launch / verdict / merge / pass-fail claim by KERNEL_BUILDER in this packet.",
       "No operator-facing default Markdown projections; md is on-demand only per CX-908 + CX-914 + feedback_no_default_md_files.",
-      "No LM Studio or Ollama runtime authority (operator-locked invariant; spec §3.6).",
-      "No model-process spawn outside SandboxAdapter (spec §3.6.2).",
-      "No model-process spawn without ProcessOwnershipLedger registration (spec §5.7.2).",
+      "No LM Studio or Ollama runtime authority (operator-locked invariant; spec Â§3.6).",
+      "No model-process spawn outside SandboxAdapter (spec Â§3.6.2).",
+      "No model-process spawn without ProcessOwnershipLedger registration (spec Â§5.7.2).",
       "No edits outside the 30-stub fold boundary (refinement.kernel004_extension.stub_fold_preservation_map).",
-      "No Master Spec edits inside this packet — Master Spec v02.186 enrichment was applied during pre-signature Activation Mode (Stage 3); further spec changes require a separate CX-105A spec-writing role packet.",
-      "No Codex edits inside this packet — CX-131 was added during Stage 3; further Codex changes require explicit operator authorization.",
-      "No mutations through the backend inspector plane (spec §6.5; KernelActionCatalogV1 + WriteBoxV1 are the only mutation paths).",
-      "No OS-level keyboard injection, cursor movement, focus stealing, or foregrounding from automation surfaces (spec §6.6; HBR-QUIET-001/002).",
-      "No abliteration in a generation hot path (spec §4.7.4; abliteration is offline tool only).",
-      "No MoD implementation; MoD is spec-deferred to Phase 3 roadmap per operator decision E-1 and spec §6.8.",
-      "No worktree creation or switching by sub-agents (kernel-builder protocol §SUBAGENTS).",
+      "No Master Spec edits inside this packet â€” Master Spec v02.186 enrichment was applied during pre-signature Activation Mode (Stage 3); further spec changes require a separate CX-105A spec-writing role packet.",
+      "No Codex edits inside this packet â€” CX-131 was added during Stage 3; further Codex changes require explicit operator authorization.",
+      "No mutations through the backend inspector plane (spec Â§6.5; KernelActionCatalogV1 + WriteBoxV1 are the only mutation paths).",
+      "No OS-level keyboard injection, cursor movement, focus stealing, or foregrounding from automation surfaces (spec Â§6.6; HBR-QUIET-001/002).",
+      "No abliteration in a generation hot path (spec Â§4.7.4; abliteration is offline tool only).",
+      "No MoD implementation; MoD is spec-deferred to Phase 3 roadmap per operator decision E-1 and spec Â§6.8.",
+      "No worktree creation or switching by sub-agents (kernel-builder protocol Â§SUBAGENTS).",
       "No commits on `feat/WP-KERNEL-004-*` branch that include `/.GOV/` files (CX-212F)."
     ],
     "implementation_reality_notes": [
@@ -406,7 +475,7 @@
       "FEMS V1 runtime shipped via WP-1-Front-End-Memory-System-v1 (VALIDATED in main); cluster D MemoryCapsule + SelfImprovementLoop builds on FEMS V1 retrieval + injection scoring + bounded memory pack injection + review-gated writes. B-FEMS-V1-INTEGRATION-SURFACE requires API surface verification before cluster D MT authoring (Stage 4D).",
       "KERNEL-003 shipped Docker as the first sandbox integration; KERNEL-004 cluster B reopens the architecture with SandboxAdapter trait and 3 adapters. DockerAdapter preserves the KERNEL-003 work as one of 3 adapters; explicit migration MTs in cluster B map existing KERNEL-003 sandbox consumers to the new SandboxAdapter trait.",
       "HANDSHAKE_BUILD_RULES.json v1.1.0 exists at .GOV/roles_shared/records/ with 23 active rules across INT/SWARM/VIS/QUIET/MAN pillars (status DESIGN_ONLY_WIRING_PENDING pre-KERNEL-004). Cluster A wires enforcement via PACKET_ACCEPTANCE_MATRIX hydration + hbr-matrix-check.mjs gov-check sub-check + validator-scan integration.",
-      "Spec §5.6 + Codex CX-131 establish HBR as build-time + handoff-time gate authority (new in v02.186 + Codex update; did not exist pre-Stage-3).",
+      "Spec Â§5.6 + Codex CX-131 establish HBR as build-time + handoff-time gate authority (new in v02.186 + Codex update; did not exist pre-Stage-3).",
       "llama-cpp-2 Rust crate + candle-core + candle-transformers must be added to src/backend/handshake_core/Cargo.toml workspace dependencies (cluster C engine adapters).",
       "WindowsNativeJailAdapter wraps an existing Rust crate (codex-windows-sandbox or rappct per RW-1 research); license audit MT required before crate adoption.",
       "Existing storage code (src/backend/storage/) has Postgres-primary posture but still includes SQLite cache/offline/test paths; KERNEL-004 must NOT add new SQLite consumers; per CX-503R, kernel_process_lifecycle table goes to Postgres only.",
@@ -452,7 +521,7 @@
     "worktree_dir": "../wtc-kernel-004-fold-v1",
     "worktree_gov_junction": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/.GOV -> D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV"
   },
-  "updated_at_utc": "2026-05-20T19:05:00Z",
+  "updated_at_utc": "2026-05-20T19:35:00Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "coder_compatible_execution_lane": "CODER_A",
