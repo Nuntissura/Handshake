@@ -7,7 +7,7 @@
   "cluster_subscope": "C.6",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T08:50:00Z",
+  "updated_at_utc": "2026-05-20T18:05:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -51,7 +51,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "validator_verdict": "HARD_FAIL",
     "depends_on": [
       "MT-096",
@@ -82,6 +82,21 @@
         ".GOV/roles_shared/scripts/automation-first-audit.mjs: pre-existing bug; matcher did not handle the `commands::` namespace prefix in `tauri::generate_handler![...]`, flagging 13 legitimately-registered commands as missing, plus `swarm::kernel_swarm_run` registered via `handshake_invoke_handlers!(...)` macro expansion. Fix: walk every `generate_handler![...]` occurrence, also recognise `handshake_invoke_handlers!(...)` args, and admit both full-path and trailing-segment forms into the registered set. Restored automation_first_audit_tests to 3/3 PASS.",
         "src/backend/handshake_core/src/process_ledger/table.rs: pre-existing bug; PROCESS_START_INSERT_SQL and PROCESS_STOP_UPSERT_SQL bound `parent_process_id` as text without `::uuid` cast, but the kernel_process_lifecycle.parent_process_id column is UUID and PG refuses the implicit text->uuid coercion. Fix: change `$4` -> `$4::uuid` in both SQL constants. Restored hbr_e2e_smoke_test to 1/1 PASS."
       ]
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:05:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage: read MT contract, deflection notes, prior product code, spec anchor. Identified blocker as listed in lifecycle.blocker. Did not implement product code for this MT."
+    },
+    "blocker": {
+      "blocked_at_utc": "2026-05-20T18:05:00Z",
+      "blocker_id": "MT-068-MT-096-runtime-manager-wiring-incomplete",
+      "blocked_by": "ARCHITECTURAL_DEBT_IN_OUT_OF_SCOPE_MTS",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "MT-068 (app/src-tauri/src/commands/model_runtime.rs `ModelRuntimeState` does not hold live `Box<dyn ModelRuntime>`) and MT-096 (app/src-tauri/src/commands/steering.rs lines 167-211 every steering Tauri command returns Err(live_runtime_unavailable(binding))) are lifecycle.status=COMPLETED but their product code is the Spec-Realism Gate Sub-rule 1 literal failure pattern. This MT cannot honestly satisfy its spec MUST without modifying MT-068/MT-096 owned files. Per operator brief no_claims_outside_27_until_resolved=true rule, MT-068 and MT-096 are out-of-scope and cannot be touched.",
+      "operator_action_needed": "Either (1) reopen MT-068+MT-096 with reimplementation authority OR (2) explicitly waive the no-claims-outside-27 rule for runtime-manager wiring as part of this MTs scope. Until then this MT remains BLOCKED_ON_DEPENDENCY.",
+      "triage_receipt": "correlation_id=triage-findings-27mts-autonomous-20260520"
     }
   },
   "handoff": {

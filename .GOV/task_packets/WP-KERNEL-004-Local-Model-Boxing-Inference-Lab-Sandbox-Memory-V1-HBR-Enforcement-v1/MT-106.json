@@ -7,7 +7,7 @@
   "cluster_subscope": "C.9",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T08:50:00Z",
+  "updated_at_utc": "2026-05-20T18:05:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -54,7 +54,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "validator_verdict": "HARD_FAIL",
     "depends_on": [
       "MT-082",
@@ -87,6 +87,21 @@
       "process_ledger_engine_kind_documented": "AbliterationTool variant of ProcessEngineKind already exists at process_ledger/table.rs:141; spawn-time ledger registration is wired in the run_abliteration_offline orchestrator at the I/O boundary which currently returns NativeToolchainUnavailable",
       "license_tag_mandatory_cli_arg": "bin/abliterate.rs parse_args requires --license-tag with no default; tests/abliterate_tool_tests.rs and AbliterationConfig::validate both pin the requirement; lib unit test config_validate_requires_license_tag_and_signature gates it",
       "offline_only_invariant_documented": "Module docstring + bin docstring + Master Spec §4.7.4 references + MT-106.implementation_notes all state OFFLINE TOOL ONLY; never inserted into ModelRuntime::generate"
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:05:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage: read MT contract, deflection notes, prior product code, spec anchor. Identified blocker as listed in lifecycle.blocker. Did not implement product code for this MT."
+    },
+    "blocker": {
+      "blocked_at_utc": "2026-05-20T18:05:00Z",
+      "blocker_id": "MT-074-llvm-libclang-host-install",
+      "blocked_by": "HOST_NATIVE_LLAMA_CPP_TOOLCHAIN",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "MT-106 abliteration produces a derived GGUF/safetensors model artifact via weight-orthogonalisation. GGUF I/O on Windows requires llama-cpp-sys-2 build (bindgen against libclang). Host probe at session start confirmed clang/llvm-config not on PATH, C:Program FilesLLVM absent, LIBCLANG_PATH unset. MT-074 already records the same blocker.",
+      "operator_action_needed": "Install LLVM/libclang (e.g., from https://github.com/llvm/llvm-project/releases) and set LIBCLANG_PATH, then unblock MT-074 first; MT-106 unblocks transitively.",
+      "triage_receipt": "correlation_id=triage-findings-27mts-autonomous-20260520"
     }
   },
   "handoff": {
