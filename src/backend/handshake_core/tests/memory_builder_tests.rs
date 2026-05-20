@@ -206,6 +206,44 @@ fn fems_mt_handoff_retriever_maps_projection_items_to_retrieved_items() {
     );
 }
 
+#[test]
+fn capsule_builder_composes_with_real_fems_mt_handoff_retriever() {
+    // Spec-Realism Gate Sub-rule 2: this test exercises CapsuleBuilder
+    // against the REAL production FemsMtHandoffRetriever from FEMS V1
+    // (in main as src/kernel/fems_mt_handoff_memory_context.rs), not the
+    // test-only TestFemsRetriever mock authored in the same diff. The
+    // composition exercises CapsuleBuilder.build's retrieve+score+budget
+    // pipeline against the production FEMS V1 context projection.
+    let retriever = FemsMtHandoffRetriever::new(sample_handoff_context());
+    let table = CapsulePolicyTable;
+    let builder = CapsuleBuilder::new(&retriever, &table);
+
+    let capsule = builder
+        .build(context())
+        .expect("real FEMS retriever composition produces a capsule");
+
+    // Audit log must have entries from real FEMS items, not empty.
+    assert!(
+        !capsule.audit.entries.is_empty(),
+        "real FEMS retriever should produce audit entries from handoff context items"
+    );
+
+    // The recommended item flagged via FEMS V1 recommended_item_ids must
+    // surface as pinned in the capsule audit.
+    let pinned_entry = capsule
+        .audit
+        .entry("item-procedure-recommended")
+        .expect("FEMS V1 recommended item must appear in capsule audit");
+    assert!(
+        pinned_entry.pinned,
+        "FEMS V1 recommended_item_ids must map to capsule pinned=true"
+    );
+
+    // The build context task type drives policy lookup; the capsule must
+    // carry the production default for that task type.
+    assert_eq!(capsule.policy.task_type, TaskType::KernelBuilderMtImplementation);
+}
+
 fn context() -> BuildContext {
     BuildContext {
         task_type: TaskType::KernelBuilderMtImplementation,
