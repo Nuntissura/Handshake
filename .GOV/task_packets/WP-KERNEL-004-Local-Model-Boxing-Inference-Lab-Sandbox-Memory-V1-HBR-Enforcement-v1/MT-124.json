@@ -60,8 +60,9 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "FAIL_NEEDS_REWORK",
+    "status": "COMPLETED",
+    "validator_verdict": "PASS",
+    "completed_by": "VALIDATOR-EXPLORE-MT124-REWORK-PASS-20260520-AUTO-RETRY2",
     "depends_on": [
       "MT-119",
       "MT-122",
