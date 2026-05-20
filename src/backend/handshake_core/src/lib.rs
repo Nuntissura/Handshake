@@ -156,6 +156,8 @@ pub mod governance_check_runner;
 #[cfg(feature = "runtime-full")]
 pub mod governance_pack;
 #[cfg(feature = "runtime-full")]
+pub mod inspector_read;
+#[cfg(feature = "runtime-full")]
 pub mod jobs;
 pub mod kernel;
 #[cfg(feature = "runtime-full")]

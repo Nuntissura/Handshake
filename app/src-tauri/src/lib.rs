@@ -665,6 +665,7 @@ pub fn run() {
         .manage(inspector_reader)
         .manage(commands::model_runtime::ModelRuntimeState::default())
         .manage(commands::memory_capsule::MemoryCapsuleIpcState::default())
+        .manage(commands::session_distill::SessionDistillState::default())
         .manage(sandbox_registry)
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
