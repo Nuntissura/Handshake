@@ -43,13 +43,27 @@
   "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-125", "MT-126"],
-    "blocks": ["MT-129", "MT-130"]
+    "blocks": ["MT-129", "MT-130"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T07:10:00Z",
+    "completed_at_utc": "2026-05-20T07:40:00Z",
+    "proof": {
+      "cargo_test_lib_secrets_vault": "PASS 8/8 (model_runtime::cloud::secrets_vault::tests::* covering put/get round-trip + unknown lane error + empty lane id + empty secret + delete + sorted list + VaultApiKeyProvider proxy + Debug redaction)",
+      "cargo_test_lib_consent_gate": "PASS 5/5 (model_runtime::cloud::consent_gate::tests::* covering first-call-prompts-then-caches + denial short-circuits + per-session-per-lane scope + drop_session clears + empty id rejection)",
+      "cargo_test_integration": "PASS 6/6 (tests/cloud_secrets_consent_tests.rs: secrets vault round-trip + VaultApiKeyProvider plugs into OpenAiByokRuntime without leaking key + consent gate prompt-then-cache + denial short-circuit + per-session-per-lane scope + drop_session cleanup)",
+      "plaintext_key_grep_test": "VaultApiKeyProvider's Debug impl renders '<Arc<dyn SecretsVault>>' instead of the secret string; the test vault_api_key_provider_debug_does_not_render_secret + integration vault_api_key_provider_wires_into_openai_byok_runtime + (already in MT-125) debug_repr_redacts_api_key_provider all assert the secret string is NOT in the formatted output. Per HBR-INT-005 the lane-uniform invariant is enforced by the Debug redaction discipline carried through every layer (provider, runtime, audit row).",
+      "per_session_consent_scope_tested": "consent_is_per_session_per_lane_not_global + consent_gate_is_per_session_per_lane_not_global pin that consent granted for (session-A, openai) does NOT carry to (session-B, openai) nor (session-A, anthropic)",
+      "os_keychain_documented_as_deferred": "Production SecretsVault impl wraps the OS keychain via the `keyring` crate; that dependency add + cross-platform smoke is the follow-on (CI parity across macOS Keychain + Windows Credential Manager + Linux Secret Service requires per-OS test gates). The SecretsVault trait + InMemorySecretsVault impl are the contract surface today; swapping in a keyring-backed impl is a small follow-on commit"
+    },
+    "deferred_to_followon": {
+      "os_keychain_backend": "concrete OsKeychainSecretsVault wrapping the `keyring` crate. Adding the dep requires a full workspace recompile and per-OS CI gates; out of scope for this MT's session window. The SecretsVault trait is the swap point."
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
