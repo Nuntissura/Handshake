@@ -6,6 +6,12 @@ import {
   type ModelCapabilities,
 } from "../../lib/ipc/model_runtime";
 import { CaaWizard } from "./CaaWizard";
+import {
+  DistillationQueue,
+  type OptedInSession,
+  type PendingCandidate,
+  type TrainingJob,
+} from "./DistillationQueue";
 import { RefusalVectorWizard } from "./RefusalVectorWizard";
 import { SteeringVectorEditor } from "./SteeringVectorEditor";
 
@@ -15,6 +21,10 @@ import { SteeringVectorEditor } from "./SteeringVectorEditor";
 // still renders sensible options. Future MTs (LoRA / KV / Subquadratic panels)
 // will replace this with kernel-supplied metadata.
 const DEFAULT_LAYER_COUNT = 32;
+
+const DISTILLATION_QUEUE_PLACEHOLDER_SESSIONS: OptedInSession[] = [];
+const DISTILLATION_QUEUE_PLACEHOLDER_CANDIDATES: PendingCandidate[] = [];
+const DISTILLATION_QUEUE_PLACEHOLDER_JOBS: TrainingJob[] = [];
 
 type ModelsState =
   | { status: "loading" }
@@ -142,6 +152,20 @@ export function InferenceLab() {
             modelId={selectedModelId}
             capabilities={caps.capabilities}
             nLayers={DEFAULT_LAYER_COUNT}
+          />
+          <DistillationQueue
+            // Live IPC wiring for opted-in sessions / candidates / jobs
+            // is deferred to a follow-on; the component renders the
+            // structural shell + empty states so MT-124's structural
+            // contract (3 tabs + Promote / Reject UI scaffolding +
+            // license + provenance columns) is on disk and the IPC
+            // wire-up is a small follow-on commit.
+            optedInSessions={DISTILLATION_QUEUE_PLACEHOLDER_SESSIONS}
+            pendingCandidates={DISTILLATION_QUEUE_PLACEHOLDER_CANDIDATES}
+            trainingJobs={DISTILLATION_QUEUE_PLACEHOLDER_JOBS}
+            onExtractCorpus={() => {}}
+            onPromote={() => {}}
+            onReject={() => {}}
           />
           {!caps.capabilities.supportsActivationSteering ? (
             <p

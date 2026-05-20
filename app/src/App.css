@@ -1887,3 +1887,67 @@ body {
   font: inherit;
   box-sizing: border-box;
 }
+
+/* Distillation Queue (MT-124) */
+.inference-lab__distillation-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.distillation-queue__tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border-color, #d0d4dc);
+  padding-bottom: 0.4rem;
+}
+.distillation-queue__tab {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+.distillation-queue__tab--active {
+  border-color: var(--border-color, #d0d4dc);
+  background-color: var(--selection-background, #f0f4ff);
+  border-radius: 4px;
+}
+.inference-lab__distillation-queue table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.inference-lab__distillation-queue th,
+.inference-lab__distillation-queue td {
+  border: 1px solid var(--border-color, #d0d4dc);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  vertical-align: top;
+}
+.distillation-queue__candidate-actions {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.distillation-queue__status {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.distillation-queue__status--queued {
+  background-color: #e2e6ee;
+  color: #4a5060;
+}
+.distillation-queue__status--running {
+  background-color: #ffeaa7;
+  color: #6b5500;
+}
+.distillation-queue__status--done {
+  background-color: #d0f0d0;
+  color: #2b6b2b;
+}
+.distillation-queue__status--error {
+  background-color: #ffd0d0;
+  color: #7a2020;
+}
