@@ -7,7 +7,7 @@
   "cluster_subscope": "D.1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:06:00Z",
-  "updated_at_utc": "2026-05-20T18:35:00Z",
+  "updated_at_utc": "2026-05-20T20:55:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -54,8 +54,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "BLOCKED_ON_DEPENDENCY",
-    "validator_verdict": "HARD_FAIL",
+    "status": "FAIL_NEEDS_REWORK",
+    "validator_verdict": "FAIL_NEEDS_REWORK",
     "depends_on": [
       "MT-141",
       "MT-142",
@@ -85,14 +85,20 @@
       "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
       "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
     },
-    "blocker": {
-      "blocked_at_utc": "2026-05-20T18:35:00Z",
-      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
-      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
-      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
-      "reason": "Same root cause.",
-      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
-      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
+    "autonomous_session_reclaim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T20:45:00Z",
+      "transition": "BLOCKED_ON_DEPENDENCY (premature) -> RECLAIMED -> READY_FOR_VALIDATION",
+      "reason": "Earlier triage prematurely marked MT-147 BLOCKED on build-broken. Build is now fixed (commits 991683da, c65e0a37). cargo test --test memory_capsule_e2e_tests passes 1/1. Adversarial sub-agent verdict was PASS_MT_CANDIDATE — e2e composition wires real production CapsuleBuilder, CapsuleInjector, CapsuleRecorder, MemoryIpcService structs with test adapters as interface impls. Real resource touch: fixture file sample_fems_items.json (47K) is a real file-format round-trip per brief's 'file-format round-trip' clause.",
+      "proof_quoted": "running 1 test\\ntest capsule_builder_injector_recorder_and_ipc_compose_over_fixture ... ok\\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+      "caveat": "MT-147 e2e composes MT-142-146 production structs but those underlying MTs are themselves FAIL_NEEDS_REWORK on Sub-rule 2 (trait+in-memory pattern). Validator must decide whether MT-147's job is 'composition correctness against the production struct surface' (which it satisfies) or 'composition correctness against real backends' (which it does not, transitively). The contract's deflection_summary specifically called out: 'representative microtask fixture is hand-authored and the operator has not confirmed it actually exercises the spec required path end-to-end.' Validator must judge whether the fixture is sufficient."
+    },
+    "validator_pass_gate": {
+      "authored_by": "VALIDATOR-EXPLORE-MT147-RECLAIM-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T20:55:00Z",
+      "verdict": "FAIL_NEEDS_REWORK",
+      "rationale": "Although MT-147 e2e test passes (1/1) and composes real production structs, the validator cited the operator's blanket reopen statement and the deflection_summary concern that 'representative microtask fixture is hand-authored and operator has not confirmed it actually exercises the spec required path end-to-end'. The fixture alone does not address the spec-path concern. MT-147 transitively depends on MT-142-146 components which are themselves FAIL_NEEDS_REWORK (MT-143-146 on Sub-rule 2 trait+in-memory pattern, MT-142 now COMPLETED via Option 1).",
+      "rework_required": "Future session must satisfy MT-143-146 real-backend rework (real FEMS V1 / real Postgres action catalog / real persistent IPC store) before MT-147 can be re-validated, OR operator must explicitly confirm the hand-authored fixture sufficiently exercises the spec required path."
     }
   },
   "handoff": {
