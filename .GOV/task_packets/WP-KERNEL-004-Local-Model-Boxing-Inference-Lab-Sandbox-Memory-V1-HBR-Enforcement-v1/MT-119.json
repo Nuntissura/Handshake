@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T22:00:00Z",
+  "updated_at_utc": "2026-05-20T23:30:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -52,8 +52,9 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "FAIL_NEEDS_REWORK",
-    "validator_verdict": "FAIL_NEEDS_REWORK",
+    "status": "COMPLETED",
+    "validator_verdict": "PASS",
+    "completed_by": "VALIDATOR-EXPLORE-MT119-REWORK-V2-PASS-20260520-AUTO",
     "depends_on": [
       "MT-062",
       "MT-067",
@@ -119,6 +120,41 @@
       "authored_at_utc": "2026-05-20T22:00:00Z",
       "verdict": "FAIL_NEEDS_REWORK",
       "rationale": "MT-119 FAIL_NEEDS_REWORK. EventLedgerSource trait used with MockLedger/OneTriple test stubs in distillation_corpus_extractor_tests.rs — classic trait+in-memory mock anti-pattern. No concrete EventLedgerSource impl queries the real FlightRecorder for LlmInference events. Sub-rule 2 violation. REWORK: add a real-EventLedger composition test analogous to MT-143's real-FemsMtHandoffRetriever test. Use the production FlightRecorder/EventLedger from MT-001 in main."
+    },
+    "autonomous_session_rework_20260520_v2": {
+      "claimed_by": "KERNEL_BUILDER-20260520-115519",
+      "claimed_at_utc": "2026-05-20T23:00:00Z",
+      "transition": "FAIL_NEEDS_REWORK -> RECLAIMED -> RE-IMPLEMENTED -> READY_FOR_VALIDATION",
+      "fix_for_validator_defect": "The prior session's validator (VALIDATOR-EXPLORE-MT119-OPTION1-20260520-AUTO) flagged Sub-rule 2: no concrete EventLedgerSource impl queried the real FlightRecorder; only MockLedger / OneTriple in-memory stubs existed. This rework lands a production FlightRecorderEventLedger adapter at src/backend/handshake_core/src/distillation/flight_recorder_ledger.rs that wraps Arc<dyn FlightRecorder>, queries via FlightRecorder::list_events with EventFilter{model_session_id}, filters to FlightRecorderEventType::LlmInference, and decodes the triple-phase distillation payload extension (phase / prompt / token_text / finish_reason / model_call_correlation_id / ordered_index) into corpus_extractor::LlmInferenceEvent. The legacy FR-EVT-002 payload validator only requires type / trace_id / model_id / token_usage; the extension fields ride additive on the same payload so the existing FlightRecorderEvent.validate path accepts them without schema migration. Two new tests in tests/distillation_corpus_extractor_tests.rs compose the adapter with the real production DuckDbFlightRecorder::new_in_memory(7) end-to-end through CorpusExtractor::extract: corpus_extractor_composes_with_real_flight_recorder asserts triple round-trip (prompt + token_text + finish_reason); corpus_extractor_via_flight_recorder_filters_other_sessions asserts model_session_id scoping (other-session events do not leak). Cargo.toml gains [[test]] required-features=[\"duckdb-flight-recorder\"] matching every other duckdb-backed integration test in the crate.",
+      "proof_quoted": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features duckdb-flight-recorder --test distillation_corpus_extractor_tests = 4/4 PASS: corpus_extractor_default_deny_when_session_not_opted_in + corpus_extractor_returns_assembled_turn_when_opted_in + corpus_extractor_composes_with_real_flight_recorder + corpus_extractor_via_flight_recorder_filters_other_sessions (finished in 84.59s). 0 failed.",
+      "sub_rule_2_now_satisfied": "Real production DuckDbFlightRecorder (KERNEL-001 EventLedger) is exercised end-to-end through the FlightRecorderEventLedger adapter into the production CorpusExtractor.extract pipeline. The trait+in-memory escape is gone: events are seeded via the real FlightRecorder.record_event() API and queried via the real list_events() API; FlightRecorderEventLedger is the real production adapter, not a test stub.",
+      "files_touched_this_rework": [
+        "src/backend/handshake_core/src/distillation/mod.rs (pub mod flight_recorder_ledger)",
+        "src/backend/handshake_core/src/distillation/flight_recorder_ledger.rs (new, 165 lines)",
+        "src/backend/handshake_core/tests/distillation_corpus_extractor_tests.rs (added 2 real-FlightRecorder composition tests, +260 lines)",
+        "src/backend/handshake_core/Cargo.toml ([[test]] declaration with required-features=[\"duckdb-flight-recorder\"])"
+      ],
+      "feat_branch_commit": "4326020f feat: MT-119 rework Sub-rule 2 real FlightRecorderEventLedger composition"
+    },
+    "validator_pass_gate_after_rework_v2": {
+      "authored_by": "VALIDATOR-EXPLORE-MT119-REWORK-V2-PASS-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T23:30:00Z",
+      "verdict": "PASS",
+      "rework_history": "Round 1 (autonomous): prior validator FAIL on trait+MockLedger/OneTriple in-memory stubs (Sub-rule 2). Implementer KERNEL_BUILDER-20260520-115519 added production FlightRecorderEventLedger adapter and real-DuckDbFlightRecorder composition tests. Round 2: this validator PASS.",
+      "proof_quoted": "cargo test --features duckdb-flight-recorder --test distillation_corpus_extractor_tests = 4/4 PASS (84.59s)",
+      "sub_rule_compliance": {
+        "sub_rule_1": "PASS (no LiveXxxUnavailable / not yet wired / todo / placeholder in flight_recorder_ledger.rs; the silent skip on phase=None is documented forward-compat for legacy FR-EVT-002 single-row events, not a live-path escape).",
+        "sub_rule_2": "PASS (real DuckDbFlightRecorder::new_in_memory(7) is plain pub fn production code, no cfg(test) gating, calls real DuckDbConnection::open_in_memory + init_schema; test seeds via real FlightRecorder::record_event which runs real validate() + normalize_payload() + insert_event(); reads via real list_events through production FlightRecorderEventLedger adapter at src/distillation/flight_recorder_ledger.rs).",
+        "sub_rule_3": "PASS (validator session VALIDATOR-EXPLORE-MT119-REWORK-V2-PASS-20260520-AUTO != implementer session KERNEL_BUILDER-20260520-115519)."
+      },
+      "adversarial_attacks_attempted": [
+        "Checked if DuckDbFlightRecorder::new_in_memory is a test-only shim - confirmed pub fn in src/, no cfg(test) gating",
+        "Checked if adapter silently swallows events - only documented skip is missing phase (legacy FR-EVT-002); missing ordered_index/model_id return hard ExtractionError",
+        "Checked if record_event bypasses real validation path - no, runs real event.validate() + normalize_payload() before insert",
+        "Checked for TODO/FIXME/unimplemented!/placeholder markers in new module - none",
+        "Checked adapter lives in src/distillation/ not tests/ - confirmed",
+        "Checked filter symmetry - adapter filters on event_type==LlmInference AND model_session_id; cross-session leakage test asserts negative"
+      ]
     }
   },
   "handoff": {
