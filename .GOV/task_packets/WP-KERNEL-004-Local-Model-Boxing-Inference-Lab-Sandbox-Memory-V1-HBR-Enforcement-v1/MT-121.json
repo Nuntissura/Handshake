@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T08:50:00Z",
+  "updated_at_utc": "2026-05-20T18:35:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -50,7 +50,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "validator_verdict": "HARD_FAIL",
     "depends_on": [
       "MT-119"
@@ -82,6 +82,36 @@
       "signature_requirement_on_writes": "mark_for_distillation requires non-empty operator_signature; SessionFlagError::EmptySignature returned otherwise; Tauri wrapper mirrors the gate. Both lib unit (empty_signature_rejected_per_hbr_int_006) and integration (mark_without_signature_is_refused_per_hbr_int_006) tests pin this",
       "no_moralizing_copy": "Module docstring states the operator-facing UI surface (rendered by cluster-X follow-on) shows 'Include this session in distillation corpus' with 'Default off' technical language per MT-121.implementation_notes; no moralizing or hand-wringing copy. UI itself is out of scope for this MT (cluster X)",
       "live_store_deferred_with_default_deny_preserved": "session_distill::session_mark_for_distillation returns 'live store is not attached' until the governed_sessions.distill_corpus Postgres migration follow-on lands; the validation gates and default-deny posture are preserved so MT-119 CorpusExtractor::extract behaves correctly through the UI without any risk of accidental opt-in"
+    },
+    "operator_clarification_20260520": {
+      "captured_at_utc": "2026-05-20T10:30:00Z",
+      "captured_by": "OPERATOR",
+      "topic": "distillation_cloud_teacher_default",
+      "summary": "Distillation pipeline defaults to CLOUD-TEACHER -> LOCAL-STUDENT. Larger-local-teacher -> smaller-local-student is SUPPORTED but NOT the default. Teacher source is therefore typically a frontier cloud model (Claude / GPT / Gemini class); local-larger-teacher (e.g. Llama-70B -> Llama-7B) is the alternate non-default path.",
+      "prior_assumption_corrected": "Pre-clarification working assumption was that distillation was local-teacher-only (Llama-70B teaching Llama-7B). That was wrong. Cloud-teacher is the default.",
+      "implications": [
+        "Teacher ModelId in the PEFT pipeline (MT-122) MUST accept both cloud and local sources; cloud is the default path the operator actually uses.",
+        "Cloud-teacher invocation routes through MT-127 CLI bridge for the operator's production setup (subscription plans, no BYOK keys). See cloud-lane clarification on MT-127.",
+        "License tagging (MT-120) MUST capture cloud-teacher provenance per vendor (OpenAI ToS for GPT teacher, Anthropic Acceptable Use for Claude teacher, Google ToS for Gemini teacher). Local-larger-teacher provenance is simpler but still must be tagged.",
+        "Corpus extractor (MT-119) MUST support cloud-teacher invocation flow + capture, not only local-model session replay.",
+        "DISTILL_CORPUS opt-in semantics (MT-121) apply uniformly across teacher source; consent gating happens once per session regardless of teacher being cloud or local.",
+        "Wiremock is acceptable for MT-122 PEFT pipeline unit / integration tests (proves PEFT invocation + LoRA artifact shape). The FEATURE itself is operationally inert until a real teacher (CLI bridge or BYOK) is reachable at runtime."
+      ]
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:35:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
+    },
+    "blocker": {
+      "blocked_at_utc": "2026-05-20T18:35:00Z",
+      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "Same root cause; DISTILL_CORPUS opt-in gate is pure-logic but its consumer surfaces (distillation pipeline) depend on the broken build.",
+      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
     }
   },
   "handoff": {

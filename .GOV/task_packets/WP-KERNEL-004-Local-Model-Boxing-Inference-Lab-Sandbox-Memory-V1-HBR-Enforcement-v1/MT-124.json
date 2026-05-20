@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T08:50:00Z",
+  "updated_at_utc": "2026-05-20T18:35:00Z",
   "contract_repair_log": [
     {
       "at_utc": "2026-05-20T05:15:00Z",
@@ -60,7 +60,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "validator_verdict": "HARD_FAIL",
     "depends_on": [
       "MT-119",
@@ -91,6 +91,36 @@
       "provenance_display_complete": "Candidates tab shows columns: LoRA + Teacher + Student base + Turns + Trained + License + Status + Actions; rejected candidates additionally render the rejection reason inline with data-testid='distillation-queue.candidates.row.{loraId}.rejection-reason'",
       "no_moralizing_copy": "Copy uses technical language only: 'Extract corpus' / 'Promote' / 'Reject' / 'rejection reason' / status badges (queued/running/done/error). No phrases that imply moral judgement; the header note describes the technical pipeline (MT-119 -> MT-120 -> MT-122 -> MT-123) per GLOBAL-PRODUCTION-002..009",
       "promote_reject_actions_present": "Each Pending candidate row exposes Promote button + rejection-reason text input + Reject button (disabled until reason non-empty); data-testids pin the action surface for downstream visual tests"
+    },
+    "operator_clarification_20260520": {
+      "captured_at_utc": "2026-05-20T10:30:00Z",
+      "captured_by": "OPERATOR",
+      "topic": "distillation_cloud_teacher_default",
+      "summary": "Distillation pipeline defaults to CLOUD-TEACHER -> LOCAL-STUDENT. Larger-local-teacher -> smaller-local-student is SUPPORTED but NOT the default. Teacher source is therefore typically a frontier cloud model (Claude / GPT / Gemini class); local-larger-teacher (e.g. Llama-70B -> Llama-7B) is the alternate non-default path.",
+      "prior_assumption_corrected": "Pre-clarification working assumption was that distillation was local-teacher-only (Llama-70B teaching Llama-7B). That was wrong. Cloud-teacher is the default.",
+      "implications": [
+        "Teacher ModelId in the PEFT pipeline (MT-122) MUST accept both cloud and local sources; cloud is the default path the operator actually uses.",
+        "Cloud-teacher invocation routes through MT-127 CLI bridge for the operator's production setup (subscription plans, no BYOK keys). See cloud-lane clarification on MT-127.",
+        "License tagging (MT-120) MUST capture cloud-teacher provenance per vendor (OpenAI ToS for GPT teacher, Anthropic Acceptable Use for Claude teacher, Google ToS for Gemini teacher). Local-larger-teacher provenance is simpler but still must be tagged.",
+        "Corpus extractor (MT-119) MUST support cloud-teacher invocation flow + capture, not only local-model session replay.",
+        "DISTILL_CORPUS opt-in semantics (MT-121) apply uniformly across teacher source; consent gating happens once per session regardless of teacher being cloud or local.",
+        "Wiremock is acceptable for MT-122 PEFT pipeline unit / integration tests (proves PEFT invocation + LoRA artifact shape). The FEATURE itself is operationally inert until a real teacher (CLI bridge or BYOK) is reachable at runtime."
+      ]
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:35:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
+    },
+    "blocker": {
+      "blocked_at_utc": "2026-05-20T18:35:00Z",
+      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "Same root cause.",
+      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
     }
   },
   "handoff": {

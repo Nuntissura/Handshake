@@ -7,7 +7,7 @@
   "cluster_subscope": "C.13",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T08:50:00Z",
+  "updated_at_utc": "2026-05-20T18:35:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -49,7 +49,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "validator_verdict": "HARD_FAIL",
     "depends_on": [
       "MT-125"
@@ -84,6 +84,36 @@
       "score_embed_capability_not_supported": "AnthropicByokRuntime::cloud_capabilities returns supports_lora=false + supports_activation_steering=false + supports_subquadratic=false + supports_speculative_draft=false + supports_eagle3=false; same lane normalisation as MT-125 per HBR-INT-005. score and embed are not part of the Anthropic Messages API surface; when the live HTTP path lands they will return CapabilityNotSupported with reason per MT-126 red_team minimum_controls[0]",
       "api_version_header_operator_configurable": "Anthropic Messages API uses the anthropic-version header (e.g. 2023-06-01). The live HTTP path follow-on (deferred alongside MT-125 reqwest feature flip) will accept an operator-configurable version string at construction time; the scaffold here pins the construction-time configurability via api_base + ApiKeyProvider + audit_sink + allowlist as the three operator-controlled inputs",
       "lane_normalisation_per_hbr_int_005": "AnthropicByokRuntime::cloud_capabilities() returns the same ModelCapabilities shape as OpenAiByokRuntime::cloud_capabilities(); lane-uniform observability + audit shape (re-uses CloudInvocationAuditRow + CloudInvocationAuditSink from MT-125)"
+    },
+    "operator_clarification_20260520": {
+      "captured_at_utc": "2026-05-20T10:30:00Z",
+      "captured_by": "OPERATOR",
+      "topic": "cloud_lane_byok_dormant_cli_bridge_primary",
+      "summary": "Operator's production cloud-model transport is MT-127 CLI bridge (Claude Code / Codex CLI / gemini-cli) routed through operator's subscription plans. BYOK adapters (MT-125 OpenAI, MT-126 Anthropic, MT-128 Google) are ARCHITECTURALLY REQUIRED but OPERATIONALLY DORMANT for operator: build honestly, test against wiremock, ship implemented-but-unused. Operator has no BYOK accounts with credit for any of the three vendors.",
+      "prior_assumption_corrected": "Pre-clarification working assumption was that BYOK MTs needed real vendor API keys to prove correctness. That was wrong on two counts: (1) the operator has no credits and does not use BYOK, (2) the Spec-Realism Gate's 'real external resource touch' is satisfied by wiremock (real TCP port + real reqwest HTTP call), not specifically by a paid vendor endpoint.",
+      "implications": [
+        "Implementer MUST NOT request operator API keys at any point. Asking for keys was the prior session's deflection-shaped failure mode and is explicitly out of scope for closing these MTs.",
+        "Wiremock is the live test surface for BYOK MTs. It binds a real TCP port answering the documented vendor protocol shape (OpenAI Chat Completions / Responses, Anthropic Messages, Google Gemini generateContent). That satisfies Spec-Realism Gate sub-rule 2.",
+        "MT-127 CLI bridge is LOAD-BEARING for operator production: it is the cloud-teacher transport for distillation (see distillation clarification on MT-119/120/122) and the general cloud invocation transport. Its proof SHOULD spawn the actually-installed CLI binary on the host (claude.exe / codex.exe / gemini.exe), not just a cmd /c echo placeholder. Use `Get-Command claude` / `Get-Command codex` / `Get-Command gemini` to resolve the binary; if not installed, document the install path the operator should take.",
+        "MT-128 Operator Secrets Vault must be fully implemented (encrypt-at-rest via OS keychain, per-call retrieval, never-log invariants, consent gate). The vault is the storage substrate for the dormant BYOK lanes; functionality must be complete even though the operator never populates it.",
+        "MT-129 Cloud lane UI MUST surface both lane types: CLI bridge as primary (with binary-present status), BYOK as available-but-empty (with 'add key to activate' affordance). The empty BYOK state is the correct ship state for this operator, not a defect to flag.",
+        "BYOK MTs (125, 126, 128 for vault) close on wiremock proof + honest ModelRuntime trait impl. No LiveClientUnavailable scaffolding. No deferred-to-follow-on. Real reqwest -> real socket -> wiremock answering protocol shape -> real audit row to Postgres -> real cancellation observable wiremock-side."
+      ]
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:35:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
+    },
+    "blocker": {
+      "blocked_at_utc": "2026-05-20T18:35:00Z",
+      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "Anthropic BYOK lane; same root cause as MT-125.",
+      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
     }
   },
   "handoff": {

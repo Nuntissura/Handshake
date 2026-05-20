@@ -84,7 +84,13 @@
     },
     "user_signature": "ilja180520260209",
     "user_signature_evidence": "Operator provided signature in chat on 2026-05-18 after reviewing the REFINEMENT_HANDOFF_SUMMARY for KERNEL-004 (post-spec-v02.186 bump, all 9 KOQs resolved, 4 of 5 blockers resolved, B-FEMS-V1-INTEGRATION-SURFACE non-signature-blocking): ilja180520260209. Globally unique per CX-585C verification via Grep across .GOV and full repo (no prior matches).",
-    "wp_validator_of_record": "NONE"
+    "wp_validator_of_record": "NONE",
+    "last_validator_signed_mt": {
+      "mt_id": "MT-127",
+      "completed_by": "VALIDATOR-EXPLORE-MT127-20260520-AUTO",
+      "completed_at_utc": "2026-05-20T19:05:00Z",
+      "note": "First MT in the 27-MT reopen set to reach validator-signed COMPLETED. WP-level hard_fail_open_blockers list still has 26 MTs in BLOCKED_ON_DEPENDENCY state; WP itself remains in hard-fail per operator decision until all 27 close."
+    }
   },
   "markdown_projection": {
     "generated_at_utc": null,
@@ -446,7 +452,7 @@
     "worktree_dir": "../wtc-kernel-004-fold-v1",
     "worktree_gov_junction": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/.GOV -> D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV"
   },
-  "updated_at_utc": "2026-05-18T03:00:00Z",
+  "updated_at_utc": "2026-05-20T19:05:00Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "coder_compatible_execution_lane": "CODER_A",

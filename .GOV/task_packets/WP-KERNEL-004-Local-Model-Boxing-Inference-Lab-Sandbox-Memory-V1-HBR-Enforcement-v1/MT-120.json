@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T08:50:00Z",
+  "updated_at_utc": "2026-05-20T18:35:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -49,7 +49,7 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "NEEDS_REIMPLEMENTATION",
+    "status": "BLOCKED_ON_DEPENDENCY",
     "validator_verdict": "HARD_FAIL",
     "depends_on": [
       "MT-119"
@@ -83,6 +83,36 @@
       "license_allowlist_operator_configurable": "ContentReviewConfig.license_allowlist is a HashSet<String>; defaults defined by DEFAULT_LICENSE_ALLOWLIST const (MIT / Apache-2.0 / custom_internal). Integration test replaces the default set and verifies (1) previously-allowed license now quarantines (2) newly-allowed license now passes",
       "pii_categories_covered": "Email, Phone (E.164 + dashed), CreditCard (Luhn-verified), ApiKey (sk-/sk-ant-/AKIA/ghp_/github_pat_/xoxb-/xoxp-), WindowsUserPath (C:\\\\Users\\\\<name>), MacAddress, Ipv4 (octet-range-validated). Severity mapping: ApiKey+CreditCard=High (reject), Email/Phone/WindowsUserPath/MacAddress=Medium (quarantine), Ipv4=Low (quarantine)",
       "exact_dedup_via_sha256": "ContentReview::dedup_hash = SHA-256 over (prompt || \\\\0 || completion); stand-in for the BLAKE3 named in MT-120.implementation_notes (same property: cryptographic collision-resistant exact-match hash). Near-dup (cosine_similarity > 0.95 via ModelRuntime.embed) is deferred to a follow-on because it requires the live runtime (MT-074)"
+    },
+    "operator_clarification_20260520": {
+      "captured_at_utc": "2026-05-20T10:30:00Z",
+      "captured_by": "OPERATOR",
+      "topic": "distillation_cloud_teacher_default",
+      "summary": "Distillation pipeline defaults to CLOUD-TEACHER -> LOCAL-STUDENT. Larger-local-teacher -> smaller-local-student is SUPPORTED but NOT the default. Teacher source is therefore typically a frontier cloud model (Claude / GPT / Gemini class); local-larger-teacher (e.g. Llama-70B -> Llama-7B) is the alternate non-default path.",
+      "prior_assumption_corrected": "Pre-clarification working assumption was that distillation was local-teacher-only (Llama-70B teaching Llama-7B). That was wrong. Cloud-teacher is the default.",
+      "implications": [
+        "Teacher ModelId in the PEFT pipeline (MT-122) MUST accept both cloud and local sources; cloud is the default path the operator actually uses.",
+        "Cloud-teacher invocation routes through MT-127 CLI bridge for the operator's production setup (subscription plans, no BYOK keys). See cloud-lane clarification on MT-127.",
+        "License tagging (MT-120) MUST capture cloud-teacher provenance per vendor (OpenAI ToS for GPT teacher, Anthropic Acceptable Use for Claude teacher, Google ToS for Gemini teacher). Local-larger-teacher provenance is simpler but still must be tagged.",
+        "Corpus extractor (MT-119) MUST support cloud-teacher invocation flow + capture, not only local-model session replay.",
+        "DISTILL_CORPUS opt-in semantics (MT-121) apply uniformly across teacher source; consent gating happens once per session regardless of teacher being cloud or local.",
+        "Wiremock is acceptable for MT-122 PEFT pipeline unit / integration tests (proves PEFT invocation + LoRA artifact shape). The FEATURE itself is operationally inert until a real teacher (CLI bridge or BYOK) is reachable at runtime."
+      ]
+    },
+    "autonomous_session_claim": {
+      "claimed_by": "KERNEL_BUILDER-20260520-AUTONOMOUS",
+      "claimed_at_utc": "2026-05-20T18:35:00Z",
+      "transition": "NEEDS_REIMPLEMENTATION -> CLAIMED -> BLOCKED_ON_DEPENDENCY",
+      "note": "Autonomous KERNEL_BUILDER session triage following the catastrophic-build-broken finding: this MT cannot be honestly implemented in the current product-code state because model_runtime cannot compile. Implementation deferred to a future session running against a restored build."
+    },
+    "blocker": {
+      "blocked_at_utc": "2026-05-20T18:35:00Z",
+      "blocker_id": "WP-KERNEL-004-BUILD-BROKEN-AT-LIB-LEVEL",
+      "blocked_by": "STRUCTURAL_DEBT_PRE_EXISTING_IN_FEAT_BRANCH",
+      "blocking_record": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/RECEIPTS.jsonl",
+      "reason": "Same architectural root cause as MT-119; distillation license/provenance recording cannot exercise live cloud-teacher transport until MT-127 CLI bridge dispatches through ModelRuntime which requires the build.",
+      "operator_action_needed": "Restore the WP-KERNEL-004 product-code build (lib.rs pub mod declarations + sandbox API reconciliation) before this MT can be re-claimed. See correlation_id=catastrophic-build-broken-finding-20260520.",
+      "triage_receipt": "correlation_id=catastrophic-build-broken-finding-20260520"
     }
   },
   "handoff": {
