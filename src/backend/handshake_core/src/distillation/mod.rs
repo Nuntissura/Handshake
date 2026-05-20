@@ -1,4 +1,5 @@
 pub mod abliterate;
+pub mod candidate_registry;
 pub mod content_review;
 pub mod corpus_extractor;
 pub mod dataset;
