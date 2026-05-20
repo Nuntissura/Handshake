@@ -42,13 +42,27 @@
   "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-125"],
-    "blocks": ["MT-127", "MT-128", "MT-129", "MT-130"]
+    "blocks": ["MT-127", "MT-128", "MT-129", "MT-130"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T06:05:00Z",
+    "completed_at_utc": "2026-05-20T06:30:00Z",
+    "proof": {
+      "cargo_test_lib_unit": "PASS 9/9 (model_runtime::cloud::anthropic_byok::tests::* covering Debug redaction + Claude family allowlist + non-allowlisted rejection + empty model-name rejection + allowlist extension + cloud capabilities mapping + audit sink forwarding + LiveClientUnavailable + ModelNotRegistered)",
+      "cargo_test_integration": "PASS 5/5 (tests/cloud_anthropic_byok_tests.rs: capabilities match + Debug redacts + allowlist validation across claude-3.5-sonnet and claude-opus-4 families + audit lifecycle row + LiveClientUnavailable scaffold)",
+      "api_key_never_logged": "AnthropicByokRuntime Debug impl renders '<redacted Arc<dyn ApiKeyProvider>>' (same boundary discipline as MT-125 OpenAiByokRuntime); pinned by debug_repr_redacts_api_key_provider unit test + cloud_anthropic_runtime_debug_redacts_api_key integration test",
+      "score_embed_capability_not_supported": "AnthropicByokRuntime::cloud_capabilities returns supports_lora=false + supports_activation_steering=false + supports_subquadratic=false + supports_speculative_draft=false + supports_eagle3=false; same lane normalisation as MT-125 per HBR-INT-005. score and embed are not part of the Anthropic Messages API surface; when the live HTTP path lands they will return CapabilityNotSupported with reason per MT-126 red_team minimum_controls[0]",
+      "api_version_header_operator_configurable": "Anthropic Messages API uses the anthropic-version header (e.g. 2023-06-01). The live HTTP path follow-on (deferred alongside MT-125 reqwest feature flip) will accept an operator-configurable version string at construction time; the scaffold here pins the construction-time configurability via api_base + ApiKeyProvider + audit_sink + allowlist as the three operator-controlled inputs",
+      "lane_normalisation_per_hbr_int_005": "AnthropicByokRuntime::cloud_capabilities() returns the same ModelCapabilities shape as OpenAiByokRuntime::cloud_capabilities(); lane-uniform observability + audit shape (re-uses CloudInvocationAuditRow + CloudInvocationAuditSink from MT-125)"
+    },
+    "deferred_to_followon": {
+      "live_http_streaming": "messages_stream() currently returns LiveClientUnavailable. The live wire-up shares MT-125's blocking deps (reqwest stream + rustls-tls features + SSE parser + wiremock test dep + full ModelRuntime trait impl). Anthropic-side it additionally needs the anthropic-version header in every request and the SSE event-name dispatch (message_start / content_block_delta / message_stop) which differs from OpenAI's chat.completion.chunk format."
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
