@@ -18,7 +18,7 @@ pub use official_cli_bridge::{
 pub use openai_byok::{
     ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,
     CloudInvocationAuditSink, OpenAiByokError, OpenAiByokRuntime, OpenAiModelHandle,
-    DEFAULT_OPENAI_MODEL_ALLOWLIST,
+    DEFAULT_OPENAI_MODEL_ALLOWLIST, OPENAI_CHAT_COMPLETIONS_PATH, OPENAI_EMBEDDINGS_PATH,
 };
 pub use secrets_vault::{
     InMemorySecretsVault, SecretsVault, SecretsVaultError, VaultApiKeyProvider,
