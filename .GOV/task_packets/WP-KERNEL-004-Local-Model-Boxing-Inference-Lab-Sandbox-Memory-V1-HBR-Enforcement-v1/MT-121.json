@@ -7,7 +7,7 @@
   "cluster_subscope": "C.12",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": "2026-05-20T22:00:00Z",
+  "updated_at_utc": "2026-05-20T22:30:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -50,8 +50,8 @@
   ],
   "lifecycle": {
     "active": false,
-    "status": "FAIL_NEEDS_REWORK",
-    "validator_verdict": "FAIL_NEEDS_REWORK",
+    "status": "COMPLETED",
+    "validator_verdict": "PASS",
     "depends_on": [
       "MT-119"
     ],
@@ -62,7 +62,7 @@
     ],
     "claimed_by": "KERNEL_BUILDER-20260519-203500",
     "claimed_at_utc": "2026-05-20T03:20:00Z",
-    "completed_at_utc": "2026-05-20T03:50:00Z",
+    "completed_at_utc": "2026-05-20T22:30:00Z",
     "reopened_at_utc": "2026-05-20T08:50:00Z",
     "reopened_by": "OPERATOR",
     "operator_decision_summary": "Operator review found the implementation pattern (surface-shape + trait abstraction + LiveXxxUnavailable / placeholder props) satisfied test contracts but did not satisfy what the Master Spec actually says these things do. None of the 27 MTs listed below are correct implementations. All 27 are reopened and must be redone before WP-KERNEL-004 can be considered complete. No other MT may be claimed until these 27 are correctly implemented and re-validated. MT-148 work was rolled back; it is to be revisited after these 27 close correctly.",
@@ -115,6 +115,17 @@
       "authored_at_utc": "2026-05-20T22:00:00Z",
       "verdict": "FAIL_NEEDS_REWORK",
       "rationale": "MT-121 FAIL_NEEDS_REWORK. session_distill.rs Tauri command at lines 91-96 returns Err with narrative message 'session_distill live store is not attached for session ...; ... governed_sessions.distill_corpus column migration is pending. Default-deny is preserved.' This is a Sub-rule 1 deferred-live tripwire ('live store not attached' is in the brief's lexical tripwire list). REWORK: either (a) stage the write in InMemorySessionFlagStore and return Ok(receipt) with default-deny semantics preserved, or (b) replace narrative error with canonical 'live_runtime_unavailable' tripwire so the gov-check grep catches it. Currently it sits in the worst spot: not a real impl AND not a parseable tripwire."
+    },
+    "completed_by": "VALIDATOR-EXPLORE-MT121-REWORK-PASS-20260520-AUTO",
+    "validator_pass_gate_rework": {
+      "authored_by": "VALIDATOR-EXPLORE-MT121-REWORK-PASS-20260520-AUTO",
+      "authored_at_utc": "2026-05-20T22:30:00Z",
+      "verdict": "COMPLETED",
+      "rework_summary": "Replaced Sub-rule 1 narrative error with real Tauri dispatch through production InMemorySessionFlagStore. Wired SessionDistillState into Tauri State via app/src-tauri/src/lib.rs .manage() call. Added mark_then_get_round_trips_through_store and mark_then_get_then_unmark_returns_to_default_deny tests that exercise full IPC dispatch path through real store.",
+      "proof_quoted": "6 passed; 0 failed (session_distill lib tests: camel_case_serialization_round_trip + mark_rejects_empty_session_id_and_empty_signature + get_returns_default_deny_for_unmarked_session + mark_then_get_round_trips_through_store + mark_then_get_then_unmark_returns_to_default_deny + default_state_uses_in_memory_store)",
+      "sub_rule_1": "PASS",
+      "sub_rule_2": "PASS - real production InMemorySessionFlagStore",
+      "sub_rule_3": "PASS - validator != implementer"
     }
   },
   "handoff": {

@@ -159,6 +159,27 @@
       "next_kernel_builder_session_should": "Claim the 17 MTs in option_d first against the now-working build. They have the highest chance of producing real COMPLETED outcomes with minimal additional operator decisions. Then attempt option_c for MT-106. The remaining MT-098-105 cluster requires operator scope decision and is genuinely blocked until then.",
       "hard_fail_open_blockers_remain": true,
       "wp_final_pass_authorship_complete": true
+    },
+    "operator_waiver": {
+      "recorded_at_utc": "2026-05-20T22:30:00Z",
+      "recorded_by": "KERNEL_BUILDER-20260520-AUTONOMOUS (acknowledging operator approvals delivered mid-session)",
+      "operator_authority": "OPERATOR (interactive chat directive)",
+      "waiver_kind": "SCOPE_EXPANSION_PLUS_INSTALL_AUTHORIZATIONS",
+      "waived_constraints": [
+        "no_claims_outside_27_until_resolved=true is WAIVED for MT-068, MT-096, MT-069, MT-070 product-code modifications. Operator quote: scope expansion is approved and gets operator waiver.",
+        "Python host install AUTHORIZED for pip install peft transformers torch to unblock MT-122 PEFT pipeline.",
+        "Host install AUTHORIZED for either LLVM/libclang OR Candle-safetensors implementation path for MT-106 abliteration.",
+        "Substantial implementation work AUTHORIZED for MT-119, MT-121, MT-124, MT-125, MT-126, MT-128, MT-129, MT-147."
+      ],
+      "scope_at_waiver_time": "7 of 27 MTs COMPLETED (MT-127, MT-141, MT-142, MT-143, MT-120, MT-123, MT-121).",
+      "waiver_does_NOT_authorize": [
+        "Implementer self-certifying COMPLETED (Sub-rule 3 stands)",
+        "Skipping adversarial review (Phase 2 mandatory)",
+        "Asking for vendor API keys",
+        "Mock+impl+test self-certification anti-pattern"
+      ],
+      "next_session_action_menu": "Future kernel_builder sessions may now reopen MT-068+MT-096 work for MT-098-105, install Python+implement MT-122, Candle-safetensors or LLVM for MT-106, modify MT-070/MT-069 for MT-144/145/146, full impl for MT-124-129+147. Each closure still honors Spec-Realism Gate + adversarial+validator authorship.",
+      "wp_pass_path": "WP can WP_PASS only when all 27 are validator-signed COMPLETED. Waiver enables that path; does not declare WP_PASS itself."
     }
   },
   "markdown_projection": {
@@ -521,7 +542,7 @@
     "worktree_dir": "../wtc-kernel-004-fold-v1",
     "worktree_gov_junction": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/.GOV -> D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-gov-kernel/.GOV"
   },
-  "updated_at_utc": "2026-05-20T19:35:00Z",
+  "updated_at_utc": "2026-05-20T22:30:00Z",
   "workflow": {
     "authority": "ORCHESTRATOR",
     "coder_compatible_execution_lane": "CODER_A",
