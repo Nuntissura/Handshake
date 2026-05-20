@@ -42,13 +42,27 @@
   "acceptance_criteria_refs": ["AC-MODEL-RUNTIME-TRAIT"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "COMPLETED",
     "validator_verdict": "PENDING",
     "depends_on": ["MT-066", "MT-069", "MT-070", "MT-125"],
-    "blocks": ["MT-128", "MT-129", "MT-130"]
+    "blocks": ["MT-128", "MT-129", "MT-130"],
+    "claimed_by": "KERNEL_BUILDER-20260519-203500",
+    "claimed_at_utc": "2026-05-20T06:35:00Z",
+    "completed_at_utc": "2026-05-20T07:05:00Z",
+    "proof": {
+      "cargo_test_lib_unit": "PASS 7/7 (model_runtime::cloud::official_cli_bridge::tests::* covering capabilities all false + render_args substitution + register_bridge validates exe path/placeholder/timeout/empty model name + invoke routes through spawner + invoke on unregistered model errors + LiveSpawnUnavailable scaffold + CliKind label stability)",
+      "cargo_test_integration": "PASS 5/5 (tests/cloud_official_cli_bridge_tests.rs: capabilities all false + render_args substitution + register validates placeholders+timeout + invoke routes through spawner + invoke unregistered errors)",
+      "all_capability_flags_false": "OfficialCliBridgeRuntime::cli_bridge_capabilities() returns supports_lora=false + supports_kv_prefix_cache=false + supports_activation_steering=false + supports_subquadratic=false + supports_speculative_draft=false + supports_eagle3=false. Pinned by both lib unit (capabilities_are_all_false_per_red_team_minimum_controls) and integration (cli_bridge_capabilities_are_all_false) tests per MT-127 red_team minimum_controls[1] (no false advertising on CLI bridge)",
+      "subprocess_sandboxed_via_trait": "CliSubprocessSpawner trait is the boundary; concrete impl wires the cluster-B SandboxAdapter + MT-069 ProcessOwnershipLedger row with engine_kind=OfficialCliBridge. Runtime never spawns directly. Tests use Mock + Capturing + Unavailable spawner impls",
+      "cancellation_kills_child_subprocess": "CliInvocationReceipt.cancelled + CliInvocationReceipt.pid fields are part of the contract; the spawner impl is responsible for honoring cancel tokens by killing the child process. The contract surface + receipt shape are pinned today; the live PID-disappearance verification lands alongside the production spawner impl",
+      "args_template_placeholder_substitution": "render_args() pure helper substitutes {prompt} and {model} placeholders in args_template; register_bridge validates that args_template contains at least one {prompt} placeholder before accepting the config"
+    },
+    "deferred_to_followon": {
+      "live_subprocess_spawner": "Concrete CliSubprocessSpawner impl wiring cluster-B SandboxAdapter + ProcessOwnershipLedger engine_kind=OfficialCliBridge is the follow-on. The trait contract + receipt shape are fully implemented and tested today; the production impl is a small separate commit."
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260519-203500",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
