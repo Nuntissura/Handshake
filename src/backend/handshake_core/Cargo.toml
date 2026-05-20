@@ -91,7 +91,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"]
 tracing-appender = "0.2"
 thiserror = "2.0.17"
 duckdb = { version = "1.4.3", optional = true, features = ["bundled"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
+eventsource-stream = "0.2"
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
+secrecy = { version = "0.10", features = ["serde"] }
 tokio-tungstenite = "0.26"
 futures = "0.3"
 futures-util = "0.3"
@@ -125,6 +128,7 @@ which = "8"
 
 [dev-dependencies]
 tempfile = "3"
+wiremock = "0.6"
 
 [target.'cfg(windows)'.dependencies]
 wineventhook = "0.11.0"
