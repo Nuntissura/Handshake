@@ -579,6 +579,52 @@
           "Umbrella gov-check --sync-topology remains red on six known broad HBR/template/manual checks (inherited from MT-090); not touched by MT-091.",
           "Out-of-MT-owned-file edit: app/src/lib/ipc/lora.ts. Operator waiver requested for this MT (see MT-091.json implementation_record.out_of_scope_self_evaluation)."
         ]
+      },
+      "latest_mt092_supporting_evidence": {
+        "recorded_at_utc": "2026-05-22T20:35:00Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-171100",
+        "mt_ids": ["MT-092"],
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "authoritative_integration_validator_pass": false,
+        "integration_validator_status": "PENDING",
+        "summary": "MT-092 added inf1_lora_parity_tests.rs (5/5 tests passing) covering FR-EVT-LLM-INFER-LORA-* event_type parity across LlamaCpp+Candle, byte-for-byte LoraDescriptor (license_tag included) round-trip, CapabilityNotSupported fail-closed on both adapters, base_model_compat mismatch rejected uniformly, plus env-gated real-runtime smoke paths for both adapters. Always-on portion runs without external fixtures via two adapter-tagged ParityRuntime fakes (mirrors the production RuntimeBinding enum).",
+        "proof": {
+          "focused_cargo": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test inf1_lora_parity_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt092-cargo-inf1-lora-parity-final-20260522-001.log",
+            "note": "5/5 passed."
+          },
+          "regression_lora_hotswap": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt092-regression-lora-hotswap-techniques-20260522-001.log",
+            "note": "2/2 passed."
+          },
+          "fmt_check": {
+            "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt092-cargo-fmt-check-20260522-003.log"
+          }
+        },
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-092.",
+          "Real-runtime qualitative output divergence (output differs from base) requires operator-supplied LoRA fixtures; env-gated branches currently only verify the public surface dispatches without panic.",
+          "Umbrella gov-check failures inherited from MT-090/091 remain (not touched)."
+        ]
+      },
+      "artifact_root_cleanup_20260522": {
+        "recorded_at_utc": "2026-05-22T20:00:00Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-171100",
+        "operator_authorized": "surgical delete authorized by operator after MT-091 post-commit hook surfaced artifact-hygiene warning",
+        "removed_paths": [
+          "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/src/backend/Handshake_Artifacts",
+          "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-kernel-004-fold-v1/Handshake_Artifacts"
+        ],
+        "size_freed_mb": 52677.82,
+        "tracked_files_removed": 0,
+        "rationale": "Both paths were build-artifact leakage from prior sessions running cargo without CARGO_TARGET_DIR set to the external sibling root. Both were git-ignored (.gitignore:51) and held zero tracked files. Cargo will rebuild into CARGO_TARGET_DIR (../Handshake_Artifacts/handshake-cargo-target) on the next test run.",
+        "verification": "Post-delete: both paths absent; gov_kernel worktree was already clean; no git status delta."
       }
     },
     "wp_hard_fail_cleared": {
@@ -1483,6 +1529,6 @@
     "wp_validator_gate": "DISABLED"
   },
   "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "next_id": "MT-092",
-  "next_id_note": "MT-091 is READY_FOR_VALIDATION with supporting LoraStackComposer (React TSX; Svelte->TSX contract drift recorded), app/src/lib/ipc/lora.ts IPC binding (out-of-scope, operator waiver requested), and full tsc + vitest (63/63) + cargo regression evidence; MT-092 is next claimable. Neither MT-090 nor MT-091 must be marked COMPLETED until a fresh Integration Validator reviews them."
+  "next_id": "MT-093",
+  "next_id_note": "MT-092 is READY_FOR_VALIDATION with supporting cross-adapter LoRA parity test (5/5 passing) covering FR event_type parity, license_tag round-trip, capability fail-closed, base-model mismatch, and env-gated real-runtime smoke for both LlamaCpp + Candle. MT-093 (INF-2 KV cache technique surface) is next claimable. Neither MT-090, MT-091, nor MT-092 must be marked COMPLETED until a fresh Integration Validator reviews them."
 }

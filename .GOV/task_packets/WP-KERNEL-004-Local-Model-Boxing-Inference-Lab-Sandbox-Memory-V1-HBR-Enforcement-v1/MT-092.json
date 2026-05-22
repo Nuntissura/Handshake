@@ -7,7 +7,7 @@
   "cluster_subscope": "C.4",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "created_at_utc": "2026-05-18T03:00:00Z",
-  "updated_at_utc": null,
+  "updated_at_utc": "2026-05-22T20:05:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "JSON_FIRST_PER_RGF-324_NO_MD_SIBLING",
@@ -40,13 +40,18 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": ["MT-090", "MT-091"],
-    "blocks": []
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-22T20:05:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-22T20:35:00Z"
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260522-171100",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
@@ -57,5 +62,59 @@
       "Qualitative threshold (not bit-exact) — documented why.",
       "License tag preservation verified across adapter boundary."
     ]
+  },
+  "implementation_record": {
+    "recorded_at_utc": "2026-05-22T20:35:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260522-171100",
+    "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+    "authoritative_integration_validator_pass": false,
+    "integration_validator_status": "PENDING",
+    "summary": "MT-092 added src/backend/handshake_core/tests/inf1_lora_parity_tests.rs — five tests that exercise the public lora_hotswap::{mount,unmount,swap,list} technique surface against TWO ParityRuntime fakes tagged 'llama_cpp' and 'candle' respectively, plus two env-gated real-runtime smoke paths. The always-on tests cover (a) FR-EVT-LLM-INFER-LORA-* receipt event_type parity across adapters and FrEventId registry round-trip, (b) full LoraDescriptor byte-for-byte round-trip including the license_tag (which the operator relies on for adult-production licensing discipline per CX-123A + GLOBAL-PRODUCTION-010), (c) CapabilityNotSupported fail-closed on mount/unmount/swap/list for BOTH adapters when supports_lora=false, (d) LoraStackError on base_model_compat mismatch uniformly across adapters. The env-gated paths exercise LlamaCppRuntime via HANDSHAKE_TEST_GGUF_PATH and CandleRuntime via HANDSHAKE_TEST_CANDLE_MODEL_DIR + the candle-runtime-engine feature flag; both skip gracefully when fixtures or feature flags are absent. Supporting evidence only; Integration Validator review remains pending.",
+    "design_notes": [
+      "Always-on parity tests use ParityRuntime/ParityLoraStack fakes — a configurable-adapter-name variant of the MT-090 RecordingRuntime/RecordingLoraStack pattern. This lets one test file exercise the public technique surface on top of a 'llama_cpp'-tagged stack AND a 'candle'-tagged stack without requiring real fixtures, so the parity contract is verified in every CI run.",
+      "License-tag round-trip is asserted by reading the FULL LoraStackSnapshotEntry from the recording stack (LoraStackEntry returned by list_active() only carries id/strength/mounted_at, NOT the license — so license preservation must come from the descriptor snapshot directly).",
+      "Cross-adapter 'qualitative output differs from base' is documented as the env-gated path's responsibility, not the always-on path. The always-on path can establish all contract-surface parity without real generation; only real fixtures can prove behavioral divergence, and those require operator-supplied GGUF + Candle model directories.",
+      "BINDING_PAIR uses the real RuntimeBinding enum (LlamaCpp + Candle from model_runtime/registry.rs) so the parity contract here mirrors the production dispatch surface 1:1.",
+      "Env-gated real-runtime sub-paths use the current LoadSpec shape (sha256_expected: String, sampling_defaults, kv_cache_policy) — the field set has grown since some adjacent tests were written. parity_sha256_hex() computes the real artifact hash; if read fails, the branch skips."
+    ],
+    "owned_file_changes": [
+      "ADDED src/backend/handshake_core/tests/inf1_lora_parity_tests.rs (5 tests + helpers; 783 lines after cargo fmt)."
+    ],
+    "proof": {
+      "focused_cargo": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test inf1_lora_parity_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt092-cargo-inf1-lora-parity-final-20260522-001.log",
+        "note": "5/5 passed: event_types parity, license tag round-trip, capability gate fails-closed on both, base mismatch rejected uniformly, env-gated LlamaCpp smoke (skipped or surfaces typed LoraStackError without panic)."
+      },
+      "cargo_regression_lora_hotswap": {
+        "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test lora_hotswap_techniques_tests -- --nocapture",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt092-regression-lora-hotswap-techniques-20260522-001.log",
+        "note": "2/2 passed. Confirms the upstream MT-090 technique surface still healthy after MT-092 file added."
+      },
+      "cargo_fmt_check": {
+        "command": "cargo fmt --manifest-path src/backend/handshake_core/Cargo.toml --check",
+        "exit_code": 0,
+        "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt092-cargo-fmt-check-20260522-003.log"
+      }
+    },
+    "minimum_controls_evidence": {
+      "skip_path_when_fixtures_missing": "Verified: inf1_lora_parity_env_gated_llama_cpp_real_runtime_smoke returns immediately when HANDSHAKE_TEST_GGUF_PATH is unset (canonical let-else { return; } idiom matching llama_cpp_lora_tests.rs). inf1_lora_parity_env_gated_candle_real_runtime_smoke is cfg-gated on candle-runtime-engine AND returns early when HANDSHAKE_TEST_CANDLE_MODEL_DIR is unset.",
+      "qualitative_threshold_not_bit_exact": "Documented in the module-level doc comment: 'Bit-exact equality across adapters is not the goal (different sampler RNG paths, different tokenization). The qualitative gate ... is that with the same prompt and same seed, the LoRA-mounted output is DETERMINISTICALLY DIFFERENT from the unmounted baseline on the same adapter. Cross-adapter parity is established at the public technique surface above.'",
+      "license_tag_preservation": "Verified by inf1_lora_descriptor_license_tag_round_trips_across_both_adapters — asserts (i) post-mount license_tag equals expected_license on BOTH adapters, (ii) post-swap previous_stack carries the OLD license_tag unchanged, (iii) post-swap snapshot carries the NEW license_tag."
+    },
+    "residual_risks": [
+      "No Integration Validator has reviewed MT-092; this record is supporting evidence only.",
+      "The env-gated real-runtime smoke paths do not assert qualitative output divergence from base. Doing so requires HANDSHAKE_TEST_LORA_PATH (LlamaCpp) and a Candle-compatible LoRA fixture, both currently unset on this host. The smoke paths instead verify the public technique surface dispatches without panic and surfaces typed errors when the synthetic artifact path is rejected.",
+      "ParityRuntime fakes carry adapter_name but do not exercise the real adapter's native LoRA path; the production-grade cross-adapter divergence test still depends on operator-supplied fixtures and is deferred to a future MT or a re-run of this test with HANDSHAKE_TEST_GGUF_PATH + HANDSHAKE_TEST_CANDLE_MODEL_DIR + appropriate LoRA artifacts.",
+      "Umbrella gov-check failures inherited from MT-090 (hbr-visual-smoke, hbr-inspector-smoke, hbr-swarm-n8, hbr-swarm-invariants, template-hbr-fields, hbr-man-003-scan) remain — not touched by MT-092."
+    ],
+    "out_of_scope_self_evaluation": {
+      "why": "All MT-092 changes landed in the single owned file declared by the contract. No out-of-scope code edits required.",
+      "touched_outside_mt_owned_files": [],
+      "risk_reduced": "None — strictly contract-scoped.",
+      "waiver_status": "NOT_APPLICABLE"
+    }
   }
 }
