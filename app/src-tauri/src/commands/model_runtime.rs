@@ -33,7 +33,10 @@ impl std::fmt::Debug for ModelRuntimeState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ModelRuntimeState")
             .field("registry", &"<ModelRegistry>")
-            .field("live_runtimes", &"<HashMap<ModelId, Arc<dyn ModelRuntime>>>")
+            .field(
+                "live_runtimes",
+                &"<HashMap<ModelId, Arc<dyn ModelRuntime>>>",
+            )
             .finish()
     }
 }
@@ -127,6 +130,91 @@ impl ModelRuntimeState {
         }
         Ok(registration.runtime_binding)
     }
+
+    pub(crate) fn lora_command_binding(&self, model_id: ModelId) -> Result<RuntimeBinding, String> {
+        let registry = self
+            .registry
+            .read()
+            .map_err(|_| "model runtime registry lock poisoned".to_string())?;
+        let registration = registry
+            .lookup(model_id)
+            .ok_or_else(|| format!("model runtime registration not found: {model_id}"))?;
+        if !registration.declared_capabilities.supports_lora {
+            return Err(format!(
+                "capability lora_stack is not supported by adapter {}",
+                registration.runtime_binding.adapter_id()
+            ));
+        }
+        if !registry.is_loaded(model_id) {
+            return Err(format!(
+                "lora_stack requires a loaded model runtime handle: {model_id}"
+            ));
+        }
+        Ok(registration.runtime_binding)
+    }
+
+    /// MT-093 KV cache technique surface preflight. `quantization_required`
+    /// gates the `set_quantization` channel on declared
+    /// `supports_kv_quantization`; mutating prefix ops gate on declared
+    /// `supports_kv_prefix_cache`; the read-only `occupancy` op accepts
+    /// either capability and rejects only when both are absent.
+    pub(crate) fn kv_cache_command_binding(
+        &self,
+        model_id: ModelId,
+        gate: KvCacheCommandGate,
+    ) -> Result<RuntimeBinding, String> {
+        use handshake_core::model_runtime::KvQuantSupport;
+
+        let registry = self
+            .registry
+            .read()
+            .map_err(|_| "model runtime registry lock poisoned".to_string())?;
+        let registration = registry
+            .lookup(model_id)
+            .ok_or_else(|| format!("model runtime registration not found: {model_id}"))?;
+        let capabilities = &registration.declared_capabilities;
+        match gate {
+            KvCacheCommandGate::Quantization => {
+                if capabilities.supports_kv_quantization == KvQuantSupport::None {
+                    return Err(format!(
+                        "capability kv_cache_quantization is not supported by adapter {}",
+                        registration.runtime_binding.adapter_id()
+                    ));
+                }
+            }
+            KvCacheCommandGate::PrefixCache => {
+                if !capabilities.supports_kv_prefix_cache {
+                    return Err(format!(
+                        "capability kv_cache_prefix is not supported by adapter {}",
+                        registration.runtime_binding.adapter_id()
+                    ));
+                }
+            }
+            KvCacheCommandGate::Telemetry => {
+                if !capabilities.supports_kv_prefix_cache
+                    && capabilities.supports_kv_quantization == KvQuantSupport::None
+                {
+                    return Err(format!(
+                        "capability kv_cache is not supported by adapter {}",
+                        registration.runtime_binding.adapter_id()
+                    ));
+                }
+            }
+        }
+        if !registry.is_loaded(model_id) {
+            return Err(format!(
+                "kv_cache requires a loaded model runtime handle: {model_id}"
+            ));
+        }
+        Ok(registration.runtime_binding)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum KvCacheCommandGate {
+    Quantization,
+    PrefixCache,
+    Telemetry,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

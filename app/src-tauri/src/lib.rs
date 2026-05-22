@@ -20,6 +20,8 @@ mod commands {
     pub mod caa;
     pub mod cloud_lane;
     pub mod distillation;
+    pub mod kv_cache;
+    pub mod lora;
     pub mod memory_capsule;
     pub mod model_runtime;
     pub mod peft;
@@ -62,6 +64,15 @@ macro_rules! handshake_invoke_handlers {
             inspector::kernel_inspector_loaded_models,
             commands::model_runtime::kernel_model_runtime_capabilities,
             commands::model_runtime::kernel_model_runtime_list_loaded,
+            commands::lora::kernel_model_runtime_lora_mount,
+            commands::lora::kernel_model_runtime_lora_unmount,
+            commands::lora::kernel_model_runtime_lora_swap,
+            commands::lora::kernel_model_runtime_lora_list,
+            commands::kv_cache::kernel_model_runtime_kv_set_quantization,
+            commands::kv_cache::kernel_model_runtime_kv_prefix_commit,
+            commands::kv_cache::kernel_model_runtime_kv_prefix_restore,
+            commands::kv_cache::kernel_model_runtime_kv_evict_all,
+            commands::kv_cache::kernel_model_runtime_kv_occupancy,
             commands::memory_capsule::kernel_memory_capsule_list_recent,
             commands::memory_capsule::kernel_memory_capsule_get,
             commands::memory_capsule::kernel_memory_capsule_suppress_item,
@@ -132,6 +143,15 @@ macro_rules! handshake_invoke_handlers {
             inspector::kernel_inspector_loaded_models,
             commands::model_runtime::kernel_model_runtime_capabilities,
             commands::model_runtime::kernel_model_runtime_list_loaded,
+            commands::lora::kernel_model_runtime_lora_mount,
+            commands::lora::kernel_model_runtime_lora_unmount,
+            commands::lora::kernel_model_runtime_lora_swap,
+            commands::lora::kernel_model_runtime_lora_list,
+            commands::kv_cache::kernel_model_runtime_kv_set_quantization,
+            commands::kv_cache::kernel_model_runtime_kv_prefix_commit,
+            commands::kv_cache::kernel_model_runtime_kv_prefix_restore,
+            commands::kv_cache::kernel_model_runtime_kv_evict_all,
+            commands::kv_cache::kernel_model_runtime_kv_occupancy,
             commands::memory_capsule::kernel_memory_capsule_list_recent,
             commands::memory_capsule::kernel_memory_capsule_get,
             commands::memory_capsule::kernel_memory_capsule_suppress_item,
@@ -283,9 +303,7 @@ fn peft_job_spawner_state() -> commands::peft::PeftJobSpawnerState {
 
 fn steering_vector_store_state() -> Result<commands::steering::SteeringVectorStoreState, String> {
     let workspace = workspace_root();
-    let root = workspace
-        .join(".handshake")
-        .join("steering_vector_store");
+    let root = workspace.join(".handshake").join("steering_vector_store");
     std::fs::create_dir_all(&root)
         .map_err(|error| format!("create steering vector store root {root:?}: {error}"))?;
     let store = Arc::new(
@@ -746,10 +764,11 @@ pub fn run() {
     // `CloudLaneIpcState` and is rebuilt on app start (the OS
     // keychain has no enumeration API; lane discovery is via the
     // registry).
-    let cloud_lane_vault: Arc<dyn handshake_core::model_runtime::cloud::SecretsVault> =
-        Arc::new(handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
+    let cloud_lane_vault: Arc<dyn handshake_core::model_runtime::cloud::SecretsVault> = Arc::new(
+        handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
             handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
-        ));
+        ),
+    );
     let cloud_lane_consent_gate =
         Arc::new(handshake_core::model_runtime::cloud::ConsentGate::default());
     let cloud_lane_state =
