@@ -19,7 +19,7 @@
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-114.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
   },
-  "title": "INF-9 Subquadratic prefix-reuse-equivalent (state-vector caching as KvCacheOps impl) [MULTI-QUARTER]",
+  "title": "INF-9 Subquadratic prefix-reuse-equivalent (state-vector caching as KvCacheOps impl)",
   "goal": "Implement KvCacheOps for SSM/RWKV variants via state-vector caching: prefix_commit serializes SSM state to in-memory LRU; prefix_restore deserializes and writes back to model. Implements the prefix-reuse-equivalent feature_parity_detail entry per operator E-2.",
   "expected_diff_shape": "Edit src/backend/handshake_core/src/model_runtime/candle/state_vector.rs to implement KvCacheOps trait for SSM variants; tests.",
   "owned_files": [
@@ -28,7 +28,7 @@
   ],
   "depends_on_mts": ["MT-088", "MT-112"],
   "unblock_conditions": "MT-088 state-vector primitive + MT-112 subquadratic technique surface merged.",
-  "implementation_notes": "Per refinement INF-9 feature_parity_detail: \"prefix-reuse-equivalent for SSMs (state-vector caching, not KV cache)\". This MT implements KvCacheOps trait (defined in MT-063) for the SSM-state variant such that operator-facing semantics are uniform with the Transformer KV prefix-cache path: prefix_commit(prefix_tokens) -> handle, prefix_restore(handle) -> Ok or error. Internally backed by SSMStateSnapshot LRU keyed by content_hash. Tamper-resistance via the keyed_hash technique from MT-095 (apply same security pattern). MULTI-QUARTER continuation: this is one of the parity items operator E-2 accepted as long-timeline. Tests (env-gated by Mamba2/RWKV env vars): commit state on Mamba2 after 20 tokens; generate continuation; restore committed state; generate same continuation; assert deterministic. Tamper hash test. Variant-mismatch (Mamba2 handle on RWKV model) -> Err.",
+  "implementation_notes": "Per refinement INF-9 feature_parity_detail: \"prefix-reuse-equivalent for SSMs (state-vector caching, not KV cache)\". This MT implements KvCacheOps trait (defined in MT-063) for the SSM-state variant such that operator-facing semantics are uniform with the Transformer KV prefix-cache path: prefix_commit(prefix_tokens) -> handle, prefix_restore(handle) -> Ok or error. Internally backed by SSMStateSnapshot LRU keyed by content_hash. Tamper-resistance via the keyed_hash technique from MT-095 (apply same security pattern). Tests (env-gated by Mamba2/RWKV env vars): commit state on Mamba2 after 20 tokens; generate continuation; restore committed state; generate same continuation; assert deterministic. Tamper hash test. Variant-mismatch (Mamba2 handle on RWKV model) -> Err.",
   "proof_commands": [
     "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf9_state_vector_prefix_reuse_tests"
   ],

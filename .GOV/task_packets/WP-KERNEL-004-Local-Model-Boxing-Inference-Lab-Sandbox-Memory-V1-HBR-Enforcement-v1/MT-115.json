@@ -19,8 +19,8 @@
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-115.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
   },
-  "title": "INF-9 LoRA-for-SSM (LoRA mount/unmount for Mamba2 + RWKV) [MULTI-QUARTER]",
-  "goal": "Implement LoraStackOps for SSM/RWKV variants: LoRA mount/unmount that targets SSM-specific weight tensors (Mamba2 conv1d weights, in_proj, out_proj, A/D parameters; RWKV time-mix and channel-mix weights). PEFT semantics adapted to non-attention architectures. MULTI-QUARTER per operator E-2.",
+  "title": "INF-9 LoRA-for-SSM (LoRA mount/unmount for Mamba2 + RWKV)",
+  "goal": "Implement LoraStackOps for SSM/RWKV variants: LoRA mount/unmount that targets SSM-specific weight tensors (Mamba2 conv1d weights, in_proj, out_proj, A/D parameters; RWKV time-mix and channel-mix weights). PEFT semantics adapted to non-attention architectures.",
   "expected_diff_shape": "New src/backend/handshake_core/src/model_runtime/candle/ssm_lora.rs implementing LoraStackOps for SSM variants; mamba2.rs + rwkv_v5.rs + rwkv_v6.rs + rwkv_v7.rs forward wrappers to apply LoRA delta; tests.",
   "owned_files": [
     "src/backend/handshake_core/src/model_runtime/candle/ssm_lora.rs",
@@ -32,12 +32,12 @@
   ],
   "depends_on_mts": ["MT-064", "MT-084", "MT-085", "MT-086", "MT-087"],
   "unblock_conditions": "MT-084 transformer-LoRA + MT-085..MT-087 SSM/RWKV base merged.",
-  "implementation_notes": "Per refinement INF-9 feature_parity_detail: \"LoRA mount/unmount for SSMs (LoRA-for-SSM work)\". This is research-frontier territory — LoRA-for-SSM is less standardised than LoRA-for-transformer. Target modules per architecture: Mamba2 = `{in_proj, x_proj, dt_proj, out_proj}` (the Linear projections; SSM A/D/conv parameters are NOT good LoRA targets due to scalar/diagonal structure); RWKV v5/v6/v7 = `{ time_mix.*.weight, channel_mix.*.weight }` (similar to attention/mlp split). LoraDescriptor for SSM models requires `architecture: ArchitectureTag` field; mount validates target_modules against the loaded model's architecture. PEFT scaling formula same as transformer: y = base.forward(x) + scaling * strength * (B @ (A @ x)). Per AC-CANDLE-ADAPTER capabilities update after this MT lands: supports_lora=true for SSM variants. MULTI-QUARTER: this is the largest single feature parity item; per refinement RW-3 synthesis sized at +25-40 MTs of total SSM-parity work. Tests (env-gated): mount a small fixture LoRA on Mamba2 (operator-supplied), generate, assert output differs; unmount, output reverts. Note: very few PRODUCTION-quality LoRAs exist for Mamba2/RWKV in 2026 — test MAY fixture-generate a small random LoRA for the smoke test.",
+  "implementation_notes": "Per refinement INF-9 feature_parity_detail: \"LoRA mount/unmount for SSMs (LoRA-for-SSM work)\". This is research-frontier territory — LoRA-for-SSM is less standardised than LoRA-for-transformer. Target modules per architecture: Mamba2 = `{in_proj, x_proj, dt_proj, out_proj}` (the Linear projections; SSM A/D/conv parameters are NOT good LoRA targets due to scalar/diagonal structure); RWKV v5/v6/v7 = `{ time_mix.*.weight, channel_mix.*.weight }` (similar to attention/mlp split). LoraDescriptor for SSM models requires `architecture: ArchitectureTag` field; mount validates target_modules against the loaded model's architecture. PEFT scaling formula same as transformer: y = base.forward(x) + scaling * strength * (B @ (A @ x)). Per AC-CANDLE-ADAPTER capabilities update after this MT lands: supports_lora=true for SSM variants. Tests (env-gated): mount a small fixture LoRA on Mamba2 (operator-supplied), generate, assert output differs; unmount, output reverts. Note: very few PRODUCTION-quality LoRAs exist for Mamba2/RWKV in 2026 — test MAY fixture-generate a small random LoRA for the smoke test.",
   "proof_commands": [
     "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf9_ssm_lora_tests"
   ],
   "risk_if_missed": "INF-9 LoRA parity entry missing; operator E-2 acceptance breached.",
-  "validator_focus": "Architecture tag validation; target-module names per architecture; multi-quarter timeline; ArchitectureTag field carried through LoraDescriptor.",
+  "validator_focus": "Architecture tag validation; target-module names per architecture; ArchitectureTag field carried through LoraDescriptor.",
   "hbr_obligations": ["HBR-INT-002", "HBR-INT-008"],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
@@ -59,8 +59,7 @@
   "red_team": {
     "minimum_controls": [
       "Architecture tag validation enforced.",
-      "Per-architecture target-module name list explicit (Mamba2 vs RWKV).",
-      "Multi-quarter timeline flagged."
+      "Per-architecture target-module name list explicit (Mamba2 vs RWKV)."
     ]
   }
 }

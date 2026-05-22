@@ -19,7 +19,7 @@
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-113.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
   },
-  "title": "INF-9 Subquadratic UI (model loading + state-vector controls + variant badge) [MULTI-QUARTER]",
+  "title": "INF-9 Subquadratic UI (model loading + state-vector controls + variant badge)",
   "goal": "Subquadratic UI in Inference Lab: model loader scoped to SSM/RWKV variants, state-vector controls (commit/restore/persist/rehydrate), variant badge (Mamba2 / RWKV v5 / v6 / v7). Hidden via capabilities.supportsSubquadratic == false.",
   "expected_diff_shape": "New Svelte components app/src/components/inference_lab/SubquadraticPanel.svelte + StateVectorControls.svelte + store.",
   "owned_files": [
@@ -30,7 +30,7 @@
   ],
   "depends_on_mts": ["MT-068", "MT-112"],
   "unblock_conditions": "MT-068 + MT-112 merged.",
-  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-INFER-LAB-UI-AB-COMPARE. SubquadraticPanel.svelte: variant badge (Mamba2/RWKVv5/v6/v7) prominent; state-vector controls section (commit current state, list of saved states with name + timestamp + bytes, restore selected, persist to disk, rehydrate from disk); subquadratic-specific config (e.g., n_layer, d_state read-only display from model config). Hidden via capability gate. MULTI-QUARTER UI work — placeholder copy on the page indicates the surface may change as the feature parity work progresses; operator can opt out of subquadratic UI via a Work Profile flag (settings.ui.show_subquadratic_panel) if they're not yet using SSMs.",
+  "implementation_notes": "Per AC-INFER-LAB-UI-TOGGLES + AC-INFER-LAB-UI-AB-COMPARE. SubquadraticPanel.svelte: variant badge (Mamba2/RWKVv5/v6/v7) prominent; state-vector controls section (commit current state, list of saved states with name + timestamp + bytes, restore selected, persist to disk, rehydrate from disk); subquadratic-specific config (e.g., n_layer, d_state read-only display from model config). Hidden via capability gate. Operator can opt out of subquadratic UI via a Work Profile flag (settings.ui.show_subquadratic_panel) if they're not yet using SSMs.",
   "proof_commands": [
     "cd app && pnpm run typecheck"
   ],
@@ -57,7 +57,6 @@
   "red_team": {
     "minimum_controls": [
       "Hidden when unsupported.",
-      "Multi-quarter UI placeholder copy explicit.",
       "Variant badge correct for loaded model."
     ]
   }

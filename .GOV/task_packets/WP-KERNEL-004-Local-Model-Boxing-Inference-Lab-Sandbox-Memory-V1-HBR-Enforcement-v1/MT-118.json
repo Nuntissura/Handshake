@@ -19,20 +19,20 @@
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/MT-118.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1/packet.json"
   },
-  "title": "INF-9 Subquadratic full-feature-parity integration test (multi-quarter checkpoint)",
-  "goal": "End-to-end integration test exercising ALL 5 feature_parity_detail items per operator E-2: load+generate, LoRA mount, activation steering, prefix-reuse-equivalent (state-vector caching), cross-session state restore. Per-family env-gated. This is the multi-quarter checkpoint gate.",
+  "title": "INF-9 Subquadratic full-feature-parity integration test",
+  "goal": "End-to-end integration test exercising ALL 5 feature_parity_detail items per operator E-2: load+generate, LoRA mount, activation steering, prefix-reuse-equivalent (state-vector caching), cross-session state restore. Per-family env-gated.",
   "expected_diff_shape": "New src/backend/handshake_core/tests/inf9_subquadratic_full_parity_smoke.rs orchestrating all 5 features on Mamba2 + RWKV v5/v6/v7.",
   "owned_files": [
     "src/backend/handshake_core/tests/inf9_subquadratic_full_parity_smoke.rs"
   ],
   "depends_on_mts": ["MT-112", "MT-114", "MT-115", "MT-116", "MT-117"],
   "unblock_conditions": "MT-112..MT-117 merged.",
-  "implementation_notes": "Per operator E-2 acceptance of FULL FEATURE PARITY scope. This smoke test is the multi-quarter integration gate: even one failure means INF-9 parity not yet PRODUCTION. Per architecture (Mamba2, RWKV v5, v6, v7) test scenario: (1) load model; (2) generate 32 tokens baseline; (3) mount fixture LoRA, generate, assert output differs; (4) capture activations + register zero steering vector + generate (identity test); (5) register random steering vector + generate (output differs); (6) state-vector commit, generate, restore, generate same continuation (deterministic); (7) persist state to disk, simulate process restart, load_from_disk, generate continuation (deterministic across restart); (8) unload. Env-gated per architecture; if any architecture env var absent, skip that architecture's sub-test with explicit log message. FR event family coverage asserted per family (FR-EVT-LLM-INFER-SUBQUAD-*). MULTI-QUARTER: this gate is the operator's visible signal that INF-9 has reached the agreed full-parity ship bar.",
+  "implementation_notes": "Per operator E-2 acceptance of FULL FEATURE PARITY scope. Per architecture (Mamba2, RWKV v5, v6, v7) test scenario: (1) load model; (2) generate 32 tokens baseline; (3) mount fixture LoRA, generate, assert output differs; (4) capture activations + register zero steering vector + generate (identity test); (5) register random steering vector + generate (output differs); (6) state-vector commit, generate, restore, generate same continuation (deterministic); (7) persist state to disk, simulate process restart, load_from_disk, generate continuation (deterministic across restart); (8) unload. Env-gated per architecture; if any architecture env var absent, skip that architecture's sub-test with explicit log message. FR event family coverage asserted per family (FR-EVT-LLM-INFER-SUBQUAD-*). This gate is the operator's visible signal that INF-9 has reached the agreed full-parity ship bar.",
   "proof_commands": [
     "cargo test -p handshake_core --target-dir ../Handshake_Artifacts/handshake-cargo-target inf9_subquadratic_full_parity_smoke -- --ignored"
   ],
   "risk_if_missed": "Operator E-2 FULL FEATURE PARITY acceptance not gated; partial-parity ship could be mistaken for PRODUCTION.",
-  "validator_focus": "All 5 feature_parity_detail items covered per architecture; per-architecture skip; FR event family coverage; MULTI-QUARTER gate visibility.",
+  "validator_focus": "All 5 feature_parity_detail items covered per architecture; per-architecture skip; FR event family coverage.",
   "hbr_obligations": ["HBR-INT-002"],
   "spec_anchors": [
     ".GOV/spec/master-spec-v02.186/spec-modules/04-llm-infrastructure.md#4.7.1"
@@ -54,8 +54,7 @@
   "red_team": {
     "minimum_controls": [
       "All 5 feature_parity_detail items present per architecture (no commented-out steps).",
-      "Per-architecture skip path on missing env var.",
-      "MULTI-QUARTER gate visibility (test name + comment make the ship bar obvious)."
+      "Per-architecture skip path on missing env var."
     ]
   }
 }
