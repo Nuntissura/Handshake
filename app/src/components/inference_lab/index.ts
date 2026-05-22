@@ -7,6 +7,7 @@ export { DistillationQueue } from "./DistillationQueue";
 export { LoraStackComposer } from "./LoraStackComposer";
 export { KvCachePanel } from "./KvCachePanel";
 export { SpeculativeDecodingPanel } from "./SpeculativeDecodingPanel";
+export { SubquadraticPanel } from "./SubquadraticPanel";
 export type {
   OptedInSession,
   PendingCandidate,

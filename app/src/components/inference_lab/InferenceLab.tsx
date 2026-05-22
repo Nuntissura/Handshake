@@ -28,6 +28,7 @@ import { LoraStackComposer } from "./LoraStackComposer";
 import { RefusalVectorWizard } from "./RefusalVectorWizard";
 import { SpeculativeDecodingPanel } from "./SpeculativeDecodingPanel";
 import { SteeringVectorEditor } from "./SteeringVectorEditor";
+import { SubquadraticPanel } from "./SubquadraticPanel";
 
 // Default visible layer range for steering layer pickers when the kernel does not
 // expose n_layers yet. Per spec 10.14.2 the picker should reflect the loaded
@@ -277,6 +278,10 @@ export function InferenceLab() {
             capabilities={caps.capabilities}
           />
           <SpeculativeDecodingPanel
+            modelId={selectedModelId}
+            capabilities={caps.capabilities}
+          />
+          <SubquadraticPanel
             modelId={selectedModelId}
             capabilities={caps.capabilities}
           />
