@@ -1573,6 +1573,6 @@
     "wp_validator_gate": "DISABLED"
   },
   "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "next_id": "MT-058",
-  "next_id_note": "MT-057 is READY_FOR_VALIDATION with cross-adapter sandbox parity harness (CrossAdapterParityHarness + 8 fixture JSONs + 3 always-on stub-adapter tests + 2 env-gated real-runtime tests behind wsl2-integration/docker-integration features). Real WSL2 + Docker adapter exercise is operator-host-dependent (skip-discipline reports gaps via skipped_adapters); the always-on stub-adapter path proves harness mechanics including parity detection and disagreement detection (adversarial). Cluster B remainder: MT-058 is next claimable. None of MT-090..MT-095 + MT-057 must be marked COMPLETED until a fresh Integration Validator reviews them."
+  "next_id": "MT-109",
+  "next_id_note": "MT-058 is READY_FOR_VALIDATION with sandbox escape negative-test catalog (10 attempts: FS read/write/symlink, NET deny-dns/deny-tcp/loopback-external, PRIV uid, NAMESPACE pid, DEVICE access, WIN32 foreground inject) + SandboxEscapeHarness + JSON results persistence to Handshake_Artifacts. 5/5 always-on stub tests + 2 env-gated WSL2/Docker tests (ignored without features). Adversarial coverage includes Red detection on leaky stub + Skipped on unavailable adapter + OS-restriction skip. STRICTLY CONTRACT-SCOPED. MT-109 (cluster D distillation) is next PENDING. None of MT-090..MT-095 + MT-057 + MT-058 must be marked COMPLETED until a fresh Integration Validator reviews them."
 }
