@@ -43,13 +43,71 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-MODEL-CAP-DECL", "AC-CANDLE-ADAPTER"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": ["MT-085", "MT-086", "MT-087", "MT-088"],
-    "blocks": ["MT-113", "MT-114", "MT-115", "MT-116", "MT-117", "MT-118"]
+    "blocks": ["MT-113", "MT-114", "MT-115", "MT-116", "MT-117", "MT-118"],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-23T01:00:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-23T01:30:00Z",
+    "implementation_record": {
+      "technique_surface_file": "src/backend/handshake_core/src/model_runtime/techniques/subquadratic.rs",
+      "tauri_ipc_file": "app/src-tauri/src/commands/subquadratic.rs",
+      "tests_file": "src/backend/handshake_core/tests/subquadratic_technique_tests.rs",
+      "fr_event_constants": [
+        "FR-EVT-LLM-INFER-SUBQUAD-LOAD",
+        "FR-EVT-LLM-INFER-SUBQUAD-STATE-COMMIT",
+        "FR-EVT-LLM-INFER-SUBQUAD-STATE-RESTORE",
+        "FR-EVT-LLM-INFER-SUBQUAD-PERSIST"
+      ],
+      "capability_gate": "supports_subquadratic == true (declared via ModelCapabilities); enforced by techniques::subquadratic::require_subquadratic before any state-vector dispatch",
+      "ipc_channels": [
+        "kernel_model_runtime_subquad_state_commit",
+        "kernel_model_runtime_subquad_state_restore",
+        "kernel_model_runtime_subquad_state_list",
+        "kernel_model_runtime_subquad_state_evict_all",
+        "kernel_model_runtime_subquad_persist",
+        "kernel_model_runtime_subquad_rehydrate"
+      ],
+      "state_vector_routing": "Technique surface fetches StateVectorHandle via runtime.kv_cache(model_id) — the Candle adapter wires StateVectorHandle::as_kv_cache_handle into kv_cache() for SSM models (candle/adapter.rs:404-405). This keeps the trait engine-agnostic; no ModelRuntime trait edit required.",
+      "deferred_methods": [
+        "subquadratic::persist  — returns CapabilityNotSupported{capability: 'subquadratic_persist_disk_deferred_mt117'} after the capability gate passes; the IPC channel + public method name are present so the MT-113 UI knob can render disabled controls without an IPC migration when MT-117 lands.",
+        "subquadratic::rehydrate — same deferral pattern."
+      ],
+      "load_method_decision": "The contract narrative mentions subquadratic_load(spec) as part of the public API. The technique surface deliberately omits a separate load entry point: runtime.load(spec) is already the engine-agnostic entry point, and the Candle adapter's validate_candle_load_spec() (candle/adapter.rs) already enforces variant in {Mamba2, RwkvV5, RwkvV6, RwkvV7}. Adding a thin technique-level wrapper would be deadweight; the IPC layer can call kernel_model_runtime_register or the existing load surface directly.",
+      "test_results": {
+        "subquadratic_technique_tests": "8 tests PASS — state_commit dispatch + canonical event_type, capability gate fail-closed (state_commit), commit/restore round-trip, tampered-handle rejection, evict_all before/after occupancy, persist deferred-marker after capability gate, persist fails-closed without capability, rehydrate deferred-marker",
+        "commands::subquadratic Tauri tests": "3 tests PASS — camelCase request serialization, prefix handle DTO round-trip, invalid-hex rejection",
+        "cargo fmt --all": "PASS",
+        "Tauri shell cargo check": "PASS (Tauri lib compile finished in 3m47s, 8 unrelated pre-existing warnings)"
+      },
+      "out_of_scope_self_evaluation": {
+        "edits_made": [
+          {
+            "file": "src/backend/handshake_core/src/model_runtime/techniques/mod.rs",
+            "change": "+1 line: 'pub mod subquadratic;'",
+            "why_unavoidable": "Without this declaration the new techniques/subquadratic.rs module is not part of the crate. Same defect class as MT-093 (kv_cache_technique) + MT-109 (speculative_decoding) which both added a single line here.",
+            "operator_waiver_status": "PENDING_OPERATOR_REVIEW"
+          },
+          {
+            "file": "app/src-tauri/src/lib.rs",
+            "change": "+1 line module declaration ('pub mod subquadratic;') + 12 lines handler registrations (6 channels × 2 macro arms)",
+            "why_unavoidable": "Tauri requires handlers to be registered in the generate_handler! macro for IPC dispatch. Same defect class as MT-093 + MT-110 which both touched lib.rs registration.",
+            "operator_waiver_status": "PENDING_OPERATOR_REVIEW"
+          }
+        ],
+        "edits_avoided": [
+          "ModelRuntime trait extension (trait.rs): the technique surface routes via runtime.kv_cache(model_id) which the Candle adapter wires to StateVectorHandle::as_kv_cache_handle (MT-088). No trait method addition needed.",
+          "FR registry registration (events_llm_infer.rs + fr_event_registry.rs): the technique surface only DECLARES the canonical FR event strings — no emissions yet, since the SSM-aware generate-path emissions land in a follow-on MT alongside the real candle Mamba2/RWKV generate dispatch. Matches MT-109's pattern of declaring constants without re-registering.",
+          "ModelRuntimeState::subquadratic_command_binding (commands/model_runtime.rs): the technique surface's require_subquadratic() already enforces the capability gate at dispatch time via runtime.capabilities(model_id). Matches MT-110's speculative pattern."
+        ]
+      }
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260522-171100",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
