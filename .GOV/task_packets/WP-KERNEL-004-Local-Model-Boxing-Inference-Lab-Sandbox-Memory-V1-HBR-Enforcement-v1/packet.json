@@ -1573,6 +1573,6 @@
     "wp_validator_gate": "DISABLED"
   },
   "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "next_id": "MT-110",
-  "next_id_note": "MT-109 is READY_FOR_VALIDATION with INF-8 self-speculative-decoding technique-surface validation (validate_mode + build_mode_change_receipt + Eagle3-deferred capability gate + FR event_type constants). 8/8 tests pass including adversarial: ngram-rejected-when-supports_speculative_draft-false, Eagle3-deferred-until-supports_eagle3-true, forward-compat-Eagle3-accepted, mode-change receipt event_type stability, FR registry round-trip. MT-109 lifecycle.scope_split_note documents that the Tauri command layer is deferred to a focused follow-up MT. MT-110 is next PENDING. None of MT-090..MT-095 + MT-057 + MT-058 + MT-109 must be marked COMPLETED until a fresh Integration Validator reviews them."
+  "next_id": "MT-111",
+  "next_id_note": "MT-110 is READY_FOR_VALIDATION with INF-8 self-speculative UI knob (SpeculativeDecodingPanel React TSX + speculative.ts IPC binding + specModeOptions capability cascade + Eagle3 always-visible-deferred). 9/9 vitest + tsc clean + 82/82 full suite. Bundled MT-109's deferred Tauri IPC layer (commands/speculative.rs + lib.rs registration + SpeculativeModeOverrides state) as dependency unblock work — 2/2 Tauri tests pass. MT-111 is next PENDING. None of MT-090..MT-095 + MT-057 + MT-058 + MT-109 + MT-110 must be marked COMPLETED until a fresh Integration Validator reviews them."
 }

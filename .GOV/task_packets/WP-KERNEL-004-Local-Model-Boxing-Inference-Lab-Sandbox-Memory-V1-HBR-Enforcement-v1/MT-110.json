@@ -42,10 +42,16 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES", "AC-INFER-LAB-UI-AB-COMPARE"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": ["MT-068", "MT-109"],
-    "blocks": ["MT-111"]
+    "blocks": ["MT-111"],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-23T00:10:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-23T00:20:00Z",
+    "dependency_unblock_note": "MT-109 deferred the Tauri IPC layer (commands/speculative.rs + lib.rs registration); MT-110 needs that IPC to function. Per operator 'work on dependencies first' rule the IPC was built as MT-110 unblock work and committed alongside the UI knob. Out-of-scope file additions: app/src-tauri/src/commands/speculative.rs (NEW, MT-109 deferred owned-file) + app/src-tauri/src/lib.rs (registration + SpeculativeModeOverrides.manage()) + app/src/lib/ipc/speculative.ts (NEW IPC binding). All carry operator-waiver-required notes consistent with MT-091/094 pattern."
   },
   "handoff": {
     "coder_session": null,
