@@ -1573,6 +1573,6 @@
     "wp_validator_gate": "DISABLED"
   },
   "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "next_id": "MT-094",
-  "next_id_note": "MT-093 is READY_FOR_VALIDATION with supporting kv_cache_technique surface (9 core + 6 Tauri + 5 model_runtime_kv_cache regression + 2 lora_hotswap regression + 5 inf1_lora_parity regression + 3 fr_event_registry tests passing). Out-of-scope: KvCacheHandle extension + LlamaCpp/Candle adapter wiring + FR registry KV variants + ModelRuntimeState kv_cache_command_binding (operator waiver requested per MT-093.implementation_record.out_of_scope_self_evaluation). MT-094 (INF-2 KV cache UI knob) is next claimable. Neither MT-090, MT-091, MT-092, nor MT-093 must be marked COMPLETED until a fresh Integration Validator reviews them."
+  "next_id": "MT-095",
+  "next_id_note": "MT-094 is READY_FOR_VALIDATION with supporting KvCachePanel React TSX (Svelte->TSX contract drift recorded), app/src/lib/ipc/kv_cache.ts IPC binding (out-of-scope, operator waiver), 10/10 focused vitest + 73/73 full suite + tsc clean. MT-095 is next claimable. None of MT-090..MT-094 must be marked COMPLETED until a fresh Integration Validator reviews them."
 }
