@@ -1573,6 +1573,6 @@
     "wp_validator_gate": "DISABLED"
   },
   "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "next_id": "MT-096",
-  "next_id_note": "MT-095 is READY_FOR_VALIDATION with BLAKE3 keyed-hash replay-resistance binding (per-process key, derive_id static, from_derived constructor, verify_derived_against validator). 8/8 security tests + 5/5 model_runtime_kv_cache regression + 9/9 kv_cache_technique regression. STRICTLY CONTRACT-SCOPED — first MT this session with zero out-of-scope edits. MT-096 is next claimable. None of MT-090..MT-095 must be marked COMPLETED until a fresh Integration Validator reviews them."
+  "next_id": "MT-057",
+  "next_id_note": "MT-095 is READY_FOR_VALIDATION with BLAKE3 keyed-hash replay-resistance binding (8/8 security tests + 5+9+5+2 regression). STRICTLY CONTRACT-SCOPED — first MT this session with zero out-of-scope edits. The natural successor MT-096 (INF-3 Activation Steering technique) is already marked COMPLETED by a prior session (KERNEL_BUILDER-20260519-143049, supporting-evidence-only). Pointer advanced to MT-057 (cluster B sandbox cross-adapter parity harness — first PENDING MT in MT-id order); MT-057 needs all three Sandbox adapter implementations (MT-044/046/047/048/049/053) and 8 fixture JSONs, so an operator decision on scope and adapter availability is appropriate before claiming. Session 2026-05-22 closed at 5 MTs READY_FOR_VALIDATION (MT-091..MT-095); 114 prior MTs sit at COMPLETED awaiting Integration Validator review. None of MT-090..MT-095 must be marked COMPLETED until a fresh Integration Validator reviews them."
 }
