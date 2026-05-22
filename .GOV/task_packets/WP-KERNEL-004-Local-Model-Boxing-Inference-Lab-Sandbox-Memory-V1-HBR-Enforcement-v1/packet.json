@@ -625,6 +625,50 @@
         "tracked_files_removed": 0,
         "rationale": "Both paths were build-artifact leakage from prior sessions running cargo without CARGO_TARGET_DIR set to the external sibling root. Both were git-ignored (.gitignore:51) and held zero tracked files. Cargo will rebuild into CARGO_TARGET_DIR (../Handshake_Artifacts/handshake-cargo-target) on the next test run.",
         "verification": "Post-delete: both paths absent; gov_kernel worktree was already clean; no git status delta."
+      },
+      "latest_mt093_supporting_evidence": {
+        "recorded_at_utc": "2026-05-22T21:35:00Z",
+        "recorded_by": "KERNEL_BUILDER-20260522-171100",
+        "mt_ids": ["MT-093"],
+        "classification": "IMPLEMENTATION_SUPPORTING_EVIDENCE_ONLY_NOT_INTEGRATION_VALIDATOR_PASS",
+        "authoritative_integration_validator_pass": false,
+        "integration_validator_status": "PENDING",
+        "summary": "MT-093 lifts per-adapter KvCacheOps into the public ModelRuntime-level kv_cache_technique surface (5 ops + 4 FR events). Required foundational out-of-scope: KvCacheHandle::with_ops + UnsupportedKvCacheOps default + forwarding methods; LlamaCpp + Candle adapter wiring; 3 new FR registry variants; ModelRuntimeState::kv_cache_command_binding helper. Operator waiver requested. 9 core + 6 Tauri + 5+2+5+3 regression tests passing; cargo fmt clean on both manifests.",
+        "out_of_scope_files_for_waiver": [
+          "src/backend/handshake_core/src/model_runtime/kv_cache.rs",
+          "src/backend/handshake_core/src/model_runtime/llama_cpp/adapter.rs",
+          "src/backend/handshake_core/src/model_runtime/candle/state_vector.rs",
+          "src/backend/handshake_core/src/model_runtime/techniques/mod.rs",
+          "src/backend/handshake_core/src/flight_recorder/events_llm_infer.rs",
+          "src/backend/handshake_core/src/flight_recorder/fr_event_registry.rs",
+          "app/src-tauri/src/commands/model_runtime.rs"
+        ],
+        "proof": {
+          "core_focused": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kv_cache_technique_tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-kv-cache-technique-tests-20260522-001.log",
+            "note": "9/9 passed."
+          },
+          "tauri_focused": {
+            "command": "cargo test --manifest-path app/src-tauri/Cargo.toml kv_cache::tests -- --nocapture",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-tauri-kv-cache-tests-20260522-001.log",
+            "note": "6/6 passed."
+          },
+          "regression_final_sweep": {
+            "command": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test kv_cache_technique_tests --test model_runtime_kv_cache_tests --test inf1_lora_parity_tests --test lora_hotswap_techniques_tests",
+            "exit_code": 0,
+            "log": "D:/Projects/LLM projects/Handshake/Handshake_Artifacts/wp-kernel-004-test-runs/mt093-cargo-final-kv-tests-20260522-002.log",
+            "note": "9+5+5+2 passed."
+          }
+        },
+        "residual_risks": [
+          "No Integration Validator has reviewed MT-093.",
+          "Real-runtime KV smoke through the new technique surface (LlamaCpp + Candle) is not exercised — MT-075 covers the LlamaCpp KvCacheOps surface directly via env-gated tests.",
+          "settings.execPolicy.kvCache.prefix_cache_ttl_seconds + max_bytes are surfaced in the IPC DTO; session-start policy application is owned by MT-094/095.",
+          "Umbrella gov-check failures inherited from MT-090/091/092 remain."
+        ]
       }
     },
     "wp_hard_fail_cleared": {
@@ -1529,6 +1573,6 @@
     "wp_validator_gate": "DISABLED"
   },
   "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "next_id": "MT-093",
-  "next_id_note": "MT-092 is READY_FOR_VALIDATION with supporting cross-adapter LoRA parity test (5/5 passing) covering FR event_type parity, license_tag round-trip, capability fail-closed, base-model mismatch, and env-gated real-runtime smoke for both LlamaCpp + Candle. MT-093 (INF-2 KV cache technique surface) is next claimable. Neither MT-090, MT-091, nor MT-092 must be marked COMPLETED until a fresh Integration Validator reviews them."
+  "next_id": "MT-094",
+  "next_id_note": "MT-093 is READY_FOR_VALIDATION with supporting kv_cache_technique surface (9 core + 6 Tauri + 5 model_runtime_kv_cache regression + 2 lora_hotswap regression + 5 inf1_lora_parity regression + 3 fr_event_registry tests passing). Out-of-scope: KvCacheHandle extension + LlamaCpp/Candle adapter wiring + FR registry KV variants + ModelRuntimeState kv_cache_command_binding (operator waiver requested per MT-093.implementation_record.out_of_scope_self_evaluation). MT-094 (INF-2 KV cache UI knob) is next claimable. Neither MT-090, MT-091, MT-092, nor MT-093 must be marked COMPLETED until a fresh Integration Validator reviews them."
 }
