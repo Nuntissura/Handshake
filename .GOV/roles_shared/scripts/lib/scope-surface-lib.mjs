@@ -246,12 +246,54 @@ export function matchesScopeEntry(filePath, scopeEntry) {
   for (const candidate of candidateVariants) {
     for (let scope of scopeVariants) {
       if (scope.endsWith("/")) scope = scope.slice(0, -1);
+      scope = stripScopeGlobTail(scope);
+      if (scope === "") {
+        // After stripping a leading-only glob (e.g. "**"), the scope
+        // entry would match every path. That's almost certainly a
+        // misconfigured packet — refuse the match to keep the bug
+        // visible instead of silently accepting everything.
+        continue;
+      }
       if (candidate === scope || candidate.startsWith(`${scope}/`)) {
         return true;
       }
     }
   }
   return false;
+}
+
+// stripScopeGlobTail removes common trailing glob suffixes from a scope
+// entry so the prefix matcher in matchesScopeEntry treats globbed entries
+// the same as plain directory entries.
+//
+// Examples:
+//   "app/src/components/inference_lab/**"   -> "app/src/components/inference_lab"
+//   "app/src/components/inference_lab/**/*" -> "app/src/components/inference_lab"
+//   "src/backend/handshake_core/tests/*"    -> "src/backend/handshake_core/tests"
+//   "src/backend/feature"                   -> "src/backend/feature"   (unchanged)
+//
+// Repeated suffix patterns are stripped until none remain so combined
+// patterns like "foo/**/*.rs" or "foo/**/*" reduce cleanly.
+function stripScopeGlobTail(scope) {
+  let next = scope;
+  // Sentinel max iterations guards against pathological inputs.
+  for (let i = 0; i < 8; i += 1) {
+    if (next.endsWith("/**")) {
+      next = next.slice(0, -3);
+    } else if (next.endsWith("/**/*")) {
+      next = next.slice(0, -5);
+    } else if (next.endsWith("/*")) {
+      next = next.slice(0, -2);
+    } else if (next === "**" || next === "*") {
+      next = "";
+    } else {
+      break;
+    }
+    if (next.endsWith("/")) {
+      next = next.slice(0, -1);
+    }
+  }
+  return next;
 }
 
 export function matchesAnyScopeEntry(filePath, scopeEntries) {
