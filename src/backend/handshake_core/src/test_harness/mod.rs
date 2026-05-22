@@ -1,4 +1,5 @@
 pub mod cross_adapter;
+pub mod escape_attempts;
 pub mod invariants;
 pub mod scenarios;
 pub mod session;
