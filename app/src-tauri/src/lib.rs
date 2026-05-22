@@ -28,6 +28,7 @@ mod commands {
     pub mod refusal;
     pub mod sandbox;
     pub mod session_distill;
+    pub mod speculative;
     pub mod steering;
     #[cfg(test)]
     pub mod testing;
@@ -73,6 +74,9 @@ macro_rules! handshake_invoke_handlers {
             commands::kv_cache::kernel_model_runtime_kv_prefix_restore,
             commands::kv_cache::kernel_model_runtime_kv_evict_all,
             commands::kv_cache::kernel_model_runtime_kv_occupancy,
+            commands::speculative::kernel_model_runtime_spec_set_mode,
+            commands::speculative::kernel_model_runtime_spec_get_mode,
+            commands::speculative::kernel_model_runtime_spec_validate,
             commands::memory_capsule::kernel_memory_capsule_list_recent,
             commands::memory_capsule::kernel_memory_capsule_get,
             commands::memory_capsule::kernel_memory_capsule_suppress_item,
@@ -152,6 +156,9 @@ macro_rules! handshake_invoke_handlers {
             commands::kv_cache::kernel_model_runtime_kv_prefix_restore,
             commands::kv_cache::kernel_model_runtime_kv_evict_all,
             commands::kv_cache::kernel_model_runtime_kv_occupancy,
+            commands::speculative::kernel_model_runtime_spec_set_mode,
+            commands::speculative::kernel_model_runtime_spec_get_mode,
+            commands::speculative::kernel_model_runtime_spec_validate,
             commands::memory_capsule::kernel_memory_capsule_list_recent,
             commands::memory_capsule::kernel_memory_capsule_get,
             commands::memory_capsule::kernel_memory_capsule_suppress_item,
@@ -795,6 +802,7 @@ pub fn run() {
         .manage(inspector::InspectorPortState::new(None))
         .manage(inspector_reader)
         .manage(commands::model_runtime::ModelRuntimeState::default())
+        .manage(commands::speculative::SpeculativeModeOverrides::default())
         .manage(steering_store_state)
         .manage(commands::memory_capsule::MemoryCapsuleIpcState::default())
         .manage(commands::session_distill::SessionDistillState::default())

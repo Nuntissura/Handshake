@@ -6,6 +6,7 @@ export { CaaWizard } from "./CaaWizard";
 export { DistillationQueue } from "./DistillationQueue";
 export { LoraStackComposer } from "./LoraStackComposer";
 export { KvCachePanel } from "./KvCachePanel";
+export { SpeculativeDecodingPanel } from "./SpeculativeDecodingPanel";
 export type {
   OptedInSession,
   PendingCandidate,

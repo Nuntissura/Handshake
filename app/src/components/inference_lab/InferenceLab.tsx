@@ -26,6 +26,7 @@ import {
 import { KvCachePanel } from "./KvCachePanel";
 import { LoraStackComposer } from "./LoraStackComposer";
 import { RefusalVectorWizard } from "./RefusalVectorWizard";
+import { SpeculativeDecodingPanel } from "./SpeculativeDecodingPanel";
 import { SteeringVectorEditor } from "./SteeringVectorEditor";
 
 // Default visible layer range for steering layer pickers when the kernel does not
@@ -272,6 +273,10 @@ export function InferenceLab() {
             capabilities={caps.capabilities}
           />
           <KvCachePanel
+            modelId={selectedModelId}
+            capabilities={caps.capabilities}
+          />
+          <SpeculativeDecodingPanel
             modelId={selectedModelId}
             capabilities={caps.capabilities}
           />
