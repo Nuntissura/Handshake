@@ -4,6 +4,7 @@ export { ContrastiveCaptureWizard } from "./ContrastiveCaptureWizard";
 export { RefusalVectorWizard } from "./RefusalVectorWizard";
 export { CaaWizard } from "./CaaWizard";
 export { DistillationQueue } from "./DistillationQueue";
+export { LoraStackComposer } from "./LoraStackComposer";
 export type {
   OptedInSession,
   PendingCandidate,

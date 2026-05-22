@@ -23,6 +23,7 @@ import {
   type PendingCandidate,
   type TrainingJob,
 } from "./DistillationQueue";
+import { LoraStackComposer } from "./LoraStackComposer";
 import { RefusalVectorWizard } from "./RefusalVectorWizard";
 import { SteeringVectorEditor } from "./SteeringVectorEditor";
 
@@ -265,6 +266,10 @@ export function InferenceLab() {
         </p>
       ) : caps.status === "ready" ? (
         <div className="inference-lab__panels">
+          <LoraStackComposer
+            modelId={selectedModelId}
+            capabilities={caps.capabilities}
+          />
           <SteeringVectorEditor
             modelId={selectedModelId}
             capabilities={caps.capabilities}
