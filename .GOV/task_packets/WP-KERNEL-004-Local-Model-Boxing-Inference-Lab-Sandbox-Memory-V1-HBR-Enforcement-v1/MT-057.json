@@ -51,10 +51,15 @@
   "acceptance_criteria_refs": ["AC-SANDBOX-ADAPTER-IMPLS", "AC-SANDBOX-CAP-DECL"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": ["MT-044", "MT-046", "MT-047", "MT-048", "MT-049", "MT-053"],
-    "blocks": []
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-22T22:45:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-22T23:10:00Z"
   },
   "handoff": {
     "coder_session": null,
