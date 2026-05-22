@@ -23,6 +23,7 @@ import {
   type PendingCandidate,
   type TrainingJob,
 } from "./DistillationQueue";
+import { KvCachePanel } from "./KvCachePanel";
 import { LoraStackComposer } from "./LoraStackComposer";
 import { RefusalVectorWizard } from "./RefusalVectorWizard";
 import { SteeringVectorEditor } from "./SteeringVectorEditor";
@@ -267,6 +268,10 @@ export function InferenceLab() {
       ) : caps.status === "ready" ? (
         <div className="inference-lab__panels">
           <LoraStackComposer
+            modelId={selectedModelId}
+            capabilities={caps.capabilities}
+          />
+          <KvCachePanel
             modelId={selectedModelId}
             capabilities={caps.capabilities}
           />
