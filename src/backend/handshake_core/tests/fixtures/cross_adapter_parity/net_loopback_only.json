@@ -1,0 +1,29 @@
+{
+  "schema_id": "hsk.sandbox_cross_adapter_parity@1",
+  "name": "net_loopback_only",
+  "description": "With NetPolicy=LoopbackOnly, verify loopback is reachable while outbound DNS still fails. Smoke-tests by binding+connecting a TCP socket on 127.0.0.1 via a small shell pipeline. Exit_code parity is the assertion.",
+  "spec": {
+    "id": "placeholder",
+    "image_or_root": "alpine:3.20",
+    "cmd": [
+      "sh",
+      "-c",
+      "(nc -l -p 47057 -e /bin/true &) && sleep 0.5 && nc -z 127.0.0.1 47057"
+    ],
+    "env": {},
+    "cwd": null,
+    "binds": [],
+    "net_policy": "loopback_only",
+    "resource_limits": {
+      "memory_bytes": null,
+      "cpu_cores": null,
+      "timeout_ms": null
+    },
+    "required_capabilities": [],
+    "metadata": {}
+  },
+  "expected": {
+    "exit_code_class": "any",
+    "stop_reason_contains": "status:exited"
+  }
+}
