@@ -1573,6 +1573,6 @@
     "wp_validator_gate": "DISABLED"
   },
   "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "next_id": "MT-095",
-  "next_id_note": "MT-094 is READY_FOR_VALIDATION with supporting KvCachePanel React TSX (Svelte->TSX contract drift recorded), app/src/lib/ipc/kv_cache.ts IPC binding (out-of-scope, operator waiver), 10/10 focused vitest + 73/73 full suite + tsc clean. MT-095 is next claimable. None of MT-090..MT-094 must be marked COMPLETED until a fresh Integration Validator reviews them."
+  "next_id": "MT-096",
+  "next_id_note": "MT-095 is READY_FOR_VALIDATION with BLAKE3 keyed-hash replay-resistance binding (per-process key, derive_id static, from_derived constructor, verify_derived_against validator). 8/8 security tests + 5/5 model_runtime_kv_cache regression + 9/9 kv_cache_technique regression. STRICTLY CONTRACT-SCOPED — first MT this session with zero out-of-scope edits. MT-096 is next claimable. None of MT-090..MT-095 must be marked COMPLETED until a fresh Integration Validator reviews them."
 }
