@@ -41,10 +41,16 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-MODEL-CAP-DECL"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": ["MT-109", "MT-110"],
-    "blocks": []
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-23T00:30:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-23T00:40:00Z",
+    "perf_eval_scaffold_note": "Perf eval test functions are env-gated on HANDSHAKE_TEST_GGUF_PATH + HANDSHAKE_TEST_DRAFT_GGUF_PATH; on hosts without those fixtures, the tests skip via let-else with descriptive eprintln. The 1.1x speedup + 30% accept_rate gates are documented in the test file and the MT-111 contract; the full eval methodology (32 prompts, fixed seed, statistical stability across runs) is staged in a follow-on perf-tuning MT — this commit lands the scaffold + skip-discipline + EAGLE-3 upgrade-hook contract tests."
   },
   "handoff": {
     "coder_session": null,

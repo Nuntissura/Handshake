@@ -1573,6 +1573,6 @@
     "wp_validator_gate": "DISABLED"
   },
   "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "next_id": "MT-111",
-  "next_id_note": "MT-110 is READY_FOR_VALIDATION with INF-8 self-speculative UI knob (SpeculativeDecodingPanel React TSX + speculative.ts IPC binding + specModeOptions capability cascade + Eagle3 always-visible-deferred). 9/9 vitest + tsc clean + 82/82 full suite. Bundled MT-109's deferred Tauri IPC layer (commands/speculative.rs + lib.rs registration + SpeculativeModeOverrides state) as dependency unblock work — 2/2 Tauri tests pass. MT-111 is next PENDING. None of MT-090..MT-095 + MT-057 + MT-058 + MT-109 + MT-110 must be marked COMPLETED until a fresh Integration Validator reviews them."
+  "next_id": "MT-112",
+  "next_id_note": "MT-111 is READY_FOR_VALIDATION with EAGLE-3 upgrade-hook stub (single-source-of-truth const EAGLE3_AVAILABLE=false + EAGLE3_UPSTREAM_PR_URL + eagle3_decode typed PendingUpstream error) + perf eval scaffold (env-gated on HANDSHAKE_TEST_GGUF_PATH + HANDSHAKE_TEST_DRAFT_GGUF_PATH). 4/4 always-on contract tests + 3/3 lib tests + 2 env-gated tests correctly ignored. STRICTLY CONTRACT-SCOPED owned files (eagle3_hook.rs + inf8_spec_perf_eval.rs); llama_cpp/mod.rs mod declaration is the same defect class as the techniques/mod.rs touches in MT-093/058/109. MT-112 is next PENDING. None of MT-090..MT-095 + MT-057 + MT-058 + MT-109 + MT-110 + MT-111 must be marked COMPLETED until a fresh Integration Validator reviews them."
 }
