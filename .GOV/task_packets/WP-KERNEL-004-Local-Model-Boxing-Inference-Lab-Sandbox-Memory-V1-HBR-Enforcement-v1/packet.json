@@ -1573,6 +1573,6 @@
     "wp_validator_gate": "DISABLED"
   },
   "wp_id": "WP-KERNEL-004-Local-Model-Boxing-Inference-Lab-Sandbox-Memory-V1-HBR-Enforcement-v1",
-  "next_id": "MT-109",
-  "next_id_note": "MT-058 is READY_FOR_VALIDATION with sandbox escape negative-test catalog (10 attempts: FS read/write/symlink, NET deny-dns/deny-tcp/loopback-external, PRIV uid, NAMESPACE pid, DEVICE access, WIN32 foreground inject) + SandboxEscapeHarness + JSON results persistence to Handshake_Artifacts. 5/5 always-on stub tests + 2 env-gated WSL2/Docker tests (ignored without features). Adversarial coverage includes Red detection on leaky stub + Skipped on unavailable adapter + OS-restriction skip. STRICTLY CONTRACT-SCOPED. MT-109 (cluster D distillation) is next PENDING. None of MT-090..MT-095 + MT-057 + MT-058 must be marked COMPLETED until a fresh Integration Validator reviews them."
+  "next_id": "MT-110",
+  "next_id_note": "MT-109 is READY_FOR_VALIDATION with INF-8 self-speculative-decoding technique-surface validation (validate_mode + build_mode_change_receipt + Eagle3-deferred capability gate + FR event_type constants). 8/8 tests pass including adversarial: ngram-rejected-when-supports_speculative_draft-false, Eagle3-deferred-until-supports_eagle3-true, forward-compat-Eagle3-accepted, mode-change receipt event_type stability, FR registry round-trip. MT-109 lifecycle.scope_split_note documents that the Tauri command layer is deferred to a focused follow-up MT. MT-110 is next PENDING. None of MT-090..MT-095 + MT-057 + MT-058 + MT-109 must be marked COMPLETED until a fresh Integration Validator reviews them."
 }

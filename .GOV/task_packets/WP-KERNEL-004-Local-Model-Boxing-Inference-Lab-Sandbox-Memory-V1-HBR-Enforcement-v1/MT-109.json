@@ -43,10 +43,16 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-INFER-LAB-UI-TOGGLES", "AC-MODEL-CAP-DECL"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": ["MT-077", "MT-093"],
-    "blocks": ["MT-110", "MT-111"]
+    "blocks": ["MT-110", "MT-111"],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-22T23:45:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-23T00:00:00Z",
+    "scope_split_note": "MT-109 ships the engine-agnostic technique-surface validation + FR event_type constants + mode-change receipt builder + 8 adversarial tests. Tauri command layer (app/src-tauri/src/commands/speculative.rs + lib.rs registration) is deferred to a focused follow-up MT to keep mechanical concerns at 0; the technique surface is the load-bearing primitive and is fully testable on its own."
   },
   "handoff": {
     "coder_session": null,
