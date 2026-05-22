@@ -43,13 +43,52 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-UI-TOGGLES"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": ["MT-068", "MT-112"],
-    "blocks": []
+    "blocks": [],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-23T01:45:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-23T01:55:00Z",
+    "implementation_record": {
+      "ipc_binding": "app/src/lib/ipc/subquadratic.ts (135 lines): camelCase DTOs for 6 IPC channels + SUBQUAD_VARIANT_LABELS",
+      "panel_component": "app/src/components/inference_lab/SubquadraticPanel.tsx (140 lines): supportsSubquadratic capability gate, variant badge, Work Profile opt-out checkbox (settings.ui.show_subquadratic_panel via localStorage)",
+      "controls_component": "app/src/components/inference_lab/StateVectorControls.tsx (245 lines): commit input, restore/persist/rehydrate buttons, occupancy display, evict-all with confirm dialog, MT-117 deferral banner",
+      "test_file": "app/src/components/inference_lab/SubquadraticPanel.test.tsx (10 tests PASS)",
+      "registration": "InferenceLab.tsx + index.ts updated (1 import + 1 export + 1 panel slot each — same pattern as MT-091 LoraStackComposer + MT-094 KvCachePanel + MT-110 SpeculativeDecodingPanel)",
+      "svelte_to_tsx_drift": "Owned files contract listed SubquadraticPanel.svelte + StateVectorControls.svelte + stores/subquadratic.ts; app stack is React/TSX so files landed as .tsx + lib/ipc/subquadratic.ts. Same defect class as MT-091/094/098/102/105/110/112.",
+      "variant_detection_decision": "LoadedModelRuntime does not yet carry the SSM variant (the variant-aware loader is a follow-on MT alongside MT-112). The panel accepts an optional `variant?: SubquadVariant` prop and falls back to 'Subquadratic (variant detection pending)' when unset. InferenceLab.tsx passes no variant for now; will plumb through once the IPC schema extends.",
+      "work_profile_opt_out": "settings.ui.show_subquadratic_panel persisted via localStorage as the interim store (Work Profile IPC bridge is a separate MT). 'false' = panel hidden even on capable models. Toggle visible in the panel header. Default 'true' (visible) for capable models.",
+      "test_results": {
+        "vitest_subquadratic_panel": "10 tests PASS — capability gate (3), variant badge (2), opt-out toggle, commit/restore round-trip, empty-token rejection, MT-117 persist deferral banner, MT-117 rehydrate deferral banner, evict-all confirm cancellation"
+      },
+      "out_of_scope_self_evaluation": {
+        "edits_made": [
+          {
+            "file": "app/src/components/inference_lab/InferenceLab.tsx",
+            "change": "+1 import line + 4-line panel registration block (matches the exact pattern of MT-091/094/110 panel registrations)",
+            "why_unavoidable": "Without the registration the new SubquadraticPanel is never rendered. Same defect class as previous UI MTs.",
+            "operator_waiver_status": "PENDING_OPERATOR_REVIEW"
+          },
+          {
+            "file": "app/src/components/inference_lab/index.ts",
+            "change": "+1 export line",
+            "why_unavoidable": "The barrel file exports inference_lab panels; the new panel needs to appear there for parity with the other panels.",
+            "operator_waiver_status": "PENDING_OPERATOR_REVIEW"
+          }
+        ],
+        "edits_avoided": [
+          "Variant lookup IPC (LoadedModelRuntime.variant): deferred to a follow-on MT alongside the variant-aware loader. Panel renders 'variant detection pending' fallback for honest UX without an IPC migration here.",
+          "Work Profile IPC bridge (settings.ui.show_subquadratic_panel): localStorage interim store. The proper Work Profile IPC is a separate MT track.",
+          "MT-117 disk persistence: persist/rehydrate buttons wired to the deferred IPC channels with friendly tooltip banners rather than backend error strings. Buttons activate the moment MT-117 ships."
+        ]
+      }
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260522-171100",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
