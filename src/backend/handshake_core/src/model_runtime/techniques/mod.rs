@@ -6,3 +6,4 @@ pub mod refusal_metrics;
 pub mod refusal_vector;
 pub mod speculative_decoding;
 pub mod steering_vector_store;
+pub mod subquadratic;

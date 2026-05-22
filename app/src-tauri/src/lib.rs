@@ -30,6 +30,7 @@ mod commands {
     pub mod session_distill;
     pub mod speculative;
     pub mod steering;
+    pub mod subquadratic;
     #[cfg(test)]
     pub mod testing;
 }
@@ -77,6 +78,12 @@ macro_rules! handshake_invoke_handlers {
             commands::speculative::kernel_model_runtime_spec_set_mode,
             commands::speculative::kernel_model_runtime_spec_get_mode,
             commands::speculative::kernel_model_runtime_spec_validate,
+            commands::subquadratic::kernel_model_runtime_subquad_state_commit,
+            commands::subquadratic::kernel_model_runtime_subquad_state_restore,
+            commands::subquadratic::kernel_model_runtime_subquad_state_list,
+            commands::subquadratic::kernel_model_runtime_subquad_state_evict_all,
+            commands::subquadratic::kernel_model_runtime_subquad_persist,
+            commands::subquadratic::kernel_model_runtime_subquad_rehydrate,
             commands::memory_capsule::kernel_memory_capsule_list_recent,
             commands::memory_capsule::kernel_memory_capsule_get,
             commands::memory_capsule::kernel_memory_capsule_suppress_item,
@@ -159,6 +166,12 @@ macro_rules! handshake_invoke_handlers {
             commands::speculative::kernel_model_runtime_spec_set_mode,
             commands::speculative::kernel_model_runtime_spec_get_mode,
             commands::speculative::kernel_model_runtime_spec_validate,
+            commands::subquadratic::kernel_model_runtime_subquad_state_commit,
+            commands::subquadratic::kernel_model_runtime_subquad_state_restore,
+            commands::subquadratic::kernel_model_runtime_subquad_state_list,
+            commands::subquadratic::kernel_model_runtime_subquad_state_evict_all,
+            commands::subquadratic::kernel_model_runtime_subquad_persist,
+            commands::subquadratic::kernel_model_runtime_subquad_rehydrate,
             commands::memory_capsule::kernel_memory_capsule_list_recent,
             commands::memory_capsule::kernel_memory_capsule_get,
             commands::memory_capsule::kernel_memory_capsule_suppress_item,
