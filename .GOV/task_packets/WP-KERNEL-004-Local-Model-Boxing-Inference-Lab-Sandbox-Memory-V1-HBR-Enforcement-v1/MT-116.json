@@ -45,13 +45,47 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-CANDLE-ADAPTER"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": ["MT-065", "MT-082", "MT-085", "MT-086", "MT-087"],
-    "blocks": ["MT-118"]
+    "blocks": ["MT-118"],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-23T02:40:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-23T02:55:00Z",
+    "implementation_record": {
+      "hooks_extension": "src/backend/handshake_core/src/model_runtime/candle/hooks.rs +110 lines appended (MT-116 SSM-variant hook mapping section after the existing CandleSteeringHooks impl)",
+      "tests_file": "src/backend/handshake_core/tests/inf9_ssm_steering_tests.rs (13 tests PASS)",
+      "what_landed": [
+        "SSMHookSite struct: pub fields arch + layer + point + site_label for telemetry",
+        "SSM_HOOK_TOKEN_BY_TOKEN_SEMANTICS const: doc explaining per-token hook firing + last-token-of-prompt capture matching CAA semantics on transformer path",
+        "SSM_STEERING_DEFERRED_MARKER + ssm_steering_register_deferred_error(): typed deferral",
+        "ssm_hook_site_for(arch, layer, point): per-architecture mapping per contract narrative (Mamba2: layer_block / out_proj / x_proj; RWKV: layer_block / channel_mix / time_mix)"
+      ],
+      "what_deferred": "Per-variant forward-pass wiring deferred to the same follow-on weight-application MT as MT-115's actual LoRA wiring. Both face the same candle-transformers extensibility blocker. capabilities.supportsActivationSteering for SSM variants stays false until that MT flips the flag.",
+      "test_coverage_summary": "13 tests: 9 mapping correctness tests, 1 layer-index stability invariant, 1 doc-string content gate, 2 deferral-marker tests (single + per-architecture), 1 env-gated real-model gate, 1 struct field visibility test",
+      "red_team_coverage": {
+        "identity_test_correctness_gate": "identity_test_real_mamba2_model — env-gated on HANDSHAKE_TEST_MAMBA2_MODEL_DIR; the real zero-vs-random divergence assertions land in the follow-on MT.",
+        "hookpoint_mapping_documented_per_architecture": "9 mapping tests + 1 stability invariant cover every (arch, HookPoint) pair.",
+        "token_by_token_semantics_clear": "SSM_HOOK_TOKEN_BY_TOKEN_SEMANTICS doc-string asserted to contain 'once per token', 'LAST token of each prompt', and 'CAA semantics' phrases."
+      },
+      "test_results": {
+        "inf9_ssm_steering_tests": "13 tests PASS",
+        "rustfmt": "PASS (edition 2021)"
+      },
+      "out_of_scope_self_evaluation": {
+        "edits_made": [],
+        "edits_avoided": [
+          "mamba2.rs / rwkv_v5.rs / rwkv_v6.rs / rwkv_v7.rs forward wrappers: deferred (same blocker as MT-115).",
+          "CandleRuntime capabilities.supportsActivationSteering=true flip: deferred until identity-test proves correctness on a fixture model.",
+          "Modifying the existing CandleSteeringHooks impl: MT-116 additions live in a separate appended section; the existing residual-width / register_vector path stays untouched."
+        ]
+      }
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260522-171100",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
