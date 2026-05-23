@@ -45,13 +45,70 @@
   "acceptance_criteria_refs": ["AC-INFER-LAB-8-TECHNIQUES", "AC-CANDLE-ADAPTER", "AC-MODEL-CAP-DECL"],
   "lifecycle": {
     "active": false,
-    "status": "PENDING",
+    "status": "READY_FOR_VALIDATION",
     "validator_verdict": "PENDING",
+    "integration_validator_verdict": "PENDING",
     "depends_on": ["MT-064", "MT-084", "MT-085", "MT-086", "MT-087"],
-    "blocks": ["MT-118"]
+    "blocks": ["MT-118"],
+    "claimed_by": "KERNEL_BUILDER-20260522-171100",
+    "claimed_at_utc": "2026-05-23T02:20:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260522-171100",
+    "ready_for_validation_at_utc": "2026-05-23T02:35:00Z",
+    "implementation_record": {
+      "ssm_lora_file": "src/backend/handshake_core/src/model_runtime/candle/ssm_lora.rs (180 lines)",
+      "tests_file": "src/backend/handshake_core/tests/inf9_ssm_lora_tests.rs (14 tests PASS)",
+      "what_landed": [
+        "SSMArchitectureTag enum: Mamba2 / RwkvV5 / RwkvV6 / RwkvV7 (serde snake_case)",
+        "MAMBA2_VALID_TARGET_MODULES const: ['in_proj', 'x_proj', 'dt_proj', 'out_proj'] — Linear projections only; SSM A/D/conv parameters intentionally excluded (scalar/diagonal structure, unsuitable PEFT targets)",
+        "RWKV_VALID_TARGET_MODULES const: time_mix.* + channel_mix.* Linear-projection family (key/value/receptance/output)",
+        "validate_target_modules_for_architecture(): rejects foreign-architecture names, empty lists, whitespace-only entries; accepts exact-name + per-layer-indexed form (module.{N}.weight) for RWKV families",
+        "SSM_LORA_PEFT_FORMULA: single-source-of-truth doc string ('y = base.forward(x) + scaling * strength * (B @ (A @ x)); scaling = lora_alpha / rank')",
+        "SSM_LORA_MOUNT_DEFERRED_MARKER + ssm_lora_mount_deferred_error(): typed deferral for the actual weight-application path"
+      ],
+      "what_deferred": "The mount/unmount path that threads the LoRA delta through each variant's candle forward pass is deferred to a follow-on MT. Today candle-transformers Mamba2 / RWKV model wrappers don't expose hookable weight slots, so applying y = base + scaling * strength * (B @ (A @ x)) per Linear requires either (a) forking candle-transformers, (b) adding a hook layer, or (c) re-implementing the SSM forward path in Handshake. All three are substantial scope; the follow-on MT will pick the path after researching candle's wrapper extensibility. capabilities.supports_lora stays false for SSM variants until that MT lands and flips the flag — same scaffold-then-flip pattern as MT-111's EAGLE-3 upgrade hook.",
+      "test_coverage": [
+        "mamba2_accepts_exact_target_module_names",
+        "mamba2_rejects_rwkv_target_module_names",
+        "mamba2_rejects_attention_target_module_names",
+        "mamba2_rejects_empty_target_modules",
+        "mamba2_rejects_whitespace_only_module_name",
+        "rwkv_v5_accepts_exact_target_module_names",
+        "rwkv_v5_accepts_per_layer_indexed_form (time_mix.{N}.key.weight etc.)",
+        "rwkv_v5_rejects_mamba2_target_module_names",
+        "rwkv_v5_rejects_non_numeric_layer_index",
+        "rwkv_v6_and_v7_share_rwkv_module_list",
+        "architecture_tag_serializes_to_snake_case_strings",
+        "peft_formula_is_documented_and_uniform_with_transformer_path",
+        "mount_deferral_marker_returns_typed_capability_error",
+        "mount_deferral_marker_carries_per_architecture_adapter_tag"
+      ],
+      "red_team_coverage": {
+        "architecture_tag_validation_enforced": "11 validation tests across the 4 architectures plus the empty/whitespace/non-numeric-index edge cases.",
+        "per_architecture_target_module_name_list_explicit": "MAMBA2_VALID_TARGET_MODULES + RWKV_VALID_TARGET_MODULES are pub const slices; tests assert per-architecture acceptance + cross-architecture rejection."
+      },
+      "test_results": {
+        "inf9_ssm_lora_tests": "14 tests PASS",
+        "rustfmt": "PASS (formatted ssm_lora.rs + inf9_ssm_lora_tests.rs)"
+      },
+      "out_of_scope_self_evaluation": {
+        "edits_made": [
+          {
+            "file": "src/backend/handshake_core/src/model_runtime/candle/mod.rs",
+            "change": "+1 line ('pub mod ssm_lora;')",
+            "why_unavoidable": "Without the declaration the new ssm_lora.rs module is not part of the candle crate surface. Same defect class as MT-093/109/112 (single-line mod.rs registration).",
+            "operator_waiver_status": "PENDING_OPERATOR_REVIEW"
+          }
+        ],
+        "edits_avoided": [
+          "lora.rs LoraDescriptor.architecture field addition: the MT-115 contract mentions adding ArchitectureTag to LoraDescriptor, but the public lora.rs surface is not in MT-115 owned_files. Deferred to the follow-on weight-application MT that already needs to touch the mount path.",
+          "mamba2.rs / rwkv_v5.rs / rwkv_v6.rs / rwkv_v7.rs forward-wrapper edits: deferred per the what_deferred section. Touching these would require the candle-wrapper hook research first.",
+          "CandleRuntime capabilities.supports_lora=true flip: deferred until the weight-application MT proves end-to-end deterministic output divergence on a fixture LoRA. Setting it true here would be dishonest signalling."
+        ]
+      }
+    }
   },
   "handoff": {
-    "coder_session": null,
+    "coder_session": "KERNEL_BUILDER-20260522-171100",
     "wp_validator_session": null,
     "review_request_receipt_id": null,
     "review_response_receipt_id": null
