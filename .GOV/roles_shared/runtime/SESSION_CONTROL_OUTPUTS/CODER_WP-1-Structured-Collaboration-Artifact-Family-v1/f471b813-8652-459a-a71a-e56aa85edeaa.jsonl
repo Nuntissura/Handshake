@@ -1,4 +1,0 @@
-{"type":"thread.started","thread_id":"019ce466-8794-7c20-90ba-3dd39fb18887"}
-{"type":"turn.started"}
-{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Role locked to `CODER`.\n\nSend the `WP`/task packet or the concrete change to implement, and I’ll work within coder-only responsibilities."}}
-{"type":"turn.completed","usage":{"input_tokens":13115,"cached_input_tokens":2560,"output_tokens":247}}

@@ -1,6 +1,0 @@
-{"timestamp":"2026-03-14T00:43:04.692Z","type":"control.requested","session_id":"CODER:WP-1-Structured-Collaboration-Schema-Registry-v1","command_id":"c8987bc8-2f34-4857-8b6f-5f22fdf08b0f","command_kind":"START_SESSION"}
-{"timestamp":"2026-03-14T00:43:10.813Z","type":"thread.started","thread_id":"019ce9cc-1030-7b43-aec4-e7f06825f3bb"}
-{"timestamp":"2026-03-14T00:43:11.401Z","type":"turn.started"}
-{"timestamp":"2026-03-14T00:43:14.841Z","type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"CODER role locked. I’ll stay within coder scope and the repo guardrails in `AGENTS.md`.\n\nSend the WP task or the concrete change you want implemented in this worktree."}}
-{"timestamp":"2026-03-14T00:43:14.945Z","type":"turn.completed","usage":{"input_tokens":13463,"cached_input_tokens":3456,"output_tokens":196}}
-{"timestamp":"2026-03-14T00:43:15.227Z","type":"process.closed","exit_code":0}

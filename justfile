@@ -9,11 +9,12 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"
 GOV_ROOT := env_var_or_default('HANDSHAKE_GOV_ROOT', '.GOV')
 
 # External build/test artifacts (Cargo target dir) MUST live outside the repo working tree.
-CARGO_TARGET_DIR := "../Handshake_Artifacts/handshake-cargo-target"
+ARTIFACT_ROOT := env_var_or_default('HANDSHAKE_ARTIFACTS_ROOT', env_var_or_default('HANDSHAKE_ARTIFACT_ROOT', '../Handshake_Artifacts'))
+CARGO_TARGET_DIR := "{{ARTIFACT_ROOT}}/handshake-cargo-target"
 
 # Command-receipt artifact root for governance recipes wrapped with
 # `handshake command receipt run`. Stable filenames are produced via `--slug`.
-COMMAND_RECEIPT_ROOT := "../Handshake_Artifacts/handshake-product/command-receipts"
+COMMAND_RECEIPT_ROOT := "{{ARTIFACT_ROOT}}/handshake-product/command-receipts"
 
 dev: preflight-ollama
 	node -e "const {execFileSync}=require('child_process'); const path=require('path'); const repo=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim(); const cargoTarget=path.resolve(repo,'{{CARGO_TARGET_DIR}}'); execFileSync('pnpm',['-C','app','run','tauri','dev'],{stdio:'inherit', env:{...process.env, CARGO_TARGET_DIR:cargoTarget}});"

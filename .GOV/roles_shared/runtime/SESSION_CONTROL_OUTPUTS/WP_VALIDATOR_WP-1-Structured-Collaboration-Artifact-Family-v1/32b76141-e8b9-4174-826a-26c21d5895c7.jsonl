@@ -1,3 +1,0 @@
-{"timestamp":"2026-03-13T01:53:58.984Z","type":"control.requested","session_id":"WP_VALIDATOR:WP-1-Structured-Collaboration-Artifact-Family-v1","command_id":"32b76141-e8b9-4174-826a-26c21d5895c7","command_kind":"SEND_PROMPT"}
-{"timestamp":"2026-03-13T01:54:01.230Z","type":"control.cancel_requested","run_id":"32b76141-e8b9-4174-826a-26c21d5895c7","session_id":"WP_VALIDATOR:WP-1-Structured-Collaboration-Artifact-Family-v1"}
-{"timestamp":"2026-03-13T01:54:02.422Z","type":"process.closed","exit_code":1}

@@ -1,2 +1,0 @@
-{"timestamp":"2026-03-14T21:45:26.976Z","type":"control.cancel.command_requested","session_id":"CODER:WP-1-Structured-Collaboration-Schema-Registry-v1","command_id":"0cdffc27-d908-498f-8b9c-7defd33536ff","target_command_id":"f851682f-cfad-4aee-b1e5-6f0b66da86ad"}
-{"timestamp":"2026-03-14T21:45:28.122Z","type":"control.cancel_requested","run_id":"f851682f-cfad-4aee-b1e5-6f0b66da86ad","session_id":"CODER:WP-1-Structured-Collaboration-Schema-Registry-v1","target_command_id":"f851682f-cfad-4aee-b1e5-6f0b66da86ad"}

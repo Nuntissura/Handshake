@@ -1,6 +1,0 @@
-{"timestamp":"2026-03-13T01:54:13.538Z","type":"control.requested","session_id":"WP_VALIDATOR:WP-1-Structured-Collaboration-Artifact-Family-v1","command_id":"9d0d2d5a-18b9-4add-919f-ee15793aaf17","command_kind":"SEND_PROMPT"}
-{"timestamp":"2026-03-13T01:54:17.319Z","type":"thread.started","thread_id":"019ce468-8c58-74e3-aab1-9483731e01e3"}
-{"timestamp":"2026-03-13T01:54:17.878Z","type":"turn.started"}
-{"timestamp":"2026-03-13T01:54:19.835Z","type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"post-cancel-ok"}}
-{"timestamp":"2026-03-13T01:54:19.997Z","type":"turn.completed","usage":{"input_tokens":972638,"cached_input_tokens":790400,"output_tokens":7948}}
-{"timestamp":"2026-03-13T01:54:20.254Z","type":"process.closed","exit_code":0}
