@@ -2,6 +2,12 @@
 target/
 /target/
 src/**/target/
+Handshake_Artifacts/
+**/Handshake_Artifacts/
+handshake-cargo-target/
+**/handshake-cargo-target/
+wp-kernel-*-test-runs/
+**/wp-kernel-*-test-runs/
 
 # Build artifacts (Node)
 node_modules/
