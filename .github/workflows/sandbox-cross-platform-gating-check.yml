@@ -1,0 +1,74 @@
+name: Sandbox Cross-Platform Gating Check
+
+# Hardening guard for the Windows native jail sandbox adapter tests.
+#
+# Root cause this job protects against:
+#   A KERNEL_BUILDER test once asserted
+#   `WINDOWS_NATIVE_JAIL_BACKEND_APPROVED == true` unconditionally. The
+#   constant is `cfg!(all(target_os = "windows", feature =
+#   "win-native-integration"))` -- false on Linux/macOS, and false on
+#   Windows without the feature. The assertion would have failed on any
+#   non-Windows CI run, but no non-Windows CI run existed for that test
+#   target, so the gating regression was invisible.
+#
+# Hardening fix:
+#   The test was split into:
+#     1. A structural always-on test (Cargo.toml / Cargo.lock / source-file
+#        confinement) that passes on all platforms.
+#     2. A Windows+feature gated test that asserts the boolean only when
+#        BOTH target_os = "windows" AND feature = "win-native-integration"
+#        hold.
+#     3. A non-Windows gated counterpart asserting `try_new()` returns the
+#        typed `AdapterUnavailable` error when the adapter cannot be
+#        constructed.
+#
+# This job runs the same test target on ubuntu-latest WITHOUT the
+# `win-native-integration` feature and WITHOUT `--target`. It confirms:
+#   (a) Structural confinement test passes platform-independently.
+#   (b) Non-Windows gated typed-error test passes.
+#   (c) Windows+feature gated tests are correctly excluded by cfg gates.
+#
+# If a future change re-introduces an unconditional Windows-only
+# assertion, this job will fail on Ubuntu and the regression is caught
+# before it lands on a release branch.
+
+on:
+  push:
+    branches:
+      - main
+      - gov_kernel
+  pull_request:
+
+permissions:
+  contents: read
+
+# Note: this workflow does not set CARGO_TARGET_DIR. The test step uses
+# an explicit `--target-dir ../Handshake_Artifacts/handshake-cargo-target`
+# (underscore, matching the justfile artifact-root convention in
+# [CX-212E]). The existing ci.yml uses a different (space-containing)
+# artifacts path via env; this job keeps the operator-specified
+# underscore path on the command line to stay consistent with `just`
+# recipe usage and not mix with ci.yml's env-driven path.
+
+jobs:
+  sandbox-cross-platform-gating-check:
+    name: Sandbox cross-platform gating check (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run windows_native_jail_adapter_tests on Linux (no feature)
+        # Intentionally NO --target flag and NO --features
+        # win-native-integration. This runs the test target with the
+        # ambient target_os = "linux" and the default feature set so the
+        # cfg-gated tests select the non-Windows branches.
+        run: >-
+          cargo test
+          --manifest-path src/backend/handshake_core/Cargo.toml
+          -p handshake_core
+          --test windows_native_jail_adapter_tests
+          --target-dir ../Handshake_Artifacts/handshake-cargo-target
