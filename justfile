@@ -13,6 +13,12 @@ gov-check *FLAGS="":
 	just docs-check
 	$mainRoot = (& node "{{GOV_ROOT}}/roles_shared/scripts/topology/resolve-protected-worktree.mjs" handshake_main --path-only); if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $env:HANDSHAKE_ACTIVE_REPO_ROOT=(Resolve-Path $mainRoot).Path; $env:HANDSHAKE_GOV_ROOT=(Resolve-Path "{{GOV_ROOT}}").Path; node "{{GOV_ROOT}}/roles_shared/checks/gov-check.mjs" {{FLAGS}}
 
+gov-staged-index-survey:
+	node "{{GOV_ROOT}}/roles_shared/scripts/lib/startup-index-staleness-check.mjs"
+
+gov-mt-packet-scope-alignment-check *FLAGS="":
+	node "{{GOV_ROOT}}/roles_shared/checks/mt-packet-scope-alignment-check.mjs" {{FLAGS}}
+
 canonise-gov:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/checks/canonise-gov.mjs"
 
@@ -320,6 +326,9 @@ kernel-builder-startup:
 	@echo 'WP_DETAIL_STANDARD: massive WPs are allowed only when their packets and MTs are no-context implementable.'
 	@echo 'RESET_BRIEF: .GOV/operator/docs_local/handshake-v2-kernel-reset-brief.md'
 	@echo 'REPO_TIMEZONE: Europe/Brussels for human-facing governance timestamps; ACP/session ledgers remain UTC.'
+
+kb-ready-checklist wp-id mt-id *FLAGS="":
+	node "{{GOV_ROOT}}/roles/kernel_builder/scripts/kb-ready-checklist.mjs" {{wp-id}} {{mt-id}} {{FLAGS}}
 
 classic-orchestrator-startup:
 	@just protocol-ack "{{GOV_ROOT}}/codex/Handshake_Codex_v1.4.md" "{{MAIN_ROOT}}/AGENTS.md" "{{GOV_ROOT}}/roles_shared/docs/TOOLING_GUARDRAILS.md" "{{GOV_ROOT}}/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md"

@@ -421,6 +421,39 @@ One-line operator-quotable test: *"an MT is not done when the implementer's test
 
 Origin: introduced 2026-05-20 after a kernel_builder session shipped 27 MTs whose `lifecycle.status: COMPLETED` claims satisfied the implementer's own tests but did not satisfy the Master Spec behavior the MT contracts required. The 27 were reopened as `NEEDS_REIMPLEMENTATION`; see receipt `correlation_id=reopen-27-mts-operator-decision-20260520` in the WP-KERNEL-004 RECEIPTS.jsonl.
 
+## Ready-for-Validation Self-Review (mandatory before READY_FOR_VALIDATION)
+
+Every `CLAIMED -> READY_FOR_VALIDATION` transition this role performs MUST be preceded by a successful `KB_READY_CHECKLIST_RECEIPT` written into the WP communications directory. The receipt is structural proof that the Spec-Realism Gate self-check was actually performed — not asserted in chat.
+
+Run the rubric with:
+
+```text
+just kb-ready-checklist <WP_ID> <MT_ID>
+```
+
+Headless / ACP sessions without a TTY use the two-call JSON path:
+
+```text
+just kb-ready-checklist <WP_ID> <MT_ID> --json > skeleton.json
+# fill in answers + explanations
+cat skeleton.json | node .GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs <WP_ID> <MT_ID> --json --emit
+```
+
+The rubric covers six items and ALL must clear before the receipt records `overall_verdict=PASS`:
+
+- **RC-001 No stale reasons.** Error messages, reason strings, and `lifecycle.*_reason` fields reflect current state — no leftover references to prior MT IDs, prior remediator session keys, or superseded approval records.
+- **RC-002 No dead code.** Every `pub struct` / `pub fn` / `pub enum` / `pub trait` / `pub const` declared in `owned_files` is referenced outside its declaring file, or is an intentional public-API export.
+- **RC-003 cfg-gated tests gate correctly.** Every `#[test]` / `#[tokio::test]` in the MT's owned tests gates intentionally — platform/feature-specific assertions are gated, default-CI assertions are not.
+- **RC-004 Cross-platform CI still passes.** `cargo check` (or project equivalent) ran cleanly for at least one non-target platform, or a CI run URL is attached.
+- **RC-005 Proof commands pass.** Every `proof_commands` entry in the MT contract has been executed and returned exit-0, with at least one command touching the real external resource named by the contract (per Spec-Realism Gate sub-rule 2).
+- **RC-006 Implementer cannot self-certify.** `lifecycle.claimed_by != lifecycle.completed_by` (Spec-Realism Gate sub-rule 3).
+
+Any item answered `no` MUST carry a non-empty `explanation`; an unexplained `no` blocks receipt emission. An emitted receipt with `overall_verdict=BLOCKED` MUST be remediated before the MT transitions to `READY_FOR_VALIDATION`.
+
+Receipt location: `<governance_runtime_root>/roles_shared/WP_COMMUNICATIONS/<WP_ID>/KB_READY_CHECKLIST_RECEIPTS.jsonl`. Schema authority: `.GOV/roles_shared/schemas/KB_READY_CHECKLIST_RECEIPT.schema.json`.
+
+Origin: introduced 2026-05-26 after MT-046-REMEDIATOR shipped READY_FOR_VALIDATION with three latent defects (stale `"MT-045 has not approved a backend"` error string, unconditional `WINDOWS_NATIVE_JAIL_BACKEND_APPROVED` assertion breaking cross-platform CI, unused `WindowsNativeJobHandle` struct) that the validator caught but the implementer should have. The rubric exists so the implementer answers these six questions structurally before the validator has to.
+
 ## Scope and Session Discipline (mandatory)
 
 This role MUST NOT make scope or session-capacity decisions unilaterally. Scope belongs to the Operator. The five rules below are absolute.

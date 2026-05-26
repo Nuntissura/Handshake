@@ -159,6 +159,27 @@ function Write-StartupWarning {
   Write-Output "ASSISTANT_ACTION: read and obey ROLE STARTUP PROMPT plus REQUIRED BINDING CONTRACT FILES; treat this warning as startup state context."
 }
 
+function Invoke-StagedIndexStalenessCheck {
+  $checkScript = Join-Path $repoRoot ".GOV\roles_shared\scripts\lib\startup-index-staleness-check.mjs"
+  Write-Section "STAGED-INDEX STALENESS CHECK"
+  Write-Output "Purpose: surface any files left in git's staging area by a prior session so they are not silently swept into the next commit."
+  Write-Output "Informational only: this check never blocks startup."
+  Write-Output ""
+  if (-not (Test-Path -LiteralPath $checkScript)) {
+    Write-Output ("staged-index: skipped (missing helper: {0})" -f $checkScript)
+    return
+  }
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    & node $checkScript 2>&1 | ForEach-Object { Write-Output $_ }
+  } catch {
+    Write-Output ("staged-index: skipped (check threw: {0})" -f $_.Exception.Message)
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+}
+
 function Show-Help {
   Write-Output ("Usage: {0} [--print] [--no-startup] [--no-authority-files] [--brief] [--help]" -f $commandName)
   Write-Output ""
@@ -319,6 +340,8 @@ if (-not $brief) {
   Write-Output "This command is model/provider agnostic. It does not start Codex, Claude, ChatGPT, or any other model process."
   Write-Output "The launcher emits the active role startup prompt; models should use the emitted block and not inspect the prompt source."
 }
+
+Invoke-StagedIndexStalenessCheck
 
 Write-AuthorityContract
 
