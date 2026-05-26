@@ -1,0 +1,117 @@
+{
+  "name": "default-net-noexec-bind-override",
+  "job": {
+    "job_id": "VALJOB-K003-003",
+    "image_or_root": "docker.io/library/alpine:3.20",
+    "cmd": ["sh", "-c", "cat /readonly/input.txt >/tmp/out.txt"],
+    "env": {
+      "FIXTURE_KIND": "noexec"
+    },
+    "cwd": "/workspace",
+    "binds": [
+      {
+        "host_path": "fixtures/kernel003/read-only",
+        "guest_path": "/readonly",
+        "mode": "no_exec"
+      }
+    ],
+    "net_policy": null,
+    "resource_limits": {
+      "memory_bytes": 67108864,
+      "cpu_cores": 1,
+      "timeout_ms": 15000
+    },
+    "required_capabilities": [],
+    "work_profile_override": "wsl2_podman",
+    "metadata": {
+      "shape": "default_net_noexec_bind_override",
+      "source": "kernel_003_migration"
+    }
+  },
+  "expected_process_spec": {
+    "id": "validation-job:VALJOB-K003-003",
+    "image_or_root": "docker.io/library/alpine:3.20",
+    "cmd": ["sh", "-c", "cat /readonly/input.txt >/tmp/out.txt"],
+    "env": {
+      "FIXTURE_KIND": "noexec"
+    },
+    "cwd": "/workspace",
+    "binds": [
+      {
+        "host_path": "fixtures/kernel003/read-only",
+        "guest_path": "/readonly",
+        "mode": "no_exec"
+      }
+    ],
+    "net_policy": "deny_all",
+    "resource_limits": {
+      "memory_bytes": 67108864,
+      "cpu_cores": 1,
+      "timeout_ms": 15000
+    },
+    "required_capabilities": [],
+    "metadata": {
+      "shape": "default_net_noexec_bind_override",
+      "source": "kernel_003_migration",
+      "validation_job_id": "VALJOB-K003-003",
+      "validation_lane": "model_written_code",
+      "work_profile_override": "wsl2_podman"
+    }
+  },
+  "expected_docker_args": [
+    "run",
+    "-d",
+    "--name",
+    "hsk-k003-migration",
+    "--read-only",
+    "--tmpfs",
+    "/tmp:rw,noexec,nosuid,nodev,mode=1777",
+    "--pids-limit",
+    "4096",
+    "--network",
+    "none",
+    "-w",
+    "/workspace",
+    "-e",
+    "FIXTURE_KIND=noexec",
+    "-v",
+    "fixtures/kernel003/read-only:/readonly:ro,noexec",
+    "--memory",
+    "67108864",
+    "--cpus",
+    "1",
+    "docker.io/library/alpine:3.20",
+    "sh",
+    "-c",
+    "cat /readonly/input.txt >/tmp/out.txt"
+  ],
+  "expected_podman_args": [
+    "--remote=false",
+    "run",
+    "-d",
+    "--userns",
+    "keep-id",
+    "--read-only",
+    "--tmpfs",
+    "/tmp:rw,noexec,nosuid,nodev,mode=1777",
+    "--pids-limit",
+    "4096",
+    "--network",
+    "none",
+    "-w",
+    "/workspace",
+    "-e",
+    "FIXTURE_KIND=noexec",
+    "-v",
+    "fixtures/kernel003/read-only:/readonly:ro,noexec",
+    "--memory",
+    "67108864",
+    "--cpus",
+    "1",
+    "docker.io/library/alpine:3.20",
+    "sh",
+    "-c",
+    "cat /readonly/input.txt >/tmp/out.txt"
+  ],
+  "candidate_artifact_id": "ART-K003-MIGRATION-003"
+}
