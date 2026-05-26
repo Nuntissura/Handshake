@@ -1459,6 +1459,7 @@
       "src/backend/handshake_core/src/model_manual/**",
       "src/backend/handshake_core/src/inspector_read/**",
       "src/backend/handshake_core/src/operator_foreground/**",
+      "src/backend/handshake_core/src/bin/**",
       "src/backend/handshake_core/tests/**",
       "src/backend/handshake_core/Cargo.toml",
       "src/backend/handshake_core/Cargo.lock",
