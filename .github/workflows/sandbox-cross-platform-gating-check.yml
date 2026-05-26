@@ -32,7 +32,10 @@ name: Sandbox Cross-Platform Gating Check
 # assertion, this job will fail on Ubuntu and the regression is caught
 # before it lands on a release branch.
 
-on:
+# Note: `on:` is quoted to avoid YAML 1.1 boolean-key trap
+# (some linters/parsers interpret `on:` as `True:`). GitHub Actions
+# accepts both forms; the quoted form keeps yamllint / actionlint happy.
+"on":
   push:
     branches:
       - main
