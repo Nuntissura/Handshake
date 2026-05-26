@@ -49,6 +49,39 @@
     "mt_contract_path": {
       "type": "string"
     },
+    "product_worktree_root_resolution": {
+      "description": "Resolution record for the cross-worktree product root used by owned-file auto-findings (RC-002/RC-003/RC-005). Populated by `kb-ready-checklist.mjs::resolveProductWorktreeRoot`. Source values: `env` (HANDSHAKE_PRODUCT_WORKTREE_ROOT was set and existed), `git-worktree-list` (auto-discovered via `git worktree list --porcelain` by WP-ID stem), or `fallback-repo-root` (no match; using the gov_kernel repo root and degrading auto-findings).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "source"],
+      "properties": {
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "enum": ["env", "git-worktree-list", "fallback-repo-root", "unknown"]
+        },
+        "env_var": {
+          "type": "string"
+        },
+        "matched_basename": {
+          "type": "string"
+        },
+        "matched_stem": {
+          "type": "string"
+        },
+        "other_candidates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
     "summary": {
       "type": "string",
       "minLength": 1

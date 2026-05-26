@@ -67,6 +67,8 @@ const SCHEMA_ID = "hsk.kb_ready_checklist_receipt@1";
 const SCHEMA_VERSION = "kb_ready_checklist_receipt_v1";
 const RECEIPT_KIND = "KB_READY_CHECKLIST_RECEIPT";
 
+const PRODUCT_WORKTREE_ROOT_ENV_VAR = "HANDSHAKE_PRODUCT_WORKTREE_ROOT";
+
 const RUBRIC = [
   {
     id: "RC-001-NO-STALE-REASONS",
@@ -101,7 +103,7 @@ const RUBRIC = [
   {
     id: "RC-006-IMPLEMENTER-NOT-SELF-CERTIFYING",
     question:
-      "Is lifecycle.claimed_by != lifecycle.completed_by (the implementer is NOT the actor that will mark the MT COMPLETED)? Per Spec-Realism Gate sub-rule 3, the implementer transitions CLAIMED -> READY_FOR_VALIDATION; the validator role transitions READY_FOR_VALIDATION -> COMPLETED.",
+      "At the READY_FOR_VALIDATION boundary, is lifecycle.claimed_by set AND lifecycle.completed_by unset/empty/null? Per Spec-Realism Gate sub-rule 3, the implementer transitions CLAIMED -> READY_FOR_VALIDATION; only the validator role transitions READY_FOR_VALIDATION -> COMPLETED. A non-empty completed_by at this boundary means the implementer is fast-forwarding through validator review.",
     auto: deriveSelfCertFindings,
   },
 ];
@@ -154,22 +156,219 @@ function resolveMtContractPath(wpId, mtId) {
   };
 }
 
+// --- Cross-worktree product root resolution ---------------------------------
+//
+// MT contracts for kernel-build WPs declare owned_files as paths relative to
+// the WP-declared product worktree (e.g. `wtc-kernel-004-fold-v1`). When this
+// script runs from the gov_kernel worktree (`wt-gov-kernel`), resolving those
+// paths against the local REPO_ROOT yields "file not found" for every Rust
+// owned file. The auto-finders for RC-002/RC-003/RC-005 then degrade to noise.
+//
+// Resolution order:
+//   1. `HANDSHAKE_PRODUCT_WORKTREE_ROOT` env var — operator/kbstart-set
+//      explicit override. Returned with source="env".
+//   2. `git worktree list --porcelain` discovery — pick the worktree whose
+//      basename matches a lenient WP-ID-stem pattern derived from the WP-ID.
+//      For WP-KERNEL-004-...-v1 the stem is `kernel-004` and we look for any
+//      basename starting with `wtc-kernel-004`. We are deliberately lenient
+//      because operator naming varies; if multiple candidates match we pick
+//      the most-recently-modified by directory mtime.
+//   3. Fallback to REPO_ROOT. Source="fallback-repo-root". The per-item
+//      auto-finding lines downstream surface the fallback explicitly so the
+//      operator knows how to fix it.
+//
+// The full resolution {root, source, note} is also attached to the receipt
+// under `product_worktree_root_resolution` for audit by the validator role.
+
+function deriveWpIdStem(wpId) {
+  // "WP-KERNEL-004-Local-Model-Boxing-...-v1" -> "kernel-004"
+  // "WP-INF-9-something" -> "inf-9"
+  // Conservative: lowercase, strip leading "WP-", take the first two tokens
+  // that look like a project tag + numeric/series id. Falls back to the first
+  // 1-3 hyphen-delimited tokens.
+  const cleaned = String(wpId || "").trim();
+  if (!cleaned) return "";
+  const lowered = cleaned.toLowerCase();
+  const withoutPrefix = lowered.startsWith("wp-") ? lowered.slice(3) : lowered;
+  const tokens = withoutPrefix.split("-").filter(Boolean);
+  if (tokens.length === 0) return "";
+  // First token is the project/area tag. Second token is the numeric series ID
+  // when present. Anything beyond is the descriptive title and is dropped.
+  if (tokens.length === 1) return tokens[0];
+  const second = tokens[1];
+  if (/^[0-9]+$/.test(second) || /^[0-9]+[a-z]?$/.test(second)) {
+    return `${tokens[0]}-${second}`;
+  }
+  return tokens[0];
+}
+
+function runGitWorktreeList(repoRoot) {
+  try {
+    const out = execFileSync("git", ["worktree", "list", "--porcelain"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return String(out || "");
+  } catch {
+    return "";
+  }
+}
+
+function parseGitWorktreeListPorcelain(raw) {
+  const entries = [];
+  const lines = String(raw || "").split(/\r?\n/);
+  let current = null;
+  const flush = () => {
+    if (current?.worktree) entries.push(current);
+    current = null;
+  };
+  for (const line of lines) {
+    if (!line.trim()) {
+      flush();
+      continue;
+    }
+    if (line.startsWith("worktree ")) {
+      flush();
+      current = { worktree: line.slice("worktree ".length).trim(), branch: "" };
+      continue;
+    }
+    if (!current) continue;
+    if (line.startsWith("branch ")) {
+      current.branch = line.slice("branch ".length).trim();
+    }
+  }
+  flush();
+  return entries;
+}
+
+function safeStatMtimeMs(absPath) {
+  try {
+    return fs.statSync(absPath).mtimeMs || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function resolveProductWorktreeRoot(repoRoot, wpId) {
+  const repoRootAbs = path.resolve(String(repoRoot || ""));
+
+  // 1. Env var override.
+  const envValue = String(process.env[PRODUCT_WORKTREE_ROOT_ENV_VAR] || "").trim();
+  if (envValue) {
+    const candidate = path.resolve(envValue);
+    if (fs.existsSync(candidate)) {
+      return {
+        root: candidate,
+        source: "env",
+        env_var: PRODUCT_WORKTREE_ROOT_ENV_VAR,
+        note: `Using product worktree root from ${PRODUCT_WORKTREE_ROOT_ENV_VAR}=${normalizePath(candidate)}.`,
+      };
+    }
+    return {
+      root: repoRootAbs,
+      source: "fallback-repo-root",
+      env_var: PRODUCT_WORKTREE_ROOT_ENV_VAR,
+      note: `${PRODUCT_WORKTREE_ROOT_ENV_VAR} is set to '${envValue}' but that path does not exist; falling back to repo root ${normalizePath(repoRootAbs)}.`,
+    };
+  }
+
+  // 2. Auto-discover via git worktree list --porcelain.
+  const stem = deriveWpIdStem(wpId);
+  if (stem) {
+    const entries = parseGitWorktreeListPorcelain(runGitWorktreeList(repoRootAbs));
+    const candidates = [];
+    for (const entry of entries) {
+      const wtAbs = path.resolve(entry.worktree);
+      if (path.resolve(wtAbs) === repoRootAbs) continue; // skip self
+      const base = path.basename(wtAbs).toLowerCase();
+      const matchesPrimary = base.startsWith(`wtc-${stem}`);
+      const matchesContainsWp = base.startsWith("wtc-") && base.includes(stem);
+      if (matchesPrimary || matchesContainsWp) {
+        candidates.push({
+          root: wtAbs,
+          base,
+          mtimeMs: safeStatMtimeMs(wtAbs),
+          branch: entry.branch || "",
+        });
+      }
+    }
+    if (candidates.length > 0) {
+      // Prefer most-recently-modified to be lenient about operator naming.
+      candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+      const chosen = candidates[0];
+      const others = candidates.slice(1).map((c) => normalizePath(c.root));
+      return {
+        root: chosen.root,
+        source: "git-worktree-list",
+        env_var: PRODUCT_WORKTREE_ROOT_ENV_VAR,
+        matched_basename: chosen.base,
+        matched_stem: stem,
+        other_candidates: others,
+        note: `Auto-discovered product worktree '${normalizePath(chosen.root)}' via git worktree list (basename matched stem '${stem}').`,
+      };
+    }
+  }
+
+  // 3. Fall back to REPO_ROOT and surface the gap.
+  return {
+    root: repoRootAbs,
+    source: "fallback-repo-root",
+    env_var: PRODUCT_WORKTREE_ROOT_ENV_VAR,
+    matched_stem: stem || "",
+    note: `No product worktree matched WP-ID stem '${stem}' under git worktree list, and ${PRODUCT_WORKTREE_ROOT_ENV_VAR} is unset. Set ${PRODUCT_WORKTREE_ROOT_ENV_VAR} or create a 'wtc-${stem || "<wp-stem>"}*' worktree to enable cross-worktree owned-file auto-findings. Falling back to repo root ${normalizePath(repoRootAbs)}.`,
+  };
+}
+
+// Module-level resolution state populated by main() before any auto-finder
+// runs. Tests may call resolveProductWorktreeRoot directly without touching
+// this state.
+let PRODUCT_WORKTREE_RESOLUTION = {
+  root: REPO_ROOT,
+  source: "fallback-repo-root",
+  env_var: PRODUCT_WORKTREE_ROOT_ENV_VAR,
+  note: "Default (not yet initialised by main()).",
+};
+
+function setProductWorktreeResolution(resolution) {
+  PRODUCT_WORKTREE_RESOLUTION = resolution;
+}
+
 function resolveOwnedFileAbs(ownedFilePath) {
   const raw = String(ownedFilePath || "").trim();
   if (!raw) return "";
   if (path.isAbsolute(raw)) return path.resolve(raw);
-  // owned_files paths are repo-relative or workspace-relative (e.g. "../handshake_main/src/...")
-  return path.resolve(REPO_ROOT, raw);
+  // owned_files paths are product-worktree-relative (e.g. "src/backend/...").
+  // Resolve against the configured product worktree root rather than the
+  // gov_kernel REPO_ROOT so this script works cross-worktree.
+  const base = PRODUCT_WORKTREE_RESOLUTION?.root || REPO_ROOT;
+  return path.resolve(base, raw);
 }
 
 function readOwnedFileText(ownedFilePath) {
   const absPath = resolveOwnedFileAbs(ownedFilePath);
-  if (!absPath || !fs.existsSync(absPath)) return { absPath, text: "", missing: true };
+  if (!absPath || !fs.existsSync(absPath)) {
+    return { absPath, text: "", missing: true };
+  }
   try {
     return { absPath, text: fs.readFileSync(absPath, "utf8"), missing: false };
   } catch (err) {
     return { absPath, text: "", missing: true, error: err?.message || String(err) };
   }
+}
+
+function ownedFileMissingFinding(owned, absPath) {
+  const resolution = PRODUCT_WORKTREE_RESOLUTION || {};
+  const rootDisplay = normalizePath(resolution.root || REPO_ROOT);
+  const absDisplay = normalizePath(absPath);
+  if (resolution.source === "fallback-repo-root") {
+    return (
+      `${owned}: file not found at ${absDisplay}; product worktree resolution is fallback-repo-root `
+      + `(${rootDisplay}). Set ${PRODUCT_WORKTREE_ROOT_ENV_VAR} or create a `
+      + `wtc-* worktree matching the WP-ID to enable this auto-finding.`
+    );
+  }
+  return `${owned}: file not found at ${absDisplay} (product worktree root: ${rootDisplay}, source=${resolution.source}). Confirm the owned_files path before answering.`;
 }
 
 // --- Auto-finding derivations --------------------------------------------------
@@ -234,21 +433,22 @@ function listPubItemsInFile(text) {
 }
 
 function gitGrepCount(pattern, includeGlobs, excludeAbsPath) {
-  // Use `git grep -F` for fixed-string match across the active worktree.
-  // Falls back to "unknown" (-1) if git is unavailable.
+  // Use `git grep -F` for fixed-string match across the active product
+  // worktree. Falls back to "unknown" (-1) if git is unavailable.
+  const cwd = PRODUCT_WORKTREE_RESOLUTION?.root || REPO_ROOT;
   try {
     const args = ["grep", "-F", "-l", "--", pattern];
     for (const glob of includeGlobs) {
       args.push(":(glob)" + glob);
     }
     const out = execFileSync("git", args, {
-      cwd: REPO_ROOT,
+      cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
     const files = out ? out.split(/\r?\n/).filter(Boolean) : [];
     const externalFiles = files.filter((file) => {
-      const fileAbs = path.resolve(REPO_ROOT, file);
+      const fileAbs = path.resolve(cwd, file);
       return excludeAbsPath ? path.resolve(fileAbs) !== path.resolve(excludeAbsPath) : true;
     });
     return externalFiles.length;
@@ -268,7 +468,7 @@ function deriveDeadCodeFindings(contract) {
   for (const owned of rustOwned) {
     const { absPath, text, missing } = readOwnedFileText(owned);
     if (missing) {
-      findings.push(`${owned}: file not found at ${normalizePath(path.relative(REPO_ROOT, absPath))} — confirm path before answering.`);
+      findings.push(ownedFileMissingFinding(owned, absPath));
       continue;
     }
     const items = listPubItemsInFile(text);
@@ -300,9 +500,9 @@ function deriveTestGateFindings(contract) {
     return findings;
   }
   for (const owned of testFiles) {
-    const { text, missing } = readOwnedFileText(owned);
+    const { absPath, text, missing } = readOwnedFileText(owned);
     if (missing) {
-      findings.push(`${owned}: file not found; confirm path.`);
+      findings.push(ownedFileMissingFinding(owned, absPath));
       continue;
     }
     const lines = text.split(/\r?\n/);
@@ -346,24 +546,62 @@ function deriveProofCommandFindings(contract) {
     findings.push("MT contract declares NO proof_commands. Confirm the MT genuinely has no executable proof and the validator focus does not require runtime evidence.");
     return findings;
   }
+  const resolution = PRODUCT_WORKTREE_RESOLUTION || {};
+  const rootDisplay = normalizePath(resolution.root || REPO_ROOT);
+  findings.push(`proof_commands must be executed from the product worktree (${rootDisplay}, source=${resolution.source || "unknown"}). Manifest-path arguments in the commands below are product-worktree-relative.`);
   for (const cmd of proofCommands) {
     findings.push(`proof_command: ${cmd}`);
+  }
+  // Surface any product-worktree-relative file paths in the commands and
+  // whether they actually exist under the resolved root. This catches the
+  // common case where the commands reference a manifest or test file that
+  // is not present in the active product worktree.
+  const referencedPaths = new Set();
+  for (const cmd of proofCommands) {
+    const matches = String(cmd || "").match(/(?:^|\s)((?:src|app|tests|crates|app-tauri|backend)\/[A-Za-z0-9_\-./]+)/g);
+    if (!matches) continue;
+    for (const m of matches) referencedPaths.add(m.trim());
+  }
+  for (const ref of referencedPaths) {
+    const abs = resolveOwnedFileAbs(ref);
+    if (abs && fs.existsSync(abs)) {
+      findings.push(`referenced path '${ref}' resolves to ${normalizePath(abs)} (exists).`);
+    } else {
+      findings.push(ownedFileMissingFinding(ref, abs));
+    }
   }
   findings.push("This script does not execute proof_commands. Run each command before answering and reference the output (artifact path or last 5 lines) in the explanation.");
   return findings;
 }
 
 function deriveSelfCertFindings(contract) {
+  // RC-006 invariant at the READY_FOR_VALIDATION boundary:
+  //   - lifecycle.claimed_by MUST be set (the implementer claimed the MT);
+  //   - lifecycle.completed_by MUST be unset / empty / null (only the validator
+  //     role writes that field on transition to COMPLETED).
+  //
+  // A non-empty completed_by at READY_FOR_VALIDATION is a hard violation —
+  // it means the implementer is fast-forwarding past validator review. The
+  // earlier "claimed_by != completed_by" check was a structural overclaim:
+  // it could only detect a violation AFTER COMPLETED was written, which is
+  // already too late.
   const findings = [];
   const lifecycle = contract?.lifecycle || {};
   const claimedBy = String(lifecycle.claimed_by || "").trim();
-  const completedBy = String(lifecycle.completed_by || "").trim();
+  const completedByRaw = lifecycle.completed_by;
+  const completedBy = completedByRaw === null || completedByRaw === undefined
+    ? ""
+    : String(completedByRaw).trim();
   findings.push(`lifecycle.claimed_by = ${claimedBy || "<empty>"}`);
-  findings.push(`lifecycle.completed_by = ${completedBy || "<empty>"}`);
-  if (claimedBy && completedBy && claimedBy === completedBy) {
-    findings.push("VIOLATION: claimed_by equals completed_by. Per Spec-Realism Gate sub-rule 3, the implementer cannot self-certify. Answer must be `no` and the MT lifecycle must be repaired before READY_FOR_VALIDATION.");
-  } else if (!completedBy) {
-    findings.push("completed_by is unset, which is correct at the READY_FOR_VALIDATION boundary; the validator role will populate it on transition to COMPLETED.");
+  findings.push(`lifecycle.completed_by = ${completedBy || "<empty/unset>"}`);
+  if (!claimedBy) {
+    findings.push("VIOLATION: lifecycle.claimed_by is empty. At the READY_FOR_VALIDATION boundary the implementer must be recorded as the claimant. Answer must be `no` and the MT lifecycle must be repaired before READY_FOR_VALIDATION.");
+  }
+  if (completedBy) {
+    findings.push(`VIOLATION: lifecycle.completed_by is set to '${completedBy}' at the READY_FOR_VALIDATION boundary. Only the validator role may write completed_by on transition to COMPLETED. This indicates the implementer is fast-forwarding through validator review. Answer must be \`no\` and the MT lifecycle must be repaired before READY_FOR_VALIDATION.`);
+  }
+  if (claimedBy && !completedBy) {
+    findings.push("INVARIANT OK: claimed_by is set and completed_by is unset/empty — correct shape at the READY_FOR_VALIDATION boundary.");
   }
   return findings;
 }
@@ -382,7 +620,20 @@ function buildAutoFindings(contract) {
   return map;
 }
 
-function buildSkeleton({ wpId, mtId, contract, mtContractPath, autoFindings }) {
+function buildProductWorktreeResolutionReceipt(resolution) {
+  const safe = resolution || PRODUCT_WORKTREE_RESOLUTION || {};
+  return {
+    root: normalizePath(safe.root || REPO_ROOT),
+    source: safe.source || "unknown",
+    env_var: safe.env_var || PRODUCT_WORKTREE_ROOT_ENV_VAR,
+    matched_basename: safe.matched_basename || "",
+    matched_stem: safe.matched_stem || "",
+    other_candidates: Array.isArray(safe.other_candidates) ? safe.other_candidates : [],
+    note: safe.note || "",
+  };
+}
+
+function buildSkeleton({ wpId, mtId, contract, mtContractPath, autoFindings, productWorktreeResolution }) {
   const nowIso = new Date().toISOString();
   return {
     schema_id: SCHEMA_ID,
@@ -394,6 +645,7 @@ function buildSkeleton({ wpId, mtId, contract, mtContractPath, autoFindings }) {
     actor_session: "FILL_IN_SESSION_KEY",
     generated_at_utc: nowIso,
     mt_contract_path: mtContractPath,
+    product_worktree_root_resolution: buildProductWorktreeResolutionReceipt(productWorktreeResolution),
     summary: "FILL_IN_ONE_LINE_SUMMARY",
     overall_verdict: "PASS",
     blockers: [],
@@ -413,13 +665,18 @@ async function promptOnce(rl, prompt) {
   return new Promise((resolve) => rl.question(prompt, (answer) => resolve(answer)));
 }
 
-async function runInteractive({ wpId, mtId, contract, mtContractPath, autoFindings }) {
+async function runInteractive({ wpId, mtId, contract, mtContractPath, autoFindings, productWorktreeResolution }) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
   try {
     console.log("");
     console.log(`Kernel Builder Ready-for-Validation Self-Review`);
     console.log(`WP: ${wpId}`);
     console.log(`MT: ${mtId} (${mtContractPath})`);
+    const resolution = productWorktreeResolution || PRODUCT_WORKTREE_RESOLUTION;
+    if (resolution) {
+      console.log(`Product worktree root: ${normalizePath(resolution.root)} (source=${resolution.source})`);
+      if (resolution.note) console.log(`  ${resolution.note}`);
+    }
     console.log("");
     const sessionKey = (await promptOnce(rl, "actor_session (e.g. KERNEL_BUILDER-20260526T1830Z): ")).trim();
     if (!sessionKey) fail("actor_session is required", [], wpId);
@@ -488,6 +745,7 @@ async function runInteractive({ wpId, mtId, contract, mtContractPath, autoFindin
       actor_session: sessionKey,
       generated_at_utc: new Date().toISOString(),
       mt_contract_path: mtContractPath,
+      product_worktree_root_resolution: buildProductWorktreeResolutionReceipt(productWorktreeResolution),
       summary,
       overall_verdict: blocked ? "BLOCKED" : "PASS",
       blockers,
@@ -576,10 +834,24 @@ async function main() {
 
   const { mtAbsPath, mtRelPath } = resolveMtContractPath(wpId, mtId);
   const contract = readJson(mtAbsPath);
+
+  // Resolve the cross-worktree product root BEFORE any auto-finder runs so
+  // owned-file path resolution (RC-002 / RC-003 / RC-005) targets the correct
+  // worktree. See resolveProductWorktreeRoot for the resolution order.
+  const productWorktreeResolution = resolveProductWorktreeRoot(REPO_ROOT, wpId);
+  setProductWorktreeResolution(productWorktreeResolution);
+
   const autoFindings = buildAutoFindings(contract);
 
   if (jsonMode && !emitMode) {
-    const skeleton = buildSkeleton({ wpId, mtId, contract, mtContractPath: mtRelPath, autoFindings });
+    const skeleton = buildSkeleton({
+      wpId,
+      mtId,
+      contract,
+      mtContractPath: mtRelPath,
+      autoFindings,
+      productWorktreeResolution,
+    });
     process.stdout.write(`${JSON.stringify(skeleton, null, 2)}\n`);
     process.exit(0);
   }
@@ -617,6 +889,7 @@ async function main() {
       actor_session: String(parsed.actor_session || "").trim(),
       generated_at_utc: new Date().toISOString(),
       mt_contract_path: mtRelPath,
+      product_worktree_root_resolution: buildProductWorktreeResolutionReceipt(productWorktreeResolution),
       summary: String(parsed.summary || "").trim(),
       overall_verdict: blockers.length > 0 ? "BLOCKED" : "PASS",
       blockers,
@@ -635,7 +908,14 @@ async function main() {
       "Emit:      cat filled.json | node .GOV/roles/kernel_builder/scripts/kb-ready-checklist.mjs WP-{ID} MT-{ID} --json --emit",
     ], wpId);
   }
-  const { receipt, blocked } = await runInteractive({ wpId, mtId, contract, mtContractPath: mtRelPath, autoFindings });
+  const { receipt, blocked } = await runInteractive({
+    wpId,
+    mtId,
+    contract,
+    mtContractPath: mtRelPath,
+    autoFindings,
+    productWorktreeResolution,
+  });
   const { relPath } = emitReceipt({ wpId, receipt });
   console.log("");
   console.log(`Receipt written: ${relPath}`);
@@ -647,6 +927,22 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  fail(err?.message || String(err), [err?.stack || ""]);
-});
+// Only auto-run main() when invoked directly as a script, not when imported
+// by tests (which need the exported helpers without triggering CLI parsing).
+const isEntryPoint = (() => {
+  try {
+    const entryArgv = process.argv[1];
+    if (!entryArgv) return false;
+    const entryAbs = path.resolve(entryArgv);
+    const selfAbs = path.resolve(fileURLToPath(import.meta.url));
+    return entryAbs === selfAbs;
+  } catch {
+    return false;
+  }
+})();
+
+if (isEntryPoint) {
+  main().catch((err) => {
+    fail(err?.message || String(err), [err?.stack || ""]);
+  });
+}

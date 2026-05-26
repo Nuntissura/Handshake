@@ -19,6 +19,9 @@ gov-staged-index-survey:
 gov-mt-packet-scope-alignment-check *FLAGS="":
 	node "{{GOV_ROOT}}/roles_shared/checks/mt-packet-scope-alignment-check.mjs" {{FLAGS}}
 
+gov-kb-ready-checklist-coverage-check *FLAGS="":
+	node "{{GOV_ROOT}}/roles_shared/checks/kb-ready-checklist-coverage-check.mjs" {{FLAGS}}
+
 canonise-gov:
 	@node "{{GOV_ROOT}}/roles_shared/scripts/checks/canonise-gov.mjs"
 

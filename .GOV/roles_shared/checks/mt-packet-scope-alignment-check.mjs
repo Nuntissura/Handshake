@@ -56,6 +56,7 @@ import {
   repoPathAbs,
 } from "../scripts/lib/runtime-paths.mjs";
 import { registerFailCaptureHook, captureFailure } from "../scripts/lib/fail-capture-lib.mjs";
+import { matchesScopeEntry } from "../scripts/lib/scope-surface-lib.mjs";
 
 registerFailCaptureHook("mt-packet-scope-alignment-check.mjs", { role: "SHARED" });
 
@@ -156,43 +157,16 @@ function normalizeGlobOrPath(value) {
     .replace(/^\/+/, "");
 }
 
-// Match a literal repo-relative file path against a glob from
-// scope.allowed_paths. Uses node:path.matchesGlob (Node 22+) when available
-// and falls back to a deterministic subset matcher that handles the patterns
-// actually present in this repo's packets (dir/**, dir/**/*, dir/*, and
-// literal path/to/file.ext). Mirrors the fallback shape already used by
-// .GOV/roles_shared/scripts/hbr-registry-loader.mjs.
+// Glob matching delegates to scope-surface-lib's matchesScopeEntry, the
+// same matcher used by wp-validator-mechanical-track.mjs. This guarantees
+// pre-commit (this check) and post-commit (mechanical-track) use identical
+// semantics — closes adversarial-review finding F-004 (semantic drift
+// across three matchers in the bespoke implementation).
 function fileMatchesGlob(filePath, pattern) {
   const candidate = normalizeGlobOrPath(filePath);
   const glob = normalizeGlobOrPath(pattern);
   if (!candidate || !glob) return false;
-
-  if (typeof path.matchesGlob === "function") {
-    try {
-      if (path.matchesGlob(candidate, glob)) return true;
-      // Fall through to the structural matcher so deep `**` is exercised too.
-    } catch {
-      // Fall through.
-    }
-  }
-
-  if (glob === candidate) return true;
-  if (glob.endsWith("/**")) {
-    const prefix = glob.slice(0, -3);
-    if (candidate === prefix) return true;
-    if (candidate.startsWith(`${prefix}/`)) return true;
-  }
-  if (glob.endsWith("/**/*")) {
-    const prefix = glob.slice(0, -5);
-    if (candidate.startsWith(`${prefix}/`)) return true;
-  }
-  if (glob.endsWith("/*")) {
-    const prefix = glob.slice(0, -2);
-    if (!candidate.startsWith(`${prefix}/`)) return false;
-    const tail = candidate.slice(prefix.length + 1);
-    if (!tail.includes("/")) return true;
-  }
-  return false;
+  return matchesScopeEntry(candidate, glob);
 }
 
 function arrayOfStrings(value) {

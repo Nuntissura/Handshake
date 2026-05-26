@@ -52,7 +52,7 @@ function resolveRepoRoot() {
     const out = execFileSync(
       "git",
       ["-C", fileRelativeRepoRoot, "rev-parse", "--show-toplevel"],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     ).trim();
     if (out) return out;
   } catch {
@@ -63,63 +63,90 @@ function resolveRepoRoot() {
 
 function runGit(repoRoot, args) {
   try {
-    return execFileSync("git", ["-C", repoRoot, ...args], {
+    const stdout = execFileSync("git", ["-C", repoRoot, ...args], {
       encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
+    return { ok: true, stdout, stderr: "" };
   } catch (error) {
-    return null;
+    const stderr = typeof error?.stderr === "string"
+      ? error.stderr
+      : (error?.stderr ? String(error.stderr) : "");
+    return { ok: false, stdout: "", stderr };
   }
+}
+
+function gitStdoutOrNull(result) {
+  return result && result.ok ? result.stdout : null;
 }
 
 function isInsideGitWorkTree(repoRoot) {
   if (!existsSync(repoRoot)) return false;
-  const out = runGit(repoRoot, ["rev-parse", "--is-inside-work-tree"]);
+  const out = gitStdoutOrNull(runGit(repoRoot, ["rev-parse", "--is-inside-work-tree"]));
   return typeof out === "string" && out.trim() === "true";
 }
 
-function parseNameStatus(text) {
-  // `git diff --cached --name-status -z` would be safer but we follow the
-  // task spec which calls for `--name-status`. Plain newline-tab parsing is
-  // sufficient for the informational view; pathological filenames are rare
-  // in this repo's governance lanes.
+function parseNameStatusNul(text) {
+  // Parse `git diff --cached --name-status -z` output.
+  //
+  // In `-z` mode every field is NUL-delimited (no embedded TABs), and the
+  // two record shapes are:
+  //
+  //   Normal (A/M/D/T/U):   "<STATUS>\0<PATH>\0"
+  //   Rename/Copy (R/C):    "<STATUS>\0<OLDPATH>\0<NEWPATH>\0"
+  //
+  // We peek the leading character of each status record to decide whether to
+  // consume 1 trailing path record (normal) or 2 trailing path records
+  // (rename/copy). This is robust against filenames containing TAB or NEWLINE,
+  // which the non-`-z` tab-delimited form mis-splits.
   const entries = [];
   if (!text) return entries;
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.replace(/\s+$/u, "");
-    if (!line) continue;
-    const cols = line.split("\t");
-    if (cols.length < 2) continue;
-    const status = cols[0];
-    // For R (rename) and C (copy), git emits: R100\told\tnew  (or C75\told\tnew)
-    const kind = status.charAt(0).toUpperCase();
-    let displayPath = "";
-    let extra = "";
-    if ((kind === "R" || kind === "C") && cols.length >= 3) {
-      displayPath = cols[2];
-      extra = `from ${cols[1]}`;
-    } else {
-      displayPath = cols[cols.length - 1];
+  const records = text.split("\0");
+  // A well-formed `-z` stream ends with a NUL, producing a trailing empty
+  // record; tolerate streams that don't.
+  let i = 0;
+  while (i < records.length) {
+    const status = records[i];
+    if (status === undefined || status === "") {
+      i += 1;
+      continue;
     }
+    const kind = status.charAt(0).toUpperCase();
+    if (kind === "R" || kind === "C") {
+      // Status, then oldpath, then newpath, each as its own NUL-delimited record.
+      const oldPath = records[i + 1] ?? "";
+      const newPath = records[i + 2] ?? "";
+      entries.push({
+        status,
+        kind,
+        path: newPath,
+        extra: oldPath ? `from ${oldPath}` : "",
+      });
+      i += 3;
+      continue;
+    }
+    // Normal: status record, then one path record.
+    const pathPart = records[i + 1] ?? "";
     entries.push({
       status,
       kind,
-      path: displayPath,
-      extra,
+      path: pathPart,
+      extra: "",
     });
+    i += 2;
   }
   return entries;
 }
 
 function lastCommitTouching(repoRoot, repoRelPath) {
   // `--` separates revision from path; quoting is handled by execFileSync.
-  const out = runGit(repoRoot, [
+  const out = gitStdoutOrNull(runGit(repoRoot, [
     "log",
     "-1",
     "--format=%h %s",
     "--",
     repoRelPath,
-  ]);
+  ]));
   if (!out) return "";
   return out.split(/\r?\n/u)[0].trim();
 }
@@ -180,17 +207,23 @@ export function runStartupIndexStalenessCheck({ repoRoot = resolveRepoRoot() } =
     return { ok: true, staged: 0, skipped: true };
   }
 
-  const nameStatus = runGit(absRepoRoot, ["diff", "--cached", "--name-status"]);
-  if (nameStatus === null) {
+  const nameStatusResult = runGit(absRepoRoot, ["diff", "--cached", "--name-status", "-z"]);
+  if (!nameStatusResult.ok) {
     // Best-effort capture; do NOT exit non-zero (informational only).
-    captureFailure(SCRIPT_NAME, "git diff --cached --name-status failed", {
+    const stderrRaw = (nameStatusResult.stderr || "").trim();
+    const stderrPreview = stderrRaw
+      ? stderrRaw.replace(/\s+/gu, " ").slice(0, 200)
+      : "";
+    captureFailure(SCRIPT_NAME, "git diff --cached --name-status -z failed", {
       role: process.env.ORCSTART_ROLE || "",
+      details: stderrPreview ? [`stderr: ${stderrPreview}`] : [],
     });
-    emitNonGit("git diff --cached failed");
+    const suffix = stderrPreview ? `: ${stderrPreview}` : "";
+    emitNonGit(`git diff --cached failed${suffix}`);
     return { ok: true, staged: 0, skipped: true };
   }
 
-  const entries = parseNameStatus(nameStatus);
+  const entries = parseNameStatusNul(nameStatusResult.stdout);
   if (entries.length === 0) {
     emitClean();
     return { ok: true, staged: 0, skipped: false };

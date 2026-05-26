@@ -78,6 +78,7 @@ const checkSteps = [
   ["validator-report-structure-check", "../../roles/validator/checks/validator-report-structure-check.mjs", "VALIDATION"],
   ["packet-truth-bundle-check", "./packet-truth-bundle-check.mjs", "WORK_PACKET"],
   ["mt-packet-scope-alignment-check", "./mt-packet-scope-alignment-check.mjs", "WORK_PACKET"],
+  ["kb-ready-checklist-coverage-check", "./kb-ready-checklist-coverage-check.mjs", "WORK_PACKET"],
   ["semantic-proof-check", "./semantic-proof-check.mjs", "GOVERNANCE_STRUCTURE"],
   ["computed-policy-gate-check", "./computed-policy-gate-check.mjs", "GOVERNANCE_STRUCTURE"],
   ["historical-smoketest-lineage-check", "./historical-smoketest-lineage-check.mjs", "AUDIT"],
