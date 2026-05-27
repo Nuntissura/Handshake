@@ -79,6 +79,7 @@
   - Do not use `governance` alone for product-code contract work.
   - Lead with the actual answer or finding in plain English. Use file paths and line anchors as evidence after the explanation, not instead of it, unless exact locations are the main point.
 - **Product Reference is navigation only:** `.GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md` is a quick-ref summary. All decisions, technical advice, and implementation guidance MUST be derived from the Master Spec (`SPEC_CURRENT.md`), never from the Product Reference [CX-403].
+- Product naming and product-surface claims MUST use only names and structures already present in the current Master Spec, active WP/MT contracts, product code, or Operator-provided design files; do not invent, rename, reframe, or introduce product names, feature names, module names, GUI surface names, workflow names, or taxonomy labels unless the Operator explicitly asks for naming work; if no canonical name is verified, describe the item generically and state that no canonical name has been verified.
 - Minimum verification for governance-only changes: `just gov-check`.
 - Use `.GOV/roles_shared/docs/GOVERNANCE_MAINTENANCE_WORKFLOW.md` for the no-WP governance record flow.
 - Governance-maintenance records:
